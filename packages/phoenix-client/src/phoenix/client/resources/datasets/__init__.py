@@ -1314,13 +1314,6 @@ class AsyncDatasets:
         records = response_data["data"]
         next_cursor = response_data.get("next_cursor")
 
-        # Parse datetime strings to datetime objects for consistency with other methods
-        for record in records:
-            if "created_at" in record:
-                record["created_at"] = _parse_datetime(record["created_at"])
-            if "updated_at" in record:
-                record["updated_at"] = _parse_datetime(record["updated_at"])
-
         return v1.ListDatasetsResponseBody(data=records, next_cursor=next_cursor)
 
     async def list(
