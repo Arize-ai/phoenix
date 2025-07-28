@@ -288,23 +288,6 @@
       ]
     },
     {
-      "name": "claude-3-sonnet-20240229",
-      "name_pattern": "claude-3-sonnet-20240229|anthropic\\.claude-3-sonnet-20240229-v1:0|claude-3-sonnet@20240229",
-      "source": "litellm",
-      "token_prices": [
-        {
-          "base_rate": 3e-6,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 0.000015,
-          "is_prompt": false,
-          "token_type": "output"
-        }
-      ]
-    },
-    {
       "name": "claude-4-opus-20250514",
       "name_pattern": "claude-4-opus-20250514",
       "source": "litellm",
@@ -543,6 +526,38 @@
       ]
     },
     {
+      "name": "gemini-2.0-flash-live-preview-04-09",
+      "name_pattern": "gemini-2\\.0-flash-live-preview-04-09",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gemini-2.0-flash-preview-image-generation",
       "name_pattern": "gemini-2\\.0-flash-preview-image-generation",
       "source": "litellm",
@@ -613,6 +628,33 @@
         },
         {
           "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-lite",
+      "name_pattern": "gemini-2\\.5-flash-lite",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -1909,6 +1951,38 @@
     {
       "name": "gpt-4o-realtime-preview-2024-12-17",
       "name_pattern": "gpt-4o-realtime-preview-2024-12-17",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.00008,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-realtime-preview-2025-06-03",
+      "name_pattern": "gpt-4o-realtime-preview-2025-06-03",
       "source": "litellm",
       "token_prices": [
         {
