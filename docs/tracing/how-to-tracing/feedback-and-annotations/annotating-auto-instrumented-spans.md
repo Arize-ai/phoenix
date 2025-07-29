@@ -146,4 +146,4 @@ with capture_span_context() as capture:
 ### Resources
 
 * [OpenInference](https://github.com/Arize-ai/openinference)
-* [Phoenix Client Documentation](../../../api-reference/phoenix-client.md)
+* [Phoenix Client Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/)
