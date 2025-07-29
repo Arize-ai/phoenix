@@ -133,8 +133,8 @@ class GoogleGenAIModel(BaseModel):
     ) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
-        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
-        response = self._async_rate_limited_completion(
+        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)
+        response = await self._async_rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
             config=config,
