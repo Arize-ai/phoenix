@@ -4,9 +4,8 @@ from typing import Any
 import pandas as pd
 from openai import OpenAI
 
-import phoenix as px
+from phoenix.client import Client
 from phoenix.evals.models import OpenAIModel
-from phoenix.experiments import run_experiment
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsAnyKeyword,
@@ -17,6 +16,7 @@ from phoenix.otel import register
 
 register(auto_instrument=True)
 
+phoenix_client = Client()
 contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 openai_client = OpenAI()
 
@@ -39,18 +39,17 @@ df = pd.DataFrame(
         },
     ]
 )
-phoenix_client = px.Client()
 dataset_name = "experiment-compare-dataset"
 try:
-    dataset = phoenix_client.upload_dataset(
-        dataset_name=dataset_name,
+    dataset = phoenix_client.datasets.create_dataset(
+        name=dataset_name,
         dataframe=df,
         input_keys=["question"],
         output_keys=["answer"],
         metadata_keys=["metadata"],
     )
 except Exception:
-    dataset = phoenix_client.get_dataset(name=dataset_name)
+    dataset = phoenix_client.datasets.get_dataset(dataset=dataset_name)
 
 
 def task(input: ExampleInput, template: str) -> str:
@@ -102,17 +101,17 @@ def accuracy(input: dict[str, Any], output: str, expected: dict[str, Any]) -> fl
 
 
 task_prompt_template = "Answer in a few words: {question}"
-experiment = run_experiment(
-    dataset,
-    partial(task, template=task_prompt_template),
+experiment = phoenix_client.experiments.run_experiment(
+    dataset=dataset,
+    task=partial(task, template=task_prompt_template),
     experiment_name="short-answer",
     evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
 )
 
-# task_prompt_template = "Answer verbosely: {question}"
-# experiment = run_experiment(
-#     dataset,
-#     partial(task, template=task_prompt_template),
-#     experiment_name="long-answer",
-#     evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
-# )
+task_prompt_template = "Answer verbosely: {question}"
+experiment = phoenix_client.experiments.run_experiment(
+    dataset=dataset,
+    task=partial(task, template=task_prompt_template),
+    experiment_name="long-answer",
+    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+)
