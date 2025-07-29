@@ -47,6 +47,11 @@ export function ExperimentCompareMetricsPage() {
           ... on Experiment {
             id
             averageRunLatencyMs
+            costSummary {
+              total {
+                tokens
+              }
+            }
           }
         }
         firstCompareExperiment: node(id: $firstCompareExperimentId)
@@ -54,6 +59,11 @@ export function ExperimentCompareMetricsPage() {
           ... on Experiment {
             id
             averageRunLatencyMs
+            costSummary {
+              total {
+                tokens
+              }
+            }
           }
         }
         secondCompareExperiment: node(id: $secondCompareExperimentId)
@@ -61,6 +71,11 @@ export function ExperimentCompareMetricsPage() {
           ... on Experiment {
             id
             averageRunLatencyMs
+            costSummary {
+              total {
+                tokens
+              }
+            }
           }
         }
         thirdCompareExperiment: node(id: $thirdCompareExperimentId)
@@ -68,6 +83,11 @@ export function ExperimentCompareMetricsPage() {
           ... on Experiment {
             id
             averageRunLatencyMs
+            costSummary {
+              total {
+                tokens
+              }
+            }
           }
         }
       }
@@ -201,30 +221,17 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCSS}>
-            <Flex direction="column" gap="size-200">
-              <Heading level={2}>Total Tokens</Heading>
-              <BaseExperimentMetric value={1000} />
-              <CompareExperimentMetric
-                value={1100}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={5}
-              />
-              <CompareExperimentMetric
-                value={900}
-                baselineValue={1000}
-                numImprovements={0}
-                numRegressions={10}
-              />
-              <CompareExperimentMetric
-                value={1200}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={0}
-              />
-            </Flex>
-          </div>
+          <TotalTokenCountMetricCard
+            baseExperimentTotalTokens={baseExperiment.costSummary?.total.tokens}
+            compareExperiments={compareExperiments.map((compareExperiments) => {
+              return {
+                id: compareExperiments.id as string,
+                totalTokens: compareExperiments.costSummary?.total.tokens,
+                numImprovements: 10,
+                numRegressions: 5,
+              };
+            })}
+          />
         </li>
         <li
           css={css`
@@ -377,6 +384,39 @@ function LatencyMetricCard({
             baselineValue={baseExperimentLatencyMs}
             numImprovements={compareExperiment.numLatencyMsImprovements}
             numRegressions={compareExperiment.numLatencyMsRegressions}
+          />
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
+type TotalTokenCountMetricCardProps = {
+  baseExperimentTotalTokens: number | null | undefined;
+  compareExperiments: {
+    id: string;
+    totalTokens: number | null | undefined;
+    numImprovements: number;
+    numRegressions: number;
+  }[];
+};
+
+function TotalTokenCountMetricCard({
+  baseExperimentTotalTokens,
+  compareExperiments,
+}: TotalTokenCountMetricCardProps) {
+  return (
+    <div css={metricCardCSS}>
+      <Flex direction="column" gap="size-200">
+        <Heading level={2}>Total Tokens</Heading>
+        <BaseExperimentMetric value={baseExperimentTotalTokens} />
+        {compareExperiments.map((compareExperiment) => (
+          <CompareExperimentMetric
+            key={compareExperiment.id}
+            value={compareExperiment.totalTokens}
+            baselineValue={baseExperimentTotalTokens}
+            numImprovements={compareExperiment.numImprovements}
+            numRegressions={compareExperiment.numRegressions}
           />
         ))}
       </Flex>

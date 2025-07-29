@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5bd16ed84dddfccad5e3abbed71c0e54>>
+ * @generated SignedSource<<4cb65253ba69ba1d2605924d12034636>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,18 +13,38 @@ import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
   readonly baseExperiment: {
     readonly averageRunLatencyMs?: number | null;
+    readonly costSummary?: {
+      readonly total: {
+        readonly tokens: number | null;
+      };
+    };
     readonly id?: string;
   };
   readonly firstCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
+    readonly costSummary?: {
+      readonly total: {
+        readonly tokens: number | null;
+      };
+    };
     readonly id?: string;
   };
   readonly secondCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
+    readonly costSummary?: {
+      readonly total: {
+        readonly tokens: number | null;
+      };
+    };
     readonly id?: string;
   };
   readonly thirdCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
+    readonly costSummary?: {
+      readonly total: {
+        readonly tokens: number | null;
+      };
+    };
     readonly id?: string;
   };
   readonly " $fragmentType": "ExperimentCompareMetricsPage_experiments";
@@ -51,6 +71,35 @@ var v0 = [
         "args": null,
         "kind": "ScalarField",
         "name": "averageRunLatencyMs",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "SpanCostSummary",
+        "kind": "LinkedField",
+        "name": "costSummary",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CostBreakdown",
+            "kind": "LinkedField",
+            "name": "total",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokens",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -191,6 +240,6 @@ return {
 };
 })();
 
-(node as any).hash = "a01b6e97c92920368c71375d442a41f0";
+(node as any).hash = "67de88fb339b83de04d7c0ae4d575973";
 
 export default node;

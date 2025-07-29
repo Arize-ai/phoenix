@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<22a9aa54b8c9d9059cfcdac65bbb4dfd>>
+ * @generated SignedSource<<01e8bdee55fe0bdc92bed0b1e8456c4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -194,7 +194,30 @@ v23 = [
   {
     "kind": "InlineFragment",
     "selections": [
-      (v21/*: any*/)
+      (v21/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "SpanCostSummary",
+        "kind": "LinkedField",
+        "name": "costSummary",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CostBreakdown",
+            "kind": "LinkedField",
+            "name": "total",
+            "plural": false,
+            "selections": [
+              (v19/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
     ],
     "type": "Experiment",
     "abstractKey": null
@@ -885,12 +908,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8f9ffe8dc90ad9281ecc062f48f61c19",
+    "cacheID": "e15892ad34d8c48635b51abc49fd57b9",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $datasetId: ID!\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $hasBaselineExperimentId: Boolean!\n  $firstCompareExperimentId: ID!\n  $secondCompareExperimentId: ID!\n  $thirdCompareExperimentId: ID!\n  $hasFirstCompareExperiment: Boolean!\n  $hasSecondCompareExperiment: Boolean!\n  $hasThirdCompareExperiment: Boolean!\n  $isMetricsView: Boolean!\n) {\n  ...ExperimentCompareTable_comparisons_2O4hHE @include(if: $hasBaselineExperimentId)\n  ...ExperimentMultiSelector__data_3q3odj\n  ...ExperimentCompareMetricsPage_experiments_2q3g3z @include(if: $isMetricsView)\n}\n\nfragment ExperimentCompareMetricsPage_experiments_2q3g3z on Query {\n  baseExperiment: node(id: $baselineExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n    }\n    id\n  }\n  firstCompareExperiment: node(id: $firstCompareExperimentId) @include(if: $hasFirstCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n    }\n    id\n  }\n  secondCompareExperiment: node(id: $secondCompareExperimentId) @include(if: $hasSecondCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n    }\n    id\n  }\n  thirdCompareExperiment: node(id: $thirdCompareExperimentId) @include(if: $hasThirdCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n    }\n    id\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_2O4hHE on Query {\n  compareExperiments(first: 50, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__data_3q3odj on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baselineExperiment: node(id: $baselineExperimentId) @include(if: $hasBaselineExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n    }\n    id\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $datasetId: ID!\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $hasBaselineExperimentId: Boolean!\n  $firstCompareExperimentId: ID!\n  $secondCompareExperimentId: ID!\n  $thirdCompareExperimentId: ID!\n  $hasFirstCompareExperiment: Boolean!\n  $hasSecondCompareExperiment: Boolean!\n  $hasThirdCompareExperiment: Boolean!\n  $isMetricsView: Boolean!\n) {\n  ...ExperimentCompareTable_comparisons_2O4hHE @include(if: $hasBaselineExperimentId)\n  ...ExperimentMultiSelector__data_3q3odj\n  ...ExperimentCompareMetricsPage_experiments_2q3g3z @include(if: $isMetricsView)\n}\n\nfragment ExperimentCompareMetricsPage_experiments_2q3g3z on Query {\n  baseExperiment: node(id: $baselineExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n      costSummary {\n        total {\n          tokens\n        }\n      }\n    }\n    id\n  }\n  firstCompareExperiment: node(id: $firstCompareExperimentId) @include(if: $hasFirstCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n      costSummary {\n        total {\n          tokens\n        }\n      }\n    }\n    id\n  }\n  secondCompareExperiment: node(id: $secondCompareExperimentId) @include(if: $hasSecondCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n      costSummary {\n        total {\n          tokens\n        }\n      }\n    }\n    id\n  }\n  thirdCompareExperiment: node(id: $thirdCompareExperimentId) @include(if: $hasThirdCompareExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      averageRunLatencyMs\n      costSummary {\n        total {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_2O4hHE on Query {\n  compareExperiments(first: 50, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__data_3q3odj on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baselineExperiment: node(id: $baselineExperimentId) @include(if: $hasBaselineExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
