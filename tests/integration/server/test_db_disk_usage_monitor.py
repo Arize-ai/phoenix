@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from collections.abc import Iterator
 from secrets import token_bytes, token_hex
 from time import sleep
@@ -298,11 +299,15 @@ class TestDbDiskUsageMonitor:
         # Patch operations (updates) don't create new data but modify existing
         # records, so they should continue to work when insertions are blocked.
         # This allows administrators to update user settings and profiles.
-        for field in [
-            f'patchViewer(input:{{newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
-        ]:
-            query = "mutation{" + field + "}"
-            _gql(_app, access_token, query=query)
+        new_username = token_hex(8)
+        query = f'mutation{{patchViewer(input:{{newUsername:"{new_username}"}}){{user{{id username}}}}}}'
+        user = _gql(_app, access_token, query=query)[0]["data"]["patchViewer"]["user"]
+        assert user["username"] == new_username, "Username should be updated"
+        user_id = user["id"]
+        new_username2 = token_hex(8)
+        query = f'mutation{{patchUser(input:{{userId:"{user_id}",newUsername:"{new_username2}"}}){{user{{id username}}}}}}'
+        user = _gql(_app, access_token, query=query)[0]["data"]["patchUser"]["user"]
+        assert user["username"] == new_username2, "Username should be updated"
 
         # ========================================================================
         # Verify GraphQL query is not blocked
