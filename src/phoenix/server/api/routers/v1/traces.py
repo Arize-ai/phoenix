@@ -256,25 +256,11 @@ async def delete_trace(
     and avoids orphaned spans or inconsistent cached cumulative fields.
     """
     async with request.app.state.db() as session:
-        # Find the trace to delete
-        trace_stmt = select(models.Trace.id, models.Trace.project_rowid).where(
-            models.Trace.trace_id == trace_id
-        )
-
-        trace_result = await session.execute(trace_stmt)
-        trace_data = trace_result.first()
-
-        if not trace_data:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Trace with trace_id '{trace_id}' not found",
-            )
-
-        trace_row_id, project_id = trace_data
-
-        # Delete the trace (CASCADE will delete all spans automatically)
+        # Delete the trace directly and get project_id for cache invalidation
         delete_stmt = (
-            delete(models.Trace).where(models.Trace.id == trace_row_id).returning(models.Trace.id)
+            delete(models.Trace)
+            .where(models.Trace.trace_id == trace_id)
+            .returning(models.Trace.id, models.Trace.project_rowid)
         )
 
         deleted_trace = await session.execute(delete_stmt)
@@ -283,14 +269,13 @@ async def delete_trace(
         if not deleted_trace_result:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=f"Failed to delete trace with trace_id '{trace_id}'",
+                detail=f"Trace with trace_id '{trace_id}' not found",
             )
 
-        # Commit the transaction
-        await session.commit()
+        _, project_id = deleted_trace_result
 
-        # Trigger cache invalidation event
-        request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+    # Trigger cache invalidation event
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
 
     # Return 204 No Content (successful deletion with no response body)
     return None
