@@ -6,7 +6,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { promptsLoaderQuery } from "./__generated__/promptsLoaderQuery.graphql";
 
 /**
- * Loads in the necessary page data for the dataset page
+ * Loads in the necessary page data for the prompts page
  */
 export async function promptsLoader(_args: LoaderFunctionArgs) {
   return await fetchQuery<promptsLoaderQuery>(

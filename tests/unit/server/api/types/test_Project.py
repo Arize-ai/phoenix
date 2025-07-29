@@ -1,15 +1,16 @@
-# ruff: noqa: E501
 import base64
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import httpx
 import pandas as pd
 import pytest
 from faker import Faker
 from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -27,6 +28,427 @@ from ...._helpers import _add_project, _add_project_session, _add_span, _add_tra
 fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
+
+
+async def _add_generative_model(
+    session: AsyncSession,
+    name: Optional[str] = None,
+    provider: str = "openai",
+    is_built_in: bool = False,
+) -> models.GenerativeModel:
+    """Helper function to create a GenerativeModel for testing."""
+    name = name or f"test-model-{token_hex(4)}"
+    model = models.GenerativeModel(
+        name=name,
+        provider=provider,
+        name_pattern=re.compile(re.escape(name)),
+        is_built_in=is_built_in,
+    )
+    session.add(model)
+    await session.flush()
+    return model
+
+
+async def _add_span_cost(
+    session: AsyncSession,
+    span: models.Span,
+    trace: models.Trace,
+    model: models.GenerativeModel,
+    total_cost: Optional[float] = None,
+    total_tokens: Optional[float] = None,
+    prompt_cost: Optional[float] = None,
+    prompt_tokens: Optional[float] = None,
+    completion_cost: Optional[float] = None,
+    completion_tokens: Optional[float] = None,
+    span_start_time: Optional[datetime] = None,
+) -> models.SpanCost:
+    """Helper function to create a SpanCost for testing."""
+    span_cost = models.SpanCost(
+        span_rowid=span.id,
+        trace_rowid=trace.id,
+        span_start_time=span_start_time or span.start_time,
+        model_id=model.id,
+        total_cost=total_cost,
+        total_tokens=total_tokens,
+        prompt_cost=prompt_cost,
+        prompt_tokens=prompt_tokens,
+        completion_cost=completion_cost,
+        completion_tokens=completion_tokens,
+    )
+    session.add(span_cost)
+    await session.flush()
+    return span_cost
+
+
+@dataclass
+class _CostTestData:
+    project: models.Project
+    generative_models: dict[str, models.GenerativeModel]
+    spans: list[models.Span]
+    traces: list[models.Trace]
+    span_costs: list[models.SpanCost]
+    base_time: datetime
+
+
+@pytest.fixture
+async def _cost_data(db: DbSessionFactory) -> _CostTestData:
+    """Create comprehensive test data for cost and token testing.
+
+    Creates:
+    - 3 different models (gpt-4, gpt-3.5-turbo, claude)
+    - Multiple spans with different costs and token counts
+    - Data spread across different time periods for time range testing
+    """
+    async with db() as session:
+        # Create project
+        project = await _add_project(session, name="cost-test-project")
+
+        # Create generative models with distinct characteristics
+        # Model 1: High cost per token, moderate volume (gpt-4)
+        gpt4 = await _add_generative_model(session, name="gpt-4", provider="openai")
+
+        # Model 2: Lower cost per token, high volume (gpt-3.5-turbo)
+        gpt35 = await _add_generative_model(session, name="gpt-3.5-turbo", provider="openai")
+
+        # Model 3: Moderate cost and volume (claude)
+        claude = await _add_generative_model(session, name="claude-3-sonnet", provider="anthropic")
+
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        spans = []
+        traces = []
+        span_costs = []
+
+        # Time period 1: 2024-01-01 (Hour 0-1)
+        # Create spans for gpt-4 - High cost, lower token count
+        for i in range(3):
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=i * 10),
+                end_time=base_time + timedelta(minutes=i * 10 + 5),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # GPT-4: High cost per token, moderate token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=gpt4,
+                total_cost=1.50 + (i * 0.30),  # $1.50, $1.80, $2.10
+                total_tokens=1000 + (i * 200),  # 1000, 1200, 1400 tokens
+                prompt_cost=(1.50 + (i * 0.30)) * 0.75,  # 75% prompt cost
+                prompt_tokens=(1000 + (i * 200)) * 0.8,  # 80% prompt tokens
+                completion_cost=(1.50 + (i * 0.30)) * 0.25,  # 25% completion cost
+                completion_tokens=(1000 + (i * 200)) * 0.2,  # 20% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        # Time period 2: 2024-01-01 (Hour 2-3)
+        # Create spans for gpt-3.5-turbo - Lower cost, higher token count
+        for i in range(4):  # More spans = higher total
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(hours=2, minutes=i * 10),
+                end_time=base_time + timedelta(hours=2, minutes=i * 10 + 5),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # GPT-3.5: Lower cost per token, higher token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=gpt35,
+                total_cost=0.40 + (i * 0.20),  # $0.40, $0.60, $0.80, $1.00
+                total_tokens=2000 + (i * 500),  # 2000, 2500, 3000, 3500 tokens
+                prompt_cost=(0.40 + (i * 0.20)) * 0.70,  # 70% prompt cost
+                prompt_tokens=(2000 + (i * 500)) * 0.85,  # 85% prompt tokens
+                completion_cost=(0.40 + (i * 0.20)) * 0.30,  # 30% completion cost
+                completion_tokens=(2000 + (i * 500)) * 0.15,  # 15% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        # Time period 3: 2024-01-01 (Hour 4-5)
+        # Create spans for claude - Balanced cost and tokens
+        for i in range(2):
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(hours=4, minutes=i * 15),
+                end_time=base_time + timedelta(hours=4, minutes=i * 15 + 8),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # Claude: Balanced cost and token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=claude,
+                total_cost=1.00 + (i * 0.50),  # $1.00, $1.50
+                total_tokens=1500 + (i * 300),  # 1500, 1800 tokens
+                prompt_cost=(1.00 + (i * 0.50)) * 0.80,  # 80% prompt cost
+                prompt_tokens=(1500 + (i * 300)) * 0.75,  # 75% prompt tokens
+                completion_cost=(1.00 + (i * 0.50)) * 0.20,  # 20% completion cost
+                completion_tokens=(1500 + (i * 300)) * 0.25,  # 25% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        await session.commit()
+
+        return _CostTestData(
+            project=project,
+            generative_models={
+                "gpt4": gpt4,
+                "gpt35": gpt35,
+                "claude": claude,
+            },
+            spans=spans,
+            traces=traces,
+            span_costs=span_costs,
+            base_time=base_time,
+        )
+
+
+class TestTopModels:
+    """Comprehensive test suite for top_models_by_token_count and top_models_by_cost GraphQL fields."""
+
+    async def test_top_models_comprehensive(
+        self,
+        _cost_data: _CostTestData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Comprehensive test for both top_models_by_token_count and top_models_by_cost fields."""
+        project = _cost_data.project
+        base_time = _cost_data.base_time
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+        # Full time range for comprehensive testing
+        full_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(days=1)).isoformat(),
+        }
+
+        # --- TEST 1: Basic ordering for both token count and cost ---
+
+        token_query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByTokenCount(timeRange: $timeRange) {
+                            name
+                            costSummary(projectId: $projectId, timeRange: $timeRange) {
+                                total { tokens cost }
+                                prompt { tokens cost }
+                                completion { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        cost_query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByCost(timeRange: $timeRange) {
+                            name
+                            costSummary(projectId: $projectId, timeRange: $timeRange) {
+                                total { tokens cost }
+                                prompt { tokens cost }
+                                completion { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        # Test token-based ordering
+        token_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": full_time_range},
+        )
+        assert not token_response.errors
+        assert (token_data := token_response.data) is not None
+
+        token_models = token_data["node"]["topModelsByTokenCount"]
+        assert len(token_models) == 3
+
+        # Expected token totals: gpt-3.5-turbo (11K), gpt-4 (3.6K), claude (3.3K)
+        assert token_models[0]["name"] == "gpt-3.5-turbo"
+        assert token_models[1]["name"] == "gpt-4"
+        assert token_models[2]["name"] == "claude-3-sonnet"
+
+        token_counts = [m["costSummary"]["total"]["tokens"] for m in token_models]
+        assert token_counts == sorted(token_counts, reverse=True)
+        assert token_counts[0] == 11000  # gpt-3.5-turbo
+        assert token_counts[1] == 3600  # gpt-4
+        assert token_counts[2] == 3300  # claude
+
+        # Test cost-based ordering
+        cost_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": full_time_range},
+        )
+        assert not cost_response.errors
+        assert (cost_data := cost_response.data) is not None
+
+        cost_models = cost_data["node"]["topModelsByCost"]
+        assert len(cost_models) == 3
+
+        # Expected cost totals: gpt-4 ($5.40), gpt-3.5-turbo ($2.80), claude ($2.50)
+        assert cost_models[0]["name"] == "gpt-4"
+        assert cost_models[1]["name"] == "gpt-3.5-turbo"
+        assert cost_models[2]["name"] == "claude-3-sonnet"
+
+        costs = [m["costSummary"]["total"]["cost"] for m in cost_models]
+        assert costs == sorted(costs, reverse=True)
+        assert abs(costs[0] - 5.40) < 0.01  # gpt-4
+        assert abs(costs[1] - 2.80) < 0.01  # gpt-3.5-turbo
+        assert abs(costs[2] - 2.50) < 0.01  # claude
+
+        # Verify ordering is different between token and cost
+        token_order = [m["name"] for m in token_models]
+        cost_order = [m["name"] for m in cost_models]
+        assert token_order != cost_order
+
+        # --- TEST 2: Cost summary calculations accuracy ---
+
+        # Find gpt-4 model and verify its calculations
+        gpt4_model = next(m for m in cost_models if m["name"] == "gpt-4")
+        cost_summary = gpt4_model["costSummary"]
+
+        # Verify totals match sum of prompt + completion
+        total_cost = cost_summary["total"]["cost"]
+        prompt_cost = cost_summary["prompt"]["cost"]
+        completion_cost = cost_summary["completion"]["cost"]
+        assert abs(total_cost - (prompt_cost + completion_cost)) < 0.01
+
+        total_tokens = cost_summary["total"]["tokens"]
+        prompt_tokens = cost_summary["prompt"]["tokens"]
+        completion_tokens = cost_summary["completion"]["tokens"]
+        assert abs(total_tokens - (prompt_tokens + completion_tokens)) < 1
+
+        # --- TEST 3: Time range filtering ---
+
+        # Test filtering to only hour 2-3 (gpt-3.5-turbo data only)
+        filtered_time_range = {
+            "start": (base_time + timedelta(hours=2)).isoformat(),
+            "end": (base_time + timedelta(hours=4)).isoformat(),
+        }
+
+        token_filtered_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": filtered_time_range},
+        )
+        assert not token_filtered_response.errors
+        assert (token_filtered_data := token_filtered_response.data) is not None
+
+        filtered_models = token_filtered_data["node"]["topModelsByTokenCount"]
+        assert len(filtered_models) == 1
+        assert filtered_models[0]["name"] == "gpt-3.5-turbo"
+        assert filtered_models[0]["costSummary"]["total"]["tokens"] == 11000
+
+        # Test filtering to only hour 0-1 (gpt-4 data only)
+        gpt4_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(hours=2)).isoformat(),
+        }
+
+        cost_filtered_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": gpt4_time_range},
+        )
+        assert not cost_filtered_response.errors
+        assert (cost_filtered_data := cost_filtered_response.data) is not None
+
+        gpt4_only_models = cost_filtered_data["node"]["topModelsByCost"]
+        assert len(gpt4_only_models) == 1
+        assert gpt4_only_models[0]["name"] == "gpt-4"
+        assert abs(gpt4_only_models[0]["costSummary"]["total"]["cost"] - 5.40) < 0.01
+
+        # --- TEST 4: Partial time ranges ---
+
+        # Query that includes gpt-4 (hours 0-1) and gpt-3.5 (hours 2-3) but excludes claude (hours 4-5)
+        partial_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(hours=4)).isoformat(),
+        }
+
+        partial_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": partial_time_range},
+        )
+        assert not partial_response.errors
+        assert (partial_data := partial_response.data) is not None
+
+        partial_models = partial_data["node"]["topModelsByCost"]
+        assert len(partial_models) == 2  # Should include gpt-4 and gpt-3.5, exclude claude
+
+        model_names = [m["name"] for m in partial_models]
+        assert "gpt-4" in model_names
+        assert "gpt-3.5-turbo" in model_names
+        assert "claude-3-sonnet" not in model_names
+
+        # gpt-4 should still rank higher by cost than gpt-3.5-turbo
+        assert partial_models[0]["name"] == "gpt-4"
+        assert partial_models[1]["name"] == "gpt-3.5-turbo"
+
+        # --- TEST 5: No data scenarios ---
+
+        empty_time_range = {
+            "start": "2023-01-01T00:00:00+00:00",
+            "end": "2024-01-01T00:00:00+00:00",
+        }
+
+        # Test token count with no data
+        empty_token_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": empty_time_range},
+        )
+        assert not empty_token_response.errors
+        assert (empty_token_data := empty_token_response.data) is not None
+        assert len(empty_token_data["node"]["topModelsByTokenCount"]) == 0
+
+        # Test cost with no data
+        empty_cost_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": empty_time_range},
+        )
+        assert not empty_cost_response.errors
+        assert (empty_cost_data := empty_cost_response.data) is not None
+        assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -1693,8 +2115,269 @@ class TestProject:
         t = t.dt.tz_convert(timezone.utc)
         return df.groupby(t).size().reset_index(name="count")
 
-    async def test_time_series(
+    @pytest.mark.parametrize(
+        "time_range, time_bin_config",
+        [
+            # === BASIC HOURLY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                None,
+                id="default-hourly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="hourly-no-offset",
+            ),
+            # === MINUTE GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="minute-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
+                id="minute-with-positive-offset",
+            ),
+            # === DAILY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                id="daily-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
+                id="daily-with-negative-offset",
+            ),
+            # === WEEKLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
+                id="weekly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.WEEK, utc_offset_minutes=330
+                ),  # India Standard Time
+                id="weekly-with-positive-offset",
+            ),
+            # === MONTHLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
+                id="monthly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
+                id="monthly-with-negative-offset",
+            ),
+            # === YEARLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
+                id="yearly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
+                id="yearly-with-positive-offset",
+            ),
+            # === EDGE CASES ===
+            # Empty result set (time range with no data)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="empty-result-set",
+            ),
+            # Very narrow time range
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="narrow-time-range",
+            ),
+            # Limited data points
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="limited-data-points",
+            ),
+            # Boundary condition: Start equals end
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="zero-duration-range",
+            ),
+            # === PARTIAL TIME RANGE TESTS ===
+            # Only start time specified
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=None,
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="only-start-time",
+            ),
+            # === LARGE UTC OFFSET TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
+                id="large-positive-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
+                id="large-negative-offset",
+            ),
+            # === BOUNDARY CONDITION TESTS ===
+            # Cross-day boundary with offset
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
+                id="cross-day-boundary",
+            ),
+            # Test with fractional hour offset
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
+                id="fractional-hour-offset",
+            ),
+            # Test with leap year boundaries
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                id="leap-year-boundary",
+            ),
+            # Test with month boundary at different scales
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="month-boundary-hourly",
+            ),
+            # Test with daylight saving time-like offset changes
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
+                id="dst-like-offset",
+            ),
+            # Test with extreme small time range at minute level
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="single-minute-range",
+            ),
+            # Test with year-end boundary
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="year-end-boundary",
+            ),
+            # Test with maximum reasonable offset (UTC+14)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=840
+                ),  # +14 hours (Line Islands)
+                id="maximum-positive-offset",
+            ),
+            # Test with minimum reasonable offset (UTC-12)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=-720
+                ),  # -12 hours (Baker Island)
+                id="minimum-negative-offset",
+            ),
+        ],
+    )
+    async def test_span_count_time_series(
         self,
+        time_range: TimeRange,
+        time_bin_config: TimeBinConfig,
         _time_series_data: _Data,
         gql_client: AsyncGraphQLClient,
     ) -> None:
@@ -1743,68 +2426,158 @@ class TestProject:
         """
         project = _time_series_data.projects[0]
 
-        test_cases = [
+        # Calculate expected results using pandas (same logic as SQL)
+        records = _time_series_data.spans
+        data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
+            "timestamp"
+        )
+
+        # Apply time range filtering if specified
+        if time_range and time_range.start:
+            data_df = data_df[data_df["timestamp"] >= time_range.start]
+        if time_range and time_range.end:
+            data_df = data_df[data_df["timestamp"] < time_range.end]
+
+        if data_df.empty:
+            expected_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            expected_summary = self._count_rows(
+                data_df,
+                field=time_bin_config.scale.value if time_bin_config else "hour",
+                utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
+            )
+
+        # Execute GraphQL query
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        variables: dict[str, Any] = {"id": project_gid}
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                            data {
+                                timestamp
+                                totalCount
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        if time_range:
+            time_range_vars = {}
+            if time_range.start:
+                time_range_vars["start"] = time_range.start.isoformat()
+            if time_range.end:
+                time_range_vars["end"] = time_range.end.isoformat()
+            if time_range_vars:
+                variables["timeRange"] = time_range_vars
+        if time_bin_config:
+            variables["timeBinConfig"] = {
+                "scale": time_bin_config.scale.value.upper(),
+                "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+            }
+
+        # Execute GraphQL query
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["spanCountTimeSeries"]
+
+        # Verify the structure of the response
+        assert "data" in res
+        assert isinstance(res["data"], list)
+
+        # Convert response to DataFrame for comparison
+        if not res["data"]:
+            actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            actual_data = []
+            for data_point in res["data"]:
+                timestamp = datetime.fromisoformat(data_point["timestamp"])
+                if (value := data_point["totalCount"]) is not None:
+                    actual_data.append({"timestamp": timestamp, "count": value})
+            actual_summary = pd.DataFrame(
+                actual_data,
+                columns=["timestamp", "count"],
+            ).sort_values("timestamp")
+
+        # Handle empty results
+        if expected_summary.empty:
+            assert actual_summary.empty, "Expected empty summary for span"
+            return
+
+        actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+
+        # Verify SQL results match pandas calculation
+        pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
+
+    @pytest.mark.parametrize(
+        "time_range, time_bin_config",
+        [
             # === BASIC HOURLY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
                 ),
                 None,
-                "default_hourly_no_offset",
+                id="default-hourly-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "hourly_no_offset",
+                id="hourly-no-offset",
             ),
             # === MINUTE GRANULARITY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "minute_no_offset",
+                id="minute-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
-                "minute_with_positive_offset",
+                id="minute-with-positive-offset",
             ),
             # === DAILY GRANULARITY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
-                "daily_no_offset",
+                id="daily-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
-                "daily_with_negative_offset",
+                id="daily-with-negative-offset",
             ),
             # === WEEKLY GRANULARITY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
-                "weekly_no_offset",
+                id="weekly-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
@@ -1812,172 +2585,172 @@ class TestProject:
                 TimeBinConfig(
                     scale=TimeBinScale.WEEK, utc_offset_minutes=330
                 ),  # India Standard Time
-                "weekly_with_positive_offset",
+                id="weekly-with-positive-offset",
             ),
             # === MONTHLY GRANULARITY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
-                "monthly_no_offset",
+                id="monthly-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
-                "monthly_with_negative_offset",
+                id="monthly-with-negative-offset",
             ),
             # === YEARLY GRANULARITY TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
-                "yearly_no_offset",
+                id="yearly-no-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
-                "yearly_with_positive_offset",
+                id="yearly-with-positive-offset",
             ),
             # === EDGE CASES ===
             # Empty result set (time range with no data)
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "empty_result_set",
+                id="empty-result-set",
             ),
             # Very narrow time range
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "narrow_time_range",
+                id="narrow-time-range",
             ),
             # Limited data points
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "limited_data_points",
+                id="limited-data-points",
             ),
             # Boundary condition: Start equals end
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "zero_duration_range",
+                id="zero-duration-range",
             ),
             # === PARTIAL TIME RANGE TESTS ===
             # Only start time specified
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
                     end=None,
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "only_start_time",
+                id="only-start-time",
             ),
             # === LARGE UTC OFFSET TESTS ===
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
-                "large_positive_offset",
+                id="large-positive-offset",
             ),
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
-                "large_negative_offset",
+                id="large-negative-offset",
             ),
             # === BOUNDARY CONDITION TESTS ===
             # Cross-day boundary with offset
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
-                "cross_day_boundary",
+                id="cross-day-boundary",
             ),
             # Test with fractional hour offset
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
-                "fractional_hour_offset",
+                id="fractional-hour-offset",
             ),
             # Test with leap year boundaries
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
-                "leap_year_boundary",
+                id="leap-year-boundary",
             ),
             # Test with month boundary at different scales
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
                     end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "month_boundary_hourly",
+                id="month-boundary-hourly",
             ),
             # Test with daylight saving time-like offset changes
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
-                "dst_like_offset",
+                id="dst-like-offset",
             ),
             # Test with extreme small time range at minute level
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
                     end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "single_minute_range",
+                id="single-minute-range",
             ),
             # Test with year-end boundary
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
                     end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "year_end_boundary",
+                id="year-end-boundary",
             ),
             # Test with maximum reasonable offset (UTC+14)
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
@@ -1985,10 +2758,10 @@ class TestProject:
                 TimeBinConfig(
                     scale=TimeBinScale.HOUR, utc_offset_minutes=840
                 ),  # +14 hours (Line Islands)
-                "maximum_positive_offset",
+                id="maximum-positive-offset",
             ),
             # Test with minimum reasonable offset (UTC-12)
-            (
+            pytest.param(
                 TimeRange(
                     start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
                     end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
@@ -1996,106 +2769,152 @@ class TestProject:
                 TimeBinConfig(
                     scale=TimeBinScale.HOUR, utc_offset_minutes=-720
                 ),  # -12 hours (Baker Island)
-                "minimum_negative_offset",
+                id="minimum-negative-offset",
             ),
-        ]
+        ],
+    )
+    async def test_trace_count_time_series(
+        self,
+        time_range: TimeRange,
+        time_bin_config: TimeBinConfig,
+        _time_series_data: _Data,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test the trace_count_time_series field using pandas validation.
 
-        for time_range, time_bin_config, test_desc in test_cases:
-            # Calculate expected results using pandas (same logic as SQL)
-            records = _time_series_data.spans
-            data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
-                "timestamp"
+        This comprehensive test verifies that the SQL-based time series calculation matches
+        pandas-based calculations using the same logic. It covers:
+
+        **Time Granularities:**
+        - Minute-level aggregation
+        - Hourly aggregation (default)
+        - Daily aggregation
+        - Weekly aggregation
+        - Monthly aggregation
+        - Yearly aggregation
+
+        **UTC Offset Scenarios:**
+        - No offset (UTC+0)
+        - Positive offsets (UTC+1, UTC+5.5, UTC+8, UTC+9, UTC+13, UTC+14)
+        - Negative offsets (UTC-5, UTC-8, UTC-12)
+        - Fractional hour offsets (UTC+1.5)
+
+        **Time Range Edge Cases:**
+        - Empty result sets (no data in range)
+        - Very narrow time ranges (1 second, 1 minute)
+        - Limited data points
+        - Boundary conditions (start == end)
+        - Partial range specifications (start-only, end-only)
+        - No time range specified (all data)
+
+        **Boundary Conditions:**
+        - Cross-day boundaries with offsets
+        - Month boundaries (including leap year)
+        - Year-end boundaries
+        - Leap year date boundaries
+
+        **Real-world Timezone Examples:**
+        - PST (UTC-8)
+        - EST (UTC-5)
+        - IST (UTC+5.5)
+        - JST (UTC+9)
+        - Line Islands (UTC+14)
+        - Baker Island (UTC-12)
+
+        Each test case validates trace count time series.
+        """
+        project = _time_series_data.projects[0]
+
+        # Calculate expected results using pandas (same logic as SQL)
+        records = _time_series_data.traces
+        data_df = pd.DataFrame([{"timestamp": t.start_time} for t in records]).sort_values(
+            "timestamp"
+        )
+
+        # Apply time range filtering if specified
+        if time_range and time_range.start:
+            data_df = data_df[data_df["timestamp"] >= time_range.start]
+        if time_range and time_range.end:
+            data_df = data_df[data_df["timestamp"] < time_range.end]
+
+        if data_df.empty:
+            expected_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            expected_summary = self._count_rows(
+                data_df,
+                field=time_bin_config.scale.value if time_bin_config else "hour",
+                utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
             )
 
-            # Apply time range filtering if specified
-            if time_range and time_range.start:
-                data_df = data_df[data_df["timestamp"] >= time_range.start]
-            if time_range and time_range.end:
-                data_df = data_df[data_df["timestamp"] < time_range.end]
+        # Execute GraphQL query
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        variables: dict[str, Any] = {"id": project_gid}
 
-            if data_df.empty:
-                expected_summary = pd.DataFrame(columns=["timestamp", "count"])
-            else:
-                expected_summary = self._count_rows(
-                    data_df,
-                    field=time_bin_config.scale.value if time_bin_config else "hour",
-                    utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
-                )
-
-            # Execute GraphQL query
-            project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
-            variables: dict[str, Any] = {"id": project_gid}
-
-            query = """
-                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
-                    node(id: $id) {{
-                        ... on Project {{
-                            {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
-                                data {{
-                                    timestamp
-                                    value
-                                }}
-                            }}
-                        }}
-                    }}
-                }}
-            """
-
-            if time_range:
-                time_range_vars = {}
-                if time_range.start:
-                    time_range_vars["start"] = time_range.start.isoformat()
-                if time_range.end:
-                    time_range_vars["end"] = time_range.end.isoformat()
-                if time_range_vars:
-                    variables["timeRange"] = time_range_vars
-            if time_bin_config:
-                variables["timeBinConfig"] = {
-                    "scale": time_bin_config.scale.value.upper(),
-                    "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        traceCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                            data {
+                                timestamp
+                                value
+                            }
+                        }
+                    }
                 }
+            }
+        """
 
-            # Execute GraphQL query
-            for obj in ["span", "trace"]:
-                response = await gql_client.execute(
-                    query=query.format(obj=obj), variables=variables
-                )
-                assert not response.errors
-                assert (data := response.data) is not None
-                res = data["node"][f"{obj}CountTimeSeries"]
+        if time_range:
+            time_range_vars = {}
+            if time_range.start:
+                time_range_vars["start"] = time_range.start.isoformat()
+            if time_range.end:
+                time_range_vars["end"] = time_range.end.isoformat()
+            if time_range_vars:
+                variables["timeRange"] = time_range_vars
+        if time_bin_config:
+            variables["timeBinConfig"] = {
+                "scale": time_bin_config.scale.value.upper(),
+                "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+            }
 
-                # Verify the structure of the response
-                assert "data" in res
-                assert isinstance(res["data"], list)
+        # Execute GraphQL query
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["traceCountTimeSeries"]
 
-                # Convert response to DataFrame for comparison
-                if not res["data"]:
-                    actual_summary = pd.DataFrame(columns=["timestamp", "count"])
-                else:
-                    actual_data = []
-                    for data_point in res["data"]:
-                        timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        if (value := data_point["value"]) is not None:
-                            actual_data.append({"timestamp": timestamp, "count": value})
-                    actual_summary = pd.DataFrame(
-                        actual_data,
-                        columns=["timestamp", "count"],
-                    ).sort_values("timestamp")
+        # Verify the structure of the response
+        assert "data" in res
+        assert isinstance(res["data"], list)
 
-                # Handle empty results
-                if expected_summary.empty:
-                    assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
-                    continue
+        # Convert response to DataFrame for comparison
+        if not res["data"]:
+            actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            actual_data = []
+            for data_point in res["data"]:
+                timestamp = datetime.fromisoformat(data_point["timestamp"])
+                if (value := data_point["value"]) is not None:
+                    actual_data.append({"timestamp": timestamp, "count": value})
+            actual_summary = pd.DataFrame(
+                actual_data,
+                columns=["timestamp", "count"],
+            ).sort_values("timestamp")
 
-                actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+        # Handle empty results
+        if expected_summary.empty:
+            assert actual_summary.empty, "Expected empty summary for trace count time series"
+            return
 
-                # Verify SQL results match pandas calculation
-                try:
-                    pd.testing.assert_frame_equal(
-                        actual_summary, expected_summary, check_dtype=False
-                    )
-                except AssertionError as e:
-                    raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
+        actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+
+        # Verify SQL results match pandas calculation
+        try:
+            pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
+        except AssertionError as e:
+            raise AssertionError("Test failed for trace count time series") from e
 
     @pytest.mark.parametrize(
         "expectation,condition",
@@ -2432,7 +3251,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← This makes it a real root span
-                    name=f"root-span-{i+1}",
+                    name=f"root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -2452,7 +3271,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=root_span.span_id,  # ← Child of the root span
-                    name=f"child-span-{i+1}",
+                    name=f"child-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=15),
                     end_time=trace.start_time + timedelta(minutes=25),
@@ -2472,7 +3291,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← Also a root span
-                    name=f"second-root-span-{i+1}",
+                    name=f"second-root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),
@@ -2492,7 +3311,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Points to non-existent span (orphan)
-                    name=f"orphan-span-{i+1}",
+                    name=f"orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -2513,7 +3332,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Also an orphan span (different parent_id)
-                    name=f"second-orphan-span-{i+1}",
+                    name=f"second-orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),

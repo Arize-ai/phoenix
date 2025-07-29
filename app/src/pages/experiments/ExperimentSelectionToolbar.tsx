@@ -1,15 +1,17 @@
 import { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
-import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
   Flex,
+  Group,
   Icon,
+  IconButton,
   Icons,
   Text,
+  Toolbar,
   View,
 } from "@phoenix/components";
 import {
@@ -17,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@phoenix/components/dialog";
+import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -126,76 +129,62 @@ export function ExperimentSelectionToolbar(
   }, [handleDelete]);
 
   return (
-    <div
-      css={css`
-        position: absolute;
-        bottom: var(--ac-global-dimension-size-400);
-        left: 50%;
-        transform: translateX(-50%);
-      `}
-    >
-      <View
-        backgroundColor="light"
-        padding="size-200"
-        borderColor="light"
-        borderWidth="thin"
-        borderRadius="medium"
-        minWidth="size-6000"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          gap="size-100"
-        >
-          <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
-          <Flex direction="row" gap="size-100">
-            <Button variant="default" size="S" onPress={onClearSelection}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="S"
-              leadingVisual={
-                <Icon
-                  svg={
-                    isDeletingExperiments ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.TrashOutline />
-                    )
-                  }
-                />
-              }
-              isDisabled={isDeletingExperiments}
-              onPress={onPressDelete}
-            >
-              {isDeletingExperiments ? "Deleting..." : "Delete"}
-            </Button>
-            <Button
-              variant="primary"
-              size="S"
-              onPress={() => {
-                const baselineExperimentId =
-                  selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
-                const compareExperimentIds = selectedExperiments
-                  .slice(0, -1)
-                  .map((exp) => exp.id);
-                const experimentIds = [
-                  baselineExperimentId,
-                  ...compareExperimentIds,
-                ];
-                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
-                navigate(`/datasets/${datasetId}/compare${queryParams}`);
-              }}
-              leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
-            >
-              Compare Experiments
-            </Button>
-          </Flex>
-        </Flex>
-      </View>
+    <FloatingToolbarContainer>
+      <Toolbar aria-label="Experiment selection">
+        <Group aria-label="Experiment selection">
+          <View paddingEnd="size-100">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <IconButton
+                size="S"
+                onPress={onClearSelection}
+                aria-label="Clear selection"
+              >
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+              <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
+            </Flex>
+          </View>
+          <Button
+            variant="primary"
+            size="M"
+            onPress={() => {
+              const baselineExperimentId =
+                selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
+              const compareExperimentIds = selectedExperiments
+                .slice(0, -1)
+                .map((exp) => exp.id);
+              const experimentIds = [
+                baselineExperimentId,
+                ...compareExperimentIds,
+              ];
+              const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
+              navigate(`/datasets/${datasetId}/compare${queryParams}`);
+            }}
+            leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
+          >
+            Compare
+          </Button>
+          <Button
+            variant="danger"
+            size="M"
+            leadingVisual={
+              <Icon
+                svg={
+                  isDeletingExperiments ? (
+                    <Icons.LoadingOutline />
+                  ) : (
+                    <Icons.TrashOutline />
+                  )
+                }
+              />
+            }
+            isDisabled={isDeletingExperiments}
+            onPress={onPressDelete}
+            aria-label="Delete Experiments"
+          />
+        </Group>
+      </Toolbar>
       {dialog}
-    </div>
+    </FloatingToolbarContainer>
   );
 }

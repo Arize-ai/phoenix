@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import ClassVar, Optional, cast
 
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -216,6 +216,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -230,6 +231,13 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if filter_condition is not UNSET and filter_condition:
+            # Search both name and description columns with case-insensitive partial matching
+            search_filter = or_(
+                models.Experiment.name.ilike(f"%{filter_condition}%"),
+                models.Experiment.description.ilike(f"%{filter_condition}%"),
+            )
+            query = query.where(search_filter)
         async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)

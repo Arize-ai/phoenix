@@ -4,7 +4,7 @@ import type { WithPrompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { tracer } from "../telemetry";
-interface ClassifyArgs extends WithLLM, WithPrompt, WithTelemetry {
+export interface ClassifyArgs extends WithLLM, WithPrompt, WithTelemetry {
   /**
    * The labels to classify the example into. E.x. ["correct", "incorrect"]
    */

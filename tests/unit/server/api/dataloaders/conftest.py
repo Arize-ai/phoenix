@@ -148,8 +148,8 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 insert(models.Span)
                 .values(
                     trace_rowid=trace_id,
-                    span_id=f"span{i+1}",
-                    name=f"span{i+1}",
+                    span_id=f"span{i + 1}",
+                    name=f"span{i + 1}",
                     parent_id="",
                     span_kind="UNKNOWN",
                     start_time=orig_time + timedelta(seconds=10 * i),
@@ -284,8 +284,8 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 insert(models.Span)
                 .values(
                     trace_rowid=trace_id,
-                    span_id=f"missing_span{i+1}",
-                    name=f"missing_span{i+1}",
+                    span_id=f"missing_span{i + 1}",
+                    name=f"missing_span{i + 1}",
                     parent_id="",
                     span_kind="UNKNOWN",
                     start_time=orig_time + timedelta(seconds=10 * i),
@@ -433,7 +433,7 @@ async def data_with_null_labels(db: DbSessionFactory) -> None:
                         score=score,
                         metadata_={},
                         annotator_kind="LLM",
-                        identifier=f"span_{ii}_annotation_{jj+1}",
+                        identifier=f"span_{ii}_annotation_{jj + 1}",
                         source="APP",
                         user_id=None,
                     )

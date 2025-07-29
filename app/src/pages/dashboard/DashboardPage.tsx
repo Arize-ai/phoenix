@@ -10,7 +10,7 @@ import {
   ToggleButton,
   View,
 } from "@phoenix/components";
-import { ConnectedLastNTimeRangePicker } from "@phoenix/components/datetime";
+import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
 
 import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardPanel } from "./DashboardPanel";
@@ -76,7 +76,7 @@ export function DashboardPage() {
               isSelected={isEditing}
               onChange={(selected) => setIsEditing(selected)}
             />
-            <ConnectedLastNTimeRangePicker />
+            <ConnectedTimeRangeSelector />
           </Flex>
         </Flex>
       </View>

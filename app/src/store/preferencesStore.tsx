@@ -63,6 +63,11 @@ export interface PreferencesProps {
    * The sort order for projects
    */
   projectSortOrder: ProjectSortOrder;
+  /**
+   * Whether the side nav is open or closed
+   * @default true
+   */
+  isSideNavExpanded: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -116,6 +121,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the side nav open state
+   */
+  setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -171,6 +180,10 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder });
+    },
+    isSideNavExpanded: true,
+    setIsSideNavExpanded: (isSideNavExpanded) => {
+      set({ isSideNavExpanded });
     },
     ...initialProps,
   });

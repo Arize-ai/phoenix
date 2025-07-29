@@ -141,9 +141,5 @@ export const DifferentSizes: StoryFn = () => (
       <Label>Size M (default)</Label>
       <CredentialInput defaultValue="size-m-credential" />
     </CredentialField>
-    <CredentialField size="L">
-      <Label>Size L</Label>
-      <CredentialInput defaultValue="size-l-credential" />
-    </CredentialField>
   </Flex>
 );

@@ -8,7 +8,8 @@ import { ThemeContextType } from "./contexts";
  * Medium size root CSS variables
  */
 export const mediumRootCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-scale-factor: 1;
     --ac-global-dimension-size-0: 0px;
     --ac-global-dimension-size-10: 1px;
@@ -65,7 +66,8 @@ export const mediumRootCSS = css`
 `;
 
 const staticCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     // static colors
     --ac-global-static-color-white-900: rgba(255, 255, 255, 0.9);
     --ac-global-static-color-white-700: rgba(255, 255, 255, 0.7);
@@ -73,11 +75,18 @@ const staticCSS = css`
     --ac-global-static-color-black-900: rgba(0, 0, 0, 0.9);
     --ac-global-static-color-black-700: rgba(0, 0, 0, 0.7);
     --ac-global-static-color-black-300: rgba(0, 0, 0, 0.3);
+
+    // component sizing
+    --ac-global-input-height-s: 30px;
+    --ac-global-input-height-m: 38px;
+    --ac-global-button-height-s: var(--ac-global-input-height-s);
+    --ac-global-button-height-m: var(--ac-global-input-height-m);
   }
 `;
 
 const dimensionsCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-static-size-0: 0px;
     --ac-global-dimension-static-size-10: 1px;
     --ac-global-dimension-static-size-25: 2px;
@@ -667,6 +676,10 @@ export const darkThemeCSS = css`
     // Link colors
     --ac-global-link-color: rgb(114, 217, 255);
     --ac-global-link-color-visited: var(--ac-global-color-purple-900);
+
+    // Floating toolbar colors
+    --ac-floating-toolbar-background-color: var(--ac-global-color-grey-200);
+    --ac-floating-toolbar-border-color: var(--ac-global-color-grey-300);
   }
 `;
 
@@ -914,6 +927,10 @@ export const lightThemeCSS = css`
 
     --ac-global-link-color: rgb(9, 105, 218);
     --ac-global-link-color-visited: var(--ac-global-color-purple-900);
+
+    // Floating toolbar colors
+    --ac-floating-toolbar-background-color: var(--ac-global-color-grey-75);
+    --ac-floating-toolbar-border-color: var(--ac-global-color-grey-200);
   }
 `;
 
@@ -1033,6 +1050,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
+    // Style for cards
+    --ac-global-card-header-height: 46px;
+
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
@@ -1071,17 +1091,30 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 `;
 
 const opacitiesCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-opacity-disabled: 0.6;
   }
 `;
 
 const appGlobalStylesCSS = css`
+  body,
+  input,
+  button,
+  .ac-theme // We scope it to the theme so we can mount two at the same time
+  {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+  }
+  .ac-theme {
+    color: var(--ac-global-text-color-900);
+    font-size: var(--ac-global-font-size-s);
+  }
   body {
     background-color: var(--ac-global-color-grey-75);
-    color: var(--ac-global-text-color-900);
-    font-family: "Roboto";
-    font-size: var(--ac-global-font-size-s);
+
     margin: 0;
     overflow: hidden;
     #root,
@@ -1132,7 +1165,8 @@ const appGlobalStylesCSS = css`
     }
   }
 
-  :root {
+  :root,
+  .ac-theme {
     --px-section-background-color: #2f353d;
 
     /** The color of shadows on menus etc. */
@@ -1146,8 +1180,8 @@ const appGlobalStylesCSS = css`
 
     --px-gradient-bar-height: 8px;
 
-    --px-nav-collapsed-width: 45px;
-    --px-nav-expanded-width: 200px;
+    --px-nav-collapsed-width: 52px;
+    --px-nav-expanded-width: 230px;
 
     --ac-global-opacity-disabled: 0.6;
 
@@ -1229,11 +1263,18 @@ const ReactGridLayoutCSS = css`
 `;
 
 const chartCSS = css`
+  .ac-theme {
+    --chart-cartesian-grid-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-text-color: var(--ac-global-text-color-700);
+    --chart-axis-label-color: var(--ac-global-text-color-700);
+    --chart-legend-text-color: var(--ac-global-text-color-900);
+  }
   .ac-theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
   .ac-theme--light {
-    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
   }
 `;
 

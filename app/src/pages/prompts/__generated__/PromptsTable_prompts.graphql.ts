@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b260f228c0065bed1680376b1d7eced2>>
+ * @generated SignedSource<<1bc698fbef191f315cf81805e923c6ad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,6 +52,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -84,7 +89,13 @@ return {
   "selections": [
     {
       "alias": "prompts",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        }
+      ],
       "concreteType": "PromptConnection",
       "kind": "LinkedField",
       "name": "__PromptsTable_prompts_connection",
@@ -205,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "829c7cff273e0ebcfba1c0606c052d8b";
+(node as any).hash = "3cedad98de2e041440caa5c8c03b17fa";
 
 export default node;

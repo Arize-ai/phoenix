@@ -41,6 +41,9 @@ importers:
       tsc-alias:
         specifier: ^1.8.11
         version: 1.8.16
+      typedoc:
+        specifier: ^0.27.9
+        version: 0.27.9(typescript@5.8.3)
       typescript:
         specifier: ^5.8.2
         version: 5.8.3
@@ -188,9 +191,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.19.4
-      typedoc:
-        specifier: ^0.27.9
-        version: 0.27.9(typescript@5.8.3)
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0)

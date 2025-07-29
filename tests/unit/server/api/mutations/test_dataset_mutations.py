@@ -66,7 +66,7 @@ class TestPatchDatasetMutation:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_patch_all_dataset_fields(
         self,
@@ -477,9 +477,9 @@ async def test_delete_a_dataset(
     )
     assert not response.errors
     assert (data := response.data) is not None
-    assert data["deleteDataset"]["dataset"] == {
-        "id": str(dataset_id)
-    }, "deleted dataset is returned"
+    assert data["deleteDataset"]["dataset"] == {"id": str(dataset_id)}, (
+        "deleted dataset is returned"
+    )
     async with db() as session:
         dataset = (
             await session.execute(select(models.Dataset).where(models.Dataset.id == 1))

@@ -6,6 +6,7 @@ export const buttonCSS = css`
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
+  flex: none;
 
   display: flex;
   gap: var(--ac-global-dimension-static-size-100);
@@ -28,6 +29,12 @@ export const buttonCSS = css`
   &[disabled] {
     cursor: default;
     opacity: var(--ac-opacity-disabled);
+  }
+  &[data-size="S"] {
+    height: var(--ac-global-button-height-s);
+  }
+  &[data-size="M"] {
+    height: var(--ac-global-button-height-m);
   }
   &[data-size="M"][data-childless="false"] {
     padding: var(--ac-global-dimension-static-size-100)
