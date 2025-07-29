@@ -85,8 +85,6 @@ def process_llm_request_with_feedback(prompt: str):
 **Use the first span (`get_first_span_id()`) when:**
 - Adding user feedback about the overall experience
 - Recording evaluation scores for the entire request/response cycle
-- Tracking session-level or conversation-level metadata
-- Applying business logic annotations that span the entire operation
 
 **Use the last span (`get_last_span_id()`) when:**
 - The last span represents an LLM invocation
