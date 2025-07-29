@@ -667,7 +667,8 @@ async def test_delete_span_by_span_id(
     response = await httpx_client.delete(url)
     assert (
         response.status_code == 204
-    ), f"DELETE /projects/{project_identifier}/spans/{span_id} should return 204 status code, got {response.status_code}"
+    ), f"""DELETE /projects/{project_identifier}/spans/{span_id} should return 204 status code,
+      got {response.status_code}"""
 
     # Verify the span is deleted from the database
     async with db() as session:
