@@ -21,9 +21,10 @@ import smtpdfix
 from httpx import HTTPStatusError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+from strawberry.relay import GlobalID
+
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from strawberry.relay import GlobalID
 
 from .._helpers import (
     _ADMIN,

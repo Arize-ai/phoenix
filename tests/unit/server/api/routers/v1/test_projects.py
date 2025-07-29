@@ -7,13 +7,14 @@ from urllib.parse import quote
 
 import httpx
 import pytest
+from sqlalchemy import select
+from strawberry.relay import GlobalID
+
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import select
-from strawberry.relay import GlobalID
 
 
 class TestProjects:
@@ -485,7 +486,7 @@ class TestProjects:
             )
             assert (
                 project_id == projects[i + 2].id
-            ), f"Project at index {i} should have ID {projects[i+2].id}, got {project_id}"
+            ), f"Project at index {i} should have ID {projects[i + 2].id}, got {project_id}"
 
         # Third page: request with the next_cursor
         response = await httpx_client.get(url, params={"limit": 2, "cursor": next_cursor})
@@ -823,5 +824,5 @@ class TestProjects:
             await session.flush()
         # Log the created projects for debugging
         for i, p in enumerate(projects):
-            print(f"Created test project {i+1}: id={p.id}, name='{p.name}'")
+            print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects

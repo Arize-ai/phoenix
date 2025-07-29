@@ -3,13 +3,14 @@ import sys
 from typing import Any
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
+
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     FreeAttributeNameBinder,
     SQLAlchemyTransformer,
     compile_sqlalchemy_filter_condition,
 )
-from syrupy.assertion import SnapshotAssertion
 
 
 @pytest.mark.parametrize(

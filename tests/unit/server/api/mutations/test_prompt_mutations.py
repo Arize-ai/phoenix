@@ -1,9 +1,9 @@
 from typing import Any
 
 import pytest
-from phoenix.server.types import DbSessionFactory
 from strawberry.relay.types import GlobalID
 
+from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 

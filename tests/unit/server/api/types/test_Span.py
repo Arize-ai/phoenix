@@ -8,6 +8,10 @@ from typing import Any, Mapping, Optional
 import pytest
 from faker import Faker
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
+
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
@@ -15,10 +19,6 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
-
 from tests.unit.graphql import AsyncGraphQLClient
 
 _TraceRowId: TypeAlias = int
@@ -643,13 +643,13 @@ async def test_span_annotation_summaries(
         if "include" in filter_config:
             include = filter_config["include"]
             if "names" in include:
-                filter_parts.append(f'include: {{ names: {json.dumps(include["names"])} }}')
+                filter_parts.append(f"include: {{ names: {json.dumps(include['names'])} }}")
         if "exclude" in filter_config:
             exclude = filter_config["exclude"]
             if "names" in exclude:
-                filter_parts.append(f'exclude: {{ names: {json.dumps(exclude["names"])} }}')
+                filter_parts.append(f"exclude: {{ names: {json.dumps(exclude['names'])} }}")
         if filter_parts:
-            filter_arg = f'(filter: {{ {", ".join(filter_parts)} }})'
+            filter_arg = f"(filter: {{ {', '.join(filter_parts)} }})"
 
     query = f"""
       query ($spanId: ID!) {{
@@ -693,9 +693,9 @@ async def test_span_annotation_summaries(
 
     # Check label fractions
     label_fractions = summary["labelFractions"]
-    assert len(label_fractions) == len(expected_label_fractions), (
-        f"Expected {len(expected_label_fractions)} label fractions, " f"got {len(label_fractions)}"
-    )
+    assert len(label_fractions) == len(
+        expected_label_fractions
+    ), f"Expected {len(expected_label_fractions)} label fractions, got {len(label_fractions)}"
 
     # Sort both lists by label to ensure consistent comparison
     label_fractions.sort(key=lambda x: x["label"])

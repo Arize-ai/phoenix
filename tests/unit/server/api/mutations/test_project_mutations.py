@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from strawberry.relay import GlobalID
 
 from ....graphql import AsyncGraphQLClient
 

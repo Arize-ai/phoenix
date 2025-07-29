@@ -7,16 +7,17 @@ from secrets import token_bytes, token_hex
 from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
 
 import pandas as pd
-import phoenix as px
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
-from phoenix.client.__generated__ import v1
-from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
+
+import phoenix as px
+from phoenix.client.__generated__ import v1
+from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 
 from .._helpers import (
     _ADMIN,
@@ -314,24 +315,24 @@ class TestClientForSpanAnnotations:
 
                 anno = await _get(
                     query_fn=get_batch_annotation,
-                    error_msg=f"Batch annotation {j+1} should be present in span annotations",
+                    error_msg=f"Batch annotation {j + 1} should be present in span annotations",
                     no_wait=sync,
                 )
 
                 # Verify the batch annotation fields match what was provided
                 assert (
                     anno["name"] == annotation_names[j]
-                ), f"Batch annotation {j+1} name should match input"
-                assert anno["source"] == "API", f"Batch annotation {j+1} source should be API"
+                ), f"Batch annotation {j + 1} name should match input"
+                assert anno["source"] == "API", f"Batch annotation {j + 1} source should be API"
                 assert (
                     anno["annotatorKind"] == "CODE"
-                ), f"Batch annotation {j+1} annotator_kind should be CODE"
+                ), f"Batch annotation {j + 1} annotator_kind should be CODE"
                 assert (
                     anno["metadata"] == metadata[j]
-                ), f"Batch annotation {j+1} metadata should match input"
+                ), f"Batch annotation {j + 1} metadata should match input"
                 assert (
                     anno["identifier"] == identifiers[j]
-                ), f"Batch annotation {j+1} identifier should match input"
+                ), f"Batch annotation {j + 1} identifier should match input"
 
                 # Verify ID persistence across updates
                 if i == 0:
@@ -339,7 +340,7 @@ class TestClientForSpanAnnotations:
                 else:
                     assert (
                         anno["id"] == existing_gids[j]
-                    ), f"Batch annotation {j+1} ID should remain the same after update"
+                    ), f"Batch annotation {j + 1} ID should remain the same after update"
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -443,21 +444,21 @@ class TestClientForSpanAnnotations:
 
             anno = await _get(
                 query_fn=get_df_annotation,
-                error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
+                error_msg=f"DataFrame annotation {i + 1} should be present in span annotations",
                 no_wait=sync,
             )
 
             # Verify annotation exists with correct values
             assert (
                 anno["name"] == df1_annotation_names[i]
-            ), f"DataFrame annotation {i+1} name should match input"
-            assert anno["source"] == "API", f"DataFrame annotation {i+1} source should be API"
+            ), f"DataFrame annotation {i + 1} name should match input"
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
             assert (
                 anno["metadata"] == df1_metadata[i]
-            ), f"DataFrame annotation {i+1} metadata should match input"
+            ), f"DataFrame annotation {i + 1} metadata should match input"
             assert (
                 anno["annotatorKind"] == df1_annotator_kinds[i]
-            ), f"DataFrame annotation {i+1} annotator_kind should match input"
+            ), f"DataFrame annotation {i + 1} annotator_kind should match input"
 
         # ============================================================================
         # Test Case 2: Using span_id as index
@@ -517,21 +518,21 @@ class TestClientForSpanAnnotations:
 
             anno = await _get(
                 query_fn=get_df2_annotation,
-                error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
+                error_msg=f"DataFrame annotation {i + 1} should be present in span annotations",
                 no_wait=sync,
             )
 
             # Verify annotation exists with correct values
             assert (
                 anno["name"] == df2_annotation_names[i]
-            ), f"DataFrame annotation {i+1} name should match input"
-            assert anno["source"] == "API", f"DataFrame annotation {i+1} source should be API"
+            ), f"DataFrame annotation {i + 1} name should match input"
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
             assert (
                 anno["metadata"] == df2_metadata[i]
-            ), f"DataFrame annotation {i+1} metadata should match input"
+            ), f"DataFrame annotation {i + 1} metadata should match input"
             assert (
                 anno["annotatorKind"] == df2_annotator_kinds[i]
-            ), f"DataFrame annotation {i+1} annotator_kind should match input"
+            ), f"DataFrame annotation {i + 1} annotator_kind should match input"
 
         # ============================================================================
         # Test Case 3: Using global annotator_kind
@@ -593,21 +594,21 @@ class TestClientForSpanAnnotations:
 
             anno = await _get(
                 query_fn=get_df3_annotation,
-                error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
+                error_msg=f"DataFrame annotation {i + 1} should be present in span annotations",
                 no_wait=sync,
             )
 
             # Verify annotation exists with correct values
             assert (
                 anno["name"] == df3_annotation_names[i]
-            ), f"DataFrame annotation {i+1} name should match input"
-            assert anno["source"] == "API", f"DataFrame annotation {i+1} source should be API"
+            ), f"DataFrame annotation {i + 1} name should match input"
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
             assert (
                 anno["metadata"] == df3_metadata[i]
-            ), f"DataFrame annotation {i+1} metadata should match input"
+            ), f"DataFrame annotation {i + 1} metadata should match input"
             assert (
                 anno["annotatorKind"] == global_annotator_kind
-            ), f"DataFrame annotation {i+1} annotator_kind should match global value"
+            ), f"DataFrame annotation {i + 1} annotator_kind should match global value"
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client

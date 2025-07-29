@@ -3,6 +3,9 @@ from typing import Any
 
 import pytest
 import pytz
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -14,9 +17,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
 )
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
-
 from tests.unit.graphql import AsyncGraphQLClient
 
 

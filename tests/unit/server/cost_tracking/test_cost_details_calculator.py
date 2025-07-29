@@ -1,6 +1,7 @@
 from typing import Any, Mapping, NamedTuple, Optional
 
 import pytest
+
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
 

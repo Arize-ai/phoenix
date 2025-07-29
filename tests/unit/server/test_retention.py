@@ -6,6 +6,9 @@ from unittest.mock import patch
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy import func
+from starlette.types import ASGIApp
+
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.trace_retention import (
@@ -15,8 +18,6 @@ from phoenix.db.types.trace_retention import (
 )
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import func
-from starlette.types import ASGIApp
 
 
 class TestTraceDataSweeper:

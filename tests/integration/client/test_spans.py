@@ -7,8 +7,9 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
-from phoenix.client.__generated__ import v1
 from typing_extensions import TypeAlias
+
+from phoenix.client.__generated__ import v1
 
 from .._helpers import (
     _ADMIN,  # pyright: ignore[reportPrivateUsage]
@@ -871,6 +872,7 @@ class TestClientForSpansRetrieval:
         api_key = str(user.create_api_key(_app))
 
         import httpx
+
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 

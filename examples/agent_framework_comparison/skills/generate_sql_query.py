@@ -42,8 +42,7 @@ class GenerateSQLQuery(Skill):
                     "with_retries": {
                         "type": "boolean",
                         "description": (
-                            "Whether to retry the query generation if it fails. "
-                            "Defaults to True."
+                            "Whether to retry the query generation if it fails. Defaults to True."
                         ),
                     },
                 },

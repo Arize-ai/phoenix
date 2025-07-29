@@ -10,6 +10,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
     ToolCallAttributes,
 )
+
 from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,

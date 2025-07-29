@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
 import pytest
+
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 

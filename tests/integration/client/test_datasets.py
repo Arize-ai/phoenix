@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
+
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser

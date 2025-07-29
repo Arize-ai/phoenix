@@ -9,6 +9,8 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
+from pydantic import ValidationError
+
 from phoenix.db import models
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
@@ -20,7 +22,6 @@ from phoenix.db.types.trace_retention import (
     _time_of_next_run,
 )
 from phoenix.server.types import DbSessionFactory
-from pydantic import ValidationError
 
 fake = Faker()
 

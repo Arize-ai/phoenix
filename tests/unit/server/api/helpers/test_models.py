@@ -2,6 +2,7 @@ from contextlib import AbstractContextManager, nullcontext
 from typing import Any, Optional
 
 import pytest
+
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     PromptAnthropicInvocationParametersContent,

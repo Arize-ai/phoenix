@@ -172,7 +172,7 @@ def main():
 
         # Run the SQL script for each batch
         for i in range(args.num_batches):
-            print(f"Batch {i+1}/{args.num_batches}...", end="", flush=True)
+            print(f"Batch {i + 1}/{args.num_batches}...", end="", flush=True)
 
             # Record batch start time
             batch_start_time = time.time()
@@ -188,7 +188,7 @@ def main():
                 print_output=False,  # Don't print output for generate_spans.sql
             ):
                 print(" failed")
-                print(f"Error processing batch {i+1}. Aborting.")
+                print(f"Error processing batch {i + 1}. Aborting.")
                 sys.exit(1)
 
             # Calculate batch duration

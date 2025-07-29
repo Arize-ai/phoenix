@@ -3,6 +3,8 @@ from typing import Any
 
 import pytest
 import sqlalchemy as sa
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.trace_retention import MaxDaysRule
@@ -10,8 +12,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.types import DbSessionFactory
-from strawberry.relay import GlobalID
-
 from tests.unit.graphql import AsyncGraphQLClient
 
 

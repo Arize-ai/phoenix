@@ -56,6 +56,14 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
+from psutil import STATUS_ZOMBIE, Popen
+from sqlalchemy import URL, create_engine, text
+from sqlalchemy.exc import OperationalError
+from starlette.requests import Request
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from strawberry.relay import GlobalID
+from typing_extensions import Self, TypeAlias, assert_never, override
+
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_PASSWORD,
@@ -73,13 +81,6 @@ from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.thread_server import ThreadServer
-from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
-from sqlalchemy.exc import OperationalError
-from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
-from strawberry.relay import GlobalID
-from typing_extensions import Self, TypeAlias, assert_never, override
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -633,7 +634,7 @@ class _LogTransport(httpx.BaseTransport):
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         info = BytesIO()
-        info.write(f"{'-'*50}\n".encode())
+        info.write(f"{'-' * 50}\n".encode())
         if test_name := _TEST_NAME.get():
             op_idx = _HTTPX_OP_IDX.get()
             _HTTPX_OP_IDX.set(op_idx + 1)

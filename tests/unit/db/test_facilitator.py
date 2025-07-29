@@ -5,6 +5,9 @@ from typing import Any
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+
 from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
@@ -20,8 +23,6 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionRule,
 )
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 
 
 class _MockWelcomeEmailSender:
