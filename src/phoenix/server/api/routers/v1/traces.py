@@ -260,19 +260,16 @@ async def delete_trace(
         delete_stmt = (
             delete(models.Trace)
             .where(models.Trace.trace_id == trace_id)
-            .returning(models.Trace.id, models.Trace.project_rowid)
+            .returning(models.Trace.project_rowid)
         )
 
-        deleted_trace = await session.execute(delete_stmt)
-        deleted_trace_result = deleted_trace.first()
+        project_id = await session.scalar(delete_stmt)
 
-        if not deleted_trace_result:
+        if project_id is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
                 detail=f"Trace with trace_id '{trace_id}' not found",
             )
-
-        _, project_id = deleted_trace_result
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))
