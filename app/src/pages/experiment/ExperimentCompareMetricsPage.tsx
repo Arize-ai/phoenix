@@ -291,21 +291,28 @@ function CompareExperimentMetric({
   numImprovements: number;
   numRegressions: number;
 }) {
-  const valueText = formatter(value);
-  let deltaText: string | null = null;
-  let percentageDeltaText: string | null = null;
-  if (value != null && baselineValue != null) {
-    const delta = value - baselineValue;
-    const sign = delta >= 0 ? "+" : "-";
-    const absoluteDelta = Math.abs(delta);
-    deltaText = `(${sign}${formatter(absoluteDelta)})`;
-    if (baselineValue !== 0) {
-      const absolutePercentageDelta = Math.abs(
-        (delta / baselineValue) * 100
-      ).toFixed(0);
-      percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
+  const { valueText, deltaText, percentageDeltaText } = useMemo(() => {
+    const valueText = formatter(value);
+    let deltaText: string | null = null;
+    let percentageDeltaText: string | null = null;
+    if (value != null && baselineValue != null) {
+      const delta = value - baselineValue;
+      const sign = delta >= 0 ? "+" : "-";
+      const absoluteDelta = Math.abs(delta);
+      deltaText = `(${sign}${formatter(absoluteDelta)})`;
+      if (baselineValue !== 0) {
+        const absolutePercentageDelta = Math.abs(
+          (delta / baselineValue) * 100
+        ).toFixed(0);
+        percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
+      }
     }
-  }
+    return {
+      valueText,
+      deltaText,
+      percentageDeltaText,
+    };
+  }, [baselineValue, formatter, value]);
   return (
     <Flex direction="row" justifyContent="space-between">
       <Flex direction="row" alignItems="center" gap="size-50">
