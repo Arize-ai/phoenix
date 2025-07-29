@@ -46,11 +46,10 @@ export function ExperimentComparePage() {
 
   const onLayoutChange = useCallback(
     (layout: ExperimentCompareLayout) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set("layout", layout);
-      navigate(url.pathname + url.search);
+      searchParams.set("layout", layout);
+      navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
     },
-    [navigate]
+    [datasetId, navigate, searchParams]
   );
 
   return (
