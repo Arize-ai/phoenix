@@ -84,6 +84,34 @@ export function formatCost(cost: number): string {
   return `$${format("0.2s")(cost).replace("G", "B").replace("k", "K")}`;
 }
 
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+
+/**
+ * Formats a latency (given in milliseconds) to be displayed across different scales.
+ * @param number
+ * @returns {string} the string representation of the number
+ */
+export function formatLatencyMs(number: number): string {
+  const hours = Math.floor(number / MS_PER_HOUR);
+  const minutes = Math.floor((number % MS_PER_HOUR) / MS_PER_MINUTE);
+  const seconds = Math.floor((number % MS_PER_MINUTE) / MS_PER_SECOND);
+  const milliseconds = Math.floor(number % MS_PER_SECOND);
+
+  if (hours > 0) {
+    return `${hours}h${minutes ? ` ${minutes}m` : ""}${seconds ? ` ${seconds}s` : ""}`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m${seconds ? ` ${seconds}s` : ""}`;
+  }
+  if (seconds > 0) {
+    const tenthSeconds = Math.floor(milliseconds / 100);
+    return `${seconds}.${tenthSeconds.toFixed(0)}s`;
+  }
+  return `${milliseconds.toFixed(0)}ms`;
+}
+
 /**
  * A factory function to create a formatter for a number that is tolerant of nulls and undefined values
  * @param {Function} formatFn a format function that takes a number and returns a string
@@ -105,3 +133,4 @@ export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
 export const costFormatter = createNumberFormatter(formatCost);
+export const latencyMsFormatter = createNumberFormatter(formatLatencyMs);
