@@ -107,7 +107,7 @@ export function formatLatencyMs(number: number): string {
   }
   if (seconds > 0) {
     const tenthSeconds = Math.floor(milliseconds / 100);
-    return `${seconds}.${tenthSeconds.toFixed(0)}s`;
+    return `${seconds}${tenthSeconds > 0 ? `.${tenthSeconds.toFixed(0)}` : ""}s`;
   }
   return `${milliseconds.toFixed(0)}ms`;
 }
