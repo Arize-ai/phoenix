@@ -9,6 +9,7 @@ from starlette.datastructures import URL
 
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
+    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
@@ -775,3 +776,36 @@ def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
     ensure_working_dir_if_needed()
 
     mkdir_spy.assert_not_called()
+
+def test_allow_external_resources_env_var_exists() -> None:
+    """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
+    assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
+
+
+def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that the environment variable parsing logic works correctly."""
+    import os
+
+    # Test default (env var not set) - should be True
+    monkeypatch.delenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, raising=False)
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit True
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit true (lowercase)
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit False
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "False")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+
+    # Test explicit false (lowercase)
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "false")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+
+    # Test invalid value - should be false (not "true")
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"

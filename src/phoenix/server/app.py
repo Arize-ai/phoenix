@@ -52,6 +52,7 @@ from typing_extensions import TypeAlias, override
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
+    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
@@ -245,6 +246,8 @@ class AppConfig(NamedTuple):
     """ Support email address for user assistance """
     has_db_threshold: bool = False
     """ Whether the database has a threshold for usage """
+    allow_external_resources: bool = True
+    """ Whether to allow external resources like Google Fonts in the web interface """
 
 
 class Static(StaticFiles):
@@ -314,6 +317,7 @@ class Static(StaticFiles):
                     "management_url": self._app_config.management_url,
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
+                    "allow_external_resources": self._app_config.allow_external_resources,
                 },
             )
         except Exception as e:
@@ -1085,6 +1089,7 @@ def create_app(
                         get_env_database_allocated_storage_capacity_gibibytes()
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
+                    allow_external_resources=os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true",
                 ),
             ),
             name="static",

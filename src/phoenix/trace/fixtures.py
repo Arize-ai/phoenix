@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 from binascii import hexlify
 from collections import defaultdict
@@ -22,6 +23,7 @@ from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from httpx import ConnectError, HTTPStatusError
 
 import phoenix.trace.v1 as pb
+from phoenix.config import ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
@@ -496,6 +498,12 @@ def _url(
     bucket: Optional[str] = "arize-phoenix-assets",
     prefix: Optional[str] = "traces/",
 ) -> str:
+    # Check if external resources are allowed
+    if not os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true").lower() == "true":
+        raise RuntimeError(
+            f"External resource access disabled by {ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}. "
+            "Cannot download fixtures from Google Cloud Storage."
+        )
     return f"{host}{bucket}/{prefix}{file_name}"
 
 

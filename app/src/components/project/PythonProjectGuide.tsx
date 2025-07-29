@@ -196,19 +196,30 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
             <View padding="size-200">
               <Text>
                 Trace your application using{" "}
-                <ExternalLink href="https://github.com/Arize-ai/openinference">
-                  OpenInference
-                </ExternalLink>{" "}
+                {window.Config.allowExternalResources ? (
+                  <ExternalLink href="https://github.com/Arize-ai/openinference">
+                    OpenInference
+                  </ExternalLink>
+                ) : (
+                  "OpenInference"
+                )}{" "}
                 instrumentation and OpenTelemetry
               </Text>
               <View paddingTop="size-200" paddingBottom="size-200">
                 <PythonIntegrations />
               </View>
               <Text>
-                For more integrations, checkout our{" "}
-                <ExternalLink href="https://arize.com/docs/phoenix/tracing/integrations-tracing">
-                  comprehensive guide
-                </ExternalLink>
+                For more integrations,{" "}
+                {window.Config.allowExternalResources ? (
+                  <>
+                    checkout our{" "}
+                    <ExternalLink href="https://arize.com/docs/phoenix/tracing/integrations-tracing">
+                      comprehensive guide
+                    </ExternalLink>
+                  </>
+                ) : (
+                  "check our documentation"
+                )}
               </Text>
             </View>
           </TabPanel>
@@ -216,9 +227,13 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
             <View padding="size-200">
               <p>
                 Install{" "}
-                <ExternalLink href="https://github.com/Arize-ai/openinference">
-                  OpenInference
-                </ExternalLink>{" "}
+                {window.Config.allowExternalResources ? (
+                  <ExternalLink href="https://github.com/Arize-ai/openinference">
+                    OpenInference
+                  </ExternalLink>
+                ) : (
+                  "OpenInference"
+                )}{" "}
                 instrumentation as well as <b>openai</b>
               </p>
               <CodeWrap>

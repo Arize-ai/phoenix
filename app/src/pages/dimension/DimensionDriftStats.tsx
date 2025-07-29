@@ -20,11 +20,13 @@ const contextualHelp = (
         showing how different the two distributions are from each other.
       </Text>
     </Content>
-    <footer>
-      <ExternalLink href="https://arize.com/blog-course/population-stability-index-psi/#:~:text=Population%20Stability%20Index%20(PSI)%20Overview,distributions%20are%20from%20each%20other.">
-        Learn more
-      </ExternalLink>
-    </footer>
+    {window.Config.allowExternalResources && (
+      <footer>
+        <ExternalLink href="https://arize.com/blog-course/population-stability-index-psi/#:~:text=Population%20Stability%20Index%20(PSI)%20Overview,distributions%20are%20from%20each%20other.">
+          Learn more
+        </ExternalLink>
+      </footer>
+    )}
   </ContextualHelp>
 );
 

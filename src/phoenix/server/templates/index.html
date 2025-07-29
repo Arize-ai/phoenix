@@ -53,17 +53,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta property="og:title" content="Arize Phoenix" />
     <meta property="og:description" content="AI Observability & Evaluation" />
+    {% if allow_external_resources %}
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
+    {% endif %}
     <meta name="theme-color" content="#ffffff" />
+    {% if allow_external_resources %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
+    {% endif %}
     {% if not is_development -%}
       {% set _ = collect_assets('index.tsx') -%}
       {{- render_css() -}}
     {%- endif -%}
     <script src="{{basename}}/modernizr.js"></script>
-    {% if fullstory_org -%}
+    {% if fullstory_org and allow_external_resources -%}
     <script>
       window['_fs_host'] = 'fullstory.com';
       window['_fs_script'] = 'edge.fullstory.com/s/fs.js';
@@ -111,6 +115,7 @@
               managementUrl: {{management_url | tojson}},
               supportEmail: {{support_email | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
+              allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
           }),
           writable: false
       });

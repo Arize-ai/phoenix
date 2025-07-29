@@ -57,6 +57,12 @@ ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
 The FullStory organization ID for web analytics tracking. When set, FullStory tracking
 will be enabled in the Phoenix web interface.
 """
+ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
+"""
+Whether to allow external resources like Google Fonts in the Phoenix web interface.
+Defaults to True. Set to False in air-gapped environments to prevent external requests
+that can cause UI loading delays.
+"""
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.

@@ -25,6 +25,7 @@ declare global {
       managementUrl?: string | null;
       supportEmail?: string | null;
       hasDbThreshold: boolean;
+      allowExternalResources: boolean;
     };
   }
 }

@@ -84,9 +84,13 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
               <Text>
                 When using the Phoenix REST and GraphQL APIs, pass the API key
                 as a{" "}
-                <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
-                  bearer token
-                </ExternalLink>
+                {window.Config.allowExternalResources ? (
+                  <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
+                    bearer token
+                  </ExternalLink>
+                ) : (
+                  "bearer token"
+                )}
                 .
               </Text>
             </View>

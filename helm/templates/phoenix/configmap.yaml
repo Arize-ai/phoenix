@@ -23,6 +23,7 @@ data:
   PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | quote }}
   PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
   PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
+  PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
 
   # Database configuration
   PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
