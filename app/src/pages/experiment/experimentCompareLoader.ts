@@ -25,6 +25,7 @@ export async function experimentCompareLoader(
   const url = new URL(args.request.url);
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
+  const isMetricsView = url.searchParams.get("view") === "metrics";
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
@@ -34,6 +35,13 @@ export async function experimentCompareLoader(
         $baselineExperimentId: ID!
         $compareExperimentIds: [ID!]!
         $hasBaselineExperimentId: Boolean!
+        $firstCompareExperimentId: ID!
+        $secondCompareExperimentId: ID!
+        $thirdCompareExperimentId: ID!
+        $hasFirstCompareExperiment: Boolean!
+        $hasSecondCompareExperiment: Boolean!
+        $hasThirdCompareExperiment: Boolean!
+        $isMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
           @include(if: $hasBaselineExperimentId)
@@ -44,6 +52,17 @@ export async function experimentCompareLoader(
           )
         ...ExperimentMultiSelector__data
           @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+        ...ExperimentCompareMetricsPage_experiments
+          @include(if: $isMetricsView)
+          @arguments(
+            baseExperimentId: $baselineExperimentId
+            firstCompareExperimentId: $firstCompareExperimentId
+            secondCompareExperimentId: $secondCompareExperimentId
+            thirdCompareExperimentId: $thirdCompareExperimentId
+            hasFirstCompareExperiment: $hasFirstCompareExperiment
+            hasSecondCompareExperiment: $hasSecondCompareExperiment
+            hasThirdCompareExperiment: $hasThirdCompareExperiment
+          )
       }
     `,
     {
@@ -51,6 +70,13 @@ export async function experimentCompareLoader(
       baselineExperimentId: baselineExperimentId ?? "",
       compareExperimentIds,
       hasBaselineExperimentId: baselineExperimentId != null,
+      hasFirstCompareExperiment: compareExperimentIds.length > 0,
+      hasSecondCompareExperiment: compareExperimentIds.length > 1,
+      hasThirdCompareExperiment: compareExperimentIds.length > 2,
+      firstCompareExperimentId: compareExperimentIds[0] || "",
+      secondCompareExperimentId: compareExperimentIds[1] || "",
+      thirdCompareExperimentId: compareExperimentIds[2] || "",
+      isMetricsView,
     }
   ).toPromise();
 }

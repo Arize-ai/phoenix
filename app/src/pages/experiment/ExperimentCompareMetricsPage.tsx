@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
+import { useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
@@ -6,6 +9,9 @@ import {
   latencyMsFormatter,
   numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
+
+import type { ExperimentCompareMetricsPage_experiments$key } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
+import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 const metricCardCSS = css`
   padding: var(--ac-global-dimension-size-200);
@@ -24,6 +30,75 @@ const metricCardCSS = css`
 `;
 
 export function ExperimentCompareMetricsPage() {
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
+    graphql`
+      fragment ExperimentCompareMetricsPage_experiments on Query
+      @argumentDefinitions(
+        baseExperimentId: { type: "ID!" }
+        firstCompareExperimentId: { type: "ID!" }
+        secondCompareExperimentId: { type: "ID!" }
+        thirdCompareExperimentId: { type: "ID!" }
+        hasFirstCompareExperiment: { type: "Boolean!" }
+        hasSecondCompareExperiment: { type: "Boolean!" }
+        hasThirdCompareExperiment: { type: "Boolean!" }
+      ) {
+        baseExperiment: node(id: $baseExperimentId) {
+          ... on Experiment {
+            id
+            averageRunLatencyMs
+          }
+        }
+        firstCompareExperiment: node(id: $firstCompareExperimentId)
+          @include(if: $hasFirstCompareExperiment) {
+          ... on Experiment {
+            id
+            averageRunLatencyMs
+          }
+        }
+        secondCompareExperiment: node(id: $secondCompareExperimentId)
+          @include(if: $hasSecondCompareExperiment) {
+          ... on Experiment {
+            id
+            averageRunLatencyMs
+          }
+        }
+        thirdCompareExperiment: node(id: $thirdCompareExperimentId)
+          @include(if: $hasThirdCompareExperiment) {
+          ... on Experiment {
+            id
+            averageRunLatencyMs
+          }
+        }
+      }
+    `,
+    loaderData
+  );
+  if (!data) {
+    throw new Error("Empty state not implemented");
+  }
+  const { baseExperiment, compareExperiments } = useMemo(() => {
+    const baseExperiment = data.baseExperiment;
+    const compareExperiments = [];
+    if (data.firstCompareExperiment) {
+      compareExperiments.push(data.firstCompareExperiment);
+    }
+    if (data.secondCompareExperiment) {
+      compareExperiments.push(data.secondCompareExperiment);
+    }
+    if (data.thirdCompareExperiment) {
+      compareExperiments.push(data.thirdCompareExperiment);
+    }
+    return {
+      baseExperiment,
+      compareExperiments,
+    };
+  }, [
+    data.baseExperiment,
+    data.firstCompareExperiment,
+    data.secondCompareExperiment,
+    data.thirdCompareExperiment,
+  ]);
   return (
     <View padding="size-200" width="100%">
       <ul
@@ -43,36 +118,17 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCSS}>
-            <Flex direction="column" gap="size-200">
-              <Heading level={2}>Latency</Heading>
-              <BaseExperimentMetric
-                value={520}
-                formatter={latencyMsFormatter}
-              />
-              <CompareExperimentMetric
-                value={620}
-                formatter={latencyMsFormatter}
-                baselineValue={520}
-                numImprovements={10}
-                numRegressions={5}
-              />
-              <CompareExperimentMetric
-                value={5.4 * 1000}
-                formatter={latencyMsFormatter}
-                baselineValue={520}
-                numImprovements={0}
-                numRegressions={10}
-              />
-              <CompareExperimentMetric
-                value={1 * 60 * 60 * 1000 + 10 * 1000}
-                formatter={latencyMsFormatter}
-                baselineValue={520}
-                numImprovements={10}
-                numRegressions={0}
-              />
-            </Flex>
-          </div>
+          <LatencyMetricCard
+            baseExperimentLatencyMs={baseExperiment.averageRunLatencyMs}
+            compareExperiments={compareExperiments.map((compareExperiment) => {
+              return {
+                id: compareExperiment.id as string, // fix
+                latencyMs: compareExperiment.averageRunLatencyMs,
+                numLatencyMsImprovements: 0,
+                numLatencyMsRegressions: 1,
+              };
+            })}
+          />
         </li>
         <li
           css={css`
@@ -214,10 +270,10 @@ function BaseExperimentMetric({
   value,
   formatter = numberFormatter,
 }: {
-  value: number;
-  formatter?: (value: number) => string;
+  value: number | null | undefined;
+  formatter?: (value: number | null | undefined) => string;
 }) {
-  const valueText = formatter ? formatter(value) : value;
+  const valueText = formatter(value);
   return <Text size="M">{valueText}</Text>;
 }
 
@@ -228,25 +284,31 @@ function CompareExperimentMetric({
   numImprovements,
   numRegressions,
 }: {
-  value: number;
-  formatter?: (value: number) => string;
-  baselineValue: number;
+  value: number | null | undefined;
+  formatter?: (value: number | null | undefined) => string;
+  baselineValue: number | null | undefined;
   numImprovements: number;
   numRegressions: number;
 }) {
-  const valueText = formatter ? formatter(value) : value;
-  const delta = value - baselineValue;
-  const isImprovement = delta >= 0;
-  const absoluteDelta = Math.abs(delta);
-  const deltaText = `(${isImprovement ? "+" : "-"}${formatter ? formatter(absoluteDelta) : absoluteDelta})`;
-  const percentageDelta = Math.abs((delta / baselineValue) * 100);
-  const percentageDeltaText = `${isImprovement ? "+" : "-"}${percentageDelta.toFixed(0)}%`;
+  const valueText = formatter(value);
+  let deltaText: string | null = null;
+  let percentageDeltaText: string | null = null;
+  if (value != null && baselineValue != null) {
+    const delta = value - baselineValue;
+    const sign = delta >= 0 ? "+" : "-";
+    const absoluteDelta = Math.abs(delta);
+    deltaText = `(${sign}${formatter(absoluteDelta)})`;
+    const absolutePercentageDelta = Math.abs(
+      (delta / baselineValue) * 100
+    ).toFixed(0);
+    percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
+  }
   return (
     <Flex direction="row" justifyContent="space-between">
       <Flex direction="row" alignItems="center" gap="size-50">
         <Text size="M">{valueText}</Text>
-        <Text size="S">{deltaText}</Text>
-        <Text size="S">{percentageDeltaText}</Text>
+        {deltaText && <Text size="S">{deltaText}</Text>}
+        {percentageDeltaText && <Text size="S">{percentageDeltaText}</Text>}
       </Flex>
       <ImprovementAndRegressionCounter
         numImprovements={numImprovements}
@@ -282,5 +344,42 @@ function ImprovementAndRegressionCounter({
         </Flex>
       )}
     </Flex>
+  );
+}
+
+type LatencyMetricCardProps = {
+  baseExperimentLatencyMs: number | null | undefined;
+  compareExperiments: {
+    id: string;
+    latencyMs: number | null | undefined;
+    numLatencyMsImprovements: number;
+    numLatencyMsRegressions: number;
+  }[];
+};
+
+function LatencyMetricCard({
+  baseExperimentLatencyMs,
+  compareExperiments,
+}: LatencyMetricCardProps) {
+  return (
+    <div css={metricCardCSS}>
+      <Flex direction="column" gap="size-200">
+        <Heading level={2}>Latency</Heading>
+        <BaseExperimentMetric
+          value={baseExperimentLatencyMs}
+          formatter={latencyMsFormatter}
+        />
+        {compareExperiments.map((compareExperiment) => (
+          <CompareExperimentMetric
+            key={compareExperiment.id}
+            value={compareExperiment.latencyMs}
+            formatter={latencyMsFormatter}
+            baselineValue={baseExperimentLatencyMs}
+            numImprovements={compareExperiment.numLatencyMsImprovements}
+            numRegressions={compareExperiment.numLatencyMsRegressions}
+          />
+        ))}
+      </Flex>
+    </div>
   );
 }
