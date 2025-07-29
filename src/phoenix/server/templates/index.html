@@ -65,7 +65,7 @@
       {{- render_css() -}}
     {%- endif -%}
     <script src="{{basename}}/modernizr.js"></script>
-    {% if fullstory_org and allow_external_resources -%}
+    {% if fullstory_org -%}
     <script>
       window['_fs_host'] = 'fullstory.com';
       window['_fs_script'] = 'edge.fullstory.com/s/fs.js';
