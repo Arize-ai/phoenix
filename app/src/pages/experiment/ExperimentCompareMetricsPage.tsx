@@ -310,10 +310,12 @@ function CompareExperimentMetric({
     const sign = delta >= 0 ? "+" : "-";
     const absoluteDelta = Math.abs(delta);
     deltaText = `(${sign}${formatter(absoluteDelta)})`;
-    const absolutePercentageDelta = Math.abs(
-      (delta / baselineValue) * 100
-    ).toFixed(0);
-    percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
+    if (baselineValue !== 0) {
+      const absolutePercentageDelta = Math.abs(
+        (delta / baselineValue) * 100
+      ).toFixed(0);
+      percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
+    }
   }
   return (
     <Flex direction="row" justifyContent="space-between">
