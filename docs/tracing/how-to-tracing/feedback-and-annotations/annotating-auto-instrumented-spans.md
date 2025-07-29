@@ -94,48 +94,7 @@ def process_llm_request_with_feedback(prompt: str):
 - Applying feedback specifically to the model's response quality
 - Recording model-specific metrics or evaluations
 
-### Complete Example: Multi-Level Feedback
 
-```python
-from openinference.instrumentation import capture_span_context
-from phoenix.client import Client
-
-client = Client()
-
-def chat_with_comprehensive_feedback(user_input: str):
-    with capture_span_context() as capture:
-        # Auto-instrumented framework call
-        response = framework.process(user_input)
-        
-        # Simulate getting user feedback
-        user_rating = get_user_rating(response)  # Returns 1-5 score
-        
-        # Apply feedback to the first span (overall experience)
-        first_span_id = capture.get_first_span_id()
-        if first_span_id:
-            client.annotations.add_span_annotation(
-                annotation_name="user_experience",
-                annotator_kind="HUMAN",
-                span_id=first_span_id,
-                label="satisfied" if user_rating >= 4 else "unsatisfied",
-                score=user_rating,
-                explanation=f"User rated the overall experience: {user_rating}/5"
-            )
-        
-        # Apply feedback to the last span (typically the LLM response)
-        last_span_id = capture.get_last_span_id()
-        if last_span_id and last_span_id != first_span_id:  # Avoid duplicate annotations
-            # Run an evaluation on the LLM response
-            relevance_score = evaluate_relevance(user_input, response)
-            
-            client.annotations.add_span_annotation(
-                annotation_name="relevance",
-                annotator_kind="LLM",
-                span_id=last_span_id,
-                score=relevance_score,
-                explanation="Automated relevance evaluation of the LLM response"
-            )
-```
 
 ### Working with All Captured Spans
 
@@ -184,15 +143,7 @@ with capture_span_context() as capture:
         apply_llm_feedback(span_context)
 ```
 
-### Best Practices
 
-1. **Hierarchical Feedback**: Use first spans for high-level feedback (user experience, overall quality) and last spans for specific component feedback (LLM response quality, retrieval relevance)
-
-2. **Avoid Duplicate Annotations**: Check if `first_span_id == last_span_id` to avoid applying the same annotation twice when there's only one span
-
-3. **Context-Aware Annotations**: Use the span topology to understand what each span represents in your application flow
-
-4. **Deferred Annotation**: Capture spans first, then apply annotations after the main operation completes to avoid interfering with execution
 
 ### Resources
 
