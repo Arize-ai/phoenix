@@ -50,6 +50,7 @@ export function ExperimentCompareMetricsPage() {
             costSummary {
               total {
                 tokens
+                cost
               }
               prompt {
                 tokens
@@ -68,6 +69,7 @@ export function ExperimentCompareMetricsPage() {
             costSummary {
               total {
                 tokens
+                cost
               }
               prompt {
                 tokens
@@ -86,6 +88,7 @@ export function ExperimentCompareMetricsPage() {
             costSummary {
               total {
                 tokens
+                cost
               }
               prompt {
                 tokens
@@ -104,6 +107,7 @@ export function ExperimentCompareMetricsPage() {
             costSummary {
               total {
                 tokens
+                cost
               }
               prompt {
                 tokens
@@ -245,33 +249,18 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCSS}>
-            <Flex direction="column" gap="size-200">
-              <Heading level={2}>Cost</Heading>
-              <BaseExperimentMetric value={1000} formatter={costFormatter} />
-              <CompareExperimentMetric
-                value={1100.01}
-                formatter={costFormatter}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={5}
-              />
-              <CompareExperimentMetric
-                value={900}
-                formatter={costFormatter}
-                baselineValue={1000}
-                numImprovements={0}
-                numRegressions={10}
-              />
-              <CompareExperimentMetric
-                value={1200}
-                formatter={costFormatter}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={0}
-              />
-            </Flex>
-          </div>
+          <CostMetricCard
+            title="Total Cost"
+            baseExperimentCost={baseExperiment.costSummary?.total.cost}
+            compareExperiments={compareExperiments.map((compareExperiments) => {
+              return {
+                id: compareExperiments.id as string,
+                cost: compareExperiments.costSummary?.total.cost,
+                numImprovements: 10,
+                numRegressions: 5,
+              };
+            })}
+          />
         </li>
       </ul>
     </View>
@@ -424,6 +413,45 @@ function TokenCountMetricCard({
             key={compareExperiment.id}
             value={compareExperiment.tokens}
             baselineValue={baseExperimentTotalTokens}
+            numImprovements={compareExperiment.numImprovements}
+            numRegressions={compareExperiment.numRegressions}
+          />
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
+type CostMetricCardProps = {
+  title: string;
+  baseExperimentCost: number | null | undefined;
+  compareExperiments: {
+    id: string;
+    cost: number | null | undefined;
+    numImprovements: number;
+    numRegressions: number;
+  }[];
+};
+
+function CostMetricCard({
+  title,
+  baseExperimentCost,
+  compareExperiments,
+}: CostMetricCardProps) {
+  return (
+    <div css={metricCardCSS}>
+      <Flex direction="column" gap="size-200">
+        <Heading level={2}>{title}</Heading>
+        <BaseExperimentMetric
+          value={baseExperimentCost}
+          formatter={costFormatter}
+        />
+        {compareExperiments.map((compareExperiment) => (
+          <CompareExperimentMetric
+            key={compareExperiment.id}
+            value={compareExperiment.cost}
+            formatter={costFormatter}
+            baselineValue={baseExperimentCost}
             numImprovements={compareExperiment.numImprovements}
             numRegressions={compareExperiment.numRegressions}
           />

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbdae8d1d3ada389db382a5ae32a08d8>>
+ * @generated SignedSource<<a6308557e308c295f6d446bbbcc1830d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type ExperimentCompareMetricsPage_experiments$data = {
         readonly tokens: number | null;
       };
       readonly total: {
+        readonly cost: number | null;
         readonly tokens: number | null;
       };
     };
@@ -36,6 +37,7 @@ export type ExperimentCompareMetricsPage_experiments$data = {
         readonly tokens: number | null;
       };
       readonly total: {
+        readonly cost: number | null;
         readonly tokens: number | null;
       };
     };
@@ -51,6 +53,7 @@ export type ExperimentCompareMetricsPage_experiments$data = {
         readonly tokens: number | null;
       };
       readonly total: {
+        readonly cost: number | null;
         readonly tokens: number | null;
       };
     };
@@ -66,6 +69,7 @@ export type ExperimentCompareMetricsPage_experiments$data = {
         readonly tokens: number | null;
       };
       readonly total: {
+        readonly cost: number | null;
         readonly tokens: number | null;
       };
     };
@@ -79,16 +83,17 @@ export type ExperimentCompareMetricsPage_experiments$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "tokens",
-    "storageKey": null
-  }
-],
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
 v1 = [
+  (v0/*: any*/)
+],
+v2 = [
   {
     "kind": "InlineFragment",
     "selections": [
@@ -121,7 +126,16 @@ v1 = [
             "kind": "LinkedField",
             "name": "total",
             "plural": false,
-            "selections": (v0/*: any*/),
+            "selections": [
+              (v0/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cost",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           },
           {
@@ -131,7 +145,7 @@ v1 = [
             "kind": "LinkedField",
             "name": "prompt",
             "plural": false,
-            "selections": (v0/*: any*/),
+            "selections": (v1/*: any*/),
             "storageKey": null
           },
           {
@@ -141,7 +155,7 @@ v1 = [
             "kind": "LinkedField",
             "name": "completion",
             "plural": false,
-            "selections": (v0/*: any*/),
+            "selections": (v1/*: any*/),
             "storageKey": null
           }
         ],
@@ -207,7 +221,7 @@ return {
       "kind": "LinkedField",
       "name": "node",
       "plural": false,
-      "selections": (v1/*: any*/),
+      "selections": (v2/*: any*/),
       "storageKey": null
     },
     {
@@ -228,7 +242,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v1/*: any*/),
+          "selections": (v2/*: any*/),
           "storageKey": null
         }
       ]
@@ -251,7 +265,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v1/*: any*/),
+          "selections": (v2/*: any*/),
           "storageKey": null
         }
       ]
@@ -274,7 +288,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v1/*: any*/),
+          "selections": (v2/*: any*/),
           "storageKey": null
         }
       ]
@@ -285,6 +299,6 @@ return {
 };
 })();
 
-(node as any).hash = "495d8ca6d4efc8e66b3ea7d08c0c3001";
+(node as any).hash = "40d7e2d71b151faf0829f989e9cf3dca";
 
 export default node;
