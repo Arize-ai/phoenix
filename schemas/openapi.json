@@ -1768,16 +1768,6 @@
             },
             "description": "Not Found"
           },
-          "507": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Insufficient Storage"
-          },
           "422": {
             "description": "Validation Error",
             "content": {
