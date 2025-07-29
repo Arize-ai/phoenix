@@ -34,6 +34,7 @@ framework (root span)
 The `capture_span_context` context manager helps you easily access:
 - **First span**: The root span of your operation (useful for high-level feedback and evaluations)
 - **Last span**: The most recent span created (often the final LLM call, useful for LLM-specific feedback)
+- **All spans**: A complete list of all spans created within the context (useful for comprehensive analysis)
 
 ## Usage
 
