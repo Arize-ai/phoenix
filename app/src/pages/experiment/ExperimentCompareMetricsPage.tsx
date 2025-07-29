@@ -7,7 +7,7 @@ import {
   numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
-const metricCardCss = css`
+const metricCardCSS = css`
   padding: var(--ac-global-dimension-size-200);
   border: 1px solid var(--ac-global-color-grey-400);
   background-color: var(--ac-global-color-grey-100);
@@ -43,7 +43,7 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCss}>
+          <div css={metricCardCSS}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Latency</Heading>
               <BaseExperimentMetric
@@ -81,7 +81,7 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCss}>
+          <div css={metricCardCSS}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Prompt Tokens</Heading>
               <BaseExperimentMetric value={1000} />
@@ -113,7 +113,7 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCss}>
+          <div css={metricCardCSS}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Completion Tokens</Heading>
               <BaseExperimentMetric value={1000} />
@@ -145,7 +145,7 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCss}>
+          <div css={metricCardCSS}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Total Tokens</Heading>
               <BaseExperimentMetric value={1000} />
@@ -177,7 +177,7 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCss}>
+          <div css={metricCardCSS}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Cost</Heading>
               <BaseExperimentMetric value={1000} formatter={costFormatter} />
