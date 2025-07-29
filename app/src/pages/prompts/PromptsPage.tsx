@@ -2,14 +2,7 @@ import { useState } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  LinkButton,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, LinkButton, View } from "@phoenix/components";
 import { promptsLoader } from "@phoenix/pages/prompts/promptsLoader";
 
 import { PromptsSearch } from "./PromptsSearch";
@@ -25,7 +18,7 @@ export function PromptsPage() {
       <View
         padding="size-200"
         borderBottomWidth="thin"
-        borderBottomColor="dark"
+        borderBottomColor="grey-200"
         flex="none"
       >
         <Flex
@@ -34,27 +27,16 @@ export function PromptsPage() {
           alignItems="center"
           gap="size-100"
         >
-          <Heading level={1}>Prompts</Heading>
+          <PromptsSearch onChange={setSearchFilter} />
           <LinkButton
             size="M"
             leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
             variant="primary"
             to="/playground"
           >
-            Create Prompt
+            New Prompt
           </LinkButton>
         </Flex>
-      </View>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderBottomWidth="thin"
-        borderBottomColor="grey-200"
-        flex="none"
-      >
-        <PromptsSearch onChange={setSearchFilter} />
       </View>
       <PromptsTable query={loaderData} searchFilter={searchFilter} />
     </Flex>

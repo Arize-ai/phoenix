@@ -43,25 +43,25 @@ class DBSchemaComparisonTest(ABC):
 
         with _engine.connect() as conn:
             initial_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
-        assert (
-            initial_info == current_info
-        ), "Initial schema info does not match expected current schema info"
+        assert initial_info == current_info, (
+            "Initial schema info does not match expected current schema info"
+        )
 
         _up(_engine, _alembic_config, _UP, _schema)
 
         with _engine.connect() as conn:
             final_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
-        assert (
-            final_info == upgraded_info
-        ), "Final schema info does not match expected upgraded schema info"
+        assert final_info == upgraded_info, (
+            "Final schema info does not match expected upgraded schema info"
+        )
 
         _down(_engine, _alembic_config, _DOWN, _schema)
 
         with _engine.connect() as conn:
             downgraded_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
-        assert (
-            downgraded_info == current_info
-        ), "Downgraded schema info does not match expected current schema info"
+        assert downgraded_info == current_info, (
+            "Downgraded schema info does not match expected current schema info"
+        )
 
 
 class TestUsers(DBSchemaComparisonTest):

@@ -13,6 +13,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { useCategoryChartColors } from "@phoenix/components/chart/colors";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -80,6 +81,7 @@ export function ProjectPageHeader(props: {
   );
   const documentEvaluationNames = data?.documentEvaluationNames;
 
+  const colors = useCategoryChartColors();
   return (
     <View
       paddingStart="size-200"
@@ -141,7 +143,7 @@ export function ProjectPageHeader(props: {
               </Text>
               <TooltipTrigger delay={0}>
                 <Focusable>
-                  <Text size="L">
+                  <Text size="L" role="button">
                     {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                   </Text>
                 </Focusable>
@@ -156,12 +158,12 @@ export function ProjectPageHeader(props: {
                         {
                           name: "Prompt",
                           value: data?.costSummary?.prompt?.cost ?? 0,
-                          color: "rgba(254, 119, 99, 1)",
+                          color: colors.category1,
                         },
                         {
                           name: "Completion",
                           value: data?.costSummary?.completion?.cost ?? 0,
-                          color: "rgba(98, 104, 239, 1)",
+                          color: colors.category2,
                         },
                       ]}
                     />

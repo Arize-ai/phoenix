@@ -1050,6 +1050,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
+    // Style for cards
+    --ac-global-card-header-height: 46px;
+
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
@@ -1105,12 +1108,13 @@ const appGlobalStylesCSS = css`
     font-weight: 400;
     font-style: normal;
   }
-  body,
-  .ac-theme // We scope it to the theme so we can mount two at the same time (e.x. storybook)
-  {
-    background-color: var(--ac-global-color-grey-75);
+  .ac-theme {
     color: var(--ac-global-text-color-900);
     font-size: var(--ac-global-font-size-s);
+  }
+  body {
+    background-color: var(--ac-global-color-grey-75);
+
     margin: 0;
     overflow: hidden;
     #root,
@@ -1176,8 +1180,8 @@ const appGlobalStylesCSS = css`
 
     --px-gradient-bar-height: 8px;
 
-    --px-nav-collapsed-width: 45px;
-    --px-nav-expanded-width: 200px;
+    --px-nav-collapsed-width: 52px;
+    --px-nav-expanded-width: 230px;
 
     --ac-global-opacity-disabled: 0.6;
 
@@ -1264,12 +1268,13 @@ const chartCSS = css`
     --chart-axis-stroke-color: var(--ac-global-color-grey-300);
     --chart-axis-text-color: var(--ac-global-text-color-700);
     --chart-axis-label-color: var(--ac-global-text-color-700);
+    --chart-legend-text-color: var(--ac-global-text-color-900);
   }
   .ac-theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
   .ac-theme--light {
-    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
   }
 `;
 

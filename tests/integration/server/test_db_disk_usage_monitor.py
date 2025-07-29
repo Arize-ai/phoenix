@@ -170,9 +170,9 @@ class TestDbDiskUsageMonitor:
                 assert (soup := _extract_html(message))
                 assert soup.title
                 assert soup.title.string == "Database Usage Notification"
-                assert (
-                    _support_email in soup.get_text()
-                ), f"Support email {_support_email} should appear in email content"
+                assert _support_email in soup.get_text(), (
+                    f"Support email {_support_email} should appear in email content"
+                )
                 received_email = True
             except AssertionError:
                 if retries_left:
@@ -289,6 +289,19 @@ class TestDbDiskUsageMonitor:
         # consuming it, so they should continue to work. This allows
         # administrators to clean up data to resolve disk usage issues.
         for field in ['clearProject(input:{id:"UHJvamVjdDox"}){__typename}']:
+            query = "mutation{" + field + "}"
+            _gql(_app, access_token, query=query)
+
+        # ========================================================================
+        # Verify GraphQL mutation patch operations are not blocked
+        # ========================================================================
+        # Patch operations (updates) don't create new data but modify existing
+        # records, so they should continue to work when insertions are blocked.
+        # This allows administrators to update user settings and profiles.
+        for field in [
+            f'patchViewer(input:{{newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
+            f'patchUser(input:{{userId:"VXNlcjox",newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
+        ]:
             query = "mutation{" + field + "}"
             _gql(_app, access_token, query=query)
 

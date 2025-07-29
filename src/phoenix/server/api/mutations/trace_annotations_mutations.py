@@ -49,8 +49,7 @@ class TraceAnnotationMutationMixin:
                 trace_rowid = from_global_id_with_expected_type(annotation_input.trace_id, "Trace")
             except ValueError:
                 raise BadRequest(
-                    f"Invalid trace ID for annotation at index {idx}: "
-                    f"{annotation_input.trace_id}"
+                    f"Invalid trace ID for annotation at index {idx}: {annotation_input.trace_id}"
                 )
             trace_rowids.append(trace_rowid)
 

@@ -34,7 +34,7 @@ def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vec
         agent_tracer,
         tool_model,
         user_session_id,
-        (f"Configuration Set: Project " f"'{project_name}' is Ready!"),
+        (f"Configuration Set: Project '{project_name}' is Ready!"),
     )
 
 

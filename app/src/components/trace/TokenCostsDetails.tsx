@@ -82,6 +82,10 @@ export interface TokenCostsDetailsProps {
   completion?: number | null;
   promptDetails?: Record<string, number | null> | null;
   completionDetails?: Record<string, number | null> | null;
+  /**
+   * The label for the cost details. Defaults to "Total".
+   */
+  label?: string;
 }
 
 export function TokenCostsDetails({
@@ -90,6 +94,7 @@ export function TokenCostsDetails({
   completion,
   promptDetails,
   completionDetails,
+  label = "Total",
 }: TokenCostsDetailsProps) {
   const hasPromptDetails =
     promptDetails &&
@@ -105,7 +110,7 @@ export function TokenCostsDetails({
     <div css={tokenCostsDetailsCSS}>
       {/* Main three rows */}
       {total != null && (
-        <TokenCostRow label="Total" cost={total} isTotal={true} />
+        <TokenCostRow label={label} cost={total} isTotal={true} />
       )}
 
       {prompt != null && <TokenCostRow label="Prompt" cost={prompt} />}

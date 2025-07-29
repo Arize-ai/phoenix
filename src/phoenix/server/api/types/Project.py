@@ -33,6 +33,7 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -1325,6 +1326,130 @@ class Project(Node):
             data=sorted(data.values(), key=lambda x: x.timestamp),
             names=sorted(list(unique_names)),
         )
+
+    @strawberry.field
+    async def top_models_by_cost(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> list[GenerativeModel]:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+
+        async with info.context.db() as session:
+            stmt = (
+                select(
+                    models.GenerativeModel,
+                    func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                    func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                    func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                    func.sum(models.SpanCost.total_cost).label("total_cost"),
+                    func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                    func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+                )
+                .join(
+                    models.SpanCost,
+                    models.SpanCost.model_id == models.GenerativeModel.id,
+                )
+                .join(
+                    models.Trace,
+                    models.SpanCost.trace_rowid == models.Trace.id,
+                )
+                .where(models.Trace.project_rowid == self.project_rowid)
+                .where(models.SpanCost.model_id.isnot(None))
+                .where(models.SpanCost.span_start_time >= time_range.start)
+                .group_by(models.GenerativeModel.id)
+                .order_by(func.sum(models.SpanCost.total_cost).desc())
+            )
+            if time_range.end:
+                stmt = stmt.where(models.SpanCost.span_start_time < time_range.end)
+            results: list[GenerativeModel] = []
+            async for (
+                model,
+                total_tokens,
+                prompt_tokens,
+                completion_tokens,
+                total_cost,
+                prompt_cost,
+                completion_cost,
+            ) in await session.stream(stmt):
+                cost_summary = SpanCostSummary(
+                    prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                    completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                    total=CostBreakdown(tokens=total_tokens, cost=total_cost),
+                )
+                cache_time_range = TimeRange(
+                    start=time_range.start,
+                    end=time_range.end,
+                )
+                gql_model = to_gql_generative_model(model)
+                gql_model.add_cached_cost_summary(
+                    self.project_rowid, cache_time_range, cost_summary
+                )
+                results.append(gql_model)
+            return results
+
+    @strawberry.field
+    async def top_models_by_token_count(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> list[GenerativeModel]:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+
+        async with info.context.db() as session:
+            stmt = (
+                select(
+                    models.GenerativeModel,
+                    func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                    func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                    func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                    func.sum(models.SpanCost.total_cost).label("total_cost"),
+                    func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                    func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+                )
+                .join(
+                    models.SpanCost,
+                    models.SpanCost.model_id == models.GenerativeModel.id,
+                )
+                .join(
+                    models.Trace,
+                    models.SpanCost.trace_rowid == models.Trace.id,
+                )
+                .where(models.Trace.project_rowid == self.project_rowid)
+                .where(models.SpanCost.model_id.isnot(None))
+                .where(models.SpanCost.span_start_time >= time_range.start)
+                .group_by(models.GenerativeModel.id)
+                .order_by(func.sum(models.SpanCost.total_tokens).desc())
+            )
+            if time_range.end:
+                stmt = stmt.where(models.SpanCost.span_start_time < time_range.end)
+            results: list[GenerativeModel] = []
+            async for (
+                model,
+                total_tokens,
+                prompt_tokens,
+                completion_tokens,
+                total_cost,
+                prompt_cost,
+                completion_cost,
+            ) in await session.stream(stmt):
+                cost_summary = SpanCostSummary(
+                    prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                    completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                    total=CostBreakdown(tokens=total_tokens, cost=total_cost),
+                )
+                cache_time_range = TimeRange(
+                    start=time_range.start,
+                    end=time_range.end,
+                )
+                gql_model = to_gql_generative_model(model)
+                gql_model.add_cached_cost_summary(
+                    self.project_rowid, cache_time_range, cost_summary
+                )
+                results.append(gql_model)
+            return results
 
 
 @strawberry.type

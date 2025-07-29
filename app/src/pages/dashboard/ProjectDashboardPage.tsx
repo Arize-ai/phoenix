@@ -4,7 +4,7 @@ import { invariant } from "@apollo/client/utilities/globals";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, View } from "@phoenix/components";
-import { ConnectedLastNTimeRangePicker } from "@phoenix/components/datetime";
+import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
 
 import { DashboardPanel } from "./DashboardPanel";
 import { projectDashboardLoader } from "./projectDashboardLoader";
@@ -42,7 +42,7 @@ export function ProjectDashboardPage() {
           alignItems="center"
         >
           <Heading level={1}>Dashboard: {project.name}</Heading>
-          <ConnectedLastNTimeRangePicker />
+          <ConnectedTimeRangeSelector />
         </Flex>
       </View>
 

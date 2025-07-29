@@ -27,6 +27,7 @@ import {
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
 import {
   CompactJSONCell,
   IntCell,
@@ -40,7 +41,6 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import {
-  costFormatter,
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
@@ -335,12 +335,15 @@ export function ExperimentsTable({
       meta: {
         textAlign: "right",
       },
-      cell: ({ getValue }) => {
-        const value = getValue();
-        if (value === null || typeof value !== "number") {
+      cell: ({ getValue, row }) => {
+        const value = getValue() as number | null;
+        const experimentId = row.original.id;
+        if (value == null) {
           return "--";
         }
-        return <Text>{`${costFormatter(value)}`}</Text>;
+        return (
+          <ExperimentTokenCosts totalCost={value} experimentId={experimentId} />
+        );
       },
     },
     {

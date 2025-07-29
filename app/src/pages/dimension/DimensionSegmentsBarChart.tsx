@@ -17,7 +17,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 
 import { DimensionSegmentsBarChart_dimension$key } from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
@@ -31,7 +31,7 @@ type BarChartItem = {
 const formatter = format(".2f");
 
 const useColors = () => {
-  const { primary } = useChartColors();
+  const { primary } = useSequentialChartColors();
   return {
     color: primary,
   };

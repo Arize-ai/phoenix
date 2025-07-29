@@ -116,6 +116,10 @@ exclude = [
 [[tool.mypy.overrides]]
 module = [
   "litellm",
+  "langchain_openai",
+  "langchain_anthropic",
+  "mistralai",
+  "mistralai.*",
 ]
 ignore_missing_imports = true
 

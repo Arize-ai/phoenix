@@ -570,8 +570,7 @@ def _validate_dataframe(
         import pandas as pd
     except ImportError:
         raise ImportError(
-            "Pandas is not installed. Please install pandas to use this method: "
-            "pip install pandas"
+            "Pandas is not installed. Please install pandas to use this method: pip install pandas"
         )
 
     # Type check for DataFrame

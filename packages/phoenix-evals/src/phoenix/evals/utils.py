@@ -19,6 +19,7 @@ NOT_PARSABLE = "NOT_PARSABLE"
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 _FUNCTION_NAME = "record_response"
+SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:

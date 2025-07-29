@@ -545,7 +545,7 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
@@ -1273,7 +1273,7 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
-  costSummary: SpanCostSummary!
+  costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
@@ -1730,6 +1730,8 @@ type Project implements Node {
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
+  topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
+  topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
 
 enum ProjectColumn {
@@ -2111,6 +2113,7 @@ type Query {
   """
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
+  serverStatus: ServerStatus!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
@@ -2166,6 +2169,10 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+type ServerStatus {
+  insufficientStorage: Boolean!
 }
 
 input SetPromptLabelInput {

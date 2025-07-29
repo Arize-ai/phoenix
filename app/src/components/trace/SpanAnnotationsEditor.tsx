@@ -13,10 +13,9 @@ import {
   useMutation,
 } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Dialog,
   DialogTrigger,
   Flex,
@@ -151,8 +150,6 @@ function NewAnnotationCard(props: NewAnnotationCardProps) {
       title="Add Annotation from Config"
       backgroundColor="light"
       borderColor="light"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
     >
       <Suspense>
         <NewAnnotationFromConfig
