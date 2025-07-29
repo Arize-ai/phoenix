@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { selectCSS } from "@phoenix/components/select/styles";
 
 export type ExperimentCompareLayout = "grid" | "metrics";
 
@@ -39,7 +38,7 @@ export function ExperimentCompareLayoutSelect({
   onLayoutChange: (newLayout: ExperimentCompareLayout) => void;
 }) {
   return (
-    <div css={css(fieldBaseCSS, selectCSS)}>
+    <div css={fieldBaseCSS}>
       <Label>layout</Label>
       <Select
         aria-label="Experiment Compare Layout"
