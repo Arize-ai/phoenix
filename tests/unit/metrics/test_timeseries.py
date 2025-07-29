@@ -279,7 +279,7 @@ def test_timeseries_all_granularity() -> None:
         StringIO(
             """
             2023-01-28 11:26:50Z,653.3333333333334,9,[45. 54. 63. 72. 81.],[5. 6. 7. 8. 9.],4.472135955
-            """  # noqa E501
+            """
         ),
         names=["ts"] + names,
         parse_dates=["ts"],

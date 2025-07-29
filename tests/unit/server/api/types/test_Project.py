@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 import base64
 import re
 from dataclasses import dataclass, field
@@ -3252,7 +3251,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← This makes it a real root span
-                    name=f"root-span-{i+1}",
+                    name=f"root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -3272,7 +3271,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=root_span.span_id,  # ← Child of the root span
-                    name=f"child-span-{i+1}",
+                    name=f"child-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=15),
                     end_time=trace.start_time + timedelta(minutes=25),
@@ -3292,7 +3291,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← Also a root span
-                    name=f"second-root-span-{i+1}",
+                    name=f"second-root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),
@@ -3312,7 +3311,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Points to non-existent span (orphan)
-                    name=f"orphan-span-{i+1}",
+                    name=f"orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -3333,7 +3332,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Also an orphan span (different parent_id)
-                    name=f"second-orphan-span-{i+1}",
+                    name=f"second-orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),

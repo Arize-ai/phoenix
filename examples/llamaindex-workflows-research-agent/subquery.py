@@ -4,7 +4,7 @@ from llama_index.core.llms.llm import LLM
 from llama_index.core.prompts.base import PromptTemplate
 
 SUB_QUERY_PROMPT = PromptTemplate(
-    'Write {max_iterations} google search queries to search online that form an objective opinion '
+    "Write {max_iterations} google search queries to search online that form an objective opinion "
     'from the following task: "{task}"\n'
     f"Assume the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y')} if required.\n"
     "You must respond with the search queries separated by comma in the following format: query 1, "

@@ -30,7 +30,7 @@ def test_psi_categorical_binning() -> None:
         assert_almost_equal(
             actual_result,
             desired_result,
-            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
+            err_msg=f"i={i} test_data={test_data.loc[:, column_name].to_numpy()}",
         )
 
 
@@ -56,7 +56,7 @@ def test_psi_interval_binning() -> None:
         assert_almost_equal(
             actual_result,
             desired_result,
-            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
+            err_msg=f"i={i} test_data={test_data.loc[:, column_name].to_numpy()}",
         )
 
 
@@ -77,5 +77,5 @@ def test_psi_quantile_binning() -> None:
         assert_almost_equal(
             actual_result,
             desired_result,
-            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
+            err_msg=f"i={i} test_data={test_data.loc[:, column_name].to_numpy()}",
         )

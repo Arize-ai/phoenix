@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from __future__ import annotations
 
 import uuid
@@ -8,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
+
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -820,32 +820,32 @@ Who wrote Hamlet?,Shakespeare,literature
             assert "example_count" in dataset_dict
 
             # Validate data types against generated v1.Dataset type
-            assert isinstance(
-                dataset_dict["id"], str
-            ), f"id should be str, got {type(dataset_dict['id'])}"
-            assert isinstance(
-                dataset_dict["name"], str
-            ), f"name should be str, got {type(dataset_dict['name'])}"
+            assert isinstance(dataset_dict["id"], str), (
+                f"id should be str, got {type(dataset_dict['id'])}"
+            )
+            assert isinstance(dataset_dict["name"], str), (
+                f"name should be str, got {type(dataset_dict['name'])}"
+            )
             assert dataset_dict["description"] is None or isinstance(
                 dataset_dict["description"], str
             ), f"description should be str or None, got {type(dataset_dict['description'])}"
-            assert isinstance(
-                dataset_dict["metadata"], dict
-            ), f"metadata should be dict (Mapping), got {type(dataset_dict['metadata'])}"
-            assert isinstance(
-                dataset_dict["created_at"], str
-            ), f"created_at should be str, got {type(dataset_dict['created_at'])}"
-            assert isinstance(
-                dataset_dict["updated_at"], str
-            ), f"updated_at should be str, got {type(dataset_dict['updated_at'])}"
-            assert isinstance(
-                dataset_dict["example_count"], int
-            ), f"example_count should be int, got {type(dataset_dict['example_count'])}"
+            assert isinstance(dataset_dict["metadata"], dict), (
+                f"metadata should be dict (Mapping), got {type(dataset_dict['metadata'])}"
+            )
+            assert isinstance(dataset_dict["created_at"], str), (
+                f"created_at should be str, got {type(dataset_dict['created_at'])}"
+            )
+            assert isinstance(dataset_dict["updated_at"], str), (
+                f"updated_at should be str, got {type(dataset_dict['updated_at'])}"
+            )
+            assert isinstance(dataset_dict["example_count"], int), (
+                f"example_count should be int, got {type(dataset_dict['example_count'])}"
+            )
 
             # Validate business logic constraints
-            assert (
-                dataset_dict["example_count"] >= 0
-            ), f"example_count should be non-negative, got {dataset_dict['example_count']}"
+            assert dataset_dict["example_count"] >= 0, (
+                f"example_count should be non-negative, got {dataset_dict['example_count']}"
+            )
 
         # ===== TESTING PHASE: Verify list() functionality =====
 
@@ -876,21 +876,21 @@ Who wrote Hamlet?,Shakespeare,literature
         # The key insight: limited results should be prefixes of larger results in the same order
 
         # First item should be consistent across all limits
-        assert (
-            single_result[0]["id"] == double_result[0]["id"]
-        ), "First item should be consistent between limit=1 and limit=2"
-        assert (
-            double_result[0]["id"] == triple_result[0]["id"]
-        ), "First item should be consistent between limit=2 and limit=3"
+        assert single_result[0]["id"] == double_result[0]["id"], (
+            "First item should be consistent between limit=1 and limit=2"
+        )
+        assert double_result[0]["id"] == triple_result[0]["id"], (
+            "First item should be consistent between limit=2 and limit=3"
+        )
 
         # First 2 items from triple should match double result exactly
         for i in range(2):
-            assert (
-                double_result[i]["id"] == triple_result[i]["id"]
-            ), f"Item {i} should be identical between limit=2 and limit=3 results"
-            assert (
-                double_result[i]["name"] == triple_result[i]["name"]
-            ), f"Item {i} name should be identical between limit=2 and limit=3 results"
+            assert double_result[i]["id"] == triple_result[i]["id"], (
+                f"Item {i} should be identical between limit=2 and limit=3 results"
+            )
+            assert double_result[i]["name"] == triple_result[i]["name"], (
+                f"Item {i} name should be identical between limit=2 and limit=3 results"
+            )
 
         # Test 3: Verify our created datasets appear in the results and validate example counts
         # Since we created 3 datasets most recently, they should be in the first 3 results (ID DESC order)
@@ -900,18 +900,18 @@ Who wrote Hamlet?,Shakespeare,literature
                 found_our_datasets += 1
                 # Validate example counts for our test datasets
                 if dataset_dict["name"].endswith("_zero_examples"):
-                    assert (
-                        dataset_dict["example_count"] == 0
-                    ), f"Zero example dataset should have 0 examples, got {dataset_dict['example_count']}"
+                    assert dataset_dict["example_count"] == 0, (
+                        f"Zero example dataset should have 0 examples, got {dataset_dict['example_count']}"
+                    )
                 elif "_one_example_" in dataset_dict["name"]:
-                    assert (
-                        dataset_dict["example_count"] == 1
-                    ), f"One example dataset should have 1 example, got {dataset_dict['example_count']}"
+                    assert dataset_dict["example_count"] == 1, (
+                        f"One example dataset should have 1 example, got {dataset_dict['example_count']}"
+                    )
 
         # We should find all 3 of our datasets in the first 3 results due to DESC ordering
-        assert (
-            found_our_datasets == 3
-        ), f"Expected to find all 3 created datasets in first 3 results, found {found_our_datasets}"
+        assert found_our_datasets == 3, (
+            f"Expected to find all 3 created datasets in first 3 results, found {found_our_datasets}"
+        )
 
         # Test 4: Test unlimited list() and consistency
         all_datasets = await _await_or_return(
@@ -922,9 +922,9 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # First 3 items from unlimited should match our triple_result
         for i in range(3):
-            assert (
-                all_datasets[i]["id"] == triple_result[i]["id"]
-            ), f"Item {i} should be identical between unlimited and limit=3 results"
+            assert all_datasets[i]["id"] == triple_result[i]["id"], (
+                f"Item {i} should be identical between unlimited and limit=3 results"
+            )
 
         # Test 5: Consistency with get_dataset (using one of our known datasets)
         test_dataset = created_datasets[0]  # Use first created dataset
@@ -941,9 +941,9 @@ Who wrote Hamlet?,Shakespeare,literature
                 test_dataset_from_list = dataset_dict
                 break
 
-        assert (
-            test_dataset_from_list is not None
-        ), f"Test dataset {test_dataset.id} not found in list"
+        assert test_dataset_from_list is not None, (
+            f"Test dataset {test_dataset.id} not found in list"
+        )
 
         # Compare key fields (list doesn't include examples)
         assert test_dataset_from_list["id"] == individual_dataset.id

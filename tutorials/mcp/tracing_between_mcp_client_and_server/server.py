@@ -94,7 +94,7 @@ def optimize_portfolio(request: PortfolioOptimizationRequest) -> dict:
     """Optimizes a portfolio based on stocks, risk tolerance, and investment horizon."""
 
     prompt = f"""
-    Optimize a portfolio with the following stocks: {', '.join(request.stocks)}
+    Optimize a portfolio with the following stocks: {", ".join(request.stocks)}
     Risk tolerance: {request.risk_tolerance}
     Investment horizon: {request.investment_horizon}
 

@@ -60,7 +60,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpe
 def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produces_expected_output(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    output = "EXPLANATION: A very good explanation" 'LABEL: "relevant"'
+    output = 'EXPLANATION: A very good explanationLABEL: "relevant"'
     openai_model._generate = MagicMock(return_value=output)
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -79,7 +79,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produce
 def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_output_is_not_in_rails(
     openai_model: OpenAIModel, relevance_template: str
 ) -> None:
-    output = "EXPLANATION: A very good explanation" 'LABEL: "not-a-rail"'
+    output = 'EXPLANATION: A very good explanationLABEL: "not-a-rail"'
     openai_model._generate = MagicMock(return_value=output)
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -92,7 +92,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_outp
     )
     assert label == NOT_PARSABLE
     assert math.isclose(score, 0.0)
-    assert "EXPLANATION: A very good explanation" 'LABEL: "not-a-rail"' in explanation
+    assert 'EXPLANATION: A very good explanationLABEL: "not-a-rail"' in explanation
 
 
 def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unparseable_model_output(

@@ -158,7 +158,7 @@ class Dataset:
             import pandas as pd
         except ImportError:
             raise ImportError(
-                "pandas is required to use to_dataframe(). " "Install it with 'pip install pandas'"
+                "pandas is required to use to_dataframe(). Install it with 'pip install pandas'"
             )
 
         if not self.examples:
@@ -918,8 +918,7 @@ class Datasets:
                     raise ValueError("Expected pandas DataFrame")
             except ImportError:
                 raise ImportError(
-                    "pandas is required to upload DataFrames. "
-                    "Install it with 'pip install pandas'"
+                    "pandas is required to upload DataFrames. Install it with 'pip install pandas'"
                 )
             file = _prepare_dataframe_as_csv(table, keys)
 
@@ -1594,8 +1593,7 @@ class AsyncDatasets:
                     raise ValueError("Expected pandas DataFrame")
             except ImportError:
                 raise ImportError(
-                    "pandas is required to upload DataFrames. "
-                    "Install it with 'pip install pandas'"
+                    "pandas is required to upload DataFrames. Install it with 'pip install pandas'"
                 )
             file = _prepare_dataframe_as_csv(table, keys)
 
