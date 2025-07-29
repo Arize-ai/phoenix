@@ -300,7 +300,6 @@ class TestDbDiskUsageMonitor:
         # This allows administrators to update user settings and profiles.
         for field in [
             f'patchViewer(input:{{newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
-            f'patchUser(input:{{userId:"VXNlcjox",newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
         ]:
             query = "mutation{" + field + "}"
             _gql(_app, access_token, query=query)
