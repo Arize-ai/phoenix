@@ -1089,7 +1089,10 @@ def create_app(
                         get_env_database_allocated_storage_capacity_gibibytes()
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
-                    allow_external_resources=os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true",
+                    allow_external_resources=os.getenv(
+                        ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True"
+                    ).lower()
+                    == "true",
                 ),
             ),
             name="static",

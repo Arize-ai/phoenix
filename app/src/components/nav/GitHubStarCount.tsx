@@ -11,7 +11,7 @@ export function GitHubStarCount() {
     if (!window.Config.allowExternalResources) {
       return;
     }
-    
+
     fetch("https://api.github.com/repos/Arize-ai/phoenix")
       .then((response) => response.json())
       .then((data) => {

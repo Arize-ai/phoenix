@@ -777,6 +777,7 @@ def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
 
     mkdir_spy.assert_not_called()
 
+
 def test_allow_external_resources_env_var_exists() -> None:
     """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
     assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"

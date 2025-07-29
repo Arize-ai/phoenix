@@ -9,11 +9,9 @@ from typing import NamedTuple, Optional
 from urllib import request
 from urllib.parse import quote, urljoin
 
-from phoenix.config import ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES
-
 from pandas import read_parquet
 
-from phoenix.config import INFERENCES_DIR
+from phoenix.config import ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, INFERENCES_DIR
 from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import (
     EmbeddingColumnNames,
@@ -548,7 +546,7 @@ class GCSAssets(NamedTuple):
                 f"External resource access disabled by {ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}. "
                 "Cannot download fixtures from Google Cloud Storage."
             )
-        
+
         url = urljoin(
             urljoin(self.host, f"storage/v1/b/{self.bucket}/o/"),
             quote(urljoin(self.prefix, str(path)), safe=""),
