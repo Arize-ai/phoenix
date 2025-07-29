@@ -145,6 +145,34 @@ docker compose up --build
 
 Note that the above setup is using your local disc as a volume mount to store the postgres data. For production deployments you will have to setup a persistent volume.
 
+## Air-Gapped Deployments
+
+For air-gapped environments where external network access is restricted, you should disable external resource loading to improve UI performance. This prevents Phoenix from attempting to load external resources like Google Fonts, which can cause UI loading delays in environments without internet access.
+
+Add the `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` environment variable to your Docker configuration:
+
+```yaml
+# docker-compose.yml for air-gapped environments
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest # Must be version 11.15.0 or later
+    ports:
+      - 6006:6006  # PHOENIX_PORT
+      - 4317:4317  # PHOENIX_GRPC_PORT
+    environment:
+      - PHOENIX_WORKING_DIR=/mnt/data
+      - PHOENIX_ALLOW_EXTERNAL_RESOURCES=false  # Disable external resources for air-gapped environments
+    volumes:
+      - phoenix_data:/mnt/data   # PHOENIX_WORKING_DIR
+volumes:
+  phoenix_data:
+    driver: local
+```
+
+{% hint style="info" %}
+The `PHOENIX_ALLOW_EXTERNAL_RESOURCES` environment variable was added in Phoenix version 11.15.0. Setting it to `false` is only necessary in air-gapped deployments where external network access is not available.
+{% endhint %}
+
 ## SQLite
 
 You can also run Phonix using SQLite with a persistent disc attached:
