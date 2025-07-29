@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal, Optional, Union
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -18,6 +18,7 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_507_INSUFFICIENT_STORAGE,
 )
 from strawberry.relay import GlobalID
 
@@ -30,7 +31,7 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanAnnotationInsertEvent
+from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
@@ -1120,3 +1121,81 @@ async def create_spans(
         total_received=total_received,
         total_queued=len(spans_to_queue),
     )
+
+
+@router.delete(
+    "/projects/{project_identifier}/spans/{span_id}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deleteSpan",
+    summary="Delete a span by span_id",
+    description=(
+        "Delete a specific span by its span_id within a project. "
+        "This will permanently remove the span and its associated data."
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_507_INSUFFICIENT_STORAGE]),
+    status_code=204,  # No Content for successful deletion
+)
+async def delete_span(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+    span_id: str = Path(description="The span_id of the span to delete"),
+) -> None:
+    """
+    Delete a span by span_id within a project.
+
+    This endpoint will:
+    1. Validate the project exists
+    2. Find and delete the span with the given span_id
+    3. Trigger cache invalidation events
+    4. Return 204 No Content on success
+    """
+    async with request.app.state.db() as session:
+        # Get and validate the project
+        project = await _get_project_by_identifier(session, project_identifier)
+        project_id: int = project.id
+
+        # Find the span to delete
+        span_stmt = (
+            select(models.Span.id, models.Span.trace_rowid)
+            .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+            .where(models.Trace.project_rowid == project_id, models.Span.span_id == span_id)
+        )
+
+        span_result = await session.execute(span_stmt)
+        span_data = span_result.first()
+
+        if not span_data:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Span with span_id '{span_id}' not found in project '{project_identifier}'",
+            )
+
+        span_row_id, trace_rowid = span_data
+
+        # Delete the span
+        delete_stmt = (
+            delete(models.Span).where(models.Span.id == span_row_id).returning(models.Span.id)
+        )
+
+        deleted_span = await session.execute(delete_stmt)
+        deleted_span_result = deleted_span.first()
+
+        if not deleted_span_result:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Failed to delete span with span_id '{span_id}'",
+            )
+
+        # Commit the transaction
+        await session.commit()
+
+        # Trigger cache invalidation event
+        request.app.state.event_queue.put(SpanDeleteEvent((project_id,)))
+
+    # Return 204 No Content (successful deletion with no response body)
+    return None
