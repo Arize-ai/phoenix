@@ -12,37 +12,34 @@ import {
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 
-export type ExperimentCompareLayout = "grid" | "metrics";
+export type ExperimentCompareView = "grid" | "metrics";
 
 /**
- * TypeGuard for the experiment compare layout
+ * TypeGuard for the experiment compare view
  */
-export function isExperimentCompareLayout(
-  maybeLayout: unknown
-): maybeLayout is ExperimentCompareLayout {
-  const experimentCompareLayouts: ExperimentCompareLayout[] = [
-    "grid",
-    "metrics",
-  ];
+export function isExperimentCompareView(
+  maybeView: unknown
+): maybeView is ExperimentCompareView {
+  const experimentCompareViews: ExperimentCompareView[] = ["grid", "metrics"];
   return (
-    typeof maybeLayout === "string" &&
-    experimentCompareLayouts.includes(maybeLayout as ExperimentCompareLayout)
+    typeof maybeView === "string" &&
+    experimentCompareViews.includes(maybeView as ExperimentCompareView)
   );
 }
 
-export function ExperimentCompareLayoutSelect({
-  layout,
-  onLayoutChange,
+export function ExperimentCompareViewSelect({
+  view,
+  onViewChange,
 }: {
-  layout: ExperimentCompareLayout;
-  onLayoutChange: (newLayout: ExperimentCompareLayout) => void;
+  view: ExperimentCompareView;
+  onViewChange: (newView: ExperimentCompareView) => void;
 }) {
   return (
     <div css={fieldBaseCSS}>
-      <Label>layout</Label>
+      <Label>view</Label>
       <Select
-        aria-label="Experiment Compare Layout"
-        selectedKey={layout}
+        aria-label="Experiment Compare View"
+        selectedKey={view}
         css={css`
           button {
             width: 140px;
@@ -51,10 +48,10 @@ export function ExperimentCompareLayoutSelect({
         `}
         size="M"
         onSelectionChange={(key) => {
-          if (isExperimentCompareLayout(key)) {
-            onLayoutChange(key);
+          if (isExperimentCompareView(key)) {
+            onViewChange(key);
           } else {
-            throw new Error(`Unknown experiment compare layout: ${key}`);
+            throw new Error(`Unknown experiment compare view: ${key}`);
           }
         }}
       >

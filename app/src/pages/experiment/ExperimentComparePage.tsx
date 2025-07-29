@@ -12,10 +12,10 @@ import { Switch } from "@arizeai/components";
 
 import { Flex, View } from "@phoenix/components";
 import {
-  ExperimentCompareLayout,
-  ExperimentCompareLayoutSelect,
-  isExperimentCompareLayout,
-} from "@phoenix/components/experiment/ExperimentCompareLayoutSelect";
+  ExperimentCompareView,
+  ExperimentCompareViewSelect,
+  isExperimentCompareView,
+} from "@phoenix/components/experiment/ExperimentCompareViewSelect";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -35,18 +35,18 @@ export function ExperimentComparePage() {
   const [searchParams] = useSearchParams();
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
-  const layout = useMemo(() => {
-    const layout = searchParams.get("layout");
-    if (isExperimentCompareLayout(layout)) {
-      return layout;
+  const view = useMemo(() => {
+    const view = searchParams.get("view");
+    if (isExperimentCompareView(view)) {
+      return view;
     }
     return "grid";
   }, [searchParams]);
   const navigate = useNavigate();
 
-  const onLayoutChange = useCallback(
-    (layout: ExperimentCompareLayout) => {
-      searchParams.set("layout", layout);
+  const onViewChange = useCallback(
+    (view: ExperimentCompareView) => {
+      searchParams.set("view", view);
       navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
     },
     [datasetId, navigate, searchParams]
@@ -90,9 +90,9 @@ export function ExperimentComparePage() {
               }}
             />
             {showModeSelect && (
-              <ExperimentCompareLayoutSelect
-                layout={layout}
-                onLayoutChange={onLayoutChange}
+              <ExperimentCompareViewSelect
+                view={view}
+                onViewChange={onViewChange}
               />
             )}
           </Flex>
@@ -108,7 +108,7 @@ export function ExperimentComparePage() {
         </Flex>
       </View>
       <ExperimentComparePageContent
-        layout={layout}
+        view={view}
         displayFullText={displayFullText}
       />
     </main>
@@ -116,18 +116,18 @@ export function ExperimentComparePage() {
 }
 
 type ExperimentComparePageContentProps = {
-  layout: ExperimentCompareLayout;
+  view: ExperimentCompareView;
   displayFullText: boolean;
 };
 
 function ExperimentComparePageContent({
-  layout,
+  view,
   displayFullText,
 }: ExperimentComparePageContentProps) {
-  if (layout === "grid") {
+  if (view === "grid") {
     return <ExperimentCompareGridPage displayFullText={displayFullText} />;
-  } else if (layout === "metrics") {
+  } else if (view === "metrics") {
     return <ExperimentCompareMetricsPage />;
   }
-  assertUnreachable(layout);
+  assertUnreachable(view);
 }
