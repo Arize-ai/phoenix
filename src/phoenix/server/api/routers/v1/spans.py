@@ -1195,7 +1195,7 @@ async def delete_span(
         await session.commit()
 
         # Trigger cache invalidation event
-        request.app.state.event_queue.put(SpanDeleteEvent((project_id,)))
+        request.state.event_queue.put(SpanDeleteEvent((project_id,)))
 
     # Return 204 No Content (successful deletion with no response body)
     return None
