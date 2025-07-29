@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.14.0...arize-phoenix-v11.15.0) (2025-07-29)
+
+
+### Features
+
+* allow external resource environment variable ([#8823](https://github.com/Arize-ai/phoenix/issues/8823)) ([d76a769](https://github.com/Arize-ai/phoenix/commit/d76a769fea8d4cdc41d8131b0f83b1405a78292a))
+
 ## [11.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.2...arize-phoenix-v11.14.0) (2025-07-29)
 
 
