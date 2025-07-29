@@ -19,15 +19,15 @@ export type ExperimentCompareLayout = "grid" | "metrics";
  * TypeGuard for the experiment compare layout
  */
 export function isExperimentCompareLayout(
-  m: unknown
-): m is ExperimentCompareLayout {
+  maybeLayout: unknown
+): maybeLayout is ExperimentCompareLayout {
   const experimentCompareLayouts: ExperimentCompareLayout[] = [
     "grid",
     "metrics",
   ];
   return (
-    typeof m === "string" &&
-    experimentCompareLayouts.includes(m as ExperimentCompareLayout)
+    typeof maybeLayout === "string" &&
+    experimentCompareLayouts.includes(maybeLayout as ExperimentCompareLayout)
   );
 }
 
