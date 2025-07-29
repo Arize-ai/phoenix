@@ -40,9 +40,6 @@ export function ExperimentCompareMetricsPage() {
             display: flex;
             flex-direction: column;
             height: 100%;
-            & > div {
-              height: 100%;
-            }
           `}
         >
           <div css={metricCardCss}>
@@ -81,9 +78,6 @@ export function ExperimentCompareMetricsPage() {
             display: flex;
             flex-direction: column;
             height: 100%;
-            & > div {
-              height: 100%;
-            }
           `}
         >
           <div css={metricCardCss}>
@@ -116,9 +110,6 @@ export function ExperimentCompareMetricsPage() {
             display: flex;
             flex-direction: column;
             height: 100%;
-            & > div {
-              height: 100%;
-            }
           `}
         >
           <div css={metricCardCss}>
@@ -151,9 +142,6 @@ export function ExperimentCompareMetricsPage() {
             display: flex;
             flex-direction: column;
             height: 100%;
-            & > div {
-              height: 100%;
-            }
           `}
         >
           <div css={metricCardCss}>
@@ -186,9 +174,6 @@ export function ExperimentCompareMetricsPage() {
             display: flex;
             flex-direction: column;
             height: 100%;
-            & > div {
-              height: 100%;
-            }
           `}
         >
           <div css={metricCardCss}>
