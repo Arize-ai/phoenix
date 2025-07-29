@@ -111,6 +111,7 @@ def llm_classify(
     run_sync: bool = False,
     concurrency: Optional[int] = None,
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
+    show_ascii_timeline: bool = False,
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -180,6 +181,9 @@ def llm_classify(
             specified, defaults to: llm_classify |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
             "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}". If 'None' is passed in specifically,
             the progress_bar log will be disabled.
+
+        show_ascii_timeline (bool, default=False): If True, enables ASCII timeline 
+            visualization. Defaults to False (no ASCII visualization).
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -321,6 +325,7 @@ def llm_classify(
         exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,
         task_timeout=model._timeout,
+        show_ascii_timeline=show_ascii_timeline,
     )
 
     list_of_inputs: Union[Tuple[Any], List[Any]]
@@ -371,6 +376,7 @@ def run_evals(
     use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: Optional[int] = None,
+    show_ascii_timeline: bool = False,
 ) -> List[DataFrame]:
     """
     Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
@@ -455,6 +461,7 @@ def run_evals(
         exit_on_error=True,
         fallback_return_value=(None, None, None),
         task_timeout=timeout,
+        show_ascii_timeline=show_ascii_timeline,
     )
 
     total_records = len(dataframe)

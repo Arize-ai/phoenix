@@ -33,6 +33,7 @@ def llm_generate(
     include_response: bool = False,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
+    show_ascii_timeline: bool = False,
 ) -> pd.DataFrame:
     """
     Generates a text using a template using an LLM. This function is useful
@@ -74,6 +75,9 @@ def llm_generate(
         concurrency (Optional[int], default=None): The number of concurrent evals if async
             submission is possible. If not provided, a recommended default concurrency is set on a
             per-model basis.
+
+        show_ascii_timeline (bool, default=False): If True, enables ASCII timeline 
+            visualization. Defaults to False (no ASCII visualization).
 
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
@@ -138,6 +142,7 @@ def llm_generate(
         exit_on_error=True,
         fallback_return_value=fallback_return_value,
         task_timeout=model._timeout,
+        show_ascii_timeline=show_ascii_timeline,
     )
     results, _ = executor.run(list(enumerate(prompts)))
     return pd.DataFrame.from_records(results, index=dataframe.index)
