@@ -689,7 +689,7 @@ async def test_delete_span_not_found(
     project_identifier = "project-name"
     non_existent_span_id = "nonexistent12345"
     url = f"v1/projects/{project_identifier}/spans/{non_existent_span_id}"
-    
+
     response = await httpx_client.delete(url)
     assert response.status_code == 404
     assert f"Span with span_id '{non_existent_span_id}' not found" in response.text
@@ -708,7 +708,7 @@ async def test_delete_span_project_not_found(
     non_existent_project = "nonexistent-project"
     span_id = "somespan123"
     url = f"v1/projects/{non_existent_project}/spans/{span_id}"
-    
+
     response = await httpx_client.delete(url)
     assert response.status_code == 404
     assert "not found" in response.text.lower()
@@ -732,11 +732,9 @@ async def test_delete_span_by_global_id(
             select(models.Project).where(models.Project.name == "project-name")
         )
         project = project_result.scalar_one()
-        
+
         span_result = await session.execute(
-            select(models.Span)
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == project.id)
+            select(models.Span).join(models.Trace).where(models.Trace.project_rowid == project.id)
         )
         span = span_result.scalar_one()
         span_id = span.span_id
@@ -744,6 +742,7 @@ async def test_delete_span_by_global_id(
 
     # Create project GlobalID (base64 encoded "Project:{id}")
     import base64
+
     project_global_id = base64.b64encode(f"Project:{project.id}".encode()).decode()
 
     # Delete the span using GlobalID
