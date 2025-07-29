@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.2...arize-phoenix-v11.14.0) (2025-07-29)
+
+
+### Features
+
+* **design:** collapsible nav ([#8797](https://github.com/Arize-ai/phoenix/issues/8797)) ([1717778](https://github.com/Arize-ai/phoenix/commit/17177784cfc44690863c730c0e4f9bb57a79e9cd))
+* update python client with list method for datasets ([#8815](https://github.com/Arize-ai/phoenix/issues/8815)) ([559863c](https://github.com/Arize-ai/phoenix/commit/559863cfb2d3c5d1e496e39f4c9619bac27f0891))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#8801](https://github.com/Arize-ai/phoenix/issues/8801)) ([5b3816c](https://github.com/Arize-ai/phoenix/commit/5b3816cf4739b19ed8d47d3ecaa9eb043d6ce799))
+
 ## [11.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.1...arize-phoenix-v11.13.2) (2025-07-26)
 
 

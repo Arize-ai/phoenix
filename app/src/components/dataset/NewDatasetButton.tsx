@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,
@@ -50,8 +49,6 @@ export function NewDatasetButton({
       >
         <Card
           title="Create New Dataset"
-          bodyStyle={{ padding: 0 }}
-          variant="compact"
           borderColor="light"
           backgroundColor="light"
         >

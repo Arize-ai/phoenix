@@ -882,6 +882,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Example Count */
+            example_count: number;
         };
         /** DatasetExample */
         DatasetExample: {

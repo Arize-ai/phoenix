@@ -43,7 +43,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  ConnectedLastNTimeRangePicker,
+  ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
@@ -313,10 +313,7 @@ export function ProjectsPageContent({
       ref={projectsContainerRef}
     >
       <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
+        padding="size-200"
         width="100%"
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
@@ -350,7 +347,7 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
-            <ConnectedLastNTimeRangePicker />
+            <ConnectedTimeRangeSelector size="M" />
             <NewProjectButton variant="primary" />
           </Flex>
         </Flex>
@@ -537,8 +534,7 @@ function ProjectItem({
     <div
       css={css`
         padding: var(--ac-global-dimension-size-200);
-        border: 1px solid var(--ac-global-color-grey-400);
-        background-color: var(--ac-global-color-grey-100);
+        border: 1px solid var(--ac-global-color-grey-100);
         box-shadow:
           0 0 1px 0px var(--ac-global-color-grey-400) inset,
           0 0 1px 0px var(--ac-global-color-grey-400);
@@ -568,7 +564,6 @@ function ProjectItem({
                 display: -webkit-box;
                 -webkit-box-orient: vertical;
                 -webkit-line-clamp: 1;
-                overflow: hidden;
               `}
             >
               {project.name}

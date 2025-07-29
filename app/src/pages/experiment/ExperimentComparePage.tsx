@@ -1,4 +1,4 @@
-import { startTransition, Suspense, useState } from "react";
+import { startTransition, useCallback, useMemo, useState } from "react";
 import {
   useLoaderData,
   useNavigate,
@@ -10,16 +10,24 @@ import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
-import { Alert, Flex, Loading, View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
+import {
+  ExperimentCompareView,
+  ExperimentCompareViewSelect,
+  isExperimentCompareView,
+} from "@phoenix/components/experiment/ExperimentCompareViewSelect";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { ExperimentCompareTable } from "./ExperimentCompareTable";
+import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
+import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
-import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  invariant(loaderData, "loaderData is required");
+  const showModeSelect = useFeatureFlag("experimentEnhancements");
+  invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId } = useParams();
@@ -27,7 +35,23 @@ export function ExperimentComparePage() {
   const [searchParams] = useSearchParams();
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
+  const view = useMemo(() => {
+    const view = searchParams.get("view");
+    if (isExperimentCompareView(view)) {
+      return view;
+    }
+    return "grid";
+  }, [searchParams]);
   const navigate = useNavigate();
+
+  const onViewChange = useCallback(
+    (view: ExperimentCompareView) => {
+      searchParams.set("view", view);
+      navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
+    },
+    [datasetId, navigate, searchParams]
+  );
+
   return (
     <main
       css={css`
@@ -44,26 +68,34 @@ export function ExperimentComparePage() {
         flex="none"
       >
         <Flex direction="row" justifyContent="space-between" alignItems="end">
-          <ExperimentMultiSelector
-            dataRef={loaderData}
-            selectedBaselineExperimentId={baselineExperimentId}
-            selectedCompareExperimentIds={compareExperimentIds}
-            onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
-              startTransition(() => {
-                if (newBaselineExperimentId == null) {
-                  navigate(`/datasets/${datasetId}/compare`);
-                } else {
-                  const queryParams = `?${[
-                    newBaselineExperimentId,
-                    ...newCompareExperimentIds,
-                  ]
-                    .map((id) => `experimentId=${id}`)
-                    .join("&")}`;
-                  navigate(`/datasets/${datasetId}/compare${queryParams}`);
-                }
-              });
-            }}
-          />
+          <Flex direction="row" gap="size-100" justifyContent="start">
+            <ExperimentMultiSelector
+              dataRef={loaderData}
+              selectedBaselineExperimentId={baselineExperimentId}
+              selectedCompareExperimentIds={compareExperimentIds}
+              onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
+                startTransition(() => {
+                  if (newBaselineExperimentId == null) {
+                    navigate(`/datasets/${datasetId}/compare`);
+                  } else {
+                    const queryParams = `?${[
+                      newBaselineExperimentId,
+                      ...newCompareExperimentIds,
+                    ]
+                      .map((id) => `experimentId=${id}`)
+                      .join("&")}`;
+                    navigate(`/datasets/${datasetId}/compare${queryParams}`);
+                  }
+                });
+              }}
+            />
+            {showModeSelect && (
+              <ExperimentCompareViewSelect
+                view={view}
+                onViewChange={onViewChange}
+              />
+            )}
+          </Flex>
           <Switch
             onChange={(isSelected) => {
               setDisplayFullText(isSelected);
@@ -75,25 +107,27 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      {baselineExperimentId != null ? (
-        <ExperimentRunFilterConditionProvider>
-          <Suspense fallback={<Loading />}>
-            <ExperimentCompareTable
-              query={loaderData}
-              datasetId={datasetId}
-              baselineExperimentId={baselineExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              displayFullText={displayFullText}
-            />
-          </Suspense>
-        </ExperimentRunFilterConditionProvider>
-      ) : (
-        <View padding="size-200">
-          <Alert variant="info" title="No Baseline Experiment Selected">
-            Please select a baseline experiment.
-          </Alert>
-        </View>
-      )}
+      <ExperimentComparePageContent
+        view={view}
+        displayFullText={displayFullText}
+      />
     </main>
   );
+}
+
+type ExperimentComparePageContentProps = {
+  view: ExperimentCompareView;
+  displayFullText: boolean;
+};
+
+function ExperimentComparePageContent({
+  view,
+  displayFullText,
+}: ExperimentComparePageContentProps) {
+  if (view === "grid") {
+    return <ExperimentCompareGridPage displayFullText={displayFullText} />;
+  } else if (view === "metrics") {
+    return <ExperimentCompareMetricsPage />;
+  }
+  assertUnreachable(view);
 }

@@ -189,12 +189,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ProgressCircle } from '@phoenix/components'",
       },
-      // TODO: Remove this once all DialogContainers are migrated to @phoenix/components
-      // {
-      //   name: "DialogContainer",
-      //   module: "@arizeai/components",
-      //   use: "import { DialogContainer } from '@phoenix/components'",
-      // },
+      {
+        name: "DialogContainer",
+        module: "@arizeai/components",
+        use: "import { DialogContainer } from '@phoenix/components'",
+      },
       {
         name: "ProgressBar",
         module: "@arizeai/components",

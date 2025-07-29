@@ -164,7 +164,7 @@ const router = createBrowserRouter(
           </Route>
           <Route
             path="/projects"
-            handle={{ crumb: () => "projects" }}
+            handle={{ crumb: () => "Projects" }}
             element={<ProjectsRoot />}
           >
             <Route index element={<ProjectsPage />} />
@@ -198,7 +198,7 @@ const router = createBrowserRouter(
           </Route>
           <Route
             path="/dashboards"
-            handle={{ crumb: () => "dashboards" }}
+            handle={{ crumb: () => "Dashboards" }}
             element={<DashboardsRoot />}
           >
             <Route
@@ -224,7 +224,7 @@ const router = createBrowserRouter(
               element={<DashboardPage />}
             />
           </Route>
-          <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
+          <Route path="/datasets" handle={{ crumb: () => "Datasets" }}>
             <Route index element={<DatasetsPage />} />
             <Route
               path=":datasetId"
@@ -263,7 +263,7 @@ const router = createBrowserRouter(
           <Route
             path="/playground"
             handle={{
-              crumb: () => "Playground",
+              crumb: () => "Playground", // TODO: add playground name
             }}
           >
             <Route index element={<PlaygroundPage />} />
@@ -284,7 +284,7 @@ const router = createBrowserRouter(
           <Route
             path="/prompts"
             handle={{
-              crumb: () => "prompts",
+              crumb: () => "Prompts",
             }}
           >
             <Route index element={<PromptsPage />} loader={promptsLoader} />
@@ -336,21 +336,21 @@ const router = createBrowserRouter(
             path="/apis"
             element={<APIsPage />}
             handle={{
-              crumb: () => "APIs",
+              crumb: () => "APIs", // TODO: add API name
             }}
           />
           <Route
             path="/support"
             element={<SupportPage />}
             handle={{
-              crumb: () => "support",
+              crumb: () => "Support",
             }}
           />
           <Route
             path="/settings"
             element={<SettingsPage />}
             handle={{
-              crumb: () => "settings",
+              crumb: () => "Settings",
             }}
           >
             <Route
@@ -358,7 +358,7 @@ const router = createBrowserRouter(
               loader={settingsGeneralPageLoader}
               element={<SettingsGeneralPage />}
               handle={{
-                crumb: () => "general",
+                crumb: () => "General",
               }}
             />
             <Route
@@ -366,7 +366,7 @@ const router = createBrowserRouter(
               loader={settingsAIProvidersPageLoader}
               element={<SettingsAIProvidersPage />}
               handle={{
-                crumb: () => "providers",
+                crumb: () => "AI Providers",
               }}
             />
             <Route
@@ -374,7 +374,7 @@ const router = createBrowserRouter(
               loader={settingsModelsLoader}
               element={<SettingsModelsPage />}
               handle={{
-                crumb: () => "models",
+                crumb: () => "Models",
               }}
             />
             <Route
@@ -382,7 +382,7 @@ const router = createBrowserRouter(
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
               handle={{
-                crumb: () => "annotations",
+                crumb: () => "Annotations",
               }}
             />
 
@@ -390,7 +390,7 @@ const router = createBrowserRouter(
               path="data"
               element={<SettingsDataPage />}
               handle={{
-                crumb: () => "data retention",
+                crumb: () => "Data Retention",
               }}
               loader={settingsDataPageLoader}
             />
