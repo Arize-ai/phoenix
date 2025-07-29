@@ -49,8 +49,6 @@ export function NewDatasetButton({
       >
         <Card
           title="Create New Dataset"
-          bodyStyle={{ padding: 0 }}
-          variant="compact"
           borderColor="light"
           backgroundColor="light"
         >

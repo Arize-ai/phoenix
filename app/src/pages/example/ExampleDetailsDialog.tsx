@@ -173,9 +173,5 @@ export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: {
-    padding: 0,
-  },
 };

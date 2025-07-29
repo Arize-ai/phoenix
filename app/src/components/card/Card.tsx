@@ -11,21 +11,13 @@ function Card(
     title,
     subTitle,
     children,
-    variant = "default",
     collapsible = false,
-    bodyStyle = {},
     extra,
     ...otherProps
   }: CardProps,
   ref: Ref<HTMLElement>
 ) {
-  // TODO: remove default variant and bodyStyle
-  // TODO: inside card body, we have a View with padding
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const { styleProps: bodyStyleProps } = useStyleProps(
-    bodyStyle,
-    viewStyleProps
-  );
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const headerId = useId();
@@ -50,7 +42,6 @@ function Card(
       ref={ref}
       css={cardCSS(styleProps.style)}
       className="card"
-      data-variant={variant}
       data-collapsible={collapsible}
       data-collapsed={isCollapsed}
       style={styleProps.style}
@@ -66,7 +57,7 @@ function Card(
           >
             <Icon
               svg={<Icons.ChevronDown />}
-              className="card__collapsible-icon"
+              className="card__collapse-toggle-icon"
               aria-hidden="true"
             />
             {headingContents}
@@ -79,7 +70,6 @@ function Card(
       {
         <div
           className="card__body"
-          style={bodyStyleProps.style}
           id={bodyId}
           aria-labelledby={headerId}
           aria-hidden={isCollapsed}

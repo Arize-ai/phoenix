@@ -48,7 +48,6 @@ const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
   collapsible: true,
-  bodyStyle: { padding: 0 },
 };
 
 export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {

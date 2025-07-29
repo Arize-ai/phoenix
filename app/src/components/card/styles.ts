@@ -4,25 +4,8 @@ import { css } from "@emotion/react";
 export const cardCSS = (style?: CSSProperties) => css`
   --scope-border-color: ${style?.borderColor ??
   "var(--ac-global-border-color-default)"};
-  --card-header-height: 68px;
   --collapsible-card-animation-duration: 200ms;
   --collapsible-card-icon-size: var(--ac-global-dimension-size-300);
-  --card-variant: default;
-  --card-collapsed: false;
-  --card-collapsible: false;
-
-  &[data-variant="compact"] {
-    --card-header-height: 46px;
-    --card-variant: compact;
-  }
-
-  &[data-collapsed="true"] {
-    --card-collapsed: true;
-  }
-
-  &[data-collapsible="true"] {
-    --card-collapsible: true;
-  }
 
   display: flex;
   flex-direction: column;
@@ -40,10 +23,10 @@ export const cardCSS = (style?: CSSProperties) => css`
     justify-content: space-between;
     align-items: center;
     padding: 0 var(--ac-global-dimension-static-size-200);
-    height: var(--card-header-height);
+    height: var(--ac-global-card-header-height);
     transition: background-color 0.2s ease-in-out;
 
-    & .card__collapsible-icon {
+    & .card__collapse-toggle-icon {
       width: var(--collapsible-card-icon-size);
       height: var(--collapsible-card-icon-size);
       font-size: 1.3em;
@@ -88,7 +71,6 @@ export const cardCSS = (style?: CSSProperties) => css`
   /* Card Body Styles */
   & .card__body {
     flex: 1 1 auto;
-    padding: var(--ac-global-dimension-static-size-200);
   }
 
   /* Compact variant styles */
@@ -108,7 +90,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     & .card__body {
       display: none !important;
     }
-    & .card__collapsible-icon {
+    & .card__collapse-toggle-icon {
       transform: rotate(-90deg);
     }
   }
