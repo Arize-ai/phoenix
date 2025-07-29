@@ -15,12 +15,12 @@ results/failure_transition_heatmap.png
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Dict, List
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
 
 import phoenix as px
@@ -52,11 +52,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = ROOT / "results"
 OUTPUT_PNG = OUTPUT_DIR / "failure_transition_heatmap.png"
 
-import pandas as pd
 
 def load_labeled_traces() -> pd.DataFrame:
     query = SpanQuery().where("span_kind == 'AGENT'")
-    traces_df = px.Client().query_spans(query, project_name='recipe-agent-hw5')
+    traces_df = px.Client().query_spans(query, project_name="recipe-agent-hw5")
     return traces_df
 
 
@@ -101,6 +100,7 @@ def plot_heatmap(matrix: np.ndarray):
 # CLI
 # -----------------------------------------------------------------------------
 
+
 def main() -> None:
     traces = load_labeled_traces()
     matrix = build_transition_matrix(traces)
@@ -121,4 +121,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    main()
