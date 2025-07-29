@@ -4,6 +4,7 @@ import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
 import {
   costFormatter,
   latencyMsFormatter,
+  numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
 const metricCardCss = css`
@@ -211,7 +212,7 @@ export function ExperimentCompareMetricsPage() {
 
 function BaseExperimentMetric({
   value,
-  formatter,
+  formatter = numberFormatter,
 }: {
   value: number;
   formatter?: (value: number) => string;
@@ -222,7 +223,7 @@ function BaseExperimentMetric({
 
 function CompareExperimentMetric({
   value,
-  formatter,
+  formatter = numberFormatter,
   baselineValue,
   numImprovements,
   numRegressions,
