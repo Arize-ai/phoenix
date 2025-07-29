@@ -42,7 +42,6 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
-from phoenix.db.types.db_models import UNDEFINED
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
@@ -80,7 +79,7 @@ class Dataset(V1RoutesBaseModel):
     metadata: dict[str, Any]
     created_at: datetime
     updated_at: datetime
-    example_count: int = UNDEFINED
+    example_count: int
 
 
 class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
@@ -92,8 +91,6 @@ class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
     operation_id="listDatasets",
     summary="List datasets",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
-    response_model_exclude_defaults=True,
-    response_model_exclude_unset=True,
 )
 async def list_datasets(
     request: Request,
@@ -105,21 +102,20 @@ async def list_datasets(
     limit: int = Query(
         default=10, description="The max number of datasets to return at a time.", gt=0
     ),
-    include_example_count: bool = Query(default=False, description="Include example count"),
 ) -> ListDatasetsResponseBody:
     async with request.app.state.db() as session:
-        query = select(models.Dataset).order_by(models.Dataset.id.desc())
-        if include_example_count:
-            value = case(
-                (models.DatasetExampleRevision.revision_kind == "CREATE", 1),
-                (models.DatasetExampleRevision.revision_kind == "DELETE", -1),
-            )
-            query = (
-                query.add_columns(func.coalesce(func.sum(value), 0).label("example_count"))
-                .outerjoin_from(models.Dataset, models.DatasetExample)
-                .outerjoin_from(models.DatasetExample, models.DatasetExampleRevision)
-                .group_by(models.Dataset.id)
-            )
+        value = case(
+            (models.DatasetExampleRevision.revision_kind == "CREATE", 1),
+            (models.DatasetExampleRevision.revision_kind == "DELETE", -1),
+        )
+        query = (
+            select(models.Dataset)
+            .add_columns(func.coalesce(func.sum(value), 0).label("example_count"))
+            .outerjoin_from(models.Dataset, models.DatasetExample)
+            .outerjoin_from(models.DatasetExample, models.DatasetExampleRevision)
+            .group_by(models.Dataset.id)
+            .order_by(models.Dataset.id.desc())
+        )
 
         if cursor:
             try:
@@ -156,7 +152,7 @@ async def list_datasets(
                     metadata=dataset.metadata_,
                     created_at=dataset.created_at,
                     updated_at=dataset.updated_at,
-                    example_count=row[1] if include_example_count else UNDEFINED,
+                    example_count=row[1],
                 )
             )
 

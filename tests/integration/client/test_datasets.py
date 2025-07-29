@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import uuid
@@ -711,7 +712,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
-    async def test_list_and_paginate_datasets(
+    async def test_list_datasets_with_pagination(
         self,
         is_async: bool,
         role_or_user: UserRoleInput,
@@ -719,21 +720,23 @@ Who wrote Hamlet?,Shakespeare,literature
         _app: _AppInfo,
     ) -> None:
         """
-        Test comprehensive list() and paginate() functionality for datasets.
+        Test comprehensive list() functionality for datasets.
 
-        This test creates datasets with different example counts and verifies the list/paginate APIs:
+        This test creates datasets with different example counts and verifies the list API,
+        which internally tests pagination functionality:
 
         **Setup:**
-        - Creates 5 datasets with 2 examples each, then deletes 1 example via GraphQL (resulting in 1 example each)
-        - Creates 3 datasets with 3 examples each, then deletes all examples via GraphQL (resulting in 0 examples each)
+        - Creates 2 datasets with 1 example each
+        - Creates 1 dataset with 0 examples
 
         **Test Coverage:**
-        - list() method with and without example_count parameter
-        - paginate() method with various limits and cursor-based pagination
+        - list() method with example_count always included
+        - Pagination functionality tested indirectly through list() with various limits
+        - Consistent ordering across different limit values (datasets ordered by ID DESC)
         - Verifying dataset structure and metadata fields
         - Accurate example_count reporting for datasets with 0 and 1 examples
         - GraphQL example deletion functionality
-        - Consistency between list/paginate and get_dataset APIs
+        - Consistency between list and get_dataset APIs
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
         user = _get_user(_app, role_or_user).log_in(_app)
@@ -746,30 +749,34 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # ===== SETUP PHASE: Create test datasets with different example counts =====
 
-        # Create multiple test datasets for comprehensive testing
-        dataset_names = [f"test_list_{i}_{token_hex(4)}" for i in range(5)]
+        # Minimal dataset creation for efficiency - 2 with 1 example, 1 with 0 examples
+        test_prefix = f"test_order_{token_hex(6)}"
 
         query = (
             "mutation($input:DeleteDatasetExamplesInput!){"
             "deleteDatasetExamples(input:$input){dataset{id}}}"
         )
 
-        # Part 1: Create datasets with 2 examples, then delete 1 to end up with 1 example each
+        # Create datasets with predictable names for easier identification
         created_datasets: list[Dataset] = []
-        test_list_datasets_by_name: dict[str, Dataset] = {}
-        for i, name in enumerate(dataset_names):
+        created_dataset_ids: set[str] = set()
+
+        # Part 1: Create 2 datasets with 1 example each
+        for i in range(2):
+            name = f"{test_prefix}_one_example_{i}"
             dataset = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                     name=name,
-                    inputs=[{"text": f"test input for {name}"}, {}],
-                    outputs=[{"result": f"test output for {name}"}, {}],
+                    inputs=[{"text": f"input {i}"}, {}],  # 2 examples initially
+                    outputs=[{"result": f"output {i}"}, {}],
                     metadata=[{"index": i}, {}],
                     dataset_description=f"Test dataset {name}",
                 )
             )
             created_datasets.append(dataset)
-            test_list_datasets_by_name[name] = dataset
-            # Use GraphQL to delete second example
+            created_dataset_ids.add(dataset.id)
+
+            # Delete second example to end up with 1 example
             _gql(
                 _app,
                 _app.admin_secret,
@@ -777,53 +784,33 @@ Who wrote Hamlet?,Shakespeare,literature
                 variables={"input": {"exampleIds": [dataset.examples[1]["id"]]}},
             )
 
-        # Part 2: Create datasets with 3 examples, then delete all to end up with 0 examples each
-        zero_example_dataset_names = [f"test_zero_{i}_{token_hex(4)}" for i in range(3)]
-        zero_example_datasets_by_name: dict[str, Dataset] = {}
-        for i, name in enumerate(zero_example_dataset_names):
-            dataset = await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
-                    name=name,
-                    inputs=[{}, {}, {}],
-                    outputs=[{}, {}, {}],
-                    metadata=[{}, {}, {}],
-                    dataset_description=f"Dataset to be emptied {name}",
-                )
-            )
-
-            # Store in dictionary for precise identification
-            zero_example_datasets_by_name[name] = dataset
-
-            # Delete ALL examples from this dataset using GraphQL
-            all_example_ids = [example["id"] for example in dataset.examples]
-            _gql(
-                _app,
-                _app.admin_secret,
-                query=query,
-                variables={"input": {"exampleIds": all_example_ids}},
-            )
-
-        # ===== TESTING PHASE: Verify list() and paginate() functionality =====
-
-        # Test 1: Basic list functionality (get all datasets with counts)
-        all_datasets: list[v1.Dataset] = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list(
-                include_example_count=True
+        # Part 2: Create 1 dataset with 0 examples
+        zero_name = f"{test_prefix}_zero_examples"
+        zero_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=zero_name,
+                inputs=[{}, {}],
+                outputs=[{}, {}],
+                metadata=[{}, {}],
+                dataset_description=f"Dataset to be emptied {zero_name}",
             )
         )
+        created_datasets.append(zero_dataset)
+        created_dataset_ids.add(zero_dataset.id)
 
-        # Verify we got a list of all datasets
-        assert isinstance(all_datasets, list)
-        total_created_datasets = len(created_datasets) + len(zero_example_datasets_by_name)
-        assert len(all_datasets) >= total_created_datasets
+        # Delete all examples from zero dataset
+        all_example_ids = [example["id"] for example in zero_dataset.examples]
+        _gql(
+            _app,
+            _app.admin_secret,
+            query=query,
+            variables={"input": {"exampleIds": all_example_ids}},
+        )
 
-        # Check that our created datasets are in the list
-        dataset_ids = {d["id"] for d in all_datasets}
-        for created_dataset in created_datasets:
-            assert created_dataset.id in dataset_ids
-
-        # Test 2: Verify structure of returned datasets
-        for dataset_dict in all_datasets:
+        # ===== HELPER FUNCTION FOR VALIDATION =====
+        def validate_dataset_structure(dataset_dict: v1.Dataset) -> None:
+            """Validate the structure and data types of a dataset dictionary against generated types."""
+            # Validate required fields exist
             assert "id" in dataset_dict
             assert "name" in dataset_dict
             assert "description" in dataset_dict or dataset_dict.get("description") is None
@@ -832,167 +819,134 @@ Who wrote Hamlet?,Shakespeare,literature
             assert "updated_at" in dataset_dict
             assert "example_count" in dataset_dict
 
-            # Verify example_count is an integer
-            assert isinstance(dataset_dict["example_count"], int)
-            assert dataset_dict["example_count"] >= 0  # Should be non-negative
+            # Validate data types against generated v1.Dataset type
+            assert isinstance(
+                dataset_dict["id"], str
+            ), f"id should be str, got {type(dataset_dict['id'])}"
+            assert isinstance(
+                dataset_dict["name"], str
+            ), f"name should be str, got {type(dataset_dict['name'])}"
+            assert dataset_dict["description"] is None or isinstance(
+                dataset_dict["description"], str
+            ), f"description should be str or None, got {type(dataset_dict['description'])}"
+            assert isinstance(
+                dataset_dict["metadata"], dict
+            ), f"metadata should be dict (Mapping), got {type(dataset_dict['metadata'])}"
+            assert isinstance(
+                dataset_dict["created_at"], str
+            ), f"created_at should be str, got {type(dataset_dict['created_at'])}"
+            assert isinstance(
+                dataset_dict["updated_at"], str
+            ), f"updated_at should be str, got {type(dataset_dict['updated_at'])}"
+            assert isinstance(
+                dataset_dict["example_count"], int
+            ), f"example_count should be int, got {type(dataset_dict['example_count'])}"
 
-            # For our test datasets with counts enabled, verify expected example counts
-            if dataset_dict["name"] in test_list_datasets_by_name:
-                assert "example_count" in dataset_dict
-                example_count = dataset_dict.get("example_count")
-                assert example_count is not None and example_count == 1
-
-            # For our zero-example datasets, verify they have zero examples
-            if dataset_dict["name"] in zero_example_datasets_by_name:
-                assert "example_count" in dataset_dict
-                example_count = dataset_dict.get("example_count")
-                assert (
-                    example_count is not None and example_count == 0
-                ), f"Dataset {dataset_dict['name']} should have 0 examples but has {example_count}"  # noqa: E501
-
-        # Create lookup dictionary for efficient dataset retrieval by name
-        datasets_by_name: dict[str, v1.Dataset] = {d["name"]: d for d in all_datasets}
-
-        # Test 2b: Specifically verify all zero-example datasets from our dictionary
-        for zero_dataset_name, zero_dataset_obj in zero_example_datasets_by_name.items():
+            # Validate business logic constraints
             assert (
-                zero_dataset_name in datasets_by_name
-            ), f"Zero-example dataset {zero_dataset_name} not found in list"
-            listed_dataset = datasets_by_name[zero_dataset_name]
-            assert (
-                listed_dataset["id"] == zero_dataset_obj.id
-            ), f"ID mismatch for {zero_dataset_name}"
-            example_count = listed_dataset.get("example_count")
-            assert (
-                example_count is not None and example_count == 0
-            ), f"Dataset {zero_dataset_name} should have 0 examples but has {example_count}"  # noqa: E501
+                dataset_dict["example_count"] >= 0
+            ), f"example_count should be non-negative, got {dataset_dict['example_count']}"
 
-        # Test 2c: Specifically verify all test_list_ datasets from our dictionary
-        for test_dataset_name, test_dataset_obj in test_list_datasets_by_name.items():
-            assert (
-                test_dataset_name in datasets_by_name
-            ), f"Test list dataset {test_dataset_name} not found in list"
-            listed_dataset = datasets_by_name[test_dataset_name]
-            assert (
-                listed_dataset["id"] == test_dataset_obj.id
-            ), f"ID mismatch for {test_dataset_name}"
-            example_count = listed_dataset.get("example_count")
-            assert (
-                example_count is not None and example_count == 1
-            ), f"Dataset {test_dataset_name} should have 1 example but has {example_count}"  # noqa: E501
+        # ===== TESTING PHASE: Verify list() functionality =====
 
-        # Test 2a: Test without counts (faster, no example_count field)
-        all_datasets_no_counts: list[v1.Dataset] = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list()
-        )
+        # Test 1: Fetch datasets with different limits in strategic order to test ordering consistency
+        # Since datasets are ordered by ID DESC (newest first), our newly created datasets should appear first
 
-        # Verify structure without counts
-        for dataset_dict in all_datasets_no_counts:
-            assert "id" in dataset_dict
-            assert "name" in dataset_dict
-            assert "description" in dataset_dict or dataset_dict.get("description") is None
-            assert "metadata" in dataset_dict
-            assert "created_at" in dataset_dict
-            assert "updated_at" in dataset_dict
-
-            # example_count should be None when include_example_count=False
-            assert "example_count" not in dataset_dict
-
-        # Test 3: Test pagination with different limit values
-        # Test with limit=2 and counts
-        limited_response = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(
-                limit=2, include_example_count=True
-            )
-        )
-        assert isinstance(limited_response, dict)
-        assert len(limited_response["data"]) == 2
-
-        # Test with limit=1
-        single_response = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(limit=1)
-        )
-        assert isinstance(single_response, dict)
-        assert len(single_response["data"]) == 1
-
-        # Test with larger limit
-        large_limit_response = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(limit=100)
-        )
-        assert isinstance(large_limit_response, dict)
-        assert len(large_limit_response["data"]) >= len(dataset_names)
-
-        # Test 4: Test default pagination parameters
-        default_response = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate()
-        )
-        assert isinstance(default_response, dict)
-        default_datasets = default_response["data"]
-        # Should not exceed the default limit (100) unless there are really many datasets
-        assert len(default_datasets) <= 100
-
-        # Verify at least our test datasets are included
-        default_dataset_names = {d["name"] for d in default_datasets}
-        for name in dataset_names:
-            assert name in default_dataset_names
-        for name in zero_example_dataset_names:
-            assert name in default_dataset_names
-
-        # Test 5: Test cursor-based pagination functionality
-        # Test cursor-based pagination if we have a next_cursor
-        if limited_response["next_cursor"]:
-            next_page_response = await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(
-                    cursor=limited_response["next_cursor"], limit=2
-                )
-            )
-            assert isinstance(next_page_response, dict)
-            assert "data" in next_page_response
-            assert "next_cursor" in next_page_response
-
-        # Test 6: Test list method with limit parameter
-        # Test with small limit
-        limited_list_3 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=3)
-        )
-        assert isinstance(limited_list_3, list)
-        assert len(limited_list_3) == 3
-
-        # Test with limit larger than available datasets
-        large_limit_list = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=1000)
-        )
-        assert isinstance(large_limit_list, list)
-        # Should not exceed the actual number of datasets
-        assert len(large_limit_list) <= len(all_datasets)
-
-        # Test with limit=1
-        single_list = await _await_or_return(
+        # Fetch with different limits - do this strategically to test ordering
+        single_result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=1)
         )
-        assert isinstance(single_list, list)
-        assert len(single_list) == 1
+        double_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=2)
+        )
+        triple_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=3)
+        )
 
-        # Test 7: Consistency with get_dataset
-        test_dataset: Any = created_datasets[0]  # Use first created dataset
+        # Validate basic structure and length
+        assert isinstance(single_result, list) and len(single_result) == 1
+        assert isinstance(double_result, list) and len(double_result) == 2
+        assert isinstance(triple_result, list) and len(triple_result) == 3
 
-        # Find our test dataset in the list using datasets_by_name lookup
-        test_dataset_from_list = datasets_by_name.get(test_dataset.name)
+        # Validate structure for all results
+        for dataset_dict in single_result + double_result + triple_result:
+            validate_dataset_structure(dataset_dict)
+
+        # Test 2: Verify consistent ordering across different limits
+        # The key insight: limited results should be prefixes of larger results in the same order
+
+        # First item should be consistent across all limits
         assert (
-            test_dataset_from_list is not None
-        ), f"Test dataset {test_dataset.name} not found in list"
+            single_result[0]["id"] == double_result[0]["id"]
+        ), "First item should be consistent between limit=1 and limit=2"
+        assert (
+            double_result[0]["id"] == triple_result[0]["id"]
+        ), "First item should be consistent between limit=2 and limit=3"
 
-        # Get the same dataset individually
+        # First 2 items from triple should match double result exactly
+        for i in range(2):
+            assert (
+                double_result[i]["id"] == triple_result[i]["id"]
+            ), f"Item {i} should be identical between limit=2 and limit=3 results"
+            assert (
+                double_result[i]["name"] == triple_result[i]["name"]
+            ), f"Item {i} name should be identical between limit=2 and limit=3 results"
+
+        # Test 3: Verify our created datasets appear in the results and validate example counts
+        # Since we created 3 datasets most recently, they should be in the first 3 results (ID DESC order)
+        found_our_datasets = 0
+        for dataset_dict in triple_result:
+            if dataset_dict["id"] in created_dataset_ids:
+                found_our_datasets += 1
+                # Validate example counts for our test datasets
+                if dataset_dict["name"].endswith("_zero_examples"):
+                    assert (
+                        dataset_dict["example_count"] == 0
+                    ), f"Zero example dataset should have 0 examples, got {dataset_dict['example_count']}"
+                elif "_one_example_" in dataset_dict["name"]:
+                    assert (
+                        dataset_dict["example_count"] == 1
+                    ), f"One example dataset should have 1 example, got {dataset_dict['example_count']}"
+
+        # We should find all 3 of our datasets in the first 3 results due to DESC ordering
+        assert (
+            found_our_datasets == 3
+        ), f"Expected to find all 3 created datasets in first 3 results, found {found_our_datasets}"
+
+        # Test 4: Test unlimited list() and consistency
+        all_datasets = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list()
+        )
+        assert isinstance(all_datasets, list)
+        assert len(all_datasets) >= 3  # Should have at least our 3 test datasets
+
+        # First 3 items from unlimited should match our triple_result
+        for i in range(3):
+            assert (
+                all_datasets[i]["id"] == triple_result[i]["id"]
+            ), f"Item {i} should be identical between unlimited and limit=3 results"
+
+        # Test 5: Consistency with get_dataset (using one of our known datasets)
+        test_dataset = created_datasets[0]  # Use first created dataset
         individual_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
                 dataset=test_dataset.id
             )
         )
 
-        # Compare key fields (list/paginate don't include examples)
+        # Find our test dataset in the results
+        test_dataset_from_list = None
+        for dataset_dict in all_datasets:
+            if dataset_dict["id"] == test_dataset.id:
+                test_dataset_from_list = dataset_dict
+                break
+
+        assert (
+            test_dataset_from_list is not None
+        ), f"Test dataset {test_dataset.id} not found in list"
+
+        # Compare key fields (list doesn't include examples)
         assert test_dataset_from_list["id"] == individual_dataset.id
         assert test_dataset_from_list["name"] == individual_dataset.name
         assert test_dataset_from_list["description"] == individual_dataset.description
         assert test_dataset_from_list["metadata"] == individual_dataset.metadata
-        # Note: created_at and updated_at might have slight differences in precision
-        # so we just verify they exist and are datetime objects

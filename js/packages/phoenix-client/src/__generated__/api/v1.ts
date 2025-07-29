@@ -883,7 +883,7 @@ export interface components {
              */
             updated_at: string;
             /** Example Count */
-            example_count?: number;
+            example_count: number;
         };
         /** DatasetExample */
         DatasetExample: {
@@ -2627,8 +2627,6 @@ export interface operations {
                 name?: string | null;
                 /** @description The max number of datasets to return at a time. */
                 limit?: number;
-                /** @description Include example count */
-                include_example_count?: boolean;
             };
             header?: never;
             path?: never;

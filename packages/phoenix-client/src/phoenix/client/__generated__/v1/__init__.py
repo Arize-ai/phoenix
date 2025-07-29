@@ -51,7 +51,7 @@ class Dataset(TypedDict):
     metadata: Mapping[str, Any]
     created_at: str
     updated_at: str
-    example_count: NotRequired[int]
+    example_count: int
 
 
 class DatasetExample(TypedDict):

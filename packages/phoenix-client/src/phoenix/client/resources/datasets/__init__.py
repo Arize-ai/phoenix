@@ -526,65 +526,40 @@ class Datasets:
 
         return records  # type: ignore[no-any-return]
 
-    def paginate(
+    def _paginate(
         self,
         *,
         limit: Optional[int] = 100,
         cursor: Optional[str] = None,
-        include_example_count: bool = False,
         timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.ListDatasetsResponseBody:
         """
-        Paginate through available datasets with cursor-based pagination.
+        Internal method to paginate through available datasets with cursor-based pagination.
 
-        This method provides fine-grained control over pagination, returning one page
-        at a time with pagination metadata. Use this when you need to process datasets
-        in chunks or implement custom pagination UI.
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
 
         Args:
             limit: Maximum number of datasets to return per page (default: 100).
                 Server may use a different default if None is passed.
             cursor: Cursor for pagination. Use the `next_cursor` from a previous
                 response to get the next page. None for the first page.
-            include_example_count: Whether to include example_count field (default: False).
-                Setting to True requires additional computation but provides counts.
             timeout: Request timeout in seconds (default: 5).
 
         Returns:
             Dictionary with pagination response containing:
                 - data: List of dataset dictionaries with fields: id, name, description,
-                  metadata, created_at (datetime), updated_at (datetime), example_count (int or None)
+                  metadata, created_at (datetime), updated_at (datetime), example_count (int)
                 - next_cursor: String cursor for next page, or None if no more pages
 
         Raises:
             httpx.HTTPStatusError: If the API request fails (e.g., invalid cursor, network error).
-
-        Example:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>>
-            >>> # Get first page with counts
-            >>> response = client.datasets.paginate(limit=10, include_example_count=True)
-            >>> datasets = response["data"]
-            >>> print(f"Found {len(datasets)} datasets on this page")
-            >>>
-            >>> # Get first page without counts (faster)
-            >>> response = client.datasets.paginate(limit=10)
-            >>> datasets = response["data"]
-            >>> print(f"Found {len(datasets)} datasets on this page")
-            >>>
-            >>> # Get next page if available
-            >>> if response["next_cursor"]:
-            ...     next_response = client.datasets.paginate(cursor=response["next_cursor"])
-            ...     next_datasets = next_response["data"]
         """  # noqa: E501
         params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
             params["cursor"] = cursor
-        if include_example_count:
-            params["include_example_count"] = include_example_count
 
         response = self._client.get(
             url="v1/datasets",
@@ -604,7 +579,6 @@ class Datasets:
         self,
         *,
         limit: Optional[int] = None,
-        include_example_count: bool = False,
         timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Dataset]:
         """
@@ -631,13 +605,12 @@ class Datasets:
             >>> from phoenix.client import Client
             >>> client = Client()
             >>>
-            >>> # Get all datasets (automatically paginates, no counts)
+            >>> # Get all datasets (automatically paginates, includes counts)
             >>> all_datasets = client.datasets.list()
             >>> print(f"Found {len(all_datasets)} total datasets")
             >>>
-            >>> # Get datasets with example counts (slower but informative)
-            >>> datasets_with_counts = client.datasets.list(include_example_count=True)
-            >>> for dataset in datasets_with_counts:
+            >>> # Get datasets with example counts
+            >>> for dataset in all_datasets:
             ...     print(f"{dataset['name']}: {dataset['example_count']} examples")
             >>>
             >>> # Get only first 10 datasets (efficient for large collections)
@@ -658,10 +631,9 @@ class Datasets:
                     break
                 page_size = min(page_size, remaining)
 
-            response = self.paginate(
+            response = self._paginate(
                 cursor=cursor,
                 limit=page_size,
-                include_example_count=include_example_count,
                 timeout=timeout,
             )
             all_datasets.extend(response["data"])
@@ -1249,20 +1221,18 @@ class AsyncDatasets:
 
         return records  # type: ignore[no-any-return]
 
-    async def paginate(
+    async def _paginate(
         self,
         *,
         limit: Optional[int] = 100,
         cursor: Optional[str] = None,
-        include_example_count: bool = False,
         timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.ListDatasetsResponseBody:
         """
-        Paginate through available datasets with cursor-based pagination.
+        Internal method to paginate through available datasets with cursor-based pagination.
 
-        This method provides fine-grained control over pagination, returning one page
-        at a time with pagination metadata. Use this when you need to process datasets
-        in chunks or implement custom pagination UI.
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
 
         Args:
             limit: Maximum number of datasets to return per page (default: 100).
@@ -1279,28 +1249,12 @@ class AsyncDatasets:
 
         Raises:
             httpx.HTTPStatusError: If the API request fails (e.g., invalid cursor, network error).
-
-        Example:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>>
-            >>> # Get first page
-            >>> response = await client.datasets.paginate(limit=10)
-            >>> datasets = response["data"]
-            >>> print(f"Found {len(datasets)} datasets on this page")
-            >>>
-            >>> # Get next page if available
-            >>> if response["next_cursor"]:
-            ...     next_response = await client.datasets.paginate(cursor=response["next_cursor"])
-            ...     next_datasets = next_response["data"]
         """  # noqa: E501
         params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
             params["cursor"] = cursor
-        if include_example_count:
-            params["include_example_count"] = include_example_count
 
         response = await self._client.get(
             url="v1/datasets",
@@ -1320,7 +1274,6 @@ class AsyncDatasets:
         self,
         *,
         limit: Optional[int] = None,
-        include_example_count: bool = False,
         timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Dataset]:
         """
@@ -1369,10 +1322,9 @@ class AsyncDatasets:
                     break
                 page_size = min(page_size, remaining)
 
-            response = await self.paginate(
+            response = await self._paginate(
                 cursor=cursor,
                 limit=page_size,
-                include_example_count=include_example_count,
                 timeout=timeout,
             )
             all_datasets.extend(response["data"])

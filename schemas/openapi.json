@@ -509,18 +509,6 @@
               "title": "Limit"
             },
             "description": "The max number of datasets to return at a time."
-          },
-          {
-            "name": "include_example_count",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "Include example count",
-              "default": false,
-              "title": "Include Example Count"
-            },
-            "description": "Include example count"
           }
         ],
         "responses": {
@@ -4130,7 +4118,8 @@
           "description",
           "metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "example_count"
         ],
         "title": "Dataset"
       },
