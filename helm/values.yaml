@@ -292,6 +292,52 @@ auth:
   # -- Enable secure cookies (should be true when using HTTPS)
   useSecureCookies: false
 
+  # OAuth2/OIDC Identity Provider Configuration
+  # Configure OAuth2 identity providers for authentication
+  oauth2:
+    # -- Enable OAuth2/OIDC authentication
+    enabled: false
+    
+    # -- List of OAuth2 identity providers to configure
+    # Each provider requires client_id, client_secret, and oidc_config_url
+    # Optional settings include display_name, allow_sign_up, and auto_login
+    providers:
+      # Example Google configuration:
+      # google:
+      #   client_id: "your-google-client-id"
+      #   client_secret: "your-google-client-secret"
+      #   oidc_config_url: "https://accounts.google.com/.well-known/openid-configuration"
+      #   display_name: "Google"  # Optional, defaults to provider name
+      #   allow_sign_up: true     # Optional, defaults to true
+      #   auto_login: false       # Optional, defaults to false
+      
+      # Example AWS Cognito configuration:
+      # aws_cognito:
+      #   client_id: "your-aws-cognito-client-id"
+      #   client_secret: "your-aws-cognito-client-secret"
+      #   oidc_config_url: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxxxx/.well-known/openid-configuration"
+      #   display_name: "AWS Cognito"
+      #   allow_sign_up: true
+      #   auto_login: false
+      
+      # Example Microsoft Entra ID configuration:
+      # microsoft_entra_id:
+      #   client_id: "your-microsoft-entra-id-client-id"
+      #   client_secret: "your-microsoft-entra-id-client-secret"
+      #   oidc_config_url: "https://login.microsoftonline.com/your-tenant-id/v2.0/.well-known/openid-configuration"
+      #   display_name: "Microsoft Entra ID"
+      #   allow_sign_up: true
+      #   auto_login: false
+      
+      # Example Keycloak configuration:
+      # keycloak:
+      #   client_id: "phoenix"
+      #   client_secret: "your-keycloak-client-secret"
+      #   oidc_config_url: "https://your-keycloak-server/realms/your-realm/.well-known/openid-configuration"
+      #   display_name: "Keycloak"
+      #   allow_sign_up: true
+      #   auto_login: false
+
 # SMTP (email) settings
 smtp:
   # -- SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME)
