@@ -10,7 +10,7 @@ from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _R
 
 
 class TestClientForProjectsAPI:
-    """Integration tests for the Projects client REST endpoints."""  # noqa: E501
+    """Integration tests for the Projects client REST endpoints."""
 
     name_and_description_test_cases = [
         pytest.param(
@@ -47,7 +47,7 @@ class TestClientForProjectsAPI:
         5. Projects can be deleted (admin only)
         6. Project names must be unique (both admin and member)
         7. Special characters in project names are handled correctly
-        """  # noqa: E501
+        """
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(u.create_api_key(_app))
@@ -69,12 +69,12 @@ class TestClientForProjectsAPI:
         )
 
         # Verify project was created with correct attributes (CREATE operation)
-        assert project["id"], "Project ID should be present after creation"  # noqa: E501
-        assert project["name"] == name, "Project name should match input after creation"  # noqa: E501
-        assert "description" in project, "Project should have a description field"  # noqa: E501
+        assert project["id"], "Project ID should be present after creation"
+        assert project["name"] == name, "Project name should match input after creation"
+        assert "description" in project, "Project should have a description field"
         assert (
             project["description"] == description
-        ), "Project description should match input after creation"  # noqa: E501
+        ), "Project description should match input after creation"
 
         # Test project name uniqueness (CREATE operation)
         with pytest.raises(Exception):
@@ -94,16 +94,16 @@ class TestClientForProjectsAPI:
         # Verify retrieved project matches created project (READ operation)
         assert (
             retrieved_project["id"] == project["id"]
-        ), "Retrieved project ID should match created project"  # noqa: E501
+        ), "Retrieved project ID should match created project"
         assert (
             retrieved_project["name"] == name
-        ), "Retrieved project name should match created project"  # noqa: E501
+        ), "Retrieved project name should match created project"
         assert (
             "description" in retrieved_project
-        ), "Retrieved project should have a description field"  # noqa: E501
+        ), "Retrieved project should have a description field"
         assert (
             retrieved_project["description"] == description
-        ), "Retrieved project description should match created project"  # noqa: E501
+        ), "Retrieved project description should match created project"
 
         # List all projects (READ operation)
         all_projects = await _await_or_return(
@@ -113,7 +113,7 @@ class TestClientForProjectsAPI:
         # Verify our project is in the list (READ operation)
         assert any(
             p["id"] == project["id"] for p in all_projects
-        ), "Created project should be present in list of all projects"  # noqa: E501
+        ), "Created project should be present in list of all projects"
 
         # Update the project description (admin only) (UPDATE operation)
         new_description = f"Updated description with {project_description}"
@@ -128,14 +128,14 @@ class TestClientForProjectsAPI:
             # Verify project was updated with new description (UPDATE operation)
             assert (
                 updated_project["id"] == project["id"]
-            ), "Updated project ID should match original project"  # noqa: E501
-            assert updated_project["name"] == name, "Project name should not change after update"  # noqa: E501
+            ), "Updated project ID should match original project"
+            assert updated_project["name"] == name, "Project name should not change after update"
             assert (
                 "description" in updated_project
-            ), "Updated project should have a description field"  # noqa: E501
+            ), "Updated project should have a description field"
             assert (
                 updated_project["description"] == new_description
-            ), "Project description should be updated"  # noqa: E501
+            ), "Project description should be updated"
 
         else:
             # Member users should not be able to update projects (UPDATE operation)
@@ -148,7 +148,7 @@ class TestClientForProjectsAPI:
                 )
             assert "403" in str(
                 exc_info.value
-            ), "Member users should receive 403 Forbidden when attempting to update projects"  # noqa: E501
+            ), "Member users should receive 403 Forbidden when attempting to update projects"
 
         # Delete the project (admin only) (DELETE operation)
         if role_or_user == _ADMIN:
@@ -200,7 +200,7 @@ class TestClientForProjectsAPI:
                 )
             assert "403" in str(
                 exc_info.value
-            ), "Member users should receive 403 Forbidden when attempting to delete projects"  # noqa: E501
+            ), "Member users should receive 403 Forbidden when attempting to delete projects"
 
             # Verify project still exists (DELETE operation)
             retrieved_project = await _await_or_return(
@@ -210,4 +210,4 @@ class TestClientForProjectsAPI:
             )
             assert (
                 retrieved_project["id"] == project["id"]
-            ), "Project should still exist after member attempts deletion"  # noqa: E501
+            ), "Project should still exist after member attempts deletion"

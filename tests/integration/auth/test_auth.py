@@ -83,7 +83,7 @@ class TestOIDC:
     - Handling of conflicts with existing users
     - Configuration options like allow_sign_up
     - Error handling for invalid credentials
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize("allow_sign_up", [True, False])
     async def test_sign_in(
@@ -104,7 +104,7 @@ class TestOIDC:
            - Users are redirected to login with an error message
            - No access tokens are granted
            - If a user without a password exists, they can still sign in
-        """  # noqa: E501
+        """
         client = _httpx_client(_app)
         url = (
             f"oauth2/{_oidc_server}/login"
@@ -200,7 +200,7 @@ class TestOIDC:
         3. No access tokens are granted to the OIDC user
         4. The existing user's credentials remain unchanged
         5. This behavior is consistent regardless of the allow_sign_up setting
-        """  # noqa: E501
+        """
         client = _httpx_client(_app)
         url = (
             f"oauth2/{_oidc_server}/login"

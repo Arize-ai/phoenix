@@ -5,9 +5,6 @@ from typing import Any
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
-
 from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
@@ -23,6 +20,8 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionRule,
 )
 from phoenix.server.types import DbSessionFactory
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 
 class _MockWelcomeEmailSender:
@@ -447,7 +446,7 @@ class TestEnsureModelCosts:
         }
         assert (
             actual_prices_1_updated == expected_prices_1_updated
-        ), f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"  # noqa: E501
+        ), f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"
 
         # Verify model 2 updates
         model2_updated = built_in_models["test-model-2"]
@@ -460,7 +459,7 @@ class TestEnsureModelCosts:
         }
         assert (
             actual_prices_2_updated == expected_prices_2_updated
-        ), f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"  # noqa: E501
+        ), f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"
 
         # Verify new audio model
         audio_model = built_in_models["audio-model"]
@@ -471,7 +470,7 @@ class TestEnsureModelCosts:
         }
         assert (
             actual_prices_audio == expected_prices_audio
-        ), f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"  # noqa: E501
+        ), f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"
 
         # === STEP 4: Remove models (test soft deletion) ===
         # Keep only model 2, remove model 1 and audio model
@@ -520,7 +519,7 @@ class TestEnsureModelCosts:
         }
         assert (
             actual_prices_final == expected_prices_final
-        ), f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"  # noqa: E501
+        ), f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"
 
         # Verify soft deletion of removed models
         deleted_model_names = await self._get_deleted_model_names(db)
@@ -543,4 +542,4 @@ class TestEnsureModelCosts:
         expected_all_deleted = {"test-model-1", "test-model-2", "audio-model"}
         assert (
             all_deleted_names == expected_all_deleted
-        ), f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"  # noqa: E501
+        ), f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"

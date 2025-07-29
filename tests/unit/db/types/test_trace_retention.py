@@ -9,8 +9,6 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
-from pydantic import ValidationError
-
 from phoenix.db import models
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
@@ -22,6 +20,7 @@ from phoenix.db.types.trace_retention import (
     _time_of_next_run,
 )
 from phoenix.server.types import DbSessionFactory
+from pydantic import ValidationError
 
 fake = Faker()
 
@@ -91,7 +90,7 @@ class TestTraceRetentionRuleMaxDays:
     The test verifies that:
     - Projects with traces older than max_days have only their most recent trace kept
     - Unaffected projects retain all their traces
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
     async def test_delete_traces(
@@ -172,7 +171,7 @@ class TestTraceRetentionRuleMaxCount:
     The test verifies that:
     - Projects with more than max_count traces have only their most recent trace kept
     - Unaffected projects retain all their traces
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
     async def test_delete_traces(
@@ -261,7 +260,7 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
     Note: The rule uses OR logic - a trace will be deleted if it is either:
     - Older than max_days OR
     - Beyond max_count for its project
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize("scalar_subquery", [True, False])
     async def test_delete_traces(
@@ -347,7 +346,7 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
             set(remaining_traces.all())
             == set(traces[0] for traces in affected_projects.values())
             - set(chain.from_iterable(old_projects.values()))
-        ), "Each affected project should retain only its most recent trace and old projects should haveno trace remaining"  # noqa: E501
+        ), "Each affected project should retain only its most recent trace and old projects should haveno trace remaining"
 
         # Verify unaffected projects are untouched
         async with db() as session:

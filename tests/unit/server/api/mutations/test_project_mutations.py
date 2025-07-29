@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 
-from strawberry.relay import GlobalID
-
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from strawberry.relay import GlobalID
 
 from ....graphql import AsyncGraphQLClient
 
@@ -35,7 +34,7 @@ class TestProjectMutations:
         Expected Results:
         - Trace 0 and its session should be preserved (after end_time)
         - Trace 1, Trace 2, and their sessions should be deleted (before end_time)
-        """  # noqa: E501
+        """
         project_name = token_hex(8)
         traces: list[models.Trace] = []
         project_sessions: list[models.ProjectSession] = []

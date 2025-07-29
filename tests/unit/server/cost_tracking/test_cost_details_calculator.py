@@ -1,7 +1,6 @@
 from typing import Any, Mapping, NamedTuple, Optional
 
 import pytest
-
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
 
@@ -756,19 +755,19 @@ class TestSpanCostDetailsCalculator:
                 detail = actual_details[token_type]
                 assert (
                     detail.tokens == expected.tokens
-                ), f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"  # noqa: E501
+                ), f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"
                 if expected.cost is not None:
                     assert detail.cost == pytest.approx(
                         expected.cost
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost} cost"  # noqa: E501
+                    ), f"Expected {domain} detail for {token_type} to have {expected.cost} cost"
                 else:
                     assert (
                         detail.cost is None
-                    ), f"Expected {domain} detail for {token_type} to have no cost"  # noqa: E501
+                    ), f"Expected {domain} detail for {token_type} to have no cost"
                 if expected.cost_per_token is not None:
                     assert (
                         detail.cost_per_token == pytest.approx(expected.cost_per_token)
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"  # noqa: E501
+                    ), f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"
                 else:
                     assert (
                         detail.cost_per_token is None

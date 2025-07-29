@@ -91,7 +91,7 @@ def _get_table_schema_info(
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database queries fail
         AssertionError: If table definition parsing fails
-    """  # noqa: E501
+    """
     if db_backend == "postgresql":
         # Check if table exists
         table_exists = conn.execute(

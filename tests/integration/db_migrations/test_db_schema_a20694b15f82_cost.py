@@ -46,7 +46,7 @@ class DBSchemaComparisonTest(ABC):
             initial_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             initial_info == current_info
-        ), "Initial schema info does not match expected current schema info"  # noqa: E501
+        ), "Initial schema info does not match expected current schema info"
 
         _up(_engine, _alembic_config, _UP, _schema)
 
@@ -54,7 +54,7 @@ class DBSchemaComparisonTest(ABC):
             final_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             final_info == upgraded_info
-        ), "Final schema info does not match expected upgraded schema info"  # noqa: E501
+        ), "Final schema info does not match expected upgraded schema info"
 
         _down(_engine, _alembic_config, _DOWN, _schema)
 
@@ -62,7 +62,7 @@ class DBSchemaComparisonTest(ABC):
             downgraded_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             downgraded_info == current_info
-        ), "Downgraded schema info does not match expected current schema info"  # noqa: E501
+        ), "Downgraded schema info does not match expected current schema info"
 
 
 class TestGenerativeModel(DBSchemaComparisonTest):

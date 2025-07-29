@@ -8,10 +8,6 @@ from typing import Any, Mapping, Optional
 import pytest
 from faker import Faker
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
-
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
@@ -19,6 +15,10 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
+
 from tests.unit.graphql import AsyncGraphQLClient
 
 _TraceRowId: TypeAlias = int
@@ -666,21 +666,21 @@ async def test_span_annotation_summaries(
           }}
         }}
       }}
-    """  # noqa: E501
+    """
     span_id = str(GlobalID(Span.__name__, str(1)))
     response = await gql_client.execute(
         query,
         variables={"spanId": span_id},
     )
-    assert not response.errors, f"GraphQL query returned errors: {response.errors}"  # noqa: E501
+    assert not response.errors, f"GraphQL query returned errors: {response.errors}"
     data = response.data
-    assert data is not None, "GraphQL response data is None"  # noqa: E501
+    assert data is not None, "GraphQL response data is None"
     span = data["span"]
-    assert span is not None, "GraphQL response span is None"  # noqa: E501
+    assert span is not None, "GraphQL response span is None"
     summaries = span["spanAnnotationSummaries"]
     assert (
         len(summaries) == expected_summary_count
-    ), f"Expected {expected_summary_count} summaries, got {len(summaries)}"  # noqa: E501
+    ), f"Expected {expected_summary_count} summaries, got {len(summaries)}"
 
     # Find the summary with the expected name
     summary = next((s for s in summaries if s["name"] == expected_summary_name), None)
@@ -689,12 +689,12 @@ async def test_span_annotation_summaries(
     # Use a small tolerance for floating-point comparison
     assert (
         abs(summary["meanScore"] - expected_mean_score) < 1e-10
-    ), f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"  # noqa: E501
+    ), f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"
 
     # Check label fractions
     label_fractions = summary["labelFractions"]
     assert len(label_fractions) == len(expected_label_fractions), (
-        f"Expected {len(expected_label_fractions)} label fractions, " f"got {len(label_fractions)}"  # noqa: E501
+        f"Expected {len(expected_label_fractions)} label fractions, " f"got {len(label_fractions)}"
     )
 
     # Sort both lists by label to ensure consistent comparison

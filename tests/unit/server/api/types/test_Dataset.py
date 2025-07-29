@@ -4,12 +4,12 @@ from typing import Any
 
 import pytest
 import pytz
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
-
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -152,7 +152,7 @@ class TestDatasetExampleCountResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_count_uses_latest_version_when_no_version_is_specified(
         self,
@@ -205,7 +205,7 @@ class TestDatasetExamplesResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
@@ -477,7 +477,7 @@ class TestDatasetExperimentCountResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_experiment_count_uses_all_versions_when_no_version_is_specified(
         self,
@@ -525,7 +525,7 @@ class TestDatasetExperimentsResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_experiments_have_sequence_number(
         self,

@@ -2,7 +2,6 @@ from contextlib import AbstractContextManager, nullcontext
 from typing import Any, Optional
 
 import pytest
-
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     PromptAnthropicInvocationParametersContent,
@@ -32,7 +31,7 @@ from phoenix.server.api.helpers.prompts.models import (
                 "type": "function",
                 "function": {
                     "name": "get_delivery_date",
-                    "description": "Get the delivery date for a customer's order. Call this whenever you need to know the delivery date, for example when a customer asks 'Where is my package'",  # noqa: E501
+                    "description": "Get the delivery date for a customer's order. Call this whenever you need to know the delivery date, for example when a customer asks 'Where is my package'",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -84,7 +83,7 @@ from phoenix.server.api.helpers.prompts.models import (
                 "type": "function",
                 "function": {
                     "name": "get_product_recommendations",
-                    "description": "Searches for products matching certain criteria in the database",  # noqa: E501
+                    "description": "Searches for products matching certain criteria in the database",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -124,7 +123,7 @@ from phoenix.server.api.helpers.prompts.models import (
                                 },
                             },
                             "keywords": {
-                                "description": "keywords that should be present in the item title or description",  # noqa: E501
+                                "description": "keywords that should be present in the item title or description",
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
@@ -139,7 +138,7 @@ from phoenix.server.api.helpers.prompts.models import (
                             },
                             "limit": {
                                 "type": "integer",
-                                "description": "The maximum number of products to return, use 5 by default if nothing is specified by the user",  # noqa: E501
+                                "description": "The maximum number of products to return, use 5 by default if nothing is specified by the user",
                             },
                         },
                         "required": ["categories", "colors", "keywords", "price_range", "limit"],
@@ -190,7 +189,7 @@ from phoenix.server.api.helpers.prompts.models import (
                                         },
                                         "quantity": {
                                             "type": "integer",
-                                            "description": "Quantity of the product to add to the cart",  # noqa: E501
+                                            "description": "Quantity of the product to add to the cart",
                                         },
                                     },
                                     "required": ["product_id", "quantity"],
@@ -241,7 +240,7 @@ from phoenix.server.api.helpers.prompts.models import (
                             },
                             "limit": {
                                 "type": "integer",
-                                "description": "The maximum number of orders to return, use 5 by default and increase the number if the relevant order is not found.",  # noqa: E501
+                                "description": "The maximum number of orders to return, use 5 by default and increase the number if the relevant order is not found.",
                             },
                         },
                         "required": ["user_id", "limit"],
@@ -349,7 +348,7 @@ from phoenix.server.api.helpers.prompts.models import (
                             },
                             "keywords": {
                                 "type": "array",
-                                "description": "Keywords that should be present in the recommendations",  # noqa: E501
+                                "description": "Keywords that should be present in the recommendations",
                                 "items": {"type": "string"},
                             },
                             "location": {
@@ -441,30 +440,30 @@ from phoenix.server.api.helpers.prompts.models import (
                                 "anyOf": [
                                     {
                                         "type": "object",
-                                        "description": "Restaurant booking with specific date and time",  # noqa: E501
+                                        "description": "Restaurant booking with specific date and time",
                                         "properties": {
                                             "date": {
                                                 "type": "string",
-                                                "description": "The date of the booking, in format YYYY-MM-DD",  # noqa: E501
+                                                "description": "The date of the booking, in format YYYY-MM-DD",
                                             },
                                             "time": {
                                                 "type": "string",
-                                                "description": "The time of the booking, in format HH:MM",  # noqa: E501
+                                                "description": "The time of the booking, in format HH:MM",
                                             },
                                         },
                                         "required": ["date", "time"],
                                     },
                                     {
                                         "type": "object",
-                                        "description": "Hotel booking with specific check-in and check-out dates",  # noqa: E501
+                                        "description": "Hotel booking with specific check-in and check-out dates",
                                         "properties": {
                                             "check_in": {
                                                 "type": "string",
-                                                "description": "The check-in date of the booking, in format YYYY-MM-DD",  # noqa: E501
+                                                "description": "The check-in date of the booking, in format YYYY-MM-DD",
                                             },
                                             "check_out": {
                                                 "type": "string",
-                                                "description": "The check-out date of the booking, in format YYYY-MM-DD",  # noqa: E501
+                                                "description": "The check-out date of the booking, in format YYYY-MM-DD",
                                             },
                                         },
                                         "required": ["check_in", "check_out"],
@@ -491,7 +490,7 @@ from phoenix.server.api.helpers.prompts.models import (
                             "size": {
                                 "type": "string",
                                 "enum": ["s", "m", "l"],
-                                "description": "The size of the t-shirt that the user would like to order",  # noqa: E501
+                                "description": "The size of the t-shirt that the user would like to order",
                             }
                         },
                         "required": ["size"],
@@ -529,7 +528,7 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
                         "unit": {
                             "type": "string",
                             "enum": ["celsius", "fahrenheit"],
-                            "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                            "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
                         },
                     },
                     "required": ["location"],
@@ -557,7 +556,7 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
         pytest.param(
             {
                 "name": "get_location",
-                "description": "Get the current user location based on their IP address. This tool has no parameters or arguments.",  # noqa: E501
+                "description": "Get the current user location based on their IP address. This tool has no parameters or arguments.",
                 "input_schema": {"type": "object", "properties": {}},
             },
             id="get-location-function",
@@ -582,7 +581,7 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
                                     "b": {"type": "number", "description": "blue value [0.0, 1.0]"},
                                     "name": {
                                         "type": "string",
-                                        "description": 'Human-readable color name in snake_case, e.g., "olive_green" or "turquoise"',  # noqa: E501
+                                        "description": 'Human-readable color name in snake_case, e.g., "olive_green" or "turquoise"',
                                     },
                                 },
                                 "required": ["r", "g", "b", "name"],
@@ -595,7 +594,7 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
                         },
                         "estimated_year": {
                             "type": "integer",
-                            "description": "Estimated year that the images was taken, if is it a photo. Only set this if the image appears to be non-fictional. Rough estimates are okay!",  # noqa: E501
+                            "description": "Estimated year that the images was taken, if is it a photo. Only set this if the image appears to be non-fictional. Rough estimates are okay!",
                         },
                     },
                     "required": ["key_colors", "description"],

@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 import base64
 import re
 from dataclasses import dataclass, field
@@ -10,11 +9,6 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.relay import GlobalID
-from typing_extensions import assert_never
-
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
@@ -22,6 +16,11 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
+from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
+from typing_extensions import assert_never
+
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node

@@ -348,7 +348,7 @@ class TestClientForUsersAPI:
             )
         assert (
             "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
+        ), f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"
 
         # Try to delete a user with default admin credentials
         with pytest.raises(Exception) as exc_info:
@@ -357,7 +357,7 @@ class TestClientForUsersAPI:
             )
         assert (
             "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
+        ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"
 
     @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
     async def test_cannot_create_system_users(

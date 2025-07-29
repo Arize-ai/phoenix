@@ -3,8 +3,6 @@ from typing import Any
 
 import pytest
 import sqlalchemy as sa
-from strawberry.relay import GlobalID
-
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.trace_retention import MaxDaysRule
@@ -12,6 +10,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.types import DbSessionFactory
+from strawberry.relay import GlobalID
+
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -76,7 +76,7 @@ class TestProjectTraceRetentionPolicyMutations:
                 }
             }
         }
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize(
         "initial_rule_input, initial_rule_output, update_rule_input, update_rule_output",
@@ -319,7 +319,7 @@ class TestProjectTraceRetentionPolicyMutations:
         The default policy (with name "Default") is a special policy that must maintain its name
         and cannot be deleted to ensure system stability and provide a fallback for projects.
         However, its cron expression and rule can be modified as needed.
-        """  # noqa: E501
+        """
 
         # Create a GlobalID for the default policy to use in GraphQL operations
         default_policy_gid = str(

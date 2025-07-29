@@ -1265,7 +1265,7 @@ class _OIDCServer:
         with _OIDCServer(port=8000) as oidc_server:
             # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
             # The server will be available at oidc_server.base_url
-    """  # noqa: E501
+    """
 
     def __init__(self, port: int):
         """
@@ -1299,7 +1299,7 @@ class _OIDCServer:
         - /.well-known/openid-configuration: Discovery document for OIDC clients
         - /userinfo: User information endpoint
         - /.well-known/jwks.json: JSON Web Key Set for token verification
-        """  # noqa: E501
+        """
 
         @self._app.get("/auth")
         async def auth(request: Request) -> Response:
@@ -1307,7 +1307,7 @@ class _OIDCServer:
             Authorization endpoint that simulates the initial OAuth2 authorization request.
 
             Validates the client_id and returns a redirect with an authorization code.
-            """  # noqa: E501
+            """
             params = dict(request.query_params)
             if params.get("client_id") != self._client_id:
                 return JSONResponse({"error": "invalid_client"}, status_code=400)
@@ -1333,7 +1333,7 @@ class _OIDCServer:
             - id_token: A JWT containing user information and the nonce from the auth request
             - refresh_token: A randomly generated refresh token
             - Other standard OAuth2 token response fields
-            """  # noqa: E501
+            """
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Basic "):
                 try:
@@ -1382,7 +1382,7 @@ class _OIDCServer:
 
             Returns the standard OIDC configuration document that clients use to
             discover the endpoints and capabilities of this identity provider.
-            """  # noqa: E501
+            """
             return JSONResponse(
                 {
                     "issuer": self.base_url,
@@ -1415,7 +1415,7 @@ class _OIDCServer:
 
             Returns a JSON response with user profile information that would typically
             be retrieved from a real identity provider's user database.
-            """  # noqa: E501
+            """
             user_info = {
                 "sub": self._user_id,
                 "name": self._user_name,
@@ -1433,7 +1433,7 @@ class _OIDCServer:
             of ID tokens issued by this server. In this implementation, we're using
             a symmetric key (HS256) for simplicity, but in a real OIDC provider,
             this would typically use asymmetric keys (RS256).
-            """  # noqa: E501
+            """
             # Base64url encode the secret key
             encoded_key = urlsafe_b64encode(self._secret_key.encode()).decode().rstrip("=")
             return JSONResponse(
@@ -1545,7 +1545,7 @@ async def _get(
 
     Raises:
         AssertionError: If query_fn returns None after all retries
-    """  # noqa: E501
+    """
     from asyncio import sleep
 
     wt = 0 if no_wait else initial_wait_time

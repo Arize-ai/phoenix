@@ -3,14 +3,13 @@ import sys
 from typing import Any
 
 import pytest
-from syrupy.assertion import SnapshotAssertion
-
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     FreeAttributeNameBinder,
     SQLAlchemyTransformer,
     compile_sqlalchemy_filter_condition,
 )
+from syrupy.assertion import SnapshotAssertion
 
 
 @pytest.mark.parametrize(
@@ -237,11 +236,11 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="negation",
         ),
         pytest.param(
-            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
             id="conjunction",
         ),
         pytest.param(
-            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
             id="conjunction-of-three",
         ),
         pytest.param(
@@ -249,19 +248,19 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="disjunction",
         ),
         pytest.param(
-            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
             id="disjunction-of-three",
         ),
         pytest.param(
-            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
             id="mixed-conjunction-and-disjunction-without-parentheses",
         ),
         pytest.param(
-            "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
             id="mixed-conjunction-and-disjunction-with-parentheses",
         ),
         pytest.param(
-            "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",  # noqa: E501
+            "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
             id="complex-negation",
         ),
         # unary operations
