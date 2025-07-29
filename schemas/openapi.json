@@ -1723,6 +1723,74 @@
         }
       }
     },
+    "/v1/traces/{trace_id}": {
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete a trace by trace_id",
+        "description": "Delete an entire trace by its OpenTelemetry trace_id. This will permanently remove all spans in the trace and their associated data.",
+        "operationId": "deleteTrace",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The OpenTelemetry trace_id of the trace to delete",
+              "title": "Trace Id"
+            },
+            "description": "The OpenTelemetry trace_id of the trace to delete"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/projects/{project_identifier}/spans/otlpv1": {
       "get": {
         "tags": [
@@ -2137,85 +2205,6 @@
               }
             },
             "description": "Span not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/projects/{project_identifier}/spans/{span_id}": {
-      "delete": {
-        "tags": [
-          "spans"
-        ],
-        "summary": "Delete a span by span_id",
-        "description": "Delete a specific span by its span_id within a project. This will permanently remove the span and its associated data.",
-        "operationId": "deleteSpan",
-        "parameters": [
-          {
-            "name": "project_identifier",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
-              "title": "Project Identifier"
-            },
-            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
-          {
-            "name": "span_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The span_id of the span to delete",
-              "title": "Span Id"
-            },
-            "description": "The span_id of the span to delete"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "507": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Insufficient Storage"
           },
           "422": {
             "description": "Validation Error",
