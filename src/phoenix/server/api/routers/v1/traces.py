@@ -18,7 +18,6 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_507_INSUFFICIENT_STORAGE,
 )
 from strawberry.relay import GlobalID
 
@@ -230,14 +229,13 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
 
 @router.delete(
     "/traces/{trace_id}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deleteTrace",
     summary="Delete a trace by trace_id",
     description=(
         "Delete an entire trace by its OpenTelemetry trace_id. "
         "This will permanently remove all spans in the trace and their associated data."
     ),
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_507_INSUFFICIENT_STORAGE]),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
     status_code=204,  # No Content for successful deletion
 )
 async def delete_trace(
