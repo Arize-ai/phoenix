@@ -22,13 +22,13 @@ The `capture_span_context` context manager allows you to:
 
 ## Understanding Span Topology
 
-When your LLM application executes, it creates a hierarchy of spans representing different operations. For example, when using a framework like LlamaIndex, you might have:
+When your LLM application executes, it creates a hierarchy of spans representing different operations. For example, when using a framework, you might have:
 
 ```
-llama-index (root span)
-  ├── get_span (query processing)
-  │     └── get_span (LLM call)
-  └── get_span (response formatting)
+framework (root span)
+  ├── span 1 (query processing)
+  │     └── span 2 (LLM call)
+  └── span 3 (response formatting)
 ```
 
 The `capture_span_context` context manager helps you easily access:
@@ -47,27 +47,28 @@ client = Client()
 
 def process_llm_request_with_feedback(prompt: str):
     with capture_span_context() as capture:
-        # This creates multiple spans in a hierarchy
-        chat_engine = index.as_chat_engine()
-        response = chat_engine.chat("Hello, how are you?")
+        # This creates multiple spans in a hierarchy when using a framework
+        response = llm.invoke("Generate a summary")
+        # Get user feedback (simulated)
+        user_feedback = get_user_feedback(response)
         
-        # Get the first span (root level - good for overall evaluation)
+        # Method 1: Get first span ID (root span - good for user feedback)
         first_span_id = capture.get_first_span_id()
         if first_span_id:
-            # Apply high-level feedback or evaluation scores
+            # Apply user feedback to the first span
             client.annotations.add_span_annotation(
-                annotation_name="overall_quality",
+                annotation_name="user_feedback",
                 annotator_kind="HUMAN",
                 span_id=first_span_id,
-                label="excellent",
-                score=5,
-                explanation="The overall response quality was excellent"
+                label=user_feedback.label,
+                score=user_feedback.score,
+                explanation=user_feedback.explanation
             )
         
-        # Get the last span (often the LLM call - good for LLM-specific feedback)
+        # Method 2: Get last span ID (most recent span - often the LLM call)
         last_span_id = capture.get_last_span_id()
         if last_span_id:
-            # Apply LLM-specific feedback
+            # Apply feedback to the most recent span
             client.annotations.add_span_annotation(
                 annotation_name="llm_response_quality",
                 annotator_kind="HUMAN", 
@@ -81,7 +82,7 @@ def process_llm_request_with_feedback(prompt: str):
 ### When to Use First vs Last Spans
 
 **Use the first span (`get_first_span_id()`) when:**
-- Adding human feedback about the overall experience
+- Adding user feedback about the overall experience
 - Recording evaluation scores for the entire request/response cycle
 - Tracking session-level or conversation-level metadata
 - Applying business logic annotations that span the entire operation
@@ -102,9 +103,8 @@ client = Client()
 
 def chat_with_comprehensive_feedback(user_input: str):
     with capture_span_context() as capture:
-        # Auto-instrumented LLM framework call
-        chat_engine = index.as_chat_engine()
-        response = chat_engine.chat(user_input)
+        # Auto-instrumented framework call
+        response = framework.process(user_input)
         
         # Simulate getting user feedback
         user_rating = get_user_rating(response)  # Returns 1-5 score
