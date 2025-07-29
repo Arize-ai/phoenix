@@ -2,7 +2,7 @@ import base64
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 import requests
@@ -18,6 +18,9 @@ from phoenix.evals.utils import (
     get_audio_format_from_base64,
     get_image_format_from_base64,
 )
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
 
 MINIMUM_GOOGLE_GENAI_VERSION = "1.0.0"
 DEFAULT_GOOGLE_GENAI_MODEL = "gemini-2.5-flash"
@@ -80,6 +83,7 @@ class GoogleGenAIModel(BaseModel):
             limit errors. Defaults to 5.
 
     Example:
+        After setting the GOOGLE_API_KEY environment variable:
         .. code-block:: python
 
             # Get your own Google API Key: https://aistudio.google.com/apikey
@@ -87,10 +91,27 @@ class GoogleGenAIModel(BaseModel):
 
             from phoenix.evals import GoogleAIModel
             model = GoogleAIModel(model="gemini-2.5-flash")
+
+        Using Gemini models via VertexAI can be done like this:
+
+        .. code-block:: python
+
+            from phoenix.evals import GoogleAIModel
+            model = GoogleAIModel(
+                vertexai=True,
+                location=LOCATION,
+                project=PROJECT_ID
+            )
+
+        It can also be done in a similar way using the credentials.
     """
 
     model: str = DEFAULT_GOOGLE_GENAI_MODEL
+    vertexai: Optional[bool] = None
     api_key: Optional[str] = None
+    credentials: Optional["Credentials"] = None
+    project: Optional[str] = None
+    location: Optional[str] = None
     initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
@@ -122,8 +143,18 @@ class GoogleGenAIModel(BaseModel):
                 package_min_version=MINIMUM_GOOGLE_GENAI_VERSION,
             )
         self._google_types = types
-        self._client = genai.Client(api_key=self.api_key)
         self._google_sdk_error = APIError
+
+        if self.vertexai:
+            self._client = genai.Client(
+                vertexai=self.vertexai,
+                credentials=self.credentials,
+                project=self.project,
+                location=self.location,
+            )
+            return
+
+        self._client = genai.Client(api_key=self.api_key)
 
     async def _async_generate(
         self,
@@ -133,7 +164,7 @@ class GoogleGenAIModel(BaseModel):
     ) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
-        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)
+        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
         response = await self._async_rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
@@ -185,7 +216,7 @@ class GoogleGenAIModel(BaseModel):
         contents: List[Dict[str, Any]] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
-                contents.append({"parts": [{"text": part.content}]})
+                contents.append({"parts": [{"text": part.content}], "role": "user"})
             elif part.content_type == PromptPartContentType.IMAGE:
                 content = part.content
 
@@ -212,7 +243,8 @@ class GoogleGenAIModel(BaseModel):
                                     "mime_type": f"image/{format}",
                                 }
                             }
-                        ]
+                        ],
+                        "role": "user",
                     }
                 )
             elif part.content_type == PromptPartContentType.AUDIO:
@@ -230,7 +262,8 @@ class GoogleGenAIModel(BaseModel):
                                     "mime_type": f"audio/{format}",
                                 }
                             }
-                        ]
+                        ],
+                        "role": "user",
                     }
                 )
             else:
