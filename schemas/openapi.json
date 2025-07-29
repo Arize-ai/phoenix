@@ -4105,6 +4105,10 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "example_count": {
+            "type": "integer",
+            "title": "Example Count"
           }
         },
         "type": "object",
@@ -4114,7 +4118,8 @@
           "description",
           "metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "example_count"
         ],
         "title": "Dataset"
       },

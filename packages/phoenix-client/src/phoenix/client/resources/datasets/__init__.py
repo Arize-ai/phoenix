@@ -110,7 +110,7 @@ class Dataset:
     def example_count(self) -> int:
         """Number of examples in this version."""
         if "example_count" in self._dataset_info:
-            return self._dataset_info["example_count"]  # type: ignore[no-any-return,typeddict-item]
+            return self._dataset_info["example_count"]
         return len(self.examples)
 
     def __repr__(self) -> str:
@@ -298,7 +298,18 @@ def _parse_datetime(datetime_str: str) -> datetime:
 
 class Datasets:
     """
-    Provides methods for interacting with dataset resources.
+    Client for managing dataset resources in Phoenix.
+
+    This class provides methods for listing, retrieving, creating, and updating datasets.
+    Datasets are collections of input/output examples used for training, evaluation,
+    and experimentation.
+
+    Key Methods:
+        - list(): Get all datasets with automatic pagination
+        - paginate(): Manual pagination control
+        - get_dataset(): Retrieve a specific dataset with examples
+        - create_dataset(): Create new datasets from various sources
+        - add_examples_to_dataset(): Add examples to existing datasets
 
     Example:
         Basic usage:
@@ -306,6 +317,20 @@ class Datasets:
             >>> client = Client()
             >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
+
+        Listing datasets:
+            >>> # Get all datasets (automatically handles pagination)
+            >>> all_datasets = client.datasets.list()
+            >>> print(f"Found {len(all_datasets)} total datasets")
+            >>>
+            >>> # Get limited number of datasets
+            >>> limited_datasets = client.datasets.list(limit=10)
+            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+            >>>
+            >>> # Manual pagination for fine-grained control
+            >>> response = client.datasets.paginate(limit=10)
+            >>> datasets = response["data"]
+            >>> print(f"Found {len(datasets)} datasets on this page")
 
         Creating and updating datasets:
             >>> # Create a new dataset
@@ -382,21 +407,40 @@ class Datasets:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
-        Gets the dataset for a specific version, or gets the latest version of
-        the dataset if no version is specified.
+        Retrieve a specific dataset with its examples.
+
+        Gets the dataset for a specific version, or the latest version if no version
+        is specified. Returns the complete dataset including metadata and all examples.
 
         Args:
-            dataset: A dataset identifier - can be a dataset ID string, name string,
+            dataset: Dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            version_id: An ID for the version of the dataset, or None.
-            timeout: Optional request timeout in seconds.
+            version_id: Specific version ID of the dataset. If None, returns the
+                latest version.
+            timeout: Request timeout in seconds (default: 5).
 
         Returns:
-            A Dataset object containing the dataset metadata and examples.
+            Dataset object containing complete dataset metadata and all examples.
+            The dataset can be iterated over, converted to DataFrame, or accessed
+            by index.
 
         Raises:
-            ValueError: If dataset format is invalid.
-            httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If dataset identifier format is invalid or dataset not found.
+            httpx.HTTPStatusError: If the API request fails.
+
+        Example:
+            >>> from phoenix.client import Client
+            >>> client = Client()
+            >>>
+            >>> # Get dataset by name
+            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
+            >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
+            >>>
+            >>> # Get specific version
+            >>> versioned = client.datasets.get_dataset(
+            ...     dataset="my-dataset",
+            ...     version_id="version-123"
+            ... )
         """
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -481,6 +525,128 @@ class Datasets:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
         return records  # type: ignore[no-any-return]
+
+    def _paginate(
+        self,
+        *,
+        limit: Optional[int] = 100,
+        cursor: Optional[str] = None,
+        timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ListDatasetsResponseBody:
+        """
+        Internal method to paginate through available datasets with cursor-based pagination.
+
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
+
+        Args:
+            limit: Maximum number of datasets to return per page (default: 100).
+                Server may use a different default if None is passed.
+            cursor: Cursor for pagination. Use the `next_cursor` from a previous
+                response to get the next page. None for the first page.
+            timeout: Request timeout in seconds (default: 5).
+
+        Returns:
+            Dictionary with pagination response containing:
+                - data: List of dataset dictionaries with fields: id, name, description,
+                  metadata, created_at (datetime), updated_at (datetime), example_count (int)
+                - next_cursor: String cursor for next page, or None if no more pages
+
+        Raises:
+            httpx.HTTPStatusError: If the API request fails (e.g., invalid cursor, network error).
+        """  # noqa: E501
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        if cursor is not None:
+            params["cursor"] = cursor
+
+        response = self._client.get(
+            url="v1/datasets",
+            params=params,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        response_data = response.json()
+        records = response_data["data"]
+        next_cursor = response_data.get("next_cursor")
+
+        return v1.ListDatasetsResponseBody(data=records, next_cursor=next_cursor)
+
+    def list(
+        self,
+        *,
+        limit: Optional[int] = None,
+        timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.Dataset]:
+        """
+        List available datasets with automatic pagination handling.
+
+        This is the recommended method for most use cases. It automatically handles
+        pagination behind the scenes and returns a simple list of datasets. For large
+        datasets collections, consider using a limit to control memory usage.
+
+        Args:
+            limit: Maximum number of datasets to return. If None, returns all available
+                datasets (use with caution for large collections).
+            timeout: Request timeout in seconds for each paginated request (default: 5).
+
+        Returns:
+            List of dataset dictionaries, each containing: id, name, description,
+            metadata, created_at (datetime), updated_at (datetime), example_count (int).
+            Limited to the requested number if limit is specified.
+
+        Raises:
+            httpx.HTTPStatusError: If any API request fails during pagination.
+
+        Example:
+            >>> from phoenix.client import Client
+            >>> client = Client()
+            >>>
+            >>> # Get all datasets (automatically paginates, includes counts)
+            >>> all_datasets = client.datasets.list()
+            >>> print(f"Found {len(all_datasets)} total datasets")
+            >>>
+            >>> # Get datasets with example counts
+            >>> for dataset in all_datasets:
+            ...     print(f"{dataset['name']}: {dataset['example_count']} examples")
+            >>>
+            >>> # Get only first 10 datasets (efficient for large collections)
+            >>> limited_datasets = client.datasets.list(limit=10)
+            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+        """  # noqa: E501
+        all_datasets: list[v1.Dataset] = []
+        cursor = None
+
+        while True:
+            # Use limit as page size if specified, otherwise use reasonable default
+            page_size = min(limit or 100, 100) if limit else 100
+
+            # Don't fetch more than we need
+            if limit is not None:
+                remaining = limit - len(all_datasets)
+                if remaining <= 0:
+                    break
+                page_size = min(page_size, remaining)
+
+            response = self._paginate(
+                cursor=cursor,
+                limit=page_size,
+                timeout=timeout,
+            )
+            all_datasets.extend(response["data"])
+
+            cursor = response["next_cursor"]
+            if cursor is None or (limit is not None and len(all_datasets) >= limit):
+                break
+
+        # Trim to exact limit if needed
+        if limit is not None and len(all_datasets) > limit:
+            all_datasets = all_datasets[:limit]
+
+        return all_datasets
 
     def create_dataset(
         self,
@@ -1053,6 +1219,124 @@ class AsyncDatasets:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
         return records  # type: ignore[no-any-return]
+
+    async def _paginate(
+        self,
+        *,
+        limit: Optional[int] = 100,
+        cursor: Optional[str] = None,
+        timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ListDatasetsResponseBody:
+        """
+        Internal method to paginate through available datasets with cursor-based pagination.
+
+        This is a private method used internally by the list() method to handle pagination.
+        Users should use the list() method instead of calling this directly.
+
+        Args:
+            limit: Maximum number of datasets to return per page (default: 100).
+                Server may use a different default if None is passed.
+            cursor: Cursor for pagination. Use the `next_cursor` from a previous
+                response to get the next page. None for the first page.
+            timeout: Request timeout in seconds (default: 5).
+
+        Returns:
+            Dictionary with pagination response containing:
+                - data: List of dataset dictionaries with fields: id, name, description,
+                  metadata, created_at (datetime), updated_at (datetime), example_count (int)
+                - next_cursor: String cursor for next page, or None if no more pages
+
+        Raises:
+            httpx.HTTPStatusError: If the API request fails (e.g., invalid cursor, network error).
+        """  # noqa: E501
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        if cursor is not None:
+            params["cursor"] = cursor
+
+        response = await self._client.get(
+            url="v1/datasets",
+            params=params,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        response_data = response.json()
+        records = response_data["data"]
+        next_cursor = response_data.get("next_cursor")
+
+        return v1.ListDatasetsResponseBody(data=records, next_cursor=next_cursor)
+
+    async def list(
+        self,
+        *,
+        limit: Optional[int] = None,
+        timeout: Optional[float] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.Dataset]:
+        """
+        List available datasets with automatic pagination handling.
+
+        This is the recommended method for most use cases. It automatically handles
+        pagination behind the scenes and returns a simple list of datasets. For large
+        datasets collections, consider using a limit to control memory usage.
+
+        Args:
+            limit: Maximum number of datasets to return. If None, returns all available
+                datasets (use with caution for large collections).
+            timeout: Request timeout in seconds for each paginated request (default: 5).
+
+        Returns:
+            List of dataset dictionaries, each containing: id, name, description,
+            metadata, created_at (datetime), updated_at (datetime), example_count (int).
+            Limited to the requested number if limit is specified.
+
+        Raises:
+            httpx.HTTPStatusError: If any API request fails during pagination.
+
+        Example:
+            >>> from phoenix.client import AsyncClient
+            >>> client = AsyncClient()
+            >>>
+            >>> # Get all datasets (automatically paginates)
+            >>> all_datasets = await client.datasets.list()
+            >>> print(f"Found {len(all_datasets)} total datasets")
+            >>>
+            >>> # Get only first 10 datasets (efficient for large collections)
+            >>> limited_datasets = await client.datasets.list(limit=10)
+            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+        """  # noqa: E501
+        all_datasets: list[v1.Dataset] = []
+        cursor = None
+
+        while True:
+            # Use limit as page size if specified, otherwise use reasonable default
+            page_size = min(limit or 100, 100) if limit else 100
+
+            # Don't fetch more than we need
+            if limit is not None:
+                remaining = limit - len(all_datasets)
+                if remaining <= 0:
+                    break
+                page_size = min(page_size, remaining)
+
+            response = await self._paginate(
+                cursor=cursor,
+                limit=page_size,
+                timeout=timeout,
+            )
+            all_datasets.extend(response["data"])
+
+            cursor = response["next_cursor"]
+            if cursor is None or (limit is not None and len(all_datasets) >= limit):
+                break
+
+        # Trim to exact limit if needed
+        if limit is not None and len(all_datasets) > limit:
+            all_datasets = all_datasets[:limit]
+
+        return all_datasets
 
     async def create_dataset(
         self,
