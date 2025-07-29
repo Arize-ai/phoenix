@@ -2,14 +2,14 @@ import gzip
 import zlib
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -18,6 +18,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_507_INSUFFICIENT_STORAGE,
 )
 from strawberry.relay import GlobalID
 
@@ -26,7 +27,7 @@ from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import TraceAnnotationInsertEvent
+from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -225,3 +226,71 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
                 await state.queue_span_for_bulk_insert(span, project_name)
+
+
+@router.delete(
+    "/traces/{trace_id}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deleteTrace",
+    summary="Delete a trace by trace_id",
+    description=(
+        "Delete an entire trace by its OpenTelemetry trace_id. "
+        "This will permanently remove all spans in the trace and their associated data."
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_507_INSUFFICIENT_STORAGE]),
+    status_code=204,  # No Content for successful deletion
+)
+async def delete_trace(
+    request: Request,
+    trace_id: str = Path(description="The OpenTelemetry trace_id of the trace to delete"),
+) -> None:
+    """
+    Delete a trace by trace_id.
+
+    This endpoint will:
+    1. Find and delete the trace with the given trace_id (and all its spans via CASCADE)
+    2. Trigger cache invalidation events
+    3. Return 204 No Content on success
+
+    Note: This deletes the entire trace, including all spans, which maintains data consistency
+    and avoids orphaned spans or inconsistent cached cumulative fields.
+    """
+    async with request.app.state.db() as session:
+        # Find the trace to delete
+        trace_stmt = select(models.Trace.id, models.Trace.project_rowid).where(
+            models.Trace.trace_id == trace_id
+        )
+
+        trace_result = await session.execute(trace_stmt)
+        trace_data = trace_result.first()
+
+        if not trace_data:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Trace with trace_id '{trace_id}' not found",
+            )
+
+        trace_row_id, project_id = trace_data
+
+        # Delete the trace (CASCADE will delete all spans automatically)
+        delete_stmt = (
+            delete(models.Trace).where(models.Trace.id == trace_row_id).returning(models.Trace.id)
+        )
+
+        deleted_trace = await session.execute(delete_stmt)
+        deleted_trace_result = deleted_trace.first()
+
+        if not deleted_trace_result:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Failed to delete trace with trace_id '{trace_id}'",
+            )
+
+        # Commit the transaction
+        await session.commit()
+
+        # Trigger cache invalidation event
+        request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+
+    # Return 204 No Content (successful deletion with no response body)
+    return None
