@@ -24,11 +24,9 @@ export function BugReportErrorBoundaryFallback({
         </p>
 
         <Flex direction="row" width="100%" justifyContent="end">
-          {window.Config.allowExternalResources && (
-            <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">
-              file an issue with us
-            </ExternalLink>
-          )}
+          <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">
+            file an issue with us
+          </ExternalLink>
         </Flex>
         <details open>
           <summary>error details</summary>

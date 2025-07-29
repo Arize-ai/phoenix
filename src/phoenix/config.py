@@ -59,9 +59,8 @@ will be enabled in the Phoenix web interface.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
-Whether to allow external resources like Google Fonts in the Phoenix web interface.
-Defaults to True. Set to False in air-gapped environments to prevent external requests
-that can cause UI loading delays.
+Allows calls to external resources, like Google Fonts in the web interface
+Defaults to True. Set to False in air-gapped environments to prevent external requests.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -1696,3 +1695,11 @@ def _validate_file_exists_and_is_readable(
             f.read(1)  # Read just one byte to verify readability
     except Exception as e:
         raise ValueError(f"{description} file is not readable: {e}")
+
+
+def get_env_allow_external_resources() -> bool:
+    """
+    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
+    Defaults to True if not set.
+    """
+    return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)

@@ -100,17 +100,10 @@ export function TypeScriptSessionsGuide() {
       </CodeWrap>
       <View paddingBottom="size-100">
         <Text>
-          For more information on how to use sessions,{" "}
-          {window.Config.allowExternalResources ? (
-            <>
-              consult the{" "}
-              <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions">
-                documentation
-              </ExternalLink>
-            </>
-          ) : (
-            "check the documentation"
-          )}
+          For more information on how to use sessions, consult the{" "}
+          <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions">
+            documentation
+          </ExternalLink>
         </Text>
       </View>
     </div>

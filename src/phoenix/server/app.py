@@ -52,10 +52,10 @@ from typing_extensions import TypeAlias, override
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
-    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_allow_external_resources,
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
@@ -1089,10 +1089,7 @@ def create_app(
                         get_env_database_allocated_storage_capacity_gibibytes()
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
-                    allow_external_resources=os.getenv(
-                        ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True"
-                    ).lower()
-                    == "true",
+                    allow_external_resources=get_env_allow_external_resources(),
                 ),
             ),
             name="static",

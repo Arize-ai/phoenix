@@ -26,40 +26,38 @@ export function SupportPage() {
             </Text>
           </Flex>
         </View>
-        {window.Config.allowExternalResources && (
-          <div css={supportItemsCSS}>
-            <SupportItem
-              leadingVisual={<Icon svg={<Icons.BookFilled />} />}
-              href="https://arize.com/docs/phoenix"
-              title="Documentation"
-              description="Visit our documentation for tutorials and AI support."
-            />
-            <SupportItem
-              leadingVisual={<Icon svg={<Icons.GitHub />} />}
-              href="https://github.com/Arize-ai/phoenix/issues"
-              title="GitHub Issues"
-              description="Create an issue on Github to report bugs or request new features."
-            />
-            <SupportItem
-              leadingVisual={<Icon svg={<Icons.GitHub />} />}
-              href="https://github.com/Arize-ai/phoenix/discussions"
-              title="GitHub Discussions"
-              description="Create a discussion on Github to ask questions or share feedback."
-            />
-            <SupportItem
-              leadingVisual={<Icon svg={<Icons.Slack />} />}
-              href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email"
-              title="Slack"
-              description="Join our Slack community to chat with other users and the team."
-            />
-            <SupportItem
-              leadingVisual={<Icon svg={<Icons.Slack />} />}
-              href="mailto:phoenix-support@arize.com?subject=Slack%20Connect%20Request"
-              title="Slack Connect"
-              description="Get a dedicated support channel for you and your team."
-            />
-          </div>
-        )}
+        <div css={supportItemsCSS}>
+          <SupportItem
+            leadingVisual={<Icon svg={<Icons.BookFilled />} />}
+            href="https://arize.com/docs/phoenix"
+            title="Documentation"
+            description="Visit our documentation for tutorials and AI support."
+          />
+          <SupportItem
+            leadingVisual={<Icon svg={<Icons.GitHub />} />}
+            href="https://github.com/Arize-ai/phoenix/issues"
+            title="GitHub Issues"
+            description="Create an issue on Github to report bugs or request new features."
+          />
+          <SupportItem
+            leadingVisual={<Icon svg={<Icons.GitHub />} />}
+            href="https://github.com/Arize-ai/phoenix/discussions"
+            title="GitHub Discussions"
+            description="Create a discussion on Github to ask questions or share feedback."
+          />
+          <SupportItem
+            leadingVisual={<Icon svg={<Icons.Slack />} />}
+            href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email"
+            title="Slack"
+            description="Join our Slack community to chat with other users and the team."
+          />
+          <SupportItem
+            leadingVisual={<Icon svg={<Icons.Slack />} />}
+            href="mailto:phoenix-support@arize.com?subject=Slack%20Connect%20Request"
+            title="Slack Connect"
+            description="Get a dedicated support channel for you and your team."
+          />
+        </div>
       </Flex>
     </main>
   );

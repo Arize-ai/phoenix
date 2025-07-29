@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from enum import Enum, auto
@@ -11,7 +10,7 @@ from urllib.parse import quote, urljoin
 
 from pandas import read_parquet
 
-from phoenix.config import ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, INFERENCES_DIR
+from phoenix.config import INFERENCES_DIR
 from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import (
     EmbeddingColumnNames,
@@ -540,13 +539,6 @@ class GCSAssets(NamedTuple):
     prefix: str = "phoenix/datasets/"
 
     def metadata(self, path: Path) -> Metadata:
-        # Check if external resources are allowed
-        if not os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true").lower() == "true":
-            raise RuntimeError(
-                f"External resource access disabled by {ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}. "
-                "Cannot download fixtures from Google Cloud Storage."
-            )
-
         url = urljoin(
             urljoin(self.host, f"storage/v1/b/{self.bucket}/o/"),
             quote(urljoin(self.prefix, str(path)), safe=""),

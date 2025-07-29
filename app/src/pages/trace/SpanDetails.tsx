@@ -2040,13 +2040,11 @@ const attributesContextualHelp = (
             tracing specification.
           </Text>
         </Content>
-        {window.Config.allowExternalResources && (
-          <footer>
-            <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
-              Semantic Conventions
-            </ExternalLink>
-          </footer>
-        )}
+        <footer>
+          <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
+            Semantic Conventions
+          </ExternalLink>
+        </footer>
       </ContextualHelp>
     </View>
   </Flex>

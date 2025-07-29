@@ -27,26 +27,20 @@ export function PromptsEmpty() {
             <Text size="XL">
               Create and manage prompt templates for your AI applications.
             </Text>
-            {window.Config.allowExternalResources && (
-              <Video
-                src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompts.mp4"
-                autoPlay
-                muted
-                loop
-              />
-            )}
-            {window.Config.allowExternalResources && (
-              <Flex direction="row" gap="size-200">
-                <ExternalLinkButton
-                  href="https://arize.com/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui"
-                  target="_blank"
-                  leadingVisual={<Icon svg={<Icons.BookOutline />} />}
-                >
-                  Documentation
-                </ExternalLinkButton>
-              </Flex>
-            )}
+            <Video
+              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompts.mp4"
+              autoPlay
+              muted
+              loop
+            />
             <Flex direction="row" gap="size-200">
+              <ExternalLinkButton
+                href="https://arize.com/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui"
+                target="_blank"
+                leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+              >
+                Documentation
+              </ExternalLinkButton>
               <Button
                 variant="primary"
                 leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}

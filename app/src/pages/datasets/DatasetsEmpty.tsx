@@ -23,32 +23,28 @@ export function DatasetsEmpty() {
               Create datasets for testing prompts, experimentation, and
               fine-tuning.
             </Text>
-            {window.Config.allowExternalResources && (
-              <Video
-                src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/datasets.mp4"
-                autoPlay
-                muted
-                loop
-              />
-            )}
-            {window.Config.allowExternalResources && (
-              <Flex direction="row" gap="size-200">
-                <ExternalLinkButton
-                  href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
-                  target="_blank"
-                  leadingVisual={<Icon svg={<Icons.BookOutline />} />}
-                >
-                  Documentation
-                </ExternalLinkButton>
-                <ExternalLinkButton
-                  href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb"
-                  target="_blank"
-                  leadingVisual={<Icon svg={<Icons.Rocket />} />}
-                >
-                  Quickstart
-                </ExternalLinkButton>
-              </Flex>
-            )}
+            <Video
+              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/datasets.mp4"
+              autoPlay
+              muted
+              loop
+            />
+            <Flex direction="row" gap="size-200">
+              <ExternalLinkButton
+                href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
+                target="_blank"
+                leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+              >
+                Documentation
+              </ExternalLinkButton>
+              <ExternalLinkButton
+                href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb"
+                target="_blank"
+                leadingVisual={<Icon svg={<Icons.Rocket />} />}
+              >
+                Quickstart
+              </ExternalLinkButton>
+            </Flex>
           </Flex>
         </View>
       </Flex>

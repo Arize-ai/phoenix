@@ -101,11 +101,9 @@ function ErrorContent({ error }: { error: unknown }) {
           gap: var(--ac-global-dimension-static-size-100);
         `}
       >
-        {window.Config.allowExternalResources && (
-          <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">
-            file an issue with us
-          </ExternalLink>
-        )}
+        <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">
+          file an issue with us
+        </ExternalLink>
 
         <Button
           variant="primary"
