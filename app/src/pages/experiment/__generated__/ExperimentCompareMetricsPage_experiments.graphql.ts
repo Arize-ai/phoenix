@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4cb65253ba69ba1d2605924d12034636>>
+ * @generated SignedSource<<dbdae8d1d3ada389db382a5ae32a08d8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,12 @@ export type ExperimentCompareMetricsPage_experiments$data = {
   readonly baseExperiment: {
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
+      readonly completion: {
+        readonly tokens: number | null;
+      };
+      readonly prompt: {
+        readonly tokens: number | null;
+      };
       readonly total: {
         readonly tokens: number | null;
       };
@@ -23,6 +29,12 @@ export type ExperimentCompareMetricsPage_experiments$data = {
   readonly firstCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
+      readonly completion: {
+        readonly tokens: number | null;
+      };
+      readonly prompt: {
+        readonly tokens: number | null;
+      };
       readonly total: {
         readonly tokens: number | null;
       };
@@ -32,6 +44,12 @@ export type ExperimentCompareMetricsPage_experiments$data = {
   readonly secondCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
+      readonly completion: {
+        readonly tokens: number | null;
+      };
+      readonly prompt: {
+        readonly tokens: number | null;
+      };
       readonly total: {
         readonly tokens: number | null;
       };
@@ -41,6 +59,12 @@ export type ExperimentCompareMetricsPage_experiments$data = {
   readonly thirdCompareExperiment?: {
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
+      readonly completion: {
+        readonly tokens: number | null;
+      };
+      readonly prompt: {
+        readonly tokens: number | null;
+      };
       readonly total: {
         readonly tokens: number | null;
       };
@@ -56,6 +80,15 @@ export type ExperimentCompareMetricsPage_experiments$key = {
 
 const node: ReaderFragment = (function(){
 var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  }
+],
+v1 = [
   {
     "kind": "InlineFragment",
     "selections": [
@@ -88,15 +121,27 @@ var v0 = [
             "kind": "LinkedField",
             "name": "total",
             "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "tokens",
-                "storageKey": null
-              }
-            ],
+            "selections": (v0/*: any*/),
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CostBreakdown",
+            "kind": "LinkedField",
+            "name": "prompt",
+            "plural": false,
+            "selections": (v0/*: any*/),
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CostBreakdown",
+            "kind": "LinkedField",
+            "name": "completion",
+            "plural": false,
+            "selections": (v0/*: any*/),
             "storageKey": null
           }
         ],
@@ -162,7 +207,7 @@ return {
       "kind": "LinkedField",
       "name": "node",
       "plural": false,
-      "selections": (v0/*: any*/),
+      "selections": (v1/*: any*/),
       "storageKey": null
     },
     {
@@ -183,7 +228,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v0/*: any*/),
+          "selections": (v1/*: any*/),
           "storageKey": null
         }
       ]
@@ -206,7 +251,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v0/*: any*/),
+          "selections": (v1/*: any*/),
           "storageKey": null
         }
       ]
@@ -229,7 +274,7 @@ return {
           "kind": "LinkedField",
           "name": "node",
           "plural": false,
-          "selections": (v0/*: any*/),
+          "selections": (v1/*: any*/),
           "storageKey": null
         }
       ]
@@ -240,6 +285,6 @@ return {
 };
 })();
 
-(node as any).hash = "67de88fb339b83de04d7c0ae4d575973";
+(node as any).hash = "495d8ca6d4efc8e66b3ea7d08c0c3001";
 
 export default node;

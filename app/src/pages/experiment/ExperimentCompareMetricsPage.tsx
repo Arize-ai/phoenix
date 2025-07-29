@@ -51,6 +51,12 @@ export function ExperimentCompareMetricsPage() {
               total {
                 tokens
               }
+              prompt {
+                tokens
+              }
+              completion {
+                tokens
+              }
             }
           }
         }
@@ -61,6 +67,12 @@ export function ExperimentCompareMetricsPage() {
             averageRunLatencyMs
             costSummary {
               total {
+                tokens
+              }
+              prompt {
+                tokens
+              }
+              completion {
                 tokens
               }
             }
@@ -75,6 +87,12 @@ export function ExperimentCompareMetricsPage() {
               total {
                 tokens
               }
+              prompt {
+                tokens
+              }
+              completion {
+                tokens
+              }
             }
           }
         }
@@ -85,6 +103,12 @@ export function ExperimentCompareMetricsPage() {
             averageRunLatencyMs
             costSummary {
               total {
+                tokens
+              }
+              prompt {
+                tokens
+              }
+              completion {
                 tokens
               }
             }
@@ -157,30 +181,20 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCSS}>
-            <Flex direction="column" gap="size-200">
-              <Heading level={2}>Prompt Tokens</Heading>
-              <BaseExperimentMetric value={1000} />
-              <CompareExperimentMetric
-                value={1100}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={5}
-              />
-              <CompareExperimentMetric
-                value={900}
-                baselineValue={1000}
-                numImprovements={0}
-                numRegressions={10}
-              />
-              <CompareExperimentMetric
-                value={1200}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={0}
-              />
-            </Flex>
-          </div>
+          <TokenCountMetricCard
+            title="Prompt Tokens"
+            baseExperimentTotalTokens={
+              baseExperiment.costSummary?.prompt.tokens
+            }
+            compareExperiments={compareExperiments.map((compareExperiments) => {
+              return {
+                id: compareExperiments.id as string,
+                tokens: compareExperiments.costSummary?.prompt.tokens,
+                numImprovements: 10,
+                numRegressions: 5,
+              };
+            })}
+          />
         </li>
         <li
           css={css`
@@ -189,30 +203,20 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <div css={metricCardCSS}>
-            <Flex direction="column" gap="size-200">
-              <Heading level={2}>Completion Tokens</Heading>
-              <BaseExperimentMetric value={1000} />
-              <CompareExperimentMetric
-                value={1100}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={5}
-              />
-              <CompareExperimentMetric
-                value={900}
-                baselineValue={1000}
-                numImprovements={0}
-                numRegressions={10}
-              />
-              <CompareExperimentMetric
-                value={1200}
-                baselineValue={1000}
-                numImprovements={10}
-                numRegressions={0}
-              />
-            </Flex>
-          </div>
+          <TokenCountMetricCard
+            title="Completion Tokens"
+            baseExperimentTotalTokens={
+              baseExperiment.costSummary?.completion.tokens
+            }
+            compareExperiments={compareExperiments.map((compareExperiments) => {
+              return {
+                id: compareExperiments.id as string,
+                tokens: compareExperiments.costSummary?.completion.tokens,
+                numImprovements: 10,
+                numRegressions: 5,
+              };
+            })}
+          />
         </li>
         <li
           css={css`
@@ -221,12 +225,13 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <TotalTokenCountMetricCard
+          <TokenCountMetricCard
+            title="Total Tokens"
             baseExperimentTotalTokens={baseExperiment.costSummary?.total.tokens}
             compareExperiments={compareExperiments.map((compareExperiments) => {
               return {
                 id: compareExperiments.id as string,
-                totalTokens: compareExperiments.costSummary?.total.tokens,
+                tokens: compareExperiments.costSummary?.total.tokens,
                 numImprovements: 10,
                 numRegressions: 5,
               };
@@ -392,28 +397,30 @@ function LatencyMetricCard({
 }
 
 type TotalTokenCountMetricCardProps = {
+  title: string;
   baseExperimentTotalTokens: number | null | undefined;
   compareExperiments: {
     id: string;
-    totalTokens: number | null | undefined;
+    tokens: number | null | undefined;
     numImprovements: number;
     numRegressions: number;
   }[];
 };
 
-function TotalTokenCountMetricCard({
+function TokenCountMetricCard({
+  title,
   baseExperimentTotalTokens,
   compareExperiments,
 }: TotalTokenCountMetricCardProps) {
   return (
     <div css={metricCardCSS}>
       <Flex direction="column" gap="size-200">
-        <Heading level={2}>Total Tokens</Heading>
+        <Heading level={2}>{title}</Heading>
         <BaseExperimentMetric value={baseExperimentTotalTokens} />
         {compareExperiments.map((compareExperiment) => (
           <CompareExperimentMetric
             key={compareExperiment.id}
-            value={compareExperiment.totalTokens}
+            value={compareExperiment.tokens}
             baselineValue={baseExperimentTotalTokens}
             numImprovements={compareExperiment.numImprovements}
             numRegressions={compareExperiment.numRegressions}
