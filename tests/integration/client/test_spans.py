@@ -594,9 +594,9 @@ class TestClientForSpansRetrieval:
             )
         )
 
-        assert (
-            create_result["total_queued"] == num_spans
-        ), f"Failed to create test spans: {create_result}"
+        assert create_result["total_queued"] == num_spans, (
+            f"Failed to create test spans: {create_result}"
+        )
 
         # Wait for spans to be processed
         await _until_spans_exist(_app, [s["context"]["span_id"] for s in test_spans])

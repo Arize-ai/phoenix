@@ -113,9 +113,9 @@ class TestTraceDataSweeper:
                     (await session.scalars(get_most_recent_trace_ids)).all()
                 )
 
-            assert (
-                traces_before_sweep == initial_traces
-            ), f"Initial trace count mismatch in cycle {retention_cycle}"
+            assert traces_before_sweep == initial_traces, (
+                f"Initial trace count mismatch in cycle {retention_cycle}"
+            )
 
             # Execute sweeper
             sweeper_trigger.set()
@@ -128,13 +128,13 @@ class TestTraceDataSweeper:
                 remaining_trace_ids = set((await session.scalars(get_all_trace_ids)).all())
 
             # Verify we have exactly the number of traces we want to keep
-            assert remaining_trace_ids == (
-                most_recent_trace_ids
-            ), f"Trace IDs mismatch in cycle {retention_cycle}"
+            assert remaining_trace_ids == (most_recent_trace_ids), (
+                f"Trace IDs mismatch in cycle {retention_cycle}"
+            )
             traces_after_sweep = len(remaining_trace_ids)
-            assert (
-                traces_after_sweep == traces_to_keep
-            ), f"Final trace count should match traces_to_keep in cycle {retention_cycle}"
+            assert traces_after_sweep == traces_to_keep, (
+                f"Final trace count should match traces_to_keep in cycle {retention_cycle}"
+            )
 
             current_trace_count = traces_after_sweep
 

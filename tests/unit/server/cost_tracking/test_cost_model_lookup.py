@@ -1021,6 +1021,6 @@ class TestCostModelLookup:
             assert ans is None, f"Expected None but got {ans}"
         else:
             assert ans is not None, f"Expected model with ID {expected_model_id} but got None"
-            assert (
-                ans.id == expected_model_id
-            ), f"Expected model ID {expected_model_id} but got {ans.id}"
+            assert ans.id == expected_model_id, (
+                f"Expected model ID {expected_model_id} but got {ans.id}"
+            )

@@ -72,9 +72,9 @@ class TestClientForProjectsAPI:
         assert project["id"], "Project ID should be present after creation"
         assert project["name"] == name, "Project name should match input after creation"
         assert "description" in project, "Project should have a description field"
-        assert (
-            project["description"] == description
-        ), "Project description should match input after creation"
+        assert project["description"] == description, (
+            "Project description should match input after creation"
+        )
 
         # Test project name uniqueness (CREATE operation)
         with pytest.raises(Exception):
@@ -92,18 +92,18 @@ class TestClientForProjectsAPI:
         )
 
         # Verify retrieved project matches created project (READ operation)
-        assert (
-            retrieved_project["id"] == project["id"]
-        ), "Retrieved project ID should match created project"
-        assert (
-            retrieved_project["name"] == name
-        ), "Retrieved project name should match created project"
-        assert (
-            "description" in retrieved_project
-        ), "Retrieved project should have a description field"
-        assert (
-            retrieved_project["description"] == description
-        ), "Retrieved project description should match created project"
+        assert retrieved_project["id"] == project["id"], (
+            "Retrieved project ID should match created project"
+        )
+        assert retrieved_project["name"] == name, (
+            "Retrieved project name should match created project"
+        )
+        assert "description" in retrieved_project, (
+            "Retrieved project should have a description field"
+        )
+        assert retrieved_project["description"] == description, (
+            "Retrieved project description should match created project"
+        )
 
         # List all projects (READ operation)
         all_projects = await _await_or_return(
@@ -111,9 +111,9 @@ class TestClientForProjectsAPI:
         )
 
         # Verify our project is in the list (READ operation)
-        assert any(
-            p["id"] == project["id"] for p in all_projects
-        ), "Created project should be present in list of all projects"
+        assert any(p["id"] == project["id"] for p in all_projects), (
+            "Created project should be present in list of all projects"
+        )
 
         # Update the project description (admin only) (UPDATE operation)
         new_description = f"Updated description with {project_description}"
@@ -126,16 +126,16 @@ class TestClientForProjectsAPI:
             )
 
             # Verify project was updated with new description (UPDATE operation)
-            assert (
-                updated_project["id"] == project["id"]
-            ), "Updated project ID should match original project"
+            assert updated_project["id"] == project["id"], (
+                "Updated project ID should match original project"
+            )
             assert updated_project["name"] == name, "Project name should not change after update"
-            assert (
-                "description" in updated_project
-            ), "Updated project should have a description field"
-            assert (
-                updated_project["description"] == new_description
-            ), "Project description should be updated"
+            assert "description" in updated_project, (
+                "Updated project should have a description field"
+            )
+            assert updated_project["description"] == new_description, (
+                "Project description should be updated"
+            )
 
         else:
             # Member users should not be able to update projects (UPDATE operation)
@@ -146,9 +146,9 @@ class TestClientForProjectsAPI:
                         description=new_description,
                     )
                 )
-            assert "403" in str(
-                exc_info.value
-            ), "Member users should receive 403 Forbidden when attempting to update projects"
+            assert "403" in str(exc_info.value), (
+                "Member users should receive 403 Forbidden when attempting to update projects"
+            )
 
         # Delete the project (admin only) (DELETE operation)
         if role_or_user == _ADMIN:
@@ -198,9 +198,9 @@ class TestClientForProjectsAPI:
                         project_id=project["id"],
                     )
                 )
-            assert "403" in str(
-                exc_info.value
-            ), "Member users should receive 403 Forbidden when attempting to delete projects"
+            assert "403" in str(exc_info.value), (
+                "Member users should receive 403 Forbidden when attempting to delete projects"
+            )
 
             # Verify project still exists (DELETE operation)
             retrieved_project = await _await_or_return(
@@ -208,6 +208,6 @@ class TestClientForProjectsAPI:
                     project_id=project["id"],
                 )
             )
-            assert (
-                retrieved_project["id"] == project["id"]
-            ), "Project should still exist after member attempts deletion"
+            assert retrieved_project["id"] == project["id"], (
+                "Project should still exist after member attempts deletion"
+            )

@@ -52,9 +52,9 @@ class TestProjects:
         # Get all projects
         url = "v1/projects"
         response = await httpx_client.get(url)
-        assert (
-            response.status_code == 200
-        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         # Parse response data
         data = response.json()
@@ -67,14 +67,14 @@ class TestProjects:
         response_projects_by_id = {p["id"]: p for p in response_projects}
 
         # Compare project counts
-        assert len(response_projects) == len(
-            projects
-        ), f"Expected {len(projects)} projects, got {len(response_projects)}"
+        assert len(response_projects) == len(projects), (
+            f"Expected {len(projects)} projects, got {len(response_projects)}"
+        )
 
         # Compare project IDs
-        assert (
-            set(projects_by_id.keys()) == set(response_projects_by_id.keys())
-        ), f"Project IDs mismatch. Expected: {set(projects_by_id.keys())}, Got: {set(response_projects_by_id.keys())}"
+        assert set(projects_by_id.keys()) == set(response_projects_by_id.keys()), (
+            f"Project IDs mismatch. Expected: {set(projects_by_id.keys())}, Got: {set(response_projects_by_id.keys())}"
+        )
 
         # Compare project details
         for project_id, response_project in response_projects_by_id.items():
@@ -99,7 +99,9 @@ class TestProjects:
         project_identifier = str(GlobalID(Project.__name__, str(project.id)))
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
-        assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        assert response.is_success, (
+            f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        )
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"
         self._compare_project(data, project, f"Project with ID {project.id}")
@@ -133,7 +135,9 @@ class TestProjects:
         project_identifier = project.name
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
-        assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        assert response.is_success, (
+            f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        )
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"
         self._compare_project(data, project, f"Project with name {project.name}")
@@ -164,17 +168,17 @@ class TestProjects:
         }
         url = "v1/projects"
         response = await httpx_client.post(url, json=project_data)
-        assert (
-            response.is_success
-        ), f"POST /projects failed with status code {response.status_code}: {response.text}"
+        assert response.is_success, (
+            f"POST /projects failed with status code {response.status_code}: {response.text}"
+        )
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"
-        assert (
-            data["name"] == project_name
-        ), f"Project name should be '{project_name}', got '{data['name']}'"
-        assert (
-            data["description"] == description
-        ), f"Project description should be '{description}', got '{data['description']}'"
+        assert data["name"] == project_name, (
+            f"Project name should be '{project_name}', got '{data['name']}'"
+        )
+        assert data["description"] == description, (
+            f"Project description should be '{description}', got '{data['description']}'"
+        )
 
         # Clean up
         project_id = data["id"]
@@ -215,15 +219,17 @@ class TestProjects:
         project_identifier = project.name
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
-        assert response.is_success, f"PUT /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        assert response.is_success, (
+            f"PUT /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"
+        )
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"
-        assert (
-            data["name"] == project.name
-        ), f"Project name should remain unchanged as '{project.name}', got '{data['name']}'"
-        assert (
-            data["description"] == updated_description
-        ), f"Updated project description should be '{updated_description}', got '{data['description']}'"
+        assert data["name"] == project.name, (
+            f"Project name should remain unchanged as '{project.name}', got '{data['name']}'"
+        )
+        assert data["description"] == updated_description, (
+            f"Updated project description should be '{updated_description}', got '{data['description']}'"
+        )
 
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_delete_project_by_name(
@@ -254,9 +260,9 @@ class TestProjects:
         project_identifier = project.name
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
-        assert (
-            response.status_code == 204
-        ), f"DELETE /projects/{project_identifier} should return 204 status code, got {response.status_code}"
+        assert response.status_code == 204, (
+            f"DELETE /projects/{project_identifier} should return 204 status code, got {response.status_code}"
+        )
 
         async with db() as session:
             # Verify project is deleted
@@ -300,19 +306,19 @@ class TestProjects:
         response = await httpx_client.delete(url)
 
         # Verify that the request was rejected
-        assert (
-            response.status_code == 403
-        ), f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"
-        assert (
-            "cannot be deleted" in response.text
-        ), f"Response should indicate default project cannot be deleted, got: {response.text}"
+        assert response.status_code == 403, (
+            f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"
+        )
+        assert "cannot be deleted" in response.text, (
+            f"Response should indicate default project cannot be deleted, got: {response.text}"
+        )
 
         async with db() as session:
             # Verify default project still exists
             existing_default = await session.get(models.Project, default_project.id)
-            assert (
-                existing_default is not None
-            ), f"Default project {default_project.id} should still exist in database"
+            assert existing_default is not None, (
+                f"Default project {default_project.id} should still exist in database"
+            )
 
         # Try to delete the default project by name
         project_identifier = DEFAULT_PROJECT_NAME
@@ -320,12 +326,12 @@ class TestProjects:
         response = await httpx_client.delete(url)
 
         # Verify that the request was rejected
-        assert (
-            response.status_code == 403
-        ), f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"
-        assert (
-            "cannot be deleted" in response.text
-        ), f"Response should indicate default project cannot be deleted, got: {response.text}"
+        assert response.status_code == 403, (
+            f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"
+        )
+        assert "cannot be deleted" in response.text, (
+            f"Response should indicate default project cannot be deleted, got: {response.text}"
+        )
 
     async def test_get_nonexistent_project(
         self,
@@ -341,18 +347,18 @@ class TestProjects:
         project_identifier = str(GlobalID(Project.__name__, "999999"))
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
-        assert (
-            response.status_code == 404
-        ), f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
         # Test with a nonexistent project name
         name = token_hex(16)
         project_identifier = name
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
-        assert (
-            response.status_code == 404
-        ), f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
     async def test_update_nonexistent_project(
         self,
@@ -374,18 +380,18 @@ class TestProjects:
         }
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
-        assert (
-            response.status_code == 404
-        ), f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
         # Test with a nonexistent project name
         name = token_hex(16)
         project_identifier = name
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
-        assert (
-            response.status_code == 404
-        ), f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
     async def test_delete_nonexistent_project(
         self,
@@ -401,17 +407,17 @@ class TestProjects:
         project_identifier = str(GlobalID(Project.__name__, "999999"))
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
-        assert (
-            response.status_code == 404
-        ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
         # Test with a nonexistent project name
         project_identifier = token_hex(16)
         url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
-        assert (
-            response.status_code == 404
-        ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 404, (
+            f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
+        )
 
     async def test_list_projects_with_cursor(
         self,
@@ -437,9 +443,9 @@ class TestProjects:
         # First page: request with limit=2
         url = "v1/projects"
         response = await httpx_client.get(url, params={"limit": 2})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "data" in data, "Response should contain a 'data' field with projects"
@@ -458,15 +464,15 @@ class TestProjects:
             project_id = from_global_id_with_expected_type(
                 GlobalID.from_id(project_data["id"]), Project.__name__
             )
-            assert (
-                project_id == projects[i].id
-            ), f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
+            assert project_id == projects[i].id, (
+                f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
+            )
 
         # Second page: request with the next_cursor
         response = await httpx_client.get(url, params={"limit": 2, "cursor": next_cursor})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "data" in data, "Response should contain a 'data' field with projects"
@@ -484,15 +490,15 @@ class TestProjects:
             project_id = from_global_id_with_expected_type(
                 GlobalID.from_id(project_data["id"]), Project.__name__
             )
-            assert (
-                project_id == projects[i + 2].id
-            ), f"Project at index {i} should have ID {projects[i + 2].id}, got {project_id}"
+            assert project_id == projects[i + 2].id, (
+                f"Project at index {i} should have ID {projects[i + 2].id}, got {project_id}"
+            )
 
         # Third page: request with the next_cursor
         response = await httpx_client.get(url, params={"limit": 2, "cursor": next_cursor})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "data" in data, "Response should contain a 'data' field with projects"
@@ -502,26 +508,26 @@ class TestProjects:
         assert len(third_page_projects) == 1, "Third page should return exactly 1 project"
 
         # Verify next_cursor is null (no more projects)
-        assert (
-            data["next_cursor"] is None
-        ), "next_cursor should be null when there are no more projects"
+        assert data["next_cursor"] is None, (
+            "next_cursor should be null when there are no more projects"
+        )
 
         # Verify the project in the third page matches the last project in our sorted list
         project_id = from_global_id_with_expected_type(
             GlobalID.from_id(third_page_projects[0]["id"]), Project.__name__
         )
-        assert (
-            project_id == projects[4].id
-        ), f"Project should have ID {projects[4].id}, got {project_id}"
+        assert project_id == projects[4].id, (
+            f"Project should have ID {projects[4].id}, got {project_id}"
+        )
 
         # Test with an invalid cursor
         response = await httpx_client.get(url, params={"cursor": "invalid-cursor"})
-        assert (
-            response.status_code == 422
-        ), f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"
-        assert (
-            "Invalid cursor format" in response.text
-        ), "Response should indicate invalid cursor format"
+        assert response.status_code == 422, (
+            f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"
+        )
+        assert "Invalid cursor format" in response.text, (
+            "Response should indicate invalid cursor format"
+        )
 
     async def test_list_projects_empty(
         self,
@@ -539,9 +545,9 @@ class TestProjects:
         # Request projects with a limit
         url = "v1/projects"
         response = await httpx_client.get(url, params={"limit": 10})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "data" in data, "Response should contain a 'data' field with projects"
@@ -555,20 +561,20 @@ class TestProjects:
 
         # Test with a cursor when there are no projects
         response = await httpx_client.get(url, params={"cursor": "some-cursor", "limit": 10})
-        assert (
-            response.status_code == 422
-        ), f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"
-        assert (
-            "Invalid cursor format" in response.text
-        ), "Response should indicate invalid cursor format"
+        assert response.status_code == 422, (
+            f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"
+        )
+        assert "Invalid cursor format" in response.text, (
+            "Response should indicate invalid cursor format"
+        )
 
         # Test with a valid cursor format but no projects
         # Create a valid cursor format (base64-encoded project ID)
         valid_cursor = str(GlobalID(Project.__name__, "999999"))
         response = await httpx_client.get(url, params={"cursor": valid_cursor, "limit": 10})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects with valid cursor should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects with valid cursor should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert len(data["data"]) == 0, "Data list should be empty when there are no projects"
@@ -596,9 +602,9 @@ class TestProjects:
         # Request with a limit larger than the number of projects
         url = "v1/projects"
         response = await httpx_client.get(url, params={"limit": 10})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "data" in data, "Response should contain a 'data' field with projects"
@@ -606,23 +612,23 @@ class TestProjects:
 
         # Verify all projects are returned
         returned_projects = data["data"]
-        assert len(returned_projects) == len(
-            projects
-        ), f"Should return all {len(projects)} projects, got {len(returned_projects)}"
+        assert len(returned_projects) == len(projects), (
+            f"Should return all {len(projects)} projects, got {len(returned_projects)}"
+        )
 
         # Verify next_cursor is null (no more projects)
-        assert (
-            data["next_cursor"] is None
-        ), "next_cursor should be null when all projects have been returned"
+        assert data["next_cursor"] is None, (
+            "next_cursor should be null when all projects have been returned"
+        )
 
         # Verify the projects match our sorted list
         for i, project_data in enumerate(returned_projects):
             project_id = from_global_id_with_expected_type(
                 GlobalID.from_id(project_data["id"]), Project.__name__
             )
-            assert (
-                project_id == projects[i].id
-            ), f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
+            assert project_id == projects[i].id, (
+                f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
+            )
 
     async def test_include_experiment_projects_parameter(
         self,
@@ -704,9 +710,9 @@ class TestProjects:
         # Test default behavior - should exclude regular experiment projects but include playground
         url = "v1/projects"
         response = await httpx_client.get(url)
-        assert (
-            response.status_code == 200
-        ), f"GET /projects failed with status code {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects failed with status code {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         returned_projects = data["data"]
@@ -721,41 +727,41 @@ class TestProjects:
         # Regular experiment project should be filtered out by default
         experiment_project_ids = [str(GlobalID(Project.__name__, str(experiment_project.id)))]
         returned_project_ids = [p["id"] for p in returned_projects]
-        assert not any(
-            id_ in returned_project_ids for id_ in experiment_project_ids
-        ), "Regular experiment project should be excluded by default to reduce clutter"
+        assert not any(id_ in returned_project_ids for id_ in experiment_project_ids), (
+            "Regular experiment project should be excluded by default to reduce clutter"
+        )
 
         # Playground project should be included despite having an experiment
         playground_project_ids = [str(GlobalID(Project.__name__, str(playground_project.id)))]
-        assert any(
-            id_ in returned_project_ids for id_ in playground_project_ids
-        ), "Playground project should be included even with an experiment - it's special and should always be visible"
+        assert any(id_ in returned_project_ids for id_ in playground_project_ids), (
+            "Playground project should be included even with an experiment - it's special and should always be visible"
+        )
 
         # Test with include_experiment_projects=True - should include all projects
         response = await httpx_client.get(url, params={"include_experiment_projects": True})
-        assert (
-            response.status_code == 200
-        ), f"GET /projects with include_experiment_projects=True failed with status code {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"GET /projects with include_experiment_projects=True failed with status code {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         returned_projects = data["data"]
 
         # Should return all projects when including experiment projects
         expected_count = len(regular_projects) + 2  # +1 for experiment project, +1 for playground
-        assert (
-            len(returned_projects) == expected_count
-        ), f"Expected {expected_count} projects (regular + experiment + playground), got {len(returned_projects)}"
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular + experiment + playground), got {len(returned_projects)}"
+        )
 
         # Regular experiment project should now be included
         returned_project_ids = [p["id"] for p in returned_projects]
-        assert any(
-            id_ in returned_project_ids for id_ in experiment_project_ids
-        ), "Regular experiment project should be included when explicitly requested"
+        assert any(id_ in returned_project_ids for id_ in experiment_project_ids), (
+            "Regular experiment project should be included when explicitly requested"
+        )
 
         # Playground project should still be included (as always)
-        assert any(
-            id_ in returned_project_ids for id_ in playground_project_ids
-        ), "Playground project should always be included - it's special and visibility isn't affected by parameters"
+        assert any(id_ in returned_project_ids for id_ in playground_project_ids), (
+            "Playground project should always be included - it's special and visibility isn't affected by parameters"
+        )
 
     @staticmethod
     def _compare_project(
@@ -779,19 +785,19 @@ class TestProjects:
         """
         data = data.copy()
         id_ = from_global_id_with_expected_type(GlobalID.from_id(data.pop("id")), Project.__name__)
-        assert (
-            id_ == project.id
-        ), f"{context} - Project ID mismatch: expected={project.id}, found={id_}"
+        assert id_ == project.id, (
+            f"{context} - Project ID mismatch: expected={project.id}, found={id_}"
+        )
 
         name = data.pop("name")
-        assert (
-            name == project.name
-        ), f"{context} - Project name mismatch: expected='{project.name}', found='{name}'"
+        assert name == project.name, (
+            f"{context} - Project name mismatch: expected='{project.name}', found='{name}'"
+        )
 
         description = data.pop("description")
-        assert (
-            description == project.description
-        ), f"{context} - Project description mismatch: expected='{project.description}', found='{description}'"
+        assert description == project.description, (
+            f"{context} - Project description mismatch: expected='{project.description}', found='{description}'"
+        )
 
         assert not data, f"{context} - Unexpected fields in response: {list(data.keys())}"
 

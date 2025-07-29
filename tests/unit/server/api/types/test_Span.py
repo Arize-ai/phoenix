@@ -678,33 +678,33 @@ async def test_span_annotation_summaries(
     span = data["span"]
     assert span is not None, "GraphQL response span is None"
     summaries = span["spanAnnotationSummaries"]
-    assert (
-        len(summaries) == expected_summary_count
-    ), f"Expected {expected_summary_count} summaries, got {len(summaries)}"
+    assert len(summaries) == expected_summary_count, (
+        f"Expected {expected_summary_count} summaries, got {len(summaries)}"
+    )
 
     # Find the summary with the expected name
     summary = next((s for s in summaries if s["name"] == expected_summary_name), None)
     assert summary is not None, f"Summary with name {expected_summary_name} not found"
 
     # Use a small tolerance for floating-point comparison
-    assert (
-        abs(summary["meanScore"] - expected_mean_score) < 1e-10
-    ), f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"
+    assert abs(summary["meanScore"] - expected_mean_score) < 1e-10, (
+        f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"
+    )
 
     # Check label fractions
     label_fractions = summary["labelFractions"]
-    assert len(label_fractions) == len(
-        expected_label_fractions
-    ), f"Expected {len(expected_label_fractions)} label fractions, got {len(label_fractions)}"
+    assert len(label_fractions) == len(expected_label_fractions), (
+        f"Expected {len(expected_label_fractions)} label fractions, got {len(label_fractions)}"
+    )
 
     # Sort both lists by label to ensure consistent comparison
     label_fractions.sort(key=lambda x: x["label"])
     expected_label_fractions.sort(key=lambda x: x["label"])
 
     for actual, expected in zip(label_fractions, expected_label_fractions):
-        assert (
-            actual["label"] == expected["label"]
-        ), f"Expected label {expected['label']}, got {actual['label']}"
+        assert actual["label"] == expected["label"], (
+            f"Expected label {expected['label']}, got {actual['label']}"
+        )
         assert abs(actual["fraction"] - expected["fraction"]) < 1e-10, (
             f"Expected fraction {expected['fraction']} for label {actual['label']}, "
             f"got {actual['fraction']}"

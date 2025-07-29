@@ -343,11 +343,11 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
                     models.Trace.project_rowid.in_(affected_projects.keys())
                 )
             )
-        assert (
-            set(remaining_traces.all())
-            == set(traces[0] for traces in affected_projects.values())
-            - set(chain.from_iterable(old_projects.values()))
-        ), "Each affected project should retain only its most recent trace and old projects should haveno trace remaining"
+        assert set(remaining_traces.all()) == set(
+            traces[0] for traces in affected_projects.values()
+        ) - set(chain.from_iterable(old_projects.values())), (
+            "Each affected project should retain only its most recent trace and old projects should haveno trace remaining"
+        )
 
         # Verify unaffected projects are untouched
         async with db() as session:
