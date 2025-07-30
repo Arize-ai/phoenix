@@ -30,6 +30,7 @@
 ## Evaluation
 
 * [Cookbooks](evaluation/cookbooks.md)
+* [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 * [Evaluate RAG](evaluation/evaluate-rag.md)
 * [Evaluate an Agent](evaluation/evaluate-an-agent.md)
 * [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
