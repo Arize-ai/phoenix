@@ -331,7 +331,7 @@ export interface paths {
         /**
          * Delete a trace by identifier
          * @description Delete an entire trace by its identifier. The identifier can be either:
-         *     1. A relay GlobalID (base64-encoded)
+         *     1. A Relay node ID (base64-encoded)
          *     2. An OpenTelemetry trace_id (hex string)
          *
          *     This will permanently remove all spans in the trace and their associated data.

@@ -234,7 +234,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
     summary="Delete a trace by identifier",
     description=(
         "Delete an entire trace by its identifier. The identifier can be either:\n"
-        "1. A relay GlobalID (base64-encoded)\n"
+        "1. A Relay node ID (base64-encoded)\n"
         "2. An OpenTelemetry trace_id (hex string)\n\n"
         "This will permanently remove all spans in the trace and their associated data."
     ),

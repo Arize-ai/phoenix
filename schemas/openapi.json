@@ -1729,7 +1729,7 @@
           "traces"
         ],
         "summary": "Delete a trace by identifier",
-        "description": "Delete an entire trace by its identifier. The identifier can be either:\n1. A relay GlobalID (base64-encoded)\n2. An OpenTelemetry trace_id (hex string)\n\nThis will permanently remove all spans in the trace and their associated data.",
+        "description": "Delete an entire trace by its identifier. The identifier can be either:\n1. A Relay node ID (base64-encoded)\n2. An OpenTelemetry trace_id (hex string)\n\nThis will permanently remove all spans in the trace and their associated data.",
         "operationId": "deleteTrace",
         "parameters": [
           {
