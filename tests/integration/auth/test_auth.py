@@ -5,7 +5,6 @@ from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from random import random
 from secrets import token_hex
 from typing import (
     Any,
@@ -25,6 +24,7 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from strawberry.relay import GlobalID
 
+from phoenix.auth import sanitize_email
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
@@ -64,6 +64,7 @@ from .._helpers import (
     _patch_user,
     _patch_viewer,
     _Profile,
+    _randomize_casing,
     _RefreshToken,
     _RoleOrUser,
     _SpanExporterFactory,
@@ -74,10 +75,6 @@ from .._helpers import (
 NOW = datetime.now(timezone.utc)
 _decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
-
-
-def _randomize_casing(email: str) -> str:
-    return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)
 
 
 class TestOIDC:
@@ -131,9 +128,10 @@ class TestOIDC:
         callback_url = response.headers["location"]
 
         # Verify that the user is not already created
-        assert (email := _oidc_server.user_email)
+        assert _oidc_server.user_email, "Fixture should have initialized a (random) user"
+        assert (email := sanitize_email(_oidc_server.user_email))
         admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {u.profile.email: u for u in admin.list_users(_app)}
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
         assert email not in users
 
         # Complete the flow by calling the token endpoint

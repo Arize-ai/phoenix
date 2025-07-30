@@ -4,6 +4,7 @@ import asyncio
 import os
 import re
 import ssl
+import string
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
@@ -1317,7 +1319,7 @@ class _OIDCServer:
             redirect_uri = params.get("redirect_uri")
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = f"{token_hex(16)}@{token_hex(16)}.com"
+            self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
             self._user_name = f"User {token_hex(8)}"
             return RedirectResponse(
                 f"{redirect_uri}?code=test_auth_code&state={state}",
@@ -1670,3 +1672,7 @@ def _get_existing_spans(
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
     ids = set(span_ids)
     await _get(lambda: (len(_get_existing_spans(app, ids)) == len(ids)) or None)
+
+
+def _randomize_casing(email: str) -> str:
+    return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)

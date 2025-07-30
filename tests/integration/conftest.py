@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import string
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
@@ -37,6 +38,7 @@ from ._helpers import (
     _Password,
     _Profile,
     _random_schema,
+    _randomize_casing,
     _RoleOrUser,
     _SpanExporterFactory,
     _start_span,
@@ -93,7 +95,7 @@ def _fake() -> Faker:
 
 @pytest.fixture
 def _emails() -> Iterator[_Email]:
-    return (f"{token_hex(16)}@{token_hex(16)}.com" for _ in count())
+    return (_randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com") for _ in count())
 
 
 @pytest.fixture
