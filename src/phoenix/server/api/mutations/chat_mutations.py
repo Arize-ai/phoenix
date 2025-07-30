@@ -165,6 +165,7 @@ class ChatCompletionMutationMixin:
             if input.dataset_version_id
             else None
         )
+        project_name = generate_experiment_project_name()
         async with info.context.db() as session:
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
@@ -198,7 +199,7 @@ class ChatCompletionMutationMixin:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()
@@ -206,7 +207,6 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
-        project_name = generate_experiment_project_name()
         for batch in _get_batches(revisions, batch_size):
             batch_results = await asyncio.gather(
                 *(

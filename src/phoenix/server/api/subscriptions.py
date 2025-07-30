@@ -310,7 +310,7 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()
