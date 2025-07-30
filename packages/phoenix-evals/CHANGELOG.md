@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.23.1...arize-phoenix-evals-v0.24.0) (2025-07-30)
+
+
+### Features
+
+* **evals:** adding support for google-genai SDK ([#8798](https://github.com/Arize-ai/phoenix/issues/8798)) ([08ad038](https://github.com/Arize-ai/phoenix/commit/08ad0384d0d53d6068234b8a2d0a9fd4859b020e))
+* LLM wrapper prototype ([#8729](https://github.com/Arize-ai/phoenix/issues/8729)) ([1b25009](https://github.com/Arize-ai/phoenix/commit/1b25009683dd52803162786466a34e0b897c6fc0))
+
 ## [0.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.23.0...arize-phoenix-evals-v0.23.1) (2025-07-21)
 
 
