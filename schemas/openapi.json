@@ -2209,57 +2209,6 @@
         }
       }
     },
-    "/v1/spans/{identifier}": {
-      "delete": {
-        "tags": [
-          "spans"
-        ],
-        "summary": "Delete a span and its subtree by identifier",
-        "description": "Delete a span and its entire subtree by identifier. The identifier can be either:\n1. A relay GlobalID (base64-encoded, e.g., 'U3Bhbjo4MjE=')\n2. A span_id (string, e.g., 'f0d808aedd5591b6')\n\nThis will permanently remove the span and all its descendants, and update cumulative metrics on ancestor spans accordingly.",
-        "operationId": "deleteSpan",
-        "parameters": [
-          {
-            "name": "identifier",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The span identifier: either a relay GlobalID or span_id",
-              "title": "Identifier"
-            },
-            "description": "The span identifier: either a relay GlobalID or span_id"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Span and subtree successfully deleted"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Span not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/evaluations": {
       "post": {
         "tags": [

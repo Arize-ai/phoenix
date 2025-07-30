@@ -403,30 +403,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/spans/{identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a span and its subtree by identifier
-         * @description Delete a span and its entire subtree by identifier. The identifier can be either:
-         *     1. A relay GlobalID (base64-encoded, e.g., 'U3Bhbjo4MjE=')
-         *     2. A span_id (string, e.g., 'f0d808aedd5591b6')
-         *
-         *     This will permanently remove the span and all its descendants, and update cumulative metrics on ancestor spans accordingly.
-         */
-        delete: operations["deleteSpan"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/evaluations": {
         parameters: {
             query?: never;
@@ -3778,52 +3754,6 @@ export interface operations {
                 content: {
                     "text/plain": string;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    deleteSpan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The span identifier: either a relay GlobalID or span_id */
-                identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Span and subtree successfully deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Span not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
