@@ -16,6 +16,7 @@ import wrapt
 from email_validator import EmailNotValidError, validate_email
 from starlette.datastructures import URL, Secret
 
+from phoenix.auth import sanitize_email
 from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
@@ -881,7 +882,7 @@ def get_env_admins() -> dict[str, str]:
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_addr = sanitize_email(pair[last_equals_pos + 1 :])
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
