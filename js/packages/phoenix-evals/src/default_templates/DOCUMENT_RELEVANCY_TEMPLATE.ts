@@ -1,5 +1,5 @@
 export const DOCUMENT_RELEVANCY_TEMPLATE = `
-You are comparing a reference text to a question and trying to determine if the reference text
+You are comparing a document to a question and trying to determine if the document text
 contains information relevant to answering the question. Here is the data:
 
     [BEGIN DATA]
@@ -10,13 +10,13 @@ contains information relevant to answering the question. Here is the data:
     ************
     [END DATA]
 
-Compare the Question above to the Reference text. You must determine whether the Reference text
+Compare the Question above to the Document text. You must determine whether the Document text
 contains information that can answer the Question. Please focus on whether the very specific
-question can be answered by the information in the Reference text.
+question can be answered by the information in the Document text.
 Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
-"unrelated" means that the reference text does not contain an answer to the Question.
-"relevant" means the reference text contains an answer to the Question."""
+"unrelated" means that the document text does not contain an answer to the Question.
+"relevant" means the document text contains an answer to the Question."""
 `;
 
 export const DOCUMENT_RELEVANCY_CHOICES = {

@@ -11,9 +11,14 @@ export interface HallucinationEvaluatorArgs
   promptTemplate?: CreateClassifierArgs["promptTemplate"];
 }
 
-type HallucinationExample = {
+/**
+ * An example to be evaluated by the hallucination evaluator.
+ */
+export type HallucinationExample = {
   input: string;
   output: string;
+  reference?: string;
+  context?: string;
 };
 /**
  * Creates a function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
