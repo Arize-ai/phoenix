@@ -2,14 +2,14 @@ import gzip
 import zlib
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -26,7 +26,7 @@ from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import TraceAnnotationInsertEvent
+from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -225,3 +225,52 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
                 await state.queue_span_for_bulk_insert(span, project_name)
+
+
+@router.delete(
+    "/traces/{trace_id}",
+    operation_id="deleteTrace",
+    summary="Delete a trace by trace_id",
+    description=(
+        "Delete an entire trace by its OpenTelemetry trace_id. "
+        "This will permanently remove all spans in the trace and their associated data."
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    status_code=204,  # No Content for successful deletion
+)
+async def delete_trace(
+    request: Request,
+    trace_id: str = Path(description="The OpenTelemetry trace_id of the trace to delete"),
+) -> None:
+    """
+    Delete a trace by trace_id.
+
+    This endpoint will:
+    1. Find and delete the trace with the given trace_id (and all its spans via CASCADE)
+    2. Trigger cache invalidation events
+    3. Return 204 No Content on success
+
+    Note: This deletes the entire trace, including all spans, which maintains data consistency
+    and avoids orphaned spans or inconsistent cached cumulative fields.
+    """
+    async with request.app.state.db() as session:
+        # Delete the trace directly and get project_id for cache invalidation
+        delete_stmt = (
+            delete(models.Trace)
+            .where(models.Trace.trace_id == trace_id)
+            .returning(models.Trace.project_rowid)
+        )
+
+        project_id = await session.scalar(delete_stmt)
+
+        if project_id is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Trace with trace_id '{trace_id}' not found",
+            )
+
+    # Trigger cache invalidation event
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+
+    # Return 204 No Content (successful deletion with no response body)
+    return None

@@ -1,5 +1,23 @@
 # Changelog
 
+## [11.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.0...arize-phoenix-v11.16.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* **design:** default text color ([#8846](https://github.com/Arize-ai/phoenix/issues/8846)) ([86cc7fb](https://github.com/Arize-ai/phoenix/commit/86cc7fb57394b41bed8d21344364162f0fcca66b))
+* use experiment project name for playground run on datasets ([#8845](https://github.com/Arize-ai/phoenix/issues/8845)) ([8d32273](https://github.com/Arize-ai/phoenix/commit/8d32273b2d55fc79215ff5b79139efdfd3ab26a9))
+
+## [11.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.15.0...arize-phoenix-v11.16.0) (2025-07-30)
+
+
+### Features
+
+* case insensitive substring search for sessions ([#8802](https://github.com/Arize-ai/phoenix/issues/8802)) ([f49f782](https://github.com/Arize-ai/phoenix/commit/f49f78232f0d3aa853a3585cbc7ceb63c62a683c))
+* delete route for span ([#8819](https://github.com/Arize-ai/phoenix/issues/8819)) ([2845deb](https://github.com/Arize-ai/phoenix/commit/2845debca73295647654ac6b2d702cb83faac5de))
+* **evals:** adding support for google-genai SDK ([#8798](https://github.com/Arize-ai/phoenix/issues/8798)) ([08ad038](https://github.com/Arize-ai/phoenix/commit/08ad0384d0d53d6068234b8a2d0a9fd4859b020e))
+* **helm:** Add OIDC environment variable support to Helm ([#8646](https://github.com/Arize-ai/phoenix/issues/8646)) ([4b8d33d](https://github.com/Arize-ai/phoenix/commit/4b8d33d34016c0a8d12e718a60c5efb87647483d))
+
 ## [11.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.14.0...arize-phoenix-v11.15.0) (2025-07-29)
 
 
