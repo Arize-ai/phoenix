@@ -712,6 +712,25 @@ class TestCreateUser:
             new_user.log_in(_app)
             assert _will_be_asked_to_reset_password(_app, new_user)
 
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    def test_cannot_create_duplicate_user_with_different_email_case(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _profiles: Iterator[_Profile],
+        _app: _AppInfo,
+    ) -> None:
+        admin = _get_user(_app, role_or_user).log_in(_app)
+        profile = next(_profiles)
+
+        # Create first user
+        admin.create_user(_app, profile=profile)
+
+        # Try to create second user with same email but different case
+        case_different_profile = replace(profile, email=_randomize_casing(profile.email))
+        with pytest.raises(Exception):  # Should fail due to duplicate email
+            admin.create_user(_app, profile=case_different_profile)
+
 
 class TestEmailSanitizationGraphQL:
     """Test email sanitization for user creation via GraphQL API.
