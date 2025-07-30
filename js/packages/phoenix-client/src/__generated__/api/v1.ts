@@ -318,7 +318,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/traces/{trace_id}": {
+    "/v1/traces/{identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -329,8 +329,12 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a trace by trace_id
-         * @description Delete an entire trace by its OpenTelemetry trace_id. This will permanently remove all spans in the trace and their associated data.
+         * Delete a trace by identifier
+         * @description Delete an entire trace by its identifier. The identifier can be either:
+         *     1. A relay GlobalID (base64-encoded, e.g., 'VHJhY2U6MTIz')
+         *     2. An OpenTelemetry trace_id (hex string, e.g., '1b7c5f0121b573c5395246fbd19bfc30')
+         *
+         *     This will permanently remove all spans in the trace and their associated data.
          */
         delete: operations["deleteTrace"];
         options?: never;
@@ -3484,8 +3488,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The OpenTelemetry trace_id of the trace to delete */
-                trace_id: string;
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                identifier: string;
             };
             cookie?: never;
         };

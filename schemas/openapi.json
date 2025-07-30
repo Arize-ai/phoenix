@@ -1723,25 +1723,25 @@
         }
       }
     },
-    "/v1/traces/{trace_id}": {
+    "/v1/traces/{identifier}": {
       "delete": {
         "tags": [
           "traces"
         ],
-        "summary": "Delete a trace by trace_id",
-        "description": "Delete an entire trace by its OpenTelemetry trace_id. This will permanently remove all spans in the trace and their associated data.",
+        "summary": "Delete a trace by identifier",
+        "description": "Delete an entire trace by its identifier. The identifier can be either:\n1. A relay GlobalID (base64-encoded, e.g., 'VHJhY2U6MTIz')\n2. An OpenTelemetry trace_id (hex string, e.g., '1b7c5f0121b573c5395246fbd19bfc30')\n\nThis will permanently remove all spans in the trace and their associated data.",
         "operationId": "deleteTrace",
         "parameters": [
           {
-            "name": "trace_id",
+            "name": "identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The OpenTelemetry trace_id of the trace to delete",
-              "title": "Trace Id"
+              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "title": "Identifier"
             },
-            "description": "The OpenTelemetry trace_id of the trace to delete"
+            "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
           }
         ],
         "responses": {
