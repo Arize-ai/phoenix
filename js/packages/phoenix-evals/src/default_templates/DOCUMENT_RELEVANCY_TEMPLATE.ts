@@ -16,7 +16,7 @@ question can be answered by the information in the Document text.
 Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
 "unrelated" means that the document text does not contain an answer to the Question.
-"relevant" means the document text contains an answer to the Question."""
+"relevant" means the document text contains an answer to the Question.
 `;
 
 export const DOCUMENT_RELEVANCY_CHOICES = {
