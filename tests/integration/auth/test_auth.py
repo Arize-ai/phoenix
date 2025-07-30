@@ -304,6 +304,18 @@ class TestLogIn:
             u.log_in(_app)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    def test_can_log_in_with_case_insensitive_email(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        u = _get_user(_app, role_or_user)
+        # Test login with randomized email casing
+        case_insensitive_email = _randomize_casing(u.email)
+        _log_in(_app, u.password, email=case_insensitive_email)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
     def test_cannot_log_in_with_empty_password(
         self,
         role_or_user: _RoleOrUser,
