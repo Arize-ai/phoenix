@@ -85,6 +85,7 @@ class TestChatCompletionMutationMixin:
             assert field["datasetId"] == dataset_id
             assert field["datasetVersionId"] == dataset_version_id
             assert (examples := field["examples"])
+            common_project_name = None
             for i, example in enumerate(examples, 1):
                 assert example["datasetExampleId"] == str(
                     GlobalID(type_name=DatasetExample.__name__, node_id=str(i))
@@ -101,7 +102,11 @@ class TestChatCompletionMutationMixin:
                 assert result["span"]["input"]["value"]
                 assert result["span"]["output"]["value"]
                 assert result["span"]["cumulativeTokenCountTotal"]
-                assert is_experiment_project_name(result["span"]["trace"]["project"]["name"])
+                project_name = result["span"]["trace"]["project"]["name"]
+                assert is_experiment_project_name(project_name)
+                if common_project_name:
+                    assert project_name == common_project_name
+                common_project_name = project_name
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
