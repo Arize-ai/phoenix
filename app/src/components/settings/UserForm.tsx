@@ -83,9 +83,13 @@ export function UserForm({
                   type="email"
                   name={name}
                   isRequired
-                  onChange={onChange}
+                  onChange={(val) => onChange(val.trim().toLowerCase())}
                   isInvalid={invalid}
-                  onBlur={onBlur}
+                  onBlur={(e) => {
+                    const sanitizedValue = e.target.value.trim().toLowerCase();
+                    onChange(sanitizedValue);
+                    onBlur(e);
+                  }}
                   value={value}
                 >
                   <Label>Email</Label>

@@ -21,6 +21,7 @@ from phoenix.auth import (
     PASSWORD_REQUIREMENTS,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    sanitize_email,
     validate_email_format,
     validate_password_format,
 )
@@ -115,20 +116,23 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: CreateUserInput,
     ) -> UserMutationPayload:
+        # Sanitize email by trimming and lowercasing
+        email = sanitize_email(input.email)
+        
         user: models.User
         if input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(
-                email=input.email,
+                email=email,
                 username=input.username,
             )
         else:
             assert input.password
-            validate_email_format(input.email)
+            validate_email_format(email)
             validate_password_format(input.password)
             salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
             password_hash = await info.context.hash_password(Secret(input.password), salt)
             user = models.LocalUser(
-                email=input.email,
+                email=email,
                 username=input.username,
                 password_hash=password_hash,
                 password_salt=salt,

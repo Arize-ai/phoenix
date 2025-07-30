@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from starlette.status import (
     HTTP_204_NO_CONTENT,
@@ -29,6 +29,7 @@ from phoenix.auth import (
     delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
     is_valid_password,
+    sanitize_email,
     set_access_token_cookie,
     set_refresh_token_cookie,
     validate_password_format,
@@ -87,9 +88,12 @@ async def login(request: Request) -> Response:
     if not email or not password:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Email and password required")
 
+    # Sanitize email by trimming and lowercasing
+    email = sanitize_email(email)
+
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(models.User).filter_by(email=email).options(joinedload(models.User.role))
+            select(models.User).where(func.lower(models.User.email) == email).options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -207,6 +211,10 @@ async def initiate_password_reset(request: Request) -> Response:
     data = await request.json()
     if not (email := data.get("email")):
         raise MISSING_EMAIL
+    
+    # Sanitize email by trimming and lowercasing
+    email = sanitize_email(email)
+    
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
         raise SMTP_UNAVAILABLE
@@ -214,7 +222,7 @@ async def initiate_password_reset(request: Request) -> Response:
     async with request.app.state.db() as session:
         user = await session.scalar(
             select(models.User)
-            .filter_by(email=email)
+            .where(func.lower(models.User.email) == email)
             .options(
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )

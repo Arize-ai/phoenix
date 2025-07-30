@@ -29,6 +29,13 @@ export function ForgotPasswordForm({
     async (params: ForgotPasswordFormParams) => {
       setError(null);
       setIsLoading(true);
+      
+      // Sanitize email by trimming whitespace and converting to lowercase
+      const sanitizedParams = {
+        ...params,
+        email: params.email.trim().toLowerCase(),
+      };
+      
       try {
         const response = await fetch(
           prependBasename("/auth/password-reset-email"),
@@ -37,7 +44,7 @@ export function ForgotPasswordForm({
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(params),
+            body: JSON.stringify(sanitizedParams),
           }
         );
         if (!response.ok) {
@@ -66,12 +73,17 @@ export function ForgotPasswordForm({
         <Controller
           name="email"
           control={control}
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, value, onBlur } }) => (
             <TextField
               name="email"
               isRequired
               type="email"
-              onChange={onChange}
+              onChange={(val) => onChange(val.trim().toLowerCase())}
+              onBlur={(e) => {
+                const sanitizedValue = e.target.value.trim().toLowerCase();
+                onChange(sanitizedValue);
+                onBlur?.(e);
+              }}
               value={value}
             >
               <Label>Email</Label>
