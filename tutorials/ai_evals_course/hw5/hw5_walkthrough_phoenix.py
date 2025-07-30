@@ -93,8 +93,8 @@ def _(mo, trace_index_slider, traces_df):
     message_elements = []
 
     mo.md(f"""
-    **Failure Transition:** {_trace['attributes.last_success_state']}
-    -> {_trace['attributes.first_failure_state']}
+    **Failure Transition:** {_trace["attributes.last_success_state"]}
+    -> {_trace["attributes.first_failure_state"]}
     **Messages**
     """)
 

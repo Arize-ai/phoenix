@@ -231,7 +231,7 @@ def main():
     console.print(f"Balanced Accuracy: {(tpr + tnr) / 2:.3f}")
     console.print(
         f"""Overall Accuracy:
-        {(predictions['ground_truth_label'] == predictions['llm_as_judge_label']).mean():.3f}"""
+        {(predictions["ground_truth_label"] == predictions["llm_as_judge_label"]).mean():.3f}"""
     )
 
     # Analyze errors

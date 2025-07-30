@@ -94,9 +94,9 @@ def print_split_statistics(
 
     console.print("\n[bold]Data Split Statistics:")
     console.print(f"Total traces: {total_traces}")
-    console.print(f"Train: {len(train_traces)} ({len(train_traces)/total_traces:.1%})")
-    console.print(f"Dev: {len(dev_traces)} ({len(dev_traces)/total_traces:.1%})")
-    console.print(f"Test: {len(test_traces)} ({len(test_traces)/total_traces:.1%})")
+    console.print(f"Train: {len(train_traces)} ({len(train_traces) / total_traces:.1%})")
+    console.print(f"Dev: {len(dev_traces)} ({len(dev_traces) / total_traces:.1%})")
+    console.print(f"Test: {len(test_traces)} ({len(test_traces) / total_traces:.1%})")
 
     # Label distribution
     console.print("\n[bold]Label Distribution:")
@@ -104,7 +104,7 @@ def print_split_statistics(
         label_counts = get_label_counts(traces)
         console.print(f"{split_name}:")
         for label, count in sorted(label_counts.items()):
-            console.print(f"  {label}: {count} ({count/len(traces):.1%})")
+            console.print(f"  {label}: {count} ({count / len(traces):.1%})")
 
     # Dietary restriction distribution (for train set)
     console.print("\n[bold]Dietary Restrictions in Train Set:")

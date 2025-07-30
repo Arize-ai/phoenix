@@ -179,18 +179,18 @@ def print_interpretation(
     console.print("=" * 30)
 
     console.print(
-        f"[blue]Raw Observed Success Rate: {raw_success_rate:.3f} ({raw_success_rate*100:.1f}%)"
+        f"[blue]Raw Observed Success Rate: {raw_success_rate:.3f} ({raw_success_rate * 100:.1f}%)"
     )
-    console.print(f"[green]Corrected Success Rate: {theta_hat:.3f} ({theta_hat*100:.1f}%)")
+    console.print(f"[green]Corrected Success Rate: {theta_hat:.3f} ({theta_hat * 100:.1f}%)")
     console.print(f"[yellow]95% Confidence Interval: [{lower_bound:.3f}, {upper_bound:.3f}]")
     console.print(
-        f"[yellow]                        [{lower_bound*100:.1f}%, {upper_bound*100:.1f}%]"
+        f"[yellow]                        [{lower_bound * 100:.1f}%, {upper_bound * 100:.1f}%]"
     )
 
     correction_magnitude = abs(raw_success_rate - theta_hat)
     console.print(
         f"""[cyan]Correction Applied: {correction_magnitude:.3f}
-        ({correction_magnitude*100:.1f} percentage points)"""
+        ({correction_magnitude * 100:.1f} percentage points)"""
     )
 
 
