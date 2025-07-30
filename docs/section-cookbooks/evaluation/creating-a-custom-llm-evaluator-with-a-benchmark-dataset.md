@@ -7,7 +7,7 @@ description: >-
 
 # Creating a Custom LLM Evaluator with a Benchmark Dataset
 
-
+{% embed url="https://youtu.be/NaCjm8rdxqk" %}
 
 In this tutorial, you’ll learn how to build a custom LLM-as-a-Judge Evaluator tailored to your specific use case. While Phoenix provides several [pre-built evaluators](https://www.google.com/url?q=https%3A%2F%2Farize.com%2Fdocs%2Fphoenix%2Fevaluation%2Fhow-to-evals%2Frunning-pre-tested-evals) that have been tested against benchmark datasets, these may not always cover the nuances of your application.
 
