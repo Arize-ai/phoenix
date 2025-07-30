@@ -3,11 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Card,
+  CardProps,
   Dialog,
   FieldError,
   Flex,
@@ -48,7 +48,6 @@ const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
   collapsible: true,
-  bodyStyle: { padding: 0 },
 };
 
 export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {

@@ -1,6 +1,9 @@
 from secrets import token_hex
 
 from alembic.config import Config
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import sessionmaker
+
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -9,8 +12,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
 )
-from sqlalchemy import Engine, select
-from sqlalchemy.orm import sessionmaker
 
 from . import _up
 

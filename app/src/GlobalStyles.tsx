@@ -1050,6 +1050,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
+    // Style for cards
+    --ac-global-card-header-height: 46px;
+
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
@@ -1104,6 +1107,7 @@ const appGlobalStylesCSS = css`
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+    color: var(--ac-global-text-color-900);
   }
   .ac-theme {
     color: var(--ac-global-text-color-900);

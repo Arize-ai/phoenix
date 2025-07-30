@@ -35,7 +35,7 @@ class TestProjectMutations:
         Expected Results:
         - Trace 0 and its session should be preserved (after end_time)
         - Trace 1, Trace 2, and their sessions should be deleted (before end_time)
-        """  # noqa: E501
+        """
         project_name = token_hex(8)
         traces: list[models.Trace] = []
         project_sessions: list[models.ProjectSession] = []

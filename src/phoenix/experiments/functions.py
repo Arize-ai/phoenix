@@ -363,9 +363,9 @@ def run_experiment(
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
+        assert isinstance(output, (dict, list, str, int, float, bool, type(None))), (
+            "Output must be JSON serializable"
+        )
 
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
@@ -477,9 +477,9 @@ def run_experiment(
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
+        assert isinstance(output, (dict, list, str, int, float, bool, type(None))), (
+            "Output must be JSON serializable"
+        )
 
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),

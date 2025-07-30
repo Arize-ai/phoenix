@@ -3,9 +3,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
@@ -173,9 +173,5 @@ export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: {
-    padding: 0,
-  },
 };

@@ -66,7 +66,7 @@ def test_change_jsonb_to_json_for_prompts(
                     'OPENAI', 'gpt-4', '{}'
                 )
                 RETURNING id
-                """  # noqa: E501
+                """
             ),
             {
                 "prompt_id": prompt_id,

@@ -181,7 +181,7 @@ async def test_compare_experiments_returns_expected_comparisons(
           }
         }
       }
-    """  # noqa: E501
+    """
     response = await gql_client.execute(
         query=query,
         variables={
@@ -345,7 +345,7 @@ async def test_compare_experiments_validation_errors(
           }
         }
       }
-    """  # noqa: E501
+    """
 
     response = await gql_client.execute(
         query=query,
@@ -535,13 +535,13 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                     {
                         **revision,
                         "input": {
-                            f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"  # noqa: E501
+                            f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"
                         },
                         "output": {
-                            f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"  # noqa: E501
+                            f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"
                         },
                         "metadata_": {
-                            f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"  # noqa: E501
+                            f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"
                         },
                     }
                     for revision_index, revision in enumerate(
@@ -599,7 +599,7 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                             "description": f"experiment-{experiment_index + 1}-description",
                             "repetitions": 1,
                             "metadata_": {
-                                f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501
+                                f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"
                             },
                         }
                         for experiment_index, experiment in enumerate(
