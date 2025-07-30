@@ -6,6 +6,66 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [07.25.2025: Project Dashboards](07.2025/07.25.2025-project-dashboards.md) 📈
+
+**Available in Phoenix 11.12+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dashboards-release-notes.png" %}
+
+Phoenix now has comprehensive project dashboards for detailed performance, cost, and error insights.
+
+***
+
+## [07.25.2025: Average Metrics in Experiment Comparison Table](07.2025/07.25.2025-average-metrics-in-experiment-comparison-table.md) 📊
+
+Available in Phoenix 11.12+
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment-headers-average-metrics.mp4" %}
+
+View average run metrics directly in the headers of the experiment comparison table for quick insights.
+
+***
+
+## [07.21.2025: Project and Trace Management via GraphQL](07.2025/07.21.2025-project-and-trace-management-via-graphql.md)  📤
+
+**Available in Phoenix 11.9+**
+
+Create new projects and transfer traces between them via GraphQL, with full preservation of annotations and cost data.
+
+***
+
+## [07.18.2025: OpenInference Java](07.2025/07.18.2025-openinference-java.md) ✨
+
+OpenInference Java now offers full OpenTelemetry-compatible tracing for AI apps, including auto-instrumentation for LangChain4j and semantic conventions.
+
+***
+
+## [07.13.2025: Experiments Module in `phoenix-client` ](07.2025/07.13.2025-experiments-module-in-phoenix-client.md) 🧪&#x20;
+
+**Available in Phoenix 11.7+**
+
+New experiments feature set in `phoenix-client`, enabling sync and async execution with task runs, evaluations, rate limiting, and progress reporting.
+
+***
+
+## [07.09.2025: Baseline for Experiment Comparisons](07.2025/07.09.2025-baseline-for-experiment-comparisons.md) 🔁
+
+**Available in Phoenix 11.6+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment-baseline-comparison.mp4" %}
+
+Compare experiments relative to a baseline run to easily spot regressions and improvements across metrics.
+
+***
+
+## [07.07.2025: Database Disk Usage Monitor](07.2025/07.07.2025-databse-disk-usage-monitor.md) 🛑
+
+**Available in Phoenix 11.5+**
+
+Monitor database disk usage, notify admins when nearing capacity, and automatically block writes when critical thresholds are reached.
+
+***
+
 ## [07.03.2025: Cost Summaries in Trace Headers](07.2025/07.03.2025-cost-summaries-in-trace-headers.md) 💸
 
 **Available in Phoenix 11.4+**
@@ -88,7 +148,7 @@ Dataset name filtering with live search support across the API and UI.
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment_graphs.mp4" %}
 
-Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.&#x20;
+Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.
 
 ***
 
@@ -331,7 +391,7 @@ You can now delete experiments directly from the action menu, making it quicker 
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/new_integrations.gif" %}
 
-In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference) here.
+In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference/) here.
 
 ***
 
@@ -351,7 +411,7 @@ We've added the ability to resize Span, Trace, and Session tables. Resizing pref
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/openai_sdk_rn.gif" %}
 
-We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference).
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference/).
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
