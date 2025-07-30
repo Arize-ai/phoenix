@@ -1111,7 +1111,7 @@ def _initiate_password_reset(
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email
+    assert msg["to"] == email.lower()
     return _extract_password_reset_token(msg)
 
 

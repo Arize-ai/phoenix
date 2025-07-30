@@ -408,6 +408,19 @@ class TestPasswordReset:
         u.log_in(_app)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_initiate_password_reset_with_case_insensitive_email(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _smtpd: smtpdfix.AuthController,
+        _app: _AppInfo,
+    ) -> None:
+        u = _get_user(_app, role_or_user)
+        # Test password reset with randomized email casing
+        case_insensitive_email = _randomize_casing(u.email)
+        assert _initiate_password_reset(_app, case_insensitive_email, _smtpd)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_password_reset_can_be_initiated_multiple_times(
         self,
         role_or_user: _RoleOrUser,
