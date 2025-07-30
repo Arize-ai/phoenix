@@ -58,6 +58,45 @@ if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
 
+def _apply_session_io_filter(stmt: Any, session_filter: str, project_rowid: int) -> Any:
+    """Apply session I/O filter logic extracted from Project.sessions() method"""
+    import re
+
+    from openinference.semconv.trace import SpanAttributes
+
+    # Constants defined at bottom of file
+    INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+    OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+
+    # If UUID format, filter by session_id directly
+    if re.match(r"^[0-9a-f-]{36}$", session_filter, re.IGNORECASE):
+        return stmt.join(models.ProjectSession).where(
+            models.ProjectSession.session_id == session_filter
+        )
+    else:
+        # Reuse existing I/O filter logic from lines 400-424
+        filter_stmt = (
+            select(distinct(models.Trace.project_session_rowid).label("id"))
+            .filter_by(project_rowid=project_rowid)
+            .join_from(models.Trace, models.Span)
+            .where(models.Span.parent_id.is_(None))
+            .where(
+                or_(
+                    models.TextContains(
+                        models.Span.attributes[INPUT_VALUE].as_string(),
+                        session_filter,
+                    ),
+                    models.TextContains(
+                        models.Span.attributes[OUTPUT_VALUE].as_string(),
+                        session_filter,
+                    ),
+                )
+            )
+        )
+        filter_subq = filter_stmt.subquery()
+        return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
+
+
 @strawberry.type
 class Project(Node):
     _table: ClassVar[type[models.Base]] = models.Project
@@ -145,9 +184,11 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+        session_filter: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.record_counts.load(
-            ("trace", self.project_rowid, time_range, None),
+            ("trace", self.project_rowid, time_range, filter_condition, session_filter),
         )
 
     @strawberry.field
@@ -189,9 +230,12 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter: Optional[str] = UNSET,
     ) -> SpanCostSummary:
         loader = info.context.data_loaders.span_cost_summary_by_project
-        summary = await loader.load((self.project_rowid, time_range, filter_condition))
+        summary = await loader.load(
+            (self.project_rowid, time_range, filter_condition, session_filter)
+        )
         return SpanCostSummary(
             prompt=CostBreakdown(
                 tokens=summary.prompt.tokens,
@@ -213,13 +257,16 @@ class Project(Node):
         info: Info[Context, None],
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+        session_filter: Optional[str] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "trace",
                 self.project_rowid,
                 time_range,
-                None,
+                filter_condition,
+                session_filter,
                 probability,
             ),
         )
