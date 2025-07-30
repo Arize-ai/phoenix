@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from collections.abc import Iterator
 from secrets import token_bytes, token_hex
 from time import sleep
