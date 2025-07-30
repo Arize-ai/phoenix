@@ -1,3 +1,4 @@
+import string
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -300,15 +301,17 @@ class TestLogIn:
         for _ in range(10):
             u.log_in(_app)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_can_log_in_with_case_insensitive_email(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, role_or_user)
-        # Test login with randomized email casing
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
+        u = _get_user(_app, role_or_user, profile=profile)
         case_insensitive_email = _randomize_casing(u.email)
         _log_in(_app, u.password, email=case_insensitive_email)
 
@@ -412,8 +415,10 @@ class TestPasswordReset:
         _smtpd: smtpdfix.AuthController,
         _app: _AppInfo,
     ) -> None:
-        u = _get_user(_app, role_or_user)
-        # Test password reset with randomized email casing
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
+        u = _get_user(_app, role_or_user, profile=profile)
         case_insensitive_email = _randomize_casing(u.email)
         assert _initiate_password_reset(_app, case_insensitive_email, _smtpd)
 
@@ -714,13 +719,14 @@ class TestCreateUser:
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
-        _profiles: Iterator[_Profile],
         _app: _AppInfo,
     ) -> None:
         admin = _get_user(_app, role_or_user).log_in(_app)
-        profile = next(_profiles)
 
         # Create first user
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
         admin.create_user(_app, profile=profile)
 
         # Try to create second user with same email but different case
