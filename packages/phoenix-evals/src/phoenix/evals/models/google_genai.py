@@ -1,11 +1,12 @@
 import base64
 import logging
 import os
+import socket
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-
-import requests
+from urllib.request import urlopen
 
 from phoenix.evals.exceptions import (
     PhoenixUnsupportedAudioFormat,
@@ -225,11 +226,8 @@ class GoogleGenAIModel(BaseModel):
                 content = part.content
 
                 if _is_url(content):
-                    try:
-                        raw_image_bytes = requests.get(content).content
-                        content = base64.b64encode(raw_image_bytes).decode()
-                    except requests.RequestException as e:
-                        raise e
+                    raw_image_bytes = _download_image_from_url(content)
+                    content = base64.b64encode(raw_image_bytes).decode()
                 else:
                     raw_image_bytes = base64.b64decode(content)
 
@@ -275,6 +273,29 @@ class GoogleGenAIModel(BaseModel):
                     f"Unsupported content type for {GoogleGenAIModel.__name__}: {part.content_type}"
                 )
         return contents
+
+
+def _download_image_from_url(url: str) -> bytes:
+    """
+    Download image from URL.
+
+    Args:
+        url: The URL to download the image from
+
+    Returns:
+        Raw image bytes
+
+    Raises:
+        ValueError: If download fails
+    """
+    try:
+        with urlopen(url, timeout=30) as response:
+            return cast(bytes, response.read())
+
+    except socket.timeout:
+        raise ValueError(f"Timeout fetching image from URL: {url}")
+    except (HTTPError, URLError) as e:
+        raise ValueError(f"Failed to fetch image from URL: {url}") from e
 
 
 def _is_url(url: str) -> bool:
