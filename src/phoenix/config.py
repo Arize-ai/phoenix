@@ -16,7 +16,6 @@ import wrapt
 from email_validator import EmailNotValidError, validate_email
 from starlette.datastructures import URL, Secret
 
-from phoenix.auth import sanitize_email
 from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
@@ -866,6 +865,8 @@ def get_env_admins() -> dict[str, str]:
     """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
+    from phoenix.auth import sanitize_email
+
     usernames = set()
     emails = set()
     ans = {}
