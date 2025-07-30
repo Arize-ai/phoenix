@@ -1264,6 +1264,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert trace.pop("traceId") == trace_id
         project = trace.pop("project")
         assert is_experiment_project_name(project["name"])
+        common_project_name = project["name"]
         assert not trace
         assert not run
 
@@ -1289,6 +1290,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert trace.pop("traceId") == trace_id
         project = trace.pop("project")
         assert is_experiment_project_name(project["name"])
+        assert project["name"] == common_project_name
         assert not trace
         assert not run
 
