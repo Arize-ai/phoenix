@@ -1,12 +1,13 @@
+import re
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypedDict, Union
+from string import Formatter
+from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict
 
 
 class TemplateFormat(str, Enum):
     MUSTACHE = "mustache"
     F_STRING = "f_string"
-    JINJA2 = "jinja2"
 
 
 class TemplateResult(TypedDict):
@@ -41,7 +42,7 @@ class MustacheFormatter(TemplateFormatter):
             import pystache
 
             parsed = pystache.parse(template)
-            variables = []
+            variables: List[str] = []
             self._extract_from_parsed(parsed, variables)
             return list(set(variables))
         except ImportError:
@@ -61,50 +62,140 @@ class MustacheFormatter(TemplateFormatter):
             pass
 
 
+class DotKeyFormatter(Formatter):
+    def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
+        # Treat the entire field_name as a single key without splitting at dots
+        obj = self.get_value(field_name, args, kwargs)
+        return obj, field_name
+
+
 class FStringFormatter(TemplateFormatter):
-    def render(self, template: str, variables: Dict[str, Any]) -> str:
-        try:
-            from phoenix.evals.templates import DotKeyFormatter
+    """
+    Formatter for f-string style templates using standard Python f-string syntax.
 
-            formatter = DotKeyFormatter()
-            return formatter.format(template, **variables)
-        except ImportError:
-            return template.format(**variables)
+    Users must properly escape JSON braces: use {{"key": "value"}} for literal JSON.
+    Malformed templates like {"key": "value"} will raise clear KeyErrors.
+    """
+
+    def render(self, template: str, variables: Dict[str, Any]) -> str:
+        formatter = DotKeyFormatter()
+        return formatter.format(template, **variables)
 
     def extract_variables(self, template: str) -> List[str]:
-        import re
-
+        """Extract only template variables, excluding JSON content."""
         pattern = r"\{([^}]+)\}"
-        return [match.strip() for match in re.findall(pattern, template)]
+        potential_vars = re.findall(pattern, template)
+
+        valid_vars = []
+        for var in potential_vars:
+            content = var.strip()
+
+            if any(char in content for char in ['"', "'", ":", ",", "[", "]"]):
+                continue
+
+            try:
+                float(content)
+                continue
+            except ValueError:
+                pass
+
+            if content.lower() in ["true", "false", "null"]:
+                continue
+
+            valid_vars.append(content)
+
+        return valid_vars
 
 
-class Jinja2Formatter(TemplateFormatter):
-    def render(self, template: str, variables: Dict[str, Any]) -> str:
+def detect_template_format(template: str) -> TemplateFormat:
+    """
+    Detect the template format of a given template string.
+
+    Automatically detects whether a template uses mustache ({{variable}}) or
+    f-string ({variable}) formatting, while being robust to JSON content.
+
+    **Ambiguity Warning**: F-string escaped JSON ({{...}}) is syntactically identical
+    to mustache variables. In ambiguous cases, explicitly specify the template_format
+    parameter when creating a Template.
+
+    Args:
+        template: The template string to analyze
+
+    Returns:
+        The detected TemplateFormat (MUSTACHE or F_STRING)
+
+    Examples:
+        >>> detect_template_format("Hello {{name}}")
+        <TemplateFormat.MUSTACHE: 'mustache'>
+
+        >>> detect_template_format("Hello {name}")
+        <TemplateFormat.F_STRING: 'f_string'>
+
+        >>> detect_template_format('Data: {"key": "value"} for {user}')
+        <TemplateFormat.F_STRING: 'f_string'>
+
+        >>> detect_template_format('JSON: {{"key": "value"}}')
+        <TemplateFormat.MUSTACHE: 'mustache'>
+    """
+    mustache_pattern = r"\{\{\s*([^}]+)\s*\}\}"
+    fstring_pattern = r"\{([^}]+)\}"
+
+    mustache_matches = re.findall(mustache_pattern, template)
+    fstring_matches = re.findall(fstring_pattern, template)
+
+    clear_mustache_vars = []
+    potential_escaped_json = []
+
+    for match in mustache_matches:
+        content = match.strip()
+        if any(char in content for char in ['"', "'", ":", ",", "[", "]"]):
+            potential_escaped_json.append(content)
+        else:
+            clear_mustache_vars.append(content)
+
+    clear_fstring_vars = []
+    for match in fstring_matches:
+        content = match.strip()
+
+        if any(char in content for char in ['"', "'", ":", ",", "[", "]"]):
+            continue
+
         try:
-            import jinja2
+            float(content)
+            continue
+        except ValueError:
+            pass
 
-            template_obj = jinja2.Template(template)
-            return template_obj.render(**variables)
-        except ImportError:
-            return MustacheFormatter().render(template, variables)
+        if content.lower() in ["true", "false", "null"]:
+            continue
 
-    def extract_variables(self, template: str) -> List[str]:
-        try:
-            import jinja2
-            from jinja2 import meta
+        clear_fstring_vars.append(content)
 
-            env = jinja2.Environment()
-            ast = env.parse(template)
-            return list(meta.find_undeclared_variables(ast))
-        except ImportError:
-            return MustacheFormatter().extract_variables(template)
+    if clear_mustache_vars and not clear_fstring_vars:
+        return TemplateFormat.MUSTACHE
+
+    if clear_fstring_vars and not clear_mustache_vars:
+        return TemplateFormat.F_STRING
+
+    if clear_mustache_vars and clear_fstring_vars:
+        return TemplateFormat.MUSTACHE
+
+    if potential_escaped_json and clear_fstring_vars:
+        return TemplateFormat.F_STRING
+
+    if clear_mustache_vars and potential_escaped_json:
+        return TemplateFormat.MUSTACHE
+
+    if potential_escaped_json:
+        return TemplateFormat.MUSTACHE
+
+    return TemplateFormat.MUSTACHE
 
 
 class FormatterFactory:
     _formatters = {
         TemplateFormat.MUSTACHE: MustacheFormatter,
         TemplateFormat.F_STRING: FStringFormatter,
-        TemplateFormat.JINJA2: Jinja2Formatter,
     }
 
     @classmethod
@@ -114,96 +205,108 @@ class FormatterFactory:
             raise ValueError(f"Unsupported template format: {format_type}")
         return formatter_class()
 
+    @classmethod
+    def auto_detect_and_create(cls, template: str) -> TemplateFormatter:
+        """Auto-detect template format and create appropriate formatter."""
+        format_type = detect_template_format(template)
+        return cls.create(format_type)
 
-class EvalTemplate:
+
+class Template:
     """
-    A template for LLM evaluation that renders prompts and generates JSON schemas.
+    A template for LLM evaluation that renders prompts with provided JSON schemas.
 
     This class provides a simple interface for creating evaluation templates that work
-    directly with LLM.generate_object() methods. It supports multiple template formats
-    and can generate structured output schemas for classification tasks.
+    directly with LLM.generate_object() methods. It supports mustache and f-string template
+    formats with auto-detection, and uses a provided JSON schema for structured output.
 
     Args:
-        template: Template string with variables (e.g., "Classify: {{text}}")
-        labels: Classification labels as strings or string->description mapping
-        template_format: Template format (MUSTACHE, F_STRING, or JINJA2)
-        include_explanation: Whether to require explanations in output
+        template: Template string with variables (e.g., "Classify: {{text}}" or "Classify: {text}")
+        schema: JSON schema dict for structured output validation
+        template_format: Template format (MUSTACHE or F_STRING). If None, auto-detects format.
 
     Examples:
-        Basic string labels:
-        >>> template = EvalTemplate(
-        ...     template="Classify sentiment: {{text}}",
-        ...     labels=["positive", "negative", "neutral"]
+        Basic classification schema with auto-detection:
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "classification": {
+        ...             "type": "string",
+        ...             "enum": ["positive", "negative", "neutral"]
+        ...         }
+        ...     },
+        ...     "required": ["classification"]
+        ... }
+        >>> template = Template(
+        ...     template="Classify sentiment: {{text}}",  # Auto-detected as mustache
+        ...     schema=schema
         ... )
         >>> result = template.render({"text": "Great product!"})
         >>> llm.generate_object(result["prompt"], result["schema"])
 
-        Labels with descriptions:
-        >>> template = EvalTemplate(
-        ...     template="Rate quality: {{response}}",
-        ...     labels={
-        ...         "excellent": "High quality response",
-        ...         "good": "Adequate response",
-        ...         "poor": "Low quality response"
+        Complex schema with explanation:
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "response": {
+        ...             "type": "array",
+        ...             "items": [
+        ...                 {"type": "string", "description": "Explanation"},
+        ...                 {"type": "string", "enum": ["excellent", "good", "poor"]}
+        ...             ]
+        ...         }
         ...     }
+        ... }
+        >>> template = Template(
+        ...     template="Rate quality: {response}",  # Auto-detected as f-string
+        ...     schema=schema
         ... )
 
-        >>> template = EvalTemplate(
+        Explicit template formats:
+        >>> # Mustache format
+        >>> template = Template(
         ...     template="Classify: {{text}}",
-        ...     labels=["spam", "not_spam"],
-        ...     include_explanation=True
+        ...     schema=schema,
+        ...     template_format=TemplateFormat.MUSTACHE
         ... )
-        >>> result = template.render({"text": "Buy now!"})
-        >>> # Schema enforces [explanation, classification] order
 
-        Different template formats:
         >>> # F-string format
-        >>> template = EvalTemplate(
+        >>> template = Template(
         ...     template="Classify: {text}",
-        ...     labels=["positive", "negative"],
+        ...     schema=schema,
         ...     template_format=TemplateFormat.F_STRING
         ... )
 
-        >>> # Jinja2 format
-        >>> template = EvalTemplate(
-        ...     template="{% if context %}Context: {{context}}{% endif %}\\nText: {{text}}",
-        ...     labels=["relevant", "irrelevant"],
-        ...     template_format=TemplateFormat.JINJA2
-        ... )
+        Robust to JSON content:
+        >>> # This template contains JSON but auto-detects correctly
+        >>> template = Template(
+        ...     template='Analyze this data: {"key": "value"} for user {user_id}',
+        ...     schema=schema
+        ... )  # Auto-detected as f-string (ignores JSON content)
     """
 
     def __init__(
         self,
         *,
         template: str,
-        labels: Optional[Union[List[str], Dict[str, str]]] = None,
-        template_format: TemplateFormat = TemplateFormat.MUSTACHE,
-        include_explanation: bool = True,
+        schema: Dict[str, Any],
+        template_format: Optional[TemplateFormat] = None,
     ):
         if not template:
             raise ValueError("Template cannot be empty")
+        if not isinstance(schema, dict):
+            raise TypeError(f"Schema must be a dictionary, got {type(schema)}")
         self.template = template
-        self.labels = labels or []
-        self.template_format = template_format
-        self.include_explanation = include_explanation
+        self.schema = schema
 
-        self._formatter = FormatterFactory.create(self.template_format)
+        if template_format is None:
+            self.template_format = detect_template_format(template)
+            self._formatter = FormatterFactory.auto_detect_and_create(template)
+        else:
+            self.template_format = template_format
+            self._formatter = FormatterFactory.create(self.template_format)
+
         self._variables = self._formatter.extract_variables(self.template)
-        self._label_names, self._label_descriptions = self._process_labels(self.labels)
-
-    def _process_labels(
-        self, labels: Union[List[str], Dict[str, str]]
-    ) -> tuple[List[str], Dict[str, str]]:
-        if not labels:
-            return [], {}
-
-        if isinstance(labels, list):
-            return labels, {}
-
-        if isinstance(labels, dict):
-            return list(labels.keys()), labels
-
-        raise TypeError(f"Unsupported label type: {type(labels)}")
 
     @property
     def variables(self) -> List[str]:
@@ -213,61 +316,4 @@ class EvalTemplate:
         if not isinstance(variables, dict):
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
         rendered_prompt = self._formatter.render(self.template, variables)
-        schema = self._generate_schema(variables)
-        return TemplateResult(prompt=rendered_prompt, schema=schema)
-
-    def _generate_schema(self, variables: Dict[str, Any]) -> Dict[str, Any]:
-        if not self._label_names:
-            return {}
-
-        if self.include_explanation:
-            classification_schema = {
-                "type": "string",
-                "enum": self._label_names,
-                "description": "The classification result",
-            }
-
-            if self._label_descriptions:
-                classification_schema["description"] += f". Options: {self._label_descriptions}"
-
-            items = [
-                {"type": "string", "description": "Explanation of the classification reasoning"},
-                classification_schema,
-            ]
-
-            return {
-                "type": "object",
-                "properties": {
-                    "response": {
-                        "type": "array",
-                        "items": items,
-                        "minItems": len(items),
-                        "maxItems": len(items),
-                        "description": "Response as [explanation, classification]",
-                    }
-                },
-                "required": ["response"],
-                "additionalProperties": False,
-            }
-        else:
-            classification_schema = {
-                "type": "string",
-                "enum": self._label_names,
-                "description": "The classification result",
-            }
-
-            if self._label_descriptions:
-                classification_schema["description"] += f". Options: {self._label_descriptions}"
-
-            return {
-                "type": "object",
-                "properties": {"classification": classification_schema},
-                "required": ["classification"],
-                "additionalProperties": False,
-            }
-
-    def add_label(self, name: str, description: Optional[str] = None) -> None:
-        if name not in self._label_names:
-            self._label_names.append(name)
-        if description:
-            self._label_descriptions[name] = description
+        return TemplateResult(prompt=rendered_prompt, schema=self.schema)
