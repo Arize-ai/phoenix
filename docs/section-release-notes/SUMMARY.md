@@ -2,6 +2,7 @@
 
 * [Release Notes](README.md)
 * [07.2025](07.2025/README.md)
+  * [07.29.2025: Google GenAI Evals 🌐](07.2025/07.29.2025-google-genai-evals.md)
   * [07.25.2025: Project Dashboards 📈](07.2025/07.25.2025-project-dashboards.md)
   * [07.25.2025: Average Metrics in Experiment Comparison Table 📊](07.2025/07.25.2025-average-metrics-in-experiment-comparison-table.md)
   * [07.21.2025: Project and Trace Management via GraphQL 📤](07.2025/07.21.2025-project-and-trace-management-via-graphql.md)

@@ -6,6 +6,14 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [07.29.2025: Google GenAI Evals](07.2025/07.29.2025-google-genai-evals.md) 🌐
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png" %}
+
+New in `phoenix-evals`: Added support for Google's Gemini models via the Google GenAI SDK — multimodal, async, and ready to scale. Huge shoutout to [Siddharth Sahu](https://github.com/sahusiddharth) for this contribution!
+
+***
+
 ## [07.25.2025: Project Dashboards](07.2025/07.25.2025-project-dashboards.md) 📈
 
 **Available in Phoenix 11.12+**
