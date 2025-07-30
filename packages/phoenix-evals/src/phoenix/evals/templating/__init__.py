@@ -9,7 +9,7 @@ import pystache  # type: ignore
 
 class TemplateFormat(str, Enum):
     MUSTACHE = "mustache"
-    F_STRING = "f_string"
+    F_STRING = "f-string"
 
 
 class TemplateFormatter(ABC):
@@ -45,35 +45,24 @@ class MustacheFormatter(TemplateFormatter):
 
 class DotKeyFormatter(Formatter):
     def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
-        # Treat the entire field_name as a single key without splitting at dots
         obj = self.get_value(field_name, args, kwargs)
         return obj, field_name
 
 
 class FStringFormatter(TemplateFormatter):
-    """
-    Formatter for f-string style templates using standard Python f-string syntax.
-
-    Users must properly escape JSON braces: use {{"key": "value"}} for literal JSON.
-    Malformed templates like {"key": "value"} will raise clear KeyErrors.
-    """
+    """Formatter for f-string style templates using standard Python f-string syntax."""
 
     def render(self, template: str, variables: Dict[str, Any]) -> str:
-        # Extract valid template variables first
         valid_vars = self.extract_variables(template)
-
-        # Only substitute the valid template variables, leaving JSON content unchanged
         result = template
         for var in valid_vars:
             if var not in variables:
                 raise KeyError(f"Template variable '{var}' not found in provided variables")
-            # Replace only the specific variable pattern
             result = result.replace(f"{{{var}}}", str(variables[var]))
 
         return result
 
     def extract_variables(self, template: str) -> List[str]:
-        """Extract only template variables, excluding JSON content."""
         pattern = r"\{([^}]+)\}"
         potential_vars = re.findall(pattern, template)
 
@@ -100,33 +89,10 @@ class FStringFormatter(TemplateFormatter):
 
 def detect_template_format(template: str) -> TemplateFormat:
     """
-    Detect the template format of a given template string.
+    Detect whether a template uses mustache ({{variable}}) or f-string ({variable}) format.
 
-    Automatically detects whether a template uses mustache ({{variable}}) or
-    f-string ({variable}) formatting, while being robust to JSON content.
-
-    **Ambiguity Warning**: F-string escaped JSON ({{...}}) is syntactically identical
-    to mustache variables. In ambiguous cases, explicitly specify the template_format
-    parameter when creating a Template.
-
-    Args:
-        template: The template string to analyze
-
-    Returns:
-        The detected TemplateFormat (MUSTACHE or F_STRING)
-
-    Examples:
-        >>> detect_template_format("Hello {{name}}")
-        <TemplateFormat.MUSTACHE: 'mustache'>
-
-        >>> detect_template_format("Hello {name}")
-        <TemplateFormat.F_STRING: 'f_string'>
-
-        >>> detect_template_format('Data: {"key": "value"} for {user}')
-        <TemplateFormat.F_STRING: 'f_string'>
-
-        >>> detect_template_format('JSON: {{"key": "value"}}')
-        <TemplateFormat.MUSTACHE: 'mustache'>
+    **Note**: Escaped JSON in f-strings ({{...}}) looks identical to mustache variables.
+    Use explicit template_format parameter for ambiguous cases.
     """
     mustache_pattern = r"\{\{\s*([^}]+)\s*\}\}"
     fstring_pattern = r"\{([^}]+)\}"
@@ -198,58 +164,15 @@ class FormatterFactory:
 
     @classmethod
     def auto_detect_and_create(cls, template: str) -> TemplateFormatter:
-        """Auto-detect template format and create appropriate formatter."""
         format_type = detect_template_format(template)
         return cls.create(format_type)
 
 
 class Template:
     """
-    A template for rendering prompts with different formatting styles.
+    Template for rendering prompts with mustache ({{variable}}) or f-string ({variable}) formats.
 
-    This class provides a simple interface for creating templates that support both
-    mustache ({{variable}}) and f-string ({variable}) formats with auto-detection.
-    The primary functionality is to abstract away the underlying templating logic
-    to enable multiple kinds of templating formats.
-
-    Args:
-        template: Template string with variables (e.g., "Classify: {{text}}" or "Classify: {text}")
-        template_format: Template format (MUSTACHE or F_STRING). If None, auto-detects format.
-
-    Examples:
-        Auto-detection with mustache format:
-        >>> template = Template(template="Classify sentiment: {{text}}")
-        >>> rendered = template.render({"text": "Great product!"})
-        >>> print(rendered)
-        Classify sentiment: Great product!
-
-        Auto-detection with f-string format:
-        >>> template = Template(template="Rate quality: {response}")
-        >>> rendered = template.render({"response": "excellent"})
-        >>> print(rendered)
-        Rate quality: excellent
-
-        Explicit template formats:
-        >>> # Mustache format
-        >>> template = Template(
-        ...     template="Classify: {{text}}",
-        ...     template_format=TemplateFormat.MUSTACHE
-        ... )
-
-        >>> # F-string format
-        >>> template = Template(
-        ...     template="Classify: {text}",
-        ...     template_format=TemplateFormat.F_STRING
-        ... )
-
-        Robust to JSON content:
-        >>> # This template contains JSON but auto-detects correctly
-        >>> template = Template(
-        ...     template='Analyze this data: {"key": "value"} for user {user_id}'
-        ... )  # Auto-detected as f-string (ignores JSON content)
-        >>> rendered = template.render({"user_id": "123"})
-        >>> print(rendered)
-        Analyze this data: {"key": "value"} for user 123
+    Supports auto-detection of template format and handles JSON content correctly.
     """
 
     def __init__(
