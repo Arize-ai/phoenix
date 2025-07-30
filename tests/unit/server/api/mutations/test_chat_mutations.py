@@ -24,7 +24,7 @@ class TestChatCompletionMutationMixin:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         dataset_version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         query = """
-          mutation($input: ChatCompletionOverDatasetInput!) {
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
             chatCompletionOverDataset(input: $input) {
               datasetId
               datasetVersionId
@@ -58,6 +58,14 @@ class TestChatCompletionMutationMixin:
               }
             }
           }
+
+          query GetExperiment($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                projectName
+              }
+            }
+          }
         """
         variables = {
             "input": {
@@ -78,7 +86,7 @@ class TestChatCompletionMutationMixin:
             _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
         )  # a custom request matcher is needed since the requests are concurrent
         with custom_vcr.use_cassette():
-            result = await gql_client.execute(query, variables)
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
             assert not result.errors
             assert (data := result.data)
             assert (field := data["chatCompletionOverDataset"])
@@ -107,6 +115,14 @@ class TestChatCompletionMutationMixin:
                 if common_project_name:
                     assert project_name == common_project_name
                 common_project_name = project_name
+
+        result = await gql_client.execute(
+            query, {"experimentId": field["experimentId"]}, "GetExperiment"
+        )
+        assert not result.errors
+        assert (data := result.data)
+        assert (field := data["experiment"])
+        assert field["projectName"] == common_project_name
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
