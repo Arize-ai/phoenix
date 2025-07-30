@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3a183720811edcd307a513f3c3a37b1>>
+ * @generated SignedSource<<65cd286872627cedfd704160cf1e3b58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentMultiSelector__data$data = {
-  readonly baselineExperiment?: {
+  readonly baseExperiment?: {
     readonly id?: string;
     readonly name?: string;
   };
@@ -55,7 +55,7 @@ return {
   "argumentDefinitions": [
     {
       "kind": "RootArgument",
-      "name": "baselineExperimentId"
+      "name": "baseExperimentId"
     },
     {
       "kind": "RootArgument",
@@ -64,7 +64,7 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "hasBaselineExperimentId"
+      "name": "hasBaseExperiment"
     }
   ],
   "kind": "Fragment",
@@ -147,17 +147,17 @@ return {
       "storageKey": null
     },
     {
-      "condition": "hasBaselineExperimentId",
+      "condition": "hasBaseExperiment",
       "kind": "Condition",
       "passingValue": true,
       "selections": [
         {
-          "alias": "baselineExperiment",
+          "alias": "baseExperiment",
           "args": [
             {
               "kind": "Variable",
               "name": "id",
-              "variableName": "baselineExperimentId"
+              "variableName": "baseExperimentId"
             }
           ],
           "concreteType": null,
@@ -185,6 +185,6 @@ return {
 };
 })();
 
-(node as any).hash = "0339567f8094904cd05e8fc4e8a5ef1a";
+(node as any).hash = "5cf14c739bf8fcef57b5b3a8dc324e1f";
 
 export default node;

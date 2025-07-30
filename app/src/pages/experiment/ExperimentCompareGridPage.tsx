@@ -18,17 +18,17 @@ export function ExperimentCompareGridPage({
   const [searchParams] = useSearchParams();
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required");
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
-  return baselineExperimentId != null ? (
+  return baseExperimentId != null ? (
     <ExperimentRunFilterConditionProvider>
       <Suspense fallback={<Loading />}>
         <ExperimentCompareTable
           query={loaderData}
           datasetId={datasetId}
-          baselineExperimentId={baselineExperimentId}
+          baseExperimentId={baseExperimentId}
           compareExperimentIds={compareExperimentIds}
           displayFullText={displayFullText}
         />
@@ -37,7 +37,7 @@ export function ExperimentCompareGridPage({
   ) : (
     <View padding="size-200">
       <Alert variant="info" title="No Baseline Experiment Selected">
-        Please select a baseline experiment.
+        Please select a base experiment.
       </Alert>
     </View>
   );

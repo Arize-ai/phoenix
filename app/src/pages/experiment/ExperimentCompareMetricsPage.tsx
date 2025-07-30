@@ -281,13 +281,13 @@ function BaseExperimentMetric({
 function CompareExperimentMetric({
   value,
   formatter = numberFormatter,
-  baselineValue,
+  baseExperimentValue,
   numImprovements,
   numRegressions,
 }: {
   value: number | null | undefined;
   formatter?: (value: number | null | undefined) => string;
-  baselineValue: number | null | undefined;
+  baseExperimentValue: number | null | undefined;
   numImprovements: number;
   numRegressions: number;
 }) {
@@ -295,14 +295,14 @@ function CompareExperimentMetric({
     const valueText = formatter(value);
     let deltaText: string | null = null;
     let percentageDeltaText: string | null = null;
-    if (value != null && baselineValue != null) {
-      const delta = value - baselineValue;
+    if (value != null && baseExperimentValue != null) {
+      const delta = value - baseExperimentValue;
       const sign = delta >= 0 ? "+" : "-";
       const absoluteDelta = Math.abs(delta);
       deltaText = `(${sign}${formatter(absoluteDelta)})`;
-      if (baselineValue !== 0) {
+      if (baseExperimentValue !== 0) {
         const absolutePercentageDelta = Math.abs(
-          (delta / baselineValue) * 100
+          (delta / baseExperimentValue) * 100
         ).toFixed(0);
         percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
       }
@@ -312,7 +312,7 @@ function CompareExperimentMetric({
       deltaText,
       percentageDeltaText,
     };
-  }, [baselineValue, formatter, value]);
+  }, [baseExperimentValue, formatter, value]);
   return (
     <Flex direction="row" justifyContent="space-between">
       <Flex direction="row" alignItems="center" gap="size-50">
@@ -384,7 +384,7 @@ function LatencyMetricCard({
             key={compareExperiment.id}
             value={compareExperiment.latencyMs}
             formatter={latencyMsFormatter}
-            baselineValue={baseExperimentLatencyMs}
+            baseExperimentValue={baseExperimentLatencyMs}
             numImprovements={compareExperiment.numLatencyMsImprovements}
             numRegressions={compareExperiment.numLatencyMsRegressions}
           />
@@ -419,7 +419,7 @@ function TokenCountMetricCard({
           <CompareExperimentMetric
             key={compareExperiment.id}
             value={compareExperiment.tokens}
-            baselineValue={baseExperimentTotalTokens}
+            baseExperimentValue={baseExperimentTotalTokens}
             numImprovements={compareExperiment.numImprovements}
             numRegressions={compareExperiment.numRegressions}
           />
@@ -458,7 +458,7 @@ function CostMetricCard({
             key={compareExperiment.id}
             value={compareExperiment.cost}
             formatter={costFormatter}
-            baselineValue={baseExperimentCost}
+            baseExperimentValue={baseExperimentCost}
             numImprovements={compareExperiment.numImprovements}
             numRegressions={compareExperiment.numRegressions}
           />

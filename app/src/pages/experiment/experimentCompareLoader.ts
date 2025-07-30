@@ -23,7 +23,7 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
   const isMetricsView = url.searchParams.get("view") === "metrics";
 
@@ -32,30 +32,30 @@ export async function experimentCompareLoader(
     graphql`
       query experimentCompareLoaderQuery(
         $datasetId: ID!
-        $baselineExperimentId: ID!
+        $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
-        $hasBaselineExperimentId: Boolean!
         $firstCompareExperimentId: ID!
         $secondCompareExperimentId: ID!
         $thirdCompareExperimentId: ID!
+        $hasBaseExperiment: Boolean!
         $hasFirstCompareExperiment: Boolean!
         $hasSecondCompareExperiment: Boolean!
         $hasThirdCompareExperiment: Boolean!
         $isMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaselineExperimentId)
+          @include(if: $hasBaseExperiment)
           @arguments(
-            baselineExperimentId: $baselineExperimentId
+            baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
         ...ExperimentMultiSelector__data
-          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+          @arguments(hasBaseExperiment: $hasBaseExperiment)
         ...ExperimentCompareMetricsPage_experiments
           @include(if: $isMetricsView)
           @arguments(
-            baseExperimentId: $baselineExperimentId
+            baseExperimentId: $baseExperimentId
             firstCompareExperimentId: $firstCompareExperimentId
             secondCompareExperimentId: $secondCompareExperimentId
             thirdCompareExperimentId: $thirdCompareExperimentId
@@ -67,9 +67,9 @@ export async function experimentCompareLoader(
     `,
     {
       datasetId,
-      baselineExperimentId: baselineExperimentId ?? "",
+      baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
-      hasBaselineExperimentId: baselineExperimentId != null,
+      hasBaseExperiment: baseExperimentId != null,
       hasFirstCompareExperiment: compareExperimentIds.length > 0,
       hasSecondCompareExperiment: compareExperimentIds.length > 1,
       hasThirdCompareExperiment: compareExperimentIds.length > 2,
