@@ -108,7 +108,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       query ExperimentsLineChartQuery($id: ID!) {
         dataset: node(id: $id) {
           ... on Dataset {
-            experiments(first: 50) {
+            chartExperiments: experiments(first: 50) {
               edges {
                 experiment: node {
                   id
@@ -130,7 +130,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
 
   const { chartData, scoreKeys } = useMemo(() => {
     const allAnnotationNames = new Set<string>();
-    const chartData = (data.dataset?.experiments?.edges ?? [])
+    const chartData = (data.dataset?.chartExperiments?.edges ?? [])
       .map((edge) => {
         const exp = edge.experiment;
         const scores: Record<string, number | undefined> = {};
@@ -148,7 +148,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       .filter((dataPoint) => dataPoint !== null)
       .sort((a, b) => a.iteration - b.iteration);
     return { chartData, scoreKeys: Array.from(allAnnotationNames) };
-  }, [data.dataset?.experiments?.edges]);
+  }, [data.dataset?.chartExperiments?.edges]);
 
   const { grey300 } = useSequentialChartColors();
   // Memoize colors for each annotation name (scoreKey) using the same logic as useWordColor
