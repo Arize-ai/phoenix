@@ -280,11 +280,3 @@ class GoogleGenAIModel(BaseModel):
 def _is_url(url: str) -> bool:
     parsed_url = urlparse(url)
     return bool(parsed_url.scheme and parsed_url.netloc)
-
-
-def _is_base64(s: str) -> bool:
-    try:
-        base64.b64decode(s, validate=True)
-        return True
-    except Exception:
-        return False
