@@ -10,6 +10,16 @@ export interface HallucinationEvaluatorArgs
   choices?: CreateClassifierArgs["choices"];
   promptTemplate?: CreateClassifierArgs["promptTemplate"];
 }
+
+/**
+ * An example to be evaluated by the hallucination evaluator.
+ */
+export type HallucinationExample = {
+  input: string;
+  output: string;
+  reference?: string;
+  context?: string;
+};
 /**
  * Creates a function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
  *
@@ -18,13 +28,13 @@ export interface HallucinationEvaluatorArgs
  */
 export function createHallucinationEvaluator(
   args: HallucinationEvaluatorArgs
-): EvaluatorFn<string, string> {
+): EvaluatorFn<HallucinationExample> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
     ...rest
   } = args;
-  const hallucinationEvaluatorFn = createClassifier<string, string>({
+  const hallucinationEvaluatorFn = createClassifier<HallucinationExample>({
     ...args,
     promptTemplate,
     choices,
