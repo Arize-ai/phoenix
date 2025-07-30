@@ -290,7 +290,6 @@ The GoogleGenAIModel supports all Gemini models available through the Google Gen
 **Images**: PNG, JPEG, WebP, HEIC, HEIF
 **Audio**: WAV, MP3, AIFF, AAC, OGG, FLAC
 
-Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
 
 ### AnthropicModel
 
