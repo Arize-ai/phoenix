@@ -118,7 +118,7 @@ class UserMutationMixin:
     ) -> UserMutationPayload:
         # Sanitize email by trimming and lowercasing
         email = sanitize_email(input.email)
-        
+
         user: models.User
         if input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(

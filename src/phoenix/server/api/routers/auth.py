@@ -93,7 +93,9 @@ async def login(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(models.User).where(func.lower(models.User.email) == email).options(joinedload(models.User.role))
+            select(models.User)
+            .where(func.lower(models.User.email) == email)
+            .options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -211,10 +213,10 @@ async def initiate_password_reset(request: Request) -> Response:
     data = await request.json()
     if not (email := data.get("email")):
         raise MISSING_EMAIL
-    
+
     # Sanitize email by trimming and lowercasing
     email = sanitize_email(email)
-    
+
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
         raise SMTP_UNAVAILABLE
