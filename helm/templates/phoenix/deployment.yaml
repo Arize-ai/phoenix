@@ -99,7 +99,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+          # BEGIN: refactor volumeMounts to mount PVC at workingDir
           volumeMounts:
             - name: tmp-volume
               mountPath: /tmp
@@ -107,17 +107,18 @@ spec:
               mountPath: /var/tmp
             - name: var-log-volume
               mountPath: /var/log
-            - name: home-volume
-              mountPath: /home/phoenix
-
-            {{- if and .Values.server.workingDir (ne .Values.server.workingDir "") }}
-            - name: working-dir-volume
-              mountPath: {{ .Values.server.workingDir }}
+            {{- if .Values.persistence.enabled | toString | eq "true" }}
+            # Always mount PVC at workingDir (e.g., /home/phoenix/data, /mnt/data, etc)
+            - name: data
+              mountPath: {{ .Values.server.workingDir | quote }}
             {{- end }}
+            # Optionally (legacy) also mount PVC at /home/phoenix if workingDir is not /home/phoenix
+            {{- if and (.Values.persistence.enabled | toString | eq "true") (ne .Values.server.workingDir "/home/phoenix") }}
+            - name: data
+              mountPath: /home/phoenix
+            {{- end }}
+          # END: refactor volumeMounts to mount PVC at workingDir
 
-          {{- end }}
-
-      {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
       volumes:
         - name: tmp-volume
           emptyDir: {}
@@ -125,18 +126,14 @@ spec:
           emptyDir: {}
         - name: var-log-volume
           emptyDir: {}
-        - name: home-volume
-          {{- if .Values.persistence.enabled | toString | eq "true" }}
+        # BEGIN: refactor volumes: use PVC for data, remove emptyDir for workingDir
+        {{- if .Values.persistence.enabled | toString | eq "true" }}
+        - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        {{- if .Values.server.workingDir }}
-        - name: working-dir-volume
-          emptyDir: {}
         {{- end }}
-      {{- end }}
+        # END: refactor volumes
+
       {{- if .Values.serviceAccount.imagePullSecrets }}
       imagePullSecrets:
         {{- range .Values.serviceAccount.imagePullSecrets }}
