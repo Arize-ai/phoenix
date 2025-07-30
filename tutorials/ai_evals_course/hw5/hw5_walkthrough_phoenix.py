@@ -1,5 +1,6 @@
 import marimo
 
+from message_pattern import MESSAGE_PATTERN
 __generated_with = "0.14.13"
 app = marimo.App(width="medium")
 
@@ -117,8 +118,7 @@ def _(mo, trace_index_slider, traces_df):
 
             messages = []
             # Look for message patterns in the string
-            message_pattern = r"""{\s*["\']role["\']\s*:\s*["\']([^"\']+)
-            ["\']\s*,\s*["\']content["\']\s*:\s*["\']([^"\']+)["\']\s*}"""
+            message_pattern = MESSAGE_PATTERN
             matches = re.findall(message_pattern, _trace["attributes.output.value"])
             for role, content in matches:
                 messages.append({"role": role, "content": content})

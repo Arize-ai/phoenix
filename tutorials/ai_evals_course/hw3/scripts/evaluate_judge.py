@@ -23,7 +23,7 @@ load_dotenv()
 console = Console()
 
 
-def load_data_split(csv_path: str) -> List[Dict[str, Any]]:
+def load_data_split(csv_path: str) -> pd.DataFrame:
     """Load a data split from CSV file."""
     df = pd.read_csv(csv_path)
     return df
