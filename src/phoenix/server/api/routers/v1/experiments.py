@@ -31,6 +31,14 @@ def _short_uuid() -> str:
     return str(getrandbits(32).to_bytes(4, "big").hex())
 
 
+def _generate_dynamic_project_name(prefix: str = "Experiment") -> str:
+    """
+    Generate a dynamic project name with a given prefix.
+    This ensures each experiment gets its own project to avoid conflicts.
+    """
+    return f"{prefix}-{getrandbits(96).to_bytes(12, 'big').hex()}"
+
+
 def _generate_experiment_name(dataset_name: str) -> str:
     """
     Generate a semi-unique name for the experiment.
@@ -159,7 +167,7 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = f"Experiment-{getrandbits(96).to_bytes(12, 'big').hex()}"
+        project_name = _generate_dynamic_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )

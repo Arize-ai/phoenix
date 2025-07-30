@@ -26,6 +26,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.server.api.routers.v1.experiments import _generate_dynamic_project_name
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -287,19 +288,20 @@ class Subscription:
                 ]
             ):
                 raise NotFound("No examples found for the given dataset and version")
-            if (
-                playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+            # Generate a dynamic project name for this experiment to avoid conflicts
+            dynamic_project_name = _generate_dynamic_project_name("Playground")
+            project_description = f"Playground experiment: {input.experiment_name or _default_playground_experiment_name(input.prompt_name)}"
+            
+            # Create the project for this experiment
+            project_id = await session.scalar(
+                insert(models.Project)
+                .returning(models.Project.id)
+                .values(
+                    name=dynamic_project_name,
+                    description=project_description,
                 )
-            ) is None:
-                playground_project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
-                )
+            )
+            
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -308,7 +310,7 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=dynamic_project_name,
             )
             session.add(experiment)
             await session.flush()
@@ -326,7 +328,7 @@ class Subscription:
                     revision=revision,
                     results=results,
                     experiment_id=experiment.id,
-                    project_id=playground_project_id,
+                    project_id=project_id,
                 ),
             )
             for revision in revisions

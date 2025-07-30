@@ -51,6 +51,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionOverDatasetInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.routers.v1.experiments import _generate_dynamic_project_name
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
@@ -188,6 +189,21 @@ class ChatCompletionMutationMixin:
             ]
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
+            
+            # Generate a dynamic project name for this experiment to avoid conflicts
+            dynamic_project_name = _generate_dynamic_project_name("Playground")
+            project_description = f"Playground experiment: {input.experiment_name or _default_playground_experiment_name(input.prompt_name)}"
+            
+            # Create the project for this experiment
+            project_id = await session.scalar(
+                insert(models.Project)
+                .returning(models.Project.id)
+                .values(
+                    name=dynamic_project_name,
+                    description=project_description,
+                )
+            )
+            
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -196,7 +212,7 @@ class ChatCompletionMutationMixin:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=dynamic_project_name,
             )
             session.add(experiment)
             await session.flush()
