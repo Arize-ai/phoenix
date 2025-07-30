@@ -127,8 +127,6 @@ def generate_phoenix_labels(
 
     console.print(f"[green]Completed labeling of {len(test_results)} traces")
 
-    test_results.set_index(sampled_df.index)
-
     from phoenix.trace import SpanEvaluations
 
     px.Client().log_evaluations(

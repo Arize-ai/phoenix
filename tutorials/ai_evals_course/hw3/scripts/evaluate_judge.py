@@ -73,8 +73,6 @@ def evaluate_judge_on_test(
 
     console.print(f"[green]Completed labeling of {len(predictions)} traces")
 
-    predictions.set_index(test_traces.index)
-
     from phoenix.trace import SpanEvaluations
 
     px.Client().log_evaluations(
