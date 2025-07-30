@@ -136,14 +136,14 @@ class GoogleGenAIModel(BaseModel):
         try:
             from google import genai
             from google.genai import types
-            from google.genai.errors import APIError
+            from google.genai.errors import ServerError
         except ImportError:
             self._raise_import_error(
                 package_name="google-genai",
                 package_min_version=MINIMUM_GOOGLE_GENAI_VERSION,
             )
         self._google_types = types
-        self._google_sdk_error = APIError
+        self._google_sdk_error = ServerError
 
         if self.vertexai:
             self._client = genai.Client(
@@ -180,6 +180,8 @@ class GoogleGenAIModel(BaseModel):
                 response = await self._client.aio.models.generate_content(**kwargs)
                 return response.text
             except self._google_sdk_error as e:
+                if e.code == 429:
+                    raise GoogleRateLimitError() from e
                 raise e
 
         return await _async_completion(**kwargs)
@@ -208,7 +210,9 @@ class GoogleGenAIModel(BaseModel):
                 response = self._client.models.generate_content(**kwargs)
                 return response.text
             except self._google_sdk_error as e:
-                raise e
+                if e.code == 429:
+                    raise GoogleRateLimitError() from e
+                raise
 
         return _completion(**kwargs)
 
