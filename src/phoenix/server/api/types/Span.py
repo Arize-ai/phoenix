@@ -537,8 +537,7 @@ class Span(Node):
 
     @strawberry.field(
         description=(
-            "Annotations associated with the span. This encompasses both "
-            "LLM and human annotations."
+            "Annotations associated with the span. This encompasses both LLM and human annotations."
         )
     )  # type: ignore
     async def span_annotations(

@@ -2,9 +2,9 @@ import { LanguageModel } from "ai";
 import { WithTelemetry } from "./otel";
 
 /**
- * The arguments for an evaluation
+ * A specific AI example that is under evaluation
  */
-export interface EvaluationArgs<OutputType, InputType> {
+export interface ExampleRecord<OutputType, InputType> {
   output: OutputType;
   expected?: OutputType;
   input?: InputType;
@@ -15,9 +15,7 @@ export interface WithLLM {
   model: LanguageModel;
 }
 
-export interface LLMEvaluationArgs<OutputType, InputType>
-  extends EvaluationArgs<OutputType, InputType>,
-    WithLLM {}
+export interface LLMEvaluationArgs extends WithLLM {}
 
 /**
  * The result of an evaluation
@@ -80,6 +78,6 @@ export interface CreateClassifierArgs extends WithTelemetry {
   promptTemplate: string;
 }
 
-export type EvaluatorFn<OutputType, InputType> = (
-  args: EvaluationArgs<OutputType, InputType>
+export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
+  args: ExampleType
 ) => Promise<EvaluationResult>;

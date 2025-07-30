@@ -23,6 +23,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
@@ -64,6 +65,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
@@ -163,6 +165,7 @@ class ChatCompletionMutationMixin:
             if input.dataset_version_id
             else None
         )
+        project_name = generate_experiment_project_name()
         async with info.context.db() as session:
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
@@ -196,7 +199,7 @@ class ChatCompletionMutationMixin:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()
@@ -222,6 +225,7 @@ class ChatCompletionMutationMixin:
                             ),
                             prompt_name=input.prompt_name,
                         ),
+                        project_name=project_name,
                     )
                     for revision in batch
                 ),
@@ -320,6 +324,8 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         llm_client: PlaygroundStreamingClient,
         input: ChatCompletionInput,
+        project_name: str = PLAYGROUND_PROJECT_NAME,
+        project_description: str = "Traces from prompt playground",
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
@@ -414,15 +420,15 @@ class ChatCompletionMutationMixin:
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
                 project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
+                        name=project_name,
+                        description=project_description,
                     )
                 )
             trace = models.Trace(
@@ -622,5 +628,3 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-
-PLAYGROUND_PROJECT_NAME = "playground"

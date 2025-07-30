@@ -456,16 +456,16 @@ class SpanQuery(_HasTmpSuffix):
         return replace(self, _filter=_filter)
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
-        assert (
-            isinstance(key, str) and key
-        ), "The field name for explosion must be a non-empty string."
+        assert isinstance(key, str) and key, (
+            "The field name for explosion must be a non-empty string."
+        )
         _explode = Explosion(key=key, kwargs=kwargs, primary_index_key=self._index.key)
         return replace(self, _explode=_explode)
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
-        assert (
-            isinstance(key, str) and key
-        ), "The field name for concatenation must be a non-empty string."
+        assert isinstance(key, str) and key, (
+            "The field name for concatenation must be a non-empty string."
+        )
         _concat = (
             Concatenation(key=key, kwargs=kwargs, separator=self._concat.separator)
             if self._concat

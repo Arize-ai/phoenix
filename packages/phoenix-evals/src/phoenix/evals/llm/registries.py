@@ -168,7 +168,7 @@ def adapter_availability_table() -> str:
 
     if all_providers:
         table_width = _calculate_table_width(all_providers)
-        output.append("\n📦 AVAILABLE PROVIDERS")
+        output.append("\n📦 AVAILABLE PROVIDERS (sorted by client priority)")
         output.append("-" * table_width)
         output.append(_get_consolidated_provider_table(all_providers))
     else:

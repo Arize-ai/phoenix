@@ -3,11 +3,45 @@ import sys
 from pathlib import Path
 from typing import Callable, Literal, Mapping, Sequence
 
+# =============================================================================
+# String-to-DateTime field type conversions
+# =============================================================================
+# Some fields in the schema are `str` but need to be converted to `datetime`
+# to reconcile with the data type that the client actually returns at runtime.
+#
+# This mapping defines which fields in which classes should have their type
+# annotations converted from string-based types to datetime during the
+# dataclass-to-TypedDict transformation process.
+#
+# Format: {
+#     "ClassName": ["field_name1", "field_name2", ...],
+#     ...
+# }
+#
+# Supported transformations:
+#   - str → datetime
+#   - Optional[str] → Optional[datetime]
+#   - str = "default" → NotRequired[datetime] (with default removed)
+#   - Optional[str] = None → NotRequired[datetime] (with Optional and default removed)
+#
+# Example:
+#   Before: created_at: str
+#   After:  created_at: datetime
+#
+#   Before: updated_at: Optional[str] = None
+#   After:  updated_at: NotRequired[datetime]
+STR_TO_DATETIME_ALTERATIONS = {
+    "DatasetVersion": ["created_at"],
+}
+
 
 # =============================================================================
 # AST Transformer to convert dataclass definitions to TypedDict definitions.
 # =============================================================================
 class ConvertDataClassToTypedDict(ast.NodeTransformer):
+    def __init__(self):
+        self.current_class_name = None
+
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST:
         """
         Replace the dataclasses import with a TypedDict import from typing.
@@ -25,6 +59,10 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
         Convert a class definition into a TypedDict definition.
         Also reorders the "type" field (if present) to the top for readability.
         """
+        # Remember the current class name before descending into fields
+        old_class_name = self.current_class_name
+        self.current_class_name = node.name
+
         # Visit and transform all statements in the class body.
         new_body = [self.visit(child) for child in node.body]
 
@@ -42,6 +80,9 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
                 new_body = [new_body[index]] + new_body[:index] + new_body[index + 1 :]
                 break
 
+        # Restore the previous class name
+        self.current_class_name = old_class_name
+
         # Redefine the class so that it inherits from TypedDict.
         return ast.ClassDef(
             name=node.name,
@@ -54,11 +95,45 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         """
         Process annotated assignments:
+          - Convert str fields to datetime based on STR_TO_DATETIME_ALTERATIONS.
           - Rename fields ending with "_" (like schema_ or json_) by stripping the underscore.
           - Convert default values on fields (when present) to a NotRequired[...] annotation.
           - Change `type: str = "xyz"` into `type: Literal["xyz"]`.
           - If a field is Optional[...] with a default value, remove the Optional.
         """
+        # Convert str fields to datetime based on STR_TO_DATETIME_ALTERATIONS
+        if (
+            self.current_class_name in STR_TO_DATETIME_ALTERATIONS
+            and isinstance(node.target, ast.Name)
+            and node.target.id in STR_TO_DATETIME_ALTERATIONS[self.current_class_name]
+        ):
+            # Handle direct str annotation
+            if isinstance(node.annotation, ast.Name) and node.annotation.id == "str":
+                node = ast.AnnAssign(
+                    target=node.target,
+                    annotation=ast.Name(id="datetime", ctx=ast.Load()),
+                    value=node.value,
+                    simple=node.simple,
+                )
+            # Handle Optional[str] annotation
+            elif (
+                isinstance(node.annotation, ast.Subscript)
+                and isinstance(node.annotation.value, ast.Name)
+                and node.annotation.value.id == "Optional"
+                and isinstance(node.annotation.slice, ast.Name)
+                and node.annotation.slice.id == "str"
+            ):
+                node = ast.AnnAssign(
+                    target=node.target,
+                    annotation=ast.Subscript(
+                        value=ast.Name(id="Optional", ctx=ast.Load()),
+                        slice=ast.Name(id="datetime", ctx=ast.Load()),
+                        ctx=ast.Load(),
+                    ),
+                    value=node.value,
+                    simple=node.simple,
+                )
+
         # Rename fields ending with "_" to remove the trailing underscore.
         if isinstance(node.target, ast.Name) and node.target.id in ("schema_", "json_"):
             new_target = ast.Name(id=node.target.id.rstrip("_"), ctx=ast.Store())
@@ -126,7 +201,7 @@ def transform_dataclass(code: str) -> ast.AST:
         The transformed AST.
     """
     parsed_ast: ast.Module = ast.parse(code)
-    # Insert the import for NotRequired from typing_extensions before the first class.
+    # Insert the imports for NotRequired and datetime before the first class.
     for index, node in enumerate(parsed_ast.body):
         if isinstance(node, ast.ClassDef):
             import_notrequired = ast.ImportFrom(
@@ -134,7 +209,13 @@ def transform_dataclass(code: str) -> ast.AST:
                 names=[ast.alias(name="NotRequired", asname=None)],
                 level=0,
             )
+            import_datetime = ast.ImportFrom(
+                module="datetime",
+                names=[ast.alias(name="datetime", asname=None)],
+                level=0,
+            )
             parsed_ast.body.insert(index, import_notrequired)
+            parsed_ast.body.insert(index + 1, import_datetime)
             break
 
     # Remove top-level Union type definitions
@@ -236,9 +317,9 @@ def remove_inherited_fields(
 
         # Collect all ancestor field names.
         ancestor_field_names: set[str] = get_ancestor_fields(class_name, class_nodes, parent_map)
-        assert (
-            ancestor_field_names < child_field_names
-        ), "Ancestor fields must be a subset of child fields"
+        assert ancestor_field_names < child_field_names, (
+            "Ancestor fields must be a subset of child fields"
+        )
 
         # Remove any inherited field from the class body.
         inherited_fields: set[str] = ancestor_field_names.intersection(child_field_names)

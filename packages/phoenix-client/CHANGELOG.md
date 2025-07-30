@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.0...arize-phoenix-client-v1.14.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* reconcile schema `str` type with runtime `datetime` type ([#8862](https://github.com/Arize-ai/phoenix/issues/8862)) ([f7a2403](https://github.com/Arize-ai/phoenix/commit/f7a24031e147f86d07e8f4832e72fb33839a03fc))
+
+## [1.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.2...arize-phoenix-client-v1.14.0) (2025-07-29)
+
+
+### Features
+
+* update python client with list method for datasets ([#8815](https://github.com/Arize-ai/phoenix/issues/8815)) ([559863c](https://github.com/Arize-ai/phoenix/commit/559863cfb2d3c5d1e496e39f4c9619bac27f0891))
+
 ## [1.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.1...arize-phoenix-client-v1.13.2) (2025-07-18)
 
 

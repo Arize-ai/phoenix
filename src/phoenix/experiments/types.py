@@ -322,7 +322,7 @@ class _HasStats:
             text = self.stats.__str__()
         else:
             text = self.stats.to_markdown(index=False)
-        return f"{self.title}\n{'-'*len(self.title)}\n" + text
+        return f"{self.title}\n{'-' * len(self.title)}\n" + text
 
 
 @dataclass(frozen=True)

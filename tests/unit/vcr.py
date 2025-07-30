@@ -33,7 +33,7 @@ class CustomVCR(vcr.VCR):  # type: ignore[misc]
         file_name_parts.append(_remove_parameters(test_name))
         test_file_path = self._request.path
         path = (
-            test_file_path.parent / "cassettes" / module_name / f'{".".join(file_name_parts)}.yaml'
+            test_file_path.parent / "cassettes" / module_name / f"{'.'.join(file_name_parts)}.yaml"
         )
         return super().use_cassette(**{"path": path, **kwargs})
 

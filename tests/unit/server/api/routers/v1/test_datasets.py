@@ -232,7 +232,7 @@ async def test_get_dataset_versions(
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
     assert response.json() == {
-        "next_cursor": f'{GlobalID("DatasetVersion", str(7))}',
+        "next_cursor": f"{GlobalID('DatasetVersion', str(7))}",
         "data": [
             {
                 "version_id": str(GlobalID("DatasetVersion", str(9))),
@@ -257,7 +257,7 @@ async def test_get_dataset_versions_with_cursor(
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=2"
-        f'&cursor={GlobalID("DatasetVersion", str(4))}'
+        f"&cursor={GlobalID('DatasetVersion', str(4))}"
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
@@ -281,7 +281,7 @@ async def test_get_dataset_versions_with_nonexistent_cursor(
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=1"
-        f'&cursor={GlobalID("DatasetVersion", str(1))}'
+        f"&cursor={GlobalID('DatasetVersion', str(1))}"
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"

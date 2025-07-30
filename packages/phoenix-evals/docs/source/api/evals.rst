@@ -84,6 +84,12 @@ GeminiModel
    :members:
    :show-inheritance:
 
+GoogleGenAIModel
+~~~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.GoogleGenAIModel
+   :members:
+   :show-inheritance:
+
 VertexAIModel
 ~~~~~~~~~~~~~
 .. autoclass:: phoenix.evals.VertexAIModel
@@ -139,5 +145,5 @@ Module Contents
 
 .. automodule:: phoenix.evals
    :members:
-   :exclude-members: llm_classify, llm_generate, run_evals, LLMEvaluator, HallucinationEvaluator, QAEvaluator, RelevanceEvaluator, ToxicityEvaluator, SummarizationEvaluator, SQLEvaluator, OpenAIModel, AnthropicModel, GeminiModel, VertexAIModel, BedrockModel, LiteLLMModel, MistralAIModel, PromptTemplate, ClassificationTemplate, compute_precisions_at_k, download_benchmark_dataset
+   :exclude-members: llm_classify, llm_generate, run_evals, LLMEvaluator, HallucinationEvaluator, QAEvaluator, RelevanceEvaluator, ToxicityEvaluator, SummarizationEvaluator, SQLEvaluator, OpenAIModel, AnthropicModel, GeminiModel, GoogleGenAIModel, VertexAIModel, BedrockModel, LiteLLMModel, MistralAIModel, PromptTemplate, ClassificationTemplate, compute_precisions_at_k, download_benchmark_dataset
    :no-undoc-members: 

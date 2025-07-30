@@ -1,6 +1,5 @@
 import {
   ClassificationChoicesMap,
-  EvaluationArgs,
   EvaluationResult,
   CreateClassifierArgs,
   EvaluatorFn,
@@ -25,14 +24,12 @@ function choicesToLabels(
 /**
  * A function that serves as a factory that will output a classification evaluator
  */
-export function createClassifier<OutputType, InputType>(
+export function createClassifier<ExampleType extends Record<string, unknown>>(
   args: CreateClassifierArgs
-): EvaluatorFn<OutputType, InputType> {
+): EvaluatorFn<ExampleType> {
   const { model, choices, promptTemplate, ...rest } = args;
 
-  return async (
-    args: EvaluationArgs<OutputType, InputType>
-  ): Promise<EvaluationResult> => {
+  return async (args: ExampleType): Promise<EvaluationResult> => {
     const templateVariables = {
       ...args,
     };

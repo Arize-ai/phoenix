@@ -1,5 +1,55 @@
 # Changelog
 
+## [11.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.1...arize-phoenix-v11.17.0) (2025-07-30)
+
+
+### Features
+
+* Add environment variable setting for default retention policy ([#8178](https://github.com/Arize-ai/phoenix/issues/8178)) ([8c03675](https://github.com/Arize-ai/phoenix/commit/8c03675b9390b59817ebb0a71b5b6646870cd01f))
+
+
+### Bug Fixes
+
+* lower case email for db record and user login ([#8866](https://github.com/Arize-ai/phoenix/issues/8866)) ([fbdd155](https://github.com/Arize-ai/phoenix/commit/fbdd155deebdaf2efd296ee81d9d9a9a378ccc6e))
+
+## [11.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.0...arize-phoenix-v11.16.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* **design:** default text color ([#8846](https://github.com/Arize-ai/phoenix/issues/8846)) ([86cc7fb](https://github.com/Arize-ai/phoenix/commit/86cc7fb57394b41bed8d21344364162f0fcca66b))
+* use experiment project name for playground run on datasets ([#8845](https://github.com/Arize-ai/phoenix/issues/8845)) ([8d32273](https://github.com/Arize-ai/phoenix/commit/8d32273b2d55fc79215ff5b79139efdfd3ab26a9))
+
+## [11.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.15.0...arize-phoenix-v11.16.0) (2025-07-30)
+
+
+### Features
+
+* case insensitive substring search for sessions ([#8802](https://github.com/Arize-ai/phoenix/issues/8802)) ([f49f782](https://github.com/Arize-ai/phoenix/commit/f49f78232f0d3aa853a3585cbc7ceb63c62a683c))
+* delete route for span ([#8819](https://github.com/Arize-ai/phoenix/issues/8819)) ([2845deb](https://github.com/Arize-ai/phoenix/commit/2845debca73295647654ac6b2d702cb83faac5de))
+* **evals:** adding support for google-genai SDK ([#8798](https://github.com/Arize-ai/phoenix/issues/8798)) ([08ad038](https://github.com/Arize-ai/phoenix/commit/08ad0384d0d53d6068234b8a2d0a9fd4859b020e))
+* **helm:** Add OIDC environment variable support to Helm ([#8646](https://github.com/Arize-ai/phoenix/issues/8646)) ([4b8d33d](https://github.com/Arize-ai/phoenix/commit/4b8d33d34016c0a8d12e718a60c5efb87647483d))
+
+## [11.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.14.0...arize-phoenix-v11.15.0) (2025-07-29)
+
+
+### Features
+
+* allow external resource environment variable ([#8823](https://github.com/Arize-ai/phoenix/issues/8823)) ([d76a769](https://github.com/Arize-ai/phoenix/commit/d76a769fea8d4cdc41d8131b0f83b1405a78292a))
+
+## [11.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.2...arize-phoenix-v11.14.0) (2025-07-29)
+
+
+### Features
+
+* **design:** collapsible nav ([#8797](https://github.com/Arize-ai/phoenix/issues/8797)) ([1717778](https://github.com/Arize-ai/phoenix/commit/17177784cfc44690863c730c0e4f9bb57a79e9cd))
+* update python client with list method for datasets ([#8815](https://github.com/Arize-ai/phoenix/issues/8815)) ([559863c](https://github.com/Arize-ai/phoenix/commit/559863cfb2d3c5d1e496e39f4c9619bac27f0891))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#8801](https://github.com/Arize-ai/phoenix/issues/8801)) ([5b3816c](https://github.com/Arize-ai/phoenix/commit/5b3816cf4739b19ed8d47d3ecaa9eb043d6ce799))
+
 ## [11.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.1...arize-phoenix-v11.13.2) (2025-07-26)
 
 

@@ -7,6 +7,8 @@ from typing import Literal, Optional, Union, cast
 import httpx
 import pytest
 import smtpdfix
+from typing_extensions import assert_never
+
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
@@ -15,7 +17,6 @@ from phoenix.auth import (
 )
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
-from typing_extensions import assert_never
 
 from .._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client, _log_in
 
@@ -229,35 +230,35 @@ class TestClientForUsersAPI:
         for i, user_data in enumerate(users_to_create):
             created_user = all_users_by_email[user_data["email"]]
             assert created_user["id"], f"User {i} ID should be present after creation"
-            assert (
-                created_user["username"] == user_data["username"]
-            ), f"User {i} username should match input after creation"
-            assert (
-                created_user["email"] == user_data["email"]
-            ), f"User {i} email should match input after creation"
-            assert (
-                created_user["role"] == user_data["role"]
-            ), f"User {i} role should match input after creation"
-            assert (
-                created_user["auth_method"] == user_data["auth_method"]
-            ), f"User {i} auth method should match input after creation"
+            assert created_user["username"] == user_data["username"], (
+                f"User {i} username should match input after creation"
+            )
+            assert created_user["email"] == user_data["email"], (
+                f"User {i} email should match input after creation"
+            )
+            assert created_user["role"] == user_data["role"], (
+                f"User {i} role should match input after creation"
+            )
+            assert created_user["auth_method"] == user_data["auth_method"], (
+                f"User {i} auth method should match input after creation"
+            )
 
             # Verify OAuth2 specific fields if applicable
             if created_user["auth_method"] == "OAUTH2":
-                assert created_user.get("oauth2_client_id") == user_data.get(
-                    "oauth2_client_id"
-                ), f"User {i} OAuth2 client ID should match input after creation"
-                assert created_user.get("oauth2_user_id") == user_data.get(
-                    "oauth2_user_id"
-                ), f"User {i} OAuth2 user ID should match input after creation"
+                assert created_user.get("oauth2_client_id") == user_data.get("oauth2_client_id"), (
+                    f"User {i} OAuth2 client ID should match input after creation"
+                )
+                assert created_user.get("oauth2_user_id") == user_data.get("oauth2_user_id"), (
+                    f"User {i} OAuth2 user ID should match input after creation"
+                )
             elif created_user["auth_method"] == "LOCAL":
                 # Verify LOCAL auth method specific fields
-                assert created_user[
-                    "password_needs_reset"
-                ], f"User {i} should have password_needs_reset set"
-                assert (
-                    "password" not in created_user
-                ), f"User {i} should not have password in response"
+                assert created_user["password_needs_reset"], (
+                    f"User {i} should have password_needs_reset set"
+                )
+                assert "password" not in created_user, (
+                    f"User {i} should not have password in response"
+                )
             else:
                 assert_never(created_user["auth_method"])
 
@@ -297,9 +298,9 @@ class TestClientForUsersAPI:
 
         # Verify none of our created users exist in the system anymore
         for i, created_user in enumerate(created_users):
-            assert (
-                created_user["id"] not in all_users_by_id
-            ), f"User {i} with ID {created_user['id']} should have been deleted"
+            assert created_user["id"] not in all_users_by_id, (
+                f"User {i} with ID {created_user['id']} should have been deleted"
+            )
 
     async def test_cannot_delete_default_users(
         self,
@@ -332,9 +333,9 @@ class TestClientForUsersAPI:
             if u["email"] == DEFAULT_ADMIN_EMAIL or u["username"] == DEFAULT_ADMIN_USERNAME
         ]
 
-        assert (
-            len(system_users) == 1
-        ), "Should have exactly one user with default system credentials"
+        assert len(system_users) == 1, (
+            "Should have exactly one user with default system credentials"
+        )
         assert len(admin_users) == 1, "Should have exactly one user with default admin credentials"
 
         # Get the users with default credentials
@@ -346,18 +347,18 @@ class TestClientForUsersAPI:
             users_api.delete(
                 user_id=system_user["id"],
             )
-        assert (
-            "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
+        assert "403" in str(exc_info.value), (
+            f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"
+        )
 
         # Try to delete a user with default admin credentials
         with pytest.raises(Exception) as exc_info:
             users_api.delete(
                 user_id=admin_user["id"],
             )
-        assert (
-            "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
+        assert "403" in str(exc_info.value), (
+            f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"
+        )
 
     @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
     async def test_cannot_create_system_users(
@@ -402,9 +403,9 @@ class TestClientForUsersAPI:
             users_api.create(
                 user=user_data,
             )
-        assert "400" in str(
-            exc_info.value
-        ), f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
+        assert "400" in str(exc_info.value), (
+            f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
+        )
 
     async def test_list_pagination(
         self,
@@ -446,9 +447,9 @@ class TestClientForUsersAPI:
         # Verify all created users are present
         created_user_ids = {u["id"] for u in created_users}
         all_user_ids = {u["id"] for u in all_users}
-        assert created_user_ids.issubset(
-            all_user_ids
-        ), "All created users should be present in list results"
+        assert created_user_ids.issubset(all_user_ids), (
+            "All created users should be present in list results"
+        )
 
     async def test_member_access_denied(
         self,
@@ -480,9 +481,9 @@ class TestClientForUsersAPI:
                     auth_method="LOCAL",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create LOCAL user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create LOCAL user"
+        )
 
         # Test that member cannot create LOCAL users with ADMIN role
         with pytest.raises(Exception) as exc_info:
@@ -494,9 +495,9 @@ class TestClientForUsersAPI:
                     auth_method="LOCAL",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create LOCAL ADMIN user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create LOCAL ADMIN user"
+        )
 
         # Test that member cannot create OAuth2 users
         with pytest.raises(Exception) as exc_info:
@@ -509,9 +510,9 @@ class TestClientForUsersAPI:
                     oauth2_client_id=f"client_{token_hex(8)}",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create OAuth2 user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create OAuth2 user"
+        )
 
         # Test that member cannot create OAuth2 users with ADMIN role
         with pytest.raises(Exception) as exc_info:
@@ -524,9 +525,9 @@ class TestClientForUsersAPI:
                     oauth2_client_id=f"client_{token_hex(8)}",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create OAuth2 ADMIN user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create OAuth2 ADMIN user"
+        )
 
         # Test that member cannot list users
         with pytest.raises(Exception) as exc_info:
@@ -539,9 +540,9 @@ class TestClientForUsersAPI:
             users_api.delete(
                 user_id=another_user.gid,
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to delete user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to delete user"
+        )
 
     @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
     def test_new_local_user_can_login_with_assigned_password(
@@ -624,3 +625,133 @@ class TestClientForUsersAPI:
             assert len(welcome_emails_to_user) == 1, "Welcome email should be sent"
         else:
             assert not welcome_emails_to_user, "No welcome email should be sent"
+
+
+class TestEmailSanitization:
+    """Test email sanitization for user creation via REST API.
+
+    These tests verify that uppercase emails are properly sanitized and stored
+    as lowercase in the database, fixing GitHub issue #8865.
+    """
+
+    async def test_rest_api_email_sanitization_local_user(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that uppercase emails are sanitized when creating LOCAL users via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with uppercase email
+        uppercase_email = f"TEST.USER.{token_hex(8).upper()}@EXAMPLE.COM"
+        expected_lowercase_email = uppercase_email.lower()
+
+        user_data = v1.LocalUserData(
+            email=uppercase_email,
+            username=f"test_sanitize_local_{token_hex(8)}",
+            role="MEMBER",
+            auth_method="LOCAL",
+            password="test_password",
+        )
+
+        # Create user with uppercase email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the lowercase email
+        assert created_user["email"] == expected_lowercase_email, (
+            f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Verify in user list as well
+        all_users = users_api.list()
+        created_user_from_list = next(
+            (user for user in all_users if user["id"] == created_user["id"]), None
+        )
+        assert created_user_from_list is not None
+        assert created_user_from_list["email"] == expected_lowercase_email, (
+            f"Email in user list should be lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user_from_list['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])
+
+    async def test_rest_api_email_sanitization_oauth2_user(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that uppercase emails are sanitized when creating OAuth2 users via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with uppercase email
+        uppercase_email = f"OAUTH.USER.{token_hex(8).upper()}@DOMAIN.NET"
+        expected_lowercase_email = uppercase_email.lower()
+
+        user_data = v1.OAuth2UserData(
+            email=uppercase_email,
+            username=f"test_sanitize_oauth_{token_hex(8)}",
+            role="ADMIN",
+            auth_method="OAUTH2",
+            oauth2_client_id="test_client",
+            oauth2_user_id="test_oauth_user_id",
+        )
+
+        # Create user with uppercase email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the lowercase email
+        assert created_user["email"] == expected_lowercase_email, (
+            f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Verify in user list as well
+        all_users = users_api.list()
+        created_user_from_list = next(
+            (user for user in all_users if user["id"] == created_user["id"]), None
+        )
+        assert created_user_from_list is not None
+        assert created_user_from_list["email"] == expected_lowercase_email, (
+            f"Email in user list should be lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user_from_list['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])
+
+    async def test_rest_api_email_with_whitespace_sanitization(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that emails with whitespace are trimmed and lowercased via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with whitespace and uppercase
+        messy_email = f"  TRIM.ME.{token_hex(8).upper()}@WHITESPACE.COM  "
+        expected_clean_email = messy_email.strip().lower()
+
+        user_data = v1.LocalUserData(
+            email=messy_email,
+            username=f"test_sanitize_trim_{token_hex(8)}",
+            role="MEMBER",
+            auth_method="LOCAL",
+            password="test_password",
+        )
+
+        # Create user with messy email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the cleaned email
+        assert created_user["email"] == expected_clean_email, (
+            f"Expected email to be sanitized: {expected_clean_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])

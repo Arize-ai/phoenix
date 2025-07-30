@@ -146,9 +146,9 @@ def test_user_auth_method_migration(
                 },
             )
         error_message = str(exc_info.value)
-        assert (
-            "valid_auth_method" in error_message
-        ), "Expected valid_auth_method constraint violation"
+        assert "valid_auth_method" in error_message, (
+            "Expected valid_auth_method constraint violation"
+        )
 
     with _engine.connect() as conn:
         # Test LOCAL auth with OAuth2 credentials
@@ -179,9 +179,9 @@ def test_user_auth_method_migration(
                 },
             )
         error_message = str(exc_info.value)
-        assert (
-            "local_auth_has_password_no_oauth" in error_message
-        ), "Expected local_auth_has_password_no_oauth constraint violation"
+        assert "local_auth_has_password_no_oauth" in error_message, (
+            "Expected local_auth_has_password_no_oauth constraint violation"
+        )
 
     with _engine.connect() as conn:
         # Test OAUTH2 auth with password credentials
@@ -212,9 +212,9 @@ def test_user_auth_method_migration(
                 },
             )
         error_message = str(exc_info.value)
-        assert (
-            "non_local_auth_has_no_password" in error_message
-        ), "Expected non_local_auth_has_no_password constraint violation"
+        assert "non_local_auth_has_no_password" in error_message, (
+            "Expected non_local_auth_has_no_password constraint violation"
+        )
 
     # Test downgrade
     _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
