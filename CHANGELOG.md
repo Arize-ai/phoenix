@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.1...arize-phoenix-v11.17.0) (2025-07-30)
+
+
+### Features
+
+* Add environment variable setting for default retention policy ([#8178](https://github.com/Arize-ai/phoenix/issues/8178)) ([8c03675](https://github.com/Arize-ai/phoenix/commit/8c03675b9390b59817ebb0a71b5b6646870cd01f))
+
+
+### Bug Fixes
+
+* lower case email for db record and user login ([#8866](https://github.com/Arize-ai/phoenix/issues/8866)) ([fbdd155](https://github.com/Arize-ai/phoenix/commit/fbdd155deebdaf2efd296ee81d9d9a9a378ccc6e))
+
 ## [11.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.0...arize-phoenix-v11.16.1) (2025-07-30)
 
 
