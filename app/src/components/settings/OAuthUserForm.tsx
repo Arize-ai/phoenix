@@ -53,6 +53,16 @@ export function OAuthUserForm({
       role: role ?? UserRole.MEMBER,
     },
   });
+
+  const handleFormSubmit = (data: OAuthUserFormParams) => {
+    // Sanitize email by trimming whitespace and converting to lowercase
+    const sanitizedData = {
+      ...data,
+      email: data.email.trim().toLowerCase(),
+    };
+    onSubmit(sanitizedData);
+  };
+
   return (
     <div
       css={css`
@@ -65,7 +75,7 @@ export function OAuthUserForm({
         }
       `}
     >
-      <Form onSubmit={handleSubmit(onSubmit)}>
+      <Form onSubmit={handleSubmit(handleFormSubmit)}>
         <View padding="size-200">
           <Flex direction="column" gap="size-100">
             <Controller
@@ -86,13 +96,9 @@ export function OAuthUserForm({
                   type="email"
                   name={name}
                   isRequired
-                  onChange={(val) => onChange(val.trim().toLowerCase())}
+                  onChange={onChange}
                   isInvalid={invalid}
-                  onBlur={(e) => {
-                    const sanitizedValue = e.target.value.trim().toLowerCase();
-                    onChange(sanitizedValue);
-                    onBlur(e);
-                  }}
+                  onBlur={onBlur}
                   value={value}
                 >
                   <Label>Email</Label>
