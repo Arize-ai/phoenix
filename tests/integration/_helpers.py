@@ -906,7 +906,7 @@ def _create_user(
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
-    assert user["email"] == email.lower()
+    assert user["email"] == email.strip().lower()
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
@@ -1111,7 +1111,7 @@ def _initiate_password_reset(
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email.lower()
+    assert msg["to"] == email.strip().lower()
     return _extract_password_reset_token(msg)
 
 
