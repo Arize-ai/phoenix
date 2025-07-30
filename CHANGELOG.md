@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.16.0...arize-phoenix-v11.16.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* **design:** default text color ([#8846](https://github.com/Arize-ai/phoenix/issues/8846)) ([86cc7fb](https://github.com/Arize-ai/phoenix/commit/86cc7fb57394b41bed8d21344364162f0fcca66b))
+* use experiment project name for playground run on datasets ([#8845](https://github.com/Arize-ai/phoenix/issues/8845)) ([8d32273](https://github.com/Arize-ai/phoenix/commit/8d32273b2d55fc79215ff5b79139efdfd3ab26a9))
+
 ## [11.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.15.0...arize-phoenix-v11.16.0) (2025-07-30)
 
 
