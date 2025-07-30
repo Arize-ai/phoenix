@@ -74,6 +74,7 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    sanitize_email,
 )
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
@@ -908,7 +909,7 @@ def _create_user(
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
-    assert user["email"] == email.strip().lower()
+    assert user["email"] == sanitize_email(email)
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
@@ -1113,7 +1114,7 @@ def _initiate_password_reset(
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email.strip().lower()
+    assert msg["to"] == sanitize_email(email)
     return _extract_password_reset_token(msg)
 
 
