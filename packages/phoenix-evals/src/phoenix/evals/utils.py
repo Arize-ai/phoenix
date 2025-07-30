@@ -20,6 +20,18 @@ _RESPONSE = "response"
 _EXPLANATION = "explanation"
 _FUNCTION_NAME = "record_response"
 SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
+SUPPORTED_IMAGE_FORMATS = {
+    "png",
+    "jpeg",
+    "jpg",
+    "webp",
+    "heic",
+    "heif",
+    "bmp",
+    "gif",
+    "tiff",
+    "ico",
+}
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -228,4 +240,64 @@ def get_audio_format_from_base64(
     # If no match, raise an error
     raise ValueError(
         "Unsupported audio format. Supported formats are: mp3, wav, ogg, flac, m4a, aac"
+    )
+
+
+def get_image_format_from_base64(
+    enc_str: str,
+) -> Literal["png", "jpeg", "jpg", "webp", "heic", "heif", "bmp", "gif", "tiff", "ico"]:
+    """
+    Determines the image format from a base64 encoded string by checking file signatures.
+
+    Args:
+        enc_str: Base64 encoded image data
+
+    Returns:
+        Image format as string
+
+    Raises:
+        ValueError: If the image format is not supported or cannot be determined
+    """
+    image_bytes = base64.b64decode(enc_str)
+
+    if len(image_bytes) < 12:
+        raise ValueError("Image data too short to determine format")
+
+    # PNG
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+
+    # JPEG (also covers .jpg)
+    if image_bytes[0:3] == b"\xff\xd8\xff":
+        return "jpeg"
+
+    # WEBP
+    if image_bytes[0:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        return "webp"
+
+    # HEIC / HEIF — ISO Base Media Format with 'ftypheic' or similar brands
+    if image_bytes[4:12] in (b"ftypheic", b"ftypheix", b"ftyphevc", b"ftyphevx"):
+        return "heic"
+    if image_bytes[4:12] in (b"ftypmif1", b"ftypmsf1"):
+        return "heif"
+
+    # BMP
+    if image_bytes.startswith(b"BM"):
+        return "bmp"
+
+    # GIF
+    if image_bytes.startswith(b"GIF87a") or image_bytes.startswith(b"GIF89a"):
+        return "gif"
+
+    # TIFF
+    if image_bytes.startswith(b"II*\x00") or image_bytes.startswith(b"MM\x00*"):
+        return "tiff"
+
+    # ICO
+    if image_bytes[:4] == b"\x00\x00\x01\x00":
+        return "ico"
+
+    raise ValueError(
+        "Unsupported image format. Supported formats are: "
+        + ", ".join(sorted(SUPPORTED_IMAGE_FORMATS))
     )
