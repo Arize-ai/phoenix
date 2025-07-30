@@ -1723,6 +1723,64 @@
         }
       }
     },
+    "/v1/traces/{trace_id}": {
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete a trace by trace_id",
+        "description": "Delete an entire trace by its OpenTelemetry trace_id. This will permanently remove all spans in the trace and their associated data.",
+        "operationId": "deleteTrace",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The OpenTelemetry trace_id of the trace to delete",
+              "title": "Trace Id"
+            },
+            "description": "The OpenTelemetry trace_id of the trace to delete"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/projects/{project_identifier}/spans/otlpv1": {
       "get": {
         "tags": [
