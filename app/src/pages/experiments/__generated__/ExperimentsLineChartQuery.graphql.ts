@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bc93cd9ff1fdb575e1dc5056bfeb8d17>>
+ * @generated SignedSource<<2ddd7f79c39b2c378523a27e654328f0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type ExperimentsLineChartQuery$variables = {
 };
 export type ExperimentsLineChartQuery$data = {
   readonly dataset: {
-    readonly experiments?: {
+    readonly chartExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
           readonly annotationSummaries: ReadonlyArray<{
@@ -60,7 +60,7 @@ v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "chartExperiments",
       "args": [
         {
           "kind": "Literal",
@@ -194,16 +194,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b4d31338866ff8be645d6601e1e15dc2",
+    "cacheID": "849561891ab5c5a1f5193f1c66f8a940",
     "id": null,
     "metadata": {},
     "name": "ExperimentsLineChartQuery",
     "operationKind": "query",
-    "text": "query ExperimentsLineChartQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      experiments(first: 50) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            averageRunLatencyMs\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentsLineChartQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      chartExperiments: experiments(first: 50) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            averageRunLatencyMs\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3eade40b47d598c5387d90e7740a457a";
+(node as any).hash = "3425cfe4f1b2dc38bf4d555d51eac556";
 
 export default node;
