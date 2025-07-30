@@ -57,7 +57,7 @@ def _get_env_api_key() -> Optional[str]:
     env_google_api_key = os.environ.get("GOOGLE_API_KEY", None)
     env_gemini_api_key = os.environ.get("GEMINI_API_KEY", None)
     if env_google_api_key and env_gemini_api_key:
-        logger.warning("Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using" " GOOGLE_API_KEY.")
+        logger.warning("Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.")
 
     return env_google_api_key or env_gemini_api_key or None
 
