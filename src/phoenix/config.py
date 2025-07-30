@@ -883,6 +883,8 @@ def get_env_admins() -> dict[str, str]:
     """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
+    from phoenix.auth import sanitize_email
+
     usernames = set()
     emails = set()
     ans = {}
@@ -899,7 +901,7 @@ def get_env_admins() -> dict[str, str]:
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_addr = sanitize_email(pair[last_equals_pos + 1 :])
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
