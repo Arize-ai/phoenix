@@ -29,6 +29,51 @@ const metricCardCSS = css`
   height: 100%;
 `;
 
+type MetricValue = number | null | undefined;
+
+type CompareExperimentData = {
+  experimentId: string;
+  value: MetricValue;
+  numImprovements: number;
+  numRegressions: number;
+};
+
+type MetricCardProps = {
+  title: string;
+  baseExperimentValue: MetricValue;
+  compareExperiments: CompareExperimentData[];
+  formatter?: (value: MetricValue) => string;
+};
+
+function MetricCard({
+  title,
+  baseExperimentValue,
+  compareExperiments,
+  formatter = numberFormatter,
+}: MetricCardProps) {
+  return (
+    <div css={metricCardCSS}>
+      <Flex direction="column" gap="size-200">
+        <Heading level={2}>{title}</Heading>
+        <BaseExperimentMetric
+          value={baseExperimentValue}
+          formatter={formatter}
+        />
+        {compareExperiments.map((compareExperiment) => (
+          <CompareExperimentMetric
+            key={compareExperiment.experimentId}
+            value={compareExperiment.value}
+            formatter={formatter}
+            baseExperimentValue={baseExperimentValue}
+            numImprovements={compareExperiment.numImprovements}
+            numRegressions={compareExperiment.numRegressions}
+          />
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
 export function ExperimentCompareMetricsPage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
@@ -166,16 +211,18 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <LatencyMetricCard
-            baseExperimentLatencyMs={baseExperiment.averageRunLatencyMs}
+          <MetricCard
+            title="Latency"
+            baseExperimentValue={baseExperiment.averageRunLatencyMs}
             compareExperiments={compareExperiments.map((compareExperiment) => {
               return {
-                id: compareExperiment.id as string, // fix
-                latencyMs: compareExperiment.averageRunLatencyMs,
-                numLatencyMsImprovements: 0,
-                numLatencyMsRegressions: 1,
+                experimentId: compareExperiment.id as string,
+                value: compareExperiment.averageRunLatencyMs,
+                numImprovements: 0,
+                numRegressions: 1,
               };
             })}
+            formatter={latencyMsFormatter}
           />
         </li>
         <li
@@ -185,15 +232,13 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <TokenCountMetricCard
+          <MetricCard
             title="Prompt Tokens"
-            baseExperimentTotalTokens={
-              baseExperiment.costSummary?.prompt.tokens
-            }
+            baseExperimentValue={baseExperiment.costSummary?.prompt.tokens}
             compareExperiments={compareExperiments.map((compareExperiments) => {
               return {
-                id: compareExperiments.id as string,
-                tokens: compareExperiments.costSummary?.prompt.tokens,
+                experimentId: compareExperiments.id as string,
+                value: compareExperiments.costSummary?.prompt.tokens,
                 numImprovements: 10,
                 numRegressions: 5,
               };
@@ -207,15 +252,13 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <TokenCountMetricCard
+          <MetricCard
             title="Completion Tokens"
-            baseExperimentTotalTokens={
-              baseExperiment.costSummary?.completion.tokens
-            }
+            baseExperimentValue={baseExperiment.costSummary?.completion.tokens}
             compareExperiments={compareExperiments.map((compareExperiments) => {
               return {
-                id: compareExperiments.id as string,
-                tokens: compareExperiments.costSummary?.completion.tokens,
+                experimentId: compareExperiments.id as string,
+                value: compareExperiments.costSummary?.completion.tokens,
                 numImprovements: 10,
                 numRegressions: 5,
               };
@@ -229,13 +272,13 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <TokenCountMetricCard
+          <MetricCard
             title="Total Tokens"
-            baseExperimentTotalTokens={baseExperiment.costSummary?.total.tokens}
+            baseExperimentValue={baseExperiment.costSummary?.total.tokens}
             compareExperiments={compareExperiments.map((compareExperiments) => {
               return {
-                id: compareExperiments.id as string,
-                tokens: compareExperiments.costSummary?.total.tokens,
+                experimentId: compareExperiments.id as string,
+                value: compareExperiments.costSummary?.total.tokens,
                 numImprovements: 10,
                 numRegressions: 5,
               };
@@ -249,17 +292,18 @@ export function ExperimentCompareMetricsPage() {
             height: 100%;
           `}
         >
-          <CostMetricCard
+          <MetricCard
             title="Total Cost"
-            baseExperimentCost={baseExperiment.costSummary?.total.cost}
+            baseExperimentValue={baseExperiment.costSummary?.total.cost}
             compareExperiments={compareExperiments.map((compareExperiments) => {
               return {
-                id: compareExperiments.id as string,
-                cost: compareExperiments.costSummary?.total.cost,
+                experimentId: compareExperiments.id as string,
+                value: compareExperiments.costSummary?.total.cost,
                 numImprovements: 10,
                 numRegressions: 5,
               };
             })}
+            formatter={costFormatter}
           />
         </li>
       </ul>
@@ -354,116 +398,5 @@ function ImprovementAndRegressionCounter({
         </Flex>
       )}
     </Flex>
-  );
-}
-
-type LatencyMetricCardProps = {
-  baseExperimentLatencyMs: number | null | undefined;
-  compareExperiments: {
-    id: string;
-    latencyMs: number | null | undefined;
-    numLatencyMsImprovements: number;
-    numLatencyMsRegressions: number;
-  }[];
-};
-
-function LatencyMetricCard({
-  baseExperimentLatencyMs,
-  compareExperiments,
-}: LatencyMetricCardProps) {
-  return (
-    <div css={metricCardCSS}>
-      <Flex direction="column" gap="size-200">
-        <Heading level={2}>Latency</Heading>
-        <BaseExperimentMetric
-          value={baseExperimentLatencyMs}
-          formatter={latencyMsFormatter}
-        />
-        {compareExperiments.map((compareExperiment) => (
-          <CompareExperimentMetric
-            key={compareExperiment.id}
-            value={compareExperiment.latencyMs}
-            formatter={latencyMsFormatter}
-            baseExperimentValue={baseExperimentLatencyMs}
-            numImprovements={compareExperiment.numLatencyMsImprovements}
-            numRegressions={compareExperiment.numLatencyMsRegressions}
-          />
-        ))}
-      </Flex>
-    </div>
-  );
-}
-
-type TotalTokenCountMetricCardProps = {
-  title: string;
-  baseExperimentTotalTokens: number | null | undefined;
-  compareExperiments: {
-    id: string;
-    tokens: number | null | undefined;
-    numImprovements: number;
-    numRegressions: number;
-  }[];
-};
-
-function TokenCountMetricCard({
-  title,
-  baseExperimentTotalTokens,
-  compareExperiments,
-}: TotalTokenCountMetricCardProps) {
-  return (
-    <div css={metricCardCSS}>
-      <Flex direction="column" gap="size-200">
-        <Heading level={2}>{title}</Heading>
-        <BaseExperimentMetric value={baseExperimentTotalTokens} />
-        {compareExperiments.map((compareExperiment) => (
-          <CompareExperimentMetric
-            key={compareExperiment.id}
-            value={compareExperiment.tokens}
-            baseExperimentValue={baseExperimentTotalTokens}
-            numImprovements={compareExperiment.numImprovements}
-            numRegressions={compareExperiment.numRegressions}
-          />
-        ))}
-      </Flex>
-    </div>
-  );
-}
-
-type CostMetricCardProps = {
-  title: string;
-  baseExperimentCost: number | null | undefined;
-  compareExperiments: {
-    id: string;
-    cost: number | null | undefined;
-    numImprovements: number;
-    numRegressions: number;
-  }[];
-};
-
-function CostMetricCard({
-  title,
-  baseExperimentCost,
-  compareExperiments,
-}: CostMetricCardProps) {
-  return (
-    <div css={metricCardCSS}>
-      <Flex direction="column" gap="size-200">
-        <Heading level={2}>{title}</Heading>
-        <BaseExperimentMetric
-          value={baseExperimentCost}
-          formatter={costFormatter}
-        />
-        {compareExperiments.map((compareExperiment) => (
-          <CompareExperimentMetric
-            key={compareExperiment.id}
-            value={compareExperiment.cost}
-            formatter={costFormatter}
-            baseExperimentValue={baseExperimentCost}
-            numImprovements={compareExperiment.numImprovements}
-            numRegressions={compareExperiment.numRegressions}
-          />
-        ))}
-      </Flex>
-    </div>
   );
 }
