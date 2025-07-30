@@ -1,4 +1,5 @@
 import { forwardRef, Ref, useId, useState } from "react";
+import { css } from "@emotion/react";
 
 import { Heading, Icon, Icons } from "@phoenix/components";
 import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
@@ -9,6 +10,7 @@ import { CardProps } from "./types";
 function Card(
   {
     title,
+    titleExtra,
     subTitle,
     children,
     collapsible = false,
@@ -27,7 +29,7 @@ function Card(
   const headingContents = (
     <div>
       <Heading level={3} weight="heavy" className="card__title">
-        {title}
+        {title} {titleExtra}
       </Heading>
       {subTitle && (
         <Heading level={4} className="card__sub-title">
@@ -56,7 +58,14 @@ function Card(
             aria-expanded={!isCollapsed}
           >
             <Icon
-              svg={<Icons.ChevronDown />}
+              svg={
+                <Icons.ChevronDown
+                  css={css`
+                    width: var(--collapsible-card-icon-size);
+                    height: var(--collapsible-card-icon-size);
+                  `}
+                />
+              }
               className="card__collapse-toggle-icon"
               aria-hidden="true"
             />
