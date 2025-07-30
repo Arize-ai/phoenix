@@ -404,11 +404,11 @@ class Project(Node):
                 .where(models.Span.parent_id.is_(None))
                 .where(
                     or_(
-                        models.TextContains(
+                        models.CaseInsensitiveContains(
                             models.Span.attributes[INPUT_VALUE].as_string(),
                             filter_io_substring,
                         ),
-                        models.TextContains(
+                        models.CaseInsensitiveContains(
                             models.Span.attributes[OUTPUT_VALUE].as_string(),
                             filter_io_substring,
                         ),
@@ -1358,7 +1358,7 @@ class Project(Node):
                 .where(models.Trace.project_rowid == self.project_rowid)
                 .where(models.SpanCost.model_id.isnot(None))
                 .where(models.SpanCost.span_start_time >= time_range.start)
-                .group_by(models.SpanCost.model_id)
+                .group_by(models.GenerativeModel.id)
                 .order_by(func.sum(models.SpanCost.total_cost).desc())
             )
             if time_range.end:
@@ -1420,7 +1420,7 @@ class Project(Node):
                 .where(models.Trace.project_rowid == self.project_rowid)
                 .where(models.SpanCost.model_id.isnot(None))
                 .where(models.SpanCost.span_start_time >= time_range.start)
-                .group_by(models.SpanCost.model_id)
+                .group_by(models.GenerativeModel.id)
                 .order_by(func.sum(models.SpanCost.total_tokens).desc())
             )
             if time_range.end:

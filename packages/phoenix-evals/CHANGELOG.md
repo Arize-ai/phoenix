@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.24.0...arize-phoenix-evals-v0.25.0) (2025-07-30)
+
+
+### Features
+
+* generate classification primitive ([#8816](https://github.com/Arize-ai/phoenix/issues/8816)) ([88d5090](https://github.com/Arize-ai/phoenix/commit/88d5090d33fbe384c08cf305ab75863520e7fa03))
+
+
+### Bug Fixes
+
+* remove dependency on requests library ([#8854](https://github.com/Arize-ai/phoenix/issues/8854)) ([ad9f311](https://github.com/Arize-ai/phoenix/commit/ad9f311aee3997c8caa8e505cc84faa1e8fb7428))
+
+## [0.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.23.1...arize-phoenix-evals-v0.24.0) (2025-07-30)
+
+
+### Features
+
+* **evals:** adding support for google-genai SDK ([#8798](https://github.com/Arize-ai/phoenix/issues/8798)) ([08ad038](https://github.com/Arize-ai/phoenix/commit/08ad0384d0d53d6068234b8a2d0a9fd4859b020e))
+* LLM wrapper prototype ([#8729](https://github.com/Arize-ai/phoenix/issues/8729)) ([1b25009](https://github.com/Arize-ai/phoenix/commit/1b25009683dd52803162786466a34e0b897c6fc0))
+
 ## [0.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.23.0...arize-phoenix-evals-v0.23.1) (2025-07-21)
 
 

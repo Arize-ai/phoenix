@@ -23,16 +23,16 @@ import {
   useBinTimeTickFormatter,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
-  costFormatter,
-  floatShortFormatter,
+  intFormatter,
+  intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
+import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -41,10 +41,15 @@ function TooltipContent({
 }: TooltipContentProps<number, string>) {
   const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
-    const promptValue = payload[0]?.value;
-    const completionValue = payload[1]?.value;
-    const promptString = costFormatter(promptValue);
-    const completionString = costFormatter(completionValue);
+    // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
+    const promptValue = payload[0]?.value ?? null;
+    const completionValue = payload[1]?.value ?? null;
+    const promptString =
+      typeof promptValue === "number" ? intFormatter(promptValue) : "--";
+    const completionString =
+      typeof completionValue === "number"
+        ? intFormatter(completionValue)
+        : "--";
     return (
       <ChartTooltip>
         {label && (
@@ -71,29 +76,31 @@ function TooltipContent({
   return null;
 }
 
-export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function TraceTokenCountTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceTokenCostTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceTokenCountTimeSeriesQuery>(
     graphql`
-      query TraceTokenCostTimeSeriesQuery(
+      query TraceTokenCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceTokenCostTimeSeries(
+            traceTokenCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
               data {
                 timestamp
-                promptCost
-                completionCost
-                totalCost
+                promptTokenCount
+                completionTokenCount
+                totalTokenCount
               }
             }
           }
@@ -113,15 +120,11 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
     }
   );
 
-  const chartData = (data.project.traceTokenCostTimeSeries?.data ?? []).map(
-    (datum: {
-      timestamp: string;
-      promptCost: number | null;
-      completionCost: number | null;
-    }) => ({
+  const chartData = (data.project.traceTokenCountTimeSeries?.data ?? []).map(
+    (datum) => ({
       timestamp: datum.timestamp,
-      prompt: datum.promptCost,
-      completion: datum.completionCost,
+      prompt: datum.promptTokenCount ?? 0,
+      completion: datum.completionTokenCount ?? 0,
     })
   );
 
@@ -147,16 +150,17 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => floatShortFormatter(x)}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
-            value: "Cost (USD)",
+            value: "Tokens",
             angle: -90,
             dx: -20,
             style: {
               textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
+              fill: "var(--ac-global-text-color-900)",
             },
           }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <Tooltip
           content={TooltipContent}

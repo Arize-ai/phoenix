@@ -7,11 +7,12 @@ from typing import Any, Iterable, Iterator, Sequence, Union, cast
 import pandas as pd
 import pytest
 from alembic.config import Config
+from sqlalchemy import Column, Engine, MetaData, Table, insert
+
 from phoenix.db.migrations.data_migration_scripts.populate_project_sessions import (
     populate_project_sessions,
 )
 from phoenix.db.models import JSON_
-from sqlalchemy import Column, Engine, MetaData, Table, insert
 
 from . import _down, _up, _version_num
 

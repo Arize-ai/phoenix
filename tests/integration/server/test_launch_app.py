@@ -3,14 +3,15 @@ from secrets import token_hex
 from typing import Any, Iterator, Mapping, Optional
 
 import pandas as pd
-import phoenix as px
 import pytest
 from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.trace import format_span_id, format_trace_id
 from pandas.core.dtypes.common import is_datetime64_any_dtype
-from phoenix.trace.dsl import SpanQuery
 from sqlalchemy import URL
+
+import phoenix as px
+from phoenix.trace.dsl import SpanQuery
 
 from .._helpers import (
     _AppInfo,

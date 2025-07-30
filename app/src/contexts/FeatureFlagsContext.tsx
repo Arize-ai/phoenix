@@ -12,7 +12,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-type FeatureFlag = "dashboards" | "projectMetricsTab";
+type FeatureFlag = "dashboards" | "experimentEnhancements";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -22,7 +22,7 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   dashboards: false,
-  projectMetricsTab: false,
+  experimentEnhancements: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

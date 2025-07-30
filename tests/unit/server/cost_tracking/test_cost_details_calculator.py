@@ -749,30 +749,30 @@ class TestSpanCostDetailsCalculator:
             ("prompt", prompt_details, expected_prompt_details),
             ("completion", completion_details, expected_completion_details),
         ]:
-            assert set(actual_details.keys()) == set(
-                expected_details.keys()
-            ), f"Expected {domain} details to have the same keys"
+            assert set(actual_details.keys()) == set(expected_details.keys()), (
+                f"Expected {domain} details to have the same keys"
+            )
             for token_type, expected in expected_details.items():
                 detail = actual_details[token_type]
-                assert (
-                    detail.tokens == expected.tokens
-                ), f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"  # noqa: E501
+                assert detail.tokens == expected.tokens, (
+                    f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"
+                )
                 if expected.cost is not None:
-                    assert detail.cost == pytest.approx(
-                        expected.cost
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost} cost"  # noqa: E501
+                    assert detail.cost == pytest.approx(expected.cost), (
+                        f"Expected {domain} detail for {token_type} to have {expected.cost} cost"
+                    )
                 else:
-                    assert (
-                        detail.cost is None
-                    ), f"Expected {domain} detail for {token_type} to have no cost"  # noqa: E501
+                    assert detail.cost is None, (
+                        f"Expected {domain} detail for {token_type} to have no cost"
+                    )
                 if expected.cost_per_token is not None:
-                    assert (
-                        detail.cost_per_token == pytest.approx(expected.cost_per_token)
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"  # noqa: E501
+                    assert detail.cost_per_token == pytest.approx(expected.cost_per_token), (
+                        f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"
+                    )
                 else:
-                    assert (
-                        detail.cost_per_token is None
-                    ), f"Expected {domain} detail for {token_type} to have no cost per token"
+                    assert detail.cost_per_token is None, (
+                        f"Expected {domain} detail for {token_type} to have no cost per token"
+                    )
 
     def test_missing_token_count_section(self) -> None:
         """

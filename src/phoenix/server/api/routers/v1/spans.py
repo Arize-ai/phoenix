@@ -205,8 +205,7 @@ class OtlpEvent(BaseModel):
     name: Optional[str] = Field(
         None,
         description=(
-            "name of the event. "
-            "This field is semantically required to be set to non-empty string."
+            "name of the event. This field is semantically required to be set to non-empty string."
         ),
     )
     time_unix_nano: Optional[
@@ -282,7 +281,7 @@ class OtlpSpan(BaseModel):
     )
     events: Optional[list[OtlpEvent]] = Field(
         None,
-        description=("events is a collection of Event items. " "A span with no events is valid."),
+        description=("events is a collection of Event items. A span with no events is valid."),
     )
     flags: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,

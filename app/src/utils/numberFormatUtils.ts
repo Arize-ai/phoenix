@@ -1,5 +1,11 @@
 import { format } from "d3-format";
 
+import {
+  ONE_HOUR_MS,
+  ONE_MINUTE_MS,
+  ONE_SECOND_MS,
+} from "@phoenix/constants/timeConstants";
+
 type NumberFormatFn = (number: number) => string;
 type MaybeNumber = number | null | undefined;
 type MaybeNumberFormatFn = (maybeNumber: MaybeNumber) => string;
@@ -78,8 +84,34 @@ export function formatCost(cost: number): string {
   if (cost < 0.01) {
     return "<$0.01";
   }
+  // Show 2 decimal places for small costs under 100
+  if (cost < 100) return `$${format("0.2f")(cost)}`;
   if (cost < 10000) return `$${format(",")(cost)}`;
   return `$${format("0.2s")(cost).replace("G", "B").replace("k", "K")}`;
+}
+
+/**
+ * Formats a latency (given in milliseconds) to be displayed across different scales.
+ * @param number
+ * @returns {string} the string representation of the number
+ */
+export function formatLatencyMs(number: number): string {
+  const hours = Math.floor(number / ONE_HOUR_MS);
+  const minutes = Math.floor((number % ONE_HOUR_MS) / ONE_MINUTE_MS);
+  const seconds = Math.floor((number % ONE_MINUTE_MS) / ONE_SECOND_MS);
+  const milliseconds = Math.floor(number % ONE_SECOND_MS);
+
+  if (hours > 0) {
+    return `${hours}h${minutes ? ` ${minutes}m` : ""}${seconds ? ` ${seconds}s` : ""}`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m${seconds ? ` ${seconds}s` : ""}`;
+  }
+  if (seconds > 0) {
+    const tenthSeconds = Math.floor(milliseconds / 100);
+    return `${seconds}${tenthSeconds > 0 ? `.${tenthSeconds.toFixed(0)}` : ""}s`;
+  }
+  return `${milliseconds.toFixed(0)}ms`;
 }
 
 /**
@@ -103,3 +135,4 @@ export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
 export const costFormatter = createNumberFormatter(formatCost);
+export const latencyMsFormatter = createNumberFormatter(formatLatencyMs);

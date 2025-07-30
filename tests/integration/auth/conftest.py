@@ -24,10 +24,10 @@ def _env_oauth2(
     return {
         f"PHOENIX_OAUTH2_{_oidc_server}_CLIENT_ID".upper(): _oidc_server.client_id,
         f"PHOENIX_OAUTH2_{_oidc_server}_CLIENT_SECRET".upper(): _oidc_server.client_secret,
-        f"PHOENIX_OAUTH2_{_oidc_server}_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",  # noqa: E501
+        f"PHOENIX_OAUTH2_{_oidc_server}_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",
         f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_CLIENT_ID".upper(): _oidc_server.client_id,
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_CLIENT_SECRET".upper(): _oidc_server.client_secret,  # noqa: E501
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",  # noqa: E501
+        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_CLIENT_SECRET".upper(): _oidc_server.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",
         f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_ALLOW_SIGN_UP".upper(): "false",
     }
 
@@ -80,7 +80,7 @@ def _env_tls(
 
     Yields:
         None: The fixture yields control back to the test after setting up the environment
-    """  # noqa: E501
+    """
     key_file_password = token_hex(16)
     key_file = _encrypt_private_key(_tls_certs_for_server.key[0], key_file_password)
     return {

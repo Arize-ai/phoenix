@@ -36,7 +36,7 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
       <DialogTrigger>
         <Button
           leadingVisual={<Icon svg={<Icons.GridOutline />} />}
-          size="S"
+          size="M"
           variant={variant}
         >
           New Project

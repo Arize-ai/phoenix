@@ -19,21 +19,20 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
-import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import {
+  intFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
+import type { ToolSpanErrorsTimeSeriesQuery } from "./__generated__/ToolSpanErrorsTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -43,10 +42,7 @@ function TooltipContent({
   const SemanticChartColors = useSemanticChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
-        : "--";
+    const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
         {label && (
@@ -67,23 +63,27 @@ function TooltipContent({
   return null;
 }
 
-export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function ToolSpanErrorsTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceErrorsTimeSeriesQuery>(
+  const data = useLazyLoadQuery<ToolSpanErrorsTimeSeriesQuery>(
     graphql`
-      query TraceErrorsTimeSeriesQuery(
+      query ToolSpanErrorsTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountByStatusTimeSeries(
+            spanCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
+              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
@@ -104,10 +104,11 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
+      filterCondition: 'span_kind == "TOOL"',
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
       timestamp: datum.timestamp,
       error: datum.errorCount,
@@ -116,7 +117,6 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
-
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -135,7 +135,7 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => intFormatter(x)}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Count",
             angle: -90,

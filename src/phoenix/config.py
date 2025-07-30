@@ -57,6 +57,11 @@ ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
 The FullStory organization ID for web analytics tracking. When set, FullStory tracking
 will be enabled in the Phoenix web interface.
 """
+ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
+"""
+Allows calls to external resources, like Google Fonts in the web interface
+Defaults to True. Set to False in air-gapped environments to prevent external requests.
+"""
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.
@@ -328,6 +333,10 @@ Whether to verify client certificates for mutual TLS (mTLS) authentication.
 When set to true, clients must provide valid certificates signed by the CA specified in
 PHOENIX_TLS_CA_FILE.
 """
+ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DAYS"
+"""
+The default retention policy for traces in days.
+"""
 
 
 @dataclass(frozen=True)
@@ -487,6 +496,20 @@ def get_env_tls_verify_client() -> bool:
         if the environment variable is not set.
     """  # noqa: E501
     return _bool_val(ENV_PHOENIX_TLS_VERIFY_CLIENT, False)
+
+
+def get_env_default_retention_policy_days() -> int:
+    """
+    Returns the number of days for the default retention policy as set by the
+    PHOENIX_DEFAULT_RETENTION_POLICY_DAYS environment variable, defaulting to 0 if not set.
+
+    Returns:
+        int: Number of days for the default retention policy. Defaults to 0 if the environment variable is not set.
+    """  # noqa: E501
+    days = _int_val(ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS, 0)
+    if days < 0:
+        raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
+    return days
 
 
 def get_env_tls_config() -> Optional[TLSConfig]:
@@ -860,6 +883,8 @@ def get_env_admins() -> dict[str, str]:
     """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
+    from phoenix.auth import sanitize_email
+
     usernames = set()
     emails = set()
     ans = {}
@@ -876,7 +901,7 @@ def get_env_admins() -> dict[str, str]:
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_addr = sanitize_email(pair[last_equals_pos + 1 :])
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
@@ -1690,3 +1715,11 @@ def _validate_file_exists_and_is_readable(
             f.read(1)  # Read just one byte to verify readability
     except Exception as e:
         raise ValueError(f"{description} file is not readable: {e}")
+
+
+def get_env_allow_external_resources() -> bool:
+    """
+    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
+    Defaults to True if not set.
+    """
+    return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)

@@ -55,9 +55,11 @@
     <meta property="og:description" content="AI Observability & Evaluation" />
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
     <meta name="theme-color" content="#ffffff" />
+    {% if allow_external_resources %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
+    {% endif %}
     {% if not is_development -%}
       {% set _ = collect_assets('index.tsx') -%}
       {{- render_css() -}}
@@ -111,6 +113,7 @@
               managementUrl: {{management_url | tojson}},
               supportEmail: {{support_email | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
+              allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
           }),
           writable: false
       });

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 export function Logo(props: { size?: number }) {
-  const { size = 28 } = props;
+  const { size = 34 } = props;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

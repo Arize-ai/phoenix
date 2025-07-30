@@ -1,15 +1,16 @@
-# ruff: noqa: E501
 import base64
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import httpx
 import pandas as pd
 import pytest
 from faker import Faker
 from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -27,6 +28,427 @@ from ...._helpers import _add_project, _add_project_session, _add_span, _add_tra
 fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
+
+
+async def _add_generative_model(
+    session: AsyncSession,
+    name: Optional[str] = None,
+    provider: str = "openai",
+    is_built_in: bool = False,
+) -> models.GenerativeModel:
+    """Helper function to create a GenerativeModel for testing."""
+    name = name or f"test-model-{token_hex(4)}"
+    model = models.GenerativeModel(
+        name=name,
+        provider=provider,
+        name_pattern=re.compile(re.escape(name)),
+        is_built_in=is_built_in,
+    )
+    session.add(model)
+    await session.flush()
+    return model
+
+
+async def _add_span_cost(
+    session: AsyncSession,
+    span: models.Span,
+    trace: models.Trace,
+    model: models.GenerativeModel,
+    total_cost: Optional[float] = None,
+    total_tokens: Optional[float] = None,
+    prompt_cost: Optional[float] = None,
+    prompt_tokens: Optional[float] = None,
+    completion_cost: Optional[float] = None,
+    completion_tokens: Optional[float] = None,
+    span_start_time: Optional[datetime] = None,
+) -> models.SpanCost:
+    """Helper function to create a SpanCost for testing."""
+    span_cost = models.SpanCost(
+        span_rowid=span.id,
+        trace_rowid=trace.id,
+        span_start_time=span_start_time or span.start_time,
+        model_id=model.id,
+        total_cost=total_cost,
+        total_tokens=total_tokens,
+        prompt_cost=prompt_cost,
+        prompt_tokens=prompt_tokens,
+        completion_cost=completion_cost,
+        completion_tokens=completion_tokens,
+    )
+    session.add(span_cost)
+    await session.flush()
+    return span_cost
+
+
+@dataclass
+class _CostTestData:
+    project: models.Project
+    generative_models: dict[str, models.GenerativeModel]
+    spans: list[models.Span]
+    traces: list[models.Trace]
+    span_costs: list[models.SpanCost]
+    base_time: datetime
+
+
+@pytest.fixture
+async def _cost_data(db: DbSessionFactory) -> _CostTestData:
+    """Create comprehensive test data for cost and token testing.
+
+    Creates:
+    - 3 different models (gpt-4, gpt-3.5-turbo, claude)
+    - Multiple spans with different costs and token counts
+    - Data spread across different time periods for time range testing
+    """
+    async with db() as session:
+        # Create project
+        project = await _add_project(session, name="cost-test-project")
+
+        # Create generative models with distinct characteristics
+        # Model 1: High cost per token, moderate volume (gpt-4)
+        gpt4 = await _add_generative_model(session, name="gpt-4", provider="openai")
+
+        # Model 2: Lower cost per token, high volume (gpt-3.5-turbo)
+        gpt35 = await _add_generative_model(session, name="gpt-3.5-turbo", provider="openai")
+
+        # Model 3: Moderate cost and volume (claude)
+        claude = await _add_generative_model(session, name="claude-3-sonnet", provider="anthropic")
+
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        spans = []
+        traces = []
+        span_costs = []
+
+        # Time period 1: 2024-01-01 (Hour 0-1)
+        # Create spans for gpt-4 - High cost, lower token count
+        for i in range(3):
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=i * 10),
+                end_time=base_time + timedelta(minutes=i * 10 + 5),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # GPT-4: High cost per token, moderate token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=gpt4,
+                total_cost=1.50 + (i * 0.30),  # $1.50, $1.80, $2.10
+                total_tokens=1000 + (i * 200),  # 1000, 1200, 1400 tokens
+                prompt_cost=(1.50 + (i * 0.30)) * 0.75,  # 75% prompt cost
+                prompt_tokens=(1000 + (i * 200)) * 0.8,  # 80% prompt tokens
+                completion_cost=(1.50 + (i * 0.30)) * 0.25,  # 25% completion cost
+                completion_tokens=(1000 + (i * 200)) * 0.2,  # 20% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        # Time period 2: 2024-01-01 (Hour 2-3)
+        # Create spans for gpt-3.5-turbo - Lower cost, higher token count
+        for i in range(4):  # More spans = higher total
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(hours=2, minutes=i * 10),
+                end_time=base_time + timedelta(hours=2, minutes=i * 10 + 5),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # GPT-3.5: Lower cost per token, higher token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=gpt35,
+                total_cost=0.40 + (i * 0.20),  # $0.40, $0.60, $0.80, $1.00
+                total_tokens=2000 + (i * 500),  # 2000, 2500, 3000, 3500 tokens
+                prompt_cost=(0.40 + (i * 0.20)) * 0.70,  # 70% prompt cost
+                prompt_tokens=(2000 + (i * 500)) * 0.85,  # 85% prompt tokens
+                completion_cost=(0.40 + (i * 0.20)) * 0.30,  # 30% completion cost
+                completion_tokens=(2000 + (i * 500)) * 0.15,  # 15% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        # Time period 3: 2024-01-01 (Hour 4-5)
+        # Create spans for claude - Balanced cost and tokens
+        for i in range(2):
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(hours=4, minutes=i * 15),
+                end_time=base_time + timedelta(hours=4, minutes=i * 15 + 8),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+            spans.append(span)
+
+            # Claude: Balanced cost and token count
+            cost = await _add_span_cost(
+                session,
+                span=span,
+                trace=trace,
+                model=claude,
+                total_cost=1.00 + (i * 0.50),  # $1.00, $1.50
+                total_tokens=1500 + (i * 300),  # 1500, 1800 tokens
+                prompt_cost=(1.00 + (i * 0.50)) * 0.80,  # 80% prompt cost
+                prompt_tokens=(1500 + (i * 300)) * 0.75,  # 75% prompt tokens
+                completion_cost=(1.00 + (i * 0.50)) * 0.20,  # 20% completion cost
+                completion_tokens=(1500 + (i * 300)) * 0.25,  # 25% completion tokens
+                span_start_time=span.start_time,
+            )
+            span_costs.append(cost)
+
+        await session.commit()
+
+        return _CostTestData(
+            project=project,
+            generative_models={
+                "gpt4": gpt4,
+                "gpt35": gpt35,
+                "claude": claude,
+            },
+            spans=spans,
+            traces=traces,
+            span_costs=span_costs,
+            base_time=base_time,
+        )
+
+
+class TestTopModels:
+    """Comprehensive test suite for top_models_by_token_count and top_models_by_cost GraphQL fields."""
+
+    async def test_top_models_comprehensive(
+        self,
+        _cost_data: _CostTestData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Comprehensive test for both top_models_by_token_count and top_models_by_cost fields."""
+        project = _cost_data.project
+        base_time = _cost_data.base_time
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+        # Full time range for comprehensive testing
+        full_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(days=1)).isoformat(),
+        }
+
+        # --- TEST 1: Basic ordering for both token count and cost ---
+
+        token_query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByTokenCount(timeRange: $timeRange) {
+                            name
+                            costSummary(projectId: $projectId, timeRange: $timeRange) {
+                                total { tokens cost }
+                                prompt { tokens cost }
+                                completion { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        cost_query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByCost(timeRange: $timeRange) {
+                            name
+                            costSummary(projectId: $projectId, timeRange: $timeRange) {
+                                total { tokens cost }
+                                prompt { tokens cost }
+                                completion { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+
+        # Test token-based ordering
+        token_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": full_time_range},
+        )
+        assert not token_response.errors
+        assert (token_data := token_response.data) is not None
+
+        token_models = token_data["node"]["topModelsByTokenCount"]
+        assert len(token_models) == 3
+
+        # Expected token totals: gpt-3.5-turbo (11K), gpt-4 (3.6K), claude (3.3K)
+        assert token_models[0]["name"] == "gpt-3.5-turbo"
+        assert token_models[1]["name"] == "gpt-4"
+        assert token_models[2]["name"] == "claude-3-sonnet"
+
+        token_counts = [m["costSummary"]["total"]["tokens"] for m in token_models]
+        assert token_counts == sorted(token_counts, reverse=True)
+        assert token_counts[0] == 11000  # gpt-3.5-turbo
+        assert token_counts[1] == 3600  # gpt-4
+        assert token_counts[2] == 3300  # claude
+
+        # Test cost-based ordering
+        cost_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": full_time_range},
+        )
+        assert not cost_response.errors
+        assert (cost_data := cost_response.data) is not None
+
+        cost_models = cost_data["node"]["topModelsByCost"]
+        assert len(cost_models) == 3
+
+        # Expected cost totals: gpt-4 ($5.40), gpt-3.5-turbo ($2.80), claude ($2.50)
+        assert cost_models[0]["name"] == "gpt-4"
+        assert cost_models[1]["name"] == "gpt-3.5-turbo"
+        assert cost_models[2]["name"] == "claude-3-sonnet"
+
+        costs = [m["costSummary"]["total"]["cost"] for m in cost_models]
+        assert costs == sorted(costs, reverse=True)
+        assert abs(costs[0] - 5.40) < 0.01  # gpt-4
+        assert abs(costs[1] - 2.80) < 0.01  # gpt-3.5-turbo
+        assert abs(costs[2] - 2.50) < 0.01  # claude
+
+        # Verify ordering is different between token and cost
+        token_order = [m["name"] for m in token_models]
+        cost_order = [m["name"] for m in cost_models]
+        assert token_order != cost_order
+
+        # --- TEST 2: Cost summary calculations accuracy ---
+
+        # Find gpt-4 model and verify its calculations
+        gpt4_model = next(m for m in cost_models if m["name"] == "gpt-4")
+        cost_summary = gpt4_model["costSummary"]
+
+        # Verify totals match sum of prompt + completion
+        total_cost = cost_summary["total"]["cost"]
+        prompt_cost = cost_summary["prompt"]["cost"]
+        completion_cost = cost_summary["completion"]["cost"]
+        assert abs(total_cost - (prompt_cost + completion_cost)) < 0.01
+
+        total_tokens = cost_summary["total"]["tokens"]
+        prompt_tokens = cost_summary["prompt"]["tokens"]
+        completion_tokens = cost_summary["completion"]["tokens"]
+        assert abs(total_tokens - (prompt_tokens + completion_tokens)) < 1
+
+        # --- TEST 3: Time range filtering ---
+
+        # Test filtering to only hour 2-3 (gpt-3.5-turbo data only)
+        filtered_time_range = {
+            "start": (base_time + timedelta(hours=2)).isoformat(),
+            "end": (base_time + timedelta(hours=4)).isoformat(),
+        }
+
+        token_filtered_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": filtered_time_range},
+        )
+        assert not token_filtered_response.errors
+        assert (token_filtered_data := token_filtered_response.data) is not None
+
+        filtered_models = token_filtered_data["node"]["topModelsByTokenCount"]
+        assert len(filtered_models) == 1
+        assert filtered_models[0]["name"] == "gpt-3.5-turbo"
+        assert filtered_models[0]["costSummary"]["total"]["tokens"] == 11000
+
+        # Test filtering to only hour 0-1 (gpt-4 data only)
+        gpt4_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(hours=2)).isoformat(),
+        }
+
+        cost_filtered_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": gpt4_time_range},
+        )
+        assert not cost_filtered_response.errors
+        assert (cost_filtered_data := cost_filtered_response.data) is not None
+
+        gpt4_only_models = cost_filtered_data["node"]["topModelsByCost"]
+        assert len(gpt4_only_models) == 1
+        assert gpt4_only_models[0]["name"] == "gpt-4"
+        assert abs(gpt4_only_models[0]["costSummary"]["total"]["cost"] - 5.40) < 0.01
+
+        # --- TEST 4: Partial time ranges ---
+
+        # Query that includes gpt-4 (hours 0-1) and gpt-3.5 (hours 2-3) but excludes claude (hours 4-5)
+        partial_time_range = {
+            "start": base_time.isoformat(),
+            "end": (base_time + timedelta(hours=4)).isoformat(),
+        }
+
+        partial_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": partial_time_range},
+        )
+        assert not partial_response.errors
+        assert (partial_data := partial_response.data) is not None
+
+        partial_models = partial_data["node"]["topModelsByCost"]
+        assert len(partial_models) == 2  # Should include gpt-4 and gpt-3.5, exclude claude
+
+        model_names = [m["name"] for m in partial_models]
+        assert "gpt-4" in model_names
+        assert "gpt-3.5-turbo" in model_names
+        assert "claude-3-sonnet" not in model_names
+
+        # gpt-4 should still rank higher by cost than gpt-3.5-turbo
+        assert partial_models[0]["name"] == "gpt-4"
+        assert partial_models[1]["name"] == "gpt-3.5-turbo"
+
+        # --- TEST 5: No data scenarios ---
+
+        empty_time_range = {
+            "start": "2023-01-01T00:00:00+00:00",
+            "end": "2024-01-01T00:00:00+00:00",
+        }
+
+        # Test token count with no data
+        empty_token_response = await gql_client.execute(
+            query=token_query,
+            variables={"projectId": project_gid, "timeRange": empty_time_range},
+        )
+        assert not empty_token_response.errors
+        assert (empty_token_data := empty_token_response.data) is not None
+        assert len(empty_token_data["node"]["topModelsByTokenCount"]) == 0
+
+        # Test cost with no data
+        empty_cost_response = await gql_client.execute(
+            query=cost_query,
+            variables={"projectId": project_gid, "timeRange": empty_time_range},
+        )
+        assert not empty_cost_response.errors
+        assert (empty_cost_data := empty_cost_response.data) is not None
+        assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -1537,6 +1959,89 @@ class TestProject:
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
 
+    @pytest.fixture
+    async def _case_insensitive_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        """Create test data for case-insensitive filtering"""
+        projects, project_sessions, traces, spans = [], [], [], []
+        async with db() as session:
+            projects.append(await _add_project(session))
+
+            # Session 0: matches "\\'\"hello" and "WÖRLD'\""
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "\\'\"Hello Wörld'\""}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 1: matches "\\'\"hello" and "WÖRLD'\""
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"output": {"value": "\\'\"HELLO wörld'\""}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 2: matches "%"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "test%data"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 3: matches "_"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"output": {"value": "query_pattern"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 4: matches "\\'\"hello"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "\\'\"Hello 世界"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+        return _Data(
+            spans=spans,
+            traces=traces,
+            project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    async def test_sessions_case_insensitive_filtering(
+        self,
+        _case_insensitive_data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test GraphQL integration for case-insensitive filtering."""
+        project = _case_insensitive_data.projects[0]
+
+        test_cases = [
+            ("\\'\"hello", [0, 1, 4], "Basic case-insensitive matching"),
+            ("WÖRLD'\"", [0, 1], "Unicode case-insensitivity"),
+            ("%", [2], "Special percentage sign"),
+            ("_", [3], "Special underscore"),
+            ("'; DROP TABLE users;--", [], "No matches"),
+        ]
+
+        for filter_substring, expected_session_indices, description in test_cases:
+            # Escape the filter substring for GraphQL
+            escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
+            field = f'sessions(filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+
+            res = await self._node(field, project, httpx_client)
+
+            # Get the expected session IDs
+            expected_session_ids = {
+                _gid(_case_insensitive_data.project_sessions[i]) for i in expected_session_indices
+            }
+
+            actual_session_ids = {e["node"]["id"] for e in res["edges"]}
+
+            assert actual_session_ids == expected_session_ids, (
+                f"{description} failed: "
+                f"Expected sessions {expected_session_indices} for filter '{filter_substring}', "
+                f"but got {actual_session_ids}"
+            )
+
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(
         self,
@@ -2829,7 +3334,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← This makes it a real root span
-                    name=f"root-span-{i+1}",
+                    name=f"root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -2849,7 +3354,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=root_span.span_id,  # ← Child of the root span
-                    name=f"child-span-{i+1}",
+                    name=f"child-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=15),
                     end_time=trace.start_time + timedelta(minutes=25),
@@ -2869,7 +3374,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,  # ← Also a root span
-                    name=f"second-root-span-{i+1}",
+                    name=f"second-root-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),
@@ -2889,7 +3394,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Points to non-existent span (orphan)
-                    name=f"orphan-span-{i+1}",
+                    name=f"orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=10),
                     end_time=trace.start_time + timedelta(minutes=20),
@@ -2910,7 +3415,7 @@ async def test_paginate_spans_by_trace_start_time(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=token_hex(8),  # ← Also an orphan span (different parent_id)
-                    name=f"second-orphan-span-{i+1}",
+                    name=f"second-orphan-span-{i + 1}",
                     span_kind="CHAIN",
                     start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
                     end_time=trace.start_time + timedelta(minutes=40),

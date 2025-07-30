@@ -379,9 +379,9 @@ def _url(
     if prompt_version_id is not None:
         assert isinstance(prompt_version_id, str)
         return f"v1/prompt_versions/{encode_path_param(prompt_version_id)}"
-    assert (
-        prompt_identifier is not None
-    ), "Must specify either `prompt_version_id` or `prompt_identifier`"
+    assert prompt_identifier is not None, (
+        "Must specify either `prompt_version_id` or `prompt_identifier`"
+    )
     assert isinstance(prompt_identifier, str)
     if tag is not None:
         assert isinstance(tag, str)

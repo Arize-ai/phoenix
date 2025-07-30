@@ -21,28 +21,30 @@ import {
   defaultYAxisProps,
   useBinInterval,
   useBinTimeTickFormatter,
-  useSemanticChartColors,
+  useCategoryChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
-  intFormatter,
-  intShortFormatter,
+  costFormatter,
+  floatShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { LLMSpanErrorsTimeSeriesQuery } from "./__generated__/LLMSpanErrorsTimeSeriesQuery.graphql";
+import { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const SemanticChartColors = useSemanticChartColors();
+  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
-    const errorValue = payload[0]?.value ?? null;
-    const errorString = intFormatter(errorValue);
+    const promptValue = payload[0]?.value;
+    const completionValue = payload[1]?.value;
+    const promptString = costFormatter(promptValue);
+    const completionString = costFormatter(completionValue);
     return (
       <ChartTooltip>
         {label && (
@@ -51,10 +53,16 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={SemanticChartColors.danger}
+          color={chartColors.category1}
           shape="circle"
-          name="error"
-          value={errorString}
+          name="prompt"
+          value={promptString}
+        />
+        <ChartTooltipItem
+          color={chartColors.category2}
+          shape="circle"
+          name="completion"
+          value={completionString}
         />
       </ChartTooltip>
     );
@@ -63,30 +71,31 @@ function TooltipContent({
   return null;
 }
 
-export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function TraceTokenCostTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
-  const interval = useBinInterval({ scale });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<LLMSpanErrorsTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceTokenCostTimeSeriesQuery>(
     graphql`
-      query LLMSpanErrorsTimeSeriesQuery(
+      query TraceTokenCostTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
-        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            spanCountTimeSeries(
+            traceTokenCostTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
-              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
-                errorCount
+                promptCost
+                completionCost
+                totalCost
               }
             }
           }
@@ -103,20 +112,25 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
-      filterCondition: 'span_kind == "LLM"',
     }
   );
 
-  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
-    (datum) => ({
+  const chartData = (data.project.traceTokenCostTimeSeries?.data ?? []).map(
+    (datum: {
+      timestamp: string;
+      promptCost: number | null;
+      completionCost: number | null;
+    }) => ({
       timestamp: datum.timestamp,
-      error: datum.errorCount,
+      prompt: datum.promptCost,
+      completion: datum.completionCost,
     })
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
-  const SemanticChartColors = useSemanticChartColors();
+  const colors = useCategoryChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -125,6 +139,7 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         barSize={10}
         syncId={"projectMetrics"}
       >
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
@@ -134,9 +149,9 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => intShortFormatter(x)}
+          tickFormatter={(x) => floatShortFormatter(x)}
           label={{
-            value: "Count",
+            value: "Cost (USD)",
             angle: -90,
             dx: -20,
             style: {
@@ -145,16 +160,16 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
             },
           }}
         />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
+        <Bar dataKey="prompt" stackId="a" fill={colors.category1} />
         <Bar
-          dataKey="error"
+          dataKey="completion"
           stackId="a"
-          fill={SemanticChartColors.danger}
+          fill={colors.category2}
           radius={[2, 2, 0, 0]}
         />
 

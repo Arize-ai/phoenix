@@ -68,8 +68,7 @@ def setup_environment():
         use_hosted = input("Use hosted Phoenix? (y/n): ").lower().strip() == "y"
         if use_hosted:
             _set_env("PHOENIX_API_KEY")
-            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-            os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
+            _set_env("PHOENIX_COLLECTOR_ENDPOINT")
 
 
 # Global tracer (will be initialized in main)
@@ -101,8 +100,7 @@ class MessageHistory:
             {
                 "role": "user",
                 "content": (
-                    "What is retrieval augmented generation and how does it improve AI "
-                    "responses?"
+                    "What is retrieval augmented generation and how does it improve AI responses?"
                 ),
             },
         ]
@@ -231,7 +229,7 @@ def search_vector_store_traced(query: str) -> str:
                         f"retrieval.documents.{i}.document.metadata",
                         str({"source": "vector_store", **doc.metadata}),
                     )
-                    results.append(f"Document {i+1}: {doc.page_content[:1000]}")
+                    results.append(f"Document {i + 1}: {doc.page_content[:1000]}")
 
                 result_text = "\n\n".join(results)
                 span.set_output(result_text)
@@ -600,7 +598,7 @@ async def main():
 
     for i, message in enumerate(langchain_messages):
         if isinstance(message, HumanMessage):
-            print(f"\nProcessing query {i+1}: {message.content[:100]}...")
+            print(f"\nProcessing query {i + 1}: {message.content[:100]}...")
 
             # Run the agent with a top-level span
             with tracer.start_as_current_span(
@@ -624,7 +622,7 @@ async def main():
                 span.set_output(final_response)
                 span.set_status(Status(StatusCode.OK))
 
-            print(f"✅ Completed query {i+1}")
+            print(f"✅ Completed query {i + 1}")
 
     print("\n✅ Processed all queries through the RAG agent.")
     print("⏳ Waiting for traces to be processed by Phoenix...")

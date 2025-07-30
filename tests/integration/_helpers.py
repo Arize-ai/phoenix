@@ -4,6 +4,7 @@ import asyncio
 import os
 import re
 import ssl
+import string
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
@@ -56,6 +58,14 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
+from psutil import STATUS_ZOMBIE, Popen
+from sqlalchemy import URL, create_engine, text
+from sqlalchemy.exc import OperationalError
+from starlette.requests import Request
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from strawberry.relay import GlobalID
+from typing_extensions import Self, TypeAlias, assert_never, override
+
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_PASSWORD,
@@ -64,6 +74,7 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    sanitize_email,
 )
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
@@ -73,13 +84,6 @@ from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.thread_server import ThreadServer
-from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
-from sqlalchemy.exc import OperationalError
-from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
-from strawberry.relay import GlobalID
-from typing_extensions import Self, TypeAlias, assert_never, override
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -633,7 +637,7 @@ class _LogTransport(httpx.BaseTransport):
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         info = BytesIO()
-        info.write(f"{'-'*50}\n".encode())
+        info.write(f"{'-' * 50}\n".encode())
         if test_name := _TEST_NAME.get():
             op_idx = _HTTPX_OP_IDX.get()
             _HTTPX_OP_IDX.set(op_idx + 1)
@@ -905,7 +909,7 @@ def _create_user(
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
-    assert user["email"] == email
+    assert user["email"] == sanitize_email(email)
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
@@ -1110,7 +1114,7 @@ def _initiate_password_reset(
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email
+    assert msg["to"] == sanitize_email(email)
     return _extract_password_reset_token(msg)
 
 
@@ -1265,7 +1269,7 @@ class _OIDCServer:
         with _OIDCServer(port=8000) as oidc_server:
             # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
             # The server will be available at oidc_server.base_url
-    """  # noqa: E501
+    """
 
     def __init__(self, port: int):
         """
@@ -1299,7 +1303,7 @@ class _OIDCServer:
         - /.well-known/openid-configuration: Discovery document for OIDC clients
         - /userinfo: User information endpoint
         - /.well-known/jwks.json: JSON Web Key Set for token verification
-        """  # noqa: E501
+        """
 
         @self._app.get("/auth")
         async def auth(request: Request) -> Response:
@@ -1307,7 +1311,7 @@ class _OIDCServer:
             Authorization endpoint that simulates the initial OAuth2 authorization request.
 
             Validates the client_id and returns a redirect with an authorization code.
-            """  # noqa: E501
+            """
             params = dict(request.query_params)
             if params.get("client_id") != self._client_id:
                 return JSONResponse({"error": "invalid_client"}, status_code=400)
@@ -1316,7 +1320,7 @@ class _OIDCServer:
             redirect_uri = params.get("redirect_uri")
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = f"{token_hex(8)}@example.com"
+            self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
             self._user_name = f"User {token_hex(8)}"
             return RedirectResponse(
                 f"{redirect_uri}?code=test_auth_code&state={state}",
@@ -1333,7 +1337,7 @@ class _OIDCServer:
             - id_token: A JWT containing user information and the nonce from the auth request
             - refresh_token: A randomly generated refresh token
             - Other standard OAuth2 token response fields
-            """  # noqa: E501
+            """
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Basic "):
                 try:
@@ -1382,7 +1386,7 @@ class _OIDCServer:
 
             Returns the standard OIDC configuration document that clients use to
             discover the endpoints and capabilities of this identity provider.
-            """  # noqa: E501
+            """
             return JSONResponse(
                 {
                     "issuer": self.base_url,
@@ -1415,7 +1419,7 @@ class _OIDCServer:
 
             Returns a JSON response with user profile information that would typically
             be retrieved from a real identity provider's user database.
-            """  # noqa: E501
+            """
             user_info = {
                 "sub": self._user_id,
                 "name": self._user_name,
@@ -1433,7 +1437,7 @@ class _OIDCServer:
             of ID tokens issued by this server. In this implementation, we're using
             a symmetric key (HS256) for simplicity, but in a real OIDC provider,
             this would typically use asymmetric keys (RS256).
-            """  # noqa: E501
+            """
             # Base64url encode the secret key
             encoded_key = urlsafe_b64encode(self._secret_key.encode()).decode().rstrip("=")
             return JSONResponse(
@@ -1545,7 +1549,7 @@ async def _get(
 
     Raises:
         AssertionError: If query_fn returns None after all retries
-    """  # noqa: E501
+    """
     from asyncio import sleep
 
     wt = 0 if no_wait else initial_wait_time
@@ -1669,3 +1673,7 @@ def _get_existing_spans(
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
     ids = set(span_ids)
     await _get(lambda: (len(_get_existing_spans(app, ids)) == len(ids)) or None)
+
+
+def _randomize_casing(email: str) -> str:
+    return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
@@ -19,21 +20,18 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
+import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import {
-  intFormatter,
-  intShortFormatter,
-} from "@phoenix/utils/numberFormatUtils";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { LLMSpanCountTimeSeriesQuery } from "./__generated__/LLMSpanCountTimeSeriesQuery.graphql";
+import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -41,14 +39,12 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   if (active && payload && payload.length) {
+    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
     const errorColor = payload[0]?.color ?? null;
-    const unsetValue = payload[1]?.value ?? null;
-    const unsetColor = payload[1]?.color ?? null;
-    const okValue = payload[2]?.value ?? null;
-    const okColor = payload[2]?.color ?? null;
+    const okValue = payload[1]?.value ?? null;
+    const okColor = payload[1]?.color ?? null;
     const okString = intFormatter(okValue);
-    const unsetString = intFormatter(unsetValue);
     const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
@@ -64,12 +60,6 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
-          color={unsetColor}
-          shape="circle"
-          name="unset"
-          value={unsetString}
-        />
-        <ChartTooltipItem
           color={okColor}
           shape="circle"
           name="ok"
@@ -82,31 +72,30 @@ function TooltipContent({
   return null;
 }
 
-export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function TraceCountTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<LLMSpanCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
     graphql`
-      query LLMSpanCountTimeSeriesQuery(
+      query TraceCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
-        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            spanCountTimeSeries(
+            traceCountByStatusTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
-              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
                 okCount
                 errorCount
-                unsetCount
               }
             }
           }
@@ -123,24 +112,24 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
-      filterCondition: 'span_kind == "LLM"',
     }
   );
 
-  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
-    (datum) => ({
-      timestamp: datum.timestamp,
-      error: datum.errorCount,
-      unset: datum.unsetCount,
-      ok: datum.okCount,
-    })
+  const chartData = useMemo(
+    () =>
+      (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
+        timestamp: new Date(datum.timestamp),
+        ok: datum.okCount,
+        error: datum.errorCount,
+      })),
+    [data.project.traceCountByStatusTimeSeries?.data]
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
-  const interval = useBinInterval({ scale });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -158,7 +147,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => intShortFormatter(x)}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
@@ -176,14 +165,14 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.grey500} />
         <Bar
           dataKey="ok"
           stackId="a"
           fill={colors.grey300}
           radius={[2, 2, 0, 0]}
         />
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+
+        <Legend iconType="circle" iconSize={8} {...defaultLegendProps} />
       </BarChart>
     </ResponsiveContainer>
   );

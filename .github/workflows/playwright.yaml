@@ -29,7 +29,7 @@ jobs:
       matrix:
         py: [3.13]
         # large runners have more disk space, which we need for our in-runner phoenix db
-        os: [oss-4-core-runner, macos-latest-large]
+        os: [oss-4-core-runner] # re-add macos-latest-large once billing is set
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
