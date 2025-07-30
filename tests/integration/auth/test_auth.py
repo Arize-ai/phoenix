@@ -51,6 +51,7 @@ from .._helpers import (
     _export_embeddings,
     _extract_html,
     _GetUser,
+    _gql,
     _GqlId,
     _grpc_span_exporter,
     _Headers,
@@ -70,7 +71,6 @@ from .._helpers import (
     _SpanExporterFactory,
     _Username,
     _will_be_asked_to_reset_password,
-    _gql,
 )
 
 NOW = datetime.now(timezone.utc)
@@ -734,7 +734,7 @@ class TestCreateUser:
 
 class TestEmailSanitizationGraphQL:
     """Test email sanitization for user creation via GraphQL API.
-    
+
     These tests verify that uppercase emails are properly sanitized and stored
     as lowercase in the database when using GraphQL mutations, fixing GitHub issue #8865.
     """
@@ -748,28 +748,26 @@ class TestEmailSanitizationGraphQL:
         """Test that uppercase emails are sanitized when creating LOCAL users via GraphQL."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Create a profile with uppercase email
         profile = next(_profiles)
         uppercase_email = f"GRAPHQL.LOCAL.{token_hex(8).upper()}@TEST.COM"
         expected_lowercase_email = uppercase_email.lower()
-        
+
         # Use a custom profile with uppercase email
         test_profile = _Profile(
-            email=uppercase_email,
-            password=profile.password,
-            username=profile.username
+            email=uppercase_email, password=profile.password, username=profile.username
         )
-        
+
         # Create user with uppercase email using GraphQL
         created_user = admin.create_user(_app, UserRoleInput.MEMBER, profile=test_profile)
-        
+
         # Verify the user was created with lowercase email
         assert created_user.profile.email == expected_lowercase_email, (
             f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
             f"but got: {created_user.profile.email}"
         )
-        
+
         # Verify by listing users and checking the email
         all_users = admin.list_users(_app)
         created_user_from_list = next(
@@ -790,28 +788,28 @@ class TestEmailSanitizationGraphQL:
         """Test that uppercase emails are sanitized when creating OAuth2 users via GraphQL."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Create a profile with uppercase email
         profile = next(_profiles)
         uppercase_email = f"GRAPHQL.OAUTH.{token_hex(8).upper()}@EXAMPLE.ORG"
         expected_lowercase_email = uppercase_email.lower()
-        
+
         # Use a custom profile with uppercase email
         test_profile = _Profile(
-            email=uppercase_email,
-            password=profile.password,
-            username=profile.username
+            email=uppercase_email, password=profile.password, username=profile.username
         )
-        
+
         # Create OAuth2 user with uppercase email using GraphQL
-        created_user = admin.create_user(_app, UserRoleInput.ADMIN, profile=test_profile, local=False)
-        
+        created_user = admin.create_user(
+            _app, UserRoleInput.ADMIN, profile=test_profile, local=False
+        )
+
         # Verify the user was created with lowercase email
         assert created_user.profile.email == expected_lowercase_email, (
             f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
             f"but got: {created_user.profile.email}"
         )
-        
+
         # Verify by listing users and checking the email
         all_users = admin.list_users(_app)
         created_user_from_list = next(
@@ -832,22 +830,20 @@ class TestEmailSanitizationGraphQL:
         """Test that emails with whitespace are trimmed and lowercased via GraphQL."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Create a profile with messy email (whitespace + uppercase)
         profile = next(_profiles)
         messy_email = f"  WHITESPACE.TRIM.{token_hex(8).upper()}@MESSY.COM  "
         expected_clean_email = messy_email.strip().lower()
-        
+
         # Use a custom profile with messy email
         test_profile = _Profile(
-            email=messy_email,
-            password=profile.password,
-            username=profile.username
+            email=messy_email, password=profile.password, username=profile.username
         )
-        
+
         # Create user with messy email using GraphQL
         created_user = admin.create_user(_app, UserRoleInput.MEMBER, profile=test_profile)
-        
+
         # Verify the user was created with sanitized email
         assert created_user.profile.email == expected_clean_email, (
             f"Expected email to be sanitized: {expected_clean_email}, "
@@ -862,13 +858,13 @@ class TestEmailSanitizationGraphQL:
         """Test email sanitization using direct GraphQL mutation."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Test data with uppercase email
         uppercase_email = f"DIRECT.MUTATION.{token_hex(8).upper()}@GRAPHQL.TEST"
         expected_lowercase_email = uppercase_email.lower()
         username = f"test_direct_{token_hex(8)}"
         password = "test_password"
-        
+
         # Direct GraphQL mutation
         mutation = f'''
         mutation {{
@@ -889,15 +885,15 @@ class TestEmailSanitizationGraphQL:
             }}
         }}
         '''
-        
+
         # Execute the mutation
         resp_dict, headers = _gql(_app, admin.tokens, query=mutation)
-        
+
         # Verify response
         assert "data" in resp_dict
         assert "createUser" in resp_dict["data"]
         assert "user" in resp_dict["data"]["createUser"]
-        
+
         user_data = resp_dict["data"]["createUser"]["user"]
         assert user_data["email"] == expected_lowercase_email, (
             f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
@@ -1924,7 +1920,7 @@ class TestTraceAnnotations:
 
 class TestCaseInsensitiveLogin:
     """Test case-insensitive email login functionality.
-    
+
     These tests verify that users can log in with different email case variations
     after being created, ensuring the case-insensitive database lookup works correctly.
     """
@@ -1938,29 +1934,27 @@ class TestCaseInsensitiveLogin:
         """Test that users can log in with different email case variations."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Create a user with a lowercase email
         profile = next(_profiles)
         original_email = f"casetest.{token_hex(8)}@example.com"
         test_profile = _Profile(
-            email=original_email,
-            password=profile.password,
-            username=profile.username
+            email=original_email, password=profile.password, username=profile.username
         )
-        
+
         # Create user
         created_user = admin.create_user(_app, UserRoleInput.MEMBER, profile=test_profile)
-        
+
         # Verify user was created with lowercase email
         assert created_user.profile.email == original_email.lower()
-        
+
         # Test login with various case combinations
         login_variations = [
             original_email.lower(),  # all lowercase (original)
             original_email.upper(),  # all uppercase
             original_email.title(),  # title case
         ]
-        
+
         for email_variation in login_variations:
             # Attempt to log in with different email case
             login_response = httpx.post(
@@ -1970,7 +1964,7 @@ class TestCaseInsensitiveLogin:
                     "password": test_profile.password,
                 },
             )
-            
+
             assert login_response.status_code == 204, (
                 f"Login should succeed with email variation: {email_variation}, "
                 f"but got status: {login_response.status_code}"
@@ -1985,26 +1979,24 @@ class TestCaseInsensitiveLogin:
         """Test that password reset works with different email case variations."""
         # Set up admin user
         admin = _get_user(_app, _ADMIN).log_in(_app)
-        
+
         # Create a user with a lowercase email
         profile = next(_profiles)
         original_email = f"resettest.{token_hex(8)}@example.com"
         test_profile = _Profile(
-            email=original_email,
-            password=profile.password,
-            username=profile.username
+            email=original_email, password=profile.password, username=profile.username
         )
-        
+
         # Create user
-        created_user = admin.create_user(_app, UserRoleInput.MEMBER, profile=test_profile)
-        
+        admin.create_user(_app, UserRoleInput.MEMBER, profile=test_profile)
+
         # Test password reset with uppercase email
         uppercase_email = original_email.upper()
         reset_response = httpx.post(
             url=urljoin(_app.base_url, "/auth/password-reset-email"),
             json={"email": uppercase_email},
         )
-        
+
         # Should succeed (status 204) even with uppercase email
         # Note: The endpoint returns 204 even if user doesn't exist for security,
         # but the email sanitization should allow finding the user

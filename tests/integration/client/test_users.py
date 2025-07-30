@@ -629,7 +629,7 @@ class TestClientForUsersAPI:
 
 class TestEmailSanitization:
     """Test email sanitization for user creation via REST API.
-    
+
     These tests verify that uppercase emails are properly sanitized and stored
     as lowercase in the database, fixing GitHub issue #8865.
     """
