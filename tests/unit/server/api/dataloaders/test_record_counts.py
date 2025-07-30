@@ -49,6 +49,7 @@ async def test_record_counts(
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
+            None,  # session_filter
         )
         for kind in kinds
         for id_ in range(10)
