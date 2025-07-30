@@ -1317,7 +1317,7 @@ class _OIDCServer:
             redirect_uri = params.get("redirect_uri")
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = f"{token_hex(16)}@example.com"
+            self._user_email = f"{token_hex(16)}@{token_hex(16)}.com"
             self._user_name = f"User {token_hex(8)}"
             return RedirectResponse(
                 f"{redirect_uri}?code=test_auth_code&state={state}",
