@@ -6,7 +6,6 @@ from phoenix.evals.templating import (
     MustacheFormatter,
     Template,
     TemplateFormat,
-    TemplateResult,
     detect_template_format,
 )
 
@@ -225,141 +224,94 @@ class TestFormatterFactory:
 class TestTemplate:
     """Tests for the Template class."""
 
-    @pytest.fixture
-    def sample_schema(self):
-        return {
-            "type": "object",
-            "properties": {"result": {"type": "string"}, "confidence": {"type": "number"}},
-            "required": ["result"],
-        }
-
-    def test_explicit_mustache_format(self, sample_schema):
+    def test_explicit_mustache_format(self):
         template = Template(
             template="Classify: {{text}}",
-            schema=sample_schema,
             template_format=TemplateFormat.MUSTACHE,
         )
 
         assert template.template_format == TemplateFormat.MUSTACHE
         assert template.variables == ["text"]
 
-    def test_explicit_fstring_format(self, sample_schema):
+    def test_explicit_fstring_format(self):
         template = Template(
             template="Classify: {text}",
-            schema=sample_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["text"]
 
-    def test_auto_detection_mustache(self, sample_schema):
-        template = Template(template="Classify: {{text}}", schema=sample_schema)
+    def test_auto_detection_mustache(self):
+        template = Template(template="Classify: {{text}}")
 
         assert template.template_format == TemplateFormat.MUSTACHE
         assert template.variables == ["text"]
 
-    def test_auto_detection_fstring(self, sample_schema):
-        template = Template(template="Classify: {text}", schema=sample_schema)
+    def test_auto_detection_fstring(self):
+        template = Template(template="Classify: {text}")
 
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["text"]
 
-    def test_auto_detection_with_json_content(self, sample_schema):
-        template = Template(
-            template='Analyze: {"config": {"debug": true}} for {user_id}', schema=sample_schema
-        )
+    def test_auto_detection_with_json_content(self):
+        template = Template(template='Analyze: {"config": {"debug": true}} for {user_id}')
 
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["user_id"]
 
-    def test_render_mustache_template(self, sample_schema):
+    def test_render_mustache_template(self):
         template = Template(
             template="Classify: {{text}}",
-            schema=sample_schema,
             template_format=TemplateFormat.MUSTACHE,
         )
 
         result = template.render({"text": "Hello world"})
 
-        assert isinstance(result, dict)
-        assert result["prompt"] == "Classify: Hello world"
-        assert result["schema"] == sample_schema
+        assert isinstance(result, str)
+        assert result == "Classify: Hello world"
 
-    def test_render_fstring_template(self, sample_schema):
+    def test_render_fstring_template(self):
         template = Template(
             template="Classify: {text}",
-            schema=sample_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
         result = template.render({"text": "Hello world"})
 
-        assert isinstance(result, dict)
-        assert result["prompt"] == "Classify: Hello world"
-        assert result["schema"] == sample_schema
+        assert isinstance(result, str)
+        assert result == "Classify: Hello world"
 
-    def test_render_fstring_with_json(self, sample_schema):
+    def test_render_fstring_with_json(self):
         template = Template(
             template='Process: {"config": {"debug": true}} for user {user_id}',
-            schema=sample_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
         result = template.render({"user_id": "123"})
 
-        expected_prompt = 'Process: {"config": {"debug": true}} for user 123'
-        assert result["prompt"] == expected_prompt
-        assert result["schema"] == sample_schema
+        expected = 'Process: {"config": {"debug": true}} for user 123'
+        assert result == expected
 
-    def test_empty_template_raises_error(self, sample_schema):
+    def test_empty_template_raises_error(self):
         with pytest.raises(ValueError, match="Template cannot be empty"):
-            Template(template="", schema=sample_schema)
+            Template(template="")
 
-    def test_invalid_schema_raises_error(self):
-        with pytest.raises(TypeError, match="Schema must be a dictionary"):
-            Template(template="Hello {name}", schema="invalid")  # type: ignore
-
-    def test_render_with_invalid_variables_raises_error(self, sample_schema):
-        template = Template(
-            template="Hello {name}", schema=sample_schema, template_format=TemplateFormat.F_STRING
-        )
+    def test_render_with_invalid_variables_raises_error(self):
+        template = Template(template="Hello {name}", template_format=TemplateFormat.F_STRING)
 
         with pytest.raises(TypeError, match="Variables must be a dictionary"):
             template.render("invalid")  # type: ignore
 
 
-class TestTemplateResult:
-    """Tests for TemplateResult type."""
-
-    def test_template_result_structure(self):
-        # Test that TemplateResult is properly typed
-        result: TemplateResult = {"prompt": "Hello world", "schema": {"type": "object"}}
-
-        assert result["prompt"] == "Hello world"
-        assert result["schema"] == {"type": "object"}
-
-
 class TestRealWorldUseCases:
     """Tests for real-world use cases and edge cases."""
 
-    @pytest.fixture
-    def classification_schema(self):
-        return {
-            "type": "object",
-            "properties": {
-                "classification": {"type": "string", "enum": ["positive", "negative", "neutral"]},
-                "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-            },
-            "required": ["classification"],
-        }
-
-    def test_sentiment_classification_mustache(self, classification_schema):
+    def test_sentiment_classification_mustache(self):
         template = Template(
             template=(
                 "Classify the sentiment of this text: {{text}}\n\nConsider the context: {{context}}"
             ),
-            schema=classification_schema,
             template_format=TemplateFormat.MUSTACHE,
         )
 
@@ -369,14 +321,13 @@ class TestRealWorldUseCases:
             "Classify the sentiment of this text: I love this product!\n\nConsider the "
             "context: Customer review"
         )
-        assert result["prompt"] == expected
+        assert result == expected
 
-    def test_sentiment_classification_fstring(self, classification_schema):
+    def test_sentiment_classification_fstring(self):
         template = Template(
             template=(
                 "Classify the sentiment of this text: {text}\n\nConsider the context: {context}"
             ),
-            schema=classification_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
@@ -386,9 +337,9 @@ class TestRealWorldUseCases:
             "Classify the sentiment of this text: I love this product!\n\nConsider the "
             "context: Customer review"
         )
-        assert result["prompt"] == expected
+        assert result == expected
 
-    def test_complex_json_with_variables(self, classification_schema):
+    def test_complex_json_with_variables(self):
         """Test a complex real-world case with JSON configuration and variables."""
         template = Template(
             template="""
@@ -407,7 +358,6 @@ Analyze the following text for user {user_id} in environment {environment}:
 
 Consider the previous conversation context if available.
             """.strip(),
-            schema=classification_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
@@ -415,14 +365,14 @@ Consider the previous conversation context if available.
             {"user_id": "user_123", "environment": "production", "text": "This is a test message"}
         )
 
-        assert "user_123" in result["prompt"]
-        assert "production" in result["prompt"]
-        assert "This is a test message" in result["prompt"]
+        assert "user_123" in result
+        assert "production" in result
+        assert "This is a test message" in result
         # JSON should be preserved exactly
-        assert '"temperature": 0.3' in result["prompt"]
-        assert '"response_format": {"type": "json_object"}' in result["prompt"]
+        assert '"temperature": 0.3' in result
+        assert '"response_format": {"type": "json_object"}' in result
 
-    def test_ambiguous_case_with_explicit_format(self, classification_schema):
+    def test_ambiguous_case_with_explicit_format(self):
         """Test handling of ambiguous cases with explicit format specification."""
         # This template is ambiguous - could be f-string escaped JSON or mustache
         ambiguous_template = 'Config: {{"debug": true}} for analysis'
@@ -430,19 +380,17 @@ Consider the previous conversation context if available.
         # Test as f-string (escaped JSON)
         template_fstring = Template(
             template=ambiguous_template,
-            schema=classification_schema,
             template_format=TemplateFormat.F_STRING,
         )
 
         result_fstring = template_fstring.render({})
-        assert result_fstring["prompt"] == 'Config: {"debug": true} for analysis'
+        assert result_fstring == 'Config: {"debug": true} for analysis'
 
         # Test as mustache (variable named "debug": true)
         template_mustache = Template(
             template=ambiguous_template,
-            schema=classification_schema,
             template_format=TemplateFormat.MUSTACHE,
         )
 
         result_mustache = template_mustache.render({'"debug": true': "REPLACED"})
-        assert result_mustache["prompt"] == "Config: REPLACED for analysis"
+        assert result_mustache == "Config: REPLACED for analysis"

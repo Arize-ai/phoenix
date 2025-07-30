@@ -2,17 +2,14 @@ import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from string import Formatter
-from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict
+from typing import Any, Dict, List, Mapping, Optional, Sequence
+
+import pystache  # type: ignore
 
 
 class TemplateFormat(str, Enum):
     MUSTACHE = "mustache"
     F_STRING = "f_string"
-
-
-class TemplateResult(TypedDict):
-    prompt: str
-    schema: Dict[str, Any]
 
 
 class TemplateFormatter(ABC):
@@ -27,29 +24,13 @@ class TemplateFormatter(ABC):
 
 class MustacheFormatter(TemplateFormatter):
     def render(self, template: str, variables: Dict[str, Any]) -> str:
-        try:
-            import pystache  # type: ignore
-
-            return pystache.render(template, variables)  # type: ignore
-        except ImportError:
-            result = template
-            for key, value in variables.items():
-                result = result.replace(f"{{{{{key}}}}}", str(value))
-            return result
+        return pystache.render(template, variables)  # type: ignore
 
     def extract_variables(self, template: str) -> List[str]:
-        try:
-            import pystache
-
-            parsed = pystache.parse(template)
-            variables: List[str] = []
-            self._extract_from_parsed(parsed, variables)
-            return list(set(variables))
-        except ImportError:
-            import re
-
-            pattern = r"\{\{\s*([^}]+)\s*\}\}"
-            return [match.strip() for match in re.findall(pattern, template)]
+        parsed = pystache.parse(template)
+        variables: List[str] = []
+        self._extract_from_parsed(parsed, variables)
+        return list(set(variables))
 
     def _extract_from_parsed(self, parsed: Any, variables: List[str]) -> None:
         try:
@@ -78,8 +59,18 @@ class FStringFormatter(TemplateFormatter):
     """
 
     def render(self, template: str, variables: Dict[str, Any]) -> str:
-        formatter = DotKeyFormatter()
-        return formatter.format(template, **variables)
+        # Extract valid template variables first
+        valid_vars = self.extract_variables(template)
+
+        # Only substitute the valid template variables, leaving JSON content unchanged
+        result = template
+        for var in valid_vars:
+            if var not in variables:
+                raise KeyError(f"Template variable '{var}' not found in provided variables")
+            # Replace only the specific variable pattern
+            result = result.replace(f"{{{var}}}", str(variables[var]))
+
+        return result
 
     def extract_variables(self, template: str) -> List[str]:
         """Extract only template variables, excluding JSON content."""
@@ -214,90 +205,62 @@ class FormatterFactory:
 
 class Template:
     """
-    A template for LLM evaluation that renders prompts with provided JSON schemas.
+    A template for rendering prompts with different formatting styles.
 
-    This class provides a simple interface for creating evaluation templates that work
-    directly with LLM.generate_object() methods. It supports mustache and f-string template
-    formats with auto-detection, and uses a provided JSON schema for structured output.
+    This class provides a simple interface for creating templates that support both
+    mustache ({{variable}}) and f-string ({variable}) formats with auto-detection.
+    The primary functionality is to abstract away the underlying templating logic
+    to enable multiple kinds of templating formats.
 
     Args:
         template: Template string with variables (e.g., "Classify: {{text}}" or "Classify: {text}")
-        schema: JSON schema dict for structured output validation
         template_format: Template format (MUSTACHE or F_STRING). If None, auto-detects format.
 
     Examples:
-        Basic classification schema with auto-detection:
-        >>> schema = {
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "classification": {
-        ...             "type": "string",
-        ...             "enum": ["positive", "negative", "neutral"]
-        ...         }
-        ...     },
-        ...     "required": ["classification"]
-        ... }
-        >>> template = Template(
-        ...     template="Classify sentiment: {{text}}",  # Auto-detected as mustache
-        ...     schema=schema
-        ... )
-        >>> result = template.render({"text": "Great product!"})
-        >>> llm.generate_object(result["prompt"], result["schema"])
+        Auto-detection with mustache format:
+        >>> template = Template(template="Classify sentiment: {{text}}")
+        >>> rendered = template.render({"text": "Great product!"})
+        >>> print(rendered)
+        Classify sentiment: Great product!
 
-        Complex schema with explanation:
-        >>> schema = {
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "response": {
-        ...             "type": "array",
-        ...             "items": [
-        ...                 {"type": "string", "description": "Explanation"},
-        ...                 {"type": "string", "enum": ["excellent", "good", "poor"]}
-        ...             ]
-        ...         }
-        ...     }
-        ... }
-        >>> template = Template(
-        ...     template="Rate quality: {response}",  # Auto-detected as f-string
-        ...     schema=schema
-        ... )
+        Auto-detection with f-string format:
+        >>> template = Template(template="Rate quality: {response}")
+        >>> rendered = template.render({"response": "excellent"})
+        >>> print(rendered)
+        Rate quality: excellent
 
         Explicit template formats:
         >>> # Mustache format
         >>> template = Template(
         ...     template="Classify: {{text}}",
-        ...     schema=schema,
         ...     template_format=TemplateFormat.MUSTACHE
         ... )
 
         >>> # F-string format
         >>> template = Template(
         ...     template="Classify: {text}",
-        ...     schema=schema,
         ...     template_format=TemplateFormat.F_STRING
         ... )
 
         Robust to JSON content:
         >>> # This template contains JSON but auto-detects correctly
         >>> template = Template(
-        ...     template='Analyze this data: {"key": "value"} for user {user_id}',
-        ...     schema=schema
+        ...     template='Analyze this data: {"key": "value"} for user {user_id}'
         ... )  # Auto-detected as f-string (ignores JSON content)
+        >>> rendered = template.render({"user_id": "123"})
+        >>> print(rendered)
+        Analyze this data: {"key": "value"} for user 123
     """
 
     def __init__(
         self,
         *,
         template: str,
-        schema: Dict[str, Any],
         template_format: Optional[TemplateFormat] = None,
     ):
         if not template:
             raise ValueError("Template cannot be empty")
-        if not isinstance(schema, dict):
-            raise TypeError(f"Schema must be a dictionary, got {type(schema)}")
         self.template = template
-        self.schema = schema
 
         if template_format is None:
             self.template_format = detect_template_format(template)
@@ -312,8 +275,7 @@ class Template:
     def variables(self) -> List[str]:
         return self._variables
 
-    def render(self, variables: Dict[str, Any]) -> TemplateResult:
-        if not isinstance(variables, dict):
+    def render(self, variables: Dict[str, Any]) -> str:
+        if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
-        rendered_prompt = self._formatter.render(self.template, variables)
-        return TemplateResult(prompt=rendered_prompt, schema=self.schema)
+        return self._formatter.render(self.template, variables)
