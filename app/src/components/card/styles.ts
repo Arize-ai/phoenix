@@ -42,8 +42,8 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
 
     & .card__title {
-      font-size: var(--ac-global-font-size-l);
-      line-height: var(--ac-global-line-height-l);
+      font-size: var(--ac-global-font-size-m);
+      line-height: var(--ac-global-line-height-m);
       display: flex;
       align-items: center;
       gap: var(--ac-global-dimension-static-size-100);
