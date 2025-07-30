@@ -5,13 +5,12 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from enum import Enum
 from secrets import token_urlsafe
-from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -29,10 +28,9 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
+from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
@@ -1121,220 +1119,3 @@ async def create_spans(
         total_received=total_received,
         total_queued=len(spans_to_queue),
     )
-
-
-async def _get_span_by_identifier(
-    session: AsyncSession,
-    span_identifier: str,
-) -> models.Span:
-    """
-    Get a span by its relay GlobalID or span_id.
-
-    Args:
-        session: The database session.
-        span_identifier: The span relay GlobalID or span_id.
-
-    Returns:
-        The span object.
-
-    Raises:
-        HTTPException: If the identifier format is invalid or the span is not found.
-    """
-    # Try to parse as a GlobalID first
-    try:
-        span_rowid = from_global_id_with_expected_type(
-            GlobalID.from_id(span_identifier),
-            "Span",
-        )
-        span = await session.get(models.Span, span_rowid)
-        if span is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Span with relay ID {span_identifier} not found",
-            )
-    except Exception:
-        # If GlobalID parsing fails, treat as span_id
-        stmt = select(models.Span).filter_by(span_id=span_identifier)
-        span = await session.scalar(stmt)
-        if span is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Span with span_id {span_identifier} not found",
-            )
-    return span
-
-
-async def _get_subtree_metrics(
-    session: AsyncSession,
-    span_rowids: List[int],
-) -> Tuple[int, int, int]:
-    """
-    Calculate the total cumulative metrics for a list of span row IDs.
-
-    Returns:
-        Tuple of (error_count, prompt_tokens, completion_tokens)
-    """
-    if not span_rowids:
-        return 0, 0, 0
-
-    result = await session.execute(
-        select(
-            func.sum(models.Span.cumulative_error_count),
-            func.sum(models.Span.cumulative_llm_token_count_prompt),
-            func.sum(models.Span.cumulative_llm_token_count_completion),
-        ).where(models.Span.id.in_(span_rowids))
-    )
-
-    metrics = result.first()
-    if metrics is None:
-        return 0, 0, 0
-    # Type assertion: we know these are the sum results from the query
-    error_count = int(metrics[0] or 0)
-    prompt_tokens = int(metrics[1] or 0)
-    completion_tokens = int(metrics[2] or 0)
-    return error_count, prompt_tokens, completion_tokens
-
-
-async def _update_ancestor_metrics(
-    session: AsyncSession,
-    parent_span_id: Optional[str],
-    error_count_delta: int,
-    prompt_tokens_delta: int,
-    completion_tokens_delta: int,
-) -> None:
-    """
-    Update cumulative metrics for all ancestors of a deleted span subtree.
-
-    Uses recursive CTE to find all ancestors and subtract the deleted metrics.
-    """
-    if not parent_span_id:
-        return  # No parent to update
-
-    # Build recursive CTE to find all ancestors, similar to span insertion logic
-    # Start with the direct parent
-    ancestors = (
-        select(models.Span.id, models.Span.parent_id)
-        .where(models.Span.span_id == parent_span_id)
-        .cte(recursive=True)
-    )
-
-    # Recursively find ancestors up the chain
-    parent = ancestors.alias()
-    ancestors = ancestors.union_all(
-        select(models.Span.id, models.Span.parent_id).join(
-            parent, models.Span.span_id == parent.c.parent_id
-        )
-    )
-
-    # Update all ancestors by subtracting the deleted subtree metrics
-    await session.execute(
-        update(models.Span)
-        .where(models.Span.id.in_(select(ancestors.c.id)))
-        .values(
-            cumulative_error_count=(models.Span.cumulative_error_count - error_count_delta),
-            cumulative_llm_token_count_prompt=(
-                models.Span.cumulative_llm_token_count_prompt - prompt_tokens_delta
-            ),
-            cumulative_llm_token_count_completion=(
-                models.Span.cumulative_llm_token_count_completion - completion_tokens_delta
-            ),
-        )
-    )
-
-
-@router.delete(
-    "/spans/{identifier}",
-    operation_id="deleteSpan",
-    summary="Delete a span and its subtree by identifier",
-    description=(
-        "Delete a span and its entire subtree by identifier. The identifier can be either:\n"
-        "1. A relay GlobalID (base64-encoded, e.g., 'U3Bhbjo4MjE=')\n"
-        "2. A span_id (string, e.g., 'f0d808aedd5591b6')\n\n"
-        "This will permanently remove the span and all its descendants, and update "
-        "cumulative metrics on ancestor spans accordingly."
-    ),
-    responses={
-        204: {"description": "Span and subtree successfully deleted"},
-        404: {"description": "Span not found"},
-    },
-    status_code=204,
-)
-async def delete_span(
-    request: Request,
-    identifier: str = Path(description="The span identifier: either a relay GlobalID or span_id"),
-) -> None:
-    """
-    Delete a span and its entire subtree by identifier.
-
-    This endpoint will:
-    1. Find the target span by identifier (relay GlobalID or span_id)
-    2. Find all descendants in the subtree using recursive CTE
-    3. Calculate total metrics from the subtree before deletion
-    4. Delete the entire subtree (target span + all descendants)
-    5. Update cumulative metrics on all ancestor spans
-    6. Trigger cache invalidation events
-    7. Return 204 No Content on success
-
-    The deletion maintains data consistency by properly updating cumulative metrics
-    on ancestor spans after the subtree is removed.
-    """
-    async with request.app.state.db() as session:
-        # Step 1: Find the target span and get trace info
-        span = await _get_span_by_identifier(session, identifier)
-        span_rowid = span.id
-        parent_span_id = span.parent_id
-        
-        # Get project_id from trace (avoid lazy loading in async context)
-        trace_query = select(models.Trace.project_rowid).where(
-            models.Trace.id == span.trace_rowid
-        )
-        project_id = await session.scalar(trace_query)
-
-        # Step 2: Find all descendants using recursive CTE (like SpanDescendantsDataLoader)
-        descendants = (
-            select(
-                models.Span.id,
-                models.Span.span_id,
-            )
-            .where(models.Span.parent_id == span.span_id)
-            .cte("descendants", recursive=True)
-        )
-
-        # Recursive part: find children of children
-        parent_descendants = descendants.alias("parent_descendants")
-        descendants = descendants.union_all(
-            select(
-                models.Span.id,
-                models.Span.span_id,
-            ).join_from(
-                parent_descendants,
-                models.Span,
-                models.Span.parent_id == parent_descendants.c.span_id,
-            )
-        )
-
-        # Get all span row IDs in the subtree (descendants only)
-        descendant_result = await session.execute(select(descendants.c.id))
-        descendant_rowids = [row[0] for row in descendant_result]
-
-        # Include the target span itself
-        all_subtree_rowids = [span_rowid] + descendant_rowids
-
-        # Step 3: Calculate total metrics from the subtree before deletion
-        error_count, prompt_tokens, completion_tokens = await _get_subtree_metrics(
-            session, all_subtree_rowids
-        )
-
-        # Step 4: Delete the entire subtree
-        await session.execute(delete(models.Span).where(models.Span.id.in_(all_subtree_rowids)))
-
-        # Step 5: Update ancestor metrics by subtracting deleted subtree metrics
-        await _update_ancestor_metrics(
-            session, parent_span_id, error_count, prompt_tokens, completion_tokens
-        )
-
-    # Step 6: Trigger cache invalidation
-    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
-
-    # Step 7: Return 204 No Content
-    return None
