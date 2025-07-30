@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from random import random
 from secrets import token_hex
 from typing import (
     Any,
@@ -77,6 +78,10 @@ _decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 
 
+def _randomize_casing(email: str) -> str:
+    return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)
+
+
 class TestOIDC:
     """Tests for OpenID Connect (OIDC) authentication flow.
 
@@ -146,7 +151,11 @@ class TestOIDC:
             assert not response.cookies.get("phoenix-refresh-token")
 
             # Create the user without password
-            admin.create_user(_app, profile=_Profile(email, "", token_hex(8)), local=False)
+            # Casing should not matter
+            case_insensitive_email = _randomize_casing(email)
+            admin.create_user(
+                _app, profile=_Profile(case_insensitive_email, "", token_hex(8)), local=False
+            )
 
             # If user go through OIDC flow again, access should be granted
             response = _httpx_client(_app, cookies=cookies).get(callback_url)

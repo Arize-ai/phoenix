@@ -906,7 +906,7 @@ def _create_user(
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
-    assert user["email"] == email
+    assert user["email"] == email.lower()
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
@@ -1317,7 +1317,7 @@ class _OIDCServer:
             redirect_uri = params.get("redirect_uri")
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = f"{token_hex(8)}@example.com"
+            self._user_email = f"{token_hex(16)}@example.com"
             self._user_name = f"User {token_hex(8)}"
             return RedirectResponse(
                 f"{redirect_uri}?code=test_auth_code&state={state}",
