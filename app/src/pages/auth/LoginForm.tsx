@@ -40,13 +40,13 @@ export function LoginForm(props: LoginFormProps) {
       propsOnSubmit?.();
       setError(null);
       setIsLoading(true);
-      
+
       // Sanitize email by trimming whitespace and converting to lowercase
       const sanitizedParams = {
         ...params,
         email: params.email.trim().toLowerCase(),
       };
-      
+
       try {
         const response = await fetch(prependBasename("/auth/login"), {
           method: "POST",
@@ -94,12 +94,8 @@ export function LoginForm(props: LoginFormProps) {
                 name="email"
                 isRequired
                 type="email"
-                onChange={(val) => onChange(val.trim().toLowerCase())}
-                onBlur={(e) => {
-                  const sanitizedValue = e.target.value.trim().toLowerCase();
-                  onChange(sanitizedValue);
-                  onBlur?.(e);
-                }}
+                onChange={onChange}
+                onBlur={onBlur}
                 value={value}
                 autoComplete="email"
               >
