@@ -53,17 +53,23 @@ def generate_experiment_project_name(prefix: str = "Experiment") -> str:
 
 ### 2. Updated Playground Dataset Experiments
 
-Modified the playground code in two files to use dynamic project names for dataset-based experiments:
+Modified the playground code to support stable project names across invocations:
+
+#### `src/phoenix/server/api/input_types/ChatCompletionInput.py`
+- Added `project_name: Optional[str] = None` parameter to `ChatCompletionOverDatasetInput`
+- This allows clients to specify a stable project name for consistent behavior
 
 #### `src/phoenix/server/api/subscriptions.py`
 - Updated `chat_completion_over_dataset` subscription
-- Now creates a dynamic project for each dataset experiment
-- Uses the helper function with "Playground-{dataset_name}" prefix for easy identification
+- Now uses provided project name or generates one if not provided
+- Implements "get or create" logic to prevent duplicate projects
+- Uses the helper function with "Playground-{dataset_name}" prefix when generating names
 
 #### `src/phoenix/server/api/mutations/chat_mutations.py`
 - Updated `chat_completion_over_dataset` mutation
-- Now creates a dynamic project for each dataset experiment
-- Uses the helper function with "Playground-{dataset_name}" prefix for easy identification
+- Now uses provided project name or generates one if not provided
+- Implements "get or create" logic to prevent duplicate projects
+- Uses the helper function with "Playground-{dataset_name}" prefix when generating names
 
 ### 3. Preserved Regular Playground Behavior
 
@@ -85,14 +91,20 @@ project_name=PLAYGROUND_PROJECT_NAME,
    - Added import for the new helper function
    - Updated existing experiment creation to use the helper
 
-3. `src/phoenix/server/api/subscriptions.py`
+3. `src/phoenix/server/api/input_types/ChatCompletionInput.py`
+   - Added `project_name: Optional[str] = None` parameter to `ChatCompletionOverDatasetInput`
+   - This enables stable project names across invocations
+
+4. `src/phoenix/server/api/subscriptions.py`
    - Added import for the helper function
-   - Updated dataset experiment creation to use dynamic project names with dataset name
+   - Updated dataset experiment creation to use provided project name or generate one
+   - Implemented "get or create" logic for projects to prevent duplicates
    - Updated project creation logic
 
-4. `src/phoenix/server/api/mutations/chat_mutations.py`
+5. `src/phoenix/server/api/mutations/chat_mutations.py`
    - Added import for the helper function
-   - Updated dataset experiment creation to use dynamic project names with dataset name
+   - Updated dataset experiment creation to use provided project name or generate one
+   - Implemented "get or create" logic for projects to prevent duplicates
    - Updated project creation logic
 
 ## Benefits
@@ -102,18 +114,42 @@ project_name=PLAYGROUND_PROJECT_NAME,
 3. **Safety**: Deleting an experiment no longer affects the playground project
 4. **Maintainability**: Reusable helper function ensures consistent project naming
 5. **Identifiability**: Project names include both "Playground" and dataset name for easy identification
+6. **Stability**: Project names can be provided as parameters to ensure consistency across invocations
+7. **Flexibility**: Supports both provided project names and auto-generated names
 
 ## Project Naming Pattern
 
-The new project naming pattern for playground dataset experiments is:
+The project naming supports two modes:
+
+### 1. Provided Project Name
+When `project_name` is provided in the input, that exact name is used:
+```
+{provided_project_name}
+```
+
+### 2. Auto-Generated Project Name
+When `project_name` is not provided, a unique name is generated:
 ```
 Playground-{DatasetName}-{random_hex}
 ```
 
 Examples:
-- `Playground-MyDataset-69d8405c3db3bacfe5f8b049`
-- `Playground-TestDataset-5de5357e452e314e420141cc`
-- `Playground-ProductionDataset-6f0d033583338c1710f54c2d`
+- Provided: `MyStableProject` → `MyStableProject`
+- Auto-generated: `Playground-MyDataset-69d8405c3db3bacfe5f8b049`
+- Auto-generated: `Playground-TestDataset-5de5357e452e314e420141cc`
+- Auto-generated: `Playground-ProductionDataset-6f0d033583338c1710f54c2d`
+
+## Project Stability
+
+The implementation uses a "get or create" pattern:
+1. **Lookup**: First tries to find an existing project with the given name
+2. **Create**: If not found, creates a new project with that name
+3. **Reuse**: Subsequent invocations with the same project name will reuse the existing project
+
+This ensures that:
+- Multiple invocations with the same project name use the same project
+- No duplicate projects are created for the same experiment
+- Project names remain stable across subscription invocations
 
 ## Testing
 
@@ -124,12 +160,17 @@ The fix has been tested to ensure:
 - ✅ Each experiment gets a unique project name
 - ✅ Dataset names are properly included in project names
 - ✅ Regular playground behavior is preserved
+- ✅ Project name parameter functionality works correctly
+- ✅ Project names are stable across invocations when provided
+- ✅ "Get or create" logic prevents duplicate projects
 
 ## Impact
 
 This fix resolves the regression by ensuring that:
 - Dataset-based playground experiments create dynamic projects (like the client API)
-- Project names include both "Playground" and dataset name for easy identification
+- Project names can be provided as parameters for stability across invocations
+- Project names include both "Playground" and dataset name for easy identification when auto-generated
 - Regular playground chat completion continues to use the playground project
 - Each experiment is isolated in its own project
 - The playground project is no longer at risk of being deleted when experiments are deleted
+- Multiple invocations of the same experiment use the same project when a project name is provided

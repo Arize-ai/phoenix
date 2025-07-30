@@ -288,20 +288,29 @@ class Subscription:
                 ]
             ):
                 raise NotFound("No examples found for the given dataset and version")
-            # Generate a dynamic project name for this experiment to avoid conflicts
-            # Include both "Playground" and dataset name for easy identification
-            dynamic_project_name = generate_experiment_project_name(f"Playground-{dataset_name}")
+            # Use provided project name or generate one if not provided
+            if input.project_name:
+                project_name = input.project_name
+            else:
+                # Generate a dynamic project name for this experiment to avoid conflicts
+                # Include both "Playground" and dataset name for easy identification
+                project_name = generate_experiment_project_name(f"Playground-{dataset_name}")
+            
             project_description = f"Playground experiment: {input.experiment_name or _default_playground_experiment_name(input.prompt_name)}"
             
-            # Create the project for this experiment
+            # Get or create the project for this experiment
             project_id = await session.scalar(
-                insert(models.Project)
-                .returning(models.Project.id)
-                .values(
-                    name=dynamic_project_name,
-                    description=project_description,
-                )
+                select(models.Project.id).where(models.Project.name == project_name)
             )
+            if project_id is None:
+                project_id = await session.scalar(
+                    insert(models.Project)
+                    .returning(models.Project.id)
+                    .values(
+                        name=project_name,
+                        description=project_description,
+                    )
+                )
             
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
@@ -311,7 +320,7 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=dynamic_project_name,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()
