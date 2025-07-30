@@ -17,7 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.experiments.utils import generate_experiment_project_name
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentInsertEvent

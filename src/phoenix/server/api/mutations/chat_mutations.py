@@ -51,7 +51,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionOverDatasetInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
-from phoenix.experiments.utils import generate_experiment_project_name
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )

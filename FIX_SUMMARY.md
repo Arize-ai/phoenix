@@ -33,7 +33,7 @@ experiment = models.Experiment(
 
 ### 1. Added Helper Function
 
-Created a reusable helper function `generate_experiment_project_name()` in `src/phoenix/experiments/utils.py`:
+Created a reusable helper function `generate_experiment_project_name()` in `src/phoenix/server/experiments/utils.py`:
 
 ```python
 def generate_experiment_project_name(prefix: str = "Experiment") -> str:
@@ -76,7 +76,8 @@ project_name=PLAYGROUND_PROJECT_NAME,
 
 ## Files Modified
 
-1. `src/phoenix/experiments/utils.py`
+1. `src/phoenix/server/experiments/utils.py` (new file)
+   - Created new utils.py file in server experiments directory
    - Added `generate_experiment_project_name()` helper function
 
 2. `src/phoenix/server/api/routers/v1/experiments.py`
