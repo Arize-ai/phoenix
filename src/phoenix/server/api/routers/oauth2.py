@@ -27,6 +27,7 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
+    normalize_email,
     set_access_token_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
@@ -356,8 +357,16 @@ async def _get_existing_oauth2_user(
             - User has a password set
             - User has mismatched OAuth2 credentials
     """  # noqa: E501
-    if not (email := (user_info.email or "").strip()):
+    email_raw = (user_info.email or "").strip()
+    if not email_raw:
         raise ValueError("Email is required.")
+    
+    # Normalize email for consistent storage and lookup
+    try:
+        email = normalize_email(email_raw)
+    except ValueError as e:
+        raise ValueError(f"Invalid email address: {e}") from e
+    
     if not (oauth2_user_id := (user_info.idp_user_id or "").strip()):
         raise ValueError("OAuth2 user ID is required.")
     if not (oauth2_client_id := (oauth2_client_id or "").strip()):
@@ -457,9 +466,19 @@ async def _create_user(
     """
     Creates a new user with the user info from the IDP.
     """
+    # Normalize email for consistent storage
+    email_raw = user_info.email
+    if not email_raw:
+        raise ValueError("Email is required for user creation.")
+    
+    try:
+        email = normalize_email(email_raw)
+    except ValueError as e:
+        raise ValueError(f"Invalid email address: {e}") from e
+    
     email_exists, username_exists = await _email_and_username_exist(
         session,
-        email=(email := user_info.email),
+        email=email,
         username=(username := user_info.username),
     )
     if email_exists:

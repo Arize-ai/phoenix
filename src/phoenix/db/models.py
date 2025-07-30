@@ -45,6 +45,7 @@ from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
 from typing_extensions import TypeAlias
 
+from phoenix.auth import normalize_email
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.annotation_configs import (
@@ -1296,8 +1297,14 @@ class LocalUser(User):
     ) -> None:
         if not password_hash or not password_salt:
             raise ValueError("password_hash and password_salt are required for LocalUser")
+        # Normalize email for case-insensitive storage
+        try:
+            normalized_email = normalize_email(email)
+        except ValueError as e:
+            raise ValueError(f"Invalid email address: {e}") from e
+            
         super().__init__(
-            email=email.strip(),
+            email=normalized_email,
             username=username.strip(),
             user_role_id=user_role_id,
             password_hash=password_hash,
@@ -1321,8 +1328,14 @@ class OAuth2User(User):
         oauth2_user_id: Optional[str] = None,
         user_role_id: Optional[int] = None,
     ) -> None:
+        # Normalize email for case-insensitive storage
+        try:
+            normalized_email = normalize_email(email)
+        except ValueError as e:
+            raise ValueError(f"Invalid email address: {e}") from e
+            
         super().__init__(
-            email=email.strip(),
+            email=normalized_email,
             username=username.strip(),
             user_role_id=user_role_id,
             reset_password=False,

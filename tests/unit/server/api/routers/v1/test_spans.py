@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from faker import Faker
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
@@ -633,3 +634,272 @@ async def test_phoenix_openinference_span_kind_extraction(
     span = spans[0]
     assert span.span_kind == "LLM"
     assert "openinference.span.kind" not in span.attributes
+
+
+async def test_delete_span_by_span_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Test deleting a span by span_id with subtree removal and metric updates.
+    """
+    async with db() as session:
+        # Create a project
+        project_id = await session.scalar(
+            insert(models.Project).values(name="test-project").returning(models.Project.id)
+        )
+        
+        # Create a trace
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-123",
+                project_rowid=project_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:05:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        
+        # Create a parent span
+        parent_span_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="parent-span",
+                parent_id=None,
+                name="Parent Span",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:05:00.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=2,  # Will include child errors
+                cumulative_llm_token_count_prompt=300,  # Will include child tokens
+                cumulative_llm_token_count_completion=200,
+                llm_token_count_prompt=0,
+                llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        
+        # Create a child span to delete
+        child_span_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="child-span",
+                parent_id="parent-span",
+                name="Child Span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:03:00.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="ERROR",
+                status_message="",
+                cumulative_error_count=1,
+                cumulative_llm_token_count_prompt=100,
+                cumulative_llm_token_count_completion=50,
+                llm_token_count_prompt=100,
+                llm_token_count_completion=50,
+            )
+            .returning(models.Span.id)
+        )
+        
+        # Create a grandchild span 
+        grandchild_span_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="grandchild-span",
+                parent_id="child-span",
+                name="Grandchild Span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:02:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:02:30.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="ERROR",
+                status_message="",
+                cumulative_error_count=1,
+                cumulative_llm_token_count_prompt=200,
+                cumulative_llm_token_count_completion=150,
+                llm_token_count_prompt=200,
+                llm_token_count_completion=150,
+            )
+            .returning(models.Span.id)
+        )
+
+    # Delete the child span (should delete grandchild too and update parent metrics)
+    response = await httpx_client.delete(f"v1/spans/child-span")
+    
+    assert response.status_code == 204
+    assert response.text == ""
+
+    # Verify the child and grandchild spans are deleted
+    async with db() as session:
+        deleted_child = await session.get(models.Span, child_span_id)
+        deleted_grandchild = await session.get(models.Span, grandchild_span_id)
+        assert deleted_child is None, "Child span should be deleted"
+        assert deleted_grandchild is None, "Grandchild span should be deleted via subtree deletion"
+        
+        # Verify parent span still exists but has updated metrics
+        parent_span = await session.get(models.Span, parent_span_id)
+        assert parent_span is not None, "Parent span should still exist"
+        
+        # Parent should have metrics reduced by the deleted subtree
+        # Original parent: errors=2, prompt=300, completion=200
+        # Deleted subtree: errors=2 (child=1 + grandchild=1), prompt=300 (child=100 + grandchild=200), completion=200 (child=50 + grandchild=150)
+        # Expected parent after deletion: errors=0, prompt=0, completion=0
+        assert parent_span.cumulative_error_count == 0
+        assert parent_span.cumulative_llm_token_count_prompt == 0
+        assert parent_span.cumulative_llm_token_count_completion == 0
+
+
+async def test_delete_span_by_relay_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Test deleting a span by relay GlobalID.
+    """
+    async with db() as session:
+        # Create a project
+        project_id = await session.scalar(
+            insert(models.Project).values(name="test-project-relay").returning(models.Project.id)
+        )
+        
+        # Create a trace
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-relay-123",
+                project_rowid=project_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        
+        # Create a span to delete
+        span_row_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="relay-test-span",
+                parent_id=None,
+                name="Relay Test Span",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=50,
+                cumulative_llm_token_count_completion=25,
+                llm_token_count_prompt=50,
+                llm_token_count_completion=25,
+            )
+            .returning(models.Span.id)
+        )
+
+    # Create relay GlobalID for the span
+    span_global_id = GlobalID(type_name="Span", node_id=str(span_row_id))
+    
+    # Delete the span via relay ID
+    response = await httpx_client.delete(f"v1/spans/{span_global_id}")
+    
+    assert response.status_code == 204
+    assert response.text == ""
+
+    # Verify the span is deleted
+    async with db() as session:
+        deleted_span = await session.get(models.Span, span_row_id)
+        assert deleted_span is None, "Span should be deleted"
+
+
+async def test_delete_span_not_found(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """
+    Test deleting a non-existent span returns 404.
+    """
+    # Try to delete non-existent span by span_id
+    response = await httpx_client.delete("v1/spans/nonexistent-span-id")
+    assert response.status_code == 404
+    assert "Span with span_id nonexistent-span-id not found" in response.text
+    
+    # Try to delete non-existent span by relay ID
+    fake_global_id = GlobalID(type_name="Span", node_id="999999")
+    response = await httpx_client.delete(f"v1/spans/{fake_global_id}")
+    assert response.status_code == 404
+    # Note: Valid GlobalID format gets parsed and checked, invalid ones fall back to span_id path
+    assert f"Span with span_id {fake_global_id} not found" in response.text
+
+
+async def test_delete_root_span_preserves_trace(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Test that deleting all spans in a trace preserves the trace itself.
+    """
+    async with db() as session:
+        # Create a project
+        project_id = await session.scalar(
+            insert(models.Project).values(name="test-project-root").returning(models.Project.id)
+        )
+        
+        # Create a trace
+        trace_row_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-root-123",
+                project_rowid=project_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        
+        # Create a root span
+        root_span_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_row_id,
+                span_id="root-span",
+                parent_id=None,
+                name="Root Span",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=100,
+                cumulative_llm_token_count_completion=50,
+                llm_token_count_prompt=100,
+                llm_token_count_completion=50,
+            )
+            .returning(models.Span.id)
+        )
+
+    # Delete the root span
+    response = await httpx_client.delete("v1/spans/root-span")
+    assert response.status_code == 204
+
+    # Verify the span is deleted but trace still exists
+    async with db() as session:
+        deleted_span = await session.get(models.Span, root_span_id)
+        assert deleted_span is None, "Root span should be deleted"
+        
+        # Trace should still exist (unlike the trace deletion endpoint)
+        existing_trace = await session.get(models.Trace, trace_row_id)
+        assert existing_trace is not None, "Trace should still exist after span deletion"

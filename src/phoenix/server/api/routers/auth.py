@@ -29,6 +29,7 @@ from phoenix.auth import (
     delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
     is_valid_password,
+    normalize_email,
     set_access_token_cookie,
     set_refresh_token_cookie,
     validate_password_format,
@@ -87,9 +88,15 @@ async def login(request: Request) -> Response:
     if not email or not password:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Email and password required")
 
+    # Normalize email for case-insensitive lookup
+    try:
+        normalized_email = normalize_email(email)
+    except ValueError:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
+
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(models.User).filter_by(email=email).options(joinedload(models.User.role))
+            select(models.User).filter_by(email=normalized_email).options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -207,6 +214,14 @@ async def initiate_password_reset(request: Request) -> Response:
     data = await request.json()
     if not (email := data.get("email")):
         raise MISSING_EMAIL
+    
+    # Normalize email for case-insensitive lookup
+    try:
+        normalized_email = normalize_email(email)
+    except ValueError:
+        # Return 204 to not reveal information about email validity
+        return Response(status_code=HTTP_204_NO_CONTENT)
+    
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
         raise SMTP_UNAVAILABLE
@@ -214,7 +229,7 @@ async def initiate_password_reset(request: Request) -> Response:
     async with request.app.state.db() as session:
         user = await session.scalar(
             select(models.User)
-            .filter_by(email=email)
+            .filter_by(email=normalized_email)
             .options(
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )
@@ -236,7 +251,7 @@ async def initiate_password_reset(request: Request) -> Response:
     query_string = urlencode(dict(token=token))
     components = (url.scheme, url.netloc, path.as_posix(), "", query_string, "")
     reset_url = urlunparse(components)
-    await sender.send_password_reset_email(email, reset_url)
+    await sender.send_password_reset_email(normalized_email, reset_url)
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 

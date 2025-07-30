@@ -7,6 +7,7 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
+from email_validator import EmailNotValidError, validate_email
 from starlette.datastructures import Secret
 from starlette.responses import Response
 from typing_extensions import TypeVar
@@ -60,6 +61,36 @@ def validate_email_format(email: str) -> None:
     """
     if EMAIL_PATTERN.match(email) is None:
         raise ValueError("Invalid email address")
+
+
+def normalize_email(email: str) -> str:
+    """
+    Normalizes an email address to ensure case-insensitive storage and lookup.
+    
+    This function:
+    1. Strips whitespace
+    2. Validates the email format
+    3. Returns the normalized form (lowercase)
+    
+    Args:
+        email (str): the email address to normalize
+        
+    Returns:
+        str: the normalized email address
+        
+    Raises:
+        ValueError: if the email address is invalid
+    """
+    email = email.strip()
+    if not email:
+        raise ValueError("Email address cannot be empty")
+    
+    try:
+        # Use email-validator for proper normalization (handles case and punycode)
+        validated_email = validate_email(email, check_deliverability=False)
+        return validated_email.normalized
+    except EmailNotValidError as e:
+        raise ValueError(f"Invalid email address: {e}") from e
 
 
 def validate_password_format(password: str) -> None:
