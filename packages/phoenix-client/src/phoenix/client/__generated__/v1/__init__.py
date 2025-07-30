@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 
 from typing_extensions import NotRequired
@@ -66,7 +67,7 @@ class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
     metadata: Mapping[str, Any]
-    created_at: str
+    created_at: datetime
 
 
 class DatasetWithExampleCount(TypedDict):
