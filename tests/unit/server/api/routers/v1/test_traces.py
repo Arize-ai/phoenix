@@ -374,7 +374,7 @@ async def test_delete_trace_mixed_identifier_types(
         project_row_id = await session.scalar(
             insert(models.Project).values(name="mixed-test-project").returning(models.Project.id)
         )
-        
+
         # First trace
         trace1_row_id = await session.scalar(
             insert(models.Trace)
@@ -386,8 +386,8 @@ async def test_delete_trace_mixed_identifier_types(
             )
             .returning(models.Trace.id)
         )
-        
-        # Second trace  
+
+        # Second trace
         trace2_row_id = await session.scalar(
             insert(models.Trace)
             .values(
@@ -398,11 +398,10 @@ async def test_delete_trace_mixed_identifier_types(
             )
             .returning(models.Trace.id)
         )
-        
+
         # Add spans to both traces
         await session.execute(
-            insert(models.Span)
-            .values(
+            insert(models.Span).values(
                 trace_rowid=trace1_row_id,
                 span_id="span1",
                 parent_id=None,
@@ -419,10 +418,9 @@ async def test_delete_trace_mixed_identifier_types(
                 cumulative_llm_token_count_completion=0,
             )
         )
-        
+
         await session.execute(
-            insert(models.Span)
-            .values(
+            insert(models.Span).values(
                 trace_rowid=trace2_row_id,
                 span_id="span2",
                 parent_id=None,
