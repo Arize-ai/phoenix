@@ -1738,7 +1738,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "description": "The trace identifier, either a Relay node ID or an OpenTelemetry trace ID",
               "title": "Identifier"
             },
             "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
