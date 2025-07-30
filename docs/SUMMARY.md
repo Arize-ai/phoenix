@@ -17,6 +17,7 @@
   * [Projects](tracing/features-tracing/projects.md)
   * [Annotations](tracing/features-tracing/how-to-annotate-traces.md)
   * [Sessions](tracing/features-tracing/sessions.md)
+  * [Metrics](tracing/features-tracing/metrics.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
     * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
