@@ -151,13 +151,6 @@ async def test_delete_trace_by_trace_id(
         trace_id = trace.trace_id
         trace_row_id = trace.id
 
-        # Get the spans in this trace
-        span_result = await session.execute(
-            select(models.Span).where(models.Span.trace_rowid == trace_row_id)
-        )
-        spans = span_result.scalars().all()
-        span_row_ids = [span.id for span in spans]
-
     # Delete the trace via the API
     url = f"v1/traces/{trace_id}"
     response = await httpx_client.delete(url)
@@ -172,6 +165,7 @@ async def test_delete_trace_by_trace_id(
     async with db() as session:
         deleted_trace = await session.get(models.Trace, trace_row_id)
         assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
+
 
 async def test_delete_trace_not_found(
     httpx_client: httpx.AsyncClient,

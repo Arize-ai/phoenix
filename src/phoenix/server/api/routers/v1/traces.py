@@ -263,7 +263,7 @@ async def delete_trace(
         # Try to parse as GlobalID first, then fall back to trace_id
         try:
             trace_rowid = from_global_id_with_expected_type(
-                GlobalID.from_id(identifier),
+                GlobalID.from_id(trace_identifier),
                 "Trace",
             )
             # Delete by database rowid
@@ -272,15 +272,15 @@ async def delete_trace(
                 .where(models.Trace.id == trace_rowid)
                 .returning(models.Trace.project_rowid)
             )
-            error_detail = f"Trace with relay ID '{identifier}' not found"
+            error_detail = f"Trace with relay ID '{trace_identifier}' not found"
         except Exception:
             # Delete by OpenTelemetry trace_id
             delete_stmt = (
                 delete(models.Trace)
-                .where(models.Trace.trace_id == identifier)
+                .where(models.Trace.trace_id == trace_identifier)
                 .returning(models.Trace.project_rowid)
             )
-            error_detail = f"Trace with trace_id '{identifier}' not found"
+            error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
         project_id = await session.scalar(delete_stmt)
 

@@ -331,8 +331,8 @@ export interface paths {
         /**
          * Delete a trace by identifier
          * @description Delete an entire trace by its identifier. The identifier can be either:
-         *     1. A relay GlobalID (base64-encoded, e.g., 'VHJhY2U6MTIz')
-         *     2. An OpenTelemetry trace_id (hex string, e.g., '1b7c5f0121b573c5395246fbd19bfc30')
+         *     1. A relay GlobalID (base64-encoded)
+         *     2. An OpenTelemetry trace_id (hex string)
          *
          *     This will permanently remove all spans in the trace and their associated data.
          */
@@ -398,6 +398,30 @@ export interface paths {
         /** Create span annotations */
         post: operations["annotateSpans"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/spans/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a span and its subtree by identifier
+         * @description Delete a span and its entire subtree by identifier. The identifier can be either:
+         *     1. A relay GlobalID (base64-encoded, e.g., 'U3Bhbjo4MjE=')
+         *     2. A span_id (string, e.g., 'f0d808aedd5591b6')
+         *
+         *     This will permanently remove the span and all its descendants, and update cumulative metrics on ancestor spans accordingly.
+         */
+        delete: operations["deleteSpan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3489,7 +3513,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
-                identifier: string;
+                trace_identifier: string;
             };
             cookie?: never;
         };
@@ -3754,6 +3778,52 @@ export interface operations {
                 content: {
                     "text/plain": string;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteSpan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The span identifier: either a relay GlobalID or span_id */
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Span and subtree successfully deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
