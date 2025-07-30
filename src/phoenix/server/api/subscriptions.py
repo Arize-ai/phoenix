@@ -23,7 +23,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
+from phoenix.config import PLAYGROUND_PROJECT_NAME, experiment_project_name
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -287,16 +287,17 @@ class Subscription:
                 ]
             ):
                 raise NotFound("No examples found for the given dataset and version")
+            project_name = experiment_project_name()
             if (
                 playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
                 playground_project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
+                        name=project_name,
                         description="Traces from prompt playground",
                     )
                 )

@@ -12,6 +12,7 @@ from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
+from phoenix.config import is_experiment_project_name
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -890,6 +891,9 @@ class TestChatCompletionOverDatasetSubscription:
         trace {
           id
           traceId
+          project {
+            name
+          }
         }
       }
 
@@ -1258,6 +1262,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert is_experiment_project_name(project["name"])
         assert not trace
         assert not run
 
@@ -1281,6 +1287,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert is_experiment_project_name(project["name"])
         assert not trace
         assert not run
 
