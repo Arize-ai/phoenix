@@ -20,8 +20,8 @@ describe("createDocumentRelevancyEvaluator", () => {
   const customDocumentRelevancyTemplate = `
     Custom template for document relevancy detection:
     Question: {{input}}
-    Reference: {{reference}}
-    Is the reference relevant to the question? Respond with "yes" or "no".
+    Document text: {{documentText}}
+    Is the document text relevant to the question? Respond with "relevant" or "unrelated".
   `;
 
   it("should create a document relevancy evaluator with default template and choices", async () => {
@@ -30,7 +30,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
         label: "relevant",
-        explanation: "The reference is relevant to the question",
+        explanation: "The document text is relevant to the question",
       });
 
     const evaluator = createDocumentRelevancyEvaluator({
@@ -48,7 +48,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       expect.objectContaining({
         labels: ["relevant", "unrelated"],
         prompt: expect.stringContaining(
-          "You are comparing a reference text to a question"
+          "You are comparing a document to a question"
         ),
       })
     );
@@ -56,7 +56,7 @@ describe("createDocumentRelevancyEvaluator", () => {
     expect(result.label).toBe("relevant");
     expect(result.score).toBe(1); // relevant = 1 in default choices
     expect(result.explanation).toBe(
-      "The reference is relevant to the question"
+      "The document text is relevant to the question"
     );
   });
 
@@ -66,7 +66,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
         label: "no",
-        explanation: "The reference is not relevant to the question",
+        explanation: "The document text is not relevant to the question",
       });
 
     const evaluator = createDocumentRelevancyEvaluator({
@@ -102,7 +102,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       "generateClassification"
     ).mockResolvedValue({
       label: "relevant",
-      explanation: "The reference is relevant to the question",
+      explanation: "The document text is relevant to the question",
     });
 
     const customChoices = { relevant: 0.8, unrelated: 0.2 };
