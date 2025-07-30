@@ -26,7 +26,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.routers.v1.experiments import _generate_dynamic_project_name
+from phoenix.experiments.utils import generate_experiment_project_name
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -229,10 +229,10 @@ class Subscription:
             else None
         )
         async with info.context.db() as session:
-            if (
-                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
-            ) is None:
+            dataset = await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
+            if dataset is None:
                 raise NotFound(f"Could not find dataset with ID {dataset_id}")
+            dataset_name = dataset.name
             if version_id is None:
                 if (
                     resolved_version_id := await session.scalar(
@@ -289,7 +289,8 @@ class Subscription:
             ):
                 raise NotFound("No examples found for the given dataset and version")
             # Generate a dynamic project name for this experiment to avoid conflicts
-            dynamic_project_name = _generate_dynamic_project_name("Playground")
+            # Include both "Playground" and dataset name for easy identification
+            dynamic_project_name = generate_experiment_project_name(f"Playground-{dataset_name}")
             project_description = f"Playground experiment: {input.experiment_name or _default_playground_experiment_name(input.prompt_name)}"
             
             # Create the project for this experiment

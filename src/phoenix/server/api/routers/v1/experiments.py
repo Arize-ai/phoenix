@@ -17,6 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.experiments.utils import generate_experiment_project_name
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentInsertEvent
@@ -29,14 +30,6 @@ router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 def _short_uuid() -> str:
     return str(getrandbits(32).to_bytes(4, "big").hex())
-
-
-def _generate_dynamic_project_name(prefix: str = "Experiment") -> str:
-    """
-    Generate a dynamic project name with a given prefix.
-    This ensures each experiment gets its own project to avoid conflicts.
-    """
-    return f"{prefix}-{getrandbits(96).to_bytes(12, 'big').hex()}"
 
 
 def _generate_experiment_name(dataset_name: str) -> str:
@@ -167,7 +160,7 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = _generate_dynamic_project_name()
+        project_name = generate_experiment_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )

@@ -51,7 +51,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionOverDatasetInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
-from phoenix.server.api.routers.v1.experiments import _generate_dynamic_project_name
+from phoenix.experiments.utils import generate_experiment_project_name
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
@@ -191,7 +191,8 @@ class ChatCompletionMutationMixin:
                 raise NotFound("No examples found for the given dataset and version")
             
             # Generate a dynamic project name for this experiment to avoid conflicts
-            dynamic_project_name = _generate_dynamic_project_name("Playground")
+            # Include both "Playground" and dataset name for easy identification
+            dynamic_project_name = generate_experiment_project_name(f"Playground-{dataset.name}")
             project_description = f"Playground experiment: {input.experiment_name or _default_playground_experiment_name(input.prompt_name)}"
             
             # Create the project for this experiment
