@@ -16,6 +16,7 @@
   * [Google ADK Tracing](llm-providers/google-gen-ai/google-adk-tracing.md)
   * [Gemini Evals](llm-providers/google-gen-ai/gemini-evals.md)
   * [Google Gen AI Evals](llm-providers/google-gen-ai/google-gen-ai-evals.md)
+  * [Evaluate CrewAI Agents with Google Gen AI Evals](llm-providers/google-gen-ai/google-gen-ai-evals-1.md)
 * [Groq](llm-providers/groq/README.md)
   * [Groq Tracing](llm-providers/groq/groq-tracing.md)
 * [LiteLLM](llm-providers/litellm/README.md)
