@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -125,6 +125,49 @@ class LLM(LLMBase):
         """
         return self._adapter.generate_object(prompt, schema, **kwargs)
 
+    def generate_classification(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        labels: Union[List[str], Dict[str, str]],
+        include_explanation: bool = True,
+        description: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Generate a classification given a prompt and a set of labels.
+
+        Args:
+            prompt: The prompt template to go with the tool call.
+            labels: Either:
+                - A list of strings, where each string is a label
+                - A dictionary where keys are labels and values are descriptions
+            include_explanation: Whether to prompt the LLM for an explanation.
+            description: A description of the classification task.
+            **kwargs: Additional keyword arguments to pass to the LLM SDK.
+
+        Returns:
+            The generated classification.
+
+        Examples:
+            >>> from phoenix.evals.llm import LLM
+            >>> llm = LLM(provider="openai", model="gpt-4o", client="openai")
+            >>> llm.generate_classification(
+            ...     prompt="Hello, world!",
+            ...     labels=["yes", "no"],
+            ... )
+            {"label": "yes", "explanation": "The answer is yes."}
+            >>> llm.generate_classification(
+            ...     prompt="Hello, world!",
+            ...     labels={"yes": "Positive response", "no": "Negative response"},
+            ...     include_explanation=False,
+            ... )
+            {"label": "yes"}
+        """
+        # Generate schema from labels
+        schema = generate_classification_schema(labels, include_explanation, description)
+
+        return self.generate_object(prompt, schema, **kwargs)
+
 
 class AsyncLLM(LLMBase):
     """
@@ -190,7 +233,107 @@ class AsyncLLM(LLMBase):
         """
         return await self._adapter.agenerate_object(prompt, schema, **kwargs)
 
+    async def generate_classification(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        labels: Union[List[str], Dict[str, str]],
+        include_explanation: bool = True,
+        description: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Asynchronously generate a classification given a prompt and a set of labels.
+
+        Args:
+            prompt: The prompt template to go with the tool call.
+            labels: Either:
+                - A list of strings, where each string is a label
+                - A dictionary where keys are labels and values are descriptions
+            include_explanation: Whether to prompt the LLM for an explanation.
+            description: A description of the classification task.
+            **kwargs: Additional keyword arguments to pass to the LLM SDK.
+
+        Returns:
+            The generated classification.
+        """
+        # Generate schema from labels
+        schema = generate_classification_schema(labels, include_explanation, description)
+        return await self.generate_object(prompt, schema, **kwargs)
+
 
 def show_provider_availability() -> None:
     """Show the availability of all providers."""
     print(adapter_availability_table())
+
+
+def generate_classification_schema(
+    labels: Union[List[str], Dict[str, str]],
+    include_explanation: bool = True,
+    description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Generate a JSON Schema for an LLM function/structured output call that classifies
+    a single criterion.
+
+    Args:
+        labels (Union[List[str], Dict[str, str]]): Either:
+            - A list of strings, where each string is a label
+            - A dictionary where keys are labels and values are descriptions
+        include_explanation (bool): Whether to include an explanation field in the schema.
+        description (str): A description of the classification task.
+    Returns:
+        dict: A JSON Schema dict ready for use in an LLM function/structured output call.
+    """
+
+    # Validate labels
+    if not labels:
+        raise ValueError("Labels must be a non-empty list or dictionary.")
+
+    # Determine label type and validate consistency
+    if isinstance(labels, dict):
+        # Validate that all keys are strings
+        if not all(isinstance(key, str) for key in labels.keys()):
+            raise ValueError("Labels must be a list of strings or a dictionary.")
+        is_str_labels = False
+    elif isinstance(labels, list) and all(isinstance(label, str) for label in labels):
+        is_str_labels = True
+    else:
+        raise ValueError("Labels must be a list of strings or a dictionary.")
+
+    # Build label schema base
+    label_schema: Dict[str, Any] = {"type": "string"}
+    if description:
+        label_schema["description"] = description
+
+    # Add labels to schema, either enum or oneOf
+    if is_str_labels:
+        # Cast to List[str] since we've validated all labels are strings
+        str_labels: List[str] = [label for label in labels if isinstance(label, str)]
+        label_schema["enum"] = str_labels
+    else:
+        # Handle dictionary input
+        if isinstance(labels, dict):
+            one_of_list: List[Dict[str, str]] = []
+            for label_name, label_description in labels.items():
+                entry = {"const": label_name}
+                if label_description:
+                    entry["description"] = label_description
+                one_of_list.append(entry)
+            label_schema["oneOf"] = one_of_list
+
+    # Build final schema
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
+
+    # Add explanation if requested
+    if include_explanation:
+        properties["explanation"] = {
+            "type": "string",
+            "description": "A brief explanation of your reasoning.",
+        }
+        required.append("explanation")
+
+    properties["label"] = label_schema
+    required.append("label")
+
+    return {"type": "object", "properties": properties, "required": required}

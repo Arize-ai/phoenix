@@ -1107,6 +1107,7 @@ const appGlobalStylesCSS = css`
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+    color: var(--ac-global-text-color-900);
   }
   .ac-theme {
     color: var(--ac-global-text-color-900);
