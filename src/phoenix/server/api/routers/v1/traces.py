@@ -24,6 +24,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
@@ -228,11 +229,13 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
 
 
 @router.delete(
-    "/traces/{trace_id}",
+    "/traces/{identifier}",
     operation_id="deleteTrace",
-    summary="Delete a trace by trace_id",
+    summary="Delete a trace by identifier",
     description=(
-        "Delete an entire trace by its OpenTelemetry trace_id. "
+        "Delete an entire trace by its identifier. The identifier can be either:\n"
+        "1. A relay GlobalID (base64-encoded, e.g., 'VHJhY2U6MTIz')\n"
+        "2. An OpenTelemetry trace_id (hex string, e.g., '1b7c5f0121b573c5395246fbd19bfc30')\n\n"
         "This will permanently remove all spans in the trace and their associated data."
     ),
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
@@ -240,33 +243,51 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
 )
 async def delete_trace(
     request: Request,
-    trace_id: str = Path(description="The OpenTelemetry trace_id of the trace to delete"),
+    identifier: str = Path(
+        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+    ),
 ) -> None:
     """
-    Delete a trace by trace_id.
+    Delete a trace by identifier (relay GlobalID or OpenTelemetry trace_id).
 
     This endpoint will:
-    1. Find and delete the trace with the given trace_id (and all its spans via CASCADE)
-    2. Trigger cache invalidation events
-    3. Return 204 No Content on success
+    1. Delete the trace by identifier (relay GlobalID or OpenTelemetry trace_id)
+    2. Get project_id from the deletion for cache invalidation
+    3. Trigger cache invalidation events
+    4. Return 204 No Content on success
 
     Note: This deletes the entire trace, including all spans, which maintains data consistency
     and avoids orphaned spans or inconsistent cached cumulative fields.
     """
     async with request.app.state.db() as session:
-        # Delete the trace directly and get project_id for cache invalidation
-        delete_stmt = (
-            delete(models.Trace)
-            .where(models.Trace.trace_id == trace_id)
-            .returning(models.Trace.project_rowid)
-        )
+        # Try to parse as GlobalID first, then fall back to trace_id
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(identifier),
+                "Trace",
+            )
+            # Delete by database rowid
+            delete_stmt = (
+                delete(models.Trace)
+                .where(models.Trace.id == trace_rowid)
+                .returning(models.Trace.project_rowid)
+            )
+            error_detail = f"Trace with relay ID '{identifier}' not found"
+        except Exception:
+            # Delete by OpenTelemetry trace_id
+            delete_stmt = (
+                delete(models.Trace)
+                .where(models.Trace.trace_id == identifier)
+                .returning(models.Trace.project_rowid)
+            )
+            error_detail = f"Trace with trace_id '{identifier}' not found"
 
         project_id = await session.scalar(delete_stmt)
 
         if project_id is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=f"Trace with trace_id '{trace_id}' not found",
+                detail=error_detail,
             )
 
     # Trigger cache invalidation event

@@ -10,6 +10,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
@@ -285,3 +286,172 @@ async def test_delete_trace_with_multiple_spans(
 
         deleted_child = await session.get(models.Span, child_span_id)
         assert deleted_child is None, "Child span should be deleted via CASCADE"
+
+
+async def test_delete_trace_by_relay_global_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """
+    Test deleting a trace by relay GlobalID.
+
+    This test verifies that:
+    1. The DELETE /traces/{relay_id} endpoint returns a 204 status code
+    2. The trace and all its spans are successfully removed from the database
+    3. Relay GlobalID identifier type is handled correctly
+    """
+    # Get the trace and span data from the test fixture
+    async with db() as session:
+        # Get the trace that was created by the fixture
+        trace_result = await session.execute(
+            select(models.Trace).join(models.Project).where(models.Project.name == "project-name")
+        )
+        trace = trace_result.scalar_one()
+        trace_row_id = trace.id
+
+        # Get the spans in this trace
+        span_result = await session.execute(
+            select(models.Span).where(models.Span.trace_rowid == trace_row_id)
+        )
+        spans = span_result.scalars().all()
+        span_row_ids = [span.id for span in spans]
+
+    # Create relay GlobalID for the trace
+    trace_global_id = GlobalID(type_name="Trace", node_id=str(trace_row_id))
+
+    # Delete the trace via the API using relay GlobalID
+    url = f"v1/traces/{trace_global_id}"
+    response = await httpx_client.delete(url)
+
+    # Should return 204 No Content
+    assert response.status_code == 204, (
+        f"DELETE /traces/{trace_global_id} should return 204 status code, got {response.status_code}"
+    )
+    assert response.text == ""  # No content in response body
+
+    # Verify the trace was actually deleted from the database
+    async with db() as session:
+        deleted_trace = await session.get(models.Trace, trace_row_id)
+        assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
+
+        # Verify all spans in the trace were also deleted via CASCADE
+        for span_row_id in span_row_ids:
+            deleted_span = await session.get(models.Span, span_row_id)
+            assert deleted_span is None, f"Span {span_row_id} should be deleted via CASCADE"
+
+
+async def test_delete_trace_by_relay_id_not_found(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """
+    Test deleting a non-existent trace by relay GlobalID.
+
+    This test verifies that:
+    1. The DELETE endpoint returns a 404 status code for non-existent relay IDs
+    2. The error message mentions relay ID
+    """
+    # Create a relay GlobalID for a non-existent trace
+    non_existent_global_id = GlobalID(type_name="Trace", node_id="999999")
+    url = f"v1/traces/{non_existent_global_id}"
+
+    response = await httpx_client.delete(url)
+    assert response.status_code == 404
+    assert f"Trace with relay ID '{non_existent_global_id}' not found" in response.text
+
+
+async def test_delete_trace_mixed_identifier_types(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Test that the endpoint can handle both relay GlobalID and OpenTelemetry trace_id
+    in the same test scenario, proving identifier type detection works correctly.
+    """
+    # Create a test project and two traces
+    async with db() as session:
+        project_row_id = await session.scalar(
+            insert(models.Project).values(name="mixed-test-project").returning(models.Project.id)
+        )
+        
+        # First trace
+        trace1_row_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="11111111111111111111111111111111",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        
+        # Second trace  
+        trace2_row_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="22222222222222222222222222222222",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        
+        # Add spans to both traces
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace1_row_id,
+                span_id="span1",
+                parent_id=None,
+                name="test span 1",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace2_row_id,
+                span_id="span2",
+                parent_id=None,
+                name="test span 2",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+
+    # Delete first trace by OpenTelemetry trace_id
+    response1 = await httpx_client.delete("v1/traces/11111111111111111111111111111111")
+    assert response1.status_code == 204
+
+    # Delete second trace by relay GlobalID
+    trace2_global_id = GlobalID(type_name="Trace", node_id=str(trace2_row_id))
+    response2 = await httpx_client.delete(f"v1/traces/{trace2_global_id}")
+    assert response2.status_code == 204
+
+    # Verify both traces are deleted
+    async with db() as session:
+        deleted_trace1 = await session.get(models.Trace, trace1_row_id)
+        deleted_trace2 = await session.get(models.Trace, trace2_row_id)
+        assert deleted_trace1 is None, "Trace 1 should be deleted (by OTEL trace_id)"
+        assert deleted_trace2 is None, "Trace 2 should be deleted (by relay GlobalID)"
