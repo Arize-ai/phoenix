@@ -48,6 +48,18 @@ def is_valid_password(*, password: Secret, salt: bytes, password_hash: bytes) ->
     return password_hash == compute_password_hash(password=password, salt=salt)
 
 
+def sanitize_email(email: str) -> str:
+    """
+    Sanitizes an email address by trimming whitespace and converting to lowercase.
+
+    Args:
+        email (str): the email address to sanitize
+    Returns:
+        str: the sanitized email address
+    """
+    return email.strip().lower()
+
+
 def validate_email_format(email: str) -> None:
     """
     Checks that the email has a valid format.

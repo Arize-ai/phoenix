@@ -27,7 +27,7 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
-    normalize_email,
+    sanitize_email,
     set_access_token_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
@@ -218,7 +218,7 @@ class UserInfo:
         if not (idp_user_id := (self.idp_user_id or "").strip()):
             raise ValueError("idp_user_id cannot be empty")
         object.__setattr__(self, "idp_user_id", idp_user_id)
-        if not (email := (self.email or "").strip()):
+        if not (email := sanitize_email(self.email or "")):
             raise ValueError("email cannot be empty")
         object.__setattr__(self, "email", email)
         if username := (self.username or "").strip():
@@ -357,16 +357,8 @@ async def _get_existing_oauth2_user(
             - User has a password set
             - User has mismatched OAuth2 credentials
     """  # noqa: E501
-    email_raw = (user_info.email or "").strip()
-    if not email_raw:
+    if not (email := sanitize_email(user_info.email or "")):
         raise ValueError("Email is required.")
-    
-    # Normalize email for consistent storage and lookup
-    try:
-        email = normalize_email(email_raw)
-    except ValueError as e:
-        raise ValueError(f"Invalid email address: {e}") from e
-    
     if not (oauth2_user_id := (user_info.idp_user_id or "").strip()):
         raise ValueError("OAuth2 user ID is required.")
     if not (oauth2_client_id := (oauth2_client_id or "").strip()):
@@ -379,7 +371,7 @@ async def _get_existing_oauth2_user(
         if email and email != user.email:
             user.email = email
     else:
-        user = await session.scalar(stmt.filter_by(email=email))
+        user = await session.scalar(stmt.where(func.lower(models.User.email) == email))
         if user is None or not isinstance(user, models.OAuth2User):
             raise SignInNotAllowed("Sign in is not allowed.")
         # Case 1: Different OAuth2 client - update both client and user IDs
@@ -466,19 +458,9 @@ async def _create_user(
     """
     Creates a new user with the user info from the IDP.
     """
-    # Normalize email for consistent storage
-    email_raw = user_info.email
-    if not email_raw:
-        raise ValueError("Email is required for user creation.")
-    
-    try:
-        email = normalize_email(email_raw)
-    except ValueError as e:
-        raise ValueError(f"Invalid email address: {e}") from e
-    
     email_exists, username_exists = await _email_and_username_exist(
         session,
-        email=email,
+        email=(email := user_info.email),
         username=(username := user_info.username),
     )
     if email_exists:
@@ -539,7 +521,7 @@ async def _email_and_username_exist(
             select(
                 cast(
                     func.coalesce(
-                        func.max(case((models.User.email == email, 1), else_=0)),
+                        func.max(case((func.lower(models.User.email) == email, 1), else_=0)),
                         0,
                     ),
                     Boolean,
@@ -551,7 +533,7 @@ async def _email_and_username_exist(
                     ),
                     Boolean,
                 ).label("username_exists"),
-            ).where(or_(models.User.email == email, models.User.username == username))
+            ).where(or_(func.lower(models.User.email) == email, models.User.username == username))
         )
     ).all()
     return email_exists, username_exists
