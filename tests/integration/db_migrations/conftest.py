@@ -2,13 +2,14 @@ from collections.abc import Iterator
 from pathlib import Path
 from secrets import token_hex
 
-import phoenix
 import pytest
 import sqlean  # type: ignore[import-untyped]
 from alembic.config import Config
-from phoenix.db.engines import set_postgresql_search_path
 from pytest import TempPathFactory
 from sqlalchemy import URL, Engine, NullPool, create_engine, event
+
+import phoenix
+from phoenix.db.engines import set_postgresql_search_path
 
 from .._helpers import _SCHEMA_PREFIX, _random_schema
 

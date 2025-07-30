@@ -68,8 +68,7 @@ class Client(TraceDataExtractor):
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
-                "`use_active_session_if_available` is deprecated "
-                "and will be removed in the future."
+                "`use_active_session_if_available` is deprecated and will be removed in the future."
             )
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")

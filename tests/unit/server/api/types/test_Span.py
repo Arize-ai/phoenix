@@ -643,13 +643,13 @@ async def test_span_annotation_summaries(
         if "include" in filter_config:
             include = filter_config["include"]
             if "names" in include:
-                filter_parts.append(f'include: {{ names: {json.dumps(include["names"])} }}')
+                filter_parts.append(f"include: {{ names: {json.dumps(include['names'])} }}")
         if "exclude" in filter_config:
             exclude = filter_config["exclude"]
             if "names" in exclude:
-                filter_parts.append(f'exclude: {{ names: {json.dumps(exclude["names"])} }}')
+                filter_parts.append(f"exclude: {{ names: {json.dumps(exclude['names'])} }}")
         if filter_parts:
-            filter_arg = f'(filter: {{ {", ".join(filter_parts)} }})'
+            filter_arg = f"(filter: {{ {', '.join(filter_parts)} }})"
 
     query = f"""
       query ($spanId: ID!) {{
@@ -666,35 +666,35 @@ async def test_span_annotation_summaries(
           }}
         }}
       }}
-    """  # noqa: E501
+    """
     span_id = str(GlobalID(Span.__name__, str(1)))
     response = await gql_client.execute(
         query,
         variables={"spanId": span_id},
     )
-    assert not response.errors, f"GraphQL query returned errors: {response.errors}"  # noqa: E501
+    assert not response.errors, f"GraphQL query returned errors: {response.errors}"
     data = response.data
-    assert data is not None, "GraphQL response data is None"  # noqa: E501
+    assert data is not None, "GraphQL response data is None"
     span = data["span"]
-    assert span is not None, "GraphQL response span is None"  # noqa: E501
+    assert span is not None, "GraphQL response span is None"
     summaries = span["spanAnnotationSummaries"]
-    assert (
-        len(summaries) == expected_summary_count
-    ), f"Expected {expected_summary_count} summaries, got {len(summaries)}"  # noqa: E501
+    assert len(summaries) == expected_summary_count, (
+        f"Expected {expected_summary_count} summaries, got {len(summaries)}"
+    )
 
     # Find the summary with the expected name
     summary = next((s for s in summaries if s["name"] == expected_summary_name), None)
     assert summary is not None, f"Summary with name {expected_summary_name} not found"
 
     # Use a small tolerance for floating-point comparison
-    assert (
-        abs(summary["meanScore"] - expected_mean_score) < 1e-10
-    ), f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"  # noqa: E501
+    assert abs(summary["meanScore"] - expected_mean_score) < 1e-10, (
+        f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"
+    )
 
     # Check label fractions
     label_fractions = summary["labelFractions"]
     assert len(label_fractions) == len(expected_label_fractions), (
-        f"Expected {len(expected_label_fractions)} label fractions, " f"got {len(label_fractions)}"  # noqa: E501
+        f"Expected {len(expected_label_fractions)} label fractions, got {len(label_fractions)}"
     )
 
     # Sort both lists by label to ensure consistent comparison
@@ -702,9 +702,9 @@ async def test_span_annotation_summaries(
     expected_label_fractions.sort(key=lambda x: x["label"])
 
     for actual, expected in zip(label_fractions, expected_label_fractions):
-        assert (
-            actual["label"] == expected["label"]
-        ), f"Expected label {expected['label']}, got {actual['label']}"
+        assert actual["label"] == expected["label"], (
+            f"Expected label {expected['label']}, got {actual['label']}"
+        )
         assert abs(actual["fraction"] - expected["fraction"]) < 1e-10, (
             f"Expected fraction {expected['fraction']} for label {actual['label']}, "
             f"got {actual['fraction']}"

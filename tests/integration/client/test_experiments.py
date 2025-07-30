@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput

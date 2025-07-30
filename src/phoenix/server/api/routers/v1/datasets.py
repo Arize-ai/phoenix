@@ -714,7 +714,7 @@ async def get_dataset_examples(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> ListDatasetExamplesResponseBody:
@@ -833,7 +833,7 @@ async def get_dataset_csv(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> Response:
@@ -876,7 +876,7 @@ async def get_dataset_jsonl_openai_ft(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> bytes:
@@ -916,7 +916,7 @@ async def get_dataset_jsonl_openai_evals(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> bytes:

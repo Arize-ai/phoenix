@@ -159,8 +159,7 @@ class DbDiskUsageMonitor(DaemonTask):
                 admin_emails = (await session.scalars(stmt)).all()
         except Exception:
             logger.exception(
-                "Failed to fetch admin emails from database, "
-                "skipping database usage warning emails"
+                "Failed to fetch admin emails from database, skipping database usage warning emails"
             )
             return
 

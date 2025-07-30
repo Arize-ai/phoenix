@@ -327,9 +327,9 @@ class TestEnsureModelCosts:
             ("audio", True): 0.000003,
             ("audio", False): 0.000003,  # Audio appears for both prompt and non-prompt
         }
-        assert (
-            actual_prices_1 == expected_prices_1
-        ), f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
+        assert actual_prices_1 == expected_prices_1, (
+            f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
+        )
 
         # Verify model 2 details (minimal pricing)
         model2 = built_in_models["test-model-2"]
@@ -340,9 +340,9 @@ class TestEnsureModelCosts:
             ("input", True): 0.000005,
             ("output", False): 0.000010,
         }
-        assert (
-            actual_prices_2 == expected_prices_2
-        ), f"Model 2 token prices mismatch: got {actual_prices_2}, expected {expected_prices_2}"
+        assert actual_prices_2 == expected_prices_2, (
+            f"Model 2 token prices mismatch: got {actual_prices_2}, expected {expected_prices_2}"
+        )
 
         # === STEP 3: Update existing models ===
         # Update model 1: change name_pattern and some prices
@@ -445,9 +445,9 @@ class TestEnsureModelCosts:
             ("audio", False): 0.000005,  # Changed
             # cache_write should be removed
         }
-        assert (
-            actual_prices_1_updated == expected_prices_1_updated
-        ), f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"  # noqa: E501
+        assert actual_prices_1_updated == expected_prices_1_updated, (
+            f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"
+        )
 
         # Verify model 2 updates
         model2_updated = built_in_models["test-model-2"]
@@ -458,9 +458,9 @@ class TestEnsureModelCosts:
             ("cache_write", True): 0.000001,  # Added
             ("cache_read", True): 0.000002,  # Added
         }
-        assert (
-            actual_prices_2_updated == expected_prices_2_updated
-        ), f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"  # noqa: E501
+        assert actual_prices_2_updated == expected_prices_2_updated, (
+            f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"
+        )
 
         # Verify new audio model
         audio_model = built_in_models["audio-model"]
@@ -469,9 +469,9 @@ class TestEnsureModelCosts:
             ("audio", True): 0.000008,
             ("audio", False): 0.000008,
         }
-        assert (
-            actual_prices_audio == expected_prices_audio
-        ), f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"  # noqa: E501
+        assert actual_prices_audio == expected_prices_audio, (
+            f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"
+        )
 
         # === STEP 4: Remove models (test soft deletion) ===
         # Keep only model 2, remove model 1 and audio model
@@ -518,16 +518,16 @@ class TestEnsureModelCosts:
             ("audio", True): 0.000030,
             ("audio", False): 0.000030,
         }
-        assert (
-            actual_prices_final == expected_prices_final
-        ), f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"  # noqa: E501
+        assert actual_prices_final == expected_prices_final, (
+            f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"
+        )
 
         # Verify soft deletion of removed models
         deleted_model_names = await self._get_deleted_model_names(db)
         expected_deleted = {"test-model-1", "audio-model"}
-        assert (
-            deleted_model_names == expected_deleted
-        ), f"Wrong models deleted: got {deleted_model_names}, expected {expected_deleted}"
+        assert deleted_model_names == expected_deleted, (
+            f"Wrong models deleted: got {deleted_model_names}, expected {expected_deleted}"
+        )
 
         # === STEP 5: Empty manifest again (cleanup all) ===
         self._update_manifest(_patch_manifest, [])
@@ -541,6 +541,6 @@ class TestEnsureModelCosts:
         # Verify all models are now soft-deleted
         all_deleted_names = await self._get_deleted_model_names(db)
         expected_all_deleted = {"test-model-1", "test-model-2", "audio-model"}
-        assert (
-            all_deleted_names == expected_all_deleted
-        ), f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"  # noqa: E501
+        assert all_deleted_names == expected_all_deleted, (
+            f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"
+        )
