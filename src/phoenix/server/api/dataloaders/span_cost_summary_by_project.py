@@ -18,26 +18,27 @@ from phoenix.trace.dsl import SpanFilter
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilter: TypeAlias = Optional[str]
 
-Segment: TypeAlias = tuple[TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition]
+Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
 Result: TypeAlias = SpanCostSummary
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = SpanCostSummary()
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    project_rowid, time_range, filter_condition = key
+    project_rowid, time_range, filter_condition, session_filter = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (interval, filter_condition), project_rowid
+    return (interval, filter_condition, session_filter), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
 
 
 class SpanCostSummaryCache(
@@ -53,8 +54,8 @@ class SpanCostSummaryCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (interval, filter_condition), project_rowid = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition)
+        (interval, filter_condition, session_filter), project_rowid = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, session_filter)
 
 
 class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
@@ -106,7 +107,7 @@ def _get_stmt(
     segment: Segment,
     *params: Param,
 ) -> Select[Any]:
-    (start_time, end_time), filter_condition = segment
+    (start_time, end_time), filter_condition, session_filter = segment
     pid = models.Trace.project_rowid
 
     stmt: Select[Any] = (
@@ -131,6 +132,12 @@ def _get_stmt(
     if filter_condition:
         sf = SpanFilter(filter_condition)
         stmt = sf(stmt.join_from(models.SpanCost, models.Span))
+
+    if session_filter:
+        from phoenix.server.api.types.Project import _apply_session_io_filter
+
+        # Apply session filter to stmt - project_rowid is the first from params
+        stmt = _apply_session_io_filter(stmt, session_filter, next(iter(params)))
 
     project_ids = [rowid for rowid in params]
     stmt = stmt.where(pid.in_(project_ids))
