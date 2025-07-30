@@ -1,5 +1,4 @@
 import { forwardRef, Ref, useId, useState } from "react";
-import { css } from "@emotion/react";
 
 import { Heading, Icon, Icons } from "@phoenix/components";
 import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
@@ -58,14 +57,7 @@ function Card(
             aria-expanded={!isCollapsed}
           >
             <Icon
-              svg={
-                <Icons.ChevronDown
-                  css={css`
-                    width: var(--collapsible-card-icon-size);
-                    height: var(--collapsible-card-icon-size);
-                  `}
-                />
-              }
+              svg={<Icons.ChevronDown />}
               className="card__collapse-toggle-icon"
               aria-hidden="true"
             />
