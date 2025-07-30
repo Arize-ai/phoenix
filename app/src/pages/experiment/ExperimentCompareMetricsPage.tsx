@@ -104,6 +104,10 @@ export function ExperimentCompareMetricsPage() {
                 tokens
               }
             }
+            annotationSummaries {
+              annotationName
+              meanScore
+            }
           }
         }
         firstCompareExperiment: node(id: $firstCompareExperimentId)
@@ -122,6 +126,10 @@ export function ExperimentCompareMetricsPage() {
               completion {
                 tokens
               }
+            }
+            annotationSummaries {
+              annotationName
+              meanScore
             }
           }
         }
@@ -142,6 +150,10 @@ export function ExperimentCompareMetricsPage() {
                 tokens
               }
             }
+            annotationSummaries {
+              annotationName
+              meanScore
+            }
           }
         }
         thirdCompareExperiment: node(id: $thirdCompareExperimentId)
@@ -160,6 +172,10 @@ export function ExperimentCompareMetricsPage() {
               completion {
                 tokens
               }
+            }
+            annotationSummaries {
+              annotationName
+              meanScore
             }
           }
         }

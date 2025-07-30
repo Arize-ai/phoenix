@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6308557e308c295f6d446bbbcc1830d>>
+ * @generated SignedSource<<b3bf013208384f9c04f5a93b32b8c801>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,10 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
   readonly baseExperiment: {
+    readonly annotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+      readonly meanScore: number | null;
+    }>;
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
       readonly completion: {
@@ -28,6 +32,10 @@ export type ExperimentCompareMetricsPage_experiments$data = {
     readonly id?: string;
   };
   readonly firstCompareExperiment?: {
+    readonly annotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+      readonly meanScore: number | null;
+    }>;
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
       readonly completion: {
@@ -44,6 +52,10 @@ export type ExperimentCompareMetricsPage_experiments$data = {
     readonly id?: string;
   };
   readonly secondCompareExperiment?: {
+    readonly annotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+      readonly meanScore: number | null;
+    }>;
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
       readonly completion: {
@@ -60,6 +72,10 @@ export type ExperimentCompareMetricsPage_experiments$data = {
     readonly id?: string;
   };
   readonly thirdCompareExperiment?: {
+    readonly annotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+      readonly meanScore: number | null;
+    }>;
     readonly averageRunLatencyMs?: number | null;
     readonly costSummary?: {
       readonly completion: {
@@ -156,6 +172,31 @@ v2 = [
             "name": "completion",
             "plural": false,
             "selections": (v1/*: any*/),
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "ExperimentAnnotationSummary",
+        "kind": "LinkedField",
+        "name": "annotationSummaries",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "annotationName",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "meanScore",
             "storageKey": null
           }
         ],
@@ -299,6 +340,6 @@ return {
 };
 })();
 
-(node as any).hash = "40d7e2d71b151faf0829f989e9cf3dca";
+(node as any).hash = "b1a30ab837f3101072954def6a1854f5";
 
 export default node;
