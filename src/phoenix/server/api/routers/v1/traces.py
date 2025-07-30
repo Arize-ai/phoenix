@@ -243,7 +243,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
 )
 async def delete_trace(
     request: Request,
-    identifier: str = Path(
+    trace_identifier: str = Path(
         description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
     ),
 ) -> None:
