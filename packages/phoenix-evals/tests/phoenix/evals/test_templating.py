@@ -22,7 +22,7 @@ class TestTemplateFormatDetection:
             "Welcome {{first_name}} {{last_name}}",
             "Data: {{data}} and more {{info}}",
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.MUSTACHE, f"Failed for: {template}"
@@ -35,7 +35,7 @@ class TestTemplateFormatDetection:
             "Welcome {first_name} {last_name}",
             "Process {data} and {info}",
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.F_STRING, f"Failed for: {template}"
@@ -43,16 +43,15 @@ class TestTemplateFormatDetection:
     def test_json_with_fstring_detection(self):
         """Test detection when JSON is mixed with f-string variables."""
         test_cases = [
-            ('Analyze this: {"type": "data", "value": 123} for user {user_id}', 
-             TemplateFormat.F_STRING),
-            ('Config: {"debug": true, "timeout": 30} in {environment}', 
-             TemplateFormat.F_STRING),
-            ('Data: {"items": [1, 2, 3]} processed by {processor}', 
-             TemplateFormat.F_STRING),
-            ('Settings: {"nested": {"key": "value"}} for {service}', 
-             TemplateFormat.F_STRING),
+            (
+                'Analyze this: {"type": "data", "value": 123} for user {user_id}',
+                TemplateFormat.F_STRING,
+            ),
+            ('Config: {"debug": true, "timeout": 30} in {environment}', TemplateFormat.F_STRING),
+            ('Data: {"items": [1, 2, 3]} processed by {processor}', TemplateFormat.F_STRING),
+            ('Settings: {"nested": {"key": "value"}} for {service}', TemplateFormat.F_STRING),
         ]
-        
+
         for template, expected in test_cases:
             detected = detect_template_format(template)
             assert detected == expected, f"Failed for: {template}"
@@ -65,7 +64,7 @@ class TestTemplateFormatDetection:
             '{{"items": [1, 2, 3], "count": 3}}',
             'Config: {{"nested": {{"key": "value"}}}}',
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.MUSTACHE, f"Failed for: {template}"
@@ -77,7 +76,7 @@ class TestTemplateFormatDetection:
             "{{name}} in environment {env}",
             "Welcome {{user}} with config {config}",
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.MUSTACHE, f"Failed for: {template}"
@@ -89,7 +88,7 @@ class TestTemplateFormatDetection:
             'Data: {{"items": [1, 2, 3]}} processed by {processor}',
             'JSON: {{"key": "value"}} and user {user_id}',
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.F_STRING, f"Failed for: {template}"
@@ -103,7 +102,7 @@ class TestTemplateFormatDetection:
             "Numbers: {123} and {456}",
             "Booleans: {true} and {false}",
         ]
-        
+
         for template in test_cases:
             detected = detect_template_format(template)
             assert detected == TemplateFormat.MUSTACHE, f"Failed for: {template}"
@@ -116,7 +115,7 @@ class TestMustacheFormatter:
         formatter = MustacheFormatter()
         template = "Hello {{name}}, welcome to {{place}}"
         variables = {"name": "Alice", "place": "Phoenix"}
-        
+
         result = formatter.render(template, variables)
         assert result == "Hello Alice, welcome to Phoenix"
 
@@ -124,24 +123,21 @@ class TestMustacheFormatter:
         formatter = MustacheFormatter()
         template = "Hello {{name}}, welcome to {{place}}"
         variables = {"name": "Alice"}
-        
-        # Should handle missing variables gracefully (implementation dependent)
+
         result = formatter.render(template, variables)
-        # The exact behavior depends on whether pystache is available
         assert "Alice" in result
 
     def test_extract_variables(self):
         formatter = MustacheFormatter()
         template = "Hello {{name}}, welcome to {{place}} and {{name}}"
-        
+
         variables = formatter.extract_variables(template)
-        # Should deduplicate variables
         assert set(variables) == {"name", "place"}
 
     def test_extract_variables_with_whitespace(self):
         formatter = MustacheFormatter()
         template = "Hello {{ name }}, welcome to {{  place  }}"
-        
+
         variables = formatter.extract_variables(template)
         assert set(variables) == {"name", "place"}
 
@@ -153,7 +149,7 @@ class TestFStringFormatter:
         formatter = FStringFormatter()
         template = "Hello {name}, welcome to {place}"
         variables = {"name": "Alice", "place": "Phoenix"}
-        
+
         result = formatter.render(template, variables)
         assert result == "Hello Alice, welcome to Phoenix"
 
@@ -162,7 +158,7 @@ class TestFStringFormatter:
         formatter = FStringFormatter()
         template = 'Process data: {"config": {"debug": true}} for user {user_id}'
         variables = {"user_id": "123"}
-        
+
         result = formatter.render(template, variables)
         expected = 'Process data: {"config": {"debug": true}} for user 123'
         assert result == expected
@@ -172,7 +168,7 @@ class TestFStringFormatter:
         formatter = FStringFormatter()
         template = 'Data: {"items": [1, 2, 3], "meta": {"count": 3}} in {environment}'
         variables = {"environment": "production"}
-        
+
         result = formatter.render(template, variables)
         expected = 'Data: {"items": [1, 2, 3], "meta": {"count": 3}} in production'
         assert result == expected
@@ -181,14 +177,14 @@ class TestFStringFormatter:
         """Test that variable extraction excludes JSON content."""
         formatter = FStringFormatter()
         template = 'Config: {"debug": true, "timeout": 30} for {environment} and {user}'
-        
+
         variables = formatter.extract_variables(template)
         assert set(variables) == {"environment", "user"}
 
     def test_extract_variables_excludes_numbers_and_booleans(self):
         formatter = FStringFormatter()
         template = "Numbers: {123} and {45.6}, booleans: {true} {false} {null}, vars: {name}"
-        
+
         variables = formatter.extract_variables(template)
         assert variables == ["name"]
 
@@ -196,7 +192,7 @@ class TestFStringFormatter:
         formatter = FStringFormatter()
         template = "Hello {name}, welcome to {place}"
         variables = {"name": "Alice"}
-        
+
         with pytest.raises(KeyError, match="Template variable 'place' not found"):
             formatter.render(template, variables)
 
@@ -233,20 +229,17 @@ class TestTemplate:
     def sample_schema(self):
         return {
             "type": "object",
-            "properties": {
-                "result": {"type": "string"},
-                "confidence": {"type": "number"}
-            },
-            "required": ["result"]
+            "properties": {"result": {"type": "string"}, "confidence": {"type": "number"}},
+            "required": ["result"],
         }
 
     def test_explicit_mustache_format(self, sample_schema):
         template = Template(
             template="Classify: {{text}}",
             schema=sample_schema,
-            template_format=TemplateFormat.MUSTACHE
+            template_format=TemplateFormat.MUSTACHE,
         )
-        
+
         assert template.template_format == TemplateFormat.MUSTACHE
         assert template.variables == ["text"]
 
@@ -254,36 +247,29 @@ class TestTemplate:
         template = Template(
             template="Classify: {text}",
             schema=sample_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
+
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["text"]
 
     def test_auto_detection_mustache(self, sample_schema):
-        template = Template(
-            template="Classify: {{text}}",
-            schema=sample_schema
-        )
-        
+        template = Template(template="Classify: {{text}}", schema=sample_schema)
+
         assert template.template_format == TemplateFormat.MUSTACHE
         assert template.variables == ["text"]
 
     def test_auto_detection_fstring(self, sample_schema):
-        template = Template(
-            template="Classify: {text}",
-            schema=sample_schema
-        )
-        
+        template = Template(template="Classify: {text}", schema=sample_schema)
+
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["text"]
 
     def test_auto_detection_with_json_content(self, sample_schema):
         template = Template(
-            template='Analyze: {"config": {"debug": true}} for {user_id}',
-            schema=sample_schema
+            template='Analyze: {"config": {"debug": true}} for {user_id}', schema=sample_schema
         )
-        
+
         assert template.template_format == TemplateFormat.F_STRING
         assert template.variables == ["user_id"]
 
@@ -291,11 +277,11 @@ class TestTemplate:
         template = Template(
             template="Classify: {{text}}",
             schema=sample_schema,
-            template_format=TemplateFormat.MUSTACHE
+            template_format=TemplateFormat.MUSTACHE,
         )
-        
+
         result = template.render({"text": "Hello world"})
-        
+
         assert isinstance(result, dict)
         assert result["prompt"] == "Classify: Hello world"
         assert result["schema"] == sample_schema
@@ -304,11 +290,11 @@ class TestTemplate:
         template = Template(
             template="Classify: {text}",
             schema=sample_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
+
         result = template.render({"text": "Hello world"})
-        
+
         assert isinstance(result, dict)
         assert result["prompt"] == "Classify: Hello world"
         assert result["schema"] == sample_schema
@@ -317,11 +303,11 @@ class TestTemplate:
         template = Template(
             template='Process: {"config": {"debug": true}} for user {user_id}',
             schema=sample_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
+
         result = template.render({"user_id": "123"})
-        
+
         expected_prompt = 'Process: {"config": {"debug": true}} for user 123'
         assert result["prompt"] == expected_prompt
         assert result["schema"] == sample_schema
@@ -336,11 +322,9 @@ class TestTemplate:
 
     def test_render_with_invalid_variables_raises_error(self, sample_schema):
         template = Template(
-            template="Hello {name}",
-            schema=sample_schema,
-            template_format=TemplateFormat.F_STRING
+            template="Hello {name}", schema=sample_schema, template_format=TemplateFormat.F_STRING
         )
-        
+
         with pytest.raises(TypeError, match="Variables must be a dictionary"):
             template.render("invalid")  # type: ignore
 
@@ -350,11 +334,8 @@ class TestTemplateResult:
 
     def test_template_result_structure(self):
         # Test that TemplateResult is properly typed
-        result: TemplateResult = {
-            "prompt": "Hello world",
-            "schema": {"type": "object"}
-        }
-        
+        result: TemplateResult = {"prompt": "Hello world", "schema": {"type": "object"}}
+
         assert result["prompt"] == "Hello world"
         assert result["schema"] == {"type": "object"}
 
@@ -367,53 +348,50 @@ class TestRealWorldUseCases:
         return {
             "type": "object",
             "properties": {
-                "classification": {
-                    "type": "string",
-                    "enum": ["positive", "negative", "neutral"]
-                },
-                "confidence": {
-                    "type": "number",
-                    "minimum": 0.0,
-                    "maximum": 1.0
-                }
+                "classification": {"type": "string", "enum": ["positive", "negative", "neutral"]},
+                "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
             },
-            "required": ["classification"]
+            "required": ["classification"],
         }
 
     def test_sentiment_classification_mustache(self, classification_schema):
         template = Template(
-            template="Classify the sentiment of this text: {{text}}\n\nConsider the context: {{context}}",
+            template=(
+                "Classify the sentiment of this text: {{text}}\n\nConsider the context: {{context}}"
+            ),
             schema=classification_schema,
-            template_format=TemplateFormat.MUSTACHE
+            template_format=TemplateFormat.MUSTACHE,
         )
-        
-        result = template.render({
-            "text": "I love this product!",
-            "context": "Customer review"
-        })
-        
-        expected = "Classify the sentiment of this text: I love this product!\n\nConsider the context: Customer review"
+
+        result = template.render({"text": "I love this product!", "context": "Customer review"})
+
+        expected = (
+            "Classify the sentiment of this text: I love this product!\n\nConsider the "
+            "context: Customer review"
+        )
         assert result["prompt"] == expected
 
     def test_sentiment_classification_fstring(self, classification_schema):
         template = Template(
-            template="Classify the sentiment of this text: {text}\n\nConsider the context: {context}",
+            template=(
+                "Classify the sentiment of this text: {text}\n\nConsider the context: {context}"
+            ),
             schema=classification_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
-        result = template.render({
-            "text": "I love this product!",
-            "context": "Customer review"
-        })
-        
-        expected = "Classify the sentiment of this text: I love this product!\n\nConsider the context: Customer review"
+
+        result = template.render({"text": "I love this product!", "context": "Customer review"})
+
+        expected = (
+            "Classify the sentiment of this text: I love this product!\n\nConsider the "
+            "context: Customer review"
+        )
         assert result["prompt"] == expected
 
     def test_complex_json_with_variables(self, classification_schema):
         """Test a complex real-world case with JSON configuration and variables."""
         template = Template(
-            template='''
+            template="""
 Given this configuration:
 {
     "model_settings": {
@@ -428,17 +406,15 @@ Analyze the following text for user {user_id} in environment {environment}:
 "{text}"
 
 Consider the previous conversation context if available.
-            '''.strip(),
+            """.strip(),
             schema=classification_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
-        result = template.render({
-            "user_id": "user_123",
-            "environment": "production",
-            "text": "This is a test message"
-        })
-        
+
+        result = template.render(
+            {"user_id": "user_123", "environment": "production", "text": "This is a test message"}
+        )
+
         assert "user_123" in result["prompt"]
         assert "production" in result["prompt"]
         assert "This is a test message" in result["prompt"]
@@ -450,23 +426,23 @@ Consider the previous conversation context if available.
         """Test handling of ambiguous cases with explicit format specification."""
         # This template is ambiguous - could be f-string escaped JSON or mustache
         ambiguous_template = 'Config: {{"debug": true}} for analysis'
-        
+
         # Test as f-string (escaped JSON)
         template_fstring = Template(
             template=ambiguous_template,
             schema=classification_schema,
-            template_format=TemplateFormat.F_STRING
+            template_format=TemplateFormat.F_STRING,
         )
-        
+
         result_fstring = template_fstring.render({})
         assert result_fstring["prompt"] == 'Config: {"debug": true} for analysis'
-        
+
         # Test as mustache (variable named "debug": true)
         template_mustache = Template(
             template=ambiguous_template,
             schema=classification_schema,
-            template_format=TemplateFormat.MUSTACHE
+            template_format=TemplateFormat.MUSTACHE,
         )
-        
+
         result_mustache = template_mustache.render({'"debug": true': "REPLACED"})
-        assert result_mustache["prompt"] == 'Config: REPLACED for analysis'
+        assert result_mustache["prompt"] == "Config: REPLACED for analysis"
