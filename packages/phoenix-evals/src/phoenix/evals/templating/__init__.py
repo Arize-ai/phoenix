@@ -28,9 +28,9 @@ class TemplateFormatter(ABC):
 class MustacheFormatter(TemplateFormatter):
     def render(self, template: str, variables: Dict[str, Any]) -> str:
         try:
-            import pystache
+            import pystache  # type: ignore
 
-            return pystache.render(template, variables)
+            return pystache.render(template, variables)  # type: ignore
         except ImportError:
             result = template
             for key, value in variables.items():

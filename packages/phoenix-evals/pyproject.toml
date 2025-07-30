@@ -27,6 +27,7 @@ dependencies = [
   "pandas",
   "tqdm",
   "typing-extensions>=4.5, <5",
+  "pystache",
 ]
 
 [project.optional-dependencies]
