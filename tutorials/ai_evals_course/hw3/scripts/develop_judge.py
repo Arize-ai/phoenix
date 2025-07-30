@@ -164,8 +164,6 @@ def evaluate_judge_on_dev(
 
     console.print(f"[green]Completed labeling of {len(predictions)} traces")
 
-    predictions.set_index(sampled_df.index)
-
     from phoenix.trace import SpanEvaluations
 
     px.Client().log_evaluations(

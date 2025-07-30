@@ -39,7 +39,7 @@ def load_traces_from_phoenix() -> pd.DataFrame:
 
         if trace_df.empty:
             console.print("[red]No traces found in Phoenix!")
-            return []
+            return pd.DataFrame()
 
         console.print(f"[green]Loaded {len(trace_df)} traces from Phoenix")
         return trace_df
@@ -47,7 +47,7 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     except Exception as e:
         console.print(f"[red]Error loading traces from Phoenix: {str(e)}")
         console.print("[yellow]Please check your Phoenix configuration and ensure traces exist.")
-        return []
+        return pd.DataFrame()
 
 
 def load_judge_prompt(prompt_path: str) -> str:
@@ -98,8 +98,6 @@ def run_judge_on_traces(
     predictions = pd.merge(predictions, traces_df, left_index=True, right_index=True)
 
     console.print(f"[green]Completed labeling of {len(predictions)} traces")
-
-    predictions.set_index(traces_df.index)
 
     px.Client().log_evaluations(
         SpanEvaluations(eval_name="LLM-as-Judge Full Evaluation", dataframe=predictions)
