@@ -318,7 +318,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/traces/{identifier}": {
+    "/v1/traces/{trace_identifier}": {
         parameters: {
             query?: never;
             header?: never;

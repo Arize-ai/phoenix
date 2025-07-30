@@ -1723,7 +1723,7 @@
         }
       }
     },
-    "/v1/traces/{identifier}": {
+    "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
           "traces"

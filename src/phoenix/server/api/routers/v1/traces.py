@@ -229,7 +229,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
 
 
 @router.delete(
-    "/traces/{identifier}",
+    "/traces/{trace_identifier}",
     operation_id="deleteTrace",
     summary="Delete a trace by identifier",
     description=(
