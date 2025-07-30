@@ -9,7 +9,6 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from secrets import token_hex
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
@@ -1657,16 +1656,6 @@ def verify_server_environment_variables() -> None:
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
-EXPERIMENT_PROJECT_NAME_PATTERN = re.compile(r"^Experiment-[0-9a-f]{24}$")
-
-
-def experiment_project_name() -> str:
-    return f"Experiment-{token_hex(12)}"
-
-
-def is_experiment_project_name(name: str) -> bool:
-    return bool(EXPERIMENT_PROJECT_NAME_PATTERN.match(name))
-
 
 SYSTEM_USER_ID: Optional[int] = None
 """

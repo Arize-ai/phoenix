@@ -3,11 +3,11 @@ import re
 from strawberry.relay import GlobalID
 from vcr.request import Request
 
-from phoenix.config import is_experiment_project_name
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.experiments.utils import is_experiment_project_name
 
 from ....graphql import AsyncGraphQLClient
 from ....vcr import CustomVCR

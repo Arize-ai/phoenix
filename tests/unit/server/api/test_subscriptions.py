@@ -12,7 +12,6 @@ from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
-from phoenix.config import is_experiment_project_name
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -25,6 +24,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.trace.attributes import flatten, get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR

@@ -23,7 +23,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME, experiment_project_name
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
@@ -65,6 +65,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
@@ -205,7 +206,7 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
-        project_name = experiment_project_name()
+        project_name = generate_experiment_project_name()
         for batch in _get_batches(revisions, batch_size):
             batch_results = await asyncio.gather(
                 *(
