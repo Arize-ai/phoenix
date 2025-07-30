@@ -1657,6 +1657,7 @@ def verify_server_environment_variables() -> None:
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
+EXPERIMENT_PROJECT_NAME_PATTERN = re.compile(r"^Experiment-[0-9a-f]{24}$")
 
 
 def experiment_project_name() -> str:
@@ -1664,7 +1665,7 @@ def experiment_project_name() -> str:
 
 
 def is_experiment_project_name(name: str) -> bool:
-    return name.startswith("Experiment-") and len(name) == 35
+    return bool(EXPERIMENT_PROJECT_NAME_PATTERN.match(name))
 
 
 SYSTEM_USER_ID: Optional[int] = None
