@@ -14,6 +14,7 @@ from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
+from phoenix.config import experiment_project_name
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
@@ -159,7 +160,7 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = f"Experiment-{getrandbits(96).to_bytes(12, 'big').hex()}"
+        project_name = experiment_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )

@@ -23,6 +23,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME, experiment_project_name
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
@@ -204,6 +205,7 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
+        project_name = experiment_project_name()
         for batch in _get_batches(revisions, batch_size):
             batch_results = await asyncio.gather(
                 *(
@@ -222,6 +224,7 @@ class ChatCompletionMutationMixin:
                             ),
                             prompt_name=input.prompt_name,
                         ),
+                        project_name=project_name,
                     )
                     for revision in batch
                 ),
@@ -320,6 +323,8 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         llm_client: PlaygroundStreamingClient,
         input: ChatCompletionInput,
+        project_name: str = PLAYGROUND_PROJECT_NAME,
+        project_description: str = "Traces from prompt playground",
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
@@ -414,15 +419,15 @@ class ChatCompletionMutationMixin:
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
                 project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
+                        name=project_name,
+                        description=project_description,
                     )
                 )
             trace = models.Trace(
@@ -622,5 +627,3 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-
-PLAYGROUND_PROJECT_NAME = "playground"

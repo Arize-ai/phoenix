@@ -3,6 +3,7 @@ import re
 from strawberry.relay import GlobalID
 from vcr.request import Request
 
+from phoenix.config import is_experiment_project_name
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -42,6 +43,11 @@ class TestChatCompletionMutationMixin:
                       }
                       output {
                         value
+                      }
+                      trace {
+                        project {
+                          name
+                        }
                       }
                     }
                   }
@@ -95,6 +101,7 @@ class TestChatCompletionMutationMixin:
                 assert result["span"]["input"]["value"]
                 assert result["span"]["output"]["value"]
                 assert result["span"]["cumulativeTokenCountTotal"]
+                assert is_experiment_project_name(result["span"]["trace"]["project"]["name"])
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
