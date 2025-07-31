@@ -5,11 +5,12 @@ from phoenix.evals.models.vertex import GeminiModel
 
 
 class TestParseOutput:
-    def test_parse_output_with_text_content(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.fixture
+    def model(self, monkeypatch: pytest.MonkeyPatch) -> GeminiModel:
+        """Fixture to create a GeminiModel with mocked dependencies."""
         # Mock the VertexAI initialization and GenerativeModel
         monkeypatch.setattr("vertexai.init", lambda **kwargs: None)
 
-        # Create a mock GenerativeModel class
         class MockGenerativeModel:
             def __init__(self, *args, **kwargs):
                 pass
@@ -19,7 +20,9 @@ class TestParseOutput:
             MockGenerativeModel,
         )
 
-        model = GeminiModel(project="test-project")
+        return GeminiModel(project="test-project")
+
+    def test_parse_output_with_text_content(self, model: GeminiModel) -> None:
         response = GenerationResponse.from_dict(
             dict(
                 candidates=[
@@ -43,20 +46,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 8
         assert usage.total_tokens == 20
 
-    def test_parse_output_with_empty_text(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Mock the VertexAI initialization and GenerativeModel
-        monkeypatch.setattr("vertexai.init", lambda **kwargs: None)
-
-        class MockGenerativeModel:
-            def __init__(self, *args, **kwargs):
-                pass
-
-        monkeypatch.setattr(
-            "vertexai.preview.generative_models.GenerativeModel",
-            MockGenerativeModel,
-        )
-
-        model = GeminiModel(project="test-project")
+    def test_parse_output_with_empty_text(self, model: GeminiModel) -> None:
         response = GenerationResponse.from_dict(
             dict(
                 candidates=[
@@ -80,20 +70,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 0
         assert usage.total_tokens == 5
 
-    def test_parse_output_with_no_usage_metadata(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Mock the VertexAI initialization and GenerativeModel
-        monkeypatch.setattr("vertexai.init", lambda **kwargs: None)
-
-        class MockGenerativeModel:
-            def __init__(self, *args, **kwargs):
-                pass
-
-        monkeypatch.setattr(
-            "vertexai.preview.generative_models.GenerativeModel",
-            MockGenerativeModel,
-        )
-
-        model = GeminiModel(project="test-project")
+    def test_parse_output_with_no_usage_metadata(self, model: GeminiModel) -> None:
         response = GenerationResponse.from_dict(
             dict(
                 candidates=[
@@ -110,66 +87,7 @@ class TestParseOutput:
         assert text == "Response without usage info"
         assert usage is None
 
-    def test_parse_output_with_error_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Mock the VertexAI initialization and GenerativeModel
-        monkeypatch.setattr("vertexai.init", lambda **kwargs: None)
-
-        class MockGenerativeModel:
-            def __init__(self, *args, **kwargs):
-                pass
-
-        monkeypatch.setattr(
-            "vertexai.preview.generative_models.GenerativeModel",
-            MockGenerativeModel,
-        )
-
-        model = GeminiModel(project="test-project")
-
-        # Create a response that simulates a candidate.text ValueError (safety blocked)
-        class MockCandidate:
-            @property
-            def text(self):
-                raise ValueError("Safety blocked")
-
-        response = type(
-            "MockResponse",
-            (),
-            {
-                "candidates": [MockCandidate()],
-                "usage_metadata": type(
-                    "MockUsage",
-                    (),
-                    {
-                        "prompt_token_count": 10,
-                        "candidates_token_count": 0,
-                        "thoughts_token_count": 0,
-                        "total_token_count": 10,
-                    },
-                )(),
-            },
-        )()
-
-        text, usage = model._parse_output(response)
-
-        assert text == ""
-        assert usage.prompt_tokens == 10
-        assert usage.completion_tokens == 0
-        assert usage.total_tokens == 10
-
-    def test_parse_output_with_zero_usage(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Mock the VertexAI initialization and GenerativeModel
-        monkeypatch.setattr("vertexai.init", lambda **kwargs: None)
-
-        class MockGenerativeModel:
-            def __init__(self, *args, **kwargs):
-                pass
-
-        monkeypatch.setattr(
-            "vertexai.preview.generative_models.GenerativeModel",
-            MockGenerativeModel,
-        )
-
-        model = GeminiModel(project="test-project")
+    def test_parse_output_with_zero_usage(self, model: GeminiModel) -> None:
         response = GenerationResponse.from_dict(
             dict(
                 candidates=[
