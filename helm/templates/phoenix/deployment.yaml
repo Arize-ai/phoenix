@@ -99,7 +99,7 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          # BEGIN: refactor volumeMounts to mount PVC at workingDir
+
           volumeMounts:
             - name: tmp-volume
               mountPath: /tmp
@@ -128,7 +128,6 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
         {{- end }}
-        # END: refactor volumes
 
       {{- if .Values.serviceAccount.imagePullSecrets }}
       imagePullSecrets:
