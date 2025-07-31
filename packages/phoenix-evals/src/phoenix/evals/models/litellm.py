@@ -138,21 +138,33 @@ class LiteLLMModel(BaseModel):
         )
         return self._parse_output(response)
 
-    def _parse_output(self, response: "ModelResponse") -> Tuple[str, Optional[Usage]]:
+    def _extract_text(self, response: "ModelResponse") -> str:
         from litellm.types.utils import Choices
+
+        if (
+            response.choices
+            and (choice := response.choices[0])
+            and isinstance(choice, Choices)
+            and choice.message.content
+        ):
+            return choice.message.content
+        return ""
+
+    def _extract_usage(self, response: "ModelResponse") -> Optional[Usage]:
         from litellm.types.utils import Usage as ResponseUsage
 
-        usage = None
         if isinstance(response_usage := response.get("usage"), ResponseUsage):  # type: ignore[no-untyped-call]
-            usage = Usage(
+            return Usage(
                 prompt_tokens=response_usage.prompt_tokens,
                 completion_tokens=response_usage.completion_tokens,
                 total_tokens=response_usage.total_tokens,
             )
-        choice = response.choices[0]
-        if isinstance(choice, Choices):
-            return str(choice.message.content), usage
-        return "", None
+        return None
+
+    def _parse_output(self, response: "ModelResponse") -> Tuple[str, Optional[Usage]]:
+        text = self._extract_text(response)
+        usage = self._extract_usage(response)
+        return text, usage
 
     def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
