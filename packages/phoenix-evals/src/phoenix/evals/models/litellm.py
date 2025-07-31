@@ -147,7 +147,7 @@ class LiteLLMModel(BaseModel):
             and isinstance(choice, Choices)
             and choice.message.content
         ):
-            return choice.message.content
+            return str(choice.message.content)
         return ""
 
     def _extract_usage(self, response: "ModelResponse") -> Optional[Usage]:
