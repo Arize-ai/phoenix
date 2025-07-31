@@ -57,7 +57,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 20
         assert usage.total_tokens == 30
 
-    def test_parse_output_with_text_content_no_usage(self, model: GoogleGenAIModel) -> None:
+    def test_parse_output_without_usage(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=None,
             candidates=[

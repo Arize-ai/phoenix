@@ -389,3 +389,26 @@ class TestParseOutput:
         assert usage.prompt_tokens == 12
         assert usage.completion_tokens == 8
         assert usage.total_tokens == 20
+
+    def test_parse_output_without_usage(self, model: OpenAIModel) -> None:
+        response = ChatCompletion(
+            object="chat.completion",
+            id="chatcmpl-no-usage",
+            model="gpt-4",
+            created=1677652288,
+            choices=[
+                Choice(
+                    index=0,
+                    finish_reason="stop",
+                    message=ChatCompletionMessage(
+                        role="assistant", content="Response without usage"
+                    ),
+                )
+            ],
+            usage=None,
+        )
+
+        text, usage = model._parse_output(response)
+
+        assert text == "Response without usage"
+        assert usage is None

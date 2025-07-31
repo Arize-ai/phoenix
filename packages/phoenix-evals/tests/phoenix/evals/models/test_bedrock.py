@@ -150,7 +150,7 @@ class TestParseOutput:
         assert text == json.dumps(tool_input)
         assert usage is None  # No usage in this response
 
-    def test_parse_response_without_usage(self, model: BedrockModel) -> None:
+    def test_parse_output_without_usage(self, model: BedrockModel) -> None:
         """Test parsing response without usage information."""
         response: ConverseResponseTypeDef = {
             "output": {

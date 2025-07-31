@@ -195,7 +195,9 @@ class MistralAIModel(BaseModel):
                 return "\n\n".join(chunk.text for chunk in content if isinstance(chunk, TextChunk))
         return ""
 
-    def _extract_usage(self, usage_info: "UsageInfo") -> Optional[Usage]:
+    def _extract_usage(self, usage_info: Optional["UsageInfo"]) -> Optional[Usage]:
+        if not usage_info:
+            return None
         return Usage(
             prompt_tokens=usage_info.prompt_tokens or 0,
             completion_tokens=usage_info.completion_tokens or 0,

@@ -70,7 +70,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 0
         assert usage.total_tokens == 5
 
-    def test_parse_output_with_no_usage_metadata(self, model: GeminiModel) -> None:
+    def test_parse_output_without_usage(self, model: GeminiModel) -> None:
         response = GenerationResponse.from_dict(
             dict(
                 candidates=[
