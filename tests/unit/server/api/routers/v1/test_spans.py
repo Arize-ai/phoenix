@@ -137,7 +137,9 @@ def span_factory() -> Callable[..., models.Span]:
 
 @pytest.fixture
 async def span_hierarchy(
-    db: DbSessionFactory, project_with_a_single_trace_and_span: None, span_factory: Callable[..., models.Span]
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+    span_factory: Callable[..., models.Span],
 ) -> dict[str, Any]:
     """Creates a span hierarchy for testing subtree deletion."""
     async with db() as session:
