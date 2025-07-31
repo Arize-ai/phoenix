@@ -9,7 +9,7 @@ from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...registries import register_provider
-from ...types import BaseLLMAdapter
+from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -91,6 +91,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
@@ -112,64 +113,43 @@ class LiteLLMAdapter(BaseLLMAdapter):
         supports_structured_output = "response_format" in supported_params_list
         supports_tool_calls = "tools" in supported_params_list
 
-        if not supports_structured_output and not supports_tool_calls:
-            raise ValueError(
-                f"LiteLLM model {self.client.model} does not support structured "
-                "output or tool calls"
-            )
+        if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+            if not supports_structured_output:
+                raise ValueError(
+                    f"LiteLLM model {self.client.model} does not support structured output"
+                )
+            return self._generate_with_structured_output(prompt, schema, **kwargs)
 
-        if supports_structured_output:
-            # Ensure schema has additionalProperties: false for structured output compatibility
-            formatted_schema = self._ensure_additional_properties_false(schema)
+        elif method == ObjectGenerationMethod.TOOL_CALLING:
+            if not supports_tool_calls:
+                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
+            return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
-            response_format = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "extract_structured_data",
-                    "schema": formatted_schema,
-                    "strict": True,
-                },
-            }
-            messages = self._build_messages(prompt)
-            response = self._litellm.completion(  # pyright: ignore
-                model=self.client.model_string,
-                messages=messages,
-                response_format=response_format,
-                **kwargs,
-            )
-            content = response.choices[0].message.content  # pyright: ignore
-            if content is None:
-                raise ValueError("LiteLLM returned no content")
-            return cast(Dict[str, Any], json.loads(content))
-        else:
-            tool_definition = self._schema_to_tool(schema)
-            messages = self._build_messages(prompt)
-
-            response = self._litellm.completion(
-                model=self.client.model_string,
-                messages=messages,
-                tools=[tool_definition],
-                tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
-                **kwargs,
-            )
-
-            tool_call = response.choices[0].message.tool_calls[0]
-            arguments = tool_call.function.arguments
-            if isinstance(arguments, str):
-                return cast(Dict[str, Any], json.loads(arguments))
+        elif method == ObjectGenerationMethod.AUTO:
+            if not supports_structured_output and not supports_tool_calls:
+                raise ValueError(
+                    f"LiteLLM model {self.client.model} does not support structured "
+                    "output or tool calls"
+                )
+            # Prefer structured output when available
+            if supports_structured_output:
+                return self._generate_with_structured_output(prompt, schema, **kwargs)
             else:
-                return cast(Dict[str, Any], arguments)
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
 
     async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
         try:
-            # Try to get supported params, fall back to assuming both are supported
             supported_params = getattr(
                 self._litellm,
                 "get_supported_openai_params",
@@ -187,53 +167,140 @@ class LiteLLMAdapter(BaseLLMAdapter):
         supports_structured_output = "response_format" in supported_params_list
         supports_tool_calls = "tools" in supported_params_list
 
-        if not supports_structured_output and not supports_tool_calls:
-            raise ValueError(
-                f"LiteLLM model {self.client.model} does not support structured "
-                "output or tool calls"
-            )
+        if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+            if not supports_structured_output:
+                raise ValueError(
+                    f"LiteLLM model {self.client.model} does not support structured output"
+                )
+            return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
 
-        if supports_structured_output:
-            # Ensure schema has additionalProperties: false for structured output compatibility
-            formatted_schema = self._ensure_additional_properties_false(schema)
+        elif method == ObjectGenerationMethod.TOOL_CALLING:
+            if not supports_tool_calls:
+                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
+            return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
 
-            response_format = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "extract_structured_data",
-                    "schema": formatted_schema,
-                    "strict": True,
-                },
-            }
-            messages = self._build_messages(prompt)
-            response = await self._litellm.acompletion(  # pyright: ignore
-                model=self.client.model_string,
-                messages=messages,
-                response_format=response_format,
-                **kwargs,
-            )
-            content = response.choices[0].message.content  # pyright: ignore
-            if content is None:
-                raise ValueError("LiteLLM returned no content")
-            return cast(Dict[str, Any], json.loads(content))
-        else:
-            tool_definition = self._schema_to_tool(schema)
-            messages = self._build_messages(prompt)
-
-            response = await self._litellm.acompletion(
-                model=self.client.model_string,
-                messages=messages,
-                tools=[tool_definition],
-                tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
-                **kwargs,
-            )
-
-            tool_call = response.choices[0].message.tool_calls[0]
-            arguments = tool_call.function.arguments
-            if isinstance(arguments, str):
-                return cast(Dict[str, Any], json.loads(arguments))
+        elif method == ObjectGenerationMethod.AUTO:
+            if not supports_structured_output and not supports_tool_calls:
+                raise ValueError(
+                    f"LiteLLM model {self.client.model} does not support structured "
+                    "output or tool calls"
+                )
+            # Prefer structured output when available
+            if supports_structured_output:
+                return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
             else:
-                return cast(Dict[str, Any], arguments)
+                return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
+
+    def _generate_with_structured_output(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Generate object using structured output."""
+        formatted_schema = self._ensure_additional_properties_false(schema)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "extract_structured_data",
+                "schema": formatted_schema,
+                "strict": True,
+            },
+        }
+        messages = self._build_messages(prompt)
+        response = self._litellm.completion(  # pyright: ignore
+            model=self.client.model_string,
+            messages=messages,
+            response_format=response_format,
+            **kwargs,
+        )
+        content = response.choices[0].message.content  # pyright: ignore
+        if content is None:
+            raise ValueError("LiteLLM returned no content")
+        return cast(Dict[str, Any], json.loads(content))
+
+    def _generate_with_tool_calling(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Generate object using tool calling."""
+        tool_definition = self._schema_to_tool(schema)
+        messages = self._build_messages(prompt)
+
+        response = self._litellm.completion(
+            model=self.client.model_string,
+            messages=messages,
+            tools=[tool_definition],
+            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            **kwargs,
+        )
+
+        tool_call = response.choices[0].message.tool_calls[0]
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            return cast(Dict[str, Any], json.loads(arguments))
+        else:
+            return cast(Dict[str, Any], arguments)
+
+    async def _agenerate_with_structured_output(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async generate object using structured output."""
+        formatted_schema = self._ensure_additional_properties_false(schema)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "extract_structured_data",
+                "schema": formatted_schema,
+                "strict": True,
+            },
+        }
+        messages = self._build_messages(prompt)
+        response = await self._litellm.acompletion(  # pyright: ignore
+            model=self.client.model_string,
+            messages=messages,
+            response_format=response_format,
+            **kwargs,
+        )
+        content = response.choices[0].message.content  # pyright: ignore
+        if content is None:
+            raise ValueError("LiteLLM returned no content")
+        return cast(Dict[str, Any], json.loads(content))
+
+    async def _agenerate_with_tool_calling(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async generate object using tool calling."""
+        tool_definition = self._schema_to_tool(schema)
+        messages = self._build_messages(prompt)
+
+        response = await self._litellm.acompletion(
+            model=self.client.model_string,
+            messages=messages,
+            tools=[tool_definition],
+            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            **kwargs,
+        )
+
+        tool_call = response.choices[0].message.tool_calls[0]
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            return cast(Dict[str, Any], json.loads(arguments))
+        else:
+            return cast(Dict[str, Any], arguments)
 
     @property
     def model_name(self) -> str:
