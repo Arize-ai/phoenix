@@ -15,7 +15,7 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    * Whether to show a separator between the card header and the card body.
    * @default true
    */
-  titleSeparator?: boolean; // TODO: add story
+  titleSeparator?: boolean;
   /**
    * The subtitle of the card, displayed below the title.
    */
@@ -29,7 +29,7 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    * Whether the card body is open by default. Only applicable if `collapsible` is `true`.
    * @default true
    */
-  defaultOpen?: boolean; // TODO: add story
+  defaultOpen?: boolean;
   /**
    * Additional content displayed on the right side of the card header.
    */

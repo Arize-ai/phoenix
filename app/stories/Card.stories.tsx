@@ -103,3 +103,28 @@ WithTitleExtra.args = {
   ),
   width: "400px",
 };
+
+/**
+ * Card without title separator
+ */
+export const WithoutTitleSeparator = Template.bind({});
+
+WithoutTitleSeparator.args = {
+  title: "Card Without Separator",
+  subTitle: "This card has no separator between title and content",
+  titleSeparator: false,
+  width: "400px",
+};
+
+/**
+ * Collapsible card that starts closed
+ */
+export const DefaultClosed = Template.bind({});
+
+DefaultClosed.args = {
+  title: "Default Closed Card",
+  subTitle: "This card starts in a collapsed state",
+  collapsible: true,
+  defaultOpen: false,
+  width: "400px",
+};
