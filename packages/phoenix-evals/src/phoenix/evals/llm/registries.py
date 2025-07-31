@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypedDict
 
 from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
@@ -168,11 +169,13 @@ def adapter_availability_table() -> str:
 
     if all_providers:
         table_width = _calculate_table_width(all_providers)
-        output.append("\n📦 AVAILABLE PROVIDERS (sorted by client priority)")
+        output.append(
+            f"\n{emoji_guard('📦 ')}AVAILABLE PROVIDERS (sorted by client priority)"
+        )
         output.append("-" * table_width)
         output.append(_get_consolidated_provider_table(all_providers))
     else:
-        output.append("\n📦 PROVIDERS: None")
+        output.append(f"\n{emoji_guard('📦 ')}PROVIDERS: None")
 
     return "\n".join(output)
 
@@ -307,3 +310,10 @@ def register_provider(
         return adapter_class
 
     return decorator
+
+
+def emoji_guard(emoji: str, fallback: str = "") -> str:
+    # Windows has problems with showing emojis
+    if os.name == "nt":
+        return fallback
+    return emoji
