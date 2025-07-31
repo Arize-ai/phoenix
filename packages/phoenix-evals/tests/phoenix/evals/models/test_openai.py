@@ -139,11 +139,13 @@ def test_selfhosted(completions_create):
 
 
 class TestParseOutput:
-    def test_parse_output_chat_completion_with_content(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    @pytest.fixture
+    def model(self, monkeypatch: pytest.MonkeyPatch) -> OpenAIModel:
+        """Fixture to create an OpenAIModel."""
         monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
+        return OpenAIModel()
+
+    def test_parse_output_chat_completion_with_content(self, model: OpenAIModel) -> None:
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-123",
@@ -170,11 +172,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 5
         assert usage.total_tokens == 15
 
-    def test_parse_output_chat_completion_with_tool_calls(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
+    def test_parse_output_chat_completion_with_tool_calls(self, model: OpenAIModel) -> None:
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-456",
@@ -214,11 +212,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 15
         assert usage.total_tokens == 35
 
-    def test_parse_output_chat_completion_with_function_call(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
+    def test_parse_output_chat_completion_with_function_call(self, model: OpenAIModel) -> None:
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-789",
@@ -252,11 +246,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 8
         assert usage.total_tokens == 23
 
-    def test_parse_output_chat_completion_with_empty_content(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
+    def test_parse_output_chat_completion_with_empty_content(self, model: OpenAIModel) -> None:
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-empty",
@@ -284,10 +274,8 @@ class TestParseOutput:
         assert usage.total_tokens == 5
 
     def test_parse_output_chat_completion_with_empty_tool_arguments(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, model: OpenAIModel
     ) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-empty-args",
@@ -325,10 +313,8 @@ class TestParseOutput:
         assert usage.total_tokens == 11
 
     def test_parse_output_chat_completion_with_multiple_tool_calls(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, model: OpenAIModel
     ) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
         response = ChatCompletion(
             object="chat.completion",
             id="chatcmpl-multi",
@@ -377,9 +363,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 18
         assert usage.total_tokens == 43
 
-    def test_parse_output_legacy_completion(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake-key")
-        model = OpenAIModel()
+    def test_parse_output_legacy_completion(self, model: OpenAIModel) -> None:
         response = Completion(
             object="text_completion",
             id="cmpl-legacy",

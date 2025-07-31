@@ -26,9 +26,13 @@ def test_mistral_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestParseOutput:
-    def test_parse_output_with_tool_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.fixture
+    def model(self, monkeypatch: pytest.MonkeyPatch) -> MistralAIModel:
+        """Fixture to create a MistralAIModel."""
         monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+        return MistralAIModel()
+
+    def test_parse_output_with_tool_calls(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-e5cc70bb28c444948073e77776eb30ef",
             object="chat.completion",
@@ -63,9 +67,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 34
         assert usage.total_tokens == 50
 
-    def test_parse_output_with_regular_content(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_regular_content(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-123",
             object="chat.completion",
@@ -88,9 +90,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 20
         assert usage.total_tokens == 30
 
-    def test_parse_output_with_dict_arguments(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_dict_arguments(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-456",
             object="chat.completion",
@@ -127,9 +127,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 15
         assert usage.total_tokens == 20
 
-    def test_parse_output_with_empty_content(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_empty_content(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-empty",
             object="chat.completion",
@@ -152,9 +150,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 0
         assert usage.total_tokens == 5
 
-    def test_parse_output_with_string_tool_arguments(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_string_tool_arguments(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-string-args",
             object="chat.completion",
@@ -191,9 +187,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 12
         assert usage.total_tokens == 20
 
-    def test_parse_output_with_empty_tool_arguments(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_empty_tool_arguments(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-empty-args",
             object="chat.completion",
@@ -227,9 +221,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 8
         assert usage.total_tokens == 14
 
-    def test_parse_output_with_no_tool_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_no_tool_calls(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-no-tools",
             object="chat.completion",
@@ -255,9 +247,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 6
         assert usage.total_tokens == 10
 
-    def test_parse_output_with_multiple_tool_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_multiple_tool_calls(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-multi-tools",
             object="chat.completion",
@@ -304,9 +294,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 25
         assert usage.total_tokens == 37
 
-    def test_parse_output_with_zero_usage(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_zero_usage(self, model: MistralAIModel) -> None:
         response = ChatCompletionResponse(
             id="cmpl-zero-usage",
             object="chat.completion",
@@ -329,11 +317,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 0
         assert usage.total_tokens == 0
 
-    def test_parse_output_with_complex_json_arguments(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("MISTRAL_API_KEY", "fake-mistral-key")
-        model = MistralAIModel()
+    def test_parse_output_with_complex_json_arguments(self, model: MistralAIModel) -> None:
         complex_args = {
             "query": "weather forecast",
             "location": {"city": "New York", "country": "US"},

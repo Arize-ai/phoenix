@@ -26,8 +26,13 @@ def test_google_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestParseOutput:
-    def test_parse_output_with_text_content(self) -> None:
-        model = GoogleGenAIModel()
+    @pytest.fixture
+    def model(self, monkeypatch: pytest.MonkeyPatch) -> GoogleGenAIModel:
+        """Fixture to create a GoogleGenAIModel."""
+        monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-api-key")
+        return GoogleGenAIModel()
+
+    def test_parse_output_with_text_content(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=10,
@@ -52,8 +57,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 20
         assert usage.total_tokens == 30
 
-    def test_parse_output_with_text_content_no_usage(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_text_content_no_usage(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=None,
             candidates=[
@@ -71,8 +75,7 @@ class TestParseOutput:
         assert text == "Text without usage"
         assert usage is None
 
-    def test_parse_output_with_empty_text(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_empty_text(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=3,
@@ -97,8 +100,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 0
         assert usage.total_tokens == 3
 
-    def test_parse_output_with_function_call_with_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_function_call_with_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=8,
@@ -130,8 +132,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 15
         assert usage.total_tokens == 23
 
-    def test_parse_output_with_function_call_no_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_function_call_no_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=5,
@@ -159,8 +160,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 10
         assert usage.total_tokens == 15
 
-    def test_parse_output_with_multiple_function_calls(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_multiple_function_calls(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=12,
@@ -193,8 +193,7 @@ class TestParseOutput:
         assert usage.completion_tokens == 25
         assert usage.total_tokens == 37
 
-    def test_parse_output_with_simple_function_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_simple_function_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             candidates=[
                 Candidate(
@@ -211,8 +210,7 @@ class TestParseOutput:
         assert text == '{"simple": "value"}'
         assert usage is None
 
-    def test_parse_output_with_nested_function_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_nested_function_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             candidates=[
                 Candidate(
@@ -229,8 +227,7 @@ class TestParseOutput:
         assert text == '{"nested": {"key": "value"}}'
         assert usage is None
 
-    def test_parse_output_with_list_function_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_list_function_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             candidates=[
                 Candidate(
@@ -247,8 +244,7 @@ class TestParseOutput:
         assert text == '{"list": [1, 2, 3]}'
         assert usage is None
 
-    def test_parse_output_with_unicode_function_args(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_unicode_function_args(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             candidates=[
                 Candidate(
@@ -265,8 +261,7 @@ class TestParseOutput:
         assert text == '{"unicode": "测试"}'
         assert usage is None
 
-    def test_parse_output_with_zero_usage(self) -> None:
-        model = GoogleGenAIModel()
+    def test_parse_output_with_zero_usage(self, model: GoogleGenAIModel) -> None:
         response = GenerateContentResponse(
             usage_metadata=GenerateContentResponseUsageMetadata(
                 prompt_token_count=0,
