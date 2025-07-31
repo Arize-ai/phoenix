@@ -23,17 +23,20 @@
 
 ## Datasets & Experiments
 
-* [Cookbooks](datasets-and-experiments/cookbooks.md)
-* [Summarization](datasets-and-experiments/summarization.md)
-* [Text2SQL](datasets-and-experiments/text2sql.md)
+* [Experiment with a Customer Support Agent](datasets-and-experiments/experiment-with-a-customer-support-agent.md)
+* [Model Comparison for an Email Text Extraction Service](datasets-and-experiments/model-comparison-for-an-email-text-extraction-service.md)
+* [Comparing LlamaIndex Query Engines with a Pairwise Evaluator](datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator.md)
+* [Prompt Template Iteration for a Summarization Service](datasets-and-experiments/summarization.md)
+* [Text2SQL Experiments](datasets-and-experiments/text2sql.md)
+* [More Cookbooks](datasets-and-experiments/cookbooks.md)
 
 ## Evaluation
 
 * [Cookbooks](evaluation/cookbooks.md)
 * [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
+* [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
 * [Evaluate RAG](evaluation/evaluate-rag.md)
 * [Evaluate an Agent](evaluation/evaluate-an-agent.md)
-* [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
 
 ## Retrieval & Inferences
 
