@@ -56,6 +56,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     /* Collapsible button styles */
     & .card__collapsible-button {
       display: flex;
+      flex: 1;
       flex-direction: row;
       align-items: center;
       text-align: left;
@@ -67,7 +68,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
   }
 
-  &[data-collapsed="false"] > header {
+  &[data-collapsed="false"][data-title-separator="true"] > header {
     border-bottom: 1px solid var(--scope-border-color);
   }
 
