@@ -326,7 +326,7 @@ export function ExperimentCompareMetricsPage() {
       }
       for (const experiment of compareExperiments) {
         const compareExperimentId = experiment.id;
-        let compareExperimentMeanScore: number | null = null;
+        let compareExperimentMeanScore: MetricValue = null;
         if (
           compareExperimentId == null ||
           !(
@@ -398,8 +398,8 @@ function BaseExperimentMetric({
   value,
   formatter = numberFormatter,
 }: {
-  value: number | null | undefined;
-  formatter?: (value: number | null | undefined) => string;
+  value: MetricValue;
+  formatter?: (value: MetricValue) => string;
 }) {
   const valueText = formatter(value);
   return <Text size="M">{valueText}</Text>;
@@ -412,9 +412,9 @@ function CompareExperimentMetric({
   numImprovements,
   numRegressions,
 }: {
-  value: number | null | undefined;
-  formatter?: (value: number | null | undefined) => string;
-  baseExperimentValue: number | null | undefined;
+  value: MetricValue;
+  formatter?: (value: MetricValue) => string;
+  baseExperimentValue: MetricValue;
   numImprovements: number;
   numRegressions: number;
 }) {
