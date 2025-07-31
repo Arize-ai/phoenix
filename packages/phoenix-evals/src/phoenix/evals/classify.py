@@ -112,7 +112,6 @@ def llm_classify(
     run_sync: bool = False,
     concurrency: Optional[int] = None,
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
-    include_token_usage: bool = False,
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -163,10 +162,6 @@ def llm_classify(
 
         include_response (bool, default=False): If True, includes a column named `response`
             in the output dataframe containing the raw response from the LLM.
-
-        include_token_usage (bool, default=False): If True, appends prompt_tokens,
-            completion_tokens, and total_tokens columns containing exact counts
-            reported by the model.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions.
             Defaults to 10.
