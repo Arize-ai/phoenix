@@ -188,59 +188,65 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 "output or tool calls"
             )
 
+        async def _agenerate_structured_output() -> Dict[str, Any]:
+            normalized_schema = self._normalize_schema_for_langchain(schema)
+            prompt_input = self._build_prompt(prompt)
+            structured_model = self.client.with_structured_output(normalized_schema)
+
+            if hasattr(structured_model, "ainvoke"):
+                response = await structured_model.ainvoke(prompt_input, **kwargs)
+            else:
+                response = structured_model.invoke(prompt_input, **kwargs)
+
+            if isinstance(response, dict):
+                return response  # pyright: ignore[reportReturnType,reportUnknownVariableType]
+            else:
+                raise ValueError(
+                    f"Expected dict from structured output with object schema, "
+                    f"got {type(response).__name__}: {response}"
+                )
+
+        async def _agenerate_tool_call_output() -> Dict[str, Any]:
+            tool_definition = self._schema_to_tool(schema)
+            prompt_input = self._build_prompt(prompt)
+
+            if hasattr(self.client, "bind_tools"):
+                tool_model = self.client.bind_tools([tool_definition])
+            elif hasattr(self.client, "bind_functions"):
+                tool_model = self.client.bind_functions([tool_definition])
+            else:
+                raise ValueError("No tool binding method available")
+
+            if hasattr(tool_model, "ainvoke"):
+                response = await tool_model.ainvoke(prompt_input, **kwargs)
+            else:
+                response = tool_model.invoke(prompt_input, **kwargs)
+
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                tool_call = response.tool_calls[0]
+                if isinstance(tool_call, dict) and "args" in tool_call:
+                    return cast(Dict[str, Any], tool_call["args"])
+                elif hasattr(tool_call, "args"):  # pyright: ignore[reportArgumentType,reportUnknownArgumentType]
+                    return cast(Dict[str, Any], tool_call.args)  # pyright: ignore[reportAttributeAccessIssue]
+                else:
+                    raise ValueError("Tool call format not supported")
+            else:
+                raise ValueError("No tool calls found in response")
+
+        if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+            return await _agenerate_structured_output()
+        elif method == ObjectGenerationMethod.TOOL_CALLING:
+            return await _agenerate_tool_call_output()
+
         if supports_structured_output:
             try:
-                normalized_schema = self._normalize_schema_for_langchain(schema)
-                prompt_input = self._build_prompt(prompt)
-                structured_model = self.client.with_structured_output(normalized_schema)
-
-                if hasattr(structured_model, "ainvoke"):
-                    response = await structured_model.ainvoke(prompt_input, **kwargs)
-                else:
-                    response = structured_model.invoke(prompt_input, **kwargs)
-
-                if isinstance(response, dict):
-                    return response  # pyright: ignore[reportReturnType,reportUnknownVariableType]
-                else:
-                    import json
-
-                    if hasattr(response, "__dict__"):
-                        result = response.__dict__
-                        return cast(Dict[str, Any], result)
-                    else:
-                        return cast(Dict[str, Any], json.loads(str(response)))
-
+                return await _agenerate_structured_output()
             except Exception as e:
                 logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
 
         if supports_tool_calls:
             try:
-                tool_definition = self._schema_to_tool(schema)
-                prompt_input = self._build_prompt(prompt)
-
-                if hasattr(self.client, "bind_tools"):
-                    tool_model = self.client.bind_tools([tool_definition])
-                elif hasattr(self.client, "bind_functions"):
-                    tool_model = self.client.bind_functions([tool_definition])
-                else:
-                    raise ValueError("No tool binding method available")
-
-                if hasattr(tool_model, "ainvoke"):
-                    response = await tool_model.ainvoke(prompt_input, **kwargs)
-                else:
-                    response = tool_model.invoke(prompt_input, **kwargs)
-
-                if hasattr(response, "tool_calls") and response.tool_calls:
-                    tool_call = response.tool_calls[0]
-                    if isinstance(tool_call, dict) and "args" in tool_call:
-                        return cast(Dict[str, Any], tool_call["args"])
-                    elif hasattr(tool_call, "args"):  # pyright: ignore[reportArgumentType,reportUnknownArgumentType]
-                        return cast(Dict[str, Any], tool_call.args)  # pyright: ignore[reportAttributeAccessIssue]
-                    else:
-                        raise ValueError("Tool call format not supported")
-                else:
-                    raise ValueError("No tool calls found in response")
-
+                return await _agenerate_tool_call_output()
             except Exception as e:
                 logger.warning(f"Async tool calling failed: {e}")
 
