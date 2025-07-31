@@ -9,6 +9,7 @@ import { CardProps } from "./types";
 function Card(
   {
     title,
+    titleExtra,
     subTitle,
     children,
     collapsible = false,
@@ -28,6 +29,7 @@ function Card(
     <div>
       <Heading level={3} weight="heavy" className="card__title">
         {title}
+        {titleExtra}
       </Heading>
       {subTitle && (
         <Heading level={4} className="card__sub-title">

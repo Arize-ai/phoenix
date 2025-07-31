@@ -105,10 +105,10 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
   const { theme } = useTheme();
   const data = useLazyLoadQuery<ExperimentsLineChartQuery>(
     graphql`
-      query ExperimentsLineChartQuery($id: ID!) {
+      query ExperimentsLineChartQuery($id: ID!, $count: Int!) {
         dataset: node(id: $id) {
           ... on Dataset {
-            experiments(first: 50) {
+            chartExperiments: experiments(first: $count) {
               edges {
                 experiment: node {
                   id
@@ -125,12 +125,18 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
         }
       }
     `,
-    { id: datasetId }
+    { id: datasetId, count: 50 },
+    {
+      fetchPolicy: "store-or-network",
+      networkCacheConfig: {
+        force: false,
+      },
+    }
   );
 
   const { chartData, scoreKeys } = useMemo(() => {
     const allAnnotationNames = new Set<string>();
-    const chartData = (data.dataset?.experiments?.edges ?? [])
+    const chartData = (data.dataset?.chartExperiments?.edges ?? [])
       .map((edge) => {
         const exp = edge.experiment;
         const scores: Record<string, number | undefined> = {};
@@ -148,7 +154,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       .filter((dataPoint) => dataPoint !== null)
       .sort((a, b) => a.iteration - b.iteration);
     return { chartData, scoreKeys: Array.from(allAnnotationNames) };
-  }, [data.dataset?.experiments?.edges]);
+  }, [data.dataset?.chartExperiments?.edges]);
 
   const { grey300 } = useSequentialChartColors();
   // Memoize colors for each annotation name (scoreKey) using the same logic as useWordColor
