@@ -34,13 +34,7 @@ export async function experimentCompareLoader(
         $datasetId: ID!
         $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
-        $firstCompareExperimentId: ID!
-        $secondCompareExperimentId: ID!
-        $thirdCompareExperimentId: ID!
         $hasBaseExperiment: Boolean!
-        $hasFirstCompareExperiment: Boolean!
-        $hasSecondCompareExperiment: Boolean!
-        $hasThirdCompareExperiment: Boolean!
         $isMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
@@ -52,17 +46,7 @@ export async function experimentCompareLoader(
           )
         ...ExperimentMultiSelector__data
           @arguments(hasBaseExperiment: $hasBaseExperiment)
-        ...ExperimentCompareMetricsPage_experiments
-          @include(if: $isMetricsView)
-          @arguments(
-            baseExperimentId: $baseExperimentId
-            firstCompareExperimentId: $firstCompareExperimentId
-            secondCompareExperimentId: $secondCompareExperimentId
-            thirdCompareExperimentId: $thirdCompareExperimentId
-            hasFirstCompareExperiment: $hasFirstCompareExperiment
-            hasSecondCompareExperiment: $hasSecondCompareExperiment
-            hasThirdCompareExperiment: $hasThirdCompareExperiment
-          )
+        ...ExperimentCompareMetricsPage_experiments @include(if: $isMetricsView)
       }
     `,
     {
@@ -70,12 +54,6 @@ export async function experimentCompareLoader(
       baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
       hasBaseExperiment: baseExperimentId != null,
-      hasFirstCompareExperiment: compareExperimentIds.length > 0,
-      hasSecondCompareExperiment: compareExperimentIds.length > 1,
-      hasThirdCompareExperiment: compareExperimentIds.length > 2,
-      firstCompareExperimentId: compareExperimentIds[0] || "",
-      secondCompareExperimentId: compareExperimentIds[1] || "",
-      thirdCompareExperimentId: compareExperimentIds[2] || "",
       isMetricsView,
     }
   ).toPromise();

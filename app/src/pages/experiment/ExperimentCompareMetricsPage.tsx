@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
@@ -10,7 +10,10 @@ import {
   numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
-import type { ExperimentCompareMetricsPage_experiments$key } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
+import type {
+  ExperimentCompareMetricsPage_experiments$data,
+  ExperimentCompareMetricsPage_experiments$key,
+} from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 const metricCardCSS = css`
@@ -45,26 +48,9 @@ type MetricCardProps = {
   formatter?: (value: MetricValue) => string;
 };
 
-interface Experiment {
-  id?: string;
-  averageRunLatencyMs?: number | null;
-  costSummary?: {
-    total: {
-      tokens: number | null;
-      cost: number | null;
-    };
-    prompt: {
-      tokens: number | null;
-    };
-    completion: {
-      tokens: number | null;
-    };
-  };
-  annotationSummaries?: readonly {
-    annotationName: string;
-    meanScore: number | null;
-  }[];
-}
+type Experiment = NonNullable<
+  ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
 
 function MetricCard({
   title,
@@ -96,107 +82,41 @@ function MetricCard({
 }
 
 export function ExperimentCompareMetricsPage() {
+  const [searchParams] = useSearchParams();
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
+    searchParams.getAll("experimentId");
+  if (baseExperimentId == null) {
+    throw new Error("Empty state not yet implemented");
+  }
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
     graphql`
-      fragment ExperimentCompareMetricsPage_experiments on Query
-      @argumentDefinitions(
-        baseExperimentId: { type: "ID!" }
-        firstCompareExperimentId: { type: "ID!" }
-        secondCompareExperimentId: { type: "ID!" }
-        thirdCompareExperimentId: { type: "ID!" }
-        hasFirstCompareExperiment: { type: "Boolean!" }
-        hasSecondCompareExperiment: { type: "Boolean!" }
-        hasThirdCompareExperiment: { type: "Boolean!" }
-      ) {
-        baseExperiment: node(id: $baseExperimentId) {
-          ... on Experiment {
-            id
-            averageRunLatencyMs
-            costSummary {
-              total {
-                tokens
-                cost
+      fragment ExperimentCompareMetricsPage_experiments on Query {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  averageRunLatencyMs
+                  costSummary {
+                    total {
+                      tokens
+                      cost
+                    }
+                    prompt {
+                      tokens
+                    }
+                    completion {
+                      tokens
+                    }
+                  }
+                  annotationSummaries {
+                    annotationName
+                    meanScore
+                  }
+                }
               }
-              prompt {
-                tokens
-              }
-              completion {
-                tokens
-              }
-            }
-            annotationSummaries {
-              annotationName
-              meanScore
-            }
-          }
-        }
-        firstCompareExperiment: node(id: $firstCompareExperimentId)
-          @include(if: $hasFirstCompareExperiment) {
-          ... on Experiment {
-            id
-            averageRunLatencyMs
-            costSummary {
-              total {
-                tokens
-                cost
-              }
-              prompt {
-                tokens
-              }
-              completion {
-                tokens
-              }
-            }
-            annotationSummaries {
-              annotationName
-              meanScore
-            }
-          }
-        }
-        secondCompareExperiment: node(id: $secondCompareExperimentId)
-          @include(if: $hasSecondCompareExperiment) {
-          ... on Experiment {
-            id
-            averageRunLatencyMs
-            costSummary {
-              total {
-                tokens
-                cost
-              }
-              prompt {
-                tokens
-              }
-              completion {
-                tokens
-              }
-            }
-            annotationSummaries {
-              annotationName
-              meanScore
-            }
-          }
-        }
-        thirdCompareExperiment: node(id: $thirdCompareExperimentId)
-          @include(if: $hasThirdCompareExperiment) {
-          ... on Experiment {
-            id
-            averageRunLatencyMs
-            costSummary {
-              total {
-                tokens
-                cost
-              }
-              prompt {
-                tokens
-              }
-              completion {
-                tokens
-              }
-            }
-            annotationSummaries {
-              annotationName
-              meanScore
             }
           }
         }
@@ -209,19 +129,16 @@ export function ExperimentCompareMetricsPage() {
   }
 
   const metrics = useMemo(() => {
-    const baseExperiment = data.baseExperiment;
-    const compareExperiments: Experiment[] = [];
-    for (const experiment of [
-      data.firstCompareExperiment,
-      data.secondCompareExperiment,
-      data.thirdCompareExperiment,
-    ]) {
-      if (experiment != null) {
-        compareExperiments.push(experiment);
-      } else {
-        break;
-      }
-    }
+    const experimentIdToExperiment: Record<string, Experiment> = {};
+    data.dataset.experiments?.edges.forEach((edge) => {
+      const experiment = edge.experiment;
+      experimentIdToExperiment[experiment.id] = experiment;
+    });
+    const baseExperiment = experimentIdToExperiment[baseExperimentId];
+    const compareExperiments = compareExperimentIds.map((experimentId) => {
+      return experimentIdToExperiment[experimentId];
+    });
+
     const latencyMetric: MetricCardProps = {
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
@@ -358,12 +275,7 @@ export function ExperimentCompareMetricsPage() {
       }
     }
     return [...annotationMetrics, ...builtInMetrics];
-  }, [
-    data.baseExperiment,
-    data.firstCompareExperiment,
-    data.secondCompareExperiment,
-    data.thirdCompareExperiment,
-  ]);
+  }, [baseExperimentId, compareExperimentIds, data]);
 
   return (
     <View padding="size-200" width="100%">
