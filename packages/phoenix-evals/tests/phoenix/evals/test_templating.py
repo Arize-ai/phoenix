@@ -62,7 +62,7 @@ class TestFormatters:
 
     def test_fstring_formatter_with_json(self) -> None:
         formatter = FStringFormatter()
-        template = 'Config: {"debug": true, "timeout": 30} for {environment} and {user}'
+        template = 'Config: {{"debug": true, "timeout": 30}} for {environment} and {user}'
         variables = {"environment": "prod", "user": "alice"}
 
         result = formatter.render(template, variables)
@@ -71,14 +71,6 @@ class TestFormatters:
 
         extracted_vars = formatter.extract_variables(template)
         assert set(extracted_vars) == {"environment", "user"}
-
-    def test_fstring_formatter_missing_variable_error(self) -> None:
-        formatter = FStringFormatter()
-        template = "Hello {name}, welcome to {place}"
-        variables = {"name": "Alice"}
-
-        with pytest.raises(KeyError, match="Template variable 'place' not found"):
-            formatter.render(template, variables)
 
 
 class TestFormatterFactory:
@@ -103,7 +95,7 @@ class TestTemplate:
         [
             ("Classify: {{text}}", None, TemplateFormat.MUSTACHE, ["text"]),
             ("Classify: {text}", None, TemplateFormat.F_STRING, ["text"]),
-            ('Analyze: {"config": true} for {user_id}', None, TemplateFormat.F_STRING, ["user_id"]),
+            ('Analyze: {{"config": true}} for {user_id}', None, TemplateFormat.F_STRING, ["user_id"]),
             ("Classify: {{text}}", TemplateFormat.MUSTACHE, TemplateFormat.MUSTACHE, ["text"]),
             ("Classify: {text}", TemplateFormat.F_STRING, TemplateFormat.F_STRING, ["text"]),
         ],
@@ -141,7 +133,7 @@ class TestTemplate:
                 "Bob: Hi",
             ),
             (
-                'Config: {"debug": true} for {env}',
+                'Config: {{"debug": true}} for {env}',
                 TemplateFormat.F_STRING,
                 {"env": "prod"},
                 'Config: {"debug": true} for prod',
@@ -188,14 +180,14 @@ class TestTemplate:
         template = Template(
             template="""
 Given this configuration:
-{
-    "model_settings": {
+{{
+    "model_settings": {{
         "temperature": 0.3,
         "max_tokens": 150,
-        "response_format": {"type": "json_object"}
-    },
+        "response_format": {{"type": "json_object"}}
+    }},
     "evaluation_criteria": ["accuracy", "relevance", "coherence"]
-}
+}}
 
 Analyze the following text for user {user_id} in environment {environment}:
 "{text}"

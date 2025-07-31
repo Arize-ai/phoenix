@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from string import Formatter
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 import pystache  # type: ignore
 
@@ -34,7 +34,12 @@ class MustacheFormatter(TemplateFormatter):
 
     def _extract_from_parsed(self, parsed: Any, variables: List[str]) -> None:
         try:
-            for element in parsed:
+            # ParsedTemplate stores elements in _parse_tree attribute
+            elements = parsed
+            if hasattr(parsed, "_parse_tree"):
+                elements = parsed._parse_tree
+
+            for element in elements:
                 if hasattr(element, "key") and element.key:
                     variables.append(element.key)
                 elif hasattr(element, "parsed") and element.parsed:
@@ -43,48 +48,28 @@ class MustacheFormatter(TemplateFormatter):
             pass
 
 
-class DotKeyFormatter(Formatter):
-    def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
-        obj = self.get_value(field_name, args, kwargs)
-        return obj, field_name
-
-
 class FStringFormatter(TemplateFormatter):
-    """Formatter for f-string style templates using standard Python f-string syntax."""
+    """Formatter for f-string style templates using standard Python string formatting."""
 
     def render(self, template: str, variables: Dict[str, Any]) -> str:
-        valid_vars = self.extract_variables(template)
-        result = template
-        for var in valid_vars:
-            if var not in variables:
-                raise KeyError(f"Template variable '{var}' not found in provided variables")
-            result = result.replace(f"{{{var}}}", str(variables[var]))
-
-        return result
+        """Use Python's built-in Formatter for f-string-like behavior."""
+        formatter = Formatter()
+        return formatter.format(template, **variables)
 
     def extract_variables(self, template: str) -> List[str]:
-        pattern = r"\{([^}]+)\}"
-        potential_vars = re.findall(pattern, template)
+        """Extract variable names from template using Python's string formatter."""
+        formatter = Formatter()
+        field_names = []
 
-        valid_vars = []
-        for var in potential_vars:
-            content = var.strip()
+        # Parse the template to extract field names
+        for literal_text, field_name, format_spec, conversion in formatter.parse(template):
+            if field_name is not None:
+                # Extract the base variable name (before dots, brackets, etc.)
+                base_name = field_name.split(".")[0].split("[")[0]
+                if base_name and base_name not in field_names:
+                    field_names.append(base_name)
 
-            if any(char in content for char in ['"', "'", ":", ",", "[", "]"]):
-                continue
-
-            try:
-                float(content)
-                continue
-            except ValueError:
-                pass
-
-            if content.lower() in ["true", "false", "null"]:
-                continue
-
-            valid_vars.append(content)
-
-        return valid_vars
+        return field_names
 
 
 def detect_template_format(template: str) -> TemplateFormat:
