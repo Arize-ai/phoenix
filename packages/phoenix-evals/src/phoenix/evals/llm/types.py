@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Callable, Dict, List, Type, Union
 
 from phoenix.evals.templates import MultimodalPrompt
+
+
+class ObjectGenerationMethod(str, Enum):
+    AUTO = "auto"
+    TOOL_CALLING = "tool_calling"
+    STRUCTURED_OUTPUT = "structured_output"
 
 
 class BaseLLMAdapter(ABC):
@@ -62,6 +69,7 @@ class BaseLLMAdapter(ABC):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
