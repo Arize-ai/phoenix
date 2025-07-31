@@ -105,10 +105,10 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
   const { theme } = useTheme();
   const data = useLazyLoadQuery<ExperimentsLineChartQuery>(
     graphql`
-      query ExperimentsLineChartQuery($id: ID!) {
+      query ExperimentsLineChartQuery($id: ID!, $count: Int!) {
         dataset: node(id: $id) {
           ... on Dataset {
-            chartExperiments: experiments(first: 50) {
+            chartExperiments: experiments(first: $count) {
               edges {
                 experiment: node {
                   id
@@ -125,7 +125,13 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
         }
       }
     `,
-    { id: datasetId }
+    { id: datasetId, count: 50 },
+    {
+      fetchPolicy: "store-or-network",
+      networkCacheConfig: {
+        force: false,
+      },
+    }
   );
 
   const { chartData, scoreKeys } = useMemo(() => {
