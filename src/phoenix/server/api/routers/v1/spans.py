@@ -32,7 +32,7 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanAnnotationInsertEvent
+from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
@@ -1202,5 +1202,7 @@ async def delete_span(
             # trace.span_count = await session.scalar(select(func.count()).select_from(models.Span).
             # where(models.Span.trace_rowid == trace.id))
             pass  # TODO: implement actual aggregate metric updates as needed
-    # Optionally: trigger cache/event queue invalidation here if needed
+    # Trigger cache invalidation event
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+
     return None
