@@ -45,6 +45,23 @@ type MetricCardProps = {
   formatter?: (value: MetricValue) => string;
 };
 
+interface Experiment {
+  id?: string;
+  averageRunLatencyMs?: number | null;
+  costSummary?: {
+    total: {
+      tokens: number | null;
+      cost: number | null;
+    };
+    prompt: {
+      tokens: number | null;
+    };
+    completion: {
+      tokens: number | null;
+    };
+  };
+}
+
 function MetricCard({
   title,
   baseExperimentValue,
@@ -186,28 +203,95 @@ export function ExperimentCompareMetricsPage() {
   if (!data) {
     throw new Error("Empty state not implemented");
   }
-  const { baseExperiment, compareExperiments } = useMemo(() => {
+
+  const metrics = useMemo(() => {
     const baseExperiment = data.baseExperiment;
-    const compareExperiments = [];
-    if (data.firstCompareExperiment) {
-      compareExperiments.push(data.firstCompareExperiment);
+    const compareExperiments: Experiment[] = [];
+    for (const experiment of [
+      data.firstCompareExperiment,
+      data.secondCompareExperiment,
+      data.thirdCompareExperiment,
+    ]) {
+      if (experiment != null) {
+        compareExperiments.push(experiment);
+      } else {
+        break;
+      }
     }
-    if (data.secondCompareExperiment) {
-      compareExperiments.push(data.secondCompareExperiment);
-    }
-    if (data.thirdCompareExperiment) {
-      compareExperiments.push(data.thirdCompareExperiment);
-    }
-    return {
-      baseExperiment,
-      compareExperiments,
+    const latencyMetric: MetricCardProps = {
+      title: "Latency",
+      baseExperimentValue: baseExperiment.averageRunLatencyMs,
+      compareExperiments: [],
+      formatter: latencyMsFormatter,
     };
+    const promptTokensMetric: MetricCardProps = {
+      title: "Prompt Tokens",
+      baseExperimentValue: baseExperiment.costSummary?.prompt.tokens,
+      compareExperiments: [],
+    };
+    const completionTokensMetric: MetricCardProps = {
+      title: "Completion Tokens",
+      baseExperimentValue: baseExperiment.costSummary?.completion.tokens,
+      compareExperiments: [],
+    };
+    const totalTokensMetric: MetricCardProps = {
+      title: "Total Tokens",
+      baseExperimentValue: baseExperiment.costSummary?.total.tokens,
+      compareExperiments: [],
+    };
+    const totalCostMetric: MetricCardProps = {
+      title: "Total Cost",
+      baseExperimentValue: baseExperiment.costSummary?.total.cost,
+      compareExperiments: [],
+      formatter: costFormatter,
+    };
+    compareExperiments.forEach((experiment) => {
+      latencyMetric.compareExperiments.push({
+        experimentId: experiment.id as string,
+        value: experiment.averageRunLatencyMs,
+        numImprovements: 0,
+        numRegressions: 1,
+      });
+      promptTokensMetric.compareExperiments.push({
+        experimentId: experiment.id as string,
+        value: experiment.costSummary?.prompt?.tokens,
+        numImprovements: 0,
+        numRegressions: 1,
+      });
+      completionTokensMetric.compareExperiments.push({
+        experimentId: experiment.id as string,
+        value: experiment.costSummary?.completion?.tokens,
+        numImprovements: 0,
+        numRegressions: 1,
+      });
+      totalTokensMetric.compareExperiments.push({
+        experimentId: experiment.id as string,
+        value: experiment.costSummary?.total?.tokens,
+        numImprovements: 0,
+        numRegressions: 1,
+      });
+      totalCostMetric.compareExperiments.push({
+        experimentId: experiment.id as string,
+        value: experiment.costSummary?.total?.cost,
+        numImprovements: 0,
+        numRegressions: 1,
+      });
+    });
+    const builtInMetrics = [
+      latencyMetric,
+      promptTokensMetric,
+      completionTokensMetric,
+      totalTokensMetric,
+      totalCostMetric,
+    ];
+    return builtInMetrics;
   }, [
     data.baseExperiment,
     data.firstCompareExperiment,
     data.secondCompareExperiment,
     data.thirdCompareExperiment,
   ]);
+
   return (
     <View padding="size-200" width="100%">
       <ul
@@ -220,108 +304,18 @@ export function ExperimentCompareMetricsPage() {
           gap: var(--ac-global-dimension-size-200);
         `}
       >
-        <li
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          `}
-        >
-          <MetricCard
-            title="Latency"
-            baseExperimentValue={baseExperiment.averageRunLatencyMs}
-            compareExperiments={compareExperiments.map((compareExperiment) => {
-              return {
-                experimentId: compareExperiment.id as string,
-                value: compareExperiment.averageRunLatencyMs,
-                numImprovements: 0,
-                numRegressions: 1,
-              };
-            })}
-            formatter={latencyMsFormatter}
-          />
-        </li>
-        <li
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          `}
-        >
-          <MetricCard
-            title="Prompt Tokens"
-            baseExperimentValue={baseExperiment.costSummary?.prompt.tokens}
-            compareExperiments={compareExperiments.map((compareExperiments) => {
-              return {
-                experimentId: compareExperiments.id as string,
-                value: compareExperiments.costSummary?.prompt.tokens,
-                numImprovements: 10,
-                numRegressions: 5,
-              };
-            })}
-          />
-        </li>
-        <li
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          `}
-        >
-          <MetricCard
-            title="Completion Tokens"
-            baseExperimentValue={baseExperiment.costSummary?.completion.tokens}
-            compareExperiments={compareExperiments.map((compareExperiments) => {
-              return {
-                experimentId: compareExperiments.id as string,
-                value: compareExperiments.costSummary?.completion.tokens,
-                numImprovements: 10,
-                numRegressions: 5,
-              };
-            })}
-          />
-        </li>
-        <li
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          `}
-        >
-          <MetricCard
-            title="Total Tokens"
-            baseExperimentValue={baseExperiment.costSummary?.total.tokens}
-            compareExperiments={compareExperiments.map((compareExperiments) => {
-              return {
-                experimentId: compareExperiments.id as string,
-                value: compareExperiments.costSummary?.total.tokens,
-                numImprovements: 10,
-                numRegressions: 5,
-              };
-            })}
-          />
-        </li>
-        <li
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-          `}
-        >
-          <MetricCard
-            title="Total Cost"
-            baseExperimentValue={baseExperiment.costSummary?.total.cost}
-            compareExperiments={compareExperiments.map((compareExperiments) => {
-              return {
-                experimentId: compareExperiments.id as string,
-                value: compareExperiments.costSummary?.total.cost,
-                numImprovements: 10,
-                numRegressions: 5,
-              };
-            })}
-            formatter={costFormatter}
-          />
-        </li>
+        {metrics.map((metric: MetricCardProps) => (
+          <li
+            key={metric.title}
+            css={css`
+              display: flex;
+              flex-direction: column;
+              height: 100%;
+            `}
+          >
+            <MetricCard {...metric} />
+          </li>
+        ))}
       </ul>
     </View>
   );
