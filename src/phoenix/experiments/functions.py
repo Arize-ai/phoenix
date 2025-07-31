@@ -536,7 +536,7 @@ def run_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
         concurrency=concurrency,
-        timeout=timeout,
+        task_timeout=timeout,
     )
 
     test_cases = [
