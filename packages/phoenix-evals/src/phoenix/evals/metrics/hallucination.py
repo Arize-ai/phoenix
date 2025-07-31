@@ -19,7 +19,7 @@ Usage:
 >>> print(scores)
 [Score(name='hallucination', score=1.0, label='factual',
 explanation='Information is supported by context', metadata={'model': 'mock-model'},
-source="llm")]
+source="llm", direction="maximize")]
 """
 
 from typing import Union
@@ -69,4 +69,5 @@ class HallucinationEvaluator(ClassificationEvaluator):
             llm=llm,
             prompt=self.PROMPT,
             choices=self.CHOICES,
+            direction="maximize",
         )

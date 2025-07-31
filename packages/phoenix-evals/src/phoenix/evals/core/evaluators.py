@@ -15,7 +15,7 @@ from phoenix.evals.llm import LLM, AsyncLLM
 EvalInput = Mapping[str, Any]
 Schema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
-
+DirectionType = Literal["maximize", "minimize"]
 
 ERROR_SCORE = "ERROR"
 
@@ -29,6 +29,7 @@ class Score:
     explanation: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     source: Optional[SourceType] = None
+    direction: Optional[DirectionType] = "maximize"
 
 
 # --- Async helper ---
@@ -110,6 +111,7 @@ class Evaluator(ABC, AsyncifyMixin):
         name: str,
         source: SourceType,
         required_fields: Optional[Set[str]] = None,
+        direction: Optional[DirectionType] = "maximize",
     ):
         """
         Initialize the evaluator with a required name, source, and optional required fields.
@@ -119,9 +121,12 @@ class Evaluator(ABC, AsyncifyMixin):
             source: The source of this evaluator (human, llm, or heuristic).
             required_fields: Optional set of field names this evaluator requires. If None,
                            subclasses should infer fields from prompts or function signatures.
+            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+                "maximize".
         """
         self._name = name
         self._source = source
+        self._direction = direction
         self.required_fields = required_fields or set()
 
     @property
@@ -226,6 +231,7 @@ class LLMEvaluator(Evaluator):
         prompt: str,
         schema: Optional[Schema] = None,
         required_fields: Optional[Set[str]] = None,
+        direction: Optional[DirectionType] = "maximize",
     ):
         """
         Initialize the LLM evaluator.
@@ -237,6 +243,8 @@ class LLMEvaluator(Evaluator):
             schema: Optional schema for structured output / tool calls.
             required_fields: Optional set of field names this evaluator requires. If None,fields
                 will be inferred from the prompt template.
+            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+                "maximize".
         """
         # Infer required fields from prompt if not provided
         if required_fields is None:
@@ -270,6 +278,7 @@ class ClassificationEvaluator(LLMEvaluator):
         ],
         include_explanation: bool = True,
         required_fields: Optional[Set[str]] = None,
+        direction: Optional[DirectionType] = "maximize",
     ):
         """
         Initialize the LLM evaluator.
@@ -285,8 +294,12 @@ class ClassificationEvaluator(LLMEvaluator):
                 classification.
             required_fields: Optional set of field names this evaluator requires for the prompt.
                 If None,fields will be inferred from the prompt template.
+            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+                "maximize".
         """
-        super().__init__(name=name, llm=llm, prompt=prompt, required_fields=required_fields)
+        super().__init__(
+            name=name, llm=llm, prompt=prompt, required_fields=required_fields, direction=direction
+        )
 
         self.include_explanation = include_explanation
         score_map: Optional[Dict[str, Union[float, int]]] = None
@@ -334,6 +347,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
                 source=self.source,
+                direction=self.direction,
             )
         ]
 
@@ -360,6 +374,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 explanation=explanation,
                 metadata={"model": self.llm.model},  # could add more metadata here
                 source=self.source,
+                direction=self.direction,
             )
         ]
 
@@ -376,7 +391,7 @@ def list_evaluators() -> List[str]:
 
 
 def simple_evaluator(
-    name: str, source: SourceType
+    name: str, source: SourceType, direction: Optional[DirectionType] = "maximize"
 ) -> Callable[
     [Callable[..., Score]], Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]
 ]:
@@ -388,6 +403,12 @@ def simple_evaluator(
       - automatic required_fields inference from function signature
       - per-call template_mapping support
       - registration under the given name (queryable via list_evaluators)
+
+    Args:
+        name: The name of this evaluator, used for identification and Score naming.
+        source: The source of this evaluator (human, llm, or heuristic).
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+        "maximize".
 
     Note:
         The decorated function should create Score objects. The name parameter is optional
@@ -428,6 +449,7 @@ def simple_evaluator(
                     explanation=score.explanation,
                     metadata=score.metadata,
                     source=source,
+                    direction=direction,
                 )
             return [score]
 
@@ -435,6 +457,7 @@ def simple_evaluator(
         wrapper.required_fields = required  # type: ignore
         wrapper.name = name  # type: ignore
         wrapper.source = source  # type: ignore
+        wrapper.direction = direction  # type: ignore
         _registry[name] = wrapper
         return wrapper
 
@@ -450,6 +473,7 @@ def create_classifier(
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
     required_fields: Optional[Set[str]] = None,
+    direction: Optional[DirectionType] = "maximize",
 ) -> ClassificationEvaluator:
     """
     Factory to create a ClassificationEvaluator.
@@ -463,7 +487,11 @@ def create_classifier(
             a tuple of (score, description).
         required_fields: Optional set of field names this evaluator requires. If None,
             fields will be inferred from the prompt template.
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+            "maximize".
 
+    Returns:
+        A ClassificationEvaluator instance.
     """
     return ClassificationEvaluator(
         name=name,
@@ -471,4 +499,5 @@ def create_classifier(
         prompt=prompt,
         choices=choices,
         required_fields=required_fields,
+        direction=direction,
     )
