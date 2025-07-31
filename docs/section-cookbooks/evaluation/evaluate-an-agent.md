@@ -1,5 +1,9 @@
 # Evaluate an Agent
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_agent.ipynb" %}
+View in colab
+{% endembed %}
+
 This notebook serves as an end-to-end example of how to trace and evaluate an agent. The example uses a "talk-to-your-data" agent as its example.
 
 The notebook shows examples of:
@@ -10,10 +14,6 @@ The notebook shows examples of:
 * Evaluating SQL query generation
 * Evaluating Python code generation
 * Evaluating the path of an agent
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_agent.ipynb" %}
-View in colab
-{% endembed %}
 
 ### Install Dependencies, Import Libraries, Set API Keys
 

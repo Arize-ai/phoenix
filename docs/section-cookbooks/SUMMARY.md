@@ -6,8 +6,10 @@
 
 ## Tracing
 
-* [Cookbooks](tracing/cookbooks.md)
+* [Agentic RAG Tracing](tracing/agentic-rag-tracing.md)
 * [Structured Data Extraction](tracing/structured-data-extraction.md)
+* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing/product-recommendation-agent-google-agent-engine-and-langgraph.md)
+* [More Cookbooks](tracing/cookbooks.md)
 
 ## Annotations
 
