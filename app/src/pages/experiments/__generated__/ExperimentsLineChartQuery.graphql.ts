@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ddd7f79c39b2c378523a27e654328f0>>
+ * @generated SignedSource<<81b5318a39f947e3098315c16cf13787>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type ExperimentsLineChartQuery$variables = {
+  count: number;
   id: string;
 };
 export type ExperimentsLineChartQuery$data = {
@@ -35,37 +36,40 @@ export type ExperimentsLineChartQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "id"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "count"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "id"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": "chartExperiments",
       "args": [
         {
-          "kind": "Literal",
+          "kind": "Variable",
           "name": "first",
-          "value": 50
+          "variableName": "count"
         }
       ],
       "concreteType": "ExperimentConnection",
@@ -89,7 +93,7 @@ v3 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v3/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -136,7 +140,7 @@ v3 = {
           "storageKey": null
         }
       ],
-      "storageKey": "experiments(first:50)"
+      "storageKey": null
     }
   ],
   "type": "Dataset",
@@ -144,20 +148,23 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentsLineChartQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -167,13 +174,16 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "ExperimentsLineChartQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -186,24 +196,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
-          (v2/*: any*/)
+          (v4/*: any*/),
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "849561891ab5c5a1f5193f1c66f8a940",
+    "cacheID": "4afc08039c6ccd37b80d9637f73ecc08",
     "id": null,
     "metadata": {},
     "name": "ExperimentsLineChartQuery",
     "operationKind": "query",
-    "text": "query ExperimentsLineChartQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      chartExperiments: experiments(first: 50) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            averageRunLatencyMs\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentsLineChartQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      chartExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            averageRunLatencyMs\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3425cfe4f1b2dc38bf4d555d51eac556";
+(node as any).hash = "fb0556f7193f4e63c1a5b7e92028528d";
 
 export default node;
