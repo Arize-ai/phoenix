@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   CopyToClipboardButton,
   Flex,
   Icon,
@@ -138,14 +137,12 @@ export function PlaygroundTool({
       collapsible
       backgroundColor={"yellow-100"}
       borderColor={"yellow-700"}
-      variant="compact"
       title={
         <Flex direction="row" gap="size-100">
           <SpanKindIcon spanKind="tool" />
           <Text>{toolName ?? "Tool"}</Text>
         </Flex>
       }
-      bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
           <CopyToClipboardButton text={editorValueRef} />

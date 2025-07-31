@@ -2,10 +2,9 @@ import { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   FieldError,
   Flex,
   Form,
@@ -80,8 +79,6 @@ export function ViewerProfileCard() {
   return (
     <Card
       title="Profile"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
       extra={
         viewer.authMethod === "LOCAL" && (
           <LinkButton size="S" to="/reset-password">

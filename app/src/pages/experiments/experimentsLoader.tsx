@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -10,21 +11,15 @@ import { experimentsLoaderQuery } from "./__generated__/experimentsLoaderQuery.g
  */
 export async function experimentsLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  return await fetchQuery<experimentsLoaderQuery>(
+  const data = await fetchQuery<experimentsLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentsLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ... on Dataset {
-            ...ExperimentsTableFragment
-            firstExperiment: experiments(first: 1) {
-              edges {
-                node {
-                  id
-                }
-              }
-            }
+            ...ExperimentsPageFragment
+            experimentCount
           }
         }
       }
@@ -33,4 +28,6 @@ export async function experimentsLoader(args: LoaderFunctionArgs) {
       id: datasetId as string,
     }
   ).toPromise();
+  invariant(data, "dataset failed to load");
+  return data;
 }

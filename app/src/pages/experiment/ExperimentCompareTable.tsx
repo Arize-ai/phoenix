@@ -23,10 +23,10 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
   Button,
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
@@ -125,11 +125,7 @@ type ExperimentRun =
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: {
-    padding: 0,
-  },
 };
 
 const tableWrapCSS = css`
@@ -1092,15 +1088,12 @@ function SelectedExampleDialog({
                           text={JSON.stringify(selectedExample.input)}
                         />
                       }
-                      bodyStyle={{
-                        padding: 0,
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
                     >
-                      <JSONBlock
-                        value={JSON.stringify(selectedExample.input, null, 2)}
-                      />
+                      <View maxHeight="300px" overflow="auto">
+                        <JSONBlock
+                          value={JSON.stringify(selectedExample.input, null, 2)}
+                        />
+                      </View>
                     </Card>
                   </View>
                   <View width="50%">
@@ -1112,19 +1105,16 @@ function SelectedExampleDialog({
                           text={JSON.stringify(selectedExample.referenceOutput)}
                         />
                       }
-                      bodyStyle={{
-                        padding: 0,
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
                     >
-                      <JSONBlock
-                        value={JSON.stringify(
-                          selectedExample.referenceOutput,
-                          null,
-                          2
-                        )}
-                      />
+                      <View maxHeight="300px" overflow="auto">
+                        <JSONBlock
+                          value={JSON.stringify(
+                            selectedExample.referenceOutput,
+                            null,
+                            2
+                          )}
+                        />
+                      </View>
                     </Card>
                   </View>
                 </Flex>
@@ -1165,7 +1155,7 @@ function SelectedExampleDialog({
                       <li key={runItem.experimentId}>
                         <Card
                           {...defaultCardProps}
-                          title={experiment?.name}
+                          title={experiment?.name ?? ""}
                           titleExtra={
                             <SequenceNumberToken
                               sequenceNumber={experiment?.sequenceNumber || 0}

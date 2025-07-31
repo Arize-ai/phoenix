@@ -7,9 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
-
-import { Loading, View } from "@phoenix/components";
+import { Card, Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -94,13 +92,7 @@ function PlaygroundOutputMessage({
   const styles = useChatMessageStyles(role);
 
   return (
-    <Card
-      title={role}
-      {...styles}
-      variant="compact"
-      extra={<ConnectedMarkdownModeSelect />}
-      bodyStyle={{ padding: 0 }}
-    >
+    <Card title={role} {...styles} extra={<ConnectedMarkdownModeSelect />}>
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
@@ -444,10 +436,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           />
         ) : null
       }
-      titleSeparator
       collapsible
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
     >
       {loading ? (
         <View padding="size-200">
