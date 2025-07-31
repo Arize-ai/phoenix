@@ -30,6 +30,7 @@ from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
 from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
+from phoenix.evals.models.base import Usage
 from phoenix.evals.templates import (
     ClassificationTemplate,
     MultimodalPrompt,
@@ -57,9 +58,7 @@ Record: TypeAlias = Mapping[str, Any]
 Index: TypeAlias = int
 
 # snapped_response, explanation, response
-ParsedLLMResponse: TypeAlias = Tuple[
-    Optional[str], Optional[str], str, str, Optional[int], Optional[int]
-]
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str, Optional[Usage]]
 
 
 class ClassificationStatus(Enum):
@@ -292,13 +291,11 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response, usage = await verbose_model._async_generate_with_meta(
+            response, usage = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        prompt_tokens = usage.get("prompt_tokens") if usage else None
-        completion_tokens = usage.get("completion_tokens") if usage else None
-        return inference, explanation, response, str(prompt), prompt_tokens, completion_tokens
+        return inference, explanation, response, str(prompt), usage
 
     def _run_llm_classification_sync(
         input_data: PROCESSOR_TYPE,
@@ -312,17 +309,14 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response, usage = verbose_model._generate_with_meta(
+            response, usage = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
 
         inference, explanation = _process_response(response)
-        prompt_tokens = usage.get("prompt_tokens") if usage else None
-        completion_tokens = usage.get("completion_tokens") if usage else None
+        return inference, explanation, response, str(prompt), usage
 
-        return inference, explanation, response, str(prompt), prompt_tokens, completion_tokens
-
-    fallback_return_value: ParsedLLMResponse = (None, None, "", "", None, None)
+    fallback_return_value: ParsedLLMResponse = (None, None, "", "", None)
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -347,9 +341,7 @@ def llm_classify(
         raise ValueError("Invalid 'data' input type.")
 
     results, execution_details = executor.run(list_of_inputs)
-    labels, explanations, responses, prompts, prompt_token_counts, completion_token_counts = zip(
-        *results
-    )
+    labels, explanations, responses, prompts, usages = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
     execution_times = [details.execution_seconds for details in execution_details]
@@ -359,28 +351,21 @@ def llm_classify(
             classification_statuses.append(ClassificationStatus.MISSING_INPUT)
         else:
             classification_statuses.append(ClassificationStatus(status.value))
-
+    prompt_tokens = [usage.prompt_tokens if usage else None for usage in usages]
+    completion_tokens = [usage.completion_tokens if usage else None for usage in usages]
+    total_tokens = [usage.total_tokens if usage else None for usage in usages]
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
-            **(
-                {
-                    "prompt_tokens": prompt_token_counts,
-                    "completion_tokens": completion_token_counts,
-                    "total_tokens": [
-                        None if (p is None or c is None or pd.isna(p) or pd.isna(c)) else p + c
-                        for p, c in zip(prompt_token_counts, completion_token_counts)
-                    ],
-                }
-                if include_token_usage
-                else {}
-            ),
             **({"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}),
             **({"execution_status": [status.value for status in classification_statuses]}),
             **({"execution_seconds": [runtime for runtime in execution_times]}),
+            **({"prompt_tokens": prompt_tokens}),
+            **({"completion_tokens": completion_tokens}),
+            **({"total_tokens": total_tokens}),
         },
         index=dataframe_index,
     )

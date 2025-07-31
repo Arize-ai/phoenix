@@ -1,10 +1,16 @@
+import json
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.evals.models.base import BaseModel
+from typing_extensions import assert_never, override
+
+from phoenix.evals.models.base import BaseModel, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+
+if TYPE_CHECKING:
+    from mistralai import AssistantMessage, ChatCompletionResponse, UsageInfo
 
 DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 """Use the latest large mistral model by default."""
@@ -102,26 +108,10 @@ class MistralAIModel(BaseModel):
         # Mistral is strict about not passing None values to the API
         return {k: v for k, v in params.items() if v is not None}
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
-        # instruction is an invalid input to Mistral models, it is passed in by
-        # BaseEvalModel.__call__ and needs to be removed
-        kwargs.pop("instruction", None)
-        invocation_parameters = self.invocation_parameters()
-        invocation_parameters.update(kwargs)
-        response = self._rate_limited_completion(
-            model=self.model,
-            messages=self._format_prompt(prompt),
-            **invocation_parameters,
-        )
-
-        return str(response)
-
-    def _generate_with_meta(
+    @override
+    def _generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -130,17 +120,15 @@ class MistralAIModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = self._rate_limited_completion(
+        return self._rate_limited_completion(
             model=self.model,
             messages=self._format_prompt(prompt),
             **invocation_parameters,
         )
 
-        return str(response), response.get("usage", None)
-
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 response = self._client.chat.complete(**kwargs)
             # if an SDKError is raised, check that it's a rate limit error:
@@ -149,16 +137,14 @@ class MistralAIModel(BaseModel):
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
                 raise exc
-
-            if response and (choices := response.choices):
-                if first_response := choices[0]:
-                    return first_response.message.content
+            return self._parse_output(response)
 
         return _completion(**kwargs)
 
+    @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -167,36 +153,15 @@ class MistralAIModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = await self._async_rate_limited_completion(
+        return await self._async_rate_limited_completion(
             model=self.model,
             messages=self._format_prompt(prompt),
             **invocation_parameters,
         )
 
-        return str(response)
-
-    async def _async_generate_with_meta(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
-        # instruction is an invalid input to Mistral models, it is passed in by
-        # BaseEvalModel.__call__ and needs to be removed
-        kwargs.pop("instruction", None)
-        invocation_parameters = self.invocation_parameters()
-        invocation_parameters.update(kwargs)
-        response = await self._async_rate_limited_completion(
-            model=self.model,
-            messages=self._format_prompt(prompt),
-            **invocation_parameters,
-        )
-
-        return str(response), response.get("usage", None)
-
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 response = await self._client.chat.complete_async(**kwargs)
             except self._mistral_sdk_error as exc:
@@ -204,12 +169,44 @@ class MistralAIModel(BaseModel):
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
                 raise exc
-
-            if response and (choices := response.choices):
-                if first_response := choices[0]:
-                    return first_response.message.content
+            return self._parse_output(response)
 
         return await _async_completion(**kwargs)
+
+    def _extract_text(self, message: "AssistantMessage") -> str:
+        from mistralai import ToolCall
+
+        if tool_calls := message.tool_calls:
+            for tool_call in tool_calls:
+                if not isinstance(tool_call, ToolCall):
+                    continue
+                if arguments := tool_call.function.arguments:
+                    if isinstance(arguments, str):
+                        return arguments
+                    if isinstance(arguments, dict):
+                        return json.dumps(arguments, ensure_ascii=False)
+                    assert_never(arguments)
+        if content := message.content:
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                from mistralai import TextChunk
+
+                return "\n\n".join(chunk.text for chunk in content if isinstance(chunk, TextChunk))
+        return ""
+
+    def _extract_usage(self, usage_info: "UsageInfo") -> Optional[Usage]:
+        return Usage(
+            prompt_tokens=usage_info.prompt_tokens or 0,
+            completion_tokens=usage_info.completion_tokens or 0,
+            total_tokens=usage_info.total_tokens or 0,
+        )
+
+    def _parse_output(self, response: "ChatCompletionResponse") -> Tuple[str, Optional[Usage]]:
+        message = response.choices[0].message
+        text = self._extract_text(message)
+        usage = self._extract_usage(response.usage)
+        return text, usage
 
     def _format_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         messages = []

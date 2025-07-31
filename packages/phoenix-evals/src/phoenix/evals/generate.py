@@ -96,7 +96,7 @@ def llm_generate(
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
-            response = await verbose_model._async_generate(
+            response, *_ = await verbose_model._async_generate(
                 prompt,
                 instruction=system_instruction,
             )
@@ -112,7 +112,7 @@ def llm_generate(
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
-            response = verbose_model._generate(
+            response, *_ = verbose_model._generate(
                 prompt,
                 instruction=system_instruction,
             )

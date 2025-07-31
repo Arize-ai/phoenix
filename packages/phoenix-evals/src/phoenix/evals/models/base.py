@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, Generator, Optional, Sequence, Tuple
+from typing import Any, Generator, NamedTuple, Optional, Sequence, Tuple
 
 from typing_extensions import TypeVar, Union
 
@@ -36,6 +36,12 @@ def set_verbosity(model: "BaseModel", verbose: bool = False) -> Generator["BaseM
     finally:
         model._verbose = _model_verbose_setting
         model._rate_limiter._verbose = _rate_limiter_verbose_setting
+
+
+class Usage(NamedTuple):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
 
 
 @dataclass
@@ -82,7 +88,7 @@ class BaseModel(ABC):
                 f"{type(instruction)}."
             )
 
-        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)[0]
 
     def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
@@ -90,24 +96,16 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[Usage]]:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def _generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[Usage]]:
         raise NotImplementedError
-
-    async def _async_generate_with_meta(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        """Default shim — subclasses return (text, usage_dict)."""
-        return await self._async_generate(prompt=prompt, **kwargs), None
-
-    def _generate_with_meta(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        """Sync version."""
-        return self._generate(prompt=prompt, **kwargs), None
 
     @staticmethod
     def _raise_import_error(

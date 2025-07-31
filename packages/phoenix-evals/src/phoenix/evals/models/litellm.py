@@ -1,12 +1,17 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.evals.models.base import BaseModel
+from typing_extensions import override
+
+from phoenix.evals.models.base import BaseModel, Usage
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from litellm.types.utils import ModelResponse
 
 
 @dataclass
@@ -104,23 +109,19 @@ class LiteLLMModel(BaseModel):
                 package_name="litellm",
             )
 
+    @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
         return self._generate(prompt, **kwargs)
 
-    async def _async_generate_with_meta(
+    @override
+    def _generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
-        return self._generate_with_meta(prompt, **kwargs)
-
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -135,26 +136,23 @@ class LiteLLMModel(BaseModel):
             request_timeout=self.request_timeout,
             **self.model_kwargs,
         )
-        return str(response.choices[0].message.content)
+        return self._parse_output(response)
 
-    def _generate_with_meta(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
+    def _parse_output(self, response: "ModelResponse") -> Tuple[str, Optional[Usage]]:
+        from litellm.types.utils import Choices
+        from litellm.types.utils import Usage as ResponseUsage
 
-        messages = self._get_messages_from_prompt(prompt)
-        response = self._litellm.completion(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            top_p=self.top_p,
-            num_retries=self.num_retries,
-            request_timeout=self.request_timeout,
-            **self.model_kwargs,
-        )
-        return str(response.choices[0].message.content), response.get("usage", None)
+        usage = None
+        if isinstance(response_usage := response.get("usage"), ResponseUsage):  # type: ignore[no-untyped-call]
+            usage = Usage(
+                prompt_tokens=response_usage.prompt_tokens,
+                completion_tokens=response_usage.completion_tokens,
+                total_tokens=response_usage.total_tokens,
+            )
+        choice = response.choices[0]
+        if isinstance(choice, Choices):
+            return str(choice.message.content), usage
+        return "", None
 
     def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages

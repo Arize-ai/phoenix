@@ -1,13 +1,19 @@
 import asyncio
+import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+from typing_extensions import override
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
-from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.base import BaseModel, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt
+
+if TYPE_CHECKING:
+    from mypy_boto3_bedrock_runtime.type_defs import ConverseResponseTypeDef, TokenUsageTypeDef
 
 logger = logging.getLogger(__name__)
 
@@ -108,22 +114,10 @@ class BedrockModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        # the legacy "instruction" parameter from llm_classify is intended to indicate a
-        # system instruction, but not all models supported by Bedrock support system instructions
-        _ = kwargs.pop("instruction", None)
-
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
-        body = self._create_request_body(prompt)
-        response = self._rate_limited_completion(**body)
-
-        return self._parse_output(response) or ""
-
-    def _generate_with_meta(
+    @override
+    def _generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
+    ) -> Tuple[str, Optional[Usage]]:
         # the legacy "instruction" parameter from llm_classify is intended to indicate a
         # system instruction, but not all models supported by Bedrock support system instructions
         _ = kwargs.pop("instruction", None)
@@ -132,47 +126,26 @@ class BedrockModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         body = self._create_request_body(prompt)
-        response = self._rate_limited_completion(**body)
+        return self._rate_limited_completion(**body)
 
-        usage = response.get("usage", None)
-
-        if usage is not None:
-            input_tokens = usage.get("inputTokens", 0)
-            output_tokens = usage.get("outputTokens", 0)
-            total_tokens = usage.get("totalTokens", 0)
-            return self._parse_output(response), {
-                "prompt_tokens": input_tokens,
-                "completion_tokens": output_tokens,
-                "total_tokens": total_tokens,
-            }
-
-        return self._parse_output(response) or "", None
-
+    @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
 
-    async def _async_generate_with_meta(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Dict[str, int]]]:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, partial(self._generate_with_meta, prompt, **kwargs))
-
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         """Use tenacity to retry the completion call."""
 
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
-                return self.client.converse(**kwargs)
+                response = self.client.converse(**kwargs)
+                return self._parse_output(response)
             except Exception as e:
                 exception_message = e.args[0]
                 if not exception_message:
@@ -238,8 +211,35 @@ class BedrockModel(BaseModel):
 
         return converse_input_params
 
-    def _parse_output(self, response: Any) -> Any:
-        return response.get("output").get("message").get("content")[0]["text"]
+    def _extract_text(self, response: "ConverseResponseTypeDef") -> str:
+        if "output" in response:
+            output = response["output"]
+            if "message" in output:
+                message = output["message"]
+                if "content" in message:
+                    content = message["content"]
+                    for block in content:
+                        if "toolUse" in block and (tool_use := block["toolUse"]):
+                            if "input" in tool_use and (tool_use_input := tool_use["input"]):
+                                return json.dumps(tool_use_input)
+                    return "\n\n".join(
+                        text for block in content if "text" in block and (text := block["text"])
+                    )
+        return ""
+
+    def _extract_usage(self, response_usage: Optional["TokenUsageTypeDef"]) -> Optional[Usage]:
+        if not response_usage:
+            return None
+        return Usage(
+            prompt_tokens=response_usage.get("inputTokens", 0),
+            completion_tokens=response_usage.get("outputTokens", 0),
+            total_tokens=response_usage.get("totalTokens", 0),
+        )
+
+    def _parse_output(self, response: "ConverseResponseTypeDef") -> Tuple[str, Optional[Usage]]:
+        text = self._extract_text(response)
+        usage = self._extract_usage(response.get("usage"))
+        return text, usage
 
     def _model_supports_top_k(self) -> bool:
         """

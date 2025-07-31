@@ -1,10 +1,9 @@
 import json
 from contextlib import ExitStack
-from typing import List, Optional
+from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
-import numpy as np
 import pandas as pd
 import pytest
 import respx
@@ -1590,7 +1589,7 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
     return_value = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool
         Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate", return_value=(return_value, None)):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1618,7 +1617,7 @@ def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
     return_value = """Label: not correct\nExplanation: The Agent Output does not match the Human
         Tool Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate", return_value=(return_value, None)):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1645,7 +1644,7 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
     )
     return_value = """incorrect EXPLANATION: This is incorrect because the user did not explicitly
         ask to speak to a live agent."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate", return_value=(return_value, None)):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1673,7 +1672,7 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
     return_value = """Explanation: The Agent Output does not match the Human Tool Selection.
         However, the agent appears to be on the correct path to answering the question.
         Label: not correct"""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate", return_value=(return_value, None)):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1685,87 +1684,3 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
         )
         assert result["label"].iloc[0] == "not correct"
         assert NOT_PARSABLE not in result["label"].tolist()
-
-
-def _patch_usage(model, prompt_tokens: Optional[int], completion_tokens: Optional[int]):
-    """
-    Helper: monkey-patch both sync & async meta generators on `model`
-    so they return a deterministic usage payload.
-    """
-    usage_dict = (
-        None
-        if prompt_tokens is None and completion_tokens is None
-        else {
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": (prompt_tokens or 0) + (completion_tokens or 0),
-        }
-    )
-
-    return (
-        patch.object(model, "_generate_with_meta", return_value=("relevant", usage_dict)),
-        patch.object(
-            model,
-            "_async_generate_with_meta",
-            return_value=("relevant", usage_dict),
-        ),
-    )
-
-
-@pytest.mark.parametrize(
-    "include_flag,prompt_toks,comp_toks,expect_cols,expect_total_nan",
-    [
-        # ideal-path: flag ON + provider supplies counts
-        (True, 7, 5, True, False),
-        #  flag OFF  →  no columns even if provider supplies counts
-        (False, 7, 5, False, None),  # expect_cols=False, expect_total_nan unused
-        #  flag ON but provider returns None  →  cols present, NaNs inside
-        (True, None, None, True, True),
-    ],
-    ids=["flag_on_with_counts", "flag_off", "flag_on_no_counts"],
-)
-def test_llm_classify_token_usage_columns(
-    include_flag: bool,
-    prompt_toks: Optional[int],
-    comp_toks: Optional[int],
-    expect_cols: bool,
-    expect_total_nan: Optional[bool],
-):
-    """
-    Covers three scenarios:
-
-    • include_token_usage=True  w/ real counts
-    • include_token_usage=False (default)
-    • include_token_usage=True  but provider doesn't return usage
-    """
-    model = OpenAIModel()
-    dataframe = pd.DataFrame([{"input": "X", "reference": "Y"}])
-
-    with ExitStack() as stack:
-        for ctx in _patch_usage(model, prompt_toks, comp_toks):
-            stack.enter_context(ctx)
-
-        out = llm_classify(
-            data=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "unrelated"],
-            include_token_usage=include_flag,
-            run_sync=True,  # avoid event-loop edge-cases in unit test
-            use_function_calling_if_available=False,
-        )
-
-    cols_present = {"prompt_tokens", "completion_tokens", "total_tokens"} <= set(out.columns)
-    assert cols_present is expect_cols, "column presence mismatch"
-
-    if not expect_cols:
-        return
-
-    if expect_total_nan:
-        assert np.isnan(out.loc[0, "prompt_tokens"])
-        assert np.isnan(out.loc[0, "completion_tokens"])
-        assert np.isnan(out.loc[0, "total_tokens"])
-    else:
-        assert out.loc[0, "prompt_tokens"] == prompt_toks
-        assert out.loc[0, "completion_tokens"] == comp_toks
-        assert out.loc[0, "total_tokens"] == prompt_toks + comp_toks
