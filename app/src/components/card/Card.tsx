@@ -28,7 +28,8 @@ function Card(
   const headingContents = (
     <div>
       <Heading level={3} weight="heavy" className="card__title">
-        {title} {titleExtra}
+        {title}
+        {titleExtra}
       </Heading>
       {subTitle && (
         <Heading level={4} className="card__sub-title">
