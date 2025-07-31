@@ -18,7 +18,7 @@ export function TriggerWrap({
 >) {
   return (
     <Pressable {...props}>
-      <div>{children}</div>
+      <div role="button">{children}</div>
     </Pressable>
   );
 }

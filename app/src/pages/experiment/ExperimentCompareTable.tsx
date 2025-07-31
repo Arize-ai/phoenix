@@ -1,5 +1,6 @@
 import React, {
   ReactNode,
+  RefObject,
   startTransition,
   Suspense,
   useCallback,
@@ -19,12 +20,13 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
-
-import { Card, CardProps } from "@arizeai/components";
 
 import {
   Button,
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
@@ -57,17 +59,15 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import {
+  ExperimentAverageRunTokenCosts,
   ExperimentRunTokenCosts,
   ExperimentRunTokenCount,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import {
-  CellTop,
-  CompactJSONCell,
-  LoadMoreRow,
-} from "@phoenix/components/table";
+import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -102,16 +102,11 @@ type ExampleCompareTableProps = {
   displayFullText: boolean;
 };
 
-type ExperimentInfoMap = Record<
-  string,
-  | {
-      name: string;
-      sequenceNumber: number;
-      metadata: object;
-      projectId: string | null;
-    }
-  | undefined
->;
+type Experiment = NonNullable<
+  ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
+
+type ExperimentInfoMap = Record<string, Experiment | null>;
 
 type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
@@ -130,11 +125,7 @@ type ExperimentRun =
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: {
-    padding: 0,
-  },
 };
 
 const tableWrapCSS = css`
@@ -157,6 +148,7 @@ const annotationTooltipExtraCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
+const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const {
@@ -252,6 +244,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     project {
                       id
                     }
+                    costSummary {
+                      total {
+                        cost
+                        tokens
+                      }
+                    }
+                    averageRunLatencyMs
+                    runCount
                   }
                 }
               }
@@ -266,7 +266,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.dataset?.experiments?.edges.reduce((acc, edge) => {
         acc[edge.experiment.id] = {
           ...edge.experiment,
-          projectId: edge.experiment?.project?.id || null,
         };
         return acc;
       }, {} as ExperimentInfoMap) || {}
@@ -302,6 +301,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "input",
         accessorKey: "input",
+        enableSorting: false,
         cell: ({ row }) => {
           return (
             <>
@@ -349,6 +349,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "reference output",
         accessorKey: "referenceOutput",
+        enableSorting: false,
         cell: (props) => (
           <>
             <CellTop>
@@ -369,11 +370,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [baselineExperimentId, ...compareExperimentIds].map(
       (experimentId) => ({
         header: () => {
-          const name = experimentInfoById[experimentId]?.name;
-          const metadata = experimentInfoById[experimentId]?.metadata;
-          const projectId = experimentInfoById[experimentId]?.projectId;
-          const sequenceNumber =
-            experimentInfoById[experimentId]?.sequenceNumber || 0;
+          const experiment = experimentInfoById[experimentId];
+          const name = experiment?.name;
+          const metadata = experiment?.metadata;
+          const projectId = experiment?.project?.id;
+          const sequenceNumber = experiment?.sequenceNumber || 0;
           return (
             <Flex
               direction="row"
@@ -385,19 +386,28 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Flex direction="row" gap="size-100" wrap alignItems="center">
                 <SequenceNumberToken sequenceNumber={sequenceNumber} />
                 <Text>{name}</Text>
+                {experiment && <ExperimentMetadata experiment={experiment} />}
               </Flex>
-              <ExperimentActionMenu
-                experimentId={experimentId}
-                metadata={metadata}
-                isQuiet={true}
-                projectId={projectId}
-                canDeleteExperiment={false}
-              />
+              <Flex
+                direction="row"
+                wrap
+                justifyContent="end"
+                alignItems="center"
+              >
+                <ExperimentActionMenu
+                  experimentId={experimentId}
+                  metadata={metadata}
+                  isQuiet={true}
+                  projectId={projectId}
+                  canDeleteExperiment={false}
+                />
+              </Flex>
             </Flex>
           );
         },
         accessorKey: experimentId,
         minSize: 500,
+        enableSorting: false,
         cell: ({ row }) => {
           const runComparisonItem = row.original.runComparisonMap[experimentId];
           const numRuns = runComparisonItem?.runs.length || 0;
@@ -542,7 +552,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(50);
+          loadNext(PAGE_SIZE);
         }
       }
     },
@@ -555,7 +565,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       refetch(
         {
           after: null,
-          first: 50,
+          first: PAGE_SIZE,
           filterCondition,
           baselineExperimentId,
           compareExperimentIds,
@@ -669,17 +679,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               /* When resizing any column we will render this special memoized version of our table body */
               <MemoizedTableBody
                 table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
+                tableContainerRef={tableContainerRef}
               />
             ) : (
-              <TableBody
-                table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
-              />
+              <TableBody table={table} tableContainerRef={tableContainerRef} />
             )}
           </table>
         </div>
@@ -705,42 +708,65 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 //un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  hasNext,
-  onLoadNext,
-  isLoadingNext,
+  tableContainerRef,
 }: {
   table: Table<T>;
-  hasNext: boolean;
-  onLoadNext: () => void;
-  isLoadingNext: boolean;
+  tableContainerRef: RefObject<HTMLDivElement>;
 }) {
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 350,
+    overscan: 5,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  padding: 0,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
-      {hasNext ? (
-        <LoadMoreRow
-          onLoadMore={onLoadNext}
-          key="load-more"
-          isLoadingNext={isLoadingNext}
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    padding: 0,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getAllColumns().length}
         />
-      ) : null}
+      </tr>
     </tbody>
   );
 }
@@ -818,25 +844,58 @@ function ExperimentRowActionMenu(props: {
   );
 }
 
+function ExperimentMetadata(props: { experiment: Experiment }) {
+  const { experiment } = props;
+  const averageRunLatencyMs = experiment.averageRunLatencyMs;
+  const runCount = experiment.runCount;
+  const costTotal = experiment.costSummary.total.cost;
+  const tokenCountTotal = experiment.costSummary.total.tokens;
+  const averageRunCostTotal =
+    costTotal == null || runCount == 0 ? null : costTotal / runCount;
+  const averageRunTokenCountTotal =
+    tokenCountTotal == null || runCount == 0
+      ? null
+      : tokenCountTotal / runCount;
+  return (
+    <Flex direction="row" gap="size-100">
+      {averageRunLatencyMs != null && (
+        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+      )}
+      <ExperimentAverageRunTokenCount
+        averageRunTokenCountTotal={averageRunTokenCountTotal}
+        experimentId={experiment.id}
+        size="S"
+      />
+      {averageRunCostTotal != null && (
+        <ExperimentAverageRunTokenCosts
+          averageRunCostTotal={averageRunCostTotal}
+          experimentId={experiment.id}
+          size="S"
+        />
+      )}
+    </Flex>
+  );
+}
+
 function ExperimentRunMetadata(props: ExperimentRun) {
   const { id, startTime, endTime, costSummary } = props;
-  const totalTokens = costSummary?.total?.tokens;
-  const totalCost = costSummary?.total?.cost;
+  const tokenCountTotal = costSummary.total.tokens;
+  const costTotal = costSummary.total.cost;
   return (
     <Flex direction="row" gap="size-100">
       <RunLatency startTime={startTime} endTime={endTime} />
-      {totalTokens != null && id ? (
+      {tokenCountTotal != null && id ? (
         <ExperimentRunTokenCount
-          tokenCountTotal={totalTokens}
+          tokenCountTotal={tokenCountTotal}
           experimentRunId={id}
           size="S"
         />
       ) : (
-        <TokenCount size="S">{totalTokens}</TokenCount>
+        <TokenCount size="S">{tokenCountTotal}</TokenCount>
       )}
-      {totalCost != null && id ? (
+      {costTotal != null && id ? (
         <ExperimentRunTokenCosts
-          totalCost={totalCost}
+          costTotal={costTotal}
           experimentRunId={id}
           size="S"
         />
@@ -1029,15 +1088,12 @@ function SelectedExampleDialog({
                           text={JSON.stringify(selectedExample.input)}
                         />
                       }
-                      bodyStyle={{
-                        padding: 0,
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
                     >
-                      <JSONBlock
-                        value={JSON.stringify(selectedExample.input, null, 2)}
-                      />
+                      <View maxHeight="300px" overflow="auto">
+                        <JSONBlock
+                          value={JSON.stringify(selectedExample.input, null, 2)}
+                        />
+                      </View>
                     </Card>
                   </View>
                   <View width="50%">
@@ -1049,19 +1105,16 @@ function SelectedExampleDialog({
                           text={JSON.stringify(selectedExample.referenceOutput)}
                         />
                       }
-                      bodyStyle={{
-                        padding: 0,
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
                     >
-                      <JSONBlock
-                        value={JSON.stringify(
-                          selectedExample.referenceOutput,
-                          null,
-                          2
-                        )}
-                      />
+                      <View maxHeight="300px" overflow="auto">
+                        <JSONBlock
+                          value={JSON.stringify(
+                            selectedExample.referenceOutput,
+                            null,
+                            2
+                          )}
+                        />
+                      </View>
                     </Card>
                   </View>
                 </Flex>
@@ -1102,7 +1155,7 @@ function SelectedExampleDialog({
                       <li key={runItem.experimentId}>
                         <Card
                           {...defaultCardProps}
-                          title={experiment?.name}
+                          title={experiment?.name ?? ""}
                           titleExtra={
                             <SequenceNumberToken
                               sequenceNumber={experiment?.sequenceNumber || 0}

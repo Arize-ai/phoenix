@@ -5,7 +5,7 @@ import { SpanAnnotation, toSpanAnnotationData } from "./types";
 /**
  * Parameters to add a span annotation
  */
-interface AddSpanAnnotationParams extends ClientFn {
+export interface AddSpanAnnotationParams extends ClientFn {
   spanAnnotation: SpanAnnotation;
 }
 

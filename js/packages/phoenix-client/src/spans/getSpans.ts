@@ -6,7 +6,7 @@ import { ProjectSelector } from "../types/projects";
 /**
  * Parameters to get spans from a project using auto-generated types
  */
-interface GetSpansParams extends ClientFn {
+export interface GetSpansParams extends ClientFn {
   /** The project to get spans from */
   project: ProjectSelector;
   /** Inclusive lower bound time. Must be a valid ISO 8601 string or Date object. */
@@ -19,7 +19,7 @@ interface GetSpansParams extends ClientFn {
   limit?: number;
 }
 
-type GetSpansResponse = operations["getSpans"]["responses"]["200"];
+export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
 
 export type GetSpansResult = {
   spans: GetSpansResponse["content"]["application/json"]["data"];

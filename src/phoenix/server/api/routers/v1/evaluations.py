@@ -55,8 +55,7 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
             {
                 "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 "description": (
-                    "Unsupported content type, "
-                    "only gzipped protobuf and pandas-arrow are supported"
+                    "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
                 ),
             },
             HTTP_422_UNPROCESSABLE_ENTITY,

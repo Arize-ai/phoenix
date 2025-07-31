@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import isObject from "lodash/isObject";
 
-import { List, ListItem } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import { Flex, List, ListItem, Text, View } from "@phoenix/components";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
@@ -69,7 +67,7 @@ export function PromptInvocationParameters({
   }
 
   return (
-    <List listSize="small">
+    <List size="S">
       {parameters.map(({ key, value }, i) => (
         <ListItem key={`${key}-${i}`}>
           <PromptInvocationParameterItem keyName={key} value={value} />

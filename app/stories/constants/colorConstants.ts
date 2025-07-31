@@ -1,4 +1,3 @@
-import { ChartColors } from "@phoenix/components/chart";
 import { ColorValue } from "@phoenix/components/types";
 
 export const GLOBAL_COLORS: ColorValue[] = [
@@ -195,42 +194,4 @@ export const GLOBAL_COLORS: ColorValue[] = [
   "orange-1200",
   "orange-1300",
   "orange-1400",
-];
-
-export const CHART_COLORS: (keyof ChartColors)[] = [
-  "blue100",
-  "blue200",
-  "blue300",
-  "blue400",
-  "blue500",
-  "orange100",
-  "orange200",
-  "orange300",
-  "orange400",
-  "orange500",
-  "purple100",
-  "purple200",
-  "purple300",
-  "purple400",
-  "purple500",
-  "pink100",
-  "pink200",
-  "pink300",
-  "pink400",
-  "pink500",
-  "red100",
-  "red200",
-  "red300",
-  "red400",
-  "red500",
-  "gray100",
-  "gray200",
-  "gray300",
-  "gray400",
-  "gray500",
-  "gray600",
-  "gray700",
-  "default",
-  "primary",
-  "reference",
 ];

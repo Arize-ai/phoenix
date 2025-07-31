@@ -2,14 +2,14 @@ import gzip
 import zlib
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -24,9 +24,10 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import TraceAnnotationInsertEvent
+from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -225,3 +226,72 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
                 await state.queue_span_for_bulk_insert(span, project_name)
+
+
+@router.delete(
+    "/traces/{trace_identifier}",
+    operation_id="deleteTrace",
+    summary="Delete a trace by identifier",
+    description=(
+        "Delete an entire trace by its identifier. The identifier can be either:\n"
+        "1. A Relay node ID (base64-encoded)\n"
+        "2. An OpenTelemetry trace_id (hex string)\n\n"
+        "This will permanently remove all spans in the trace and their associated data."
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    status_code=204,  # No Content for successful deletion
+)
+async def delete_trace(
+    request: Request,
+    trace_identifier: str = Path(
+        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+    ),
+) -> None:
+    """
+    Delete a trace by identifier (relay GlobalID or OpenTelemetry trace_id).
+
+    This endpoint will:
+    1. Delete the trace by identifier (relay GlobalID or OpenTelemetry trace_id)
+    2. Get project_id from the deletion for cache invalidation
+    3. Trigger cache invalidation events
+    4. Return 204 No Content on success
+
+    Note: This deletes the entire trace, including all spans, which maintains data consistency
+    and avoids orphaned spans or inconsistent cached cumulative fields.
+    """
+    async with request.app.state.db() as session:
+        # Try to parse as GlobalID first, then fall back to trace_id
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(trace_identifier),
+                "Trace",
+            )
+            # Delete by database rowid
+            delete_stmt = (
+                delete(models.Trace)
+                .where(models.Trace.id == trace_rowid)
+                .returning(models.Trace.project_rowid)
+            )
+            error_detail = f"Trace with relay ID '{trace_identifier}' not found"
+        except Exception:
+            # Delete by OpenTelemetry trace_id
+            delete_stmt = (
+                delete(models.Trace)
+                .where(models.Trace.trace_id == trace_identifier)
+                .returning(models.Trace.project_rowid)
+            )
+            error_detail = f"Trace with trace_id '{trace_identifier}' not found"
+
+        project_id = await session.scalar(delete_stmt)
+
+        if project_id is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=error_detail,
+            )
+
+    # Trigger cache invalidation event
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+
+    # Return 204 No Content (successful deletion with no response body)
+    return None

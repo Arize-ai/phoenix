@@ -11,12 +11,14 @@ export type GetDatasetInfoParams = ClientFn & {
 /**
  * Get an overview of the information in a dataset
  * Note: this does not include the examples contained in the dataset
+ * Dataset info is not version-specific, only examples are versioned
  */
 export async function getDatasetInfo({
   client: _client,
   dataset,
 }: GetDatasetInfoParams): Promise<DatasetInfo> {
   const client = _client || createClient();
+
   if ("datasetName" in dataset) {
     return await getDatasetInfoByName({
       client,

@@ -14,7 +14,9 @@
     "lint": "eslint . --ext .ts",
     "build": "pnpm run -r build",
     "ci:version": "pnpm changeset version",
-    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance"
+    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
+    "docs:generate": "typedoc",
+    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o"
   },
   "keywords": [
     "telemetry",
@@ -33,6 +35,7 @@
     "prettier": "^3.5.2",
     "rimraf": "^5.0.10",
     "tsc-alias": "^1.8.11",
+    "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
     "vitest": "^2.1.9"
   },
@@ -52,7 +55,10 @@
       "vite@>=5.0.0 <5.4.18": ">=5.4.18",
       "@babel/runtime@<7.26.10": ">=7.26.10",
       "vite@>=5.0.0 <=5.4.18": ">=5.4.19",
-      "vite@>=5.0.0 <5.4.17": ">=5.4.17"
+      "vite@>=5.0.0 <5.4.17": ">=5.4.17",
+      "brace-expansion@>=1.0.0 <=1.1.11": ">=1.1.12",
+      "brace-expansion@>=2.0.0 <=2.0.1": ">=2.0.2",
+      "form-data@>=4.0.0 <4.0.4": ">=4.0.4"
     }
   }
 }

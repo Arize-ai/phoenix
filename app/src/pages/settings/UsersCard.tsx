@@ -1,7 +1,7 @@
 import { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Card, DialogContainer } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -79,13 +79,7 @@ export function UsersCard() {
       >
         <UsersTable query={data} />
       </Suspense>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </Card>
   );
 }

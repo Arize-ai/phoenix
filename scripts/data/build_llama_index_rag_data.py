@@ -155,10 +155,10 @@ if __name__ == "__main__":
     ]
     user_feedback = create_user_feedback(first_document_relevances, second_document_relevances)
     logging.info(
-        f"Thumbs up: {sum([value == 1.0 for value in  user_feedback]) / len(user_feedback)}"
+        f"Thumbs up: {sum([value == 1.0 for value in user_feedback]) / len(user_feedback)}"
     )
     logging.info(
-        f"Thumbs down: {sum([value == -1.0 for value in  user_feedback]) / len(user_feedback)}"
+        f"Thumbs down: {sum([value == -1.0 for value in user_feedback]) / len(user_feedback)}"
     )
 
     query_dataframe = query_dataframe.assign(

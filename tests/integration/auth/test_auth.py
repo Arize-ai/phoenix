@@ -1,3 +1,4 @@
+import string
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -21,9 +22,11 @@ import smtpdfix
 from httpx import HTTPStatusError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+from strawberry.relay import GlobalID
+
+from phoenix.auth import sanitize_email
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from strawberry.relay import GlobalID
 
 from .._helpers import (
     _ADMIN,
@@ -61,6 +64,7 @@ from .._helpers import (
     _patch_user,
     _patch_viewer,
     _Profile,
+    _randomize_casing,
     _RefreshToken,
     _RoleOrUser,
     _SpanExporterFactory,
@@ -83,7 +87,7 @@ class TestOIDC:
     - Handling of conflicts with existing users
     - Configuration options like allow_sign_up
     - Error handling for invalid credentials
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize("allow_sign_up", [True, False])
     async def test_sign_in(
@@ -104,7 +108,7 @@ class TestOIDC:
            - Users are redirected to login with an error message
            - No access tokens are granted
            - If a user without a password exists, they can still sign in
-        """  # noqa: E501
+        """
         client = _httpx_client(_app)
         url = (
             f"oauth2/{_oidc_server}/login"
@@ -124,9 +128,10 @@ class TestOIDC:
         callback_url = response.headers["location"]
 
         # Verify that the user is not already created
-        assert (email := _oidc_server.user_email)
+        assert _oidc_server.user_email, "Fixture should have initialized a (random) user"
+        assert (email := sanitize_email(_oidc_server.user_email))
         admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {u.profile.email: u for u in admin.list_users(_app)}
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
         assert email not in users
 
         # Complete the flow by calling the token endpoint
@@ -142,7 +147,11 @@ class TestOIDC:
             assert not response.cookies.get("phoenix-refresh-token")
 
             # Create the user without password
-            admin.create_user(_app, profile=_Profile(email, "", token_hex(8)), local=False)
+            # Casing should not matter
+            case_insensitive_email = _randomize_casing(email)
+            admin.create_user(
+                _app, profile=_Profile(case_insensitive_email, "", token_hex(8)), local=False
+            )
 
             # If user go through OIDC flow again, access should be granted
             response = _httpx_client(_app, cookies=cookies).get(callback_url)
@@ -200,7 +209,7 @@ class TestOIDC:
         3. No access tokens are granted to the OIDC user
         4. The existing user's credentials remain unchanged
         5. This behavior is consistent regardless of the allow_sign_up setting
-        """  # noqa: E501
+        """
         client = _httpx_client(_app)
         url = (
             f"oauth2/{_oidc_server}/login"
@@ -289,6 +298,20 @@ class TestLogIn:
         u = _get_user(_app, role_or_user)
         for _ in range(10):
             u.log_in(_app)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_can_log_in_with_case_insensitive_email(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
+        u = _get_user(_app, role_or_user, profile=profile)
+        case_insensitive_email = _randomize_casing(u.email)
+        _log_in(_app, u.password, email=case_insensitive_email)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
     def test_cannot_log_in_with_empty_password(
@@ -381,6 +404,21 @@ class TestPasswordReset:
         u = _get_user(_app, role_or_user)
         assert u.initiate_password_reset(_app, _smtpd)
         u.log_in(_app)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_initiate_password_reset_with_case_insensitive_email(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _smtpd: smtpdfix.AuthController,
+        _app: _AppInfo,
+    ) -> None:
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
+        u = _get_user(_app, role_or_user, profile=profile)
+        case_insensitive_email = _randomize_casing(u.email)
+        assert _initiate_password_reset(_app, case_insensitive_email, _smtpd)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_password_reset_can_be_initiated_multiple_times(
@@ -673,6 +711,26 @@ class TestCreateUser:
         if not e:
             new_user.log_in(_app)
             assert _will_be_asked_to_reset_password(_app, new_user)
+
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    def test_cannot_create_duplicate_user_with_different_email_case(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        admin = _get_user(_app, role_or_user).log_in(_app)
+
+        # Create first user
+        username, password = token_hex(8), token_hex(8)
+        email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+        profile = _Profile(email=email, password=password, username=username)
+        admin.create_user(_app, profile=profile)
+
+        # Try to create second user with same email but different case
+        case_different_profile = replace(profile, email=_randomize_casing(profile.email))
+        with pytest.raises(Exception):  # Should fail due to duplicate email
+            admin.create_user(_app, profile=case_different_profile)
 
 
 class TestPatchViewer:

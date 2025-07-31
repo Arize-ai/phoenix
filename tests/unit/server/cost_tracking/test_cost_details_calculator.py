@@ -638,12 +638,12 @@ class TestSpanCostDetailsCalculator:
                 },
                 {
                     "input": _Cost(
-                        tokens=100, cost=0.0, cost_per_token=None
+                        tokens=100, cost=0.0, cost_per_token=0.0
                     ),  # 0.0 cost means None cost_per_token
                 },
                 {
                     "output": _Cost(
-                        tokens=50, cost=0.0, cost_per_token=None
+                        tokens=50, cost=0.0, cost_per_token=0.0
                     ),  # 0.0 cost means None cost_per_token
                 },
                 [
@@ -683,6 +683,36 @@ class TestSpanCostDetailsCalculator:
                 ],
                 id="zero_cost_rate_with_fallback",
             ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                            "prompt_details": {
+                                "image": 30,
+                                "audio": 40,
+                                "video": 30,
+                            },
+                            "completion_details": {
+                                "reasoning": 25,
+                                "output": 25,
+                            },
+                        }
+                    }
+                },
+                {
+                    "image": _Cost(tokens=30, cost=None, cost_per_token=None),
+                    "audio": _Cost(tokens=40, cost=None, cost_per_token=None),
+                    "video": _Cost(tokens=30, cost=None, cost_per_token=None),
+                },
+                {
+                    "reasoning": _Cost(tokens=25, cost=None, cost_per_token=None),
+                    "output": _Cost(tokens=25, cost=None, cost_per_token=None),
+                },
+                [],  # empty prices
+                id="no_prices_provided_records_tokens_but_not_costs",
+            ),
         ],
     )
     def test_calculate_details(
@@ -719,61 +749,30 @@ class TestSpanCostDetailsCalculator:
             ("prompt", prompt_details, expected_prompt_details),
             ("completion", completion_details, expected_completion_details),
         ]:
-            assert set(actual_details.keys()) == set(
-                expected_details.keys()
-            ), f"Expected {domain} details to have the same keys"
+            assert set(actual_details.keys()) == set(expected_details.keys()), (
+                f"Expected {domain} details to have the same keys"
+            )
             for token_type, expected in expected_details.items():
                 detail = actual_details[token_type]
-                assert (
-                    detail.tokens == expected.tokens
-                ), f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"  # noqa: E501
+                assert detail.tokens == expected.tokens, (
+                    f"Expected {domain} detail for {token_type} to have {expected.tokens} tokens"
+                )
                 if expected.cost is not None:
-                    assert detail.cost == pytest.approx(
-                        expected.cost
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost} cost"  # noqa: E501
+                    assert detail.cost == pytest.approx(expected.cost), (
+                        f"Expected {domain} detail for {token_type} to have {expected.cost} cost"
+                    )
                 else:
-                    assert (
-                        detail.cost is None
-                    ), f"Expected {domain} detail for {token_type} to have no cost"  # noqa: E501
+                    assert detail.cost is None, (
+                        f"Expected {domain} detail for {token_type} to have no cost"
+                    )
                 if expected.cost_per_token is not None:
-                    assert (
-                        detail.cost_per_token == pytest.approx(expected.cost_per_token)
-                    ), f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"  # noqa: E501
+                    assert detail.cost_per_token == pytest.approx(expected.cost_per_token), (
+                        f"Expected {domain} detail for {token_type} to have {expected.cost_per_token} cost per token"
+                    )
                 else:
-                    assert (
-                        detail.cost_per_token is None
-                    ), f"Expected {domain} detail for {token_type} to have no cost per token"
-
-    def test_missing_required_token_types(self) -> None:
-        """
-        Test that missing required token types raise ValueError.
-
-        The SpanCostDetailsCalculator requires at least:
-        - One "input" token type for prompt tokens
-        - One "output" token type for completion tokens
-
-        This test verifies that appropriate errors are raised when these
-        requirements are not met.
-        """
-        # Missing input token type
-        with pytest.raises(
-            ValueError, match="Token prices for prompt must include an 'input' token type"
-        ):
-            SpanCostDetailsCalculator(
-                [
-                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
-                ]
-            )
-
-        # Missing output token type
-        with pytest.raises(
-            ValueError, match="Token prices for completion must include an 'output' token type"
-        ):
-            SpanCostDetailsCalculator(
-                [
-                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
-                ]
-            )
+                    assert detail.cost_per_token is None, (
+                        f"Expected {domain} detail for {token_type} to have no cost per token"
+                    )
 
     def test_missing_token_count_section(self) -> None:
         """

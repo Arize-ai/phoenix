@@ -1,8 +1,7 @@
 import { PropsWithChildren, useMemo } from "react";
 
-import { Card } from "@arizeai/components";
-
 import {
+  Card,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -181,13 +180,7 @@ export function ChatTemplateMessageCard(props: ChatTemplateMessageProps) {
   const { role, children } = props;
   const styles = useChatMessageStyles(role);
   return (
-    <Card
-      title={role}
-      variant="compact"
-      {...styles}
-      bodyStyle={{ padding: 0 }}
-      collapsible
-    >
+    <Card title={role} {...styles} collapsible>
       <DisclosureGroup defaultExpandedKeys={PART_TYPE_TITLES}>
         {children}
       </DisclosureGroup>

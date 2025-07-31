@@ -1,13 +1,13 @@
 import { PropsWithChildren } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { List, ListItem } from "@arizeai/components";
-
 import {
   Disclosure,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
+  List,
+  ListItem,
   Text,
   View,
 } from "@phoenix/components";
@@ -20,7 +20,7 @@ const ModelProviderItem = ({
 }: PropsWithChildren<{
   keyName: string;
 }>) => (
-  <ListItem listSize="small">
+  <ListItem>
     <View paddingStart="size-100" paddingEnd="size-100">
       <Flex direction="row" justifyContent="space-between">
         <Text size="XS" color="text-700">
@@ -50,7 +50,7 @@ export function PromptLLM({ promptVersion }: PromptLLMProps) {
     <Disclosure id="llm">
       <DisclosureTrigger>LLM</DisclosureTrigger>
       <DisclosurePanel>
-        <List listSize="small">
+        <List size="S">
           <ModelProviderItem keyName="Model">{data.model}</ModelProviderItem>
           <ModelProviderItem keyName="Provider">
             {ModelProviders[data.provider as ModelProvider] ?? data.provider}

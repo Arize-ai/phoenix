@@ -841,6 +841,41 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     return compiler.process(func.text_contains(string, substring) > 0, **kw)
 
 
+class CaseInsensitiveContains(expression.FunctionElement[bool]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = Boolean()
+    name = "case_insensitive_contains"
+
+
+@compiles(CaseInsensitiveContains)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    result = compiler.process(func.lower(string).contains(func.lower(substring)), **kw)
+    return result
+
+
+@compiles(CaseInsensitiveContains, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    escaped = func.replace(
+        func.replace(func.replace(substring, "\\", "\\\\"), "%", "\\%"), "_", "\\_"
+    )
+    pattern = func.concat("%", escaped, "%")
+    result = compiler.process(string.ilike(pattern), **kw)
+    return result
+
+
+@compiles(CaseInsensitiveContains, "sqlite")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # Use sqlean's `text_lower` to handle non-ASCII characters
+    string, substring = list(element.clauses)
+    result = compiler.process(
+        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+    )
+    return result
+
+
 async def init_models(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

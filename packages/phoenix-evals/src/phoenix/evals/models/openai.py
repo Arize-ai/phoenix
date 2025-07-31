@@ -356,6 +356,13 @@ class OpenAIModel(BaseModel):
         message = choice["message"]
         if function_call := message.get("function_call"):
             return str(function_call.get("arguments") or "")
+        if tool_calls := message.get("tool_calls"):
+            try:
+                for tool_call in tool_calls:
+                    if tool_call.get("type") == "function":
+                        return str((tool_call.get("function") or {}).get("arguments") or "")
+            except Exception as e:
+                logger.error(f"Error getting tool call arguments: {e}")
         return str(message["content"])
 
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
@@ -378,6 +385,13 @@ class OpenAIModel(BaseModel):
         message = choice["message"]
         if function_call := message.get("function_call"):
             return str(function_call.get("arguments") or "")
+        if tool_calls := message.get("tool_calls"):
+            try:
+                for tool_call in tool_calls:
+                    if tool_call.get("type") == "function":
+                        return str((tool_call.get("function") or {}).get("arguments") or "")
+            except Exception as e:
+                logger.error(f"Error getting tool call arguments: {e}")
         return str(message["content"])
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:

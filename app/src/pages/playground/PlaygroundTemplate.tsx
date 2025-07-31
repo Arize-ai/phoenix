@@ -1,9 +1,10 @@
 import { Suspense, useCallback } from "react";
 
-import { Card, Content } from "@arizeai/components";
+import { Content } from "@arizeai/components";
 
 import {
   Button,
+  Card,
   DialogTrigger,
   Flex,
   Icon,
@@ -97,8 +98,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           </Flex>
         }
         collapsible
-        variant="compact"
-        bodyStyle={{ padding: 0 }}
         extra={
           <Flex direction="row" gap="size-100">
             <Suspense

@@ -4,7 +4,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -14,7 +14,10 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultBarChartTooltipProps,
-  useChartColors,
+  defaultCartesianGridProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -27,14 +30,14 @@ type DashboardBarChartProps = {
 };
 
 export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
 
   // Custom tooltip content - defined inside component to access scale
   const TooltipContent = ({
     active,
     payload,
     label,
-  }: TooltipProps<number, string>) => {
+  }: TooltipContentProps<number, string>) => {
     if (!active || !payload || !payload.length) return null;
 
     const data = payload[0];
@@ -42,9 +45,11 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={barColor}
           name="Traces"
@@ -79,36 +84,28 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
         </defs>
 
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(timestamp) => timeTickFormatter(new Date(timestamp))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
           textAnchor="middle"
         />
 
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          {...defaultYAxisProps}
           label={{
             value: "Trace Count",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
 
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-        />
+        <CartesianGrid {...defaultCartesianGridProps} />
 
-        <Tooltip
-          {...defaultBarChartTooltipProps}
-          content={<TooltipContent />}
-        />
+        <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
 
         <Bar dataKey="value" fill={`url(#${barGradientId})`} />
       </BarChart>

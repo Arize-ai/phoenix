@@ -64,6 +64,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -287,16 +288,17 @@ class Subscription:
                 ]
             ):
                 raise NotFound("No examples found for the given dataset and version")
+            project_name = generate_experiment_project_name()
             if (
                 playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
                 playground_project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
+                        name=project_name,
                         description="Traces from prompt playground",
                     )
                 )
@@ -308,7 +310,7 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()

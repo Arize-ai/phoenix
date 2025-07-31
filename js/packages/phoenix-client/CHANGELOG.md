@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 2.4.0
+
+### Minor Changes
+
+- fe55fc5: get dataset with versionId
+
+## 2.3.5
+
+### Patch Changes
+
+- 83748e6: add type exports and better documentation across packages
+
 ## 2.3.4
 
 ### Patch Changes

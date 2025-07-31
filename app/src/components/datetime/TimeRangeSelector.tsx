@@ -16,6 +16,7 @@ import {
   TimeRangeForm,
   View,
 } from "@phoenix/components";
+import { ComponentSize } from "@phoenix/components/types";
 import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { LAST_N_TIME_RANGES } from "./constants";
@@ -26,6 +27,7 @@ export type TimeRangeSelectorProps = {
   isDisabled?: boolean;
   value: OpenTimeRangeWithKey;
   onChange: (timeRange: OpenTimeRangeWithKey) => void;
+  size?: ComponentSize;
 };
 
 const listBoxCSS = css`
@@ -50,12 +52,12 @@ function getDisplayText({ timeRangeKey, start, end }: OpenTimeRangeWithKey) {
 }
 
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
-  const { value, isDisabled, onChange } = props;
+  const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
   return (
     <DialogTrigger>
       <Button
-        size="S"
+        size={size}
         leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
       >
