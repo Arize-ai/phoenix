@@ -8,10 +8,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   CredentialField,
   CredentialInput,
   Dialog,
@@ -167,7 +166,7 @@ export function GenerativeProvidersCard({
   const rows = table.getRowModel().rows;
 
   return (
-    <Card title="AI Providers" bodyStyle={{ padding: 0 }} variant="compact">
+    <Card title="AI Providers">
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (

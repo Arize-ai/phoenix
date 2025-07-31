@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Dialog,
   DialogTrigger,
   Flex,
@@ -94,11 +93,7 @@ export const AnnotationConfigSelectionToolbar = ({
                     `}
                   >
                     {({ close }) => (
-                      <Card
-                        title="Delete Annotation Config"
-                        bodyStyle={{ padding: 0 }}
-                        variant="compact"
-                      >
+                      <Card title="Delete Annotation Config">
                         <View padding="size-200">
                           <Text>
                             Are you sure you want to delete this annotation

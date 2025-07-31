@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Card } from "@arizeai/components";
-
-import { Slider, SliderNumberField } from "@phoenix/components";
+import { Card, Slider, SliderNumberField, View } from "@phoenix/components";
 
 const meta: Meta<typeof Slider> = {
   title: "Slider",
@@ -16,8 +14,10 @@ const meta: Meta<typeof Slider> = {
 export default meta;
 
 const Template: StoryFn<typeof Slider> = (args) => (
-  <Card title="Slider" bodyStyle={{ width: "600px" }} variant="compact">
-    <Slider {...args} />
+  <Card title="Slider">
+    <View width="600px" padding="size-200">
+      <Slider {...args} />
+    </View>
   </Card>
 );
 
@@ -32,14 +32,12 @@ export const Default = {
 };
 
 const WithNumberFieldTemplate: StoryFn<typeof Slider> = (args) => (
-  <Card
-    title="Slider with Number Field"
-    bodyStyle={{ width: "600px" }}
-    variant="compact"
-  >
-    <Slider {...args}>
-      <SliderNumberField />
-    </Slider>
+  <Card title="Slider with Number Field">
+    <View width="600px" padding="size-200">
+      <Slider {...args}>
+        <SliderNumberField />
+      </Slider>
+    </View>
   </Card>
 );
 
@@ -54,10 +52,12 @@ export const WithNumberField = {
 };
 
 const SteppedSliderTemplate: StoryFn<typeof Slider> = (args) => (
-  <Card title="Stepped Slider" bodyStyle={{ width: "600px" }} variant="compact">
-    <Slider {...args}>
-      <SliderNumberField />
-    </Slider>
+  <Card title="Stepped Slider">
+    <View width="600px" padding="size-200">
+      <Slider {...args}>
+        <SliderNumberField />
+      </Slider>
+    </View>
   </Card>
 );
 
@@ -73,14 +73,12 @@ export const SteppedSlider = {
 };
 
 const FloatingPointTemplate: StoryFn<typeof Slider> = (args) => (
-  <Card
-    title="Floating Point Slider"
-    bodyStyle={{ width: "600px" }}
-    variant="compact"
-  >
-    <Slider {...args}>
-      <SliderNumberField />
-    </Slider>
+  <Card title="Floating Point Slider">
+    <View width="600px" padding="size-200">
+      <Slider {...args}>
+        <SliderNumberField />
+      </Slider>
+    </View>
   </Card>
 );
 
@@ -96,12 +94,10 @@ export const FloatingPoint = {
 };
 
 const MultiThumbTemplate: StoryFn<typeof Slider> = (args) => (
-  <Card
-    title="Multi-Thumb Slider"
-    bodyStyle={{ width: "600px" }}
-    variant="compact"
-  >
-    <Slider {...args} />
+  <Card title="Multi-Thumb Slider">
+    <View width="600px" padding="size-200">
+      <Slider {...args} />
+    </View>
   </Card>
 );
 
@@ -119,14 +115,12 @@ export const MultiThumb = {
 const ControlledTemplate: StoryFn<typeof Slider> = (args) => {
   const [value, setValue] = useState<number>(50);
   return (
-    <Card
-      title="Controlled Slider"
-      bodyStyle={{ width: "600px" }}
-      variant="compact"
-    >
-      <Slider {...args} value={value} onChange={(v) => setValue(v as number)}>
-        <SliderNumberField />
-      </Slider>
+    <Card title="Controlled Slider">
+      <View width="600px" padding="size-200">
+        <Slider {...args} value={value} onChange={(v) => setValue(v as number)}>
+          <SliderNumberField />
+        </Slider>
+      </View>
     </Card>
   );
 };

@@ -17,8 +17,6 @@ import CodeMirror, {
 import { css } from "@emotion/react";
 
 import {
-  Card,
-  CardProps,
   Content,
   ContextualHelp,
   EmptyGraphic,
@@ -38,6 +36,8 @@ import {
 import {
   Alert,
   Button,
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Counter,
   DialogTrigger,
@@ -152,9 +152,7 @@ const spanHasException = (span: Span) => {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: { padding: 0 },
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
@@ -702,11 +700,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         collapsible
         backgroundColor="light"
         borderColor="light"
-        bodyStyle={{
-          padding: 0,
-        }}
         titleSeparator={false}
-        variant="compact"
         title={modelNameTitleEl}
       >
         <Tabs>
@@ -1035,7 +1029,6 @@ function RerankerSpanInfo(props: {
         titleExtra={<Counter>{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
-        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -1065,7 +1058,6 @@ function RerankerSpanInfo(props: {
         title={"Output Documents"}
         titleExtra={<Counter>{numOutputDocuments}</Counter>}
         {...defaultCardProps}
-        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -1300,9 +1292,6 @@ function DocumentItem({
       {...defaultCardProps}
       backgroundColor={backgroundColor}
       borderColor={borderColor}
-      bodyStyle={{
-        padding: 0,
-      }}
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
@@ -1631,7 +1620,6 @@ function LLMToolSchema({
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-700"
-      bodyStyle={{ padding: 0 }}
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
       <CodeBlock value={toolSchema} mimeType={"json"} />
