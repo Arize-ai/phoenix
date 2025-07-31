@@ -51,6 +51,7 @@ class BaseLLMAdapter(ABC):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
