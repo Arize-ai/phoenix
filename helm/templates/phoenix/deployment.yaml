@@ -107,17 +107,12 @@ spec:
               mountPath: /var/tmp
             - name: var-log-volume
               mountPath: /var/log
+            - name: home-volume
+              mountPath: /home/nonroot
             {{- if .Values.persistence.enabled | toString | eq "true" }}
-            # Always mount PVC at workingDir (e.g., /home/phoenix/data, /mnt/data, etc)
             - name: data
-              mountPath: {{ .Values.server.workingDir | quote }}
+              mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
             {{- end }}
-            # Optionally (legacy) also mount PVC at /home/phoenix if workingDir is not /home/phoenix
-            {{- if and (.Values.persistence.enabled | toString | eq "true") (ne .Values.server.workingDir "/home/phoenix") }}
-            - name: data
-              mountPath: /home/phoenix
-            {{- end }}
-          # END: refactor volumeMounts to mount PVC at workingDir
 
       volumes:
         - name: tmp-volume
@@ -126,7 +121,8 @@ spec:
           emptyDir: {}
         - name: var-log-volume
           emptyDir: {}
-        # BEGIN: refactor volumes: use PVC for data, remove emptyDir for workingDir
+        - name: home-volume
+          emptyDir: {}
         {{- if .Values.persistence.enabled | toString | eq "true" }}
         - name: data
           persistentVolumeClaim:

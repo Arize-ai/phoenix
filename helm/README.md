@@ -125,7 +125,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | server.labels | object | `{}` | Labels to add to the Phoenix service |
 | server.port | int | `6006` | Port for Phoenix web UI and HTTP API (PHOENIX_PORT) |
 | server.rootUrl | string | `""` | External root URL for Phoenix (PHOENIX_ROOT_URL) |
-| server.workingDir | string | `""` | The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR) |
+| server.workingDir | string | `"/data"` | The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR) |
 | server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) |
 | service.annotations | object | `{}` | Annotations to add to the Phoenix service (useful for service mesh configurations) |
 | service.labels | object | `{}` | Labels to add to the Phoenix service |
