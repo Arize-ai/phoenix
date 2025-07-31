@@ -95,7 +95,12 @@ class TestTemplate:
         [
             ("Classify: {{text}}", None, TemplateFormat.MUSTACHE, ["text"]),
             ("Classify: {text}", None, TemplateFormat.F_STRING, ["text"]),
-            ('Analyze: {{"config": true}} for {user_id}', None, TemplateFormat.F_STRING, ["user_id"]),
+            (
+                'Analyze: {{"config": true}} for {user_id}',
+                None,
+                TemplateFormat.F_STRING,
+                ["user_id"],
+            ),
             ("Classify: {{text}}", TemplateFormat.MUSTACHE, TemplateFormat.MUSTACHE, ["text"]),
             ("Classify: {text}", TemplateFormat.F_STRING, TemplateFormat.F_STRING, ["text"]),
         ],
