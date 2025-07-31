@@ -60,6 +60,10 @@ interface Experiment {
       tokens: number | null;
     };
   };
+  annotationSummaries?: readonly {
+    annotationName: string;
+    meanScore: number | null;
+  }[];
 }
 
 function MetricCard({
@@ -284,7 +288,76 @@ export function ExperimentCompareMetricsPage() {
       totalTokensMetric,
       totalCostMetric,
     ];
-    return builtInMetrics;
+
+    const annotationNameToBaseExperimentMeanScore: Record<string, number> = {};
+    baseExperiment.annotationSummaries?.forEach((annotation) => {
+      if (annotation.meanScore != null) {
+        annotationNameToBaseExperimentMeanScore[annotation.annotationName] =
+          annotation.meanScore;
+      }
+    });
+    const annotationNameToCompareExperimentIdToMeanScore: Record<
+      string,
+      Record<string, number>
+    > = {};
+    compareExperiments.forEach((experiment) => {
+      experiment.annotationSummaries?.forEach((annotationSummary) => {
+        const annotationName = annotationSummary.annotationName;
+        const experimentId = experiment.id;
+        const meanScore = annotationSummary.meanScore;
+        if (experimentId != null && meanScore != null) {
+          if (
+            !(annotationName in annotationNameToCompareExperimentIdToMeanScore)
+          ) {
+            annotationNameToCompareExperimentIdToMeanScore[annotationName] = {};
+          }
+          annotationNameToCompareExperimentIdToMeanScore[annotationName][
+            experimentId
+          ] = meanScore;
+        }
+      });
+    });
+    const annotationMetrics: MetricCardProps[] = [];
+    for (const annotationName in annotationNameToBaseExperimentMeanScore) {
+      const baseExperimentMeanScore =
+        annotationNameToBaseExperimentMeanScore[annotationName];
+      if (!(annotationName in annotationNameToCompareExperimentIdToMeanScore)) {
+        continue;
+      }
+      for (const experiment of compareExperiments) {
+        const compareExperimentId = experiment.id;
+        let compareExperimentMeanScore: number | null = null;
+        if (
+          compareExperimentId == null ||
+          !(
+            compareExperimentId in
+            annotationNameToCompareExperimentIdToMeanScore[annotationName]
+          )
+        ) {
+          compareExperimentMeanScore = null;
+        } else {
+          compareExperimentMeanScore =
+            annotationNameToCompareExperimentIdToMeanScore[annotationName][
+              compareExperimentId
+            ];
+        }
+        const numImprovements = 1;
+        const numRegressions = 3;
+        annotationMetrics.push({
+          title: annotationName,
+          baseExperimentValue: baseExperimentMeanScore,
+          compareExperiments: [
+            {
+              experimentId: compareExperimentId as string,
+              value: compareExperimentMeanScore,
+              numImprovements,
+              numRegressions,
+            },
+          ],
+        });
+      }
+    }
+    return [...annotationMetrics, ...builtInMetrics];
   }, [
     data.baseExperiment,
     data.firstCompareExperiment,
