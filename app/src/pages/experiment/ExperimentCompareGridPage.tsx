@@ -36,7 +36,7 @@ export function ExperimentCompareGridPage({
     </ExperimentRunFilterConditionProvider>
   ) : (
     <View padding="size-200">
-      <Alert variant="info" title="No Baseline Experiment Selected">
+      <Alert variant="info" title="No Base Experiment Selected">
         Please select a base experiment.
       </Alert>
     </View>
