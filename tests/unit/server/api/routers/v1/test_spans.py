@@ -1,7 +1,7 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from random import getrandbits
-from typing import Any, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 import httpx
 import pandas as pd
@@ -101,7 +101,7 @@ async def test_rest_span_annotation(
 
 
 @pytest.fixture
-def span_factory():
+def span_factory() -> Callable[..., models.Span]:
     """Factory for creating spans with sensible defaults."""
 
     def _create_span(
@@ -109,7 +109,7 @@ def span_factory():
         span_id: str,
         parent_id: Optional[str] = None,
         name: Optional[str] = None,
-        **overrides,
+        **overrides: Any,
     ) -> models.Span:
         defaults = {
             "span_kind": "INTERNAL",
@@ -137,14 +137,16 @@ def span_factory():
 
 @pytest.fixture
 async def span_hierarchy(
-    db: DbSessionFactory, project_with_a_single_trace_and_span: None, span_factory
-):
+    db: DbSessionFactory, project_with_a_single_trace_and_span: None, span_factory: Callable[..., models.Span]
+) -> dict[str, Any]:
     """Creates a span hierarchy for testing subtree deletion."""
     async with db() as session:
         project = await session.scalar(select(models.Project))
+        assert project is not None
         trace = await session.scalar(
             select(models.Trace).where(models.Trace.project_rowid == project.id)
         )
+        assert trace is not None
 
         # Create the hierarchy: parent -> children -> grandchild + sibling
         parent = span_factory(trace.id, "parent-span")
@@ -169,7 +171,7 @@ async def span_hierarchy(
 
 async def test_delete_span_subtree(
     httpx_client: httpx.AsyncClient,
-    span_hierarchy: dict,
+    span_hierarchy: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
     """Test that deleting a span also deletes its entire subtree."""
@@ -224,6 +226,7 @@ async def test_delete_span_not_found(
     # Try to delete a non-existent span
     async with db() as session:
         project = await session.scalar(select(models.Project))
+        assert project is not None
         project_identifier = str(GlobalID("Project", str(project.id)))
 
     response = await httpx_client.delete(
