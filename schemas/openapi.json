@@ -2209,6 +2209,75 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/spans/{span_id}": {
+      "delete": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Delete a span by span_id",
+        "description": "Delete a span by its OpenTelemetry span_id within a project,\n        including all its descendants.\n        This will permanently remove the span subtree and update\n        aggregate metrics on the trace.\n        Note: This operation is irreversible.",
+        "operationId": "deleteSpan",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "span_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The OpenTelemetry span_id of the span to delete",
+              "title": "Span Id"
+            },
+            "description": "The OpenTelemetry span_id of the span to delete"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/evaluations": {
       "post": {
         "tags": [

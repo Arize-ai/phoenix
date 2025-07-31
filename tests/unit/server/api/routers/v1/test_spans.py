@@ -1,13 +1,14 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from random import getrandbits
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import httpx
 import pandas as pd
 import pytest
 from faker import Faker
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
@@ -97,6 +98,139 @@ async def test_rest_span_annotation(
     assert orm_annotation.score == 0.95
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
+
+
+@pytest.fixture
+def span_factory():
+    """Factory for creating spans with sensible defaults."""
+
+    def _create_span(
+        trace_rowid: int,
+        span_id: str,
+        parent_id: Optional[str] = None,
+        name: Optional[str] = None,
+        **overrides,
+    ) -> models.Span:
+        defaults = {
+            "span_kind": "INTERNAL",
+            "start_time": datetime.now(),
+            "end_time": datetime.now(),
+            "attributes": {},
+            "events": [],
+            "status_code": "OK",
+            "status_message": "",
+            "cumulative_error_count": 0,
+            "cumulative_llm_token_count_prompt": 0,
+            "cumulative_llm_token_count_completion": 0,
+        }
+        defaults.update(overrides)
+        return models.Span(
+            trace_rowid=trace_rowid,
+            span_id=span_id,
+            parent_id=parent_id,
+            name=name or span_id.replace("-", " ").title(),
+            **defaults,
+        )
+
+    return _create_span
+
+
+@pytest.fixture
+async def span_hierarchy(
+    db: DbSessionFactory, project_with_a_single_trace_and_span: None, span_factory
+):
+    """Creates a span hierarchy for testing subtree deletion."""
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        trace = await session.scalar(
+            select(models.Trace).where(models.Trace.project_rowid == project.id)
+        )
+
+        # Create the hierarchy: parent -> children -> grandchild + sibling
+        parent = span_factory(trace.id, "parent-span")
+        child1 = span_factory(trace.id, "child-1", "parent-span")
+        child2 = span_factory(trace.id, "child-2", "parent-span")
+        grandchild = span_factory(trace.id, "grandchild-1", "child-1")
+        sibling = span_factory(trace.id, "sibling-span")  # No parent = root level
+
+        session.add_all([parent, child1, child2, grandchild, sibling])
+        await session.commit()
+
+        return {
+            "project": project,
+            "trace": trace,
+            "parent": parent,
+            "child1": child1,
+            "child2": child2,
+            "grandchild": grandchild,
+            "sibling": sibling,
+        }
+
+
+async def test_delete_span_subtree(
+    httpx_client: httpx.AsyncClient,
+    span_hierarchy: dict,
+    db: DbSessionFactory,
+) -> None:
+    """Test that deleting a span also deletes its entire subtree."""
+    hierarchy = span_hierarchy
+    project_identifier = str(GlobalID("Project", str(hierarchy["project"].id)))
+
+    # Delete the parent span (should delete entire subtree)
+    response = await httpx_client.delete(f"v1/projects/{project_identifier}/spans/parent-span")
+    assert response.status_code == 204
+
+    # Verify subtree deletion
+    async with db() as session:
+        # Parent and all descendants should be deleted
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["parent"].id)
+            )
+            is None
+        )
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["child1"].id)
+            )
+            is None
+        )
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["child2"].id)
+            )
+            is None
+        )
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
+            )
+            is None
+        )
+
+        # Sibling should still exist
+        remaining_sibling = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["sibling"].id)
+        )
+        assert remaining_sibling is not None
+        assert remaining_sibling.span_id == "sibling-span"
+
+
+async def test_delete_span_not_found(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    # Try to delete a non-existent span
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        project_identifier = str(GlobalID("Project", str(project.id)))
+
+    response = await httpx_client.delete(
+        f"v1/projects/{project_identifier}/spans/non-existent-span"
+    )
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
 
 
 @pytest.fixture
