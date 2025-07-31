@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, distinct, func, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -106,12 +106,19 @@ def _get_stmt(
     elif kind == "trace":
         time_column = models.Trace.start_time
         if filter_condition:
-            # For trace count with span filter: count traces containing spans matching filter
+            # For trace count with span filter: count distinct traces containing spans matching filter
             sf = SpanFilter(filter_condition)
-            stmt = sf(stmt.join(models.Span).distinct())
+            stmt = sf(stmt.join(models.Span))
+            # Use distinct count of trace IDs to avoid counting multiple spans per trace
+            stmt = stmt.add_columns(func.count(distinct(models.Trace.id)).label("count"))
+        else:
+            stmt = stmt.add_columns(func.count().label("count"))
     else:
         assert_never(kind)
-    stmt = stmt.add_columns(func.count().label("count"))
+        
+    # For span counts, add the count column (if not already added above)
+    if kind == "span":
+        stmt = stmt.add_columns(func.count().label("count"))
     stmt = stmt.where(pid.in_(project_rowids))
     if session_filter:
         from phoenix.server.api.types.Project import _apply_session_io_filter
