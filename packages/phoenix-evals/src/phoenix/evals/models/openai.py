@@ -496,6 +496,8 @@ class OpenAIModel(BaseModel):
         from openai.types.chat import ChatCompletion
 
         if isinstance(response, ChatCompletion):
+            if not response.choices:
+                return ""
             message = response.choices[0].message
             if tool_calls := message.tool_calls:
                 for tool_call in tool_calls:
@@ -507,6 +509,8 @@ class OpenAIModel(BaseModel):
                 return str(function_call.arguments or "")
             return message.content or ""
         elif isinstance(response, Completion):
+            if not response.choices:
+                return ""
             return response.choices[0].text
         else:
             assert_never(response)

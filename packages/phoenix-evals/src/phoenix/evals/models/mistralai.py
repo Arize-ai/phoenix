@@ -10,7 +10,7 @@ from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 if TYPE_CHECKING:
-    from mistralai import AssistantMessage, ChatCompletionResponse, UsageInfo
+    from mistralai import ChatCompletionResponse, UsageInfo
 
 DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 """Use the latest large mistral model by default."""
@@ -173,9 +173,12 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _extract_text(self, message: "AssistantMessage") -> str:
+    def _extract_text(self, response: "ChatCompletionResponse") -> str:
         from mistralai import ToolCall
 
+        if not response.choices:
+            return ""
+        message = response.choices[0].message
         if tool_calls := message.tool_calls:
             for tool_call in tool_calls:
                 if not isinstance(tool_call, ToolCall):
@@ -205,8 +208,7 @@ class MistralAIModel(BaseModel):
         )
 
     def _parse_output(self, response: "ChatCompletionResponse") -> Tuple[str, Optional[Usage]]:
-        message = response.choices[0].message
-        text = self._extract_text(message)
+        text = self._extract_text(response)
         usage = self._extract_usage(response.usage)
         return text, usage
 
