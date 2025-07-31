@@ -71,7 +71,16 @@ EXPERIMENTAL_MODULES: Dict[str, Dict[str, Any]] = {
             "used in production."
         ),
         "warn_on_access": True,
-        "warning_on_import": False,
+        "warning_on_import": True,
+    },
+    "phoenix.evals.templating": {
+        "warning_message": (
+            "\n\n⚠️  EXPERIMENTAL: The phoenix.evals.templating module and all its components "
+            "are experimental and subject to change without notice. This code should not be "
+            "used in production."
+        ),
+        "warn_on_access": True,
+        "warning_on_import": True,
     },
 }
 
