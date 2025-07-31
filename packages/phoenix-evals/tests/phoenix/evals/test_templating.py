@@ -29,7 +29,9 @@ class TestTemplateFormatDetection:
             ("User {{user}} and {env}", TemplateFormat.MUSTACHE),
             ("{{name}} in environment {env}", TemplateFormat.MUSTACHE),
             ("No variables here", TemplateFormat.MUSTACHE),
-            ("Numbers: {123} and {true}", TemplateFormat.MUSTACHE),
+            ("Numbers: {123} and {true}", TemplateFormat.F_STRING),
+            ("Python literals: {True} and {False}", TemplateFormat.MUSTACHE),
+            ("Mixed: {None} and {null}", TemplateFormat.F_STRING),
         ],
     )
     def test_format_detection(self, template: str, expected: TemplateFormat) -> None:

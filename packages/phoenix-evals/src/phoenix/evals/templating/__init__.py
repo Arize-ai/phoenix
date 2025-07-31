@@ -108,7 +108,7 @@ def detect_template_format(template: str) -> TemplateFormat:
         except ValueError:
             pass
 
-        if content.lower() in ["true", "false", "null"]:
+        if content in ["True", "False", "None"]:
             continue
 
         clear_fstring_vars.append(content)
