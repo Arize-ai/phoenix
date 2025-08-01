@@ -403,7 +403,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_identifier}/spans/{span_id}": {
+    "/v1/projects/{project_identifier}/spans/{span_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -414,11 +414,12 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a span by span_id
-         * @description Delete a span by its OpenTelemetry span_id within a project,
-         *             including all its descendants.
-         *             This will permanently remove the span subtree and update
-         *             aggregate metrics on the trace.
+         * Delete a span by span_identifier
+         * @description Delete a span by its OpenTelemetry span_id within a project.
+         *             This deletes only the target span and leaves all descendants alone.
+         *             If the trace becomes empty after deletion, the trace record will also be deleted.
+         *             If the deleted span has a parent, negative cumulative values will be propagated
+         *             up the ancestor chain.
          *             Note: This operation is irreversible.
          */
         delete: operations["deleteSpan"];
@@ -3797,8 +3798,8 @@ export interface operations {
             path: {
                 /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
                 project_identifier: string;
-                /** @description The OpenTelemetry span_id of the span to delete */
-                span_id: string;
+                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                span_identifier: string;
             };
             cookie?: never;
         };

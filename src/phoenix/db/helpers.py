@@ -333,13 +333,13 @@ def _date_trunc_for_sqlite(
 def get_ancestor_span_ids(parent_id: str) -> Select[tuple[int]]:
     """
     Get all ancestor span IDs for a given parent_id using recursive CTE.
-    
+
     This function returns a query that finds all ancestors of a span with the given parent_id.
     It uses a recursive Common Table Expression (CTE) to traverse up the span hierarchy.
-    
+
     Args:
         parent_id: The span_id of the parent span to start the ancestor search from.
-        
+
     Returns:
         A Select query that returns tuples of (span_id,) for all ancestor spans.
     """

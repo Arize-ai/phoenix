@@ -29,6 +29,7 @@ from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_ids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
@@ -1148,7 +1149,9 @@ async def delete_span(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    span_identifier: str = Path(description="The OpenTelemetry span_id of the span to delete"),
+    span_identifier: str = Path(
+        description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+    ),
 ) -> None:
     """
     Delete a span by span_identifier within a project, leaving all descendants alone.
@@ -1163,20 +1166,39 @@ async def delete_span(
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
         project_id: int = project.id
-        # Find the target span to delete
-        target_span = await session.scalar(
-            select(models.Span)
-            .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
-            .where(models.Trace.project_rowid == project_id)
-            .where(models.Span.span_id == span_identifier)
-        )
+
+        # Try to parse as GlobalID first, then fall back to span_id
+        try:
+            span_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(span_identifier),
+                "Span",
+            )
+            # Find by database rowid and verify it belongs to the project
+            target_span = await session.scalar(
+                select(models.Span)
+                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
+                .where(models.Trace.project_rowid == project_id)
+                .where(models.Span.id == span_rowid)
+            )
+            error_detail = (
+                f"Span with relay ID '{span_identifier}' not found in "
+                f"project '{project_identifier}'"
+            )
+        except Exception:
+            # Find by OpenTelemetry span_id
+            target_span = await session.scalar(
+                select(models.Span)
+                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
+                .where(models.Trace.project_rowid == project_id)
+                .where(models.Span.span_id == span_identifier)
+            )
+            error_detail = (
+                f"Span with span_id '{span_identifier}' not found in project '{project_identifier}'"
+            )
         if target_span is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=(
-                    f"Span with span_id '{span_identifier}' not found in "
-                    f"project '{project_identifier}'"
-                ),
+                detail=error_detail,
             )
 
         # Store values needed for later operations
