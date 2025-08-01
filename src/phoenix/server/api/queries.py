@@ -577,7 +577,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_lower_latency"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_latency"
+                    ),
                     func.sum(
                         case(
                             (
@@ -586,7 +588,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_higher_latency"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_latency"
+                    ),
                     func.sum(
                         case(
                             (
@@ -595,7 +599,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_equal_latency"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_latency"
+                    ),
                     func.sum(
                         case(
                             (
@@ -605,7 +611,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_lower_prompt_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_prompt_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -615,7 +623,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_higher_prompt_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_prompt_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -625,7 +635,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_equal_prompt_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_prompt_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -635,7 +647,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_lower_completion_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_completion_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -645,7 +659,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_higher_completion_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_completion_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -655,7 +671,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_equal_completion_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_completion_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -665,7 +683,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_lower_total_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_total_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -675,7 +695,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_higher_total_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_total_token_count"
+                    ),
                     func.sum(
                         case(
                             (
@@ -685,7 +707,9 @@ class Query:
                             ),
                             else_=0,
                         )
-                    ).label("num_examples_with_equal_total_token_count"),
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_token_count"
+                    ),
                 ]
             )
 
