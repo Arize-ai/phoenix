@@ -1,7 +1,5 @@
 import { css } from "@emotion/react";
 
-import { EmptyGraphic } from "@arizeai/components";
-
 import { ExternalLink, Flex, View } from "@phoenix/components";
 
 import { ErrorBoundaryFallbackProps } from "./types";
@@ -13,7 +11,6 @@ export function BugReportErrorBoundaryFallback({
     <View padding="size-200">
       <Flex direction="column">
         <Flex direction="column" width="100%" alignItems="center">
-          <EmptyGraphic graphicKey="error" />
           <h1>Something went wrong</h1>
         </Flex>
         <p>

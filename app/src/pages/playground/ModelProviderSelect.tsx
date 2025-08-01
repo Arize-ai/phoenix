@@ -3,8 +3,6 @@ import { graphql, useFragment } from "react-relay";
 import {
   Button,
   Flex,
-  Icon,
-  Icons,
   Label,
   ListBox,
   Popover,
@@ -14,7 +12,6 @@ import {
   SelectProps,
   SelectValue,
   Text,
-  View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -48,61 +45,53 @@ export function ModelProviderSelect({
   const installedProviders = data.modelProviders.filter(
     (provider) => provider.dependenciesInstalled
   );
-  const hasMissingDependencies =
-    installedProviders.length !== data.modelProviders.length;
   const selectedProviderNotInstalled =
     props.provider &&
     !installedProviders.some((provider) => provider.key === props.provider);
   return (
-    <Flex direction="row" gap="size-100">
-      <View flex={1}>
-        <Select
-          {...props}
-          key="model-provider-select"
-          data-testid="model-provider-picker"
-          selectedKey={props.provider ?? undefined}
-          aria-label="Model Provider"
-          placeholder="Select a provider"
-          onSelectionChange={(key) => {
-            const provider = key as string;
-            if (isModelProvider(provider)) {
-              onChange(provider);
-            }
-          }}
-        >
-          <Label>Provider</Label>
-          <Button>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox>
-              {data.modelProviders.map((provider) => {
-                return (
-                  <SelectItem
-                    key={provider.key}
-                    id={provider.key}
-                    textValue={provider.name}
-                  >
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <GenerativeProviderIcon
-                        provider={provider.key}
-                        height={16}
-                      />
-                      <Text>{provider.name}</Text>
-                    </Flex>
-                  </SelectItem>
-                );
-              })}
-            </ListBox>
-          </Popover>
-        </Select>
-      </View>
+    <Select
+      {...props}
+      key="model-provider-select"
+      data-testid="model-provider-picker"
+      selectedKey={props.provider ?? undefined}
+      isInvalid={selectedProviderNotInstalled}
+      aria-label="Model Provider"
+      placeholder="Select a provider"
+      onSelectionChange={(key) => {
+        const provider = key as string;
+        if (isModelProvider(provider)) {
+          onChange(provider);
+        }
+      }}
+    >
+      <Label>Provider</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {data.modelProviders.map((provider) => {
+            return (
+              <SelectItem
+                key={provider.key}
+                id={provider.key}
+                textValue={provider.name}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <GenerativeProviderIcon provider={provider.key} height={16} />
+                  <Text>{provider.name}</Text>
+                </Flex>
+              </SelectItem>
+            );
+          })}
+        </ListBox>
+      </Popover>
       {selectedProviderNotInstalled ? (
-        <Icon color="red-700" svg={<Icons.InfoOutline />} />
-      ) : hasMissingDependencies ? (
-        <Icon svg={<Icons.InfoOutline />} />
+        <Text slot="errorMessage" color="danger">
+          Provider not installed
+        </Text>
       ) : null}
-    </Flex>
+    </Select>
   );
 }
