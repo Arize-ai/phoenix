@@ -542,7 +542,6 @@ class Query:
         base_experiment_run_total_token_count = (
             base_experiment_run_prompt_token_count + base_experiment_run_completion_token_count
         )
-        query = select(*select_columns).select_from(base_experiment_runs)
 
         compare_experiment_run_subqueries = []
         for compare_experiment_index, compare_experiment_rowid in enumerate(
