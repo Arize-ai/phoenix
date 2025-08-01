@@ -224,6 +224,10 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Card } from '@phoenix/components'",
       },
+      {
+        name: "EmptyGraphic",
+        module: "@arizeai/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

@@ -37,7 +37,7 @@ export const NoInstalledProvider = (props: NoInstalledProviderProps) => {
         justifyContent="center"
         gap="size-200"
       >
-        <Empty message={NO_PROVIDER_MESSAGE} graphicKey="not found" size="L" />
+        <Empty message={NO_PROVIDER_MESSAGE} />
         {/* display instructions for installing a provider and a link to the documentation */}
         <Text>The following clients are supported:</Text>
         <PythonBlock value={makeInstallString(props.availableProviders)} />
