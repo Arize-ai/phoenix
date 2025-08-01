@@ -529,6 +529,7 @@ class Query:
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
             .subquery()
+            .alias("base_experiment_runs")
         )
         base_experiment_run_latency = LatencyMs(
             base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
@@ -551,6 +552,7 @@ class Query:
                 select(models.ExperimentRun)
                 .where(models.ExperimentRun.experiment_id == compare_experiment_rowid)
                 .subquery()
+                .alias(f"compare_experiment_{compare_experiment_index}_runs")
             )
             compare_experiment_run_subqueries.append(compare_experiment_runs)
             compare_experiment_run_latency = LatencyMs(
