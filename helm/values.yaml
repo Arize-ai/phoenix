@@ -146,7 +146,10 @@ server:
   rootUrl: ""
 
   # -- The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR)
+  # Set to empty string to use container's $HOME directory (not recommended for persistence)
   # Use `/data` as a default for volume mount - enables proper permissions in both strict and normal security contexts
+  # IMPORTANT: When persistence.enabled=true, this directory must be writable by the Phoenix container (UID 65532)
+  # The fsGroup setting in securityContext.pod ensures proper permissions when enabled
   workingDir: "/data"
 
   # -- Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES)
