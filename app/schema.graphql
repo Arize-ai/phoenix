@@ -345,7 +345,7 @@ input ClusterInput {
 
 type CompareExperimentCountsDiff {
   compareExperimentId: ID!
-  latencyMs: CountDiff!
+  latency: CountDiff!
   promptTokenCount: CountDiff!
   completionTokenCount: CountDiff!
   totalTokenCount: CountDiff!
