@@ -46,6 +46,39 @@ def extract_fields_from_template(tmpl: str) -> Set[str]:
     return {name for _, name, _, _ in Formatter().parse(tmpl) if name}
 
 
+def _validate_field_value(value: Any, field_name: str, key: str) -> None:
+    """
+    Validate that a field value is not null or empty.
+
+    Args:
+        value: The value to validate
+        field_name: The evaluator's expected field name
+        key: The actual key in the input dictionary
+
+    Raises:
+        ValueError: If the value is null or empty
+    """
+    if value is None:
+        raise ValueError(
+            f"Required field '{field_name}' (from '{key}') cannot be None. "
+            f"eval_input[{key}] = {value}"
+        )
+
+    # Check for empty strings (including whitespace-only)
+    if isinstance(value, str) and not value.strip():
+        raise ValueError(
+            f"Required field '{field_name}' (from '{key}') cannot be empty or whitespace-only. "
+            f"eval_input[{key}] = {repr(value)}"
+        )
+
+    # Check for empty collections
+    if isinstance(value, (list, tuple, dict)) and len(value) == 0:
+        raise ValueError(
+            f"Required field '{field_name}' (from '{key}') cannot be empty. "
+            f"eval_input[{key}] = {value}"
+        )
+
+
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
@@ -63,11 +96,12 @@ def remap_eval_input(
         A dictionary with keys as required_fields and values from eval_input.
 
     Raises:
-        ValueError: If a required field is missing in eval_input.
+        ValueError: If a required field is missing in eval_input or has a null/empty value.
     """
     # TODO add nested remapping
     mapping = template_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
+
     for field_name in required_fields:
         key = mapping.get(field_name, field_name)
         if key not in eval_input:
@@ -75,7 +109,11 @@ def remap_eval_input(
                 f"Missing required field: '{field_name}' (from '{key}'). "
                 f"eval_input keys={list(eval_input)}"
             )
-        remapped_eval_input[field_name] = eval_input[key]
+
+        value = eval_input[key]
+        _validate_field_value(value, field_name, key)
+        remapped_eval_input[field_name] = value
+
     return remapped_eval_input
 
 
@@ -341,6 +379,18 @@ class ClassificationEvaluator(LLMEvaluator):
         )
         label = response["label"]
         explanation = response.get("explanation", None)
+
+        # Validate that the returned label is one of the valid choices
+        valid_labels = (
+            list(self.labels) if isinstance(self.labels, list) else list(self.labels.keys())
+        )
+        if label not in valid_labels:
+            raise ValueError(
+                f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
+                f"Valid labels are: {valid_labels}. "
+                f"Response: {response}"
+            )
+
         score = self.label_score_map.get(label) if self.label_score_map else None
         return [
             Score(
@@ -368,6 +418,18 @@ class ClassificationEvaluator(LLMEvaluator):
         )
         label = response["label"]
         explanation = response.get("explanation", None)
+
+        # Validate that the returned label is one of the valid choices
+        valid_labels = (
+            list(self.labels) if isinstance(self.labels, list) else list(self.labels.keys())
+        )
+        if label not in valid_labels:
+            raise ValueError(
+                f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
+                f"Valid labels are: {valid_labels}. "
+                f"Response: {response}"
+            )
+
         score = self.label_score_map.get(label) if self.label_score_map else None
         return [
             Score(
@@ -432,17 +494,9 @@ def simple_evaluator(
             Evaluate by extracting required fields from eval_input and calling the original
             function.
             """
-            mapping = template_mapping or {}
-            args = {}
-            for param in required:
-                key = mapping.get(param, param)
-                if key not in eval_input:
-                    raise ValueError(
-                        f"{name} evaluator needs '{param}' (from '{key}') "
-                        f"but eval_input keys={list(eval_input)}"
-                    )
-                args[param] = eval_input[key]
-            score = fn(**args)
+            remapped_input = remap_eval_input(eval_input, required, template_mapping)
+
+            score = fn(**remapped_input)
             # Create a new Score with the correct name and source if needed
             if score.name != name or score.source != source:
                 score = Score(
