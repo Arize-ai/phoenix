@@ -76,7 +76,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 
     def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         formatted_template = self._format_eval_template(output)
-        unparsed_response = self.model._generate(formatted_template)
+        unparsed_response = self.model(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
     async def async_evaluate(
@@ -84,7 +84,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output)
         unparsed_response = await self.model._async_generate(formatted_template)
-        return self._parse_eval_output(unparsed_response)
+        return self._parse_eval_output(unparsed_response[0])
 
     def _format_eval_template(self, output: TaskOutput) -> str:
         assert output is not None
@@ -305,7 +305,7 @@ class RelevanceEvaluator(LLMEvaluator):
         **_: Any,
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)
-        unparsed_response = self.model._generate(formatted_template)
+        unparsed_response = self.model(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
     async def async_evaluate(
@@ -318,7 +318,7 @@ class RelevanceEvaluator(LLMEvaluator):
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)
         unparsed_response = await self.model._async_generate(formatted_template)
-        return self._parse_eval_output(unparsed_response)
+        return self._parse_eval_output(unparsed_response[0])
 
 
 class LLMRelationalEvaluator(LLMEvaluator):
@@ -457,7 +457,7 @@ class LLMRelationalEvaluator(LLMEvaluator):
         **_: Any,
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)
-        unparsed_response = self.model._generate(formatted_template)
+        unparsed_response = self.model(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
     async def async_evaluate(
@@ -470,4 +470,4 @@ class LLMRelationalEvaluator(LLMEvaluator):
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)
         unparsed_response = await self.model._async_generate(formatted_template)
-        return self._parse_eval_output(unparsed_response)
+        return self._parse_eval_output(unparsed_response[0])
