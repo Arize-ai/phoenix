@@ -153,9 +153,9 @@ async def test_compare_experiments_returns_expected_comparisons(
     comparison_experiments: Any,
 ) -> None:
     query = """
-      query ($baselineExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
         compareExperiments(
-          baselineExperimentId: $baselineExperimentId
+          baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
           first: $first
           after: $after
@@ -185,7 +185,7 @@ async def test_compare_experiments_returns_expected_comparisons(
     response = await gql_client.execute(
         query=query,
         variables={
-            "baselineExperimentId": str(GlobalID("Experiment", str(2))),
+            "baseExperimentId": str(GlobalID("Experiment", str(2))),
             "compareExperimentIds": [
                 str(GlobalID("Experiment", str(1))),
                 str(GlobalID("Experiment", str(3))),
@@ -297,7 +297,7 @@ async def test_compare_experiments_returns_expected_comparisons(
     [
         pytest.param(
             {
-                "baselineExperimentId": str(GlobalID("Experiment", str(1))),
+                "baseExperimentId": str(GlobalID("Experiment", str(1))),
                 "compareExperimentIds": [
                     str(GlobalID("Experiment", str(1))),
                     str(GlobalID("Experiment", str(2))),
@@ -305,12 +305,12 @@ async def test_compare_experiments_returns_expected_comparisons(
                 "first": 50,
                 "after": None,
             },
-            "Compare experiment IDs cannot contain the baseline experiment ID",
-            id="baseline-id-in-compare-ids",
+            "Compare experiment IDs cannot contain the base experiment ID",
+            id="base-id-in-compare-ids",
         ),
         pytest.param(
             {
-                "baselineExperimentId": str(GlobalID("Experiment", str(1))),
+                "baseExperimentId": str(GlobalID("Experiment", str(1))),
                 "compareExperimentIds": [
                     str(GlobalID("Experiment", str(2))),
                     str(GlobalID("Experiment", str(2))),
@@ -329,9 +329,9 @@ async def test_compare_experiments_validation_errors(
     expected_error: str,
 ) -> None:
     query = """
-      query ($baselineExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
         compareExperiments(
-          baselineExperimentId: $baselineExperimentId
+          baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
           first: $first
           after: $after
