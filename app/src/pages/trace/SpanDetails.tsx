@@ -16,12 +16,7 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import {
-  Content,
-  ContextualHelp,
-  EmptyGraphic,
-  TabbedCard,
-} from "@arizeai/components";
+import { Content, ContextualHelp, TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -1953,8 +1948,7 @@ function EmptyIndicator({ text }: { text: string }) {
       justifyContent="center"
       gap="size-100"
     >
-      <EmptyGraphic graphicKey="documents" />
-      <Text>{text}</Text>
+      <Text size="L">{text}</Text>
     </Flex>
   );
 }
