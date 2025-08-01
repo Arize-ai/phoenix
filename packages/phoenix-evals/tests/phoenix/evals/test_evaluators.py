@@ -26,7 +26,7 @@ def relevance_template() -> ClassificationTemplate:
 def test_llm_evaluator_evaluate_outputs_label_when_model_produces_expected_output(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    openai_model._generate = MagicMock(return_value="relevant ")
+    openai_model._generate = MagicMock(return_value=("relevant ", None))
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
         {
@@ -43,7 +43,7 @@ def test_llm_evaluator_evaluate_outputs_label_when_model_produces_expected_outpu
 def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpected_output(
     openai_model: OpenAIModel, relevance_template: str
 ) -> None:
-    openai_model._generate = MagicMock(return_value="not-in-the-rails")
+    openai_model._generate = MagicMock(return_value=("not-in-the-rails", None))
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
         {
@@ -60,7 +60,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpe
 def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produces_expected_output(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    output = 'EXPLANATION: A very good explanationLABEL: "relevant"'
+    output = 'EXPLANATION: A very good explanationLABEL: "relevant"', None
     openai_model._generate = MagicMock(return_value=output)
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -79,7 +79,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produce
 def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_output_is_not_in_rails(
     openai_model: OpenAIModel, relevance_template: str
 ) -> None:
-    output = 'EXPLANATION: A very good explanationLABEL: "not-a-rail"'
+    output = 'EXPLANATION: A very good explanationLABEL: "not-a-rail"', None
     openai_model._generate = MagicMock(return_value=output)
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -98,7 +98,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_outp
 def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unparseable_model_output(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    output = 'Unexpected format: "rail"'
+    output = 'Unexpected format: "rail"', None
     openai_model._generate = MagicMock(return_value=output)
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -117,7 +117,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unpar
 def test_llm_evaluator_evaluate_outputs_label_when_called_with_function_call(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    openai_model._generate = MagicMock(return_value=f'{{"{_RESPONSE}": "relevant"}}')
+    openai_model._generate = MagicMock(return_value=(f'{{"{_RESPONSE}": "relevant"}}', None))
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
         {
@@ -135,7 +135,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_called_with_f
     openai_model: OpenAIModel, relevance_template: str
 ) -> None:
     openai_model._generate = MagicMock(
-        return_value=f'{{"{_EXPLANATION}": "explanation", "{_RESPONSE}": "relevant"}}'
+        return_value=(f'{{"{_EXPLANATION}": "explanation", "{_RESPONSE}": "relevant"}}', None)
     )
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
@@ -153,7 +153,9 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_called_with_f
 def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_function_call_output(
     openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
-    openai_model._generate = MagicMock(return_value=f'{{"{_RESPONSE}": "relevant"')  # invalid JSON
+    openai_model._generate = MagicMock(
+        return_value=(f'{{"{_RESPONSE}": "relevant"', None)
+    )  # invalid JSON
     evaluator = LLMEvaluator(openai_model, relevance_template)
     label, score, explanation = evaluator.evaluate(
         {
@@ -202,7 +204,7 @@ def test_evaluator_evaluate_outputs_expected_label_when_model_produces_expected_
     expected_label: str,
     openai_model: OpenAIModel,
 ) -> None:
-    openai_model._generate = MagicMock(return_value=expected_label)
+    openai_model._generate = MagicMock(return_value=(expected_label, None))
     evaluator = evaluator_cls(openai_model)
     label, score, explanation = evaluator.evaluate(
         {
@@ -225,7 +227,7 @@ def test_llm_evaluator_evaluate_outputs_score_as_zero_with_custom_template_witho
         template="Is the {reference} relevant to the {input}?",
         explanation_template="Is the {reference} relevant to the {input}? Explain.",
     )
-    openai_model._generate = MagicMock(return_value="relevant ")
+    openai_model._generate = MagicMock(return_value=("relevant ", None))
     evaluator = LLMEvaluator(openai_model, custom_template_without_scores)
     label, score, explanation = evaluator.evaluate(
         {

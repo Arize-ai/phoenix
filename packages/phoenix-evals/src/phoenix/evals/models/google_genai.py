@@ -1,18 +1,21 @@
 import base64
+import json
 import logging
 import os
 import socket
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
+
+from typing_extensions import override
 
 from phoenix.evals.exceptions import (
     PhoenixUnsupportedAudioFormat,
     PhoenixUnsupportedImageFormat,
 )
-from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.base import BaseModel, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import (
@@ -22,6 +25,7 @@ from phoenix.evals.utils import (
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
+    from google.genai.types import GenerateContentResponse, GenerateContentResponseUsageMetadata
 
 MINIMUM_GOOGLE_GENAI_VERSION = "1.0.0"
 DEFAULT_GOOGLE_GENAI_MODEL = "gemini-2.5-flash"
@@ -157,29 +161,28 @@ class GoogleGenAIModel(BaseModel):
 
         self._client = genai.Client(api_key=self.api_key)
 
+    @override
     async def _async_generate(
         self,
         prompt: Union[str, MultimodalPrompt],
         instruction: Optional[str] = None,
         **kwargs: Dict[str, Any],
-    ) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
         config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
-        response = await self._async_rate_limited_completion(
+        return await self._async_rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
             config=config,
         )
 
-        return str(response)
-
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 response = await self._client.aio.models.generate_content(**kwargs)
-                return response.text
+                return self._parse_output(response)
             except self._google_sdk_error as e:
                 if e.code == 429:
                     raise GoogleRateLimitError() from e
@@ -187,35 +190,62 @@ class GoogleGenAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
+    @override
     def _generate(
         self,
         prompt: Union[str, MultimodalPrompt],
         instruction: Optional[str] = None,
         **kwargs: Dict[str, Any],
-    ) -> str:
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
         config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
-        response = self._rate_limited_completion(
+        return self._rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
             config=config,
         )
 
-        return str(response)
-
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 response = self._client.models.generate_content(**kwargs)
-                return response.text
+                return self._parse_output(response)
             except self._google_sdk_error as e:
                 if e.code == 429:
                     raise GoogleRateLimitError() from e
                 raise
 
         return _completion(**kwargs)
+
+    def _extract_text(self, response: "GenerateContentResponse") -> str:
+        if function_calls := response.function_calls:
+            for function_call in function_calls:
+                if args := function_call.args:
+                    return json.dumps(args, ensure_ascii=False)
+        return response.text or ""
+
+    def _extract_usage(
+        self, usage_metadata: Optional["GenerateContentResponseUsageMetadata"]
+    ) -> Optional[Usage]:
+        if not usage_metadata:
+            return None
+        prompt_tokens = usage_metadata.prompt_token_count or 0
+        completion_tokens = (usage_metadata.candidates_token_count or 0) + (
+            usage_metadata.thoughts_token_count or 0
+        )
+        total_tokens = usage_metadata.total_token_count or 0
+        return Usage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def _parse_output(self, response: "GenerateContentResponse") -> Tuple[str, Optional[Usage]]:
+        text = self._extract_text(response)
+        usage = self._extract_usage(response.usage_metadata)
+        return text, usage
 
     def _process_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, Any]]:
         contents: List[Dict[str, Any]] = []

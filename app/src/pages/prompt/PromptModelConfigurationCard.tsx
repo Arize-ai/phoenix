@@ -1,8 +1,7 @@
 import { graphql, useFragment } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
 import {
+  Card,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -33,12 +32,7 @@ export function PromptModelConfigurationCard({
     promptVersionFragment
   );
   return (
-    <Card
-      title="Model Configuration"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
-      collapsible
-    >
+    <Card title="Model Configuration" collapsible>
       <DisclosureGroup
         defaultExpandedKeys={[
           "llm",

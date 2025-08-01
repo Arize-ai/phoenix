@@ -432,10 +432,7 @@ function TableEmpty() {
               var(--ac-global-dimension-size-300) !important;
           `}
         >
-          <Empty
-            graphicKey="documents"
-            message="This embedding has no associated dimensions"
-          />
+          <Empty message="This embedding has no associated dimensions" />
         </td>
       </tr>
     </tbody>

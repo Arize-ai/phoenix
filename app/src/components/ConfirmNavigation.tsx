@@ -4,7 +4,6 @@ import { Blocker } from "react-router";
 import {
   Button,
   Dialog,
-  DialogTrigger,
   Flex,
   Modal,
   ModalOverlay,
@@ -46,25 +45,23 @@ export function ConfirmNavigationDialog({
   message?: ReactNode;
 }) {
   return (
-    <DialogTrigger isOpen={blocker.state === "blocked"}>
-      <ModalOverlay isDismissable={false}>
-        <Modal>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Confirm Navigation</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton close={() => blocker.reset?.()} />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <View padding="size-200">
-                <Text>{message}</Text>
-              </View>
-              <ConfirmNavigationDialogFooter blocker={blocker} />
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+    <ModalOverlay isDismissable={false} isOpen={blocker.state === "blocked"}>
+      <Modal>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Navigation</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton close={() => blocker.reset?.()} />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <View padding="size-200">
+              <Text>{message}</Text>
+            </View>
+            <ConfirmNavigationDialogFooter blocker={blocker} />
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

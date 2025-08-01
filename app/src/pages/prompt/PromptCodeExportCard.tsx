@@ -2,9 +2,8 @@ import { useMemo, useState } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
-
 import {
+  Card,
   CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
@@ -99,8 +98,6 @@ export function PromptCodeExportCard({
   return (
     <Card
       title="Code"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
       extra={
         <Flex gap="size-100" alignItems="center">
           <CodeLanguageRadioGroup

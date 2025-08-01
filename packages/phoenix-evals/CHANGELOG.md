@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.25.0...arize-phoenix-evals-v0.26.0) (2025-08-01)
+
+
+### Features
+
+* Enable specifying object generation method ([#8884](https://github.com/Arize-ai/phoenix/issues/8884)) ([c73e1a6](https://github.com/Arize-ai/phoenix/commit/c73e1a6752b88e73f030cff3b23df42b958b425f))
+* **evals:** return token usage in `llm_classify` ([#8692](https://github.com/Arize-ai/phoenix/issues/8692)) ([aa71d81](https://github.com/Arize-ai/phoenix/commit/aa71d8164124c88028d1c18b217d3ec899e5b4f9))
+* Improved evals templating ([#8799](https://github.com/Arize-ai/phoenix/issues/8799)) ([b32717c](https://github.com/Arize-ai/phoenix/commit/b32717c94971d43124253e21ba10f366bc8228fa))
+
+
+### Bug Fixes
+
+* Add emoji guard to experimental module warning ([#8887](https://github.com/Arize-ai/phoenix/issues/8887)) ([0c63de7](https://github.com/Arize-ai/phoenix/commit/0c63de70b2891a09b6fa5ad74704e21ff96c70a4))
+* **evals:** add priority for LLM client selection ([#8868](https://github.com/Arize-ai/phoenix/issues/8868)) ([06bda51](https://github.com/Arize-ai/phoenix/commit/06bda51affb5a2e034e3c6473565a13f3fee4ada))
+* Windows has problems rendering emojis sometimes ([#8880](https://github.com/Arize-ai/phoenix/issues/8880)) ([c592e5c](https://github.com/Arize-ai/phoenix/commit/c592e5c766e9ac457cab5d84846e44413f611794))
+
+
+### Documentation
+
+* Update docs for GoogleGenAI support ([#8858](https://github.com/Arize-ai/phoenix/issues/8858)) ([a8bef55](https://github.com/Arize-ai/phoenix/commit/a8bef55b65a92b0d325e54c715f342728e63aa7b))
+
 ## [0.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.24.0...arize-phoenix-evals-v0.25.0) (2025-07-30)
 
 
