@@ -44,6 +44,10 @@ class Usage(NamedTuple):
     total_tokens: int
 
 
+class ExtraInfo(NamedTuple):
+    usage: Optional[Usage] = None
+
+
 @dataclass
 class BaseModel(ABC):
     default_concurrency: int = 20
@@ -88,7 +92,7 @@ class BaseModel(ABC):
                 f"{type(instruction)}."
             )
 
-        return self._generate(prompt=prompt, instruction=instruction, **kwargs)[0]
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
@@ -96,15 +100,23 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Usage]]:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, ExtraInfo]:
         raise NotImplementedError
 
     @staticmethod

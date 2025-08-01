@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 from typing_extensions import assert_never, override
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import get_audio_format_from_base64
@@ -344,9 +344,13 @@ class OpenAIModel(BaseModel):
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     @override
-    async def _async_generate(
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
+
+    @override
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -362,9 +366,13 @@ class OpenAIModel(BaseModel):
         )
 
     @override
-    def _generate(
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -379,9 +387,9 @@ class OpenAIModel(BaseModel):
             **invoke_params,
         )
 
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -401,9 +409,9 @@ class OpenAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -518,7 +526,7 @@ class OpenAIModel(BaseModel):
     def _parse_output(
         self,
         response: Union["ChatCompletion", "Completion"],
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = (
             Usage(
@@ -529,7 +537,7 @@ class OpenAIModel(BaseModel):
             if (response_usage := response.usage)
             else None
         )
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
 
 def _is_url(url: str) -> bool:

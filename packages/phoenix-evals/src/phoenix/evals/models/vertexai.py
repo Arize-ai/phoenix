@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo
 from phoenix.evals.templates import MultimodalPrompt
 
 if TYPE_CHECKING:
@@ -155,16 +155,26 @@ class VertexAIModel(BaseModel):
     @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
-        if isinstance(prompt, str):
-            prompt = MultimodalPrompt.from_string(prompt)
-
+    ) -> str:
         return self._generate(prompt, **kwargs)
 
     @override
-    def _generate(
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        return self._generate_with_extra(prompt, **kwargs)
+
+    @override
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -174,7 +184,7 @@ class VertexAIModel(BaseModel):
             prompt=prompt_str,
             **invoke_params,
         )
-        return str(response.text), None
+        return str(response.text), ExtraInfo()
 
     @property
     def is_codey_model(self) -> bool:

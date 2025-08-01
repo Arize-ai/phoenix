@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import override
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -115,9 +115,19 @@ class BedrockModel(BaseModel):
         )
 
     @override
-    def _generate(
+    async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> str:
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
+
+    @override
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         # the legacy "instruction" parameter from llm_classify is intended to indicate a
         # system instruction, but not all models supported by Bedrock support system instructions
         _ = kwargs.pop("instruction", None)
@@ -129,20 +139,22 @@ class BedrockModel(BaseModel):
         return self._rate_limited_completion(**body)
 
     @override
-    async def _async_generate(
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
+        return await loop.run_in_executor(
+            None, partial(self._generate_with_extra, prompt, **kwargs)
+        )
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         """Use tenacity to retry the completion call."""
 
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response = self.client.converse(**kwargs)
                 return self._parse_output(response)
@@ -236,10 +248,10 @@ class BedrockModel(BaseModel):
             total_tokens=response_usage.get("totalTokens", 0),
         )
 
-    def _parse_output(self, response: "ConverseResponseTypeDef") -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, response: "ConverseResponseTypeDef") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = self._extract_usage(response.get("usage"))
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
     def _model_supports_top_k(self) -> bool:
         """

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import assert_never, override
 
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
@@ -109,9 +109,13 @@ class MistralAIModel(BaseModel):
         return {k: v for k, v in params.items() if v is not None}
 
     @override
-    def _generate(
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -126,9 +130,9 @@ class MistralAIModel(BaseModel):
             **invocation_parameters,
         )
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response = self._client.chat.complete(**kwargs)
             # if an SDKError is raised, check that it's a rate limit error:
@@ -144,7 +148,13 @@ class MistralAIModel(BaseModel):
     @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> str:
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
+
+    @override
+    async def _async_generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -159,9 +169,9 @@ class MistralAIModel(BaseModel):
             **invocation_parameters,
         )
 
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response = await self._client.chat.complete_async(**kwargs)
             except self._mistral_sdk_error as exc:
@@ -207,10 +217,10 @@ class MistralAIModel(BaseModel):
             total_tokens=usage_info.total_tokens or 0,
         )
 
-    def _parse_output(self, response: "ChatCompletionResponse") -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, response: "ChatCompletionResponse") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = self._extract_usage(response.usage)
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
     def _format_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         messages = []

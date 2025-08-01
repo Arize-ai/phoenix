@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt
 from phoenix.evals.utils import printif
@@ -144,9 +144,13 @@ class GeminiModel(BaseModel):
         }
 
     @override
-    def _generate(
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -157,7 +161,7 @@ class GeminiModel(BaseModel):
         @self._rate_limiter.limit
         def _rate_limited_completion(
             prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
-        ) -> Tuple[str, Optional[Usage]]:
+        ) -> Tuple[str, ExtraInfo]:
             prompt_str = self._construct_prompt(prompt)
             response = self._model.generate_content(
                 contents=prompt_str, generation_config=generation_config, **kwargs
@@ -173,7 +177,13 @@ class GeminiModel(BaseModel):
     @override
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> str:
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
+
+    @override
+    async def _async_generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -184,7 +194,7 @@ class GeminiModel(BaseModel):
         @self._rate_limiter.alimit
         async def _rate_limited_completion(
             prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
-        ) -> Tuple[str, Optional[Usage]]:
+        ) -> Tuple[str, ExtraInfo]:
             prompt_str = self._construct_prompt(prompt)
             response = await self._model.generate_content_async(
                 contents=prompt_str, generation_config=generation_config, **kwargs
@@ -234,10 +244,10 @@ class GeminiModel(BaseModel):
             )
         return None
 
-    def _parse_output(self, response: Any) -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, response: Any) -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = self._extract_usage(response)
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
     def _construct_prompt(self, prompt: MultimodalPrompt) -> str:
         return prompt.to_text_only_prompt()

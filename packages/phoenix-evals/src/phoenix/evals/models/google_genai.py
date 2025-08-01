@@ -15,7 +15,7 @@ from phoenix.evals.exceptions import (
     PhoenixUnsupportedAudioFormat,
     PhoenixUnsupportedImageFormat,
 )
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import (
@@ -167,7 +167,16 @@ class GoogleGenAIModel(BaseModel):
         prompt: Union[str, MultimodalPrompt],
         instruction: Optional[str] = None,
         **kwargs: Dict[str, Any],
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> str:
+        return (await self._async_generate_with_extra(prompt, instruction=instruction, **kwargs))[0]
+
+    @override
+    async def _async_generate_with_extra(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        instruction: Optional[str] = None,
+        **kwargs: Dict[str, Any],
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
         config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
@@ -177,9 +186,9 @@ class GoogleGenAIModel(BaseModel):
             config=config,
         )
 
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response = await self._client.aio.models.generate_content(**kwargs)
                 return self._parse_output(response)
@@ -196,7 +205,16 @@ class GoogleGenAIModel(BaseModel):
         prompt: Union[str, MultimodalPrompt],
         instruction: Optional[str] = None,
         **kwargs: Dict[str, Any],
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> str:
+        return self._generate_with_extra(prompt, instruction=instruction, **kwargs)[0]
+
+    @override
+    def _generate_with_extra(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        instruction: Optional[str] = None,
+        **kwargs: Dict[str, Any],
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
         config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
@@ -206,9 +224,9 @@ class GoogleGenAIModel(BaseModel):
             config=config,
         )
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response = self._client.models.generate_content(**kwargs)
                 return self._parse_output(response)
@@ -242,10 +260,10 @@ class GoogleGenAIModel(BaseModel):
             total_tokens=total_tokens,
         )
 
-    def _parse_output(self, response: "GenerateContentResponse") -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, response: "GenerateContentResponse") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = self._extract_usage(response.usage_metadata)
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
     def _process_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, Any]]:
         contents: List[Dict[str, Any]] = []
