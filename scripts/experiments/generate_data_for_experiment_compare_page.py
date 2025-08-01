@@ -115,3 +115,14 @@ experiment = phoenix_client.experiments.run_experiment(
     experiment_name="long-answer",
     evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
 )
+
+task_prompt_template = (
+    "You are an assisant that generates data for a dataset of incorrect answers to a question."
+    " Generate an incorrect answer to the question: {question}"
+)
+experiment = phoenix_client.experiments.run_experiment(
+    dataset=dataset,
+    task=partial(task, template=task_prompt_template),
+    experiment_name="incorrect-answer",
+    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+)
