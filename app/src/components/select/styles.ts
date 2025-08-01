@@ -22,6 +22,10 @@ export const selectCSS = css`
     padding-right: var(--ac-global-dimension-size-100);
   }
 
+  &[data-invalid="true"] button {
+    border-color: var(--ac-global-color-danger);
+  }
+
   .react-aria-SelectValue {
     &[data-placeholder] {
       font-style: italic;

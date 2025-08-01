@@ -147,41 +147,51 @@ export function PlaygroundExperimentRunDetailsDialog({
                   padding: var(--ac-global-dimension-static-size-200);
                 `}
               >
-                <Flex direction="row">
-                  <View flex>
-                    {run.error ? (
-                      <View padding="size-200">
-                        <RunError error={run.error} />
-                      </View>
-                    ) : (
-                      <JSONBlock value={JSON.stringify(run.output, null, 2)} />
-                    )}
-                  </View>
-                  <ViewSummaryAside width="size-3000">
-                    {run.startTime && run.endTime && (
-                      <RunLatency
-                        startTime={run.startTime}
-                        endTime={run.endTime}
-                      />
-                    )}
-                    <ul
-                      css={css`
-                        margin-top: var(--ac-global-dimension-static-size-100);
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: flex-end;
-                        gap: var(--ac-global-dimension-static-size-100);
-                      `}
-                    >
-                      {run.annotations?.edges.map((edge) => (
-                        <li key={edge.annotation.id}>
-                          <AnnotationLabel annotation={edge.annotation} />
-                        </li>
-                      ))}
-                    </ul>
-                  </ViewSummaryAside>
-                </Flex>
+                <View
+                  borderColor="dark"
+                  borderWidth="thin"
+                  borderRadius="small"
+                >
+                  <Flex direction="row">
+                    <View flex>
+                      {run.error ? (
+                        <View padding="size-200">
+                          <RunError error={run.error} />
+                        </View>
+                      ) : (
+                        <JSONBlock
+                          value={JSON.stringify(run.output, null, 2)}
+                        />
+                      )}
+                    </View>
+                    <ViewSummaryAside width="size-3000">
+                      {run.startTime && run.endTime && (
+                        <RunLatency
+                          startTime={run.startTime}
+                          endTime={run.endTime}
+                        />
+                      )}
+                      <ul
+                        css={css`
+                          margin-top: var(
+                            --ac-global-dimension-static-size-100
+                          );
+                          display: flex;
+                          flex-direction: column;
+                          justify-content: flex-start;
+                          align-items: flex-end;
+                          gap: var(--ac-global-dimension-static-size-100);
+                        `}
+                      >
+                        {run.annotations?.edges.map((edge) => (
+                          <li key={edge.annotation.id}>
+                            <AnnotationLabel annotation={edge.annotation} />
+                          </li>
+                        ))}
+                      </ul>
+                    </ViewSummaryAside>
+                  </Flex>
+                </View>
               </div>
             </Flex>
           </Panel>

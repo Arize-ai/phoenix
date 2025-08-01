@@ -46,7 +46,7 @@ export const fieldBaseCSS = css`
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
     }
-    &[data-invalid] {
+    &[data-invalid="true"] {
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
@@ -55,6 +55,7 @@ export const fieldBaseCSS = css`
     }
   }
   [slot="description"],
+  [slot="errorMessage"],
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
     font-size: var(--ac-global-font-size-xs) !important;
