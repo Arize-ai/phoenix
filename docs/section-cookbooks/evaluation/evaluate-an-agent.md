@@ -1,4 +1,6 @@
-# Evaluate an Agent
+# Evaluate a Talk-to-your-Data Agent
+
+
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_agent.ipynb" %}
 View in colab
@@ -15,68 +17,11 @@ The notebook shows examples of:
 * Evaluating Python code generation
 * Evaluating the path of an agent
 
-### Install Dependencies, Import Libraries, Set API Keys
+## Notebook Walkthrough
 
-```python
-!pip install -q openai "arize-phoenix>=8.8.0" "arize-phoenix-otel>=0.8.0" openinference-instrumentation-openai python-dotenv duckdb "openinference-instrumentation>=0.1.21"
-```
+We will go through key code snippets on this page. To follow the full tutorial, check out the full notebook.
 
-```python
-import dotenv
-
-dotenv.load_dotenv()
-
-import json
-import os
-from getpass import getpass
-
-import duckdb
-import pandas as pd
-from IPython.display import Markdown
-from openai import OpenAI
-from openinference.instrumentation import (
-    suppress_tracing,
-)
-from openinference.instrumentation.openai import OpenAIInstrumentor
-from opentelemetry.trace import StatusCode
-from pydantic import BaseModel, Field
-from tqdm import tqdm
-
-from phoenix.otel import register
-```
-
-```python
-if os.getenv("OPENAI_API_KEY") is None:
-    os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
-
-client = OpenAI()
-model = "gpt-4o-mini"
-project_name = "talk-to-your-data-agent"
-```
-
-## Enable Phoenix Tracing
-
-Sign up for a free instance of [Phoenix Cloud](https://app.phoenix.arize.com) to get your API key. If you'd prefer, you can instead [self-host Phoenix](https://arize.com/docs/phoenix/deployment).
-
-```python
-if os.getenv("PHOENIX_API_KEY") is None:
-    os.environ["PHOENIX_API_KEY"] = getpass("Enter your Phoenix API key: ")
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
-```
-
-```python
-tracer_provider = register(
-    project_name=project_name,
-)
-
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
-
-tracer = tracer_provider.get_tracer(__name__)
-```
-
-### Prepare dataset
+## Prepare dataset
 
 Your agent will interact with a local database. Start by loading in that data:
 
@@ -87,7 +32,7 @@ store_sales_df = pd.read_parquet(
 store_sales_df.head()
 ```
 
-### Define the tools
+## Define the tools
 
 Now you can define your agent tools.
 
@@ -230,7 +175,7 @@ def generate_visualization(data: str, visualization_goal: str) -> str:
 ````
 
 ```python
-# code = generate_visualization(example_data, "A line chart of sales over each day in november.")
+code = generate_visualization(example_data, "A line chart of sales over each day in november.")
 ```
 
 ```python
@@ -300,9 +245,7 @@ def analyze_sales_data(prompt: str, data: str) -> str:
 ```
 
 ```python
-# analysis = analyze_sales_data("What is the most popular product SKU?", example_data)
-# analysis
-
+analysis = analyze_sales_data("What is the most popular product SKU?", example_data)
 ```
 
 #### Tool Schema:
@@ -474,7 +417,7 @@ def run_agent(messages):
                 return response.choices[0].message.content
 ```
 
-### Run the agent
+## Run the agent
 
 Your agent is now good to go! Let's try it out with some example questions:
 
@@ -535,7 +478,7 @@ px_client = px.Client()
 eval_model = OpenAIModel(model="gpt-4o-mini")
 ```
 
-### Function Calling Evals using LLM as a Judge
+## Function Calling Evals using LLM as a Judge
 
 This first evaluation will evaluate your agent router choices using another LLM.
 
@@ -607,7 +550,7 @@ You should now see eval labels in Phoenix.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/function-calling-evals.png" alt=""><figcaption></figcaption></figure>
 
-#### Function Calling Evals using Ground Truth
+## Function Calling Evals using Ground Truth
 
 The above example works, however if you have ground truth labled data, you can use that data to get an even more accurate measure of your router's performance by running an experiments.
 
@@ -687,7 +630,7 @@ experiment = run_experiment(
 )
 ```
 
-### Tool Evals
+## Tool Evals
 
 The next piece of your agent to evaluate is its tools. Each tool is usually evaluated differently - we've included some examples below. If you need other ideas, [Phoenix's built-in evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) give you an idea of other metrics to use.
 

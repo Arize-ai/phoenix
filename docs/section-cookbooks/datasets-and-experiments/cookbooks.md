@@ -1,5 +1,9 @@
 # More Cookbooks
 
-Iteratively improve your LLM task by building datasets, running experiments, and evaluating performance using code and LLM-as-a-judge.
+Iteratively improve your LLM task by building datasets, running experiments, and evaluating performance using code and LLM-as-a-Judge.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>LlamaIndex Use Cases</strong></td><td><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/answer_and_context_relevancy.ipynb">Answer and Context Relevancy Evals</a></td><td><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/guideline_eval.ipynb">Response Guideline Evals</a></td><td><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/run_experiments_with_llama_index.ipynb">RAG with Reranker</a></td><td></td><td><a href="../.gitbook/assets/de2.avif">de2.avif</a></td></tr></tbody></table>
+## Use Cases
+
+* [Answer and Context Relevancy Evals](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/answer_and_context_relevancy.ipynb)
+* [RAG with Reranker](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/run_experiments_with_llama_index.ipynb)
+* [Response Guideline Evals](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/guideline_eval.ipynb)

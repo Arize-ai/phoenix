@@ -4,16 +4,13 @@
 * [Agent Cookbooks](agent-cookbooks.md)
 * [Agent Demos](agent-demos.md)
 
-## Tracing
+## Tracing & Annotations
 
-* [Agentic RAG Tracing](tracing/agentic-rag-tracing.md)
-* [Structured Data Extraction](tracing/structured-data-extraction.md)
-* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing/product-recommendation-agent-google-agent-engine-and-langgraph.md)
-* [More Cookbooks](tracing/cookbooks.md)
-
-## Annotations
-
-* [Using Human Annotations for Eval-Driven Development](annotations/using-human-annotations-for-eval-driven-development.md)
+* [Agentic RAG Tracing](tracing-and-annotations/agentic-rag-tracing.md)
+* [Using Human Annotations for Eval-Driven Development](tracing-and-annotations/using-human-annotations-for-eval-driven-development.md)
+* [Structured Data Extraction](tracing-and-annotations/structured-data-extraction.md)
+* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph.md)
+* [More Cookbooks](tracing-and-annotations/cookbooks.md)
 
 ## Prompt Engineering
 
@@ -23,6 +20,17 @@
 * [Prompt Optimization](prompt-engineering/prompt-optimization.md)
 * [LLM as a Judge Prompt Optimization](prompt-engineering/llm-as-a-judge-prompt-optimization.md)
 
+## Evaluation
+
+* [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
+* [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
+* [Evaluate a Talk-to-your-Data Agent](evaluation/evaluate-an-agent.md)
+* [Evaluate RAG](evaluation/evaluate-rag.md)
+* [Code Readability Evaluation](evaluation/code-readability-evaluation.md)
+* [Relevance Classification Evaluation](evaluation/relevance-classification-evaluation.md)
+* [Using Ragas to Evaluate a Math Problem-Solving Agent](evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent.md)
+* [More Cookbooks](evaluation/cookbooks.md)
+
 ## Datasets & Experiments
 
 * [Experiment with a Customer Support Agent](datasets-and-experiments/experiment-with-a-customer-support-agent.md)
@@ -31,14 +39,6 @@
 * [Prompt Template Iteration for a Summarization Service](datasets-and-experiments/summarization.md)
 * [Text2SQL Experiments](datasets-and-experiments/text2sql.md)
 * [More Cookbooks](datasets-and-experiments/cookbooks.md)
-
-## Evaluation
-
-* [Cookbooks](evaluation/cookbooks.md)
-* [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
-* [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
-* [Evaluate RAG](evaluation/evaluate-rag.md)
-* [Evaluate an Agent](evaluation/evaluate-an-agent.md)
 
 ## Retrieval & Inferences
 

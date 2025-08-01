@@ -22,6 +22,8 @@ In RAG, your data is loaded and prepared for queries. This process is called ind
 
 RAG is a critical component for building applications such a chatbots or agents and you will want to know RAG techniques on how to get data into your application.
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_Pipeline.png" %}
+
 <figure><img src="https://docs.arize.com/~gitbook/image?url=https%3A%2F%2Fstorage.googleapis.com%2Farize-assets%2Fphoenix%2Fassets%2Fimages%2FRAG_Pipeline.png&#x26;width=768&#x26;dpr=4&#x26;quality=100&#x26;sign=8eab21cf&#x26;sv=2" alt=""><figcaption></figcaption></figure>
 
 ### Stages within RAG <a href="#stages-within-rag" id="stages-within-rag"></a>
@@ -187,8 +189,6 @@ spans_with_docs_df[["attributes.input.value", "attributes.retrieval.documents"]]
 | context.span\_id                     | attributes.input.value             | attributes.retrieval.documents                                |
 | ------------------------------------ | ---------------------------------- | ------------------------------------------------------------- |
 | aeadad73-485f-400b-bd9d-842abfaa460b | What did the author do growing up? | <p>[{'document.content': 'What I Worked On</p><p>Febru...</p> |
-|                                      |                                    |                                                               |
-|                                      |                                    |                                                               |
 
 We have built a RAG pipeline and also have instrumented it using Phoenix Tracing. We now need to evaluate it's performance. We can assess our RAG system/query engine using Phoenix's LLM Evals. Let's examine how to leverage these tools to quantify the quality of our retrieval-augmented generation system.
 
@@ -323,18 +323,6 @@ We are now prepared to perform our retrieval evaluations. We will execute the qu
 # First things first, let's reset phoenix
 px.close_app()
 px.launch_app()
-```
-
-```python
-🌍 To view the Phoenix app in your browser, visit http://localhost:6006/
-📺 To view the Phoenix app in a notebook, run `px.active_session().view()`
-📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix
-
-
-
-
-
-<phoenix.session.session.ThreadSession at 0x2c6c785b0>
 ```
 
 ```python
@@ -577,10 +565,6 @@ px.Client().log_evaluations(
     SpanEvaluations(dataframe=qa_correctness_eval_df, eval_name="Q&A Correctness"),
     SpanEvaluations(dataframe=hallucination_eval_df, eval_name="Hallucination"),
 )
-```
-
-```python
-Sending Evaluations: 100%|██████████| 348/348 [00:00<00:00, 415.37it/s]
 ```
 
 We now have sent all our evaluations to Phoenix. Let's go to the Phoenix application and view the results! Since we've sent all the evals to Phoenix, we can analyze the results together to make a determination on whether or not poor retrieval or irrelevant context has an effect on the LLM's ability to generate the correct response.
