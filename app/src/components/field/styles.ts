@@ -46,7 +46,7 @@ export const fieldBaseCSS = css`
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
     }
-    &[data-invalid] {
+    &[data-invalid="true"] {
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
