@@ -41,24 +41,6 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-class AsyncifyMixin:
-    """
-    Mixin to provide async versions for evaluate and batch_evaluate methods if not implemented.
-    """
-
-    def __getattribute__(self, name: str) -> Any:
-        # First try to get the attribute normally
-        try:
-            return object.__getattribute__(self, name)
-        except AttributeError:
-            # Only provide async versions if they don't exist and sync versions do
-            if name == "_aevaluate" and hasattr(self, "_evaluate"):
-                return to_thread(object.__getattribute__(self, "_evaluate"))
-            if name == "abatch_evaluate" and hasattr(self, "batch_evaluate"):
-                return to_thread(object.__getattribute__(self, "batch_evaluate"))
-            raise
-
-
 # --- Utilities ---
 def extract_fields_from_template(tmpl: str) -> Set[str]:
     return {name for _, name, _, _ in Formatter().parse(tmpl) if name}
@@ -98,7 +80,7 @@ def remap_eval_input(
 
 
 # --- Base Evaluator ---
-class Evaluator(ABC, AsyncifyMixin):
+class Evaluator(ABC):
     """
     Core abstraction for evaluators.
     Instances are callable: `scores = evaluator(eval_input)` (sync or async via `aevaluate`).
@@ -111,7 +93,7 @@ class Evaluator(ABC, AsyncifyMixin):
         name: str,
         source: SourceType,
         required_fields: Optional[Set[str]] = None,
-        direction: Optional[DirectionType] = "maximize",
+        direction: DirectionType = "maximize",
     ):
         """
         Initialize the evaluator with a required name, source, and optional required fields.
@@ -149,10 +131,16 @@ class Evaluator(ABC, AsyncifyMixin):
         """Implement core logic assuming eval_input has required fields."""
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    @abstractmethod
     async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
-        """Implement async core logic assuming eval_input has required fields."""
-        raise NotImplementedError("Subclasses must implement _aevaluate")
+        """Implement async core logic assuming eval_input has required fields.
+
+        By default, this runs the synchronous _evaluate method in a thread pool.
+        Subclasses can override this for more efficient async implementations.
+        """
+        from typing import cast
+
+        result = await to_thread(self._evaluate)(eval_input)
+        return cast(List[Score], result)
 
     def evaluate(
         self, eval_input: EvalInput, template_mapping: Optional[Mapping[str, str]] = None
@@ -221,6 +209,14 @@ class Evaluator(ABC, AsyncifyMixin):
         """
         return [self.evaluate(inp, template_mapping=template_mapping) for inp in eval_inputs]
 
+    async def abatch_evaluate(
+        self, eval_inputs: List[EvalInput], template_mapping: Optional[Mapping[str, str]] = None
+    ) -> List[List[Score]]:
+        """
+        Apply `aevaluate` to a list of `eval_input` mappings, reusing the same `template_mapping`.
+        """
+        return [await self.aevaluate(inp, template_mapping=template_mapping) for inp in eval_inputs]
+
 
 # --- LLM Evaluator base ---
 class LLMEvaluator(Evaluator):
@@ -236,7 +232,7 @@ class LLMEvaluator(Evaluator):
         prompt: str,
         schema: Optional[Schema] = None,
         required_fields: Optional[Set[str]] = None,
-        direction: Optional[DirectionType] = "maximize",
+        direction: DirectionType = "maximize",
     ):
         """
         Initialize the LLM evaluator.
@@ -285,7 +281,7 @@ class ClassificationEvaluator(LLMEvaluator):
         ],
         include_explanation: bool = True,
         required_fields: Optional[Set[str]] = None,
-        direction: Optional[DirectionType] = "maximize",
+        direction: DirectionType = "maximize",
     ):
         """
         Initialize the LLM evaluator.
@@ -398,7 +394,7 @@ def list_evaluators() -> List[str]:
 
 
 def simple_evaluator(
-    name: str, source: SourceType, direction: Optional[DirectionType] = "maximize"
+    name: str, source: SourceType, direction: DirectionType = "maximize"
 ) -> Callable[
     [Callable[..., Score]], Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]
 ]:
@@ -480,7 +476,7 @@ def create_classifier(
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
     required_fields: Optional[Set[str]] = None,
-    direction: Optional[DirectionType] = "maximize",
+    direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
     """
     Factory to create a ClassificationEvaluator.
