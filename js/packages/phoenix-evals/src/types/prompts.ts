@@ -1,4 +1,4 @@
-import { CoreMessage, Message } from "ai";
+import { ModelMessage, UIMessage } from "ai";
 
 /**
  * Prompt part of the AI function options.
@@ -17,5 +17,5 @@ export interface WithPrompt {
   /**
    * A list of messages. You can either use `prompt` or `messages` but not both.
    */
-  messages?: Array<CoreMessage> | Array<Omit<Message, "id">>;
+  messages?: Array<ModelMessage> | Array<Omit<UIMessage, "id">>;
 }
