@@ -178,10 +178,9 @@ async def test_delete_single_span_leave_descendants(
 ) -> None:
     """Test that deleting a span only deletes the target span and leaves descendants alone."""
     hierarchy = span_hierarchy
-    project_identifier = str(GlobalID("Project", str(hierarchy["project"].id)))
 
     # Delete the parent span (should only delete the parent, leave descendants)
-    response = await httpx_client.delete(f"v1/projects/{project_identifier}/spans/parent-span")
+    response = await httpx_client.delete("v1/spans/parent-span")
     assert response.status_code == 204
 
     # Verify only the target span was deleted
@@ -230,7 +229,6 @@ async def test_delete_span_empty_trace_cleanup(
     async with db() as session:
         project = await session.scalar(select(models.Project))
         assert project is not None
-        project_identifier = str(GlobalID("Project", str(project.id)))
 
         # Get initial trace count
         initial_trace_count = await session.scalar(
@@ -239,7 +237,7 @@ async def test_delete_span_empty_trace_cleanup(
         assert initial_trace_count is not None
 
     # Delete the only span in the trace
-    response = await httpx_client.delete(f"v1/projects/{project_identifier}/spans/7e2f08cb43bbf521")
+    response = await httpx_client.delete("v1/spans/7e2f08cb43bbf521")
     assert response.status_code == 204
 
     # Verify both span and trace are deleted
@@ -264,15 +262,12 @@ async def test_delete_span_with_global_id(
 ) -> None:
     """Test that deleting a span works with relay GlobalID identifier."""
     hierarchy = span_hierarchy
-    project_identifier = str(GlobalID("Project", str(hierarchy["project"].id)))
 
     # Use GlobalID instead of OpenTelemetry span_id
     child1_global_id = str(GlobalID("Span", str(hierarchy["child1"].id)))
 
     # Delete using GlobalID
-    response = await httpx_client.delete(
-        f"v1/projects/{project_identifier}/spans/{child1_global_id}"
-    )
+    response = await httpx_client.delete(f"v1/spans/{child1_global_id}")
     assert response.status_code == 204
 
     # Verify child1 was deleted but others remain
@@ -372,7 +367,6 @@ async def test_delete_span_cumulative_metrics_propagation(
 ) -> None:
     """Test that cumulative metrics are properly updated when deleting a span with a parent."""
     hierarchy = span_hierarchy_with_metrics
-    project_identifier = str(GlobalID("Project", str(hierarchy["project"].id)))
 
     # Get initial metrics for root span
     async with db() as session:
@@ -389,7 +383,7 @@ async def test_delete_span_cumulative_metrics_propagation(
     child_prompt = hierarchy["child"].cumulative_llm_token_count_prompt
     child_completion = hierarchy["child"].cumulative_llm_token_count_completion
 
-    response = await httpx_client.delete(f"v1/projects/{project_identifier}/spans/child-span")
+    response = await httpx_client.delete("v1/spans/child-span")
     assert response.status_code == 204
 
     # Verify metrics propagation
@@ -432,10 +426,9 @@ async def test_delete_span_no_metrics_propagation_when_no_parent(
 ) -> None:
     """Test that no metrics propagation occurs when deleting a root span (no parent)."""
     hierarchy = span_hierarchy_with_metrics
-    project_identifier = str(GlobalID("Project", str(hierarchy["project"].id)))
 
     # Delete root span (no parent, so no propagation should occur)
-    response = await httpx_client.delete(f"v1/projects/{project_identifier}/spans/root-span")
+    response = await httpx_client.delete("v1/spans/root-span")
     assert response.status_code == 204
 
     # Verify root is deleted and children remain with unchanged metrics

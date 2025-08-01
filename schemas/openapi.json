@@ -2209,26 +2209,15 @@
         }
       }
     },
-    "/v1/projects/{project_identifier}/spans/{span_identifier}": {
+    "/v1/spans/{span_identifier}": {
       "delete": {
         "tags": [
           "spans"
         ],
         "summary": "Delete a span by span_identifier",
-        "description": "Delete a span by its OpenTelemetry span_id within a project.\n        This deletes only the target span and leaves all descendants alone.\n        If the trace becomes empty after deletion, the trace record will also be deleted.\n        If the deleted span has a parent, negative cumulative values will be propagated\n        up the ancestor chain.\n        Note: This operation is irreversible.",
+        "description": "Delete a single span by identifier.\n\n        **Important**: This operation deletes ONLY the specified span itself and does NOT\n        delete its descendants/children. All child spans will remain in the trace and\n        become orphaned (their parent_id will point to a non-existent span).\n\n        Behavior:\n        - Deletes only the target span (preserves all descendant spans)\n        - If this was the last span in the trace, the trace record is also deleted\n        - If the deleted span had a parent, its cumulative metrics (error count, token counts)\n          are subtracted from all ancestor spans in the chain\n\n        **Note**: This operation is irreversible and may create orphaned spans.",
         "operationId": "deleteSpan",
         "parameters": [
-          {
-            "name": "project_identifier",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
-              "title": "Project Identifier"
-            },
-            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
           {
             "name": "span_identifier",
             "in": "path",

@@ -8,10 +8,10 @@ from secrets import token_urlsafe
 from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete as sa_delete
-from sqlalchemy import func, select, update
+from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -1124,18 +1124,25 @@ async def create_spans(
 
 
 @router.delete(
-    "/projects/{project_identifier}/spans/{span_identifier}",
+    "/spans/{span_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="deleteSpan",
     summary="Delete a span by span_identifier",
     description=(
         """
-        Delete a span by its OpenTelemetry span_id within a project.
-        This deletes only the target span and leaves all descendants alone.
-        If the trace becomes empty after deletion, the trace record will also be deleted.
-        If the deleted span has a parent, negative cumulative values will be propagated
-        up the ancestor chain.
-        Note: This operation is irreversible.
+        Delete a single span by identifier.
+
+        **Important**: This operation deletes ONLY the specified span itself and does NOT
+        delete its descendants/children. All child spans will remain in the trace and
+        become orphaned (their parent_id will point to a non-existent span).
+
+        Behavior:
+        - Deletes only the target span (preserves all descendant spans)
+        - If this was the last span in the trace, the trace record is also deleted
+        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+          are subtracted from all ancestor spans in the chain
+
+        **Note**: This operation is irreversible and may create orphaned spans.
         """
     ),
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
@@ -1143,58 +1150,51 @@ async def create_spans(
 )
 async def delete_span(
     request: Request,
-    project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name, "
-            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-        )
-    ),
     span_identifier: str = Path(
         description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
     ),
 ) -> None:
     """
-    Delete a span by span_identifier within a project, leaving all descendants alone.
+    Delete a single span by identifier.
 
-    1. Find the project by identifier
-    2. Find the target span to delete
-    3. Delete only the target span (leave descendants alone)
-    4. Check if trace is empty - if so, delete the trace record
-    5. If span had a parent, propagate negative cumulative values up ancestor chain
-    6. Return 204 No Content on success
+    This operation deletes ONLY the specified span and preserves all its descendants,
+    which may become orphaned (parent_id pointing to non-existent span).
+
+    Steps:
+    1. Find the target span to delete (supports both GlobalID and OpenTelemetry span_id)
+    2. Delete only the target span (all descendants remain untouched)
+    3. If trace becomes empty, delete the trace record
+    4. If deleted span had a parent, subtract its cumulative metrics from ancestor chain
+    5. Return 204 No Content on success
+
+    Args:
+        request: FastAPI request object
+        span_identifier: Either relay GlobalID or OpenTelemetry span_id
+
+    Raises:
+        HTTPException(404): If span not found
+
+    Returns:
+        None (204 No Content status)
     """
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
-        project_id: int = project.id
-
         # Try to parse as GlobalID first, then fall back to span_id
         try:
             span_rowid = from_global_id_with_expected_type(
                 GlobalID.from_id(span_identifier),
                 "Span",
             )
-            # Find by database rowid and verify it belongs to the project
+            # Find by database rowid
             target_span = await session.scalar(
-                select(models.Span)
-                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
-                .where(models.Trace.project_rowid == project_id)
-                .where(models.Span.id == span_rowid)
+                select(models.Span).where(models.Span.id == span_rowid)
             )
-            error_detail = (
-                f"Span with relay ID '{span_identifier}' not found in "
-                f"project '{project_identifier}'"
-            )
+            error_detail = f"Span with relay ID '{span_identifier}' not found"
         except Exception:
             # Find by OpenTelemetry span_id
             target_span = await session.scalar(
-                select(models.Span)
-                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
-                .where(models.Trace.project_rowid == project_id)
-                .where(models.Span.span_id == span_identifier)
+                select(models.Span).where(models.Span.span_id == span_identifier)
             )
-            error_detail = (
-                f"Span with span_id '{span_identifier}' not found in project '{project_identifier}'"
-            )
+            error_detail = f"Span with span_id '{span_identifier}' not found"
         if target_span is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
@@ -1202,23 +1202,23 @@ async def delete_span(
             )
 
         # Store values needed for later operations
-        trace_id = target_span.trace_rowid
+        trace_rowid = target_span.trace_rowid
         parent_id = target_span.parent_id
         cumulative_error_count = target_span.cumulative_error_count
         cumulative_llm_token_count_prompt = target_span.cumulative_llm_token_count_prompt
         cumulative_llm_token_count_completion = target_span.cumulative_llm_token_count_completion
 
         # Delete only the target span (leave descendants alone)
-        await session.execute(sa_delete(models.Span).where(models.Span.id == target_span.id))
+        await session.execute(sa.delete(models.Span).where(models.Span.id == target_span.id))
 
         # Step 2: Check if trace is empty—if so, delete the trace record
-        remaining_spans_count = await session.scalar(
-            select(func.count(models.Span.id)).where(models.Span.trace_rowid == trace_id)
+        trace_is_empty = await session.scalar(
+            select(~exists().where(models.Span.trace_rowid == trace_rowid))
         )
 
-        if remaining_spans_count == 0:
+        if trace_is_empty:
             # Trace is empty, delete the trace record
-            await session.execute(sa_delete(models.Trace).where(models.Trace.id == trace_id))
+            await session.execute(sa.delete(models.Trace).where(models.Trace.id == trace_rowid))
 
         # Step 3: Propagate negative cumulative values up ancestor chain if parent_id is not null
         if parent_id is not None:
@@ -1244,6 +1244,6 @@ async def delete_span(
                 )
             )
     # Trigger cache invalidation event
-    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+    request.state.event_queue.put(SpanDeleteEvent((trace_rowid,)))
 
     return None
