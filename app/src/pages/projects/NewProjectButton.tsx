@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -16,20 +15,33 @@ import {
   Icons,
   Modal,
   ModalOverlay,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
   Text,
   View,
 } from "@phoenix/components";
-import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 
-const PHOENIX_OTEL_DOC_LINK =
-  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
-
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
 };
+const PHOENIX_OTEL_DOC_LINK =
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
+
+function TraceBasedProjectGuideIntro() {
+  return (
+    <Text>
+      Projects are created when you log your first trace via OpenTelemetry. See
+      the{" "}
+      <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>documentation</ExternalLink>{" "}
+      for a complete guide.
+    </Text>
+  );
+}
 export function NewProjectButton({ variant }: NewProjectButtonProps) {
   return (
     <div>
@@ -58,7 +70,6 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
 }
 
 function NewProjectDialog() {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
       <DialogContent>
@@ -68,29 +79,24 @@ function NewProjectDialog() {
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
-        <View padding="size-400" overflow="auto">
-          <View paddingBottom="size-200">
-            <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
-            />
-          </View>
-          <View paddingBottom="size-100">
-            <Text>
-              Projects are created when you log your first trace via
-              OpenTelemetry. See the{" "}
-              <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>
-                documentation
-              </ExternalLink>{" "}
-              for a complete guide.
-            </Text>
-          </View>
-          {language === "Python" ? (
-            <PythonProjectGuide />
-          ) : (
-            <TypeScriptProjectGuide />
-          )}
-        </View>
+        <Tabs>
+          <TabList>
+            <Tab id="python">Python</Tab>
+            <Tab id="typescript">TypeScript</Tab>
+          </TabList>
+          <TabPanel id="python">
+            <View padding="size-200" overflow="auto">
+              <TraceBasedProjectGuideIntro />
+              <PythonProjectGuide />
+            </View>
+          </TabPanel>
+          <TabPanel id="typescript">
+            <View padding="size-200" overflow="auto">
+              <TraceBasedProjectGuideIntro />
+              <TypeScriptProjectGuide />
+            </View>
+          </TabPanel>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
