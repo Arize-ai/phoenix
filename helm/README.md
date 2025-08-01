@@ -87,7 +87,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
 | postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
 | postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
-| postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
+| postgres.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.persistence.storageClass | string | `"standard"` | Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.resources.limits.cpu | string | `"500m"` | CPU limit for PostgreSQL container (DEPRECATED for new postgresql) |
 | postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container (DEPRECATED for new postgresql) |
@@ -103,7 +103,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.auth.username | string | `""` | Name for a custom user to create |
 | postgresql.enabled | bool | `true` | Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL). When disabled, you must configure database.url or database.postgres settings to point to your external database |
 | postgresql.primary.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
-| postgresql.primary.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL |
+| postgresql.primary.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL |
 | postgresql.primary.persistence.storageClass | string | `""` | Kubernetes storage class for PostgreSQL volume |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.enabled | bool | `false` | Set to true if you want the volume to persist helm uninstalls |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |

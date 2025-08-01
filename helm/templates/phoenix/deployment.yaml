@@ -1,3 +1,8 @@
+{{/*
+Validate persistence configuration to prevent conflicts
+*/}}
+{{- include "phoenix.validatePersistence" . }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
