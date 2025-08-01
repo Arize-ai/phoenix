@@ -42,5 +42,5 @@
 
 ## Retrieval & Inferences
 
-* [Cookbooks](retrieval-and-inferences/cookbooks.md)
 * [Embeddings Analysis](retrieval-and-inferences/embeddings-analysis.md)
+* [More Cookbooks](retrieval-and-inferences/cookbooks.md)

@@ -339,7 +339,7 @@ tool_implementations = {
 }
 ```
 
-### Agent logic
+## Agent logic
 
 With the tools defined, you're ready to define the main routing and tool call handling steps of your agent.
 
@@ -1336,7 +1336,7 @@ experiment = run_experiment(
 )
 ```
 
-### Congratulations! 🎉
+### Final Results 🎉
 
 You've now evaluated every aspect of your agent. If you've made it this far, you're now an expert in evaluating agent routers, tools, and paths!
 

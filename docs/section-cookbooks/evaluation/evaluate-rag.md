@@ -577,7 +577,7 @@ print("phoenix URL", px.active_session().url)
 phoenix URL http://localhost:6006/
 ```
 
-### Conclusion <a href="#conclusion" id="conclusion"></a>
+## Conclusion <a href="#conclusion" id="conclusion"></a>
 
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
