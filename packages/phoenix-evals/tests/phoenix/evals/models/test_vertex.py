@@ -39,7 +39,7 @@ class TestParseOutput:
             )
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Hello, this is a response from VertexAI!"
         assert usage.prompt_tokens == 12
@@ -63,7 +63,7 @@ class TestParseOutput:
             )
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 5
@@ -82,7 +82,7 @@ class TestParseOutput:
             )
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Response without usage info"
         assert usage is None
@@ -104,7 +104,7 @@ class TestParseOutput:
             )
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Zero usage response"
         assert usage is None

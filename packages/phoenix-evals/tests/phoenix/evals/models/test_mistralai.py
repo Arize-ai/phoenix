@@ -60,7 +60,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "string"
         assert usage.prompt_tokens == 16
@@ -83,7 +83,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Hello, world!"
         assert usage.prompt_tokens == 10
@@ -120,7 +120,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"city": "San Francisco", "units": "celsius"}'
         assert usage.prompt_tokens == 5
@@ -143,7 +143,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 5
@@ -180,7 +180,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "python programming"
         assert usage.prompt_tokens == 8
@@ -214,7 +214,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Empty arguments provided"
         assert usage.prompt_tokens == 6
@@ -240,7 +240,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "No tool calls"
         assert usage.prompt_tokens == 4
@@ -286,7 +286,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Should return the first tool call with arguments
         assert text == '{"param": "value1"}'
@@ -310,7 +310,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Zero usage"
         assert usage.prompt_tokens == 0
@@ -353,7 +353,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Verify it's valid JSON and contains expected data
         import json

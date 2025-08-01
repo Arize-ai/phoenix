@@ -165,7 +165,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Hello, world!"
         assert usage.prompt_tokens == 10
@@ -205,7 +205,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"city": "San Francisco", "units": "celsius"}'
         assert usage.prompt_tokens == 20
@@ -239,7 +239,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"query": "python programming"}'
         assert usage.prompt_tokens == 15
@@ -266,7 +266,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 5
@@ -305,7 +305,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Tool with no args"
         assert usage.prompt_tokens == 8
@@ -355,7 +355,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Should return the first tool call with arguments
         assert text == '{"param": "first"}'
@@ -383,7 +383,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "This is a legacy completion response."
         assert usage.prompt_tokens == 12
@@ -408,7 +408,7 @@ class TestParseOutput:
             usage=None,
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Response without usage"
         assert usage is None

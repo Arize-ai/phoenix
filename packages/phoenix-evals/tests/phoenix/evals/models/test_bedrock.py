@@ -58,7 +58,7 @@ class TestParseOutput:
             "usage": {"inputTokens": 10, "outputTokens": 8, "totalTokens": 18},
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Hello, this is a simple response."
         assert usage is not None
@@ -82,7 +82,7 @@ class TestParseOutput:
             "usage": {"inputTokens": 15, "outputTokens": 12, "totalTokens": 27},
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         expected_text = (
             "First part of response.\n\nSecond part of response.\n\nThird part of response."
@@ -114,7 +114,7 @@ class TestParseOutput:
             "usage": {"inputTokens": 20, "outputTokens": 15, "totalTokens": 35},
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == json.dumps(tool_input)
         assert usage is not None
@@ -144,7 +144,7 @@ class TestParseOutput:
             }
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Tool use should take priority and return first
         assert text == json.dumps(tool_input)
@@ -161,7 +161,7 @@ class TestParseOutput:
             }
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Response without usage data."
         assert usage is None
@@ -182,7 +182,7 @@ class TestParseOutput:
             },
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Response with partial usage."
         assert usage is not None
@@ -194,7 +194,7 @@ class TestParseOutput:
         """Test parsing completely empty response."""
         response: ConverseResponseTypeDef = {}
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is None
@@ -205,7 +205,7 @@ class TestParseOutput:
             "usage": {"inputTokens": 3, "outputTokens": 5, "totalTokens": 8}
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is not None
@@ -220,7 +220,7 @@ class TestParseOutput:
             "usage": {"inputTokens": 2, "outputTokens": 3, "totalTokens": 5},
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is not None
@@ -232,7 +232,7 @@ class TestParseOutput:
         """Test parsing response without content field."""
         response: ConverseResponseTypeDef = {"output": {"message": {"role": "assistant"}}}
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is None
@@ -243,7 +243,7 @@ class TestParseOutput:
             "output": {"message": {"role": "assistant", "content": []}}
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is None
@@ -262,7 +262,7 @@ class TestParseOutput:
             }
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is None
@@ -287,7 +287,7 @@ class TestParseOutput:
             }
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Should fall through to text since tool use has no input
         assert text == "Fallback text"
@@ -306,7 +306,7 @@ class TestParseOutput:
             }
         }
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage is None

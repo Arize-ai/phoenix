@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 logger = logging.getLogger(__name__)
@@ -110,18 +110,18 @@ class LiteLLMModel(BaseModel):
             )
 
     @override
-    async def _async_generate(
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
-        return self._generate(prompt, **kwargs)
+        return self._generate_with_extra(prompt, **kwargs)
 
     @override
-    def _generate(
+    def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -161,10 +161,10 @@ class LiteLLMModel(BaseModel):
             )
         return None
 
-    def _parse_output(self, response: "ModelResponse") -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, response: "ModelResponse") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
         usage = self._extract_usage(response)
-        return text, usage
+        return text, ExtraInfo(usage=usage)
 
     def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
