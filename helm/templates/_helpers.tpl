@@ -76,7 +76,7 @@ Validate persistence configuration to prevent data storage conflicts
 {{- if and $databaseUrlConfigured $postgresqlEnabled }}
 {{- fail "ERROR: Conflicting database configuration detected!\n\nYou cannot specify both 'database.url' and enable the built-in PostgreSQL (postgresql.enabled=true).\n\nTo fix this, choose ONE option:\n\n  1. Use external database:\n     - Set postgresql.enabled=false\n     - Keep database.url configured with your external database\n\n  2. Use built-in PostgreSQL:\n     - Set postgresql.enabled=true\n     - Set database.url to empty string\n\nThe database.url setting overrides PostgreSQL settings, so having both enabled creates ambiguity." }}
 {{- end }}
-{{- $workingDir := .Values.server.workingDir | default "/data" }}
+{{- $workingDir := .Values.server.workingDir }}
 {{- if and $persistenceEnabled (or (not $workingDir) (eq $workingDir "")) }}
 {{- fail "ERROR: Persistence enabled but no working directory configured!\n\nWhen persistence is enabled, you must specify a working directory where Phoenix can store data.\n\nTo fix this:\n  - Set server.workingDir to a directory path (e.g., '/data')\n  - Ensure the working directory matches your volume mount point\n\nExample configuration:\n  persistence:\n    enabled: true\n  server:\n    workingDir: '/data'" }}
 {{- end }}
@@ -98,7 +98,7 @@ Validate external database configuration for consistency
 {{- $hasCustomSchema := ne .Values.database.postgres.schema "" }}
 {{- $hasCustomPostgresSettings := or $hasCustomHost $hasCustomUser $hasCustomPassword $hasCustomDb $hasCustomPort $hasCustomSchema }}
 {{- if and $hasCustomPostgresSettings (not $databaseUrlConfigured) }}
-{{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:%s@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.user .Values.database.postgres.password .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
+{{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:****@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.user .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
 {{- end }}
 {{- if and $databaseUrlConfigured $hasCustomPostgresSettings }}
 {{- fail "ERROR: Conflicting database configuration detected!\n\nYou have both 'database.url' and custom 'database.postgres.*' settings configured.\n\nWhen using database.url, all database.postgres.* settings are ignored.\n\nTo fix this, choose ONE option:\n\n  1. Use database.url only:\n     - Keep database.url configured\n     - Remove custom database.postgres.* settings (or set them to defaults)\n\n  2. Use individual postgres settings:\n     - Set database.url to empty string\n     - Configure all required database.postgres.* settings" }}
