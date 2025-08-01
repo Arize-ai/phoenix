@@ -139,6 +139,11 @@ class Evaluator(ABC, AsyncifyMixin):
         """The source of this evaluator."""
         return self._source
 
+    @property
+    def direction(self) -> DirectionType:
+        """The direction for score optimization."""
+        return self._direction
+
     @abstractmethod
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         """Implement core logic assuming eval_input has required fields."""
@@ -250,7 +255,9 @@ class LLMEvaluator(Evaluator):
         if required_fields is None:
             required_fields = extract_fields_from_template(prompt)
 
-        super().__init__(name=name, source="llm", required_fields=required_fields)
+        super().__init__(
+            name=name, source="llm", required_fields=required_fields, direction=direction
+        )
         self.llm = llm
         self.prompt = dedent(prompt)
         self.schema = schema
