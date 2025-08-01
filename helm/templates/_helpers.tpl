@@ -5,7 +5,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- default "phoenix" .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-
 {{- define "phoenix.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -18,7 +17,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end }}
 {{- end }}
 {{- end }}
-
 
 {{- define "phoenix.postgres" -}}
   {{- printf "%s-postgresql" (include "phoenix.fullname" .) -}}
@@ -33,7 +31,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
   {{- printf "%s-ingress" (include "phoenix.fullname" .) -}}
 {{- end -}}
 
-
 {{- define "phoenix.tlsCoreSecretForIngress" -}}
   {{- if eq .Values.ingress.tls.certSource "none" -}}
     {{- printf "" -}}
@@ -43,9 +40,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
     {{- include "phoenix.ingress" . -}}
   {{- end -}}
 {{- end -}}
-
-
-
 
 {{- define "phoenix.appPortName" -}}
   {{- printf "%s-app" (include "phoenix.fullname" .) -}}
@@ -66,7 +60,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
   {{- .Values.server.grpcPort | default 4317 }} 
 {{- end -}}
 
-
 {{/*
 Validate persistence configuration to prevent data storage conflicts
 */}}
@@ -85,16 +78,38 @@ Validate persistence configuration to prevent data storage conflicts
 {{- end }}
 {{- end }}
 
-
 {{/*
 Validate external database configuration for consistency
 */}}
 {{- define "phoenix.validateExternalDatabase" -}}
 {{- if and (not .Values.postgresql.enabled) (not .Values.persistence.enabled) }}
 {{- $hasCustomHost := ne .Values.database.postgres.host "phoenix-postgresql" }}
+{{- $hasCustomUser := ne .Values.database.postgres.user "postgres" }}
 {{- $hasCustomPassword := ne .Values.database.postgres.password "postgres" }}
-{{- if and (or $hasCustomHost $hasCustomPassword) (not .Values.database.url) }}
-{{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings (host: %s) but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:%s@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.host .Values.database.postgres.user .Values.database.postgres.password .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
+{{- $hasCustomDb := ne .Values.database.postgres.db "phoenix" }}
+{{- $hasCustomPort := ne (.Values.database.postgres.port | toString) "5432" }}
+{{- $hasCustomSchema := ne .Values.database.postgres.schema "" }}
+{{- $hasCustomPostgresSettings := or $hasCustomHost $hasCustomUser $hasCustomPassword $hasCustomDb $hasCustomPort $hasCustomSchema }}
+{{- if and $hasCustomPostgresSettings (not .Values.database.url) }}
+{{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:%s@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.user .Values.database.postgres.password .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
+{{- end }}
+{{- if and .Values.database.url $hasCustomPostgresSettings }}
+{{- fail "ERROR: Conflicting database configuration detected!\n\nYou have both 'database.url' and custom 'database.postgres.*' settings configured.\n\nWhen using database.url, all database.postgres.* settings are ignored.\n\nTo fix this, choose ONE option:\n\n  1. Use database.url only:\n     - Keep database.url configured\n     - Remove custom database.postgres.* settings (or set them to defaults)\n\n  2. Use individual postgres settings:\n     - Set database.url to empty string\n     - Configure all required database.postgres.* settings" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Validate database URL format when provided
+*/}}
+{{- define "phoenix.validateDatabaseUrl" -}}
+{{- if .Values.database.url }}
+{{- $url := .Values.database.url }}
+{{- if not (or (hasPrefix "postgresql://" $url) (hasPrefix "sqlite://" $url)) }}
+{{- fail (printf "ERROR: Invalid database.url format detected!\n\nThe database.url must start with a valid scheme.\n\nProvided: %s\n\nSupported formats:\n  - PostgreSQL: postgresql://username:password@host:port/database\n  - SQLite: sqlite:///path/to/database.db\n\nExample PostgreSQL URL:\n  database.url: \"postgresql://myuser:mypass@db.example.com:5432/phoenix\"" $url) }}
+{{- end }}
+{{- if and (hasPrefix "sqlite://" $url) (not .Values.persistence.enabled) }}
+{{- fail "ERROR: SQLite database URL provided without persistent storage!\n\nWhen using SQLite with database.url, you must enable persistent storage to prevent data loss.\n\nTo fix this:\n  - Set persistence.enabled=true\n  - Ensure the SQLite file path in database.url points to the persistent volume\n\nAlternatively, for SQLite with persistence, it's recommended to:\n  - Set persistence.enabled=true\n  - Set database.url to empty string (Phoenix will auto-configure SQLite)" }}
 {{- end }}
 {{- end }}
 {{- end }}

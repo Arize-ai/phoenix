@@ -1,5 +1,6 @@
 {{- include "phoenix.validatePersistence" . }}
 {{- include "phoenix.validateExternalDatabase" . }}
+{{- include "phoenix.validateDatabaseUrl" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
