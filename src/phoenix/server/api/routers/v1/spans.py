@@ -11,8 +11,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
-from sqlalchemy.orm import aliased
+from sqlalchemy import func, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -26,7 +25,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_ids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
@@ -1124,16 +1123,17 @@ async def create_spans(
 
 
 @router.delete(
-    "/projects/{project_identifier}/spans/{span_id}",
+    "/projects/{project_identifier}/spans/{span_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="deleteSpan",
-    summary="Delete a span by span_id",
+    summary="Delete a span by span_identifier",
     description=(
         """
-        Delete a span by its OpenTelemetry span_id within a project,
-        including all its descendants.
-        This will permanently remove the span subtree and update
-        aggregate metrics on the trace.
+        Delete a span by its OpenTelemetry span_id within a project.
+        This deletes only the target span and leaves all descendants alone.
+        If the trace becomes empty after deletion, the trace record will also be deleted.
+        If the deleted span has a parent, negative cumulative values will be propagated
+        up the ancestor chain.
         Note: This operation is irreversible.
         """
     ),
@@ -1148,60 +1148,79 @@ async def delete_span(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    span_id: str = Path(description="The OpenTelemetry span_id of the span to delete"),
+    span_identifier: str = Path(description="The OpenTelemetry span_id of the span to delete"),
 ) -> None:
     """
-    Delete a span by span_id within a project, including its entire subtree.
+    Delete a span by span_identifier within a project, leaving all descendants alone.
 
     1. Find the project by identifier
-    2. Find all descendant spans (subtree) of the target span
-    3. Delete all those spans
-    4. Update aggregate metrics on the trace
-    5. Return 204 No Content on success
+    2. Find the target span to delete
+    3. Delete only the target span (leave descendants alone)
+    4. Check if trace is empty - if so, delete the trace record
+    5. If span had a parent, propagate negative cumulative values up ancestor chain
+    6. Return 204 No Content on success
     """
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
         project_id: int = project.id
-        # Find the root span (to delete)
-        root_span = await session.scalar(
+        # Find the target span to delete
+        target_span = await session.scalar(
             select(models.Span)
             .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
             .where(models.Trace.project_rowid == project_id)
-            .where(models.Span.span_id == span_id)
+            .where(models.Span.span_id == span_identifier)
         )
-        if root_span is None:
+        if target_span is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=f"Span with span_id '{span_id}' not found in project '{project_identifier}'",
+                detail=(
+                    f"Span with span_id '{span_identifier}' not found in "
+                    f"project '{project_identifier}'"
+                ),
             )
-        # Recursive CTE to find all descendants
-        descendants = (
-            select(models.Span.id, models.Span.span_id)
-            .where(models.Span.id == root_span.id)
-            .cte(name="descendants", recursive=True)
+
+        # Store values needed for later operations
+        trace_id = target_span.trace_rowid
+        parent_id = target_span.parent_id
+        cumulative_error_count = target_span.cumulative_error_count
+        cumulative_llm_token_count_prompt = target_span.cumulative_llm_token_count_prompt
+        cumulative_llm_token_count_completion = target_span.cumulative_llm_token_count_completion
+
+        # Delete only the target span (leave descendants alone)
+        await session.execute(sa_delete(models.Span).where(models.Span.id == target_span.id))
+
+        # Step 2: Check if trace is empty—if so, delete the trace record
+        remaining_spans_count = await session.scalar(
+            select(func.count(models.Span.id)).where(models.Span.trace_rowid == trace_id)
         )
-        span_alias = aliased(models.Span)
-        descendants = descendants.union_all(
-            select(span_alias.id, span_alias.span_id).where(
-                span_alias.parent_id == descendants.c.span_id
+
+        if remaining_spans_count == 0:
+            # Trace is empty, delete the trace record
+            await session.execute(sa_delete(models.Trace).where(models.Trace.id == trace_id))
+
+        # Step 3: Propagate negative cumulative values up ancestor chain if parent_id is not null
+        if parent_id is not None:
+            # Use the helper function to get all ancestor span IDs
+            ancestor_ids_query = get_ancestor_span_ids(parent_id)
+
+            # Propagate negative cumulative values to ancestors
+            await session.execute(
+                update(models.Span)
+                .where(models.Span.id.in_(ancestor_ids_query))
+                .values(
+                    cumulative_error_count=(
+                        models.Span.cumulative_error_count - cumulative_error_count
+                    ),
+                    cumulative_llm_token_count_prompt=(
+                        models.Span.cumulative_llm_token_count_prompt
+                        - cumulative_llm_token_count_prompt
+                    ),
+                    cumulative_llm_token_count_completion=(
+                        models.Span.cumulative_llm_token_count_completion
+                        - cumulative_llm_token_count_completion
+                    ),
+                )
             )
-        )
-        descendant_ids = [row[0] for row in (await session.execute(select(descendants.c.id))).all()]
-        if not descendant_ids:
-            # Should not happen, but safety check
-            return None
-        # Delete all descendant spans (including root)
-        await session.execute(sa_delete(models.Span).where(models.Span.id.in_(descendant_ids)))
-        # Update aggregate metrics on the trace (e.g., span count)
-        # For now, just update a simple count if it exists
-        trace = await session.scalar(
-            select(models.Trace).where(models.Trace.id == root_span.trace_rowid)
-        )
-        if trace:
-            # Example: update a span count if such a field exists
-            # trace.span_count = await session.scalar(select(func.count()).select_from(models.Span).
-            # where(models.Span.trace_rowid == trace.id))
-            pass  # TODO: implement actual aggregate metric updates as needed
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))
 
