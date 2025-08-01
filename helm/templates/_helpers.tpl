@@ -94,7 +94,7 @@ Validate external database configuration for consistency
 {{- $hasCustomHost := ne .Values.database.postgres.host "phoenix-postgresql" }}
 {{- $hasCustomPassword := ne .Values.database.postgres.password "postgres" }}
 {{- if and (or $hasCustomHost $hasCustomPassword) (not .Values.database.url) }}
-{{- printf "WARNING: You have configured custom PostgreSQL settings (host: %s) but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nConsider setting:\n  database.url: \"postgresql://%s:%s@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.host .Values.database.postgres.user .Values.database.postgres.password .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db }}
+{{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings (host: %s) but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:%s@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.host .Values.database.postgres.user .Values.database.postgres.password .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
 {{- end }}
 {{- end }}
 {{- end }}
