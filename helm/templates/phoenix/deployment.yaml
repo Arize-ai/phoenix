@@ -106,6 +106,7 @@ spec:
           {{- end }}
 
           volumeMounts:
+            {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
             - name: tmp-volume
               mountPath: /tmp
             - name: var-tmp-volume
@@ -113,11 +114,13 @@ spec:
             - name: var-log-volume
               mountPath: /var/log
             - name: home-volume
-              mountPath: /home/nonroot
+              mountPath: /home/phoenix
+            {{- end }}
             - name: data
               mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
 
       volumes:
+        {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
         - name: tmp-volume
           emptyDir: {}
         - name: var-tmp-volume
@@ -126,6 +129,7 @@ spec:
           emptyDir: {}
         - name: home-volume
           emptyDir: {}
+        {{- end }}
         {{- if .Values.persistence.enabled | toString | eq "true" }}
         - name: data
           persistentVolumeClaim:
