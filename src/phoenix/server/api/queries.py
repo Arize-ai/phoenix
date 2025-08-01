@@ -1,13 +1,13 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import String, and_, case, cast, distinct, func, select, text
+from sqlalchemy import Label, String, and_, case, cast, distinct, func, select, text
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -523,7 +523,7 @@ class Query:
             from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
             for experiment_id in compare_experiment_ids
         ]
-        select_columns = []
+        select_columns: list[Label[Any]] = []
 
         base_experiment_runs = (
             select(models.ExperimentRun)
