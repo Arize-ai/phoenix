@@ -102,6 +102,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"tests/**/*.py" = ["E501"]
 
 [tool.ruff.format]
 line-ending = "native"

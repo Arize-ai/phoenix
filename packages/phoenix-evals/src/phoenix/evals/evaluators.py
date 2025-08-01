@@ -139,7 +139,7 @@ class LLMEvaluator:
             record, options=PromptOptions(provide_explanation=provide_explanation)
         )
         with set_verbosity(self._model, verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(
+            unparsed_output, *_ = await verbose_model._async_generate(
                 prompt,
                 **(
                     openai_function_call_kwargs(self._template.rails, provide_explanation)
