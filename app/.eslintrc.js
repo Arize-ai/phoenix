@@ -219,6 +219,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ListItem } from '@phoenix/components'",
       },
+      {
+        name: "Card",
+        module: "@arizeai/components",
+        use: "import { Card } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

@@ -1,6 +1,7 @@
 import logging
-import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypedDict
+
+from phoenix.evals.utils import emoji_guard
 
 from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
@@ -308,10 +309,3 @@ def register_provider(
         return adapter_class
 
     return decorator
-
-
-def emoji_guard(emoji: str, fallback: str = "") -> str:
-    # Windows has problems with showing emojis
-    if os.name == "nt":
-        return fallback
-    return emoji

@@ -1,10 +1,9 @@
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Dialog,
   FieldError,
   Flex,
@@ -147,8 +146,6 @@ export const AnnotationConfigDialog = ({
           title={
             mode === "new" ? "New Annotation Config" : "Edit Annotation Config"
           }
-          variant="compact"
-          bodyStyle={{ padding: 0 }}
         >
           <Form
             onSubmit={(e) => {

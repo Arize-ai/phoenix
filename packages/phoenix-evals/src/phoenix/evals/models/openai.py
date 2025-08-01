@@ -3,6 +3,7 @@ import logging
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -16,11 +17,17 @@ from typing import (
 )
 from urllib.parse import urlparse
 
+from typing_extensions import assert_never, override
+
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
-from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.base import BaseModel, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import get_audio_format_from_base64
+
+if TYPE_CHECKING:
+    from openai.types import Completion
+    from openai.types.chat import ChatCompletion
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -336,7 +343,10 @@ class OpenAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @override
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -346,26 +356,15 @@ class OpenAIModel(BaseModel):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
-        response = await self._async_rate_limited_completion(
+        return await self._async_rate_limited_completion(
             messages=messages,
             **invoke_params,
         )
-        choice = response["choices"][0]
-        if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
-        message = choice["message"]
-        if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        if tool_calls := message.get("tool_calls"):
-            try:
-                for tool_call in tool_calls:
-                    if tool_call.get("type") == "function":
-                        return str((tool_call.get("function") or {}).get("arguments") or "")
-            except Exception as e:
-                logger.error(f"Error getting tool call arguments: {e}")
-        return str(message["content"])
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @override
+    def _generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[Usage]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -375,28 +374,14 @@ class OpenAIModel(BaseModel):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
-        response = self._rate_limited_completion(
+        return self._rate_limited_completion(
             messages=messages,
             **invoke_params,
         )
-        choice = response["choices"][0]
-        if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
-        message = choice["message"]
-        if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        if tool_calls := message.get("tool_calls"):
-            try:
-                for tool_call in tool_calls:
-                    if tool_call.get("type") == "function":
-                        return str((tool_call.get("function") or {}).get("arguments") or "")
-            except Exception as e:
-                logger.error(f"Error getting tool call arguments: {e}")
-        return str(message["content"])
 
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -404,12 +389,10 @@ class OpenAIModel(BaseModel):
                             (message.get("content") or "")
                             for message in (kwargs.pop("messages", None) or ())
                         )
-                    # OpenAI 1.0.0 API responses are pydantic objects, not dicts
-                    # We must dump the model to get the dict
                     res = await self._async_client.completions.create(**kwargs)
                 else:
                     res = await self._async_client.chat.completions.create(**kwargs)
-                return res.model_dump()
+                return self._parse_output(res)
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:
@@ -418,9 +401,9 @@ class OpenAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -428,10 +411,10 @@ class OpenAIModel(BaseModel):
                             (message.get("content") or "")
                             for message in (kwargs.pop("messages", None) or ())
                         )
-                    # OpenAI 1.0.0 API responses are pydantic objects, not dicts
-                    # We must dump the model to get the dict
-                    return self._client.completions.create(**kwargs).model_dump()
-                return self._client.chat.completions.create(**kwargs).model_dump()
+                    res = self._client.completions.create(**kwargs)
+                else:
+                    res = self._client.chat.completions.create(**kwargs)
+                return self._parse_output(res)
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:
@@ -504,6 +487,49 @@ class OpenAIModel(BaseModel):
         if self.model.startswith("o1"):
             return False
         return True
+
+    def _extract_text(
+        self,
+        response: Union["ChatCompletion", "Completion"],
+    ) -> str:
+        from openai.types import Completion
+        from openai.types.chat import ChatCompletion
+
+        if isinstance(response, ChatCompletion):
+            if not response.choices:
+                return ""
+            message = response.choices[0].message
+            if tool_calls := message.tool_calls:
+                for tool_call in tool_calls:
+                    if tool_call.type != "function":
+                        continue
+                    if arguments := tool_call.function.arguments:
+                        return str(arguments)
+            if function_call := message.function_call:
+                return str(function_call.arguments or "")
+            return message.content or ""
+        elif isinstance(response, Completion):
+            if not response.choices:
+                return ""
+            return response.choices[0].text
+        else:
+            assert_never(response)
+
+    def _parse_output(
+        self,
+        response: Union["ChatCompletion", "Completion"],
+    ) -> Tuple[str, Optional[Usage]]:
+        text = self._extract_text(response)
+        usage = (
+            Usage(
+                prompt_tokens=response_usage.prompt_tokens,
+                completion_tokens=response_usage.completion_tokens,
+                total_tokens=response_usage.total_tokens,
+            )
+            if (response_usage := response.usage)
+            else None
+        )
+        return text, usage
 
 
 def _is_url(url: str) -> bool:
