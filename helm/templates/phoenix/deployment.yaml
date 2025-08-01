@@ -109,10 +109,8 @@ spec:
               mountPath: /var/log
             - name: home-volume
               mountPath: /home/nonroot
-            {{- if .Values.persistence.enabled | toString | eq "true" }}
             - name: data
               mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
-            {{- end }}
 
       volumes:
         - name: tmp-volume
@@ -127,6 +125,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
+        {{- else }}
+        - name: data
+          emptyDir: {}
         {{- end }}
 
       {{- if .Values.serviceAccount.imagePullSecrets }}
