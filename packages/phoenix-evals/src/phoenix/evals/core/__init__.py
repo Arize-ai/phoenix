@@ -1,4 +1,5 @@
 from .evaluators import (
+    ERROR_SCORE,
     ClassificationEvaluator,
     EvalInput,
     Evaluator,
@@ -24,4 +25,5 @@ __all__ = [
     "extract_fields_from_template",
     "list_evaluators",
     "simple_evaluator",
+    "ERROR_SCORE",
 ]
