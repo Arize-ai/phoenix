@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import wraps
@@ -30,6 +31,31 @@ class Score:
     metadata: Dict[str, Any] = field(default_factory=dict)
     source: Optional[SourceType] = None
     direction: Optional[DirectionType] = "maximize"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the Score to a dictionary, excluding None values.
+
+        Returns:
+            A dictionary representation of the Score with None values excluded.
+        """
+        result: Dict[str, Any] = {}
+
+        for field_name, field_value in self.__dict__.items():
+            if field_value is not None:
+                result[field_name] = field_value
+
+        return result
+
+    def pretty_print(self, indent: int = 2) -> None:
+        """
+        Pretty print the Score as formatted JSON.
+
+        Args:
+            indent: Number of spaces for indentation. Defaults to 2.
+        """
+        score_dict = self.to_dict()
+        print(json.dumps(score_dict, indent=indent))
 
 
 # --- Async helper ---
