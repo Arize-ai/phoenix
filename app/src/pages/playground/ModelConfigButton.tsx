@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { memo, Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
@@ -135,7 +135,7 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
-        key={`${instance.id}-baseUrl-${instance.model.baseUrl}`}
+        key="base-url"
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
           debouncedUpdateBaseUrl(value);
@@ -186,10 +186,21 @@ function AzureOpenAiModelConfigFormField({
     [updateModelConfig]
   );
 
+  const debouncedUpdateEndpoint = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "endpoint",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <TextField
-        key={`${instance.id}-modelName-${instance.model.modelName}`}
+        key="model-name"
         defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
@@ -199,12 +210,10 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. azure-openai-deployment-name" />
       </TextField>
       <TextField
-        value={instance.model.endpoint ?? ""}
+        key="endpoint"
+        defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "endpoint",
-            value,
-          });
+          debouncedUpdateEndpoint(value);
         }}
       >
         <Label>Endpoint</Label>
@@ -403,7 +412,8 @@ function AwsModelConfigFormField({
 }
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
-export function ModelConfigButton(props: ModelConfigButtonProps) {
+
+function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
       (instance) => instance.id === props.playgroundInstanceId
@@ -526,6 +536,10 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
     </Dialog>
   );
 }
+
+const MemoizedModelConfigButton = memo(ModelConfigButton);
+
+export { MemoizedModelConfigButton as ModelConfigButton };
 
 interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
 function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
