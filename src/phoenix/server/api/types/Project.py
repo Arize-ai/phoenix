@@ -626,7 +626,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("trace", self.project_rowid, time_range, None, annotation_name),
+            ("trace", self.project_rowid, time_range, None, None, annotation_name),
         )
 
     @strawberry.field
@@ -636,9 +636,10 @@ class Project(Node):
         annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("span", self.project_rowid, time_range, filter_condition, annotation_name),
+            ("span", self.project_rowid, time_range, filter_condition, session_filter, annotation_name),
         )
 
     @strawberry.field

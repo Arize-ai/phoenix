@@ -62,6 +62,7 @@ async def test_evaluation_summaries(
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
+            None,  # session_filter
             eval_name,
         )
         for kind in kinds
@@ -106,6 +107,7 @@ async def test_multiple_annotations_score_weighting(
             project_id,
             TimeRange(start=start_time, end=end_time),
             None,
+            None,  # session_filter
             "quality",
         )
     )
@@ -148,6 +150,7 @@ async def test_missing_label_aggregation(
             project_id,
             TimeRange(start=start_time, end=end_time),
             None,
+            None,  # session_filter
             "distribution",
         )
     )
@@ -192,6 +195,7 @@ async def test_null_label_handling(
             project_id,
             TimeRange(start=start_time, end=end_time),
             None,
+            None,  # session_filter
             "unlabeled",
         )
     )
