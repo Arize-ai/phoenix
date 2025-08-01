@@ -403,7 +403,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_identifier}/spans/{span_identifier}": {
+    "/v1/spans/{span_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -415,12 +415,19 @@ export interface paths {
         post?: never;
         /**
          * Delete a span by span_identifier
-         * @description Delete a span by its OpenTelemetry span_id within a project.
-         *             This deletes only the target span and leaves all descendants alone.
-         *             If the trace becomes empty after deletion, the trace record will also be deleted.
-         *             If the deleted span has a parent, negative cumulative values will be propagated
-         *             up the ancestor chain.
-         *             Note: This operation is irreversible.
+         * @description Delete a single span by identifier.
+         *
+         *             **Important**: This operation deletes ONLY the specified span itself and does NOT
+         *             delete its descendants/children. All child spans will remain in the trace and
+         *             become orphaned (their parent_id will point to a non-existent span).
+         *
+         *             Behavior:
+         *             - Deletes only the target span (preserves all descendant spans)
+         *             - If this was the last span in the trace, the trace record is also deleted
+         *             - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+         *               are subtracted from all ancestor spans in the chain
+         *
+         *             **Note**: This operation is irreversible and may create orphaned spans.
          */
         delete: operations["deleteSpan"];
         options?: never;
@@ -3796,8 +3803,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
                 /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
                 span_identifier: string;
             };

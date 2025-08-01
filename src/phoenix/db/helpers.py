@@ -330,7 +330,7 @@ def _date_trunc_for_sqlite(
     return func.datetime(t, f"{-utc_offset_minutes} minutes")
 
 
-def get_ancestor_span_ids(parent_id: str) -> Select[tuple[int]]:
+def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
     """
     Get all ancestor span IDs for a given parent_id using recursive CTE.
 

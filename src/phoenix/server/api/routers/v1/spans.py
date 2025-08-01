@@ -25,7 +25,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_ids
+from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
@@ -1178,23 +1178,23 @@ async def delete_span(
         None (204 No Content status)
     """
     async with request.app.state.db() as session:
-        # Try to parse as GlobalID first, then fall back to span_id
+        # Determine the predicate for deletion based on identifier type
         try:
             span_rowid = from_global_id_with_expected_type(
                 GlobalID.from_id(span_identifier),
                 "Span",
             )
-            # Find by database rowid
-            target_span = await session.scalar(
-                select(models.Span).where(models.Span.id == span_rowid)
-            )
+            predicate = models.Span.id == span_rowid
             error_detail = f"Span with relay ID '{span_identifier}' not found"
         except Exception:
-            # Find by OpenTelemetry span_id
-            target_span = await session.scalar(
-                select(models.Span).where(models.Span.span_id == span_identifier)
-            )
+            predicate = models.Span.span_id == span_identifier
             error_detail = f"Span with span_id '{span_identifier}' not found"
+
+        # Delete the span and return its data in one operation
+        target_span = await session.scalar(
+            sa.delete(models.Span).where(predicate).returning(models.Span)
+        )
+
         if target_span is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
@@ -1208,9 +1208,6 @@ async def delete_span(
         cumulative_llm_token_count_prompt = target_span.cumulative_llm_token_count_prompt
         cumulative_llm_token_count_completion = target_span.cumulative_llm_token_count_completion
 
-        # Delete only the target span (leave descendants alone)
-        await session.execute(sa.delete(models.Span).where(models.Span.id == target_span.id))
-
         # Step 2: Check if trace is empty—if so, delete the trace record
         trace_is_empty = await session.scalar(
             select(~exists().where(models.Span.trace_rowid == trace_rowid))
@@ -1223,7 +1220,7 @@ async def delete_span(
         # Step 3: Propagate negative cumulative values up ancestor chain if parent_id is not null
         if parent_id is not None:
             # Use the helper function to get all ancestor span IDs
-            ancestor_ids_query = get_ancestor_span_ids(parent_id)
+            ancestor_ids_query = get_ancestor_span_rowids(parent_id)
 
             # Propagate negative cumulative values to ancestors
             await session.execute(
