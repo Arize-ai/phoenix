@@ -23,6 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
+import { ManualProjectGuide } from "@phoenix/pages/projects/ManualProjectGuide";
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 
@@ -83,6 +84,7 @@ function NewProjectDialog() {
           <TabList>
             <Tab id="python">Python</Tab>
             <Tab id="typescript">TypeScript</Tab>
+            <Tab id="manual">Manual</Tab>
           </TabList>
           <TabPanel id="python">
             <View padding="size-200" overflow="auto">
@@ -94,6 +96,11 @@ function NewProjectDialog() {
             <View padding="size-200" overflow="auto">
               <TraceBasedProjectGuideIntro />
               <TypeScriptProjectGuide />
+            </View>
+          </TabPanel>
+          <TabPanel id="manual">
+            <View padding="size-200" overflow="auto">
+              <ManualProjectGuide />
             </View>
           </TabPanel>
         </Tabs>
