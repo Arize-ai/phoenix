@@ -492,7 +492,8 @@ def get_env_tls_verify_client() -> bool:
     Gets the value of the PHOENIX_TLS_VERIFY_CLIENT environment variable.
 
     Returns:
-        bool: Whether TLS client verification is enabled. Defaults to False if the environment variable is not set.
+        bool: True if client certificate verification is enabled, False otherwise. Defaults to False
+        if the environment variable is not set.
     """  # noqa: E501
     return _bool_val(ENV_PHOENIX_TLS_VERIFY_CLIENT, False)
 
