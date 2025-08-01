@@ -343,6 +343,18 @@ input ClusterInput {
   id: ID
 }
 
+type CompareExperimentCountsDiff {
+  compareExperimentId: ID!
+  latencyMs: CountDiff!
+  promptTokenCount: CountDiff!
+  completionTokenCount: CountDiff!
+  totalTokenCount: CountDiff!
+}
+
+type CompareExperimentCountsPayload {
+  diffs: [CompareExperimentCountsDiff!]!
+}
+
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -376,6 +388,12 @@ type CostBreakdown {
   """
   tokens: Float
   cost: Float
+}
+
+type CountDiff {
+  numIncreases: Int!
+  numDecreases: Int!
+  numEqual: Int!
 }
 
 input CreateAnnotationConfigInput {
@@ -2077,6 +2095,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
+  compareExperimentCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): CompareExperimentCountsPayload!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!
