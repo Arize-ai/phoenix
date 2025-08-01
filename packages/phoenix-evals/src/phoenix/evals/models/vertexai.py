@@ -153,12 +153,6 @@ class VertexAIModel(BaseModel):
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
     @override
-    async def _async_generate(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
-        return self._generate(prompt, **kwargs)
-
-    @override
     async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> Tuple[str, ExtraInfo]:
@@ -166,10 +160,6 @@ class VertexAIModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         return self._generate_with_extra(prompt, **kwargs)
-
-    @override
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        return self._generate_with_extra(prompt, **kwargs)[0]
 
     @override
     def _generate_with_extra(

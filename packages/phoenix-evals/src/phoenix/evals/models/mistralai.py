@@ -109,10 +109,6 @@ class MistralAIModel(BaseModel):
         return {k: v for k, v in params.items() if v is not None}
 
     @override
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        return self._generate_with_extra(prompt, **kwargs)[0]
-
-    @override
     def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> Tuple[str, ExtraInfo]:
@@ -144,12 +140,6 @@ class MistralAIModel(BaseModel):
             return self._parse_output(response)
 
         return _completion(**kwargs)
-
-    @override
-    async def _async_generate(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
-        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
 
     @override
     async def _async_generate_with_extra(

@@ -99,13 +99,11 @@ class BaseModel(ABC):
         # run with `verbose=True`
         return ""
 
-    @abstractmethod
     async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        raise NotImplementedError
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
 
-    @abstractmethod
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        raise NotImplementedError
+        return self._generate_with_extra(prompt, **kwargs)[0]
 
     @abstractmethod
     async def _async_generate_with_extra(

@@ -115,16 +115,6 @@ class BedrockModel(BaseModel):
         )
 
     @override
-    async def _async_generate(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
-        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
-
-    @override
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        return self._generate_with_extra(prompt, **kwargs)[0]
-
-    @override
     def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> Tuple[str, ExtraInfo]:

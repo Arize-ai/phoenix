@@ -162,15 +162,6 @@ class GoogleGenAIModel(BaseModel):
         self._client = genai.Client(api_key=self.api_key)
 
     @override
-    async def _async_generate(
-        self,
-        prompt: Union[str, MultimodalPrompt],
-        instruction: Optional[str] = None,
-        **kwargs: Dict[str, Any],
-    ) -> str:
-        return (await self._async_generate_with_extra(prompt, instruction=instruction, **kwargs))[0]
-
-    @override
     async def _async_generate_with_extra(
         self,
         prompt: Union[str, MultimodalPrompt],
@@ -198,15 +189,6 @@ class GoogleGenAIModel(BaseModel):
                 raise e
 
         return await _async_completion(**kwargs)
-
-    @override
-    def _generate(
-        self,
-        prompt: Union[str, MultimodalPrompt],
-        instruction: Optional[str] = None,
-        **kwargs: Dict[str, Any],
-    ) -> str:
-        return self._generate_with_extra(prompt, instruction=instruction, **kwargs)[0]
 
     @override
     def _generate_with_extra(
