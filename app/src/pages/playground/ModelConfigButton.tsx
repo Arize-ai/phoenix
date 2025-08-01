@@ -1,5 +1,4 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
-import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
@@ -24,7 +23,8 @@ import {
   ModalOverlay,
   Text,
   TextField,
-  View,
+  Tooltip,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -512,18 +512,8 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
                 Save as Default
               </Button>
               <Tooltip placement="bottom" offset={5}>
-                {/* TODO: make this generic #7855 */}
-                <View
-                  padding="size-100"
-                  backgroundColor="light"
-                  borderColor="dark"
-                  borderWidth="thin"
-                  borderRadius="small"
-                  width="200px"
-                >
-                  Saves the current configuration as the default for{" "}
-                  {ModelProviders[instance.model.provider] ?? "this provider"}.
-                </View>
+                Saves the current configuration as the default for{" "}
+                {ModelProviders[instance.model.provider] ?? "this provider"}.
               </Tooltip>
             </TooltipTrigger>
             <DialogCloseButton />

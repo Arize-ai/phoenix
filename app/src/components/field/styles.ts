@@ -55,6 +55,7 @@ export const fieldBaseCSS = css`
     }
   }
   [slot="description"],
+  [slot="errorMessage"],
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
     font-size: var(--ac-global-font-size-xs) !important;
