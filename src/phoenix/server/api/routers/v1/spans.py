@@ -1218,7 +1218,7 @@ async def delete_span(
             await session.execute(sa.delete(models.Trace).where(models.Trace.id == trace_rowid))
 
         # Step 3: Propagate negative cumulative values up ancestor chain if parent_id is not null
-        if parent_id is not None:
+        if not trace_is_empty and parent_id is not None:
             # Use the helper function to get all ancestor span IDs
             ancestor_ids_query = get_ancestor_span_rowids(parent_id)
 
