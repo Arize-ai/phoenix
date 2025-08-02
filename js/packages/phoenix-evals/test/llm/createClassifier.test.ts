@@ -44,12 +44,14 @@ Is the answer above factual or hallucinated based on the query and reference tex
     // Arrange
     const mockModel = new MockLanguageModelV2({
       doGenerate: async () => ({
-        finishReason: 'stop',
+        finishReason: "stop",
         usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
-        content: [{ 
-          type: 'text', 
-          text: '{"explanation": "The answer states that Arize is not open source, but the reference text clearly states that Arize Phoenix is open source. This is directly contradicted by the reference material.", "label": "hallucinated"}' 
-        }],
+        content: [
+          {
+            type: "text",
+            text: '{"explanation": "The answer states that Arize is not open source, but the reference text clearly states that Arize Phoenix is open source. This is directly contradicted by the reference material.", "label": "hallucinated"}',
+          },
+        ],
         warnings: [],
       }),
     });
@@ -75,21 +77,29 @@ Is the answer above factual or hallucinated based on the query and reference tex
   });
 
   it("should have telemetry enabled by default", async () => {
-    // Arrange  
+    // Arrange
     const mockModel = new MockLanguageModelV2({
       doGenerate: async () => ({
-        finishReason: 'stop',
+        finishReason: "stop",
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-        content: [{ type: 'text', text: '{"explanation": "Test explanation", "label": "factual"}' }],
+        content: [
+          {
+            type: "text",
+            text: '{"explanation": "Test explanation", "label": "factual"}',
+          },
+        ],
         warnings: [],
       }),
     });
 
     // Spy on generateClassification to verify telemetry configuration
-    const generateClassificationSpy = vi.spyOn(generateClassificationModule, 'generateClassification');
+    const generateClassificationSpy = vi.spyOn(
+      generateClassificationModule,
+      "generateClassification"
+    );
     generateClassificationSpy.mockResolvedValue({
       label: "factual",
-      explanation: "Test explanation"
+      explanation: "Test explanation",
     });
 
     const classifier = createClassifier({
@@ -109,13 +119,15 @@ Is the answer above factual or hallucinated based on the query and reference tex
     // Assert generateClassification was called with correct arguments
     expect(generateClassificationSpy).toHaveBeenCalledTimes(1);
     const callArgs = generateClassificationSpy.mock.calls[0]?.[0];
-    
+
     // Verify basic arguments are present
-    expect(callArgs).toEqual(expect.objectContaining({
-      model: expect.any(Object),
-      labels: expect.arrayContaining(["factual", "hallucinated"]),
-      prompt: expect.stringContaining("Test input")
-    }));
+    expect(callArgs).toEqual(
+      expect.objectContaining({
+        model: expect.any(Object),
+        labels: expect.arrayContaining(["factual", "hallucinated"]),
+        prompt: expect.stringContaining("Test input"),
+      })
+    );
 
     // Verify telemetry defaults to undefined (which means enabled in generateClassification)
     expect(callArgs?.telemetry).toBeUndefined();
@@ -132,18 +144,26 @@ Is the answer above factual or hallucinated based on the query and reference tex
     // Arrange
     const mockModel = new MockLanguageModelV2({
       doGenerate: async () => ({
-        finishReason: 'stop',
+        finishReason: "stop",
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-        content: [{ type: 'text', text: '{"explanation": "Test explanation", "label": "factual"}' }],
+        content: [
+          {
+            type: "text",
+            text: '{"explanation": "Test explanation", "label": "factual"}',
+          },
+        ],
         warnings: [],
       }),
     });
 
     // Spy on generateClassification to verify telemetry configuration
-    const generateClassificationSpy = vi.spyOn(generateClassificationModule, 'generateClassification');
+    const generateClassificationSpy = vi.spyOn(
+      generateClassificationModule,
+      "generateClassification"
+    );
     generateClassificationSpy.mockResolvedValue({
       label: "factual",
-      explanation: "Test explanation"
+      explanation: "Test explanation",
     });
 
     const classifier = createClassifier({
@@ -156,7 +176,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
     // Act
     const result = await classifier({
       output: "Test output",
-      input: "Test input", 
+      input: "Test input",
       reference: "Test reference",
     });
 
@@ -167,8 +187,8 @@ Is the answer above factual or hallucinated based on the query and reference tex
         labels: expect.arrayContaining(["factual", "hallucinated"]),
         prompt: expect.stringContaining("Test input"),
         telemetry: expect.objectContaining({
-          isEnabled: false
-        })
+          isEnabled: false,
+        }),
       })
     );
 
