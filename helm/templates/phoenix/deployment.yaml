@@ -1,3 +1,8 @@
+{{/*
+Validate persistence configuration to prevent conflicts
+*/}}
+{{- include "phoenix.validatePersistence" . }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -99,8 +104,9 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+
           volumeMounts:
+            {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
             - name: tmp-volume
               mountPath: /tmp
             - name: var-tmp-volume
@@ -109,16 +115,12 @@ spec:
               mountPath: /var/log
             - name: home-volume
               mountPath: /home/phoenix
-
-            {{- if and .Values.server.workingDir (ne .Values.server.workingDir "") }}
-            - name: working-dir-volume
-              mountPath: {{ .Values.server.workingDir }}
             {{- end }}
+            - name: data
+              mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
 
-          {{- end }}
-
-      {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
       volumes:
+        {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
         - name: tmp-volume
           emptyDir: {}
         - name: var-tmp-volume
@@ -126,17 +128,17 @@ spec:
         - name: var-log-volume
           emptyDir: {}
         - name: home-volume
-          {{- if .Values.persistence.enabled | toString | eq "true" }}
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data-pvc
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        {{- if .Values.server.workingDir }}
-        - name: working-dir-volume
           emptyDir: {}
         {{- end }}
-      {{- end }}
+        {{- if .Values.persistence.enabled | toString | eq "true" }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data-pvc
+        {{- else }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+
       {{- if .Values.serviceAccount.imagePullSecrets }}
       imagePullSecrets:
         {{- range .Values.serviceAccount.imagePullSecrets }}
