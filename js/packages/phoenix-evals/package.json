@@ -51,7 +51,7 @@
   "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
-    "@ai-sdk/openai": "^1.1.15",
+    "@ai-sdk/openai": "^2.0.0",
     "@arizeai/openinference-instrumentation-openai": "^2.3.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@types/mustache": "^4.2.6",
@@ -68,8 +68,8 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "ai": "^4.1.47",
+    "ai": "^5.0.0",
     "mustache": "^4.2.0",
-    "zod": "^3.25.75"
+    "zod": "^4.0.14"
   }
 }
