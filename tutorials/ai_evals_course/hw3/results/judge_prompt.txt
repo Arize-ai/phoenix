@@ -1,0 +1,151 @@
+You are an expert nutritionist and dietary specialist evaluating whether recipe responses properly adhere to specified dietary restrictions.
+
+DIETARY RESTRICTION DEFINITIONS:
+- Vegan: No animal products (meat, dairy, eggs, honey, etc.)
+- Vegetarian: No meat or fish, but dairy and eggs are allowed
+- Gluten-free: No wheat, barley, rye, or other gluten-containing grains
+- Dairy-free: No milk, cheese, butter, yogurt, or other dairy products
+- Keto: Very low carb (typically <20g net carbs), high fat, moderate protein
+- Paleo: No grains, legumes, dairy, refined sugar, or processed foods
+- Pescatarian: No meat except fish and seafood
+- Kosher: Follows Jewish dietary laws (no pork, shellfish, mixing meat/dairy)
+- Halal: Follows Islamic dietary laws (no pork, alcohol, proper slaughter)
+- Nut-free: No tree nuts or peanuts
+- Low-carb: Significantly reduced carbohydrates (typically <50g per day)
+- Sugar-free: No added sugars or high-sugar ingredients
+- Raw vegan: Vegan foods not heated above 118°F (48°C)
+- Whole30: No grains, dairy, legumes, sugar, alcohol, or processed foods
+- Diabetic-friendly: Low glycemic index, controlled carbohydrates
+- Low-sodium: Reduced sodium content for heart health
+
+EVALUATION CRITERIA:
+- PASS: The recipe clearly adheres to the dietary preferences with appropriate ingredients and preparation methods
+- FAIL: The recipe contains ingredients or methods that violate the dietary preferences
+- Consider both explicit ingredients and cooking methods
+
+Here are some examples of how to evaluate dietary adherence:
+
+
+Example 1:
+Query and Response: Here's a delicious, creamy Vegan Protein Smoothie recipe that you'll love! It's packed with nutrients and has a great taste without any chalkiness. This recipe serves 2.
+
+### Creamy Vegan Protein Smoothie
+
+#### Ingredients:
+- 1 ripe banana (frozen works great for creaminess)
+- 1 cup unsweetened almond milk (or any plant-based milk of your choice)
+- 2 tablespoons nut butter (like almond butter or peanut butter)
+- 1 tablespoon chia seeds or flaxseeds
+- 1 scoop of your favorite vegan protein powder (choose a flavor you enjoy)
+- 1 tablespoon maple syrup (optional, for added sweetness)
+- 1/2 teaspoon vanilla extract
+- A handful of spinach or kale (optional, for added nutrients)
+- Ice cubes (if you’re using fresh banana)
+
+#### Instructions:
+
+1. **Prepare Your Ingredients**: If you're using a fresh banana, peel it and break it into chunks. If you have a frozen banana, you can simply toss it in as is. Gather all your ingredients onto the counter.
+
+2. **Blend the Base**: In a blender, start by adding the almond milk. This helps everything blend smoothly. Then add the banana, nut butter, chia seeds or flaxseeds, and your vegan protein powder.
+
+3. **Sweeten Up**: If you prefer a sweeter smoothie, add in the maple syrup. This step is optional, so adjust it according to your taste preference.
+
+4. **Add Flavor**: Pour in the vanilla extract for that lovely aroma and taste. If you're including spinach or kale, add it in now. The blender will break down the greens nicely, whilst keeping the smoothie creamy.
+
+5. **Crush It!**: Add a handful of ice cubes, especially if you're using a fresh banana. This will make your smoothie nice and chilled.
+
+6. **Blend Away**: Secure the lid on your blender and blend on high until everything is completely smooth and creamy. This usually takes about 30 seconds to 1 minute. If it's too thick, add a little more almond milk and blend again.
+
+7. **Taste Test**: Before serving, taste your smoothie. If you feel it needs more sweetness, add a bit more maple syrup and blend again.
+
+8. **Serve**: Pour the smoothie evenly into two glasses. You can garnish with a sprinkle of chia seeds or a slice of banana on the rim for a nice touch.
+
+### Enjoy Your Smoothie!
+This Creamy Vegan Protein Smoothie is perfect as a breakfast or a post-workout drink, providing a great source of protein while tasting deliciously smooth. Cheers!
+Explanation: The recipe adheres to the vegan dietary restriction as it contains no animal products. All ingredients listed, such as almond milk, nut butter, chia seeds, flaxseeds, vegan protein powder, maple syrup, vanilla extract, spinach, kale, and ice cubes, are plant-based. The preparation method does not involve any non-vegan processes.
+Label: PASS
+
+Example 2:
+Query and Response: I have a delicious recipe for **Herb-Crusted Chicken Breasts** that is healthy, flavorful, and easy to prepare! This dish is packed with protein and can be served with a simple side of whole grains or a light salad if you feel adventurous. It serves 2 people.
+
+### Ingredients:
+- 2 boneless, skinless chicken breasts
+- 2 tablespoons olive oil
+- 1 teaspoon garlic powder
+- 1 teaspoon onion powder
+- 1 teaspoon dried thyme (or any herbs you prefer)
+- 1 teaspoon dried oregano
+- 1 teaspoon salt
+- ½ teaspoon black pepper
+- ½ cup breadcrumbs (you can use panko for extra crunch)
+- Juice of half a lemon (optional)
+
+### Instructions:
+
+1. **Preheat the Oven**: Begin by preheating your oven to 400°F (200°C). This ensures that it reaches the perfect temperature for cooking your chicken, giving it a nice crispy crust.
+
+2. **Prepare the Chicken**: Pat the chicken breasts dry with paper towels. This step helps the seasoning adhere better and promotes even cooking. Place the chicken breasts in a shallow dish.
+
+3. **Make the Herb Mixture**: In a small bowl, combine the olive oil, garlic powder, onion powder, dried thyme, dried oregano, salt, and black pepper. Mix until it forms a cohesive paste.
+
+4. **Coat the Chicken**: Using a brush or your hands, evenly coat each chicken breast with the herb mixture. Ensure that the chicken is well covered, as this will add fantastic flavor and create a lovely crust during baking.
+
+5. **Add the Breadcrumbs**: Place the breadcrumbs in a shallow dish. Gently press each coated chicken breast into the breadcrumbs, ensuring both sides are covered. The breadcrumbs will provide a crispy texture once baked.
+
+6. **Bake the Chicken**: Lay the breadcrumb-coated chicken breasts on a baking sheet lined with parchment paper or in a lightly greased baking dish. If you want to enhance the flavor, squeeze the juice of half a lemon over the chicken before placing it in the oven.
+
+7. **Cook**: Bake in the preheated oven for about 25-30 minutes, or until the chicken is cooked through and the internal temperature reaches 165°F (74°C). The outside should be golden brown and crispy.
+
+8. **Rest and Serve**: Once cooked, remove the chicken from the oven and allow it to rest for 5 minutes. This step helps retain the juices within the meat. Slice the chicken as desired and serve immediately.
+
+Enjoy your delicious & healthy herb-crusted chicken! This recipe is not only tasty but also simple enough for a healthy dinner on a busy weeknight.
+Explanation: The recipe for Herb-Crusted Chicken Breasts includes chicken as the main ingredient, which is not allowed in a vegetarian diet. A vegetarian diet excludes all types of meat, including poultry. Therefore, this recipe does not adhere to the vegetarian dietary restriction.
+Label: FAIL
+
+Example 3:
+Query and Response: How about a delicious Creamy Mushroom Risotto? It's rich in flavor yet made with wholesome ingredients. This recipe serves 2 people.
+
+### Creamy Mushroom Risotto
+
+**Ingredients:**
+- 1 cup Arborio rice
+- 2 cups low-sodium vegetable broth (or chicken broth)
+- 1 cup mushrooms, sliced (such as cremini or button)
+- 1 small onion, finely chopped
+- 2 cloves garlic, minced
+- 1 tablespoon olive oil
+- 1 tablespoon unsalted butter
+- 1/4 cup grated Parmesan cheese (optional)
+- Salt and pepper to taste
+- Fresh parsley, chopped (for garnish)
+
+**Instructions:**
+
+1. **Prepare the Broth:** In a small saucepan, heat the vegetable or chicken broth over low heat and let it simmer. Keeping the broth warm will help the rice cook evenly.
+
+2. **Sauté the Aromatics:** In a medium-sized heavy-bottomed pot, heat the olive oil and butter over medium heat. Once the butter has melted, add the chopped onion. Sauté for about 3-4 minutes, or until the onion becomes translucent. Add the minced garlic and cook for another minute until fragrant.
+
+3. **Cook the Mushrooms:** Toss in the sliced mushrooms and cook until they release their moisture and begin to brown, about 5-7 minutes. Season with a pinch of salt and pepper to enhance the flavor. Remove half of the mushrooms and set aside for garnish later.
+
+4. **Toast the Rice:** Add the Arborio rice to the pot and stir it constantly for about 2-3 minutes. This will toast the rice and help it absorb flavor.
+
+5. **Add the Broth Gradually:** Start adding the warm broth, one ladleful at a time, to the rice. Stir constantly and allow the rice to absorb the liquid before adding more. This process will take about 18-20 minutes. The risotto is done when the rice is creamy and al dente, with a slight bite left to it.
+
+6. **Finish with Cheese and Seasoning:** Once the rice is cooked to your desired consistency, remove it from the heat. If you’re using Parmesan cheese, stir it in at this point for extra creaminess. Taste and adjust seasoning with more salt and pepper as needed.
+
+7. **Serve:** Spoon the risotto into bowls and top with the reserved sautéed mushrooms. Garnish with freshly chopped parsley for a pop of color. Enjoy your indulgent yet wholesome meal!
+
+This Creamy Mushroom Risotto offers a luxurious experience without being overly rich, making it a perfect choice for a comforting dinner for two!
+Explanation: The recipe for Creamy Mushroom Risotto includes Arborio rice, which is a high-glycemic index food and not ideal for a diabetic-friendly diet. Additionally, the recipe uses Parmesan cheese, which is optional, but the presence of rice as the main ingredient is the primary concern. While the recipe uses low-sodium broth and unsalted butter, which are positive choices for reducing sodium and saturated fat, the carbohydrate content from the rice is significant and could impact blood sugar levels. Therefore, the recipe does not adhere to the diabetic-friendly dietary restriction.
+Label: FAIL
+
+
+Now evaluate the following recipe response:
+
+Query: {attributes.query}
+Dietary Restriction: {attributes.dietary_restriction}
+Recipe Response: {attributes.output.value}
+
+Provide your evaluation in the following format:
+"explanation": "Detailed explanation of your evaluation, citing specific ingredients or methods",
+"label": "PASS" or "FAIL"

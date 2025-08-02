@@ -1,0 +1,9 @@
+arize-phoenix
+openinference-semantic-conventions
+litellm
+python-dotenv
+tqdm
+numpy
+matplotlib
+seaborn
+pandas
