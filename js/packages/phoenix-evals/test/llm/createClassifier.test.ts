@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { createClassifier } from "../../src/llm/createClassifier";
 import { MockLanguageModelV2 } from "ai/test";
+import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 describe("createClassifier", () => {
   beforeEach(() => {
@@ -74,7 +75,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
   });
 
   it("should have telemetry enabled by default", async () => {
-    // Arrange
+    // Arrange  
     const mockModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         finishReason: 'stop',
@@ -84,10 +85,18 @@ Is the answer above factual or hallucinated based on the query and reference tex
       }),
     });
 
+    // Spy on generateClassification to verify telemetry configuration
+    const generateClassificationSpy = vi.spyOn(generateClassificationModule, 'generateClassification');
+    generateClassificationSpy.mockResolvedValue({
+      label: "factual",
+      explanation: "Test explanation"
+    });
+
     const classifier = createClassifier({
       model: mockModel,
       choices: { factual: 1, hallucinated: 0 },
       promptTemplate: hallucinationPromptTemplate,
+      // No telemetry config provided - should default to enabled
     });
 
     // Act
@@ -97,9 +106,26 @@ Is the answer above factual or hallucinated based on the query and reference tex
       reference: "Test reference",
     });
 
-    // Assert
+    // Assert generateClassification was called with correct arguments
+    expect(generateClassificationSpy).toHaveBeenCalledTimes(1);
+    const callArgs = generateClassificationSpy.mock.calls[0]?.[0];
+    
+    // Verify basic arguments are present
+    expect(callArgs).toEqual(expect.objectContaining({
+      model: expect.any(Object),
+      labels: expect.arrayContaining(["factual", "hallucinated"]),
+      prompt: expect.stringContaining("Test input")
+    }));
+
+    // Verify telemetry defaults to undefined (which means enabled in generateClassification)
+    expect(callArgs?.telemetry).toBeUndefined();
+
+    // Verify the classifier works correctly
     expect(result.score).toBe(1);
     expect(result.label).toBe("factual");
+
+    // Cleanup
+    generateClassificationSpy.mockRestore();
   });
 
   it("should respect explicitly disabled telemetry", async () => {
@@ -111,6 +137,13 @@ Is the answer above factual or hallucinated based on the query and reference tex
         content: [{ type: 'text', text: '{"explanation": "Test explanation", "label": "factual"}' }],
         warnings: [],
       }),
+    });
+
+    // Spy on generateClassification to verify telemetry configuration
+    const generateClassificationSpy = vi.spyOn(generateClassificationModule, 'generateClassification');
+    generateClassificationSpy.mockResolvedValue({
+      label: "factual",
+      explanation: "Test explanation"
     });
 
     const classifier = createClassifier({
@@ -127,8 +160,23 @@ Is the answer above factual or hallucinated based on the query and reference tex
       reference: "Test reference",
     });
 
-    // Assert
+    // Assert telemetry is explicitly disabled
+    expect(generateClassificationSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.any(Object),
+        labels: expect.arrayContaining(["factual", "hallucinated"]),
+        prompt: expect.stringContaining("Test input"),
+        telemetry: expect.objectContaining({
+          isEnabled: false
+        })
+      })
+    );
+
+    // Also verify the classifier works correctly
     expect(result.score).toBe(1);
     expect(result.label).toBe("factual");
+
+    // Cleanup
+    generateClassificationSpy.mockRestore();
   });
 });
