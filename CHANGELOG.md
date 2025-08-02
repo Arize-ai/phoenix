@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.18.0...arize-phoenix-v11.19.0) (2025-08-02)
+
+
+### Features
+
+* delete span route along with span subtree ([#8877](https://github.com/Arize-ai/phoenix/issues/8877)) ([5f2e821](https://github.com/Arize-ai/phoenix/commit/5f2e821a83b0ce55033da75452e06f8298e26a1e))
+
 ## [11.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.17.0...arize-phoenix-v11.18.0) (2025-08-01)
 
 
