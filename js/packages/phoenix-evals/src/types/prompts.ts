@@ -1,9 +1,9 @@
 import { ModelMessage, UIMessage } from "ai";
 
 /**
- * Prompt part of the AI function options.
- * It contains a system message, a simple text prompt, or a list of messages.
- * Note: this is pulled from the `ai` package and is used as a compatibility type.
+ * Prompt part of the AI function options for model generation.
+ * It contains a system message, a simple text prompt, or a list of model messages.
+ * Uses ModelMessage format compatible with AI SDK v5 generateObject function.
  */
 export interface WithPrompt {
   /**
@@ -15,7 +15,27 @@ export interface WithPrompt {
    */
   prompt?: string;
   /**
-   * A list of messages. You can either use `prompt` or `messages` but not both.
+   * A list of model messages. You can either use `prompt` or `messages` but not both.
+   * Uses ModelMessage format for compatibility with AI SDK v5.
    */
-  messages?: Array<ModelMessage> | Array<Omit<UIMessage, "id">>;
+  messages?: Array<ModelMessage>;
+}
+
+/**
+ * Prompt part for UI-focused operations that can work with rich UIMessage format.
+ * Use this when you need the full UIMessage capabilities for persistence or UI state.
+ */
+export interface WithUIPrompt {
+  /**
+   * System message to include in the prompt. Can be used with `prompt` or `messages`.
+   */
+  system?: string;
+  /**
+   * A simple text prompt. You can either use `prompt` or `messages` but not both.
+   */
+  prompt?: string;
+  /**
+   * A list of UI messages with rich metadata. You can either use `prompt` or `messages` but not both.
+   */
+  messages?: Array<UIMessage>;
 }
