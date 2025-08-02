@@ -1,13 +1,13 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import String, and_, cast, distinct, func, select, text
+from sqlalchemy import Label, String, and_, case, cast, distinct, func, select, text
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -23,6 +23,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
+from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -104,6 +105,27 @@ class ModelsInput:
 class DbTableStats:
     table_name: str
     num_bytes: float
+
+
+@strawberry.type
+class CountDiff:
+    num_increases: int
+    num_decreases: int
+    num_equal: int
+
+
+@strawberry.type
+class CompareExperimentCountsDiff:
+    compare_experiment_id: GlobalID
+    latency: CountDiff
+    prompt_token_count: CountDiff
+    completion_token_count: CountDiff
+    total_token_count: CountDiff
+
+
+@strawberry.type
+class CompareExperimentCountsPayload:
+    diffs: list[CompareExperimentCountsDiff]
 
 
 @strawberry.type
@@ -479,6 +501,279 @@ class Query:
             cursors_and_nodes=cursors_and_nodes,
             has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
             has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def compare_experiment_counts(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+    ) -> CompareExperimentCountsPayload:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if len(compare_experiment_ids) == 0:
+            raise BadRequest("At least one compare experiment ID must be provided")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+        base_experiment_rowid = from_global_id_with_expected_type(
+            base_experiment_id, models.Experiment.__name__
+        )
+        compare_experiment_rowids = [
+            from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
+            for experiment_id in compare_experiment_ids
+        ]
+        select_columns: list[Label[Any]] = []
+
+        base_experiment_runs = (
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
+            .subquery()
+            .alias("base_experiment_runs")
+        )
+        base_experiment_run_latency = LatencyMs(
+            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
+        )
+        base_experiment_run_prompt_token_count = func.coalesce(
+            base_experiment_runs.c.prompt_token_count, 0
+        )
+        base_experiment_run_completion_token_count = func.coalesce(
+            base_experiment_runs.c.completion_token_count, 0
+        )
+        base_experiment_run_total_token_count = (
+            base_experiment_run_prompt_token_count + base_experiment_run_completion_token_count
+        )
+
+        compare_experiment_run_subqueries = []
+        for compare_experiment_index, compare_experiment_rowid in enumerate(
+            compare_experiment_rowids
+        ):
+            compare_experiment_runs = (
+                select(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == compare_experiment_rowid)
+                .subquery()
+                .alias(f"compare_experiment_{compare_experiment_index}_runs")
+            )
+            compare_experiment_run_subqueries.append(compare_experiment_runs)
+            compare_experiment_run_latency = LatencyMs(
+                compare_experiment_runs.c.start_time,
+                compare_experiment_runs.c.end_time,
+            )
+            compare_experiment_run_prompt_token_count = func.coalesce(
+                compare_experiment_runs.c.prompt_token_count, 0
+            )
+            compare_experiment_run_completion_token_count = func.coalesce(
+                compare_experiment_runs.c.completion_token_count, 0
+            )
+            compare_experiment_run_total_token_count = (
+                compare_experiment_run_prompt_token_count
+                + compare_experiment_run_completion_token_count
+            )
+            select_columns.extend(
+                [
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_latency < compare_experiment_run_latency,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_latency"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_latency > compare_experiment_run_latency,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_latency"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_latency == compare_experiment_run_latency,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_latency"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_prompt_token_count
+                                < compare_experiment_run_prompt_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_prompt_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_prompt_token_count
+                                > compare_experiment_run_prompt_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_prompt_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_prompt_token_count
+                                == compare_experiment_run_prompt_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_prompt_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_completion_token_count
+                                < compare_experiment_run_completion_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_completion_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_completion_token_count
+                                > compare_experiment_run_completion_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_completion_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_completion_token_count
+                                == compare_experiment_run_completion_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_completion_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_total_token_count
+                                < compare_experiment_run_total_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_total_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_total_token_count
+                                > compare_experiment_run_total_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_total_token_count"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_run_total_token_count
+                                == compare_experiment_run_total_token_count,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_token_count"
+                    ),
+                ]
+            )
+
+        query = select(*select_columns).select_from(base_experiment_runs)
+        for compare_experiment_run_subquery in compare_experiment_run_subqueries:
+            query = query.join(
+                compare_experiment_run_subquery,
+                onclause=base_experiment_runs.c.dataset_example_id
+                == compare_experiment_run_subquery.c.dataset_example_id,
+                isouter=True,
+            )
+
+        async with info.context.db() as session:
+            result = (await session.execute(query)).first()
+        assert result is not None
+
+        num_columns_per_compare_experiment = len(select_columns) // len(compare_experiment_ids)
+        count_diffs = []
+        for compare_experiment_index, compare_experiment_id in enumerate(compare_experiment_ids):
+            start_index = compare_experiment_index * num_columns_per_compare_experiment
+            end_index = start_index + num_columns_per_compare_experiment
+            (
+                num_examples_with_latency_ms_increase,
+                num_examples_with_latency_ms_decrease,
+                num_examples_with_latency_ms_no_change,
+                num_examples_with_prompt_token_count_increase,
+                num_examples_with_prompt_token_count_decrease,
+                num_examples_with_prompt_token_count_no_change,
+                num_examples_with_completion_token_count_increase,
+                num_examples_with_completion_token_count_decrease,
+                num_examples_with_completion_token_count_no_change,
+                num_examples_with_total_token_count_increase,
+                num_examples_with_total_token_count_decrease,
+                num_examples_with_total_token_count_no_change,
+            ) = result[start_index:end_index]
+            count_diffs.append(
+                CompareExperimentCountsDiff(
+                    compare_experiment_id=compare_experiment_id,
+                    latency=CountDiff(
+                        num_increases=num_examples_with_latency_ms_increase,
+                        num_decreases=num_examples_with_latency_ms_decrease,
+                        num_equal=num_examples_with_latency_ms_no_change,
+                    ),
+                    prompt_token_count=CountDiff(
+                        num_increases=num_examples_with_prompt_token_count_increase,
+                        num_decreases=num_examples_with_prompt_token_count_decrease,
+                        num_equal=num_examples_with_prompt_token_count_no_change,
+                    ),
+                    completion_token_count=CountDiff(
+                        num_increases=num_examples_with_completion_token_count_increase,
+                        num_decreases=num_examples_with_completion_token_count_decrease,
+                        num_equal=num_examples_with_completion_token_count_no_change,
+                    ),
+                    total_token_count=CountDiff(
+                        num_increases=num_examples_with_total_token_count_increase,
+                        num_decreases=num_examples_with_total_token_count_decrease,
+                        num_equal=num_examples_with_total_token_count_no_change,
+                    ),
+                )
+            )
+        return CompareExperimentCountsPayload(
+            diffs=count_diffs,
         )
 
     @strawberry.field
