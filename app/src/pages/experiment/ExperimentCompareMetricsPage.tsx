@@ -52,6 +52,9 @@ type Experiment = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
+type MetricChangeCount =
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentCounts"]["diffs"][number];
+
 function MetricCard({
   title,
   baseExperimentValue,
@@ -172,6 +175,11 @@ export function ExperimentCompareMetricsPage() {
       return experimentIdToExperiment[experimentId];
     });
 
+    const compareExperimentIdToCounts: Record<string, MetricChangeCount> = {};
+    data.compareExperimentCounts.diffs.map((diff) => {
+      compareExperimentIdToCounts[diff.compareExperimentId] = diff;
+    });
+
     const latencyMetric: MetricCardProps = {
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
@@ -200,35 +208,36 @@ export function ExperimentCompareMetricsPage() {
       formatter: costFormatter,
     };
     compareExperiments.forEach((experiment) => {
+      const counts = compareExperimentIdToCounts[experiment.id];
       latencyMetric.compareExperiments.push({
         experimentId: experiment.id as string,
         value: experiment.averageRunLatencyMs,
-        numImprovements: 0,
-        numRegressions: 1,
+        numImprovements: counts?.latency.numIncreases ?? 0,
+        numRegressions: counts?.latency.numDecreases ?? 0,
       });
       promptTokensMetric.compareExperiments.push({
         experimentId: experiment.id as string,
         value: experiment.costSummary?.prompt?.tokens,
-        numImprovements: 0,
-        numRegressions: 1,
+        numImprovements: counts?.promptTokenCount.numIncreases ?? 0,
+        numRegressions: counts?.promptTokenCount.numDecreases ?? 0,
       });
       completionTokensMetric.compareExperiments.push({
         experimentId: experiment.id as string,
         value: experiment.costSummary?.completion?.tokens,
-        numImprovements: 0,
-        numRegressions: 1,
+        numImprovements: counts?.completionTokenCount.numIncreases ?? 0,
+        numRegressions: counts?.completionTokenCount.numDecreases ?? 0,
       });
       totalTokensMetric.compareExperiments.push({
         experimentId: experiment.id as string,
         value: experiment.costSummary?.total?.tokens,
-        numImprovements: 0,
-        numRegressions: 1,
+        numImprovements: counts?.totalTokenCount.numIncreases ?? 0,
+        numRegressions: counts?.totalTokenCount.numDecreases ?? 0,
       });
       totalCostMetric.compareExperiments.push({
         experimentId: experiment.id as string,
         value: experiment.costSummary?.total?.cost,
-        numImprovements: 0,
-        numRegressions: 1,
+        numImprovements: counts?.totalCost.numIncreases ?? 0,
+        numRegressions: counts?.totalCost.numDecreases ?? 0,
       });
     });
     const builtInMetrics = [
