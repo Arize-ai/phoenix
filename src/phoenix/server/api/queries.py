@@ -562,7 +562,7 @@ class Query:
         )
 
         query = (
-            select()
+            select()  # add selected columns below
             .select_from(base_experiment_runs)
             .join(
                 base_experiment_traces,
