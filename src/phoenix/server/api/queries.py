@@ -1,13 +1,13 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import String, and_, case, cast, distinct, func, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, distinct, func, select, text
 from sqlalchemy.orm import aliased, joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -628,182 +628,92 @@ class Query:
 
             query = (
                 query.add_columns(
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_latency < compare_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_latency < compare_experiment_run_latency,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_latency"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_latency"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_latency > compare_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_latency > compare_experiment_run_latency,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_latency"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_latency"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_latency == compare_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_latency == compare_experiment_run_latency,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_latency"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_latency"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_prompt_token_count
-                                < compare_experiment_run_prompt_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        < compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_prompt_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_prompt_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_prompt_token_count
-                                > compare_experiment_run_prompt_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        > compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_prompt_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_prompt_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_prompt_token_count
-                                == compare_experiment_run_prompt_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        == compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_prompt_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_prompt_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_completion_token_count
-                                < compare_experiment_run_completion_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        < compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_completion_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_completion_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_completion_token_count
-                                > compare_experiment_run_completion_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        > compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_completion_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_completion_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_completion_token_count
-                                == compare_experiment_run_completion_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        == compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_completion_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_completion_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_total_token_count
-                                < compare_experiment_run_total_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        < compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_total_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_total_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_total_token_count
-                                > compare_experiment_run_total_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        > compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_total_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_total_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_run_total_token_count
-                                == compare_experiment_run_total_token_count,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        == compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_token_count"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_token_count"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_span_costs.c.total_cost
-                                < compare_experiment_span_costs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_span_costs.c.total_cost
+                        < compare_experiment_span_costs.c.total_cost,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_total_cost"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_total_cost"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_span_costs.c.total_cost
-                                > compare_experiment_span_costs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_span_costs.c.total_cost
+                        > compare_experiment_span_costs.c.total_cost,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_total_cost"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_total_cost"
                     ),
-                    func.sum(
-                        case(
-                            (
-                                base_experiment_span_costs.c.total_cost
-                                == compare_experiment_span_costs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
+                    _count_rows(
+                        base_experiment_span_costs.c.total_cost
+                        == compare_experiment_span_costs.c.total_cost,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_cost"
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_cost"
                     ),
                 )
                 .join(
@@ -1510,3 +1420,20 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
         if s.startswith(prefix) and len(prefix) > len(longest):
             longest = prefix
     return longest
+
+
+def _count_rows(
+    condition: ColumnElement[Any],
+) -> ColumnElement[Any]:
+    """
+    Returns an expression that counts the number of rows satisfying the condition.
+    """
+    return func.coalesce(
+        func.sum(
+            case(
+                (condition, 1),
+                else_=0,
+            )
+        ),
+        0,
+    )
