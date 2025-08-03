@@ -349,6 +349,7 @@ type CompareExperimentCountsDiff {
   promptTokenCount: CountDiff!
   completionTokenCount: CountDiff!
   totalTokenCount: CountDiff!
+  totalCost: CountDiff!
 }
 
 type CompareExperimentCountsPayload {

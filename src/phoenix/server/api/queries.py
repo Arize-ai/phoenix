@@ -121,6 +121,7 @@ class CompareExperimentCountsDiff:
     prompt_token_count: CountDiff
     completion_token_count: CountDiff
     total_token_count: CountDiff
+    total_cost: CountDiff
 
 
 @strawberry.type
@@ -550,6 +551,7 @@ class Query:
                 func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
                     "completion_tokens"
                 ),
+                func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
             )
             .select_from(models.SpanCost)
             .group_by(
@@ -603,6 +605,7 @@ class Query:
                     func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
                         "completion_tokens"
                     ),
+                    func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
                 )
                 .select_from(models.SpanCost)
                 .group_by(models.SpanCost.trace_rowid)
@@ -766,6 +769,42 @@ class Query:
                     ).label(
                         f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_token_count"
                     ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_span_costs.c.total_cost
+                                < compare_experiment_span_costs.c.total_cost,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_lower_total_cost"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_span_costs.c.total_cost
+                                > compare_experiment_span_costs.c.total_cost,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_higher_total_cost"
+                    ),
+                    func.sum(
+                        case(
+                            (
+                                base_experiment_span_costs.c.total_cost
+                                == compare_experiment_span_costs.c.total_cost,
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_cost"
+                    ),
                 )
                 .join(
                     compare_experiment_runs,
@@ -796,41 +835,49 @@ class Query:
             start_index = compare_experiment_index * num_columns_per_compare_experiment
             end_index = start_index + num_columns_per_compare_experiment
             (
-                num_examples_with_latency_ms_increase,
-                num_examples_with_latency_ms_decrease,
-                num_examples_with_latency_ms_no_change,
-                num_examples_with_prompt_token_count_increase,
-                num_examples_with_prompt_token_count_decrease,
-                num_examples_with_prompt_token_count_no_change,
-                num_examples_with_completion_token_count_increase,
-                num_examples_with_completion_token_count_decrease,
-                num_examples_with_completion_token_count_no_change,
-                num_examples_with_total_token_count_increase,
-                num_examples_with_total_token_count_decrease,
-                num_examples_with_total_token_count_no_change,
+                num_examples_with_increased_latency,
+                num_examples_with_decreased_latency,
+                num_examples_with_equal_latency,
+                num_examples_with_increased_prompt_token_count,
+                num_examples_with_decreased_prompt_token_count,
+                num_examples_with_equal_prompt_token_count,
+                num_examples_with_increased_completion_token_count,
+                num_examples_with_decreased_completion_token_count,
+                num_examples_with_equal_completion_token_count,
+                num_examples_with_increased_total_token_count,
+                num_examples_with_decreased_total_token_count,
+                num_examples_with_equal_total_token_count,
+                num_examples_with_increased_total_cost,
+                num_examples_with_decreased_total_cost,
+                num_examples_with_equal_total_cost,
             ) = result[start_index:end_index]
             count_diffs.append(
                 CompareExperimentCountsDiff(
                     compare_experiment_id=compare_experiment_id,
                     latency=CountDiff(
-                        num_increases=num_examples_with_latency_ms_increase,
-                        num_decreases=num_examples_with_latency_ms_decrease,
-                        num_equal=num_examples_with_latency_ms_no_change,
+                        num_increases=num_examples_with_increased_latency,
+                        num_decreases=num_examples_with_decreased_latency,
+                        num_equal=num_examples_with_equal_latency,
                     ),
                     prompt_token_count=CountDiff(
-                        num_increases=num_examples_with_prompt_token_count_increase,
-                        num_decreases=num_examples_with_prompt_token_count_decrease,
-                        num_equal=num_examples_with_prompt_token_count_no_change,
+                        num_increases=num_examples_with_increased_prompt_token_count,
+                        num_decreases=num_examples_with_decreased_prompt_token_count,
+                        num_equal=num_examples_with_equal_prompt_token_count,
                     ),
                     completion_token_count=CountDiff(
-                        num_increases=num_examples_with_completion_token_count_increase,
-                        num_decreases=num_examples_with_completion_token_count_decrease,
-                        num_equal=num_examples_with_completion_token_count_no_change,
+                        num_increases=num_examples_with_increased_completion_token_count,
+                        num_decreases=num_examples_with_decreased_completion_token_count,
+                        num_equal=num_examples_with_equal_completion_token_count,
                     ),
                     total_token_count=CountDiff(
-                        num_increases=num_examples_with_total_token_count_increase,
-                        num_decreases=num_examples_with_total_token_count_decrease,
-                        num_equal=num_examples_with_total_token_count_no_change,
+                        num_increases=num_examples_with_increased_total_token_count,
+                        num_decreases=num_examples_with_decreased_total_token_count,
+                        num_equal=num_examples_with_equal_total_token_count,
+                    ),
+                    total_cost=CountDiff(
+                        num_increases=num_examples_with_increased_total_cost,
+                        num_decreases=num_examples_with_decreased_total_cost,
+                        num_equal=num_examples_with_equal_total_cost,
                     ),
                 )
             )
