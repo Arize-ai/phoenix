@@ -1,14 +1,14 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Optional, Union
+from typing import Iterable, Iterator, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import Label, String, and_, case, cast, distinct, func, select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy import String, and_, case, cast, distinct, func, select, text
+from sqlalchemy.orm import aliased, joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -512,18 +512,28 @@ class Query:
     ) -> CompareExperimentCountsPayload:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
-        if len(compare_experiment_ids) == 0:
+        if not compare_experiment_ids:
             raise BadRequest("At least one compare experiment ID must be provided")
         if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
             raise BadRequest("Compare experiment IDs must be unique")
-        base_experiment_rowid = from_global_id_with_expected_type(
-            base_experiment_id, models.Experiment.__name__
-        )
-        compare_experiment_rowids = [
-            from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
-            for experiment_id in compare_experiment_ids
-        ]
-        select_columns: list[Label[Any]] = []
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
 
         base_experiment_runs = (
             select(models.ExperimentRun)
@@ -531,20 +541,46 @@ class Query:
             .subquery()
             .alias("base_experiment_runs")
         )
+        base_experiment_traces = aliased(models.Trace, name="base_experiment_traces")
+        base_experiment_span_costs = (
+            select(
+                models.SpanCost.trace_rowid,
+                func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+                func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
+                    "completion_tokens"
+                ),
+            )
+            .select_from(models.SpanCost)
+            .group_by(
+                models.SpanCost.trace_rowid,
+            )
+            .subquery()
+            .alias("base_experiment_span_costs")
+        )
+
+        query = (
+            select()
+            .select_from(base_experiment_runs)
+            .join(
+                base_experiment_traces,
+                onclause=base_experiment_runs.c.trace_id == base_experiment_traces.trace_id,
+                isouter=True,
+            )
+            .join(
+                base_experiment_span_costs,
+                onclause=base_experiment_traces.id == base_experiment_span_costs.c.trace_rowid,
+                isouter=True,
+            )
+        )
+
         base_experiment_run_latency = LatencyMs(
             base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
         )
-        base_experiment_run_prompt_token_count = func.coalesce(
-            base_experiment_runs.c.prompt_token_count, 0
-        )
-        base_experiment_run_completion_token_count = func.coalesce(
-            base_experiment_runs.c.completion_token_count, 0
-        )
-        base_experiment_run_total_token_count = (
-            base_experiment_run_prompt_token_count + base_experiment_run_completion_token_count
-        )
+        base_experiment_run_prompt_token_count = base_experiment_span_costs.c.prompt_tokens
+        base_experiment_run_completion_token_count = base_experiment_span_costs.c.completion_tokens
+        base_experiment_run_total_token_count = base_experiment_span_costs.c.total_tokens
 
-        compare_experiment_run_subqueries = []
         for compare_experiment_index, compare_experiment_rowid in enumerate(
             compare_experiment_rowids
         ):
@@ -554,23 +590,41 @@ class Query:
                 .subquery()
                 .alias(f"compare_experiment_{compare_experiment_index}_runs")
             )
-            compare_experiment_run_subqueries.append(compare_experiment_runs)
+            compare_experiment_traces = aliased(
+                models.Trace, name=f"compare_experiment_{compare_experiment_index}_traces"
+            )
+            compare_experiment_span_costs = (
+                select(
+                    models.SpanCost.trace_rowid,
+                    func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+                    func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label(
+                        "prompt_tokens"
+                    ),
+                    func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
+                        "completion_tokens"
+                    ),
+                )
+                .select_from(models.SpanCost)
+                .group_by(models.SpanCost.trace_rowid)
+                .subquery()
+                .alias(f"compare_experiment_{compare_experiment_index}_span_costs")
+            )
             compare_experiment_run_latency = LatencyMs(
                 compare_experiment_runs.c.start_time,
                 compare_experiment_runs.c.end_time,
-            )
-            compare_experiment_run_prompt_token_count = func.coalesce(
-                compare_experiment_runs.c.prompt_token_count, 0
-            )
-            compare_experiment_run_completion_token_count = func.coalesce(
-                compare_experiment_runs.c.completion_token_count, 0
-            )
+            ).label(f"compare_experiment_{compare_experiment_index}_run_latency")
+            compare_experiment_run_prompt_token_count = (
+                compare_experiment_span_costs.c.prompt_tokens
+            ).label(f"compare_experiment_{compare_experiment_index}_run_prompt_token_count")
+            compare_experiment_run_completion_token_count = (
+                compare_experiment_span_costs.c.completion_tokens
+            ).label(f"compare_experiment_{compare_experiment_index}_run_completion_token_count")
             compare_experiment_run_total_token_count = (
-                compare_experiment_run_prompt_token_count
-                + compare_experiment_run_completion_token_count
-            )
-            select_columns.extend(
-                [
+                compare_experiment_span_costs.c.total_tokens
+            ).label(f"compare_experiment_{compare_experiment_index}_run_total_token_count")
+
+            query = (
+                query.add_columns(
                     func.sum(
                         case(
                             (
@@ -712,23 +766,31 @@ class Query:
                     ).label(
                         f"compare_experiment_{compare_experiment_index}_num_examples_with_equal_total_token_count"
                     ),
-                ]
-            )
-
-        query = select(*select_columns).select_from(base_experiment_runs)
-        for compare_experiment_run_subquery in compare_experiment_run_subqueries:
-            query = query.join(
-                compare_experiment_run_subquery,
-                onclause=base_experiment_runs.c.dataset_example_id
-                == compare_experiment_run_subquery.c.dataset_example_id,
-                isouter=True,
+                )
+                .join(
+                    compare_experiment_runs,
+                    onclause=base_experiment_runs.c.dataset_example_id
+                    == compare_experiment_runs.c.dataset_example_id,
+                    isouter=True,
+                )
+                .join(
+                    compare_experiment_traces,
+                    onclause=compare_experiment_runs.c.trace_id
+                    == compare_experiment_traces.trace_id,
+                )
+                .join(
+                    compare_experiment_span_costs,
+                    onclause=compare_experiment_traces.id
+                    == compare_experiment_span_costs.c.trace_rowid,
+                    isouter=True,
+                )
             )
 
         async with info.context.db() as session:
             result = (await session.execute(query)).first()
         assert result is not None
 
-        num_columns_per_compare_experiment = len(select_columns) // len(compare_experiment_ids)
+        num_columns_per_compare_experiment = len(query.columns) // len(compare_experiment_ids)
         count_diffs = []
         for compare_experiment_index, compare_experiment_id in enumerate(compare_experiment_ids):
             start_index = compare_experiment_index * num_columns_per_compare_experiment
