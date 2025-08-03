@@ -46,7 +46,13 @@ export async function experimentCompareLoader(
           )
         ...ExperimentMultiSelector__data
           @arguments(hasBaseExperiment: $hasBaseExperiment)
-        ...ExperimentCompareMetricsPage_experiments @include(if: $isMetricsView)
+        ...ExperimentCompareMetricsPage_experiments
+          @include(if: $isMetricsView)
+          @arguments(
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            datasetId: $datasetId
+          )
       }
     `,
     {

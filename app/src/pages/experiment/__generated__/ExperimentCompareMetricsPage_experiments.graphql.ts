@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<044487008d44d8ec7e703654181d25c1>>
+ * @generated SignedSource<<1d255574847531dd1036ed4bca5ac546>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,31 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
+  readonly compareExperimentCounts: {
+    readonly diffs: ReadonlyArray<{
+      readonly compareExperimentId: string;
+      readonly completionTokenCount: {
+        readonly numDecreases: number;
+        readonly numIncreases: number;
+      };
+      readonly latency: {
+        readonly numDecreases: number;
+        readonly numIncreases: number;
+      };
+      readonly promptTokenCount: {
+        readonly numDecreases: number;
+        readonly numIncreases: number;
+      };
+      readonly totalCost: {
+        readonly numDecreases: number;
+        readonly numIncreases: number;
+      };
+      readonly totalTokenCount: {
+        readonly numDecreases: number;
+        readonly numIncreases: number;
+      };
+    }>;
+  };
   readonly dataset: {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
@@ -54,11 +79,38 @@ var v0 = {
 },
 v1 = [
   (v0/*: any*/)
+],
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numIncreases",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numDecreases",
+    "storageKey": null
+  }
 ];
 return {
   "argumentDefinitions": [
     {
-      "kind": "RootArgument",
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "baseExperimentId"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "compareExperimentIds"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
       "name": "datasetId"
     }
   ],
@@ -211,6 +263,96 @@ return {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "baseExperimentId",
+          "variableName": "baseExperimentId"
+        },
+        {
+          "kind": "Variable",
+          "name": "compareExperimentIds",
+          "variableName": "compareExperimentIds"
+        }
+      ],
+      "concreteType": "CompareExperimentCountsPayload",
+      "kind": "LinkedField",
+      "name": "compareExperimentCounts",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CompareExperimentCountsDiff",
+          "kind": "LinkedField",
+          "name": "diffs",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "compareExperimentId",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CountDiff",
+              "kind": "LinkedField",
+              "name": "latency",
+              "plural": false,
+              "selections": (v2/*: any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CountDiff",
+              "kind": "LinkedField",
+              "name": "promptTokenCount",
+              "plural": false,
+              "selections": (v2/*: any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CountDiff",
+              "kind": "LinkedField",
+              "name": "completionTokenCount",
+              "plural": false,
+              "selections": (v2/*: any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CountDiff",
+              "kind": "LinkedField",
+              "name": "totalTokenCount",
+              "plural": false,
+              "selections": (v2/*: any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CountDiff",
+              "kind": "LinkedField",
+              "name": "totalCost",
+              "plural": false,
+              "selections": (v2/*: any*/),
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Query",
@@ -218,6 +360,6 @@ return {
 };
 })();
 
-(node as any).hash = "603a936d2207a24902286db3ff2da1ff";
+(node as any).hash = "075184c06e042abc8d23685a9aa702fa";
 
 export default node;

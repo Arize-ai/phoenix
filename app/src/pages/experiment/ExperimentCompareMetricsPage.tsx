@@ -91,7 +91,12 @@ export function ExperimentCompareMetricsPage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
     graphql`
-      fragment ExperimentCompareMetricsPage_experiments on Query {
+      fragment ExperimentCompareMetricsPage_experiments on Query
+      @argumentDefinitions(
+        baseExperimentId: { type: "ID!" }
+        compareExperimentIds: { type: "[ID!]!" }
+        datasetId: { type: "ID!" }
+      ) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             experiments {
@@ -117,6 +122,34 @@ export function ExperimentCompareMetricsPage() {
                   }
                 }
               }
+            }
+          }
+        }
+        compareExperimentCounts(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          diffs {
+            compareExperimentId
+            latency {
+              numIncreases
+              numDecreases
+            }
+            promptTokenCount {
+              numIncreases
+              numDecreases
+            }
+            completionTokenCount {
+              numIncreases
+              numDecreases
+            }
+            totalTokenCount {
+              numIncreases
+              numDecreases
+            }
+            totalCost {
+              numIncreases
+              numDecreases
             }
           }
         }
