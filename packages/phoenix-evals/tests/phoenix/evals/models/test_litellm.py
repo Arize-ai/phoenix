@@ -97,7 +97,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Hello, world!"
         assert usage.prompt_tokens == 10
@@ -123,7 +123,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 5
@@ -145,7 +145,7 @@ class TestParseOutput:
             usage=None,
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Response without usage"
         assert usage.prompt_tokens == 0
@@ -171,7 +171,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Zero usage response"
         assert usage.prompt_tokens == 0
@@ -202,7 +202,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         # Should return the first choice
         assert text == "First choice"
@@ -223,7 +223,7 @@ class TestParseOutput:
             ),
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 3

@@ -286,11 +286,11 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response, usage = await verbose_model._async_generate(
+            response, extra_info = await verbose_model._async_generate_with_extra(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt), usage
+        return inference, explanation, response, str(prompt), extra_info.usage
 
     def _run_llm_classification_sync(
         input_data: PROCESSOR_TYPE,
@@ -304,12 +304,12 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response, usage = verbose_model._generate(
+            response, extra_info = verbose_model._generate_with_extra(
                 prompt, instruction=system_instruction, **model_kwargs
             )
 
         inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt), usage
+        return inference, explanation, response, str(prompt), extra_info.usage
 
     fallback_return_value: ParsedLLMResponse = (None, None, "", "", None)
 

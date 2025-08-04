@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.0...arize-phoenix-evals-v0.26.1) (2025-08-01)
+
+
+### Bug Fixes
+
+* revert function return types to `str` for `_generate` and `_async_generate` ([#8901](https://github.com/Arize-ai/phoenix/issues/8901)) ([91550dc](https://github.com/Arize-ai/phoenix/commit/91550dc8039cf3d1087e63ef763cdee6f95a75f2))
+
 ## [0.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.25.0...arize-phoenix-evals-v0.26.0) (2025-08-01)
 
 

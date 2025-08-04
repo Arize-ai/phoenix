@@ -32,7 +32,7 @@ const breadcrumbCSS = css`
   }
 `;
 
-function Breadcrumb(props: BreadcrumbProps, ref: Ref<HTMLDivElement>) {
+function Breadcrumb(props: BreadcrumbProps, ref: Ref<HTMLLIElement>) {
   const { children, ...rest } = props;
   return (
     <AriaBreadcrumb css={breadcrumbCSS} {...rest} ref={ref}>
