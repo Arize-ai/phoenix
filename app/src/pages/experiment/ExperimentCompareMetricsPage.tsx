@@ -52,10 +52,10 @@ type Experiment = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type MetricChangeCount =
+type CompareExperimentRunMetricCounts =
   ExperimentCompareMetricsPage_experiments$data["compareExperimentRunMetricCounts"][number];
 
-type AnnotationMetricChangeCount =
+type CompareExperimentRunAnnotationMetricCounts =
   ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationMetricCounts"][number];
 
 function MetricCard({
@@ -185,22 +185,25 @@ export function ExperimentCompareMetricsPage() {
       return experimentIdToExperiment[experimentId];
     });
 
-    const compareExperimentIdToCounts: Record<string, MetricChangeCount> = {};
+    const compareExperimentIdToCounts: Record<
+      string,
+      CompareExperimentRunMetricCounts
+    > = {};
     data.compareExperimentRunMetricCounts.map((counts) => {
       compareExperimentIdToCounts[counts.compareExperimentId] = counts;
     });
 
-    const annotationNameTocompareExperimentIdToCounts: Record<
+    const annotationNameToCompareExperimentIdToCounts: Record<
       string,
-      Record<string, AnnotationMetricChangeCount>
+      Record<string, CompareExperimentRunAnnotationMetricCounts>
     > = {};
     data.compareExperimentRunAnnotationMetricCounts.forEach((counts) => {
       const compareExperimentId = counts.compareExperimentId;
       const annotationName = counts.annotationName;
-      if (!(annotationName in annotationNameTocompareExperimentIdToCounts)) {
-        annotationNameTocompareExperimentIdToCounts[annotationName] = {};
+      if (!(annotationName in annotationNameToCompareExperimentIdToCounts)) {
+        annotationNameToCompareExperimentIdToCounts[annotationName] = {};
       }
-      annotationNameTocompareExperimentIdToCounts[annotationName][
+      annotationNameToCompareExperimentIdToCounts[annotationName][
         compareExperimentId
       ] = counts;
     });
@@ -233,36 +236,53 @@ export function ExperimentCompareMetricsPage() {
       formatter: costFormatter,
     };
     compareExperiments.forEach((experiment) => {
-      const counts = compareExperimentIdToCounts[experiment.id];
       latencyMetric.compareExperiments.push({
-        experimentId: experiment.id as string,
+        experimentId: experiment.id,
         value: experiment.averageRunLatencyMs,
-        numImprovements: counts?.latency.numIncreases ?? 0,
-        numRegressions: counts?.latency.numDecreases ?? 0,
+        numImprovements:
+          compareExperimentIdToCounts[experiment.id]?.latency.numIncreases ?? 0,
+        numRegressions:
+          compareExperimentIdToCounts[experiment.id]?.latency.numDecreases ?? 0,
       });
       promptTokensMetric.compareExperiments.push({
-        experimentId: experiment.id as string,
+        experimentId: experiment.id,
         value: experiment.costSummary?.prompt?.tokens,
-        numImprovements: counts?.promptTokenCount.numIncreases ?? 0,
-        numRegressions: counts?.promptTokenCount.numDecreases ?? 0,
+        numImprovements:
+          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
+            .numIncreases ?? 0,
+        numRegressions:
+          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
+            .numDecreases ?? 0,
       });
       completionTokensMetric.compareExperiments.push({
-        experimentId: experiment.id as string,
+        experimentId: experiment.id,
         value: experiment.costSummary?.completion?.tokens,
-        numImprovements: counts?.completionTokenCount.numIncreases ?? 0,
-        numRegressions: counts?.completionTokenCount.numDecreases ?? 0,
+        numImprovements:
+          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
+            .numIncreases ?? 0,
+        numRegressions:
+          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
+            .numDecreases ?? 0,
       });
       totalTokensMetric.compareExperiments.push({
-        experimentId: experiment.id as string,
+        experimentId: experiment.id,
         value: experiment.costSummary?.total?.tokens,
-        numImprovements: counts?.totalTokenCount.numIncreases ?? 0,
-        numRegressions: counts?.totalTokenCount.numDecreases ?? 0,
+        numImprovements:
+          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
+            .numIncreases ?? 0,
+        numRegressions:
+          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
+            .numDecreases ?? 0,
       });
       totalCostMetric.compareExperiments.push({
-        experimentId: experiment.id as string,
+        experimentId: experiment.id,
         value: experiment.costSummary?.total?.cost,
-        numImprovements: counts?.totalCost.numIncreases ?? 0,
-        numRegressions: counts?.totalCost.numDecreases ?? 0,
+        numImprovements:
+          compareExperimentIdToCounts[experiment.id]?.totalCost.numIncreases ??
+          0,
+        numRegressions:
+          compareExperimentIdToCounts[experiment.id]?.totalCost.numDecreases ??
+          0,
       });
     });
     const builtInMetrics = [
@@ -326,11 +346,11 @@ export function ExperimentCompareMetricsPage() {
             ];
         }
         const numImprovements =
-          annotationNameTocompareExperimentIdToCounts[annotationName]?.[
+          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
             compareExperimentId
           ]?.numIncreases ?? 0;
         const numRegressions =
-          annotationNameTocompareExperimentIdToCounts[annotationName]?.[
+          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
             compareExperimentId
           ]?.numDecreases ?? 0;
         annotationMetrics.push({
