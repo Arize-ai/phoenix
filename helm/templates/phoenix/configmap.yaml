@@ -54,6 +54,7 @@ data:
   PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
   PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
   PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
+  PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}
 
   # SMTP configuration
   PHOENIX_SMTP_HOSTNAME: {{ .Values.smtp.hostname | quote }}
