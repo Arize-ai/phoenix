@@ -1,4 +1,4 @@
-import { ModelMessage, UIMessage } from "ai";
+import { ModelMessage } from "ai";
 
 /**
  * Prompt part of the AI function options for model generation.
@@ -19,23 +19,4 @@ export interface WithPrompt {
    * Uses ModelMessage format for compatibility with AI SDK v5.
    */
   messages?: Array<ModelMessage>;
-}
-
-/**
- * Prompt part for UI-focused operations that can work with rich UIMessage format.
- * Use this when you need the full UIMessage capabilities for persistence or UI state.
- */
-export interface WithUIPrompt {
-  /**
-   * System message to include in the prompt. Can be used with `prompt` or `messages`.
-   */
-  system?: string;
-  /**
-   * A simple text prompt. You can either use `prompt` or `messages` but not both.
-   */
-  prompt?: string;
-  /**
-   * A list of UI messages with rich metadata. You can either use `prompt` or `messages` but not both.
-   */
-  messages?: Array<UIMessage>;
 }
