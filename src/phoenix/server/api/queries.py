@@ -115,6 +115,15 @@ class CountDiff:
 
 
 @strawberry.type
+class CompareExperimentRunAnnotationMetricCounts:
+    annotation_name: str
+    compare_experiment_id: GlobalID
+    num_increases: int
+    num_decreases: int
+    num_equal: int
+
+
+@strawberry.type
 class CompareExperimentCountsDiff:
     compare_experiment_id: GlobalID
     latency: CountDiff
@@ -794,6 +803,138 @@ class Query:
         return CompareExperimentCountsPayload(
             diffs=count_diffs,
         )
+
+    @strawberry.field
+    async def compare_experiment_run_annotation_counts(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+    ) -> list[CompareExperimentRunAnnotationMetricCounts]:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if not compare_experiment_ids:
+            raise BadRequest("At least one compare experiment ID must be provided")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        base_experiment_runs = (
+            select(models.ExperimentRun)
+            .where(
+                models.ExperimentRun.experiment_id == base_experiment_rowid,
+            )
+            .subquery()
+            .alias("base_experiment_runs")
+        )
+        base_experiment_run_annotations = aliased(
+            models.ExperimentRunAnnotation, name="base_experiment_run_annotations"
+        )
+        query = (
+            select(base_experiment_run_annotations.name)
+            .select_from(base_experiment_runs)
+            .join(
+                base_experiment_run_annotations,
+                onclause=base_experiment_runs.c.id
+                == base_experiment_run_annotations.experiment_run_id,
+            )
+            .group_by(base_experiment_run_annotations.name)
+            .order_by(base_experiment_run_annotations.name)
+        )
+        for compare_experiment_index, compare_experiment_rowid in enumerate(
+            compare_experiment_rowids
+        ):
+            compare_experiment_runs = (
+                select(models.ExperimentRun)
+                .where(
+                    models.ExperimentRun.experiment_id == compare_experiment_rowid,
+                )
+                .subquery()
+                .alias(f"compare_experiment_{compare_experiment_index}_runs")
+            )
+            compare_experiment_run_annotations = aliased(
+                models.ExperimentRunAnnotation,
+                name=f"compare_experiment_{compare_experiment_index}_run_annotations",
+            )
+            query = (
+                query.add_columns(
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        < compare_experiment_run_annotations.score,
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_score"
+                    ),
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        > compare_experiment_run_annotations.score,
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_score"
+                    ),
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        == compare_experiment_run_annotations.score,
+                    ).label(
+                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_score"
+                    ),
+                )
+                .join(
+                    compare_experiment_runs,
+                    onclause=base_experiment_runs.c.dataset_example_id
+                    == compare_experiment_runs.c.dataset_example_id,
+                )
+                .join(
+                    compare_experiment_run_annotations,
+                    onclause=compare_experiment_runs.c.id
+                    == compare_experiment_run_annotations.experiment_run_id,
+                )
+                .where(
+                    base_experiment_run_annotations.name == compare_experiment_run_annotations.name
+                )
+            )
+        async with info.context.db() as session:
+            result = (await session.execute(query)).all()
+        assert result is not None
+        num_columns_per_compare_experiment = (len(query.columns) - 1) // len(compare_experiment_ids)
+        metric_counts = []
+        for record in result:
+            annotation_name, *counts = record
+            for compare_experiment_index, compare_experiment_id in enumerate(
+                compare_experiment_ids
+            ):
+                start_index = compare_experiment_index * num_columns_per_compare_experiment
+                end_index = start_index + num_columns_per_compare_experiment
+                (
+                    num_runs_with_increased_score,
+                    num_runs_with_decreased_score,
+                    num_runs_with_equal_score,
+                ) = counts[start_index:end_index]
+                metric_counts.append(
+                    CompareExperimentRunAnnotationMetricCounts(
+                        annotation_name=annotation_name,
+                        compare_experiment_id=compare_experiment_id,
+                        num_increases=num_runs_with_increased_score,
+                        num_decreases=num_runs_with_decreased_score,
+                        num_equal=num_runs_with_equal_score,
+                    )
+                )
+        return metric_counts
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(

@@ -356,6 +356,14 @@ type CompareExperimentCountsPayload {
   diffs: [CompareExperimentCountsDiff!]!
 }
 
+type CompareExperimentRunAnnotationMetricCounts {
+  annotationName: String!
+  compareExperimentId: ID!
+  numIncreases: Int!
+  numDecreases: Int!
+  numEqual: Int!
+}
+
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -2097,6 +2105,7 @@ type Query {
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
   compareExperimentCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): CompareExperimentCountsPayload!
+  compareExperimentRunAnnotationCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunAnnotationMetricCounts!]!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!

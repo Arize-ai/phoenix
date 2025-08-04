@@ -74,6 +74,15 @@ def jaccard_similarity(output: str, expected: dict[str, Any]) -> float:
     return len(words_in_common) / len(all_words)
 
 
+def jaccard_similarity2(output: str, expected: dict[str, Any]) -> float:
+    # https://en.wikipedia.org/wiki/Jaccard_index
+    actual_words = set(output.lower().split(" "))
+    expected_words = set(expected["answer"].lower().split(" "))
+    words_in_common = actual_words.intersection(expected_words)
+    all_words = actual_words.union(expected_words)
+    return len(words_in_common) / len(all_words)
+
+
 eval_prompt_template = """
 Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
 Output only a single word (accurate or inaccurate).
@@ -105,7 +114,13 @@ experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
     experiment_name="short-answer",
-    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
 )
 
 task_prompt_template = "Answer verbosely: {question}"
@@ -113,7 +128,13 @@ experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
     experiment_name="long-answer",
-    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
 )
 
 task_prompt_template = (
@@ -124,5 +145,11 @@ experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
     experiment_name="incorrect-answer",
-    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
 )
