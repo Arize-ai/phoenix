@@ -179,7 +179,7 @@ task_prompt_template = (
 experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
-    experiment_name="incorrect-answer",
+    experiment_name="incorrect-answer-and-very-very-long-experiment-name-supercalifragilisticexpialidocious",
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,

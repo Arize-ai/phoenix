@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<62f90a7a199a146567daaa20c702cab3>>
+ * @generated SignedSource<<9a53110c2ecd65d90f36bf757ffe65e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,61 +10,27 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ExperimentMultiSelector__data$data = {
-  readonly baseExperiment?: {
-    readonly id?: string;
-    readonly name?: string;
-    readonly sequenceNumber?: number;
-  };
+export type SelectedCompareExperiments_dataset$data = {
   readonly dataset: {
-    readonly allExperiments?: {
+    readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
-          readonly createdAt: string;
           readonly id: string;
           readonly name: string;
           readonly sequenceNumber: number;
         };
       }>;
     };
-    readonly id: string;
-    readonly name?: string;
   };
-  readonly " $fragmentType": "ExperimentMultiSelector__data";
+  readonly " $fragmentType": "SelectedCompareExperiments_dataset";
 };
-export type ExperimentMultiSelector__data$key = {
-  readonly " $data"?: ExperimentMultiSelector__data$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ExperimentMultiSelector__data">;
+export type SelectedCompareExperiments_dataset$key = {
+  readonly " $data"?: SelectedCompareExperiments_dataset$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SelectedCompareExperiments_dataset">;
 };
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "sequenceNumber",
-  "storageKey": null
-};
-return {
+const node: ReaderFragment = {
   "argumentDefinitions": [
-    {
-      "kind": "RootArgument",
-      "name": "baseExperimentId"
-    },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -73,12 +39,12 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "hasBaseExperiment"
+      "name": "experimentIds"
     }
   ],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ExperimentMultiSelector__data",
+  "name": "SelectedCompareExperiments_dataset",
   "selections": [
     {
       "alias": "dataset",
@@ -94,14 +60,18 @@ return {
       "name": "node",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
         {
           "kind": "InlineFragment",
           "selections": [
-            (v1/*: any*/),
             {
-              "alias": "allExperiments",
-              "args": null,
+              "alias": null,
+              "args": [
+                {
+                  "kind": "Variable",
+                  "name": "filterIds",
+                  "variableName": "experimentIds"
+                }
+              ],
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
               "name": "experiments",
@@ -123,14 +93,25 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v0/*: any*/),
-                        (v1/*: any*/),
-                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "createdAt",
+                          "name": "id",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "sequenceNumber",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "name",
                           "storageKey": null
                         }
                       ],
@@ -148,47 +129,12 @@ return {
         }
       ],
       "storageKey": null
-    },
-    {
-      "condition": "hasBaseExperiment",
-      "kind": "Condition",
-      "passingValue": true,
-      "selections": [
-        {
-          "alias": "baseExperiment",
-          "args": [
-            {
-              "kind": "Variable",
-              "name": "id",
-              "variableName": "baseExperimentId"
-            }
-          ],
-          "concreteType": null,
-          "kind": "LinkedField",
-          "name": "node",
-          "plural": false,
-          "selections": [
-            {
-              "kind": "InlineFragment",
-              "selections": [
-                (v0/*: any*/),
-                (v2/*: any*/),
-                (v1/*: any*/)
-              ],
-              "type": "Experiment",
-              "abstractKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ]
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
-})();
 
-(node as any).hash = "6b0a75dfdc4ce4b0cd525a7b1eb6319c";
+(node as any).hash = "88d2c5f0b95f614bdc6db4e11473d3bc";
 
 export default node;
