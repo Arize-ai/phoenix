@@ -1758,7 +1758,7 @@ function MessageContentListItem({
             margin: 0;
           `}
         >
-          {text}
+          <ConnectedMarkdownBlock>{text}</ConnectedMarkdownBlock>
         </pre>
       ) : null}
       {imageUrl ? <SpanImage url={imageUrl} /> : null}
