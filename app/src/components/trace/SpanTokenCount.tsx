@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Suspense, useCallback } from "react";
+import { Pressable, PressEvent } from "react-aria";
 
 import {
   Loading,
@@ -32,9 +32,13 @@ type SpanTokenCountProps = {
  * Displays the number of tokens in the prompt and completion
  */
 export function SpanTokenCount(props: SpanTokenCountProps) {
+  const handlePress = useCallback((e: PressEvent) => {
+    e.continuePropagation(); // allow click to propagate to parent
+  }, []);
+
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Pressable onPress={handlePress}>
         <TokenCount size={props.size} role="button">
           {props.tokenCountTotal}
         </TokenCount>
