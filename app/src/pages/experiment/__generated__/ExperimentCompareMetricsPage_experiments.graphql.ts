@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d255574847531dd1036ed4bca5ac546>>
+ * @generated SignedSource<<eaab72b03eeb787d66dc4a496ab52fd1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,6 +36,12 @@ export type ExperimentCompareMetricsPage_experiments$data = {
       };
     }>;
   };
+  readonly compareExperimentRunAnnotationCounts: ReadonlyArray<{
+    readonly annotationName: string;
+    readonly compareExperimentId: string;
+    readonly numDecreases: number;
+    readonly numIncreases: number;
+  }>;
   readonly dataset: {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
@@ -80,21 +86,49 @@ var v0 = {
 v1 = [
   (v0/*: any*/)
 ],
-v2 = [
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+},
+v3 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numIncreases",
-    "storageKey": null
+    "kind": "Variable",
+    "name": "baseExperimentId",
+    "variableName": "baseExperimentId"
   },
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numDecreases",
-    "storageKey": null
+    "kind": "Variable",
+    "name": "compareExperimentIds",
+    "variableName": "compareExperimentIds"
   }
+],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "compareExperimentId",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numIncreases",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numDecreases",
+  "storageKey": null
+},
+v7 = [
+  (v5/*: any*/),
+  (v6/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -231,13 +265,7 @@ return {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "annotationName",
-                              "storageKey": null
-                            },
+                            (v2/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -266,18 +294,7 @@ return {
     },
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "baseExperimentId",
-          "variableName": "baseExperimentId"
-        },
-        {
-          "kind": "Variable",
-          "name": "compareExperimentIds",
-          "variableName": "compareExperimentIds"
-        }
-      ],
+      "args": (v3/*: any*/),
       "concreteType": "CompareExperimentCountsPayload",
       "kind": "LinkedField",
       "name": "compareExperimentCounts",
@@ -291,13 +308,7 @@ return {
           "name": "diffs",
           "plural": true,
           "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "compareExperimentId",
-              "storageKey": null
-            },
+            (v4/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -305,7 +316,7 @@ return {
               "kind": "LinkedField",
               "name": "latency",
               "plural": false,
-              "selections": (v2/*: any*/),
+              "selections": (v7/*: any*/),
               "storageKey": null
             },
             {
@@ -315,7 +326,7 @@ return {
               "kind": "LinkedField",
               "name": "promptTokenCount",
               "plural": false,
-              "selections": (v2/*: any*/),
+              "selections": (v7/*: any*/),
               "storageKey": null
             },
             {
@@ -325,7 +336,7 @@ return {
               "kind": "LinkedField",
               "name": "completionTokenCount",
               "plural": false,
-              "selections": (v2/*: any*/),
+              "selections": (v7/*: any*/),
               "storageKey": null
             },
             {
@@ -335,7 +346,7 @@ return {
               "kind": "LinkedField",
               "name": "totalTokenCount",
               "plural": false,
-              "selections": (v2/*: any*/),
+              "selections": (v7/*: any*/),
               "storageKey": null
             },
             {
@@ -345,12 +356,27 @@ return {
               "kind": "LinkedField",
               "name": "totalCost",
               "plural": false,
-              "selections": (v2/*: any*/),
+              "selections": (v7/*: any*/),
               "storageKey": null
             }
           ],
           "storageKey": null
         }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": (v3/*: any*/),
+      "concreteType": "CompareExperimentRunAnnotationMetricCounts",
+      "kind": "LinkedField",
+      "name": "compareExperimentRunAnnotationCounts",
+      "plural": true,
+      "selections": [
+        (v2/*: any*/),
+        (v4/*: any*/),
+        (v5/*: any*/),
+        (v6/*: any*/)
       ],
       "storageKey": null
     }
@@ -360,6 +386,6 @@ return {
 };
 })();
 
-(node as any).hash = "075184c06e042abc8d23685a9aa702fa";
+(node as any).hash = "e89a2e506b76289121511233373ea627";
 
 export default node;

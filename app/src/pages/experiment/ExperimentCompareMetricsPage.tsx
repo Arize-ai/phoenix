@@ -55,6 +55,9 @@ type Experiment = NonNullable<
 type MetricChangeCount =
   ExperimentCompareMetricsPage_experiments$data["compareExperimentCounts"]["diffs"][number];
 
+type AnnotationMetricChangeCount =
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationCounts"][number];
+
 function MetricCard({
   title,
   baseExperimentValue,
@@ -156,6 +159,15 @@ export function ExperimentCompareMetricsPage() {
             }
           }
         }
+        compareExperimentRunAnnotationCounts(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          annotationName
+          compareExperimentId
+          numIncreases
+          numDecreases
+        }
       }
     `,
     loaderData
@@ -178,6 +190,21 @@ export function ExperimentCompareMetricsPage() {
     const compareExperimentIdToCounts: Record<string, MetricChangeCount> = {};
     data.compareExperimentCounts.diffs.map((diff) => {
       compareExperimentIdToCounts[diff.compareExperimentId] = diff;
+    });
+
+    const annotationNameTocompareExperimentIdToCounts: Record<
+      string,
+      Record<string, AnnotationMetricChangeCount>
+    > = {};
+    data.compareExperimentRunAnnotationCounts.forEach((counts) => {
+      const compareExperimentId = counts.compareExperimentId;
+      const annotationName = counts.annotationName;
+      if (!(annotationName in annotationNameTocompareExperimentIdToCounts)) {
+        annotationNameTocompareExperimentIdToCounts[annotationName] = {};
+      }
+      annotationNameTocompareExperimentIdToCounts[annotationName][
+        compareExperimentId
+      ] = counts;
     });
 
     const latencyMetric: MetricCardProps = {
@@ -300,8 +327,14 @@ export function ExperimentCompareMetricsPage() {
               compareExperimentId
             ];
         }
-        const numImprovements = 1;
-        const numRegressions = 3;
+        const numImprovements =
+          annotationNameTocompareExperimentIdToCounts[annotationName]?.[
+            compareExperimentId
+          ]?.numIncreases ?? 0;
+        const numRegressions =
+          annotationNameTocompareExperimentIdToCounts[annotationName]?.[
+            compareExperimentId
+          ]?.numDecreases ?? 0;
         annotationMetrics.push({
           title: annotationName,
           baseExperimentValue: baseExperimentMeanScore,
