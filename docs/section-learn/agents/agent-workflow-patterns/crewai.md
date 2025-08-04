@@ -59,7 +59,7 @@ CrewAI makes it straightforward to build prompt chaining workflows using a seque
 
 **Notebook**: _Research-to-Content Prompt Chaining Workflow_
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb" %}
 
 ### Routing
 
@@ -69,7 +69,7 @@ In CrewAI, you implement routing by defining a Router Agent that inspects each i
 
 **Notebook:** _Research-Content Routing Workflow_
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_routing_tutorial.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_routing_tutorial.ipynb" %}
 
 ### Parallelization
 
@@ -79,7 +79,7 @@ While CrewAI does not enforce true multithreaded execution, it provides a clean 
 
 **Notebook:** _Parallel Research Agent_
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_%20parallelization_tutorial.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_%20parallelization_tutorial.ipynb" %}
 
 ### Orchestrator-Workers
 
@@ -89,4 +89,4 @@ CrewAI supports this pattern using the `Process.hierarchical` setup, where the o
 
 **Notebook:** _Research & Writing Delegation Agents_
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb" %}

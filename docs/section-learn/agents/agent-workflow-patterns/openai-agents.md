@@ -35,7 +35,7 @@ agent = Agent(
 
 An LLM agent with access to tools to accomplish a task is the most basic flow. This agent answers questions about stocks and uses OpenAI web search to get real time information.&#x20;
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_basic.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_basic.ipynb" %}
 
 {% code overflow="wrap" %}
 ```python
@@ -59,7 +59,7 @@ This agent builds a portfolio of stocks and ETFs using multiple agents linked to
 1. **Search Agent:** Searches the web for information on particular stock tickers.
 2. **Report Agent:** Creates a portfolio of stocks and ETFs that supports the user's investment strategy.
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb" %}
 
 <figure><img src="../../.gitbook/assets/prompt-chaining.png" alt=""><figcaption><p>Prompt Chaining Flow</p></figcaption></figure>
 
@@ -88,7 +88,7 @@ research_agent = Agent(
 
 This agent researches stocks for you. If we want to research 5 stocks, we can force the agent to run multiple tool calls, instead of sequentially.
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_parallelization.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_parallelization.ipynb" %}
 
 <figure><img src="../../.gitbook/assets/parallelization.png" alt="" width="563"><figcaption><p>Parallelization Flow</p></figcaption></figure>
 
@@ -128,7 +128,7 @@ This agent answers questions about investing using multiple agents. A central ro
 1. **Research Agent:** Searches the web for information about stocks and ETFs.
 2. **Question Answering Agent:** Answers questions about investing like Warren Buffett.
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_routing.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_routing.ipynb" %}
 
 <figure><img src="../../.gitbook/assets/routing.png" alt=""><figcaption></figcaption></figure>
 
@@ -167,7 +167,7 @@ This agent pattern creates reports and evaluates itself to improve its output.
 1. **Report Agent (Generation):** Creates a report on a particular stock ticker.
 2. **Evaluator Agent (Feedback):** Evaluates the report and provides feedback on what to improve.
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb" %}
 
 <figure><img src="../../.gitbook/assets/eval-optimizer.png" alt=""><figcaption><p>Eval-Optimizer Flow</p></figcaption></figure>
 
@@ -212,7 +212,7 @@ In the following example, we'll build an agent which creates a portfolio of stoc
 3. **Evaluation Agent:** Evaluates the research report and provides feedback on what data is missing.
 4. **Portfolio Agent:** Creates a portfolio of stocks and ETFs based on the research report.
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_orchestrator.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_orchestrator.ipynb" %}
 
 <figure><img src="../../.gitbook/assets/orchestrator (1).png" alt=""><figcaption><p>Orchestrator Flow</p></figcaption></figure>
 
