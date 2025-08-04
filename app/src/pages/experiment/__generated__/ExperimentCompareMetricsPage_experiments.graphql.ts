@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eaab72b03eeb787d66dc4a496ab52fd1>>
+ * @generated SignedSource<<7b99ba60c1cb4011a2c241c10d689bbd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,36 +11,34 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
-  readonly compareExperimentCounts: {
-    readonly diffs: ReadonlyArray<{
-      readonly compareExperimentId: string;
-      readonly completionTokenCount: {
-        readonly numDecreases: number;
-        readonly numIncreases: number;
-      };
-      readonly latency: {
-        readonly numDecreases: number;
-        readonly numIncreases: number;
-      };
-      readonly promptTokenCount: {
-        readonly numDecreases: number;
-        readonly numIncreases: number;
-      };
-      readonly totalCost: {
-        readonly numDecreases: number;
-        readonly numIncreases: number;
-      };
-      readonly totalTokenCount: {
-        readonly numDecreases: number;
-        readonly numIncreases: number;
-      };
-    }>;
-  };
-  readonly compareExperimentRunAnnotationCounts: ReadonlyArray<{
+  readonly compareExperimentRunAnnotationMetricCounts: ReadonlyArray<{
     readonly annotationName: string;
     readonly compareExperimentId: string;
     readonly numDecreases: number;
     readonly numIncreases: number;
+  }>;
+  readonly compareExperimentRunMetricCounts: ReadonlyArray<{
+    readonly compareExperimentId: string;
+    readonly completionTokenCount: {
+      readonly numDecreases: number;
+      readonly numIncreases: number;
+    };
+    readonly latency: {
+      readonly numDecreases: number;
+      readonly numIncreases: number;
+    };
+    readonly promptTokenCount: {
+      readonly numDecreases: number;
+      readonly numIncreases: number;
+    };
+    readonly totalCost: {
+      readonly numDecreases: number;
+      readonly numIncreases: number;
+    };
+    readonly totalTokenCount: {
+      readonly numDecreases: number;
+      readonly numIncreases: number;
+    };
   }>;
   readonly dataset: {
     readonly experiments?: {
@@ -295,71 +293,60 @@ return {
     {
       "alias": null,
       "args": (v3/*: any*/),
-      "concreteType": "CompareExperimentCountsPayload",
+      "concreteType": "CompareExperimentRunMetricCounts",
       "kind": "LinkedField",
-      "name": "compareExperimentCounts",
-      "plural": false,
+      "name": "compareExperimentRunMetricCounts",
+      "plural": true,
       "selections": [
+        (v4/*: any*/),
         {
           "alias": null,
           "args": null,
-          "concreteType": "CompareExperimentCountsDiff",
+          "concreteType": "MetricCounts",
           "kind": "LinkedField",
-          "name": "diffs",
-          "plural": true,
-          "selections": [
-            (v4/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CountDiff",
-              "kind": "LinkedField",
-              "name": "latency",
-              "plural": false,
-              "selections": (v7/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CountDiff",
-              "kind": "LinkedField",
-              "name": "promptTokenCount",
-              "plural": false,
-              "selections": (v7/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CountDiff",
-              "kind": "LinkedField",
-              "name": "completionTokenCount",
-              "plural": false,
-              "selections": (v7/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CountDiff",
-              "kind": "LinkedField",
-              "name": "totalTokenCount",
-              "plural": false,
-              "selections": (v7/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CountDiff",
-              "kind": "LinkedField",
-              "name": "totalCost",
-              "plural": false,
-              "selections": (v7/*: any*/),
-              "storageKey": null
-            }
-          ],
+          "name": "latency",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
+          "name": "promptTokenCount",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
+          "name": "completionTokenCount",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
+          "name": "totalTokenCount",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
+          "name": "totalCost",
+          "plural": false,
+          "selections": (v7/*: any*/),
           "storageKey": null
         }
       ],
@@ -370,7 +357,7 @@ return {
       "args": (v3/*: any*/),
       "concreteType": "CompareExperimentRunAnnotationMetricCounts",
       "kind": "LinkedField",
-      "name": "compareExperimentRunAnnotationCounts",
+      "name": "compareExperimentRunAnnotationMetricCounts",
       "plural": true,
       "selections": [
         (v2/*: any*/),
@@ -386,6 +373,6 @@ return {
 };
 })();
 
-(node as any).hash = "e89a2e506b76289121511233373ea627";
+(node as any).hash = "e11be301f1cc94b71e2491e092528ddc";
 
 export default node;

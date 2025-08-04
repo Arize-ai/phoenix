@@ -53,10 +53,10 @@ type Experiment = NonNullable<
 >["edges"][number]["experiment"];
 
 type MetricChangeCount =
-  ExperimentCompareMetricsPage_experiments$data["compareExperimentCounts"]["diffs"][number];
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunMetricCounts"][number];
 
 type AnnotationMetricChangeCount =
-  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationCounts"][number];
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationMetricCounts"][number];
 
 function MetricCard({
   title,
@@ -131,35 +131,33 @@ export function ExperimentCompareMetricsPage() {
             }
           }
         }
-        compareExperimentCounts(
+        compareExperimentRunMetricCounts(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
         ) {
-          diffs {
-            compareExperimentId
-            latency {
-              numIncreases
-              numDecreases
-            }
-            promptTokenCount {
-              numIncreases
-              numDecreases
-            }
-            completionTokenCount {
-              numIncreases
-              numDecreases
-            }
-            totalTokenCount {
-              numIncreases
-              numDecreases
-            }
-            totalCost {
-              numIncreases
-              numDecreases
-            }
+          compareExperimentId
+          latency {
+            numIncreases
+            numDecreases
+          }
+          promptTokenCount {
+            numIncreases
+            numDecreases
+          }
+          completionTokenCount {
+            numIncreases
+            numDecreases
+          }
+          totalTokenCount {
+            numIncreases
+            numDecreases
+          }
+          totalCost {
+            numIncreases
+            numDecreases
           }
         }
-        compareExperimentRunAnnotationCounts(
+        compareExperimentRunAnnotationMetricCounts(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
         ) {
@@ -188,15 +186,15 @@ export function ExperimentCompareMetricsPage() {
     });
 
     const compareExperimentIdToCounts: Record<string, MetricChangeCount> = {};
-    data.compareExperimentCounts.diffs.map((diff) => {
-      compareExperimentIdToCounts[diff.compareExperimentId] = diff;
+    data.compareExperimentRunMetricCounts.map((counts) => {
+      compareExperimentIdToCounts[counts.compareExperimentId] = counts;
     });
 
     const annotationNameTocompareExperimentIdToCounts: Record<
       string,
       Record<string, AnnotationMetricChangeCount>
     > = {};
-    data.compareExperimentRunAnnotationCounts.forEach((counts) => {
+    data.compareExperimentRunAnnotationMetricCounts.forEach((counts) => {
       const compareExperimentId = counts.compareExperimentId;
       const annotationName = counts.annotationName;
       if (!(annotationName in annotationNameTocompareExperimentIdToCounts)) {

@@ -108,10 +108,20 @@ class DbTableStats:
 
 
 @strawberry.type
-class CountDiff:
+class MetricCounts:
     num_increases: int
     num_decreases: int
     num_equal: int
+
+
+@strawberry.type
+class CompareExperimentRunMetricCounts:
+    compare_experiment_id: GlobalID
+    latency: MetricCounts
+    prompt_token_count: MetricCounts
+    completion_token_count: MetricCounts
+    total_token_count: MetricCounts
+    total_cost: MetricCounts
 
 
 @strawberry.type
@@ -121,21 +131,6 @@ class CompareExperimentRunAnnotationMetricCounts:
     num_increases: int
     num_decreases: int
     num_equal: int
-
-
-@strawberry.type
-class CompareExperimentCountsDiff:
-    compare_experiment_id: GlobalID
-    latency: CountDiff
-    prompt_token_count: CountDiff
-    completion_token_count: CountDiff
-    total_token_count: CountDiff
-    total_cost: CountDiff
-
-
-@strawberry.type
-class CompareExperimentCountsPayload:
-    diffs: list[CompareExperimentCountsDiff]
 
 
 @strawberry.type
@@ -514,12 +509,12 @@ class Query:
         )
 
     @strawberry.field
-    async def compare_experiment_counts(
+    async def compare_experiment_run_metric_counts(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
         compare_experiment_ids: list[GlobalID],
-    ) -> CompareExperimentCountsPayload:
+    ) -> list[CompareExperimentRunMetricCounts]:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if not compare_experiment_ids:
@@ -749,7 +744,7 @@ class Query:
         assert result is not None
 
         num_columns_per_compare_experiment = len(query.columns) // len(compare_experiment_ids)
-        count_diffs = []
+        counts = []
         for compare_experiment_index, compare_experiment_id in enumerate(compare_experiment_ids):
             start_index = compare_experiment_index * num_columns_per_compare_experiment
             end_index = start_index + num_columns_per_compare_experiment
@@ -770,42 +765,40 @@ class Query:
                 num_runs_with_decreased_total_cost,
                 num_runs_with_equal_total_cost,
             ) = result[start_index:end_index]
-            count_diffs.append(
-                CompareExperimentCountsDiff(
+            counts.append(
+                CompareExperimentRunMetricCounts(
                     compare_experiment_id=compare_experiment_id,
-                    latency=CountDiff(
+                    latency=MetricCounts(
                         num_increases=num_runs_with_increased_latency,
                         num_decreases=num_runs_with_decreased_latency,
                         num_equal=num_runs_with_equal_latency,
                     ),
-                    prompt_token_count=CountDiff(
+                    prompt_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_prompt_token_count,
                         num_decreases=num_runs_with_decreased_prompt_token_count,
                         num_equal=num_runs_with_equal_prompt_token_count,
                     ),
-                    completion_token_count=CountDiff(
+                    completion_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_completion_token_count,
                         num_decreases=num_runs_with_decreased_completion_token_count,
                         num_equal=num_runs_with_equal_completion_token_count,
                     ),
-                    total_token_count=CountDiff(
+                    total_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_total_token_count,
                         num_decreases=num_runs_with_decreased_total_token_count,
                         num_equal=num_runs_with_equal_total_token_count,
                     ),
-                    total_cost=CountDiff(
+                    total_cost=MetricCounts(
                         num_increases=num_runs_with_increased_total_cost,
                         num_decreases=num_runs_with_decreased_total_cost,
                         num_equal=num_runs_with_equal_total_cost,
                     ),
                 )
             )
-        return CompareExperimentCountsPayload(
-            diffs=count_diffs,
-        )
+        return counts
 
     @strawberry.field
-    async def compare_experiment_run_annotation_counts(
+    async def compare_experiment_run_annotation_metric_counts(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
