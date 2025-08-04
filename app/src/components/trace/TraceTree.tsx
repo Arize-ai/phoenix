@@ -298,6 +298,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               <SpanTokenCount
                 tokenCountTotal={tokenCountTotal}
                 nodeId={node.span.id}
+                onPress={() => {
+                  onSpanClick && onSpanClick(node.span);
+                }}
               />
             ) : null}
             {latencyMs != null && showMetricsInTraceTree ? (
