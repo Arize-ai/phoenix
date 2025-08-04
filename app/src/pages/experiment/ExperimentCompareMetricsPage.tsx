@@ -328,6 +328,7 @@ export function ExperimentCompareMetricsPage() {
       if (!(annotationName in annotationNameToCompareExperimentIdToMeanScore)) {
         continue;
       }
+      const annotationMetricCompareExperiments: CompareExperimentData[] = [];
       for (const experiment of compareExperiments) {
         const compareExperimentId = experiment.id;
         let compareExperimentMeanScore: MetricValue = null;
@@ -353,19 +354,18 @@ export function ExperimentCompareMetricsPage() {
           annotationNameToCompareExperimentIdToCounts[annotationName]?.[
             compareExperimentId
           ]?.numDecreases ?? 0;
-        annotationMetrics.push({
-          title: annotationName,
-          baseExperimentValue: baseExperimentMeanScore,
-          compareExperiments: [
-            {
-              experimentId: compareExperimentId as string,
-              value: compareExperimentMeanScore,
-              numImprovements,
-              numRegressions,
-            },
-          ],
+        annotationMetricCompareExperiments.push({
+          experimentId: compareExperimentId,
+          value: compareExperimentMeanScore,
+          numImprovements,
+          numRegressions,
         });
       }
+      annotationMetrics.push({
+        title: annotationName,
+        baseExperimentValue: baseExperimentMeanScore,
+        compareExperiments: annotationMetricCompareExperiments,
+      });
     }
     return [...annotationMetrics, ...builtInMetrics];
   }, [baseExperimentId, compareExperimentIds, data]);
