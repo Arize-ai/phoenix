@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
 
 import {
   Loading,
@@ -34,11 +33,9 @@ type SpanTokenCountProps = {
 export function SpanTokenCount(props: SpanTokenCountProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
-        <TokenCount size={props.size} role="button">
-          {props.tokenCountTotal}
-        </TokenCount>
-      </Pressable>
+      <TokenCount size={props.size} role="button">
+        {props.tokenCountTotal}
+      </TokenCount>
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
