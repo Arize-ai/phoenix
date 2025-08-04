@@ -10,7 +10,7 @@ import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import { Alert, Flex, View } from "@phoenix/components";
 import {
   ExperimentCompareView,
   ExperimentCompareViewSelect,
@@ -107,10 +107,18 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      <ExperimentComparePageContent
-        view={view}
-        displayFullText={displayFullText}
-      />
+      {baseExperimentId == null ? (
+        <View padding="size-200">
+          <Alert variant="info" title="No Base Experiment Selected">
+            Please select a base experiment.
+          </Alert>
+        </View>
+      ) : (
+        <ExperimentComparePageContent
+          view={view}
+          displayFullText={displayFullText}
+        />
+      )}
     </main>
   );
 }

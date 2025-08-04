@@ -25,7 +25,7 @@ export async function experimentCompareLoader(
   const url = new URL(args.request.url);
   const [baseExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
-  const isMetricsView = url.searchParams.get("view") === "metrics";
+  const view = url.searchParams.get("view") || "grid";
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
@@ -35,10 +35,11 @@ export async function experimentCompareLoader(
         $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
         $hasBaseExperiment: Boolean!
-        $isMetricsView: Boolean!
+        $includeGridView: Boolean!
+        $includeMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaseExperiment)
+          @include(if: $includeGridView)
           @arguments(
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
@@ -47,7 +48,7 @@ export async function experimentCompareLoader(
         ...ExperimentMultiSelector__data
           @arguments(hasBaseExperiment: $hasBaseExperiment)
         ...ExperimentCompareMetricsPage_experiments
-          @include(if: $isMetricsView)
+          @include(if: $includeMetricsView)
           @arguments(
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
@@ -60,7 +61,8 @@ export async function experimentCompareLoader(
       baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
       hasBaseExperiment: baseExperimentId != null,
-      isMetricsView,
+      includeGridView: view === "grid" && baseExperimentId != null,
+      includeMetricsView: view === "metrics" && baseExperimentId != null,
     }
   ).toPromise();
 }
