@@ -262,7 +262,12 @@ export function ExperimentRunFilterConditionField(
     <div
       data-is-focused={isFocused}
       data-is-invalid={hasError}
-      css={fieldCSS}
+      css={css(
+        fieldCSS,
+        css`
+          flex: 1;
+        `
+      )}
       ref={filterConditionFieldRef}
     >
       <Flex direction="row">

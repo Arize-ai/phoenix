@@ -3,7 +3,19 @@ import { graphql, useFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { useExperimentColors } from "@phoenix/components/experiment";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -37,8 +49,10 @@ type MetricValue = number | null | undefined;
 type CompareExperimentData = {
   experimentId: string;
   value: MetricValue;
-  numImprovements: number;
-  numRegressions: number;
+  numIncreases: number;
+  numDecreases: number;
+  numEqual: number;
+  color: string;
 };
 
 type MetricCardProps = {
@@ -67,7 +81,9 @@ function MetricCard({
   return (
     <div css={metricCardCSS}>
       <Flex direction="column" gap="size-200">
-        <Heading level={2}>{title}</Heading>
+        <Heading level={2} weight="heavy">
+          {title}
+        </Heading>
         <BaseExperimentMetric
           value={baseExperimentValue}
           formatter={formatter}
@@ -78,8 +94,10 @@ function MetricCard({
             value={compareExperiment.value}
             formatter={formatter}
             baseExperimentValue={baseExperimentValue}
-            numImprovements={compareExperiment.numImprovements}
-            numRegressions={compareExperiment.numRegressions}
+            numIncreases={compareExperiment.numIncreases}
+            numDecreases={compareExperiment.numDecreases}
+            numEqual={compareExperiment.numEqual}
+            color={compareExperiment.color}
           />
         ))}
       </Flex>
@@ -95,6 +113,7 @@ export function ExperimentCompareMetricsPage() {
     throw new Error("Empty state not yet implemented");
   }
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const { getExperimentColor } = useExperimentColors();
   const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
     graphql`
       fragment ExperimentCompareMetricsPage_experiments on Query
@@ -140,22 +159,30 @@ export function ExperimentCompareMetricsPage() {
           latency {
             numIncreases
             numDecreases
+            numEqual
           }
           promptTokenCount {
             numIncreases
             numDecreases
+            numEqual
           }
           completionTokenCount {
             numIncreases
             numDecreases
+
+            numEqual
           }
           totalTokenCount {
             numIncreases
             numDecreases
+
+            numEqual
           }
           totalCost {
             numIncreases
             numDecreases
+
+            numEqual
           }
         }
         compareExperimentRunAnnotationMetricCounts(
@@ -166,6 +193,8 @@ export function ExperimentCompareMetricsPage() {
           compareExperimentId
           numIncreases
           numDecreases
+
+          numEqual
         }
       }
     `,
@@ -236,54 +265,73 @@ export function ExperimentCompareMetricsPage() {
       compareExperiments: [],
       formatter: costFormatter,
     };
-    compareExperiments.forEach((experiment) => {
+    compareExperiments.forEach((experiment, experimentIndex) => {
+      const experimentColor = getExperimentColor(experimentIndex);
       latencyMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.averageRunLatencyMs,
-        numImprovements:
+        numIncreases:
           compareExperimentIdToCounts[experiment.id]?.latency.numIncreases ?? 0,
-        numRegressions:
+        numDecreases:
           compareExperimentIdToCounts[experiment.id]?.latency.numDecreases ?? 0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.latency.numEqual ?? 0,
+        color: experimentColor,
       });
       promptTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary?.prompt?.tokens,
-        numImprovements:
+        numIncreases:
           compareExperimentIdToCounts[experiment.id]?.promptTokenCount
             .numIncreases ?? 0,
-        numRegressions:
+        numDecreases:
           compareExperimentIdToCounts[experiment.id]?.promptTokenCount
             .numDecreases ?? 0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
+            .numEqual ?? 0,
+        color: experimentColor,
       });
       completionTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary?.completion?.tokens,
-        numImprovements:
+        numIncreases:
           compareExperimentIdToCounts[experiment.id]?.completionTokenCount
             .numIncreases ?? 0,
-        numRegressions:
+        numDecreases:
           compareExperimentIdToCounts[experiment.id]?.completionTokenCount
             .numDecreases ?? 0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
+            .numEqual ?? 0,
+        color: experimentColor,
       });
       totalTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary?.total?.tokens,
-        numImprovements:
+        numIncreases:
           compareExperimentIdToCounts[experiment.id]?.totalTokenCount
             .numIncreases ?? 0,
-        numRegressions:
+        numDecreases:
           compareExperimentIdToCounts[experiment.id]?.totalTokenCount
             .numDecreases ?? 0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
+            .numEqual ?? 0,
+        color: experimentColor,
       });
       totalCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary?.total?.cost,
-        numImprovements:
+        numIncreases:
           compareExperimentIdToCounts[experiment.id]?.totalCost.numIncreases ??
           0,
-        numRegressions:
+        numDecreases:
           compareExperimentIdToCounts[experiment.id]?.totalCost.numDecreases ??
           0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.totalCost.numEqual ?? 0,
+        color: experimentColor,
       });
     });
     const builtInMetrics = [
@@ -330,8 +378,9 @@ export function ExperimentCompareMetricsPage() {
         continue;
       }
       const annotationMetricCompareExperiments: CompareExperimentData[] = [];
-      for (const experiment of compareExperiments) {
+      compareExperiments.forEach((experiment, experimentIndex) => {
         const compareExperimentId = experiment.id;
+        const experimentColor = getExperimentColor(experimentIndex);
         let compareExperimentMeanScore: MetricValue = null;
         if (
           compareExperimentId == null ||
@@ -347,21 +396,27 @@ export function ExperimentCompareMetricsPage() {
               compareExperimentId
             ];
         }
-        const numImprovements =
+        const numIncreases =
           annotationNameToCompareExperimentIdToCounts[annotationName]?.[
             compareExperimentId
           ]?.numIncreases ?? 0;
-        const numRegressions =
+        const numDecreases =
           annotationNameToCompareExperimentIdToCounts[annotationName]?.[
             compareExperimentId
           ]?.numDecreases ?? 0;
+        const numEqual =
+          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
+            compareExperimentId
+          ]?.numEqual ?? 0;
         annotationMetricCompareExperiments.push({
           experimentId: compareExperimentId,
           value: compareExperimentMeanScore,
-          numImprovements,
-          numRegressions,
+          numIncreases,
+          numDecreases,
+          numEqual,
+          color: experimentColor,
         });
-      }
+      });
       annotationMetrics.push({
         title: annotationName,
         baseExperimentValue: baseExperimentMeanScore,
@@ -369,7 +424,7 @@ export function ExperimentCompareMetricsPage() {
       });
     }
     return [...annotationMetrics, ...builtInMetrics];
-  }, [baseExperimentId, compareExperimentIds, data]);
+  }, [baseExperimentId, compareExperimentIds, data, getExperimentColor]);
 
   return (
     <View padding="size-200" width="100%">
@@ -407,22 +462,32 @@ function BaseExperimentMetric({
   value: MetricValue;
   formatter?: (value: MetricValue) => string;
 }) {
+  const { baseExperimentColor } = useExperimentColors();
   const valueText = formatter(value);
-  return <Text size="M">{valueText}</Text>;
+  return (
+    <Flex direction="row" alignItems="center" gap="size-150">
+      <ColorSwatch color={baseExperimentColor} />
+      <Text size="L">{valueText}</Text>
+    </Flex>
+  );
 }
 
 function CompareExperimentMetric({
   value,
   formatter = numberFormatter,
   baseExperimentValue,
-  numImprovements,
-  numRegressions,
+  numIncreases,
+  numDecreases,
+  numEqual,
+  color,
 }: {
   value: MetricValue;
   formatter?: (value: MetricValue) => string;
   baseExperimentValue: MetricValue;
-  numImprovements: number;
-  numRegressions: number;
+  numIncreases: number;
+  numDecreases: number;
+  numEqual: number;
+  color: string;
 }) {
   const { valueText, deltaText, percentageDeltaText } = useMemo(() => {
     const valueText = formatter(value);
@@ -446,46 +511,91 @@ function CompareExperimentMetric({
       percentageDeltaText,
     };
   }, [baseExperimentValue, formatter, value]);
+
   return (
     <Flex direction="row" justifyContent="space-between">
-      <Flex direction="row" alignItems="center" gap="size-50">
-        <Text size="M">{valueText}</Text>
-        {deltaText && <Text size="S">{deltaText}</Text>}
-        {percentageDeltaText && <Text size="S">{percentageDeltaText}</Text>}
+      <Flex direction="row" alignItems="center" gap="size-150">
+        <ColorSwatch color={color} />
+        <Flex direction="row" alignItems="center" gap="size-115">
+          <Text size="L">{valueText}</Text>
+          <Flex direction="row" alignItems="center" gap="size-75">
+            {deltaText && (
+              <Text color="text-500" size="M">
+                {deltaText}
+              </Text>
+            )}
+            {percentageDeltaText && (
+              <Text color="text-500" size="M">
+                {percentageDeltaText}
+              </Text>
+            )}
+          </Flex>
+        </Flex>
       </Flex>
-      <ImprovementAndRegressionCounter
-        numImprovements={numImprovements}
-        numRegressions={numRegressions}
+      <IncreaseAndDecreaseCounter
+        numIncreases={numIncreases}
+        numDecreases={numDecreases}
+        numEqual={numEqual}
       />
     </Flex>
   );
 }
 
-function ImprovementAndRegressionCounter({
-  numImprovements,
-  numRegressions,
+function IncreaseAndDecreaseCounter({
+  numIncreases,
+  numDecreases,
+  numEqual,
 }: {
-  numImprovements: number;
-  numRegressions: number;
+  numIncreases: number;
+  numDecreases: number;
+  numEqual: number;
 }) {
+  const { disableTooltip, tooltipTexts } = useMemo(() => {
+    const tooltipTexts: string[] = [];
+    if (numIncreases > 0) {
+      tooltipTexts.push(
+        `${numIncreases} example${numIncreases > 1 ? "s" : ""} increased`
+      );
+    }
+    if (numDecreases > 0) {
+      tooltipTexts.push(
+        `${numDecreases} example${numDecreases > 1 ? "s" : ""} decreased`
+      );
+    }
+    if (numEqual > 0) {
+      tooltipTexts.push(
+        `${numEqual} example${numEqual > 1 ? "s" : ""} stayed the same`
+      );
+    }
+    return { disableTooltip: tooltipTexts.length === 0, tooltipTexts };
+  }, [numDecreases, numEqual, numIncreases]);
   return (
-    <Flex direction="row" gap="size-50">
-      {numImprovements > 0 && (
-        <Flex direction="row" alignItems="center">
-          <Icon svg={<Icons.ArrowUpwardOutline />} color="green-900" />
-          <Text size="M" color="green-900">
-            {numImprovements}
-          </Text>
+    <TooltipTrigger isDisabled={disableTooltip} delay={200}>
+      <TriggerWrap>
+        <Flex direction="row" gap="size-100">
+          {numIncreases > 0 && (
+            <Flex direction="row" gap="size-25" alignItems="center">
+              <Text size="M">{numIncreases}</Text>
+
+              <Icon svg={<Icons.ArrowUpwardOutline />} color="green-900" />
+            </Flex>
+          )}
+          {numDecreases > 0 && (
+            <Flex direction="row" gap="size-25" alignItems="center">
+              <Text size="M">{numDecreases}</Text>
+
+              <Icon svg={<Icons.ArrowDownwardOutline />} color="red-900" />
+            </Flex>
+          )}
         </Flex>
-      )}
-      {numRegressions > 0 && (
-        <Flex direction="row" alignItems="center">
-          <Icon svg={<Icons.ArrowDownwardOutline />} color="red-900" />
-          <Text size="M" color="red-900">
-            {numRegressions}
-          </Text>
+      </TriggerWrap>
+      <Tooltip>
+        <Flex direction="column" gap="size-50">
+          {tooltipTexts.map((tooltipText) => (
+            <Text key={tooltipText}>{tooltipText}</Text>
+          ))}
         </Flex>
-      )}
-    </Flex>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
