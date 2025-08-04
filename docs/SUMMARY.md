@@ -85,6 +85,7 @@
     * [Hallucinations](evaluation/how-to-evals/running-pre-tested-evals/hallucinations.md)
     * [Q\&A on Retrieved Data](evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
     * [Retrieval (RAG) Relevance](evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
+    * [Session-Level Evaluations](evaluation/how-to-evals/running-pre-tested-evals/session-level-evaluations.md)
     * [Summarization](evaluation/how-to-evals/running-pre-tested-evals/summarization-eval.md)
     * [Code Generation](evaluation/how-to-evals/running-pre-tested-evals/code-generation-eval.md)
     * [Toxicity](evaluation/how-to-evals/running-pre-tested-evals/toxicity.md)
