@@ -580,12 +580,13 @@ class Query:
             )
         )
 
-        base_experiment_run_latency = func.max(
-            LatencyMs(base_experiment_runs.c.start_time, base_experiment_runs.c.end_time), 0
+        base_experiment_run_latency = LatencyMs(
+            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
         ).label("base_experiment_run_latency_ms")
         base_experiment_run_prompt_token_count = base_experiment_span_costs.c.prompt_tokens
         base_experiment_run_completion_token_count = base_experiment_span_costs.c.completion_tokens
         base_experiment_run_total_token_count = base_experiment_span_costs.c.total_tokens
+        base_experiment_run_total_cost = base_experiment_span_costs.c.total_cost
 
         for compare_experiment_index, compare_experiment_rowid in enumerate(
             compare_experiment_rowids
@@ -616,19 +617,17 @@ class Query:
                 .subquery()
                 .alias(f"compare_experiment_{compare_experiment_index}_span_costs")
             )
-            compare_experiment_run_latency = func.max(
-                LatencyMs(compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time),
-                0,
+            compare_experiment_run_latency = LatencyMs(
+                compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time
             ).label(f"compare_experiment_{compare_experiment_index}_run_latency_ms")
             compare_experiment_run_prompt_token_count = (
                 compare_experiment_span_costs.c.prompt_tokens
-            ).label(f"compare_experiment_{compare_experiment_index}_run_prompt_token_count")
+            )
             compare_experiment_run_completion_token_count = (
                 compare_experiment_span_costs.c.completion_tokens
-            ).label(f"compare_experiment_{compare_experiment_index}_run_completion_token_count")
-            compare_experiment_run_total_token_count = (
-                compare_experiment_span_costs.c.total_tokens
-            ).label(f"compare_experiment_{compare_experiment_index}_run_total_token_count")
+            )
+            compare_experiment_run_total_token_count = compare_experiment_span_costs.c.total_tokens
+            compare_experiment_run_total_cost = compare_experiment_span_costs.c.total_cost
 
             query = (
                 query.add_columns(
@@ -702,20 +701,17 @@ class Query:
                         f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_token_count"
                     ),
                     _count_rows(
-                        base_experiment_span_costs.c.total_cost
-                        < compare_experiment_span_costs.c.total_cost,
+                        base_experiment_run_total_cost < compare_experiment_run_total_cost,
                     ).label(
                         f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_total_cost"
                     ),
                     _count_rows(
-                        base_experiment_span_costs.c.total_cost
-                        > compare_experiment_span_costs.c.total_cost,
+                        base_experiment_run_total_cost > compare_experiment_run_total_cost,
                     ).label(
                         f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_total_cost"
                     ),
                     _count_rows(
-                        base_experiment_span_costs.c.total_cost
-                        == compare_experiment_span_costs.c.total_cost,
+                        base_experiment_run_total_cost == compare_experiment_run_total_cost,
                     ).label(
                         f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_cost"
                     ),
