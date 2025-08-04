@@ -52,7 +52,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.secret[4].value | string | `""` | Default password for the admin user on initial setup, uses defaultAdminPassword if empty |
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `10` | Storage allocation in GiB for the database persistent volume |
-| database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS) |
+| database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS). Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. This setting configures the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
 | database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (PHOENIX_POSTGRES_HOST). Default points to the built-in PostgreSQL service when postgresql.enabled=true. Change this to your external database host when using RDS, CloudSQL, etc. |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
