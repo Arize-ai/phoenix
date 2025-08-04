@@ -595,10 +595,10 @@ class Query:
                 select(models.ExperimentRun)
                 .where(models.ExperimentRun.experiment_id == compare_experiment_rowid)
                 .subquery()
-                .alias(f"compare_experiment_{compare_experiment_index}_runs")
+                .alias(f"comp_exp_{compare_experiment_index}_runs")
             )
             compare_experiment_traces = aliased(
-                models.Trace, name=f"compare_experiment_{compare_experiment_index}_traces"
+                models.Trace, name=f"comp_exp_{compare_experiment_index}_traces"
             )
             compare_experiment_span_costs = (
                 select(
@@ -615,11 +615,11 @@ class Query:
                 .select_from(models.SpanCost)
                 .group_by(models.SpanCost.trace_rowid)
                 .subquery()
-                .alias(f"compare_experiment_{compare_experiment_index}_span_costs")
+                .alias(f"comp_exp_{compare_experiment_index}_span_costs")
             )
             compare_experiment_run_latency = LatencyMs(
                 compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time
-            ).label(f"compare_experiment_{compare_experiment_index}_run_latency_ms")
+            ).label(f"comp_exp_{compare_experiment_index}_run_latency_ms")
             compare_experiment_run_prompt_token_count = (
                 compare_experiment_span_costs.c.prompt_tokens
             )
@@ -633,88 +633,76 @@ class Query:
                 query.add_columns(
                     _count_rows(
                         base_experiment_run_latency < compare_experiment_run_latency,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_latency"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_latency"),
                     _count_rows(
                         base_experiment_run_latency > compare_experiment_run_latency,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_latency"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_latency"),
                     _count_rows(
                         base_experiment_run_latency == compare_experiment_run_latency,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_latency"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_latency"),
                     _count_rows(
                         base_experiment_run_prompt_token_count
                         < compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_prompt_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_prompt_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_prompt_token_count
                         > compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_prompt_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_prompt_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_prompt_token_count
                         == compare_experiment_run_prompt_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_prompt_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_prompt_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_completion_token_count
                         < compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_completion_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_completion_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_completion_token_count
                         > compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_completion_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_completion_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_completion_token_count
                         == compare_experiment_run_completion_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_completion_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_completion_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_total_token_count
                         < compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_total_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_total_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_total_token_count
                         > compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_total_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_total_token_count
                         == compare_experiment_run_total_token_count,
                     ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_token_count"
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_total_token_count"
                     ),
                     _count_rows(
                         base_experiment_run_total_cost < compare_experiment_run_total_cost,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_total_cost"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_total_cost"),
                     _count_rows(
                         base_experiment_run_total_cost > compare_experiment_run_total_cost,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_total_cost"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_cost"),
                     _count_rows(
                         base_experiment_run_total_cost == compare_experiment_run_total_cost,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_total_cost"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_total_cost"),
                 )
                 .join(
                     compare_experiment_runs,
@@ -858,32 +846,26 @@ class Query:
                     models.ExperimentRun.experiment_id == compare_experiment_rowid,
                 )
                 .subquery()
-                .alias(f"compare_experiment_{compare_experiment_index}_runs")
+                .alias(f"comp_exp_{compare_experiment_index}_runs")
             )
             compare_experiment_run_annotations = aliased(
                 models.ExperimentRunAnnotation,
-                name=f"compare_experiment_{compare_experiment_index}_run_annotations",
+                name=f"comp_exp_{compare_experiment_index}_run_annotations",
             )
             query = (
                 query.add_columns(
                     _count_rows(
                         base_experiment_run_annotations.score
                         < compare_experiment_run_annotations.score,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_increased_score"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_score"),
                     _count_rows(
                         base_experiment_run_annotations.score
                         > compare_experiment_run_annotations.score,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_decreased_score"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_score"),
                     _count_rows(
                         base_experiment_run_annotations.score
                         == compare_experiment_run_annotations.score,
-                    ).label(
-                        f"compare_experiment_{compare_experiment_index}_num_runs_with_equal_score"
-                    ),
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_score"),
                 )
                 .join(
                     compare_experiment_runs,
