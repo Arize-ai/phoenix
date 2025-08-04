@@ -76,10 +76,6 @@ Validate persistence configuration to prevent data storage conflicts
 {{- if and $databaseUrlConfigured $postgresqlEnabled }}
 {{- fail "ERROR: Conflicting database configuration detected!\n\nYou cannot specify both 'database.url' and enable the built-in PostgreSQL (postgresql.enabled=true).\n\nTo fix this, choose ONE option:\n\n  1. Use external database:\n     - Set postgresql.enabled=false\n     - Keep database.url configured with your external database\n\n  2. Use built-in PostgreSQL:\n     - Set postgresql.enabled=true\n     - Set database.url to empty string\n\nThe database.url setting overrides PostgreSQL settings, so having both enabled creates ambiguity." }}
 {{- end }}
-{{- $workingDir := .Values.server.workingDir }}
-{{- if and $persistenceEnabled (or (not $workingDir) (eq $workingDir "")) }}
-{{- fail "ERROR: Persistence enabled but no working directory configured!\n\nWhen persistence is enabled, you must specify a working directory where Phoenix can store data.\n\nTo fix this:\n  - Set server.workingDir to a directory path (e.g., '/data')\n  - Ensure the working directory matches your volume mount point\n\nExample configuration:\n  persistence:\n    enabled: true\n  server:\n    workingDir: '/data'" }}
-{{- end }}
 {{- end }}
 
 {{/*

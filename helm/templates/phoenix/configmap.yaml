@@ -41,7 +41,7 @@ data:
   PHOENIX_PORT: {{ .Values.server.port | quote }}
   PHOENIX_GRPC_PORT: {{ .Values.server.grpcPort | quote }}
   PHOENIX_HOST_ROOT_PATH: {{ .Values.server.hostRootPath | quote }}
-  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | quote }}
+  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | default "/data" | quote }}
   PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
   PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
