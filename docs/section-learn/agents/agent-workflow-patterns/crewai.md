@@ -4,7 +4,7 @@ description: Use Phoenix to trace and evaluate different CrewAI agent patterns
 
 # CrewAI
 
-[**CrewAI**](https://github.com/crewAIInc/crewAI) is an open-source framework for building and orchestrating collaborative AI agents that act like a team of specialized virtual employees. Built on LangChain, it enables users to define roles, goals, and workflows for each agent, allowing them to work together autonomously on complex tasks with minimal setup.
+[**CrewAI**](https://github.com/crewAIInc/crewAI) is an open-source framework for building and orchestrating collaborative AI agents that act like a team of specialized virtual employees. It enables users to define roles, goals, and workflows for each agent, allowing them to work together autonomously on complex tasks with minimal setup.
 
 ## Core Concepts of CrewAI <a href="#core-concepts-of-crewai" id="core-concepts-of-crewai"></a>
 
