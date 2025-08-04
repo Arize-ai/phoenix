@@ -12,14 +12,14 @@ Session-level evaluations are crucial for assessing:
 * **Conversational progression** - How appropriately the agent guides users through complex multi-step tasks
 
 {% hint style="info" %}
-Session-level evaluations require your traces to be instrumented with `session.id` attributes to group interactions into sessions. See the [Sessions documentation](../../../tracing/features-tracing/sessions.md) for instructions on adding session and user IDs to your spans.
+Session-level evaluations require traces to include `session.id` attributes to group interactions into sessionss. See the [Sessions documentation](../../../tracing/features-tracing/sessions.md) for instructions on adding session and user IDs to your spans.
 {% endhint %}
 
 ## Prerequisites
 
 Before running session-level evaluations, ensure you have:
 
-1. **Instrumented traces with session IDs** - Your application traces must include `session.id` attributes
+1. **Capturing session IDs in traces** - Your application traces must include `session.id` attributes
 2. **Multiple interactions per session** - Sessions should contain multiple related traces to evaluate conversational flow
 3. **Required dependencies** - Install the necessary Python packages:
 
@@ -348,6 +348,6 @@ else:
 ## Related Documentation
 
 * [Session Evaluation Notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_session.ipynb)
-* [Sessions Documentation](../../../tracing/features-tracing/sessions.md) - Learn how to instrument your traces with session IDs
+* [Sessions Documentation](../../../tracing/features-tracing/sessions.md) - Learn how to capture session IDs in your traces
 * [LLM as a Judge](../../concepts-evals/llm-as-a-judge.md) - Understand the evaluation methodology
 * [Agent Evaluation](../../llm-evals/agent-evaluation.md) - Related evaluation patterns for agent systems 
