@@ -730,6 +730,7 @@ class Query:
                     compare_experiment_traces,
                     onclause=compare_experiment_runs.c.trace_id
                     == compare_experiment_traces.trace_id,
+                    isouter=True,
                 )
                 .join(
                     compare_experiment_span_costs,
@@ -847,6 +848,7 @@ class Query:
                 base_experiment_run_annotations,
                 onclause=base_experiment_runs.c.id
                 == base_experiment_run_annotations.experiment_run_id,
+                isouter=True,
             )
             .group_by(base_experiment_run_annotations.name)
             .order_by(base_experiment_run_annotations.name)
@@ -891,11 +893,13 @@ class Query:
                     compare_experiment_runs,
                     onclause=base_experiment_runs.c.dataset_example_id
                     == compare_experiment_runs.c.dataset_example_id,
+                    isouter=True,
                 )
                 .join(
                     compare_experiment_run_annotations,
                     onclause=compare_experiment_runs.c.id
                     == compare_experiment_run_annotations.experiment_run_id,
+                    isouter=True,
                 )
                 .where(
                     base_experiment_run_annotations.name == compare_experiment_run_annotations.name
