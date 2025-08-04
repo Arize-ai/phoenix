@@ -33,7 +33,7 @@ type SpanTokenCountProps = {
  */
 export function SpanTokenCount(props: SpanTokenCountProps) {
   const handlePress = useCallback((e: PressEvent) => {
-    e.continuePropagation();
+    e.continuePropagation(); // allow click to propagate to parent
   }, []);
 
   return (
