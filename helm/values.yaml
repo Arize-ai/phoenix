@@ -226,7 +226,7 @@ persistence:
 #
 database:
   # -- Storage allocation in GiB for the database persistent volume
-  allocatedStorageGiB: 10
+  allocatedStorageGiB: 20
 
   # -- Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS)
   # Set to 0 to disable automatic trace cleanup. When set to a positive value,

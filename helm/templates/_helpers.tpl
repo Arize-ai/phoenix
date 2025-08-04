@@ -93,7 +93,7 @@ Validate external database configuration for consistency
 {{- $hasCustomPort := ne (.Values.database.postgres.port | toString) "5432" }}
 {{- $hasCustomSchema := ne .Values.database.postgres.schema "" }}
 {{- $hasCustomPostgresSettings := or $hasCustomHost $hasCustomUser $hasCustomPassword $hasCustomDb $hasCustomPort $hasCustomSchema }}
-{{- if and $hasCustomPostgresSettings (not $databaseUrlConfigured) }}
+{{- if and $hasCustomPostgresSettings ($databaseUrlConfigured) }}
 {{- fail (printf "ERROR: Inconsistent external database configuration detected!\n\nYou have configured custom PostgreSQL settings but no database.url is set.\n\nFor external databases, it's recommended to use database.url instead of individual postgres settings for better validation and clarity.\n\nTo fix this, set:\n  database.url: \"postgresql://%s:****@%s:%v/%s\"\n\nOr ensure all database.postgres.* settings are correctly configured for your external database." .Values.database.postgres.user .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.db) }}
 {{- end }}
 {{- if and $databaseUrlConfigured $hasCustomPostgresSettings }}
