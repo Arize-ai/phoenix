@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<944b1428de4f675089b9b9b7a6397816>>
+ * @generated SignedSource<<f917feb73d6e2216ca487b48cd764a30>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -70,14 +70,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "annotationName",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "annotationName",
   "storageKey": null
 },
 v3 = [
@@ -140,6 +140,7 @@ return {
   },
   "name": "ExperimentsTableFragment",
   "selections": [
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -148,7 +149,7 @@ return {
       "name": "experimentAnnotationSummaries",
       "plural": true,
       "selections": [
-        (v1/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -190,7 +191,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -255,7 +256,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/)
+                    (v1/*: any*/)
                   ],
                   "storageKey": null
                 },
@@ -308,7 +309,7 @@ return {
                   "name": "annotationSummaries",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -377,14 +378,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*: any*/)
+    }
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "6ffa602034c8f755f2d1e8c9c2aa39bb";
+(node as any).hash = "16ce70643d51625535b16f5cb137c142";
 
 export default node;

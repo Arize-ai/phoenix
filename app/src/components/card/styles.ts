@@ -34,11 +34,19 @@ export const cardCSS = (style?: CSSProperties) => css`
       display: flex;
       margin-right: var(--ac-global-dimension-static-size-100);
       transition: transform ease var(--collapsible-card-animation-duration);
+
+      & svg {
+        height: var(--collapsible-card-icon-size);
+        width: var(--collapsible-card-icon-size);
+      }
     }
 
     & .card__title {
-      font-size: var(--ac-global-font-size-l);
-      line-height: var(--ac-global-line-height-l);
+      font-size: var(--ac-global-font-size-m);
+      line-height: var(--ac-global-line-height-m);
+      display: flex;
+      align-items: center;
+      gap: var(--ac-global-dimension-static-size-100);
     }
 
     & .card__sub-title {
@@ -48,6 +56,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     /* Collapsible button styles */
     & .card__collapsible-button {
       display: flex;
+      flex: 1;
       flex-direction: row;
       align-items: center;
       text-align: left;
@@ -56,15 +65,10 @@ export const cardCSS = (style?: CSSProperties) => css`
       appearance: none;
       cursor: pointer;
       color: var(--ac-global-text-color-900);
-
-      & svg {
-        height: var(--collapsible-card-icon-size);
-        width: var(--collapsible-card-icon-size);
-      }
     }
   }
 
-  &[data-collapsed="false"] > header {
+  &[data-collapsed="false"][data-title-separator="true"] > header {
     border-bottom: 1px solid var(--scope-border-color);
   }
 

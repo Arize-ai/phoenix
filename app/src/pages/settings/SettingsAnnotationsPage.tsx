@@ -1,10 +1,9 @@
 import { graphql, useFragment, useMutation } from "react-relay";
 import { useLoaderData, useRevalidator } from "react-router";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,
@@ -163,8 +162,6 @@ const SettingsAnnotations = ({
   return (
     <Card
       title="Annotation Configs"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
       extra={
         <DialogTrigger>
           <Button size="S">

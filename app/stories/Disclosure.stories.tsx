@@ -1,8 +1,7 @@
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Card } from "@arizeai/components";
-
 import {
+  Card,
   Disclosure,
   DisclosureGroup,
   type DisclosureGroupProps,
@@ -11,6 +10,7 @@ import {
   DisclosureTrigger,
   DisclosureTriggerProps,
   Text,
+  View,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -24,25 +24,23 @@ const meta: Meta = {
 export default meta;
 
 const Template: StoryFn<DisclosureGroupProps> = (args) => (
-  <Card
-    title="Disclosure"
-    bodyStyle={{ padding: 0, width: "600px" }}
-    variant="compact"
-  >
-    <DisclosureGroup {...args}>
-      <Disclosure id="content">
-        <DisclosureTrigger>First Item Title</DisclosureTrigger>
-        <DisclosurePanel>
-          <Text>First Item Content</Text>
-        </DisclosurePanel>
-      </Disclosure>
-      <Disclosure id="content-2">
-        <DisclosureTrigger>Second Item Title</DisclosureTrigger>
-        <DisclosurePanel>
-          <Text>Second Item Content</Text>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+  <Card title="Disclosure">
+    <View width="600px">
+      <DisclosureGroup {...args}>
+        <Disclosure id="content">
+          <DisclosureTrigger>First Item Title</DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>First Item Content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+        <Disclosure id="content-2">
+          <DisclosureTrigger>Second Item Title</DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Second Item Content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </View>
   </Card>
 );
 
@@ -80,37 +78,35 @@ export const SingleItem: Meta<typeof SingleItemStory> = {
 };
 
 const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
-  <Card
-    title="Disclosure"
-    bodyStyle={{ padding: 0, width: "600px" }}
-    variant="compact"
-  >
-    <DisclosureGroup>
-      <Disclosure id="content" {...args}>
-        <DisclosureTrigger {...args}>
-          Content Title
-          <span
-            style={{
-              color: "var(--ac-global-text-color-500)",
-              border: "1px solid var(--ac-global-text-color-500)",
-              borderRadius: "12px",
-              padding: "var(--ac-global-dimension-static-size-100)",
-              height: "8px",
-              width: "16px",
-              lineHeight: "0px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            1
-          </span>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <Text>Content</Text>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+  <Card title="Disclosure">
+    <View width="600px">
+      <DisclosureGroup>
+        <Disclosure id="content" {...args}>
+          <DisclosureTrigger {...args}>
+            Content Title
+            <span
+              style={{
+                color: "var(--ac-global-text-color-500)",
+                border: "1px solid var(--ac-global-text-color-500)",
+                borderRadius: "12px",
+                padding: "var(--ac-global-dimension-static-size-100)",
+                height: "8px",
+                width: "16px",
+                lineHeight: "0px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              1
+            </span>
+          </DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </View>
   </Card>
 );
 

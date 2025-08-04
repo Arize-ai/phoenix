@@ -24,8 +24,8 @@ function Select(props: SelectProps, ref: Ref<HTMLDivElement>) {
         data-size={size}
         className="ac-select"
         ref={ref}
-        {...otherProps}
         css={css(fieldBaseCSS, selectCSS)}
+        {...otherProps}
       />
     </SizeProvider>
   );

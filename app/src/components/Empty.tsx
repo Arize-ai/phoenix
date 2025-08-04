@@ -1,14 +1,12 @@
 import { css } from "@emotion/react";
 
-import { EmptyGraphic, EmptyGraphicProps } from "@arizeai/components";
-
 import { Text } from "@phoenix/components";
 
-interface EmptyProps extends EmptyGraphicProps {
+interface EmptyProps {
   message?: string;
 }
 export function Empty(props: EmptyProps) {
-  const { message, ...graphicsProps } = props;
+  const { message } = props;
   return (
     <div
       css={css`
@@ -25,8 +23,11 @@ export function Empty(props: EmptyProps) {
           align-items: center;
         `}
       >
-        <EmptyGraphic {...graphicsProps} />
-        {message && <Text>{message}</Text>}
+        {message && (
+          <Text size="M" color="text-700">
+            {message}
+          </Text>
+        )}
       </div>
     </div>
   );

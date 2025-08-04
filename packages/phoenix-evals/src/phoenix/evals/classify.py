@@ -30,6 +30,7 @@ from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
 from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
+from phoenix.evals.models.base import Usage
 from phoenix.evals.templates import (
     ClassificationTemplate,
     MultimodalPrompt,
@@ -57,7 +58,7 @@ Record: TypeAlias = Mapping[str, Any]
 Index: TypeAlias = int
 
 # snapped_response, explanation, response
-ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str, Optional[Usage]]
 
 
 class ClassificationStatus(Enum):
@@ -285,11 +286,11 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response = await verbose_model._async_generate(
+            response, extra_info = await verbose_model._async_generate_with_extra(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt)
+        return inference, explanation, response, str(prompt), extra_info.usage
 
     def _run_llm_classification_sync(
         input_data: PROCESSOR_TYPE,
@@ -303,13 +304,14 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response = verbose_model._generate(
+            response, extra_info = verbose_model._generate_with_extra(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt)
 
-    fallback_return_value: ParsedLLMResponse = (None, None, "", "")
+        inference, explanation = _process_response(response)
+        return inference, explanation, response, str(prompt), extra_info.usage
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "", "", None)
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -334,7 +336,7 @@ def llm_classify(
         raise ValueError("Invalid 'data' input type.")
 
     results, execution_details = executor.run(list_of_inputs)
-    labels, explanations, responses, prompts = zip(*results)
+    labels, explanations, responses, prompts, usages = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
     execution_times = [details.execution_seconds for details in execution_details]
@@ -344,7 +346,9 @@ def llm_classify(
             classification_statuses.append(ClassificationStatus.MISSING_INPUT)
         else:
             classification_statuses.append(ClassificationStatus(status.value))
-
+    prompt_tokens = [usage.prompt_tokens if usage else None for usage in usages]
+    completion_tokens = [usage.completion_tokens if usage else None for usage in usages]
+    total_tokens = [usage.total_tokens if usage else None for usage in usages]
     return pd.DataFrame(
         data={
             "label": labels,
@@ -354,6 +358,9 @@ def llm_classify(
             **({"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}),
             **({"execution_status": [status.value for status in classification_statuses]}),
             **({"execution_seconds": [runtime for runtime in execution_times]}),
+            **({"prompt_tokens": prompt_tokens}),
+            **({"completion_tokens": completion_tokens}),
+            **({"total_tokens": total_tokens}),
         },
         index=dataframe_index,
     )

@@ -9,16 +9,21 @@ import { CardProps } from "./types";
 function Card(
   {
     title,
+    titleExtra,
+    titleSeparator = true,
     subTitle,
     children,
     collapsible = false,
+    defaultOpen = true,
     extra,
     ...otherProps
   }: CardProps,
   ref: Ref<HTMLElement>
 ) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(
+    collapsible ? !defaultOpen : false
+  );
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -28,6 +33,7 @@ function Card(
     <div>
       <Heading level={3} weight="heavy" className="card__title">
         {title}
+        {titleExtra}
       </Heading>
       {subTitle && (
         <Heading level={4} className="card__sub-title">
@@ -44,6 +50,7 @@ function Card(
       className="card"
       data-collapsible={collapsible}
       data-collapsed={isCollapsed}
+      data-title-separator={titleSeparator}
       style={styleProps.style}
     >
       <header id={headerId}>

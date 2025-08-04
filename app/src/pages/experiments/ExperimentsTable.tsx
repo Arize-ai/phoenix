@@ -46,8 +46,10 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
-import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
+import type {
+  ExperimentsTableFragment$data,
+  ExperimentsTableFragment$key,
+} from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
@@ -70,7 +72,7 @@ const TableBody = <T extends { id: string }>({
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
-  dataset: experimentsLoaderQuery$data["dataset"];
+  dataset: ExperimentsTableFragment$data;
 }) => {
   const navigate = useNavigate();
   return (
@@ -122,7 +124,7 @@ export const MemoizedTableBody = memo(
 export function ExperimentsTable({
   dataset,
 }: {
-  dataset: experimentsLoaderQuery$data["dataset"];
+  dataset: ExperimentsTableFragment$key;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
@@ -136,6 +138,7 @@ export function ExperimentsTable({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {
+          id
           experimentAnnotationSummaries {
             annotationName
             minScore
@@ -241,7 +244,7 @@ export function ExperimentsTable({
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
             <Link
-              to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
+              to={`/datasets/${data.id}/compare?experimentId=${experimentId}`}
             >
               {getValue() as string}
             </Link>
@@ -393,7 +396,7 @@ export function ExperimentsTable({
               metadata={metadata}
               canDeleteExperiment={true}
               onExperimentDeleted={() => {
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch({}, { fetchPolicy: "network-only" });
               }}
             />
           </Flex>
@@ -524,7 +527,7 @@ export function ExperimentsTable({
             hasNext={hasNext}
             onLoadNext={() => loadNext(PAGE_SIZE)}
             isLoadingNext={isLoadingNext}
-            dataset={dataset}
+            dataset={data}
           />
         ) : (
           <TableBody
@@ -532,17 +535,17 @@ export function ExperimentsTable({
             hasNext={hasNext}
             onLoadNext={() => loadNext(PAGE_SIZE)}
             isLoadingNext={isLoadingNext}
-            dataset={dataset}
+            dataset={data}
           />
         )}
       </table>
       {selectedRows.length ? (
         <ExperimentSelectionToolbar
-          datasetId={dataset.id}
+          datasetId={data.id}
           selectedExperiments={selectedExperiments}
           onClearSelection={clearSelection}
           onExperimentsDeleted={() => {
-            refetch({}, { fetchPolicy: "store-and-network" });
+            refetch({}, { fetchPolicy: "network-only" });
           }}
         />
       ) : null}

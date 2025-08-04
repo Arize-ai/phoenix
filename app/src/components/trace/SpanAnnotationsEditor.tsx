@@ -544,10 +544,7 @@ function SpanAnnotationsList(props: {
           justifyContent="center"
           height="100%"
         >
-          <Empty
-            graphicKey="documents"
-            message="No annotation configurations for this project"
-          />
+          <Empty message="No annotation configurations for this project" />
           <Link to="/settings/annotations">Configure Annotation Configs</Link>
         </Flex>
       )}

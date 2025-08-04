@@ -338,19 +338,19 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        baseline_experiment_id: GlobalID,
+        base_experiment_id: GlobalID,
         compare_experiment_ids: list[GlobalID],
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[ExperimentComparison]:
-        if baseline_experiment_id in compare_experiment_ids:
-            raise BadRequest("Compare experiment IDs cannot contain the baseline experiment ID")
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
             raise BadRequest("Compare experiment IDs must be unique")
         experiment_ids = [
             from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
-            for experiment_id in (baseline_experiment_id, *compare_experiment_ids)
+            for experiment_id in (base_experiment_id, *compare_experiment_ids)
         ]
         cursor = Cursor.from_string(after) if after else None
         page_size = first or 50

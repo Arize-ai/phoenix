@@ -9,6 +9,7 @@ import {
   CrewAISVG,
   DSPYSVG,
   GeminiSVG,
+  GoogleADKSVG,
   GroqSVG,
   HaystackSVG,
   HuggingFaceSVG,
@@ -208,6 +209,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <GeminiSVG />,
   },
   {
+    name: "Google ADK",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk",
+    icon: <GoogleADKSVG />,
+  },
+  {
     name: "Groq",
     docsHref:
       "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
@@ -240,7 +249,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <IntegrationSVG />,
   },
   {
-    name: "Model Context Protocol",
+    name: "PortKey",
+    docsHref: "https://arize.com/docs/phoenix/integrations/portkey",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey",
+    icon: <IntegrationSVG />,
+  },
+  {
+    name: "MCP",
     docsHref:
       "https://arize.com/docs/phoenix/integrations/model-context-protocol/mcp-tracing",
     githubHref:
@@ -337,7 +353,7 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <BeeAISVG />,
   },
   {
-    name: "Model Context Protocol",
+    name: "MCP",
     docsHref:
       "https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
     githubHref:

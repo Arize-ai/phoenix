@@ -8,7 +8,6 @@ import { ActionMenu, ActionMenuProps, Item } from "@arizeai/components";
 import {
   Button,
   Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -200,78 +199,70 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           {menuItems}
         </ActionMenu>
       </div>
-
-      {/* Delete Experiment Dialog */}
-      <DialogTrigger
+      <ModalOverlay
+        isDismissable
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Experiment</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-200">
-                  <Text color="danger">
-                    Are you sure you want to delete this experiment and its
-                    annotations and traces?
-                  </Text>
-                </View>
-                <View
-                  paddingEnd="size-200"
-                  paddingTop="size-100"
-                  paddingBottom="size-100"
-                  borderTopColor="light"
-                  borderTopWidth="thin"
-                >
-                  <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button
-                      size="S"
-                      onPress={() => setIsDeleteDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="S"
-                      onPress={() => onDeleteExperiment(props.experimentId)}
-                    >
-                      Delete Experiment
-                    </Button>
-                  </Flex>
-                </View>
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Experiment</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  Are you sure you want to delete this experiment and its
+                  annotations and traces?
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end" gap="size-100">
+                  <Button size="S" onPress={() => setIsDeleteDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="S"
+                    onPress={() => onDeleteExperiment(props.experimentId)}
+                  >
+                    Delete Experiment
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
       {/* Metadata Dialog */}
-      <DialogTrigger
+      <ModalOverlay
+        isDismissable
         isOpen={isMetadataDialogOpen}
         onOpenChange={setIsMetadataDialogOpen}
       >
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Metadata</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Metadata</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </>
   );
 }

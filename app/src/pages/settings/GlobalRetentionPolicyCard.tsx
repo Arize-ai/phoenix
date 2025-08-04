@@ -3,10 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   FieldError,
   Flex,
   Form,
@@ -131,13 +130,7 @@ export const GlobalRetentionPolicyCard = () => {
   );
 
   return (
-    <Card
-      title="Default Project Retention Policy"
-      variant="compact"
-      bodyStyle={{
-        padding: 0,
-      }}
-    >
+    <Card title="Default Project Retention Policy">
       <View padding="size-200">
         <Flex direction="row" gap="size-200" justifyContent="space-between">
           <View paddingTop="size-100">

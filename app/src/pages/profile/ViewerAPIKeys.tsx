@@ -2,10 +2,9 @@ import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,
@@ -80,8 +79,6 @@ export function ViewerAPIKeys({
     <>
       <Card
         title="API Keys"
-        variant="compact"
-        bodyStyle={{ padding: 0 }}
         extra={
           <DialogTrigger>
             <Button

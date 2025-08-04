@@ -85,7 +85,8 @@ export const progressCircleCSS = css`
     }
     .progress-circle__arc {
       animation: ${dash} 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-      stroke-dasharray: calc(var(--progress-circle-circumference) * 0.25),
+      stroke-dasharray:
+        calc(var(--progress-circle-circumference) * 0.25),
         var(--progress-circle-circumference);
       stroke-dashoffset: 0;
     }

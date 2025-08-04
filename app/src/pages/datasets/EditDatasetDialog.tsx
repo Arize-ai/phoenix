@@ -1,9 +1,4 @@
-import {
-  Dialog,
-  DialogTrigger,
-  Modal,
-  ModalOverlay,
-} from "@phoenix/components";
+import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
 import { EditDatasetForm } from "@phoenix/components/dataset";
 import {
   DialogCloseButton,
@@ -42,29 +37,27 @@ export function EditDatasetDialog({
   };
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <ModalOverlay>
-        <Modal>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Dataset</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <EditDatasetForm
-                datasetName={datasetName}
-                datasetId={datasetId}
-                datasetDescription={datasetDescription}
-                datasetMetadata={datasetMetadata}
-                onDatasetEdited={handleSuccess}
-                onDatasetEditError={onDatasetEditError}
-              />
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal size="S">
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Dataset</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <EditDatasetForm
+              datasetName={datasetName}
+              datasetId={datasetId}
+              datasetDescription={datasetDescription}
+              datasetMetadata={datasetMetadata}
+              onDatasetEdited={handleSuccess}
+              onDatasetEditError={onDatasetEditError}
+            />
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

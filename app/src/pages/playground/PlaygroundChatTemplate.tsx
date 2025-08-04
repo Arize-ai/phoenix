@@ -15,10 +15,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Card, Field, Form } from "@arizeai/components";
+import { Field, Form } from "@arizeai/components";
 
 import {
   Button,
+  Card,
   CopyToClipboardButton,
   DisclosureGroup,
   Flex,
@@ -342,8 +343,6 @@ function SortableMessageItem({
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
         collapsible
-        variant="compact"
-        bodyStyle={{ padding: 0 }}
         {...messageCardStyles}
         title={
           <div

@@ -20,10 +20,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Alert,
+  Card,
   ContentSkeleton,
   Flex,
   Link,
@@ -49,11 +48,7 @@ export const ProjectAnnotationConfigCard = (
   props: ProjectAnnotationConfigCardProps
 ) => {
   return (
-    <Card
-      title="Project Annotations"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
-    >
+    <Card title="Project Annotations">
       <Alert variant="info" banner>
         Annotation Configs are configured globally and can be associated with
         multiple projects. Select the annotation configs you want to use for

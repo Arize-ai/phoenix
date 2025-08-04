@@ -9,7 +9,7 @@ from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter
+from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import OpenAIClientWrapper, create_openai_client
 
 logger = logging.getLogger(__name__)
@@ -109,6 +109,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate structured output using OpenAI client."""
@@ -119,74 +120,41 @@ class OpenAIAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        messages = self._build_messages(prompt)
+        supports_structured_output = self._supports_structured_output()
+        supports_tool_calls = self._supports_tool_calls()
 
-        try:
-            formatted_schema = self._ensure_additional_properties_false(schema)
-
-            response_format = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "extract_structured_data",
-                    "schema": formatted_schema,
-                    "strict": True,
-                },
-            }
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                response_format=response_format,
-                **kwargs,
-            )
-            content = response.choices[0].message.content
-            if content is None:
-                raise ValueError("OpenAI returned no content")
-            return cast(Dict[str, Any], json.loads(content))
-        except Exception as e:
-            logger.warning(f"Structured output failed: {e}, falling back to tool calling")
-
-        try:
-            tool_definition = self._schema_to_tool(schema)
-
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                tools=[tool_definition],
-                tool_choice={
-                    "type": "function",
-                    "function": {"name": "extract_structured_data"},
-                },
-                **kwargs,
-            )
-
-            tool_calls = response.choices[0].message.tool_calls
-            if not tool_calls:
-                raise ValueError("No tool calls in response")
-
-            tool_call = tool_calls[0]
-            arguments = tool_call.function.arguments
-            if isinstance(arguments, str):
-                return cast(Dict[str, Any], json.loads(arguments))
-            else:
-                return cast(Dict[str, Any], arguments)
-        except Exception as e:
-            error_str = str(e).lower()
-            if any(
-                phrase in error_str
-                for phrase in ["does not support", "not supported", "tools", "function"]
-            ):
+        if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+            if not supports_structured_output:
                 raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured output or tool "
-                    "calls. Please use a model that supports these features."
-                ) from e
+                    f"OpenAI model {self.model_name} does not support structured output"
+                )
+            return self._generate_with_structured_output(prompt, schema, **kwargs)
+
+        elif method == ObjectGenerationMethod.TOOL_CALLING:
+            if not supports_tool_calls:
+                raise ValueError(f"OpenAI model {self.model_name} does not support tool calls")
+            return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+        elif method == ObjectGenerationMethod.AUTO:
+            if not supports_structured_output and not supports_tool_calls:
+                raise ValueError(
+                    f"OpenAI model {self.model_name} does not support structured "
+                    "output or tool calls"
+                )
+            # Prefer structured output when available
+            if supports_structured_output:
+                return self._generate_with_structured_output(prompt, schema, **kwargs)
             else:
-                logger.error(f"Tool calling failed: {e}")
-                raise
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
 
     async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Async structured output generation using OpenAI client."""
@@ -194,69 +162,157 @@ class OpenAIAdapter(BaseLLMAdapter):
             raise ValueError("Cannot call async method agenerate_object() on sync OpenAI client.")
         self._validate_schema(schema)
 
-        messages = self._build_messages(prompt)
+        supports_structured_output = self._supports_structured_output()
+        supports_tool_calls = self._supports_tool_calls()
 
-        try:
-            formatted_schema = self._ensure_additional_properties_false(schema)
-
-            response_format = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "extract_structured_data",
-                    "schema": formatted_schema,
-                    "strict": True,
-                },
-            }
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                response_format=response_format,
-                **kwargs,
-            )
-            content = response.choices[0].message.content
-            if content is None:
-                raise ValueError("OpenAI returned no content")
-            return cast(Dict[str, Any], json.loads(content))
-        except Exception as e:
-            logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
-
-        try:
-            tool_definition = self._schema_to_tool(schema)
-
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                tools=[tool_definition],
-                tool_choice={
-                    "type": "function",
-                    "function": {"name": "extract_structured_data"},
-                },
-                **kwargs,
-            )
-
-            tool_calls = response.choices[0].message.tool_calls
-            if not tool_calls:
-                raise ValueError("No tool calls in response")
-
-            tool_call = tool_calls[0]
-            arguments = tool_call.function.arguments
-            if isinstance(arguments, str):
-                return cast(Dict[str, Any], json.loads(arguments))
-            else:
-                return cast(Dict[str, Any], arguments)
-        except Exception as e:
-            error_str = str(e).lower()
-            if any(
-                phrase in error_str
-                for phrase in ["does not support", "not supported", "tools", "function"]
-            ):
+        if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+            if not supports_structured_output:
                 raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured output or tool "
-                    "calls. Please use a model that supports these features."
-                ) from e
+                    f"OpenAI model {self.model_name} does not support structured output"
+                )
+            return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
+
+        elif method == ObjectGenerationMethod.TOOL_CALLING:
+            if not supports_tool_calls:
+                raise ValueError(f"OpenAI model {self.model_name} does not support tool calls")
+            return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
+
+        elif method == ObjectGenerationMethod.AUTO:
+            if not supports_structured_output and not supports_tool_calls:
+                raise ValueError(
+                    f"OpenAI model {self.model_name} does not support structured "
+                    "output or tool calls"
+                )
+            # Prefer structured output when available
+            if supports_structured_output:
+                return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
             else:
-                logger.error(f"Async tool calling failed: {e}")
-                raise
+                return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
+
+    def _generate_with_structured_output(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Generate object using structured output."""
+        messages = self._build_messages(prompt)
+        formatted_schema = self._ensure_additional_properties_false(schema)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "extract_structured_data",
+                "schema": formatted_schema,
+                "strict": True,
+            },
+        }
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            response_format=response_format,
+            **kwargs,
+        )
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError("OpenAI returned no content")
+        return cast(Dict[str, Any], json.loads(content))
+
+    def _generate_with_tool_calling(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Generate object using tool calling."""
+        messages = self._build_messages(prompt)
+        tool_definition = self._schema_to_tool(schema)
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            tools=[tool_definition],
+            tool_choice={
+                "type": "function",
+                "function": {"name": "extract_structured_data"},
+            },
+            **kwargs,
+        )
+
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            return cast(Dict[str, Any], json.loads(arguments))
+        else:
+            return cast(Dict[str, Any], arguments)
+
+    async def _agenerate_with_structured_output(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async generate object using structured output."""
+        messages = self._build_messages(prompt)
+        formatted_schema = self._ensure_additional_properties_false(schema)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "extract_structured_data",
+                "schema": formatted_schema,
+                "strict": True,
+            },
+        }
+        response = await self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            response_format=response_format,
+            **kwargs,
+        )
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError("OpenAI returned no content")
+        return cast(Dict[str, Any], json.loads(content))
+
+    async def _agenerate_with_tool_calling(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Async generate object using tool calling."""
+        messages = self._build_messages(prompt)
+        tool_definition = self._schema_to_tool(schema)
+
+        response = await self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            tools=[tool_definition],
+            tool_choice={
+                "type": "function",
+                "function": {"name": "extract_structured_data"},
+            },
+            **kwargs,
+        )
+
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
+        arguments = tool_call.function.arguments
+        if isinstance(arguments, str):
+            return cast(Dict[str, Any], json.loads(arguments))
+        else:
+            return cast(Dict[str, Any], arguments)
 
     @property
     def model_name(self) -> str:

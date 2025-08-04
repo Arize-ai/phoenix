@@ -148,15 +148,12 @@ export function ExperimentSelectionToolbar(
             variant="primary"
             size="M"
             onPress={() => {
-              const baselineExperimentId =
-                selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
+              const baseExperimentId =
+                selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the base experiment
               const compareExperimentIds = selectedExperiments
                 .slice(0, -1)
                 .map((exp) => exp.id);
-              const experimentIds = [
-                baselineExperimentId,
-                ...compareExperimentIds,
-              ];
+              const experimentIds = [baseExperimentId, ...compareExperimentIds];
               const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
               navigate(`/datasets/${datasetId}/compare${queryParams}`);
             }}

@@ -47,6 +47,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
+import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -482,29 +483,6 @@ function ProjectsGrid({
   );
 }
 
-function ProjectIcon({
-  gradientStartColor,
-  gradientEndColor,
-}: {
-  gradientStartColor: string;
-  gradientEndColor: string;
-}) {
-  return (
-    <div
-      css={css`
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(
-          136.27deg,
-          ${gradientStartColor} 14.03%,
-          ${gradientEndColor} 84.38%
-        );
-        flex-shrink: 0;
-      `}
-    />
-  );
-}
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
@@ -552,7 +530,7 @@ function ProjectItem({
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <ProjectIcon
+          <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
           />
@@ -737,7 +715,7 @@ function ProjectsTable({
           cell: ({ row }) => {
             return (
               <Flex direction="row" gap="size-200" alignItems="center">
-                <ProjectIcon
+                <GradientCircle
                   gradientStartColor={row.original.gradientStartColor}
                   gradientEndColor={row.original.gradientEndColor}
                 />

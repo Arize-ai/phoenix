@@ -1,10 +1,9 @@
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -30,8 +29,6 @@ export function SettingsDataPage() {
   return (
     <Card
       title="Retention Policies"
-      bodyStyle={{ padding: 0 }}
-      variant="compact"
       extra={
         <CanManageRetentionPolicy>
           <DialogTrigger>

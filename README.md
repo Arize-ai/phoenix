@@ -58,7 +58,7 @@ Install Phoenix via `pip` or `conda`
 pip install arize-phoenix
 ```
 
-Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
+Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes. Arize AI also provides cloud instances at [app.phoenix.arize.com](https://app.phoenix.arize.com/).
 
 ## Packages
 

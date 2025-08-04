@@ -210,6 +210,11 @@ database:
   # -- Storage allocation in GiB for the database persistent volume
   allocatedStorageGiB: 10
 
+  # -- Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS)
+  # Set to 0 to disable automatic trace cleanup. When set to a positive value,
+  # traces older than this many days will be automatically removed from the database.
+  defaultRetentionPolicyDays: 0
+
   postgres:
     # -- Name of the PostgreSQL database (PHOENIX_POSTGRES_DB)
     db: "phoenix"
@@ -416,7 +421,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-11.15.0-nonroot
+  tag: version-11.18.0-nonroot
 
 # -- Resource configuration
 resources:

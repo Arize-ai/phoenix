@@ -3,11 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Card,
+  CardProps,
   Dialog,
   Flex,
   Icon,
@@ -32,7 +32,6 @@ const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
   collapsible: true,
-  bodyStyle: { padding: 0 },
 };
 
 type ExampleToAdd = {

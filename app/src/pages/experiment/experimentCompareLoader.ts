@@ -23,34 +23,38 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
+  const isMetricsView = url.searchParams.get("view") === "metrics";
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentCompareLoaderQuery(
         $datasetId: ID!
-        $baselineExperimentId: ID!
+        $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
-        $hasBaselineExperimentId: Boolean!
+        $hasBaseExperiment: Boolean!
+        $isMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaselineExperimentId)
+          @include(if: $hasBaseExperiment)
           @arguments(
-            baselineExperimentId: $baselineExperimentId
+            baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
         ...ExperimentMultiSelector__data
-          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+          @arguments(hasBaseExperiment: $hasBaseExperiment)
+        ...ExperimentCompareMetricsPage_experiments @include(if: $isMetricsView)
       }
     `,
     {
       datasetId,
-      baselineExperimentId: baselineExperimentId ?? "",
+      baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
-      hasBaselineExperimentId: baselineExperimentId != null,
+      hasBaseExperiment: baseExperimentId != null,
+      isMetricsView,
     }
   ).toPromise();
 }

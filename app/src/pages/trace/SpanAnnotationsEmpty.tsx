@@ -1,5 +1,3 @@
-import { EmptyGraphic } from "@arizeai/components";
-
 import {
   ExternalLinkButton,
   Flex,
@@ -11,10 +9,9 @@ import {
 
 export function SpanAnnotationsEmpty() {
   return (
-    <View padding="size-200">
+    <View padding="size-400">
       <Flex direction="column" gap="size-100" alignItems="center">
-        <EmptyGraphic graphicKey="documents" />
-        <Text>No annotations for this span</Text>
+        <Text size="L">No annotations for this span</Text>
 
         <ExternalLinkButton
           leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}

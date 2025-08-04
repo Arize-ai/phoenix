@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from io import BytesIO
 from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.error import HTTPError
@@ -301,3 +302,10 @@ def get_image_format_from_base64(
         "Unsupported image format. Supported formats are: "
         + ", ".join(sorted(SUPPORTED_IMAGE_FORMATS))
     )
+
+
+def emoji_guard(emoji: str, fallback: str = "") -> str:
+    # Windows has problems with showing emojis
+    if os.name == "nt":
+        return fallback
+    return emoji

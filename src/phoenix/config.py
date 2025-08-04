@@ -333,6 +333,10 @@ Whether to verify client certificates for mutual TLS (mTLS) authentication.
 When set to true, clients must provide valid certificates signed by the CA specified in
 PHOENIX_TLS_CA_FILE.
 """
+ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DAYS"
+"""
+The default retention policy for traces in days.
+"""
 
 
 @dataclass(frozen=True)
@@ -492,6 +496,20 @@ def get_env_tls_verify_client() -> bool:
         if the environment variable is not set.
     """  # noqa: E501
     return _bool_val(ENV_PHOENIX_TLS_VERIFY_CLIENT, False)
+
+
+def get_env_default_retention_policy_days() -> int:
+    """
+    Returns the number of days for the default retention policy as set by the
+    PHOENIX_DEFAULT_RETENTION_POLICY_DAYS environment variable, defaulting to 0 if not set.
+
+    Returns:
+        int: Number of days for the default retention policy. Defaults to 0 if the environment variable is not set.
+    """  # noqa: E501
+    days = _int_val(ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS, 0)
+    if days < 0:
+        raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
+    return days
 
 
 def get_env_tls_config() -> Optional[TLSConfig]:
@@ -865,6 +883,8 @@ def get_env_admins() -> dict[str, str]:
     """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
+    from phoenix.auth import sanitize_email
+
     usernames = set()
     emails = set()
     ans = {}
@@ -881,7 +901,7 @@ def get_env_admins() -> dict[str, str]:
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_addr = sanitize_email(pair[last_equals_pos + 1 :])
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:

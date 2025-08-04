@@ -24,16 +24,16 @@ import { selectCSS } from "@phoenix/components/select/styles";
 import type { ExperimentMultiSelector__data$key } from "./__generated__/ExperimentMultiSelector__data.graphql";
 
 export function ExperimentMultiSelector(props: {
-  selectedBaselineExperimentId: string | undefined;
+  selectedBaseExperimentId: string | undefined;
   selectedCompareExperimentIds: string[];
   onChange: (
-    selectedBaselineExperimentId: string | undefined,
+    selectedBaseExperimentId: string | undefined,
     selectedCompareExperimentIds: string[]
   ) => void;
   dataRef: ExperimentMultiSelector__data$key;
 }) {
   const {
-    selectedBaselineExperimentId,
+    selectedBaseExperimentId,
     selectedCompareExperimentIds,
     onChange,
     dataRef,
@@ -42,7 +42,7 @@ export function ExperimentMultiSelector(props: {
   const data = useFragment(
     graphql`
       fragment ExperimentMultiSelector__data on Query
-      @argumentDefinitions(hasBaselineExperimentId: { type: "Boolean!" }) {
+      @argumentDefinitions(hasBaseExperiment: { type: "Boolean!" }) {
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
@@ -60,8 +60,8 @@ export function ExperimentMultiSelector(props: {
             }
           }
         }
-        baselineExperiment: node(id: $baselineExperimentId)
-          @include(if: $hasBaselineExperimentId) {
+        baseExperiment: node(id: $baseExperimentId)
+          @include(if: $hasBaseExperiment) {
           ... on Experiment {
             id
             name
@@ -78,9 +78,9 @@ export function ExperimentMultiSelector(props: {
       }) ?? []
     );
   }, [data]);
-  const baselineExperimentDisplayText = useMemo(
-    () => data.baselineExperiment?.name ?? "No baseline selected",
-    [data.baselineExperiment]
+  const baseExperimentDisplayText = useMemo(
+    () => data.baseExperiment?.name ?? "No base experiment selected",
+    [data.baseExperiment]
   );
   const compareExperimentsDisplayText = useMemo(() => {
     const numExperiments = selectedCompareExperimentIds.length;
@@ -93,10 +93,10 @@ export function ExperimentMultiSelector(props: {
   return (
     <Flex direction="row" gap="size-100">
       <div css={css(fieldBaseCSS, selectCSS)}>
-        <Label>baseline experiment</Label>
+        <Label>base experiment</Label>
         <DialogTrigger>
           <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
-            {baselineExperimentDisplayText}
+            {baseExperimentDisplayText}
           </Button>
           <Popover placement="bottom start">
             <Dialog>
@@ -105,26 +105,24 @@ export function ExperimentMultiSelector(props: {
                 selectionBehavior="replace"
                 selectedKeys={
                   new Set(
-                    selectedBaselineExperimentId
-                      ? [selectedBaselineExperimentId]
-                      : []
+                    selectedBaseExperimentId ? [selectedBaseExperimentId] : []
                   )
                 }
                 onSelectionChange={(keys) => {
-                  const [baselineExperimentId] = keys;
+                  const [baseExperimentId] = keys;
                   invariant(
-                    typeof baselineExperimentId !== "number",
-                    "baselineExperimentId should not be a number"
+                    typeof baseExperimentId !== "number",
+                    "baseExperimentId should not be a number"
                   );
                   const compareExperimentIds = [
-                    ...(selectedBaselineExperimentId
-                      ? [selectedBaselineExperimentId]
+                    ...(selectedBaseExperimentId
+                      ? [selectedBaseExperimentId]
                       : []),
                     ...selectedCompareExperimentIds.filter(
-                      (id) => id !== baselineExperimentId
+                      (id) => id !== baseExperimentId
                     ),
                   ];
-                  onChange(baselineExperimentId, compareExperimentIds);
+                  onChange(baseExperimentId, compareExperimentIds);
                 }}
               >
                 {experiments.map((experiment) => (
@@ -156,7 +154,7 @@ export function ExperimentMultiSelector(props: {
           </Popover>
         </DialogTrigger>
       </div>
-      {selectedBaselineExperimentId && (
+      {selectedBaseExperimentId && (
         <div css={css(fieldBaseCSS, selectCSS)}>
           <Label>compare experiments</Label>
           <DialogTrigger>
@@ -171,12 +169,12 @@ export function ExperimentMultiSelector(props: {
                   onSelectionChange={(keys) => {
                     if (keys === "all") {
                       onChange(
-                        selectedBaselineExperimentId,
+                        selectedBaseExperimentId,
                         experiments.map((exp) => exp.id)
                       );
                     } else {
                       onChange(
-                        selectedBaselineExperimentId,
+                        selectedBaseExperimentId,
                         Array.from(keys) as string[]
                       );
                     }
@@ -184,8 +182,7 @@ export function ExperimentMultiSelector(props: {
                 >
                   {experiments
                     .filter(
-                      (experiment) =>
-                        experiment.id !== selectedBaselineExperimentId
+                      (experiment) => experiment.id !== selectedBaseExperimentId
                     )
                     .map((experiment) => (
                       <ListBoxItem key={experiment.id} id={experiment.id}>

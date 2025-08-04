@@ -40,7 +40,8 @@ function CredentialInput(
         width: 100%;
         // The 2px (e.g. 50) is to account making the toggle button to be slightly bigger
         --credential-visibility-toggle-size: calc(
-          var(--textfield-input-height) - 2 * var(--textfield-vertical-padding) +
+          var(--textfield-input-height) - 2 *
+            var(--textfield-vertical-padding) +
             var(--ac-global-dimension-size-50)
         );
 

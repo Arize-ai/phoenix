@@ -2,9 +2,8 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
+  Card,
   CopyToClipboardButton,
   Flex,
   Input,
@@ -26,6 +25,7 @@ const formCSS = css`
     // Hacky solution to make the text fields fill the remaining space
     width: calc(100% - var(--ac-global-dimension-size-600));
   }
+  padding: var(--ac-global-dimension-size-200);
 `;
 
 export function SettingsGeneralPage() {
@@ -35,7 +35,7 @@ export function SettingsGeneralPage() {
     <Flex direction="column" gap="size-200" width="100%">
       <Flex direction="row" gap="size-200" alignItems="baseline">
         <View flex="2">
-          <Card title="Platform Settings" variant="compact">
+          <Card title="Platform Settings">
             <form css={formCSS}>
               <Flex direction="row" gap="size-100" alignItems="end">
                 <TextField value={BASE_URL} isReadOnly>
@@ -75,8 +75,10 @@ export function SettingsGeneralPage() {
           </Card>
         </View>
         <View flex="1" minWidth={280}>
-          <Card title="Database Usage" variant="compact">
-            <DBUsagePieChart query={loaderData} />
+          <Card title="Database Usage">
+            <View padding="size-200">
+              <DBUsagePieChart query={loaderData} />
+            </View>
           </Card>
         </View>
       </Flex>

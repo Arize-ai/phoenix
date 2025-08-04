@@ -1,9 +1,11 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
-from phoenix.evals.models.base import BaseModel
+from typing_extensions import override
+
+from phoenix.evals.models.base import BaseModel, ExtraInfo
 from phoenix.evals.templates import MultimodalPrompt
 
 if TYPE_CHECKING:
@@ -150,15 +152,19 @@ class VertexAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
-    async def _async_generate(
+    @override
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
-        return self._generate(prompt, **kwargs)
+        return self._generate_with_extra(prompt, **kwargs)
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+    @override
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -168,7 +174,7 @@ class VertexAIModel(BaseModel):
             prompt=prompt_str,
             **invoke_params,
         )
-        return str(response.text)
+        return str(response.text), ExtraInfo()
 
     @property
     def is_codey_model(self) -> bool:

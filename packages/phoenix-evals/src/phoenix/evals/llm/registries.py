@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypedDict
 
+from phoenix.evals.utils import emoji_guard
+
 from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
 logger = logging.getLogger(__name__)
@@ -168,11 +170,11 @@ def adapter_availability_table() -> str:
 
     if all_providers:
         table_width = _calculate_table_width(all_providers)
-        output.append("\n📦 AVAILABLE PROVIDERS")
+        output.append(f"\n{emoji_guard('📦 ')}AVAILABLE PROVIDERS (sorted by client priority)")
         output.append("-" * table_width)
         output.append(_get_consolidated_provider_table(all_providers))
     else:
-        output.append("\n📦 PROVIDERS: None")
+        output.append(f"\n{emoji_guard('📦 ')}PROVIDERS: None")
 
     return "\n".join(output)
 

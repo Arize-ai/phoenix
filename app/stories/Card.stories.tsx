@@ -1,6 +1,6 @@
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Button, Card, Text } from "@phoenix/components";
+import { Button, Card, Text, Token } from "@phoenix/components";
 
 const meta: Meta = {
   title: "Card",
@@ -18,10 +18,9 @@ const meta: Meta = {
       control: "text",
       description: "Optional subtitle displayed below the title",
     },
-    variant: {
-      control: "select",
-      options: ["default", "compact"],
-      description: "The visual variant of the card",
+    titleExtra: {
+      control: false,
+      description: "Additional content displayed next to the title",
     },
     collapsible: {
       control: "boolean",
@@ -67,18 +66,6 @@ WithSubtitle.args = {
 };
 
 /**
- * Compact variant card
- */
-export const Compact = Template.bind({});
-
-Compact.args = {
-  title: "Compact Card",
-  subTitle: "Compact variant with smaller header",
-  variant: "compact",
-  width: "400px",
-};
-
-/**
  * Collapsible card
  */
 export const Collapsible = Template.bind({});
@@ -103,16 +90,41 @@ WithExtra.args = {
 };
 
 /**
- * Card with custom body styling
+ * Card with titleExtra prop
  */
-export const WithCustomBodyStyle = Template.bind({});
+export const WithTitleExtra = Template.bind({});
 
-WithCustomBodyStyle.args = {
-  title: "Custom Body Style",
+WithTitleExtra.args = {
+  title: "Experiment Results",
+  titleExtra: (
+    <Token color="var(--ac-global-color-yellow-500)" size="S">
+      #42
+    </Token>
+  ),
   width: "400px",
-  bodyStyle: {
-    backgroundColor: "light",
-    padding: "size-300",
-    borderRadius: "small",
-  },
+};
+
+/**
+ * Card without title separator
+ */
+export const WithoutTitleSeparator = Template.bind({});
+
+WithoutTitleSeparator.args = {
+  title: "Card Without Separator",
+  subTitle: "This card has no separator between title and content",
+  titleSeparator: false,
+  width: "400px",
+};
+
+/**
+ * Collapsible card that starts closed
+ */
+export const DefaultClosed = Template.bind({});
+
+DefaultClosed.args = {
+  title: "Default Closed Card",
+  subTitle: "This card starts in a collapsed state",
+  collapsible: true,
+  defaultOpen: false,
+  width: "400px",
 };

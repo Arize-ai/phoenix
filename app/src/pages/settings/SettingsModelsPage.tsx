@@ -2,10 +2,9 @@ import { startTransition, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Flex,
   Input,
   ListBox,
@@ -91,7 +90,6 @@ export function SettingsModelsPage() {
       </Flex>
       <Card
         title="Models"
-        variant="compact"
         extra={
           <Flex direction="row" gap="size-200" alignItems="center">
             <Text color="text-500" size="S">
@@ -100,7 +98,6 @@ export function SettingsModelsPage() {
             <NewModelButton />
           </Flex>
         }
-        bodyStyle={{ padding: 0 }}
       >
         <ModelsTable modelsRef={data} kindFilter={kindFilter} search={search} />
       </Card>

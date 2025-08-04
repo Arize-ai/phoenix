@@ -1,9 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
-import { Flex, Link, Text, View } from "@phoenix/components";
+import { Card, Flex, Link, Text, View } from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
 import {
   useNotifyError,
@@ -116,13 +114,7 @@ export const ProjectRetentionPolicyCard = ({
   };
 
   return (
-    <Card
-      title="Data Retention"
-      variant="compact"
-      bodyStyle={{
-        padding: 0,
-      }}
-    >
+    <Card title="Data Retention">
       <View paddingX="size-200" paddingY="size-100">
         <Flex direction="row" gap="size-400" alignItems="center">
           <section>

@@ -1,13 +1,14 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from random import getrandbits
-from typing import Any, cast
+from typing import Any, Callable, Optional, cast
 
 import httpx
 import pandas as pd
 import pytest
 from faker import Faker
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
@@ -97,6 +98,381 @@ async def test_rest_span_annotation(
     assert orm_annotation.score == 0.95
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
+
+
+@pytest.fixture
+def span_factory() -> Callable[..., models.Span]:
+    """Factory for creating spans with sensible defaults."""
+
+    def _create_span(
+        trace_rowid: int,
+        span_id: str,
+        parent_id: Optional[str] = None,
+        name: Optional[str] = None,
+        **overrides: Any,
+    ) -> models.Span:
+        defaults = {
+            "span_kind": "INTERNAL",
+            "start_time": datetime.now(),
+            "end_time": datetime.now(),
+            "attributes": {},
+            "events": [],
+            "status_code": "OK",
+            "status_message": "",
+            "cumulative_error_count": 0,
+            "cumulative_llm_token_count_prompt": 0,
+            "cumulative_llm_token_count_completion": 0,
+        }
+        defaults.update(overrides)
+        return models.Span(
+            trace_rowid=trace_rowid,
+            span_id=span_id,
+            parent_id=parent_id,
+            name=name or span_id.replace("-", " ").title(),
+            **defaults,
+        )
+
+    return _create_span
+
+
+@pytest.fixture
+async def span_hierarchy(
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+    span_factory: Callable[..., models.Span],
+) -> dict[str, Any]:
+    """Creates a span hierarchy for testing subtree deletion."""
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        assert project is not None
+        trace = await session.scalar(
+            select(models.Trace).where(models.Trace.project_rowid == project.id)
+        )
+        assert trace is not None
+
+        # Create the hierarchy: parent -> children -> grandchild + sibling
+        parent = span_factory(trace.id, "parent-span")
+        child1 = span_factory(trace.id, "child-1", "parent-span")
+        child2 = span_factory(trace.id, "child-2", "parent-span")
+        grandchild = span_factory(trace.id, "grandchild-1", "child-1")
+        sibling = span_factory(trace.id, "sibling-span")  # No parent = root level
+
+        session.add_all([parent, child1, child2, grandchild, sibling])
+        await session.commit()
+
+        return {
+            "project": project,
+            "trace": trace,
+            "parent": parent,
+            "child1": child1,
+            "child2": child2,
+            "grandchild": grandchild,
+            "sibling": sibling,
+        }
+
+
+async def test_delete_single_span_leave_descendants(
+    httpx_client: httpx.AsyncClient,
+    span_hierarchy: dict[str, Any],
+    db: DbSessionFactory,
+) -> None:
+    """Test that deleting a span only deletes the target span and leaves descendants alone."""
+    hierarchy = span_hierarchy
+
+    # Delete the parent span (should only delete the parent, leave descendants)
+    response = await httpx_client.delete("v1/spans/parent-span")
+    assert response.status_code == 204
+
+    # Verify only the target span was deleted
+    async with db() as session:
+        # Parent should be deleted
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["parent"].id)
+            )
+            is None
+        )
+
+        # All descendants should still exist (left alone)
+        remaining_child1 = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["child1"].id)
+        )
+        assert remaining_child1 is not None
+        assert remaining_child1.span_id == "child-1"
+
+        remaining_child2 = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["child2"].id)
+        )
+        assert remaining_child2 is not None
+        assert remaining_child2.span_id == "child-2"
+
+        remaining_grandchild = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
+        )
+        assert remaining_grandchild is not None
+        assert remaining_grandchild.span_id == "grandchild-1"
+
+        # Sibling should still exist (unaffected)
+        remaining_sibling = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["sibling"].id)
+        )
+        assert remaining_sibling is not None
+        assert remaining_sibling.span_id == "sibling-span"
+
+
+async def test_delete_span_empty_trace_cleanup(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """Test that deleting the last span in a trace also deletes the trace."""
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        assert project is not None
+
+        # Get initial trace count
+        initial_trace_count = await session.scalar(
+            select(models.Trace).where(models.Trace.project_rowid == project.id)
+        )
+        assert initial_trace_count is not None
+
+    # Delete the only span in the trace
+    response = await httpx_client.delete("v1/spans/7e2f08cb43bbf521")
+    assert response.status_code == 204
+
+    # Verify both span and trace are deleted
+    async with db() as session:
+        # Span should be deleted
+        remaining_span = await session.scalar(
+            select(models.Span).where(models.Span.span_id == "7e2f08cb43bbf521")
+        )
+        assert remaining_span is None
+
+        # Trace should also be deleted (was empty after span deletion)
+        remaining_trace = await session.scalar(
+            select(models.Trace).where(models.Trace.project_rowid == project.id)
+        )
+        assert remaining_trace is None
+
+
+async def test_delete_span_with_global_id(
+    httpx_client: httpx.AsyncClient,
+    span_hierarchy: dict[str, Any],
+    db: DbSessionFactory,
+) -> None:
+    """Test that deleting a span works with relay GlobalID identifier."""
+    hierarchy = span_hierarchy
+
+    # Use GlobalID instead of OpenTelemetry span_id
+    child1_global_id = str(GlobalID("Span", str(hierarchy["child1"].id)))
+
+    # Delete using GlobalID
+    response = await httpx_client.delete(f"v1/spans/{child1_global_id}")
+    assert response.status_code == 204
+
+    # Verify child1 was deleted but others remain
+    async with db() as session:
+        # child1 should be deleted
+        assert (
+            await session.scalar(
+                select(models.Span).where(models.Span.id == hierarchy["child1"].id)
+            )
+            is None
+        )
+
+        # Parent should still exist
+        remaining_parent = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["parent"].id)
+        )
+        assert remaining_parent is not None
+
+        # Grandchild should still exist (even though its parent was deleted)
+        remaining_grandchild = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
+        )
+        assert remaining_grandchild is not None
+
+
+@pytest.fixture
+async def span_hierarchy_with_metrics(
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+    span_factory: Callable[..., models.Span],
+) -> dict[str, Any]:
+    """Creates a span hierarchy with cumulative metrics for testing propagation."""
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        assert project is not None
+        trace = await session.scalar(
+            select(models.Trace).where(models.Trace.project_rowid == project.id)
+        )
+        assert trace is not None
+
+        # Delete the existing span to start fresh
+        from sqlalchemy import delete
+
+        await session.execute(delete(models.Span).where(models.Span.trace_rowid == trace.id))
+
+        # Create hierarchy with specific cumulative metrics:
+        # root (errors: 10, prompt: 100, completion: 200)
+        #   └── child (errors: 5, prompt: 50, completion: 100)
+        #       └── grandchild (errors: 2, prompt: 20, completion: 40)
+
+        # Grandchild (leaf node - no descendants)
+        grandchild = span_factory(
+            trace.id,
+            "grandchild-span",
+            "child-span",
+            cumulative_error_count=2,
+            cumulative_llm_token_count_prompt=20,
+            cumulative_llm_token_count_completion=40,
+        )
+
+        # Child includes its own values + grandchild's cumulative values
+        child = span_factory(
+            trace.id,
+            "child-span",
+            "root-span",
+            cumulative_error_count=5,  # 3 own + 2 from grandchild
+            cumulative_llm_token_count_prompt=50,  # 30 own + 20 from grandchild
+            cumulative_llm_token_count_completion=100,  # 60 own + 40 from grandchild
+        )
+
+        # Root includes its own values + all descendants' cumulative values
+        root = span_factory(
+            trace.id,
+            "root-span",
+            None,  # No parent
+            cumulative_error_count=10,  # 5 own + 5 from child (which includes grandchild)
+            cumulative_llm_token_count_prompt=100,  # 50 own + 50 from child (which includes grandchild)
+            cumulative_llm_token_count_completion=200,  # 100 own + 100 from child (which includes grandchild)
+        )
+
+        session.add_all([grandchild, child, root])
+        await session.commit()
+
+        return {
+            "project": project,
+            "trace": trace,
+            "root": root,
+            "child": child,
+            "grandchild": grandchild,
+        }
+
+
+async def test_delete_span_cumulative_metrics_propagation(
+    httpx_client: httpx.AsyncClient,
+    span_hierarchy_with_metrics: dict[str, Any],
+    db: DbSessionFactory,
+) -> None:
+    """Test that cumulative metrics are properly updated when deleting a span with a parent."""
+    hierarchy = span_hierarchy_with_metrics
+
+    # Get initial metrics for root span
+    async with db() as session:
+        initial_root = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["root"].id)
+        )
+        assert initial_root is not None
+        initial_root_errors = initial_root.cumulative_error_count
+        initial_root_prompt = initial_root.cumulative_llm_token_count_prompt
+        initial_root_completion = initial_root.cumulative_llm_token_count_completion
+
+    # Delete child span (should subtract child's cumulative values from root)
+    child_errors = hierarchy["child"].cumulative_error_count
+    child_prompt = hierarchy["child"].cumulative_llm_token_count_prompt
+    child_completion = hierarchy["child"].cumulative_llm_token_count_completion
+
+    response = await httpx_client.delete("v1/spans/child-span")
+    assert response.status_code == 204
+
+    # Verify metrics propagation
+    async with db() as session:
+        # Child should be deleted
+        remaining_child = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["child"].id)
+        )
+        assert remaining_child is None
+
+        # Root metrics should be reduced by child's cumulative values
+        updated_root = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["root"].id)
+        )
+        assert updated_root is not None
+
+        expected_root_errors = initial_root_errors - child_errors
+        expected_root_prompt = initial_root_prompt - child_prompt
+        expected_root_completion = initial_root_completion - child_completion
+
+        assert updated_root.cumulative_error_count == expected_root_errors
+        assert updated_root.cumulative_llm_token_count_prompt == expected_root_prompt
+        assert updated_root.cumulative_llm_token_count_completion == expected_root_completion
+
+        # Grandchild should still exist (orphaned but not deleted)
+        remaining_grandchild = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
+        )
+        assert remaining_grandchild is not None
+        # Grandchild metrics should be unchanged
+        assert remaining_grandchild.cumulative_error_count == 2
+        assert remaining_grandchild.cumulative_llm_token_count_prompt == 20
+        assert remaining_grandchild.cumulative_llm_token_count_completion == 40
+
+
+async def test_delete_span_no_metrics_propagation_when_no_parent(
+    httpx_client: httpx.AsyncClient,
+    span_hierarchy_with_metrics: dict[str, Any],
+    db: DbSessionFactory,
+) -> None:
+    """Test that no metrics propagation occurs when deleting a root span (no parent)."""
+    hierarchy = span_hierarchy_with_metrics
+
+    # Delete root span (no parent, so no propagation should occur)
+    response = await httpx_client.delete("v1/spans/root-span")
+    assert response.status_code == 204
+
+    # Verify root is deleted and children remain with unchanged metrics
+    async with db() as session:
+        # Root should be deleted
+        remaining_root = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["root"].id)
+        )
+        assert remaining_root is None
+
+        # Child and grandchild should still exist with original metrics
+        remaining_child = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["child"].id)
+        )
+        assert remaining_child is not None
+        assert remaining_child.cumulative_error_count == 5
+        assert remaining_child.cumulative_llm_token_count_prompt == 50
+        assert remaining_child.cumulative_llm_token_count_completion == 100
+
+        remaining_grandchild = await session.scalar(
+            select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
+        )
+        assert remaining_grandchild is not None
+        assert remaining_grandchild.cumulative_error_count == 2
+        assert remaining_grandchild.cumulative_llm_token_count_prompt == 20
+        assert remaining_grandchild.cumulative_llm_token_count_completion == 40
+
+
+async def test_delete_span_not_found(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    # Try to delete a non-existent span
+    async with db() as session:
+        project = await session.scalar(select(models.Project))
+        assert project is not None
+        project_identifier = str(GlobalID("Project", str(project.id)))
+
+    response = await httpx_client.delete(
+        f"v1/projects/{project_identifier}/spans/non-existent-span"
+    )
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
 
 
 @pytest.fixture

@@ -8,9 +8,10 @@ from secrets import token_urlsafe
 from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -24,13 +25,14 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanAnnotationInsertEvent
+from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
@@ -1119,3 +1121,126 @@ async def create_spans(
         total_received=total_received,
         total_queued=len(spans_to_queue),
     )
+
+
+@router.delete(
+    "/spans/{span_identifier}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deleteSpan",
+    summary="Delete a span by span_identifier",
+    description=(
+        """
+        Delete a single span by identifier.
+
+        **Important**: This operation deletes ONLY the specified span itself and does NOT
+        delete its descendants/children. All child spans will remain in the trace and
+        become orphaned (their parent_id will point to a non-existent span).
+
+        Behavior:
+        - Deletes only the target span (preserves all descendant spans)
+        - If this was the last span in the trace, the trace record is also deleted
+        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+          are subtracted from all ancestor spans in the chain
+
+        **Note**: This operation is irreversible and may create orphaned spans.
+        """
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    status_code=204,  # No Content for successful deletion
+)
+async def delete_span(
+    request: Request,
+    span_identifier: str = Path(
+        description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+    ),
+) -> None:
+    """
+    Delete a single span by identifier.
+
+    This operation deletes ONLY the specified span and preserves all its descendants,
+    which may become orphaned (parent_id pointing to non-existent span).
+
+    Steps:
+    1. Find the target span to delete (supports both GlobalID and OpenTelemetry span_id)
+    2. Delete only the target span (all descendants remain untouched)
+    3. If trace becomes empty, delete the trace record
+    4. If deleted span had a parent, subtract its cumulative metrics from ancestor chain
+    5. Return 204 No Content on success
+
+    Args:
+        request: FastAPI request object
+        span_identifier: Either relay GlobalID or OpenTelemetry span_id
+
+    Raises:
+        HTTPException(404): If span not found
+
+    Returns:
+        None (204 No Content status)
+    """
+    async with request.app.state.db() as session:
+        # Determine the predicate for deletion based on identifier type
+        try:
+            span_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(span_identifier),
+                "Span",
+            )
+            predicate = models.Span.id == span_rowid
+            error_detail = f"Span with relay ID '{span_identifier}' not found"
+        except Exception:
+            predicate = models.Span.span_id == span_identifier
+            error_detail = f"Span with span_id '{span_identifier}' not found"
+
+        # Delete the span and return its data in one operation
+        target_span = await session.scalar(
+            sa.delete(models.Span).where(predicate).returning(models.Span)
+        )
+
+        if target_span is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=error_detail,
+            )
+
+        # Store values needed for later operations
+        trace_rowid = target_span.trace_rowid
+        parent_id = target_span.parent_id
+        cumulative_error_count = target_span.cumulative_error_count
+        cumulative_llm_token_count_prompt = target_span.cumulative_llm_token_count_prompt
+        cumulative_llm_token_count_completion = target_span.cumulative_llm_token_count_completion
+
+        # Step 2: Check if trace is empty—if so, delete the trace record
+        trace_is_empty = await session.scalar(
+            select(~exists().where(models.Span.trace_rowid == trace_rowid))
+        )
+
+        if trace_is_empty:
+            # Trace is empty, delete the trace record
+            await session.execute(sa.delete(models.Trace).where(models.Trace.id == trace_rowid))
+
+        # Step 3: Propagate negative cumulative values up ancestor chain if parent_id is not null
+        if not trace_is_empty and parent_id is not None:
+            # Use the helper function to get all ancestor span IDs
+            ancestor_ids_query = get_ancestor_span_rowids(parent_id)
+
+            # Propagate negative cumulative values to ancestors
+            await session.execute(
+                update(models.Span)
+                .where(models.Span.id.in_(ancestor_ids_query))
+                .values(
+                    cumulative_error_count=(
+                        models.Span.cumulative_error_count - cumulative_error_count
+                    ),
+                    cumulative_llm_token_count_prompt=(
+                        models.Span.cumulative_llm_token_count_prompt
+                        - cumulative_llm_token_count_prompt
+                    ),
+                    cumulative_llm_token_count_completion=(
+                        models.Span.cumulative_llm_token_count_completion
+                        - cumulative_llm_token_count_completion
+                    ),
+                )
+            )
+    # Trigger cache invalidation event
+    request.state.event_queue.put(SpanDeleteEvent((trace_rowid,)))
+
+    return None

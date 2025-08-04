@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   CopyToClipboardButton,
   Disclosure,
   DisclosurePanel,
@@ -119,9 +118,7 @@ export function PlaygroundResponseFormat({
       <DisclosurePanel>
         <View padding="size-200">
           <Card
-            variant="compact"
             title="Schema"
-            bodyStyle={{ padding: 0 }}
             extra={
               <Flex direction="row" gap="size-100">
                 <CopyToClipboardButton text={currentValueRef} />
