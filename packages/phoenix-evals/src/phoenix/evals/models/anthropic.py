@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import override
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
-from phoenix.evals.models.base import BaseModel, Usage
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
@@ -121,9 +121,9 @@ class AnthropicModel(BaseModel):
         }
 
     @override
-    def _generate(
+    def _generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -132,17 +132,15 @@ class AnthropicModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response, usage = self._rate_limited_completion(
+        return self._rate_limited_completion(
             model=self.model,
             messages=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )
 
-        return str(response), usage
-
-    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response: Message = self.client.messages.create(**kwargs)
                 return self._parse_output(response)
@@ -155,9 +153,9 @@ class AnthropicModel(BaseModel):
         return _completion(**kwargs)
 
     @override
-    async def _async_generate(
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[Usage]]:
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -172,9 +170,9 @@ class AnthropicModel(BaseModel):
             **invocation_parameters,
         )
 
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, Optional[Usage]]:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Tuple[str, Optional[Usage]]:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
                 response: Message = await self.async_client.messages.create(**kwargs)
                 return self._parse_output(response)
@@ -218,7 +216,7 @@ class AnthropicModel(BaseModel):
             total_tokens=prompt_tokens + message_usage.output_tokens,
         )
 
-    def _parse_output(self, message: "Message") -> Tuple[str, Optional[Usage]]:
+    def _parse_output(self, message: "Message") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(message)
         usage = self._extract_usage(message.usage)
-        return text, usage
+        return text, ExtraInfo(usage=usage)

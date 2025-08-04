@@ -50,7 +50,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "This is a test response"
         assert usage.prompt_tokens == 10
@@ -70,7 +70,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Text without usage"
         assert usage is None
@@ -93,7 +93,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == ""
         assert usage.prompt_tokens == 3
@@ -125,7 +125,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"action": "search", "query": "test query"}'
         assert usage.prompt_tokens == 8
@@ -153,7 +153,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Fallback text"
         assert usage.prompt_tokens == 5
@@ -186,7 +186,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"result": "success", "data": [1, 2, 3]}'
         assert usage.prompt_tokens == 12
@@ -205,7 +205,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"simple": "value"}'
         assert usage is None
@@ -222,7 +222,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"nested": {"key": "value"}}'
         assert usage is None
@@ -239,7 +239,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"list": [1, 2, 3]}'
         assert usage is None
@@ -256,7 +256,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == '{"unicode": "测试"}'
         assert usage is None
@@ -279,7 +279,7 @@ class TestParseOutput:
             ],
         )
 
-        text, usage = model._parse_output(response)
+        text, (usage, *_) = model._parse_output(response)
 
         assert text == "Zero usage response"
         assert usage.prompt_tokens == 0
