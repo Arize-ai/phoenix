@@ -8,7 +8,6 @@ from .evaluators import (
     Score,
     SourceType,
     create_classifier,
-    extract_fields_from_template,
     list_evaluators,
     simple_evaluator,
 )
@@ -22,7 +21,6 @@ __all__ = [
     "Schema",
     "SourceType",
     "create_classifier",
-    "extract_fields_from_template",
     "list_evaluators",
     "simple_evaluator",
     "ERROR_SCORE",

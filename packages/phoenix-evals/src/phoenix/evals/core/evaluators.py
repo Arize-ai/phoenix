@@ -4,19 +4,19 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import wraps
-from string import Formatter
-from textwrap import dedent
-from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple, Union
 
 from typing_extensions import Mapping
 
 from phoenix.evals.llm import LLM, AsyncLLM
+from phoenix.evals.templating import Template
 
 # --- Type Aliases ---
-EvalInput = Mapping[str, Any]
+EvalInput = Dict[str, Any]
 Schema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
+RequiredFieldsType = Optional[Union[Set[str], List[str], Iterable[str]]]
 
 ERROR_SCORE = "ERROR"
 
@@ -67,11 +67,6 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-# --- Utilities ---
-def extract_fields_from_template(tmpl: str) -> Set[str]:
-    return {name for _, name, _, _ in Formatter().parse(tmpl) if name}
-
-
 def _validate_field_value(value: Any, field_name: str, key: str) -> None:
     """
     Validate that a field value is not null or empty.
@@ -107,7 +102,7 @@ def _validate_field_value(value: Any, field_name: str, key: str) -> None:
 
 def remap_eval_input(
     eval_input: Mapping[str, Any],
-    required_fields: Set[str],
+    required_fields: RequiredFieldsType,
     template_mapping: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
     """
@@ -115,7 +110,7 @@ def remap_eval_input(
 
     Args:
         eval_input: The input dictionary to be remapped.
-        required_fields: The set of required field names.
+        required_fields: The required field names. Can be a set, list, or any iterable of strings.
         template_mapping: Optional mapping from evaluator-required field -> eval_input key.
 
     Returns:
@@ -128,7 +123,13 @@ def remap_eval_input(
     mapping = template_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
 
-    for field_name in required_fields:
+    # Convert required_fields to a set if it's not already
+    if required_fields is None:
+        required_fields_set: Set[str] = set()
+    else:
+        required_fields_set = set(required_fields)
+
+    for field_name in required_fields_set:
         key = mapping.get(field_name, field_name)
         if key not in eval_input:
             raise ValueError(
@@ -156,7 +157,7 @@ class Evaluator(ABC):
         self,
         name: str,
         source: SourceType,
-        required_fields: Optional[Set[str]] = None,
+        required_fields: RequiredFieldsType = None,
         direction: DirectionType = "maximize",
     ):
         """
@@ -165,15 +166,16 @@ class Evaluator(ABC):
         Args:
             name: The name of this evaluator, used for identification and Score naming.
             source: The source of this evaluator (human, llm, or heuristic).
-            required_fields: Optional set of field names this evaluator requires. If None,
-                           subclasses should infer fields from prompts or function signatures.
+            required_fields: Optional field names this evaluator requires. Can be a set, list,
+                or any iterable of strings. If None, subclasses should infer fields from prompts or
+                function signatures.
             direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
         self._name = name
         self._source = source
         self._direction = direction
-        self.required_fields = required_fields or set()
+        self.required_fields = set(required_fields) if required_fields is not None else set()
 
     @property
     def name(self) -> str:
@@ -293,9 +295,9 @@ class LLMEvaluator(Evaluator):
         self,
         name: str,
         llm: Union[LLM, AsyncLLM],
-        prompt: str,
+        prompt_template: Union[str, Template],
         schema: Optional[Schema] = None,
-        required_fields: Optional[Set[str]] = None,
+        required_fields: RequiredFieldsType = None,
         direction: DirectionType = "maximize",
     ):
         """
@@ -304,22 +306,25 @@ class LLMEvaluator(Evaluator):
         Args:
             name: The name of this evaluator, used for identification and Score naming.
             llm: The LLM instance to use for evaluation.
-            prompt: The prompt template string with placeholders for required fields.
+            prompt_template: The prompt template string with placeholders for required fields.
             schema: Optional schema for structured output / tool calls.
-            required_fields: Optional set of field names this evaluator requires. If None,fields
-                will be inferred from the prompt template.
+            required_fields: Optional field names this evaluator requires. Can be a set, list,
+                or any iterable of strings. If None, fields will be inferred from the prompt
+                template.
             direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
-        # Infer required fields from prompt if not provided
+        # Infer required fields from prompt_template if not provided
+        if isinstance(prompt_template, str):
+            prompt_template = Template(template=prompt_template)
         if required_fields is None:
-            required_fields = extract_fields_from_template(prompt)
+            required_fields = prompt_template.variables
 
         super().__init__(
             name=name, source="llm", required_fields=required_fields, direction=direction
         )
         self.llm = llm
-        self.prompt = dedent(prompt)
+        self.prompt_template = prompt_template
         self.schema = schema
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
@@ -339,12 +344,12 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         name: str,
         llm: Union[LLM, AsyncLLM],
-        prompt: str,
+        prompt_template: Union[str, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],
         include_explanation: bool = True,
-        required_fields: Optional[Set[str]] = None,
+        required_fields: RequiredFieldsType = None,
         direction: DirectionType = "maximize",
     ):
         """
@@ -353,19 +358,24 @@ class ClassificationEvaluator(LLMEvaluator):
         Args:
             name: The name of this evaluator, used for identification and Score naming.
             llm: The LLM instance to use for evaluation.
-            prompt: The prompt template string with placeholders for required fields.
+            prompt_template: The prompt template string with placeholders for required fields.
             choices: The labels to use for the classification. Can be a list of string labels,
                 a dictionary mapping labels to scores, or a dictionary mapping labels to
                 a tuple of (score, description).
             include_explanation: Whether to ask the LLM to provide an explanation for its
                 classification.
-            required_fields: Optional set of field names this evaluator requires for the prompt.
-                If None,fields will be inferred from the prompt template.
+            required_fields: Optional field names this evaluator requires. Can be a set, list,
+                or any iterable of strings. If None, fields will be inferred from the prompt
+                template.
             direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
         super().__init__(
-            name=name, llm=llm, prompt=prompt, required_fields=required_fields, direction=direction
+            name=name,
+            llm=llm,
+            prompt_template=prompt_template,
+            required_fields=required_fields,
+            direction=direction,
         )
 
         self.include_explanation = include_explanation
@@ -397,7 +407,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 "AsyncLLM is not supported for synchronous evaluation. Use aevaluate instead."
             )
 
-        prompt_filled = self.prompt.format(**eval_input)
+        prompt_filled = self.prompt_template.render(variables=eval_input)
         response = self.llm.generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
@@ -436,7 +446,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 "LLM is not supported for asynchronous evaluation. Use evaluate instead."
             )
 
-        prompt_filled = self.prompt.format(**eval_input)
+        prompt_filled = self.prompt_template.render(variables=eval_input)
         response = await self.llm.generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
@@ -550,12 +560,12 @@ def simple_evaluator(
 # --- Factory functions ---
 def create_classifier(
     name: str,
-    prompt: str,
+    prompt_template: str,
     llm: Union[LLM, AsyncLLM],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
-    required_fields: Optional[Set[str]] = None,
+    required_fields: RequiredFieldsType = None,
     direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
     """
@@ -564,12 +574,12 @@ def create_classifier(
     Args:
         name: The name of this evaluator, used for identification and Score naming.
         llm: The LLM instance to use for evaluation.
-        prompt: The prompt template string with placeholders for required fields.
+        prompt_template: The prompt template string with placeholders for required fields.
         choices: The labels to use for the classification. Can be a list of string labels,
             a dictionary mapping labels to scores, or a dictionary mapping labels to
             a tuple of (score, description).
-        required_fields: Optional set of field names this evaluator requires. If None,
-            fields will be inferred from the prompt template.
+        required_fields: Optional field names this evaluator requires. Can be a set, list, or any
+            iterable of strings. If None, fields will be inferred from the prompt template.
         direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
             "maximize".
 
@@ -579,7 +589,7 @@ def create_classifier(
     return ClassificationEvaluator(
         name=name,
         llm=llm,
-        prompt=prompt,
+        prompt_template=prompt_template,
         choices=choices,
         required_fields=required_fields,
         direction=direction,

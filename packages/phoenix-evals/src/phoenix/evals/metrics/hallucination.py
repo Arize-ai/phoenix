@@ -26,12 +26,14 @@ from typing import Union
 
 from phoenix.evals.core.evaluators import ClassificationEvaluator
 from phoenix.evals.llm import LLM, AsyncLLM
+from phoenix.evals.templating import Template
 
 
 # --- Built-in LLM evaluator: hallucination ---
 class HallucinationEvaluator(ClassificationEvaluator):
     NAME = "hallucination"
-    PROMPT = """
+    PROMPT = Template(
+        template="""
         In this task, you will be presented with a query, a reference text and an answer. The answer
         is generated to the question based on the reference text. The answer may contain false
         information. You must use the reference text to determine if the answer to the question
@@ -58,6 +60,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
         Is the answer above factual or hallucinated based on the query and reference text?
     """
+    )
     CHOICES = {"hallucinated": 0.0, "factual": 1.0}
 
     def __init__(
@@ -67,7 +70,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
         super().__init__(
             name=self.NAME,
             llm=llm,
-            prompt=self.PROMPT,
+            prompt_template=self.PROMPT,
             choices=self.CHOICES,
             direction="maximize",
         )
