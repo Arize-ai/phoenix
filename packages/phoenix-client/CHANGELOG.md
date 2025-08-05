@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.1...arize-phoenix-client-v1.14.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* Remove reference to experiment evaluators in client docstrings ([#8933](https://github.com/Arize-ai/phoenix/issues/8933)) ([3a45871](https://github.com/Arize-ai/phoenix/commit/3a45871775494496b1993d816a3a9fd26630e51e))
+
 ## [1.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.0...arize-phoenix-client-v1.14.1) (2025-07-30)
 
 
