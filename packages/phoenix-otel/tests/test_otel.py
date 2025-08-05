@@ -1,15 +1,22 @@
+from secrets import token_hex
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
 
 import pytest
 from opentelemetry import trace as trace_api
+from opentelemetry.sdk.environment_variables import (
+    OTEL_ATTRIBUTE_COUNT_LIMIT,
+    OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
+)
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from phoenix.otel.otel import (
+    _DEFAULT_OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
     PROJECT_NAME,
     BatchSpanProcessor,
     GRPCSpanExporter,
@@ -18,6 +25,7 @@ from phoenix.otel.otel import (
     SimpleSpanProcessor,
     TracerProvider,
     _construct_phoenix_cloud_endpoint,
+    _create_span_limits_with_phoenix_defaults,
     register,
 )
 
@@ -121,7 +129,7 @@ class TestRegister:
         processors = tracer_provider._active_span_processor._span_processors
         exporter = _get_exporter_from_processor(processors[0])
 
-        assert "authorization" in [h[0].lower() for h in exporter._headers]
+        assert "authorization" in [h[0].lower() for h in exporter._headers]  # type: ignore
 
     def test_register_with_http_protocol(self) -> None:
         tracer_provider = register(
@@ -236,7 +244,7 @@ class TestRegister:
             set_global_tracer_provider=False,
         )
 
-        assert tracer_provider.id_generator is custom_id_gen
+        assert tracer_provider.id_generator is custom_id_gen  # type: ignore[comparison-overlap]
 
     def test_register_with_span_limits(self) -> None:
         from opentelemetry.sdk.trace import SpanLimits
@@ -580,3 +588,92 @@ class TestOTLPTransportProtocol:
         with pytest.raises(ValueError) as exc_info:
             OTLPTransportProtocol(123)
         assert "Must be a string" in str(exc_info.value)
+
+
+class TestSpanLimits:
+    """Test span limits behavior in Phoenix's OpenTelemetry setup."""
+
+    def test_span_attribute_count_limit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that Phoenix's default span attribute limit (10,000) is enforced.
+
+        This test verifies that when no environment variables are set, Phoenix automatically
+        applies its default span attribute limit of 10,000. When more attributes are added
+        to a span than the limit allows, the excess attributes should be dropped.
+
+        Args:
+            monkeypatch: Pytest fixture for modifying environment variables.
+        """
+        monkeypatch.delenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, raising=False)
+        monkeypatch.delenv(OTEL_ATTRIBUTE_COUNT_LIMIT, raising=False)
+        tracer_provider = register(set_global_tracer_provider=False)
+        in_memory_span_exporter = InMemorySpanExporter()
+        tracer_provider.add_span_processor(
+            SimpleSpanProcessor(in_memory_span_exporter),
+            replace_default_processor=True,
+        )  # type: ignore[call-arg]
+        expected = _DEFAULT_OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT
+        attributes = {str(i): i for i in range(expected + 1)}
+        assert len(attributes) > expected
+        name = token_hex(8)
+        with tracer_provider.get_tracer(__name__).start_span(name) as span:
+            span.set_attributes(attributes)
+        assert (spans := {span.name: span for span in in_memory_span_exporter.get_finished_spans()})
+        assert len(spans[name].attributes or {}) == expected
+
+
+class TestCreateSpanLimitsWithPhoenixDefaults:
+    """Test the _create_span_limits_with_phoenix_defaults factory function.
+
+    This test class verifies that Phoenix correctly creates SpanLimits objects with
+    appropriate attribute count limits based on environment variable configuration
+    and Phoenix's default preferences.
+    """
+
+    def test_phoenix_default_without_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that Phoenix's default limit (10,000) is used when no env vars are set.
+
+        When neither OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT nor OTEL_ATTRIBUTE_COUNT_LIMIT
+        environment variables are set, the function should return a SpanLimits object
+        configured with Phoenix's preferred default of 10,000 span attributes.
+
+        Args:
+            monkeypatch: Pytest fixture for modifying environment variables.
+        """
+        monkeypatch.delenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, raising=False)
+        monkeypatch.delenv(OTEL_ATTRIBUTE_COUNT_LIMIT, raising=False)
+
+        span_limits = _create_span_limits_with_phoenix_defaults()
+        assert span_limits.max_span_attributes == _DEFAULT_OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT
+
+    def test_respects_env_var_precedence(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that OpenTelemetry environment variable precedence is respected.
+
+        This test verifies the correct precedence order for attribute count limits:
+        1. OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT (span-specific, highest precedence)
+        2. OTEL_ATTRIBUTE_COUNT_LIMIT (general, lower precedence)
+        3. Phoenix default (10,000, lowest precedence)
+
+        The function should defer to OpenTelemetry's built-in precedence handling
+        when any environment variables are set, and only use Phoenix's default
+        when no environment configuration is present.
+
+        Args:
+            monkeypatch: Pytest fixture for modifying environment variables.
+        """
+        # Test span-specific env var
+        monkeypatch.setenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, "5000")
+        monkeypatch.delenv(OTEL_ATTRIBUTE_COUNT_LIMIT, raising=False)
+        span_limits = _create_span_limits_with_phoenix_defaults()
+        assert span_limits.max_span_attributes == 5000
+
+        # Test general env var when span-specific not set
+        monkeypatch.delenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, raising=False)
+        monkeypatch.setenv(OTEL_ATTRIBUTE_COUNT_LIMIT, "3000")
+        span_limits = _create_span_limits_with_phoenix_defaults()
+        assert span_limits.max_span_attributes == 3000
+
+        # Test span-specific takes precedence over general
+        monkeypatch.setenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, "8000")
+        monkeypatch.setenv(OTEL_ATTRIBUTE_COUNT_LIMIT, "4000")
+        span_limits = _create_span_limits_with_phoenix_defaults()
+        assert span_limits.max_span_attributes == 8000

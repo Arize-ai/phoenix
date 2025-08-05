@@ -17,8 +17,12 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
+from opentelemetry.sdk.environment_variables import (
+    OTEL_ATTRIBUTE_COUNT_LIMIT,
+    OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
+)
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import SpanProcessor
+from opentelemetry.sdk.trace import SpanLimits, SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
@@ -116,6 +120,9 @@ def register(
         project_attributes = {PROJECT_NAME: project_name}
         project_resource = Resource(attributes=project_attributes)
         tracer_provider_kwargs["resource"] = existing_resource.merge(project_resource)
+
+    if "span_limits" not in tracer_provider_kwargs:
+        tracer_provider_kwargs["span_limits"] = _create_span_limits_with_phoenix_defaults()
 
     # Ensure TracerProvider verbose is False (register handles its own verbose output)
     tracer_provider_kwargs["verbose"] = False
@@ -603,3 +610,29 @@ def _auto_instrument_installed_openinference_libraries(tracer_provider: TracerPr
         instrumentor_cls = entry_point.load()
         instrumentor = instrumentor_cls()
         instrumentor.instrument(tracer_provider=tracer_provider)
+
+
+_DEFAULT_OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT = 10_000
+
+
+def _create_span_limits_with_phoenix_defaults() -> SpanLimits:
+    """Create SpanLimits with Phoenix's default attribute count limit.
+
+    This function creates a SpanLimits instance with Phoenix's preferred
+    default attribute count limit of 10,000, unless the user has explicitly set
+    attribute count limits via environment variables.
+
+    Returns:
+        SpanLimits: A SpanLimits instance with max_attributes set according to
+            the precedence order above.
+    """
+    # Check environment variables
+    span_limit = os.getenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT)
+    general_limit = os.environ.get(OTEL_ATTRIBUTE_COUNT_LIMIT)
+
+    if span_limit or general_limit:
+        # User has set some limit via environment variables
+        # Let SpanLimits() handle the precedence and parsing
+        return SpanLimits()
+    # No user configuration, use Phoenix's default for span attributes specifically
+    return SpanLimits(max_span_attributes=_DEFAULT_OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT)
