@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, 
 from typing_extensions import Mapping
 
 from phoenix.evals.llm import LLM, AsyncLLM
+from phoenix.evals.llm.types import ObjectGenerationMethod
 from phoenix.evals.templating import Template
 
 # --- Type Aliases ---
@@ -421,13 +422,19 @@ class ClassificationEvaluator(LLMEvaluator):
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
+        method = (
+            ObjectGenerationMethod.TOOL_CALLING
+            if isinstance(self.labels, Dict)
+            else ObjectGenerationMethod.AUTO
+        )
         response = self.llm.generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
             include_explanation=self.include_explanation,
+            method=method,
         )
-        label = response["label"]
-        explanation = response.get("explanation", None)
+        label = response["label"]  # type: ignore
+        explanation = response.get("explanation", None)  # type: ignore
 
         # Validate that the returned label is one of the valid choices
         valid_labels = (
@@ -437,7 +444,6 @@ class ClassificationEvaluator(LLMEvaluator):
             raise ValueError(
                 f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
                 f"Valid labels are: {valid_labels}. "
-                f"Response: {response}"
             )
 
         score = self.label_score_map.get(label) if self.label_score_map else None
@@ -455,11 +461,17 @@ class ClassificationEvaluator(LLMEvaluator):
 
     async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
+        method = (
+            ObjectGenerationMethod.TOOL_CALLING
+            if isinstance(self.labels, Dict)
+            else ObjectGenerationMethod.AUTO
+        )
         response = await self.llm.generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
             include_explanation=self.include_explanation,
-        )
+            method=method,
+        )  # type: ignore
         label = response["label"]
         explanation = response.get("explanation", None)
 
@@ -471,7 +483,6 @@ class ClassificationEvaluator(LLMEvaluator):
             raise ValueError(
                 f"ClassificationEvaluator '{self.name}' received invalid label '{label}'. "
                 f"Valid labels are: {valid_labels}. "
-                f"Response: {response}"
             )
 
         score = self.label_score_map.get(label) if self.label_score_map else None
