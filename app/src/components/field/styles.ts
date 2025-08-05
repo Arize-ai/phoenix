@@ -135,4 +135,11 @@ export const textFieldCSS = css`
     /* TODO: remove this sizing */
     height: var(--textfield-input-height);
   }
+
+  .ac-field-icon {
+    position: absolute;
+    right: var(--textfield-horizontal-padding);
+    top: 50%;
+    transform: translateY(-50%);
+  }
 `;
