@@ -627,10 +627,10 @@ def _create_span_limits_with_phoenix_defaults() -> SpanLimits:
             the precedence order above.
     """
     # Check environment variables
-    span_limit = os.getenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT)
-    general_limit = os.getenv(OTEL_ATTRIBUTE_COUNT_LIMIT)
+    span_limit = os.getenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT, "")
+    general_limit = os.getenv(OTEL_ATTRIBUTE_COUNT_LIMIT, "")
 
-    if span_limit or general_limit:
+    if span_limit.strip() or general_limit.strip():
         # User has set some limit via environment variables
         # Let SpanLimits() handle the precedence and parsing
         return SpanLimits()
