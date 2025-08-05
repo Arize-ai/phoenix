@@ -343,6 +343,23 @@ input ClusterInput {
   id: ID
 }
 
+type CompareExperimentRunAnnotationMetricCounts {
+  annotationName: String!
+  compareExperimentId: ID!
+  numIncreases: Int!
+  numDecreases: Int!
+  numEqual: Int!
+}
+
+type CompareExperimentRunMetricCounts {
+  compareExperimentId: ID!
+  latency: MetricCounts!
+  promptTokenCount: MetricCounts!
+  completionTokenCount: MetricCounts!
+  totalTokenCount: MetricCounts!
+  totalCost: MetricCounts!
+}
+
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -1462,6 +1479,12 @@ type LabelFraction {
   fraction: Float!
 }
 
+type MetricCounts {
+  numIncreases: Int!
+  numDecreases: Int!
+  numEqual: Int!
+}
+
 enum MimeType {
   text
   json
@@ -2077,6 +2100,8 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
+  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunMetricCounts!]!
+  compareExperimentRunAnnotationMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunAnnotationMetricCounts!]!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!

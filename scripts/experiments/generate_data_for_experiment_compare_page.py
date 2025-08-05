@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Any
 
+import httpx
 import pandas as pd
 from openai import OpenAI
 
@@ -16,6 +17,7 @@ from phoenix.otel import register
 
 register(auto_instrument=True)
 
+httpx_client = httpx.Client()
 phoenix_client = Client()
 contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 openai_client = OpenAI()
@@ -40,16 +42,13 @@ df = pd.DataFrame(
     ]
 )
 dataset_name = "experiment-compare-dataset"
-try:
-    dataset = phoenix_client.datasets.create_dataset(
-        name=dataset_name,
-        dataframe=df,
-        input_keys=["question"],
-        output_keys=["answer"],
-        metadata_keys=["metadata"],
-    )
-except Exception:
-    dataset = phoenix_client.datasets.get_dataset(dataset=dataset_name)
+dataset = phoenix_client.datasets.create_dataset(
+    name=dataset_name,
+    dataframe=df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    metadata_keys=["metadata"],
+)
 
 
 def task(input: ExampleInput, template: str) -> str:
@@ -66,6 +65,15 @@ conciseness = ConcisenessEvaluator(model=model)
 
 
 def jaccard_similarity(output: str, expected: dict[str, Any]) -> float:
+    # https://en.wikipedia.org/wiki/Jaccard_index
+    actual_words = set(output.lower().split(" "))
+    expected_words = set(expected["answer"].lower().split(" "))
+    words_in_common = actual_words.intersection(expected_words)
+    all_words = actual_words.union(expected_words)
+    return len(words_in_common) / len(all_words)
+
+
+def jaccard_similarity2(output: str, expected: dict[str, Any]) -> float:
     # https://en.wikipedia.org/wiki/Jaccard_index
     actual_words = set(output.lower().split(" "))
     expected_words = set(expected["answer"].lower().split(" "))
@@ -105,7 +113,13 @@ experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
     experiment_name="short-answer",
-    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
 )
 
 task_prompt_template = "Answer verbosely: {question}"
@@ -113,5 +127,64 @@ experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
     task=partial(task, template=task_prompt_template),
     experiment_name="long-answer",
-    evaluators=[jaccard_similarity, accuracy, contains_keyword, conciseness],
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
+)
+
+
+response = httpx_client.post(
+    "http://localhost:6006/graphql",
+    json={
+        "query": """
+        mutation ExampleSelectionToolbarDeleteExamplesMutation(
+          $input: DeleteDatasetExamplesInput!
+        ) {
+          deleteDatasetExamples(input: $input) {
+            dataset {
+              id
+            }
+          }
+        }
+        """,
+        "variables": {
+            "input": {
+                "exampleIds": [dataset.examples[0]["id"]],
+            }
+        },
+    },
+    headers={"Content-Type": "application/json"},
+)
+response.raise_for_status()
+dataset = phoenix_client.datasets.add_examples_to_dataset(
+    dataset=dataset,
+    inputs=[
+        {"question": "What is the capital of France?"},
+    ],
+    outputs=[
+        {"answer": "Paris is the capital of France."},
+    ],
+    metadata=[
+        {"topic": "geography"},
+    ],
+)
+task_prompt_template = (
+    "You are an assisant that generates data for a dataset of incorrect answers to a question."
+    " Generate an incorrect answer to the question: {question}"
+)
+experiment = phoenix_client.experiments.run_experiment(
+    dataset=dataset,
+    task=partial(task, template=task_prompt_template),
+    experiment_name="incorrect-answer",
+    evaluators=[
+        jaccard_similarity,
+        jaccard_similarity2,
+        # accuracy,
+        # contains_keyword,
+        # conciseness,
+    ],
 )

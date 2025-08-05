@@ -1,14 +1,14 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import String, and_, cast, distinct, func, select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy import ColumnElement, String, and_, case, cast, distinct, func, select, text
+from sqlalchemy.orm import aliased, joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -23,6 +23,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
+from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -104,6 +105,32 @@ class ModelsInput:
 class DbTableStats:
     table_name: str
     num_bytes: float
+
+
+@strawberry.type
+class MetricCounts:
+    num_increases: int
+    num_decreases: int
+    num_equal: int
+
+
+@strawberry.type
+class CompareExperimentRunMetricCounts:
+    compare_experiment_id: GlobalID
+    latency: MetricCounts
+    prompt_token_count: MetricCounts
+    completion_token_count: MetricCounts
+    total_token_count: MetricCounts
+    total_cost: MetricCounts
+
+
+@strawberry.type
+class CompareExperimentRunAnnotationMetricCounts:
+    annotation_name: str
+    compare_experiment_id: GlobalID
+    num_increases: int
+    num_decreases: int
+    num_equal: int
 
 
 @strawberry.type
@@ -480,6 +507,409 @@ class Query:
             has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
             has_next_page=has_next_page,
         )
+
+    @strawberry.field
+    async def compare_experiment_run_metric_counts(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+    ) -> list[CompareExperimentRunMetricCounts]:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if not compare_experiment_ids:
+            raise BadRequest("At least one compare experiment ID must be provided")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        base_experiment_runs = (
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
+            .subquery()
+            .alias("base_experiment_runs")
+        )
+        base_experiment_traces = aliased(models.Trace, name="base_experiment_traces")
+        base_experiment_span_costs = (
+            select(
+                models.SpanCost.trace_rowid,
+                func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+                func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
+                    "completion_tokens"
+                ),
+                func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+            )
+            .select_from(models.SpanCost)
+            .group_by(
+                models.SpanCost.trace_rowid,
+            )
+            .subquery()
+            .alias("base_experiment_span_costs")
+        )
+
+        query = (
+            select()  # add selected columns below
+            .select_from(base_experiment_runs)
+            .join(
+                base_experiment_traces,
+                onclause=base_experiment_runs.c.trace_id == base_experiment_traces.trace_id,
+                isouter=True,
+            )
+            .join(
+                base_experiment_span_costs,
+                onclause=base_experiment_traces.id == base_experiment_span_costs.c.trace_rowid,
+                isouter=True,
+            )
+        )
+
+        base_experiment_run_latency = LatencyMs(
+            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
+        ).label("base_experiment_run_latency_ms")
+        base_experiment_run_prompt_token_count = base_experiment_span_costs.c.prompt_tokens
+        base_experiment_run_completion_token_count = base_experiment_span_costs.c.completion_tokens
+        base_experiment_run_total_token_count = base_experiment_span_costs.c.total_tokens
+        base_experiment_run_total_cost = base_experiment_span_costs.c.total_cost
+
+        for compare_experiment_index, compare_experiment_rowid in enumerate(
+            compare_experiment_rowids
+        ):
+            compare_experiment_runs = (
+                select(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == compare_experiment_rowid)
+                .subquery()
+                .alias(f"comp_exp_{compare_experiment_index}_runs")
+            )
+            compare_experiment_traces = aliased(
+                models.Trace, name=f"comp_exp_{compare_experiment_index}_traces"
+            )
+            compare_experiment_span_costs = (
+                select(
+                    models.SpanCost.trace_rowid,
+                    func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+                    func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label(
+                        "prompt_tokens"
+                    ),
+                    func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
+                        "completion_tokens"
+                    ),
+                    func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                )
+                .select_from(models.SpanCost)
+                .group_by(models.SpanCost.trace_rowid)
+                .subquery()
+                .alias(f"comp_exp_{compare_experiment_index}_span_costs")
+            )
+            compare_experiment_run_latency = LatencyMs(
+                compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time
+            ).label(f"comp_exp_{compare_experiment_index}_run_latency_ms")
+            compare_experiment_run_prompt_token_count = (
+                compare_experiment_span_costs.c.prompt_tokens
+            )
+            compare_experiment_run_completion_token_count = (
+                compare_experiment_span_costs.c.completion_tokens
+            )
+            compare_experiment_run_total_token_count = compare_experiment_span_costs.c.total_tokens
+            compare_experiment_run_total_cost = compare_experiment_span_costs.c.total_cost
+
+            query = (
+                query.add_columns(
+                    _count_rows(
+                        base_experiment_run_latency < compare_experiment_run_latency,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_latency"),
+                    _count_rows(
+                        base_experiment_run_latency > compare_experiment_run_latency,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_latency"),
+                    _count_rows(
+                        base_experiment_run_latency == compare_experiment_run_latency,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_latency"),
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        < compare_experiment_run_prompt_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_prompt_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        > compare_experiment_run_prompt_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_prompt_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_prompt_token_count
+                        == compare_experiment_run_prompt_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_prompt_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        < compare_experiment_run_completion_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_completion_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        > compare_experiment_run_completion_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_completion_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_completion_token_count
+                        == compare_experiment_run_completion_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_completion_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        < compare_experiment_run_total_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_total_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        > compare_experiment_run_total_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_total_token_count
+                        == compare_experiment_run_total_token_count,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_equal_total_token_count"
+                    ),
+                    _count_rows(
+                        base_experiment_run_total_cost < compare_experiment_run_total_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_total_cost"),
+                    _count_rows(
+                        base_experiment_run_total_cost > compare_experiment_run_total_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_cost"),
+                    _count_rows(
+                        base_experiment_run_total_cost == compare_experiment_run_total_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_total_cost"),
+                )
+                .join(
+                    compare_experiment_runs,
+                    onclause=base_experiment_runs.c.dataset_example_id
+                    == compare_experiment_runs.c.dataset_example_id,
+                    isouter=True,
+                )
+                .join(
+                    compare_experiment_traces,
+                    onclause=compare_experiment_runs.c.trace_id
+                    == compare_experiment_traces.trace_id,
+                    isouter=True,
+                )
+                .join(
+                    compare_experiment_span_costs,
+                    onclause=compare_experiment_traces.id
+                    == compare_experiment_span_costs.c.trace_rowid,
+                    isouter=True,
+                )
+            )
+
+        async with info.context.db() as session:
+            result = (await session.execute(query)).first()
+        assert result is not None
+
+        num_columns_per_compare_experiment = len(query.columns) // len(compare_experiment_ids)
+        counts = []
+        for compare_experiment_index, compare_experiment_id in enumerate(compare_experiment_ids):
+            start_index = compare_experiment_index * num_columns_per_compare_experiment
+            end_index = start_index + num_columns_per_compare_experiment
+            (
+                num_runs_with_increased_latency,
+                num_runs_with_decreased_latency,
+                num_runs_with_equal_latency,
+                num_runs_with_increased_prompt_token_count,
+                num_runs_with_decreased_prompt_token_count,
+                num_runs_with_equal_prompt_token_count,
+                num_runs_with_increased_completion_token_count,
+                num_runs_with_decreased_completion_token_count,
+                num_runs_with_equal_completion_token_count,
+                num_runs_with_increased_total_token_count,
+                num_runs_with_decreased_total_token_count,
+                num_runs_with_equal_total_token_count,
+                num_runs_with_increased_total_cost,
+                num_runs_with_decreased_total_cost,
+                num_runs_with_equal_total_cost,
+            ) = result[start_index:end_index]
+            counts.append(
+                CompareExperimentRunMetricCounts(
+                    compare_experiment_id=compare_experiment_id,
+                    latency=MetricCounts(
+                        num_increases=num_runs_with_increased_latency,
+                        num_decreases=num_runs_with_decreased_latency,
+                        num_equal=num_runs_with_equal_latency,
+                    ),
+                    prompt_token_count=MetricCounts(
+                        num_increases=num_runs_with_increased_prompt_token_count,
+                        num_decreases=num_runs_with_decreased_prompt_token_count,
+                        num_equal=num_runs_with_equal_prompt_token_count,
+                    ),
+                    completion_token_count=MetricCounts(
+                        num_increases=num_runs_with_increased_completion_token_count,
+                        num_decreases=num_runs_with_decreased_completion_token_count,
+                        num_equal=num_runs_with_equal_completion_token_count,
+                    ),
+                    total_token_count=MetricCounts(
+                        num_increases=num_runs_with_increased_total_token_count,
+                        num_decreases=num_runs_with_decreased_total_token_count,
+                        num_equal=num_runs_with_equal_total_token_count,
+                    ),
+                    total_cost=MetricCounts(
+                        num_increases=num_runs_with_increased_total_cost,
+                        num_decreases=num_runs_with_decreased_total_cost,
+                        num_equal=num_runs_with_equal_total_cost,
+                    ),
+                )
+            )
+        return counts
+
+    @strawberry.field
+    async def compare_experiment_run_annotation_metric_counts(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+    ) -> list[CompareExperimentRunAnnotationMetricCounts]:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if not compare_experiment_ids:
+            raise BadRequest("At least one compare experiment ID must be provided")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        base_experiment_runs = (
+            select(models.ExperimentRun)
+            .where(
+                models.ExperimentRun.experiment_id == base_experiment_rowid,
+            )
+            .subquery()
+            .alias("base_experiment_runs")
+        )
+        base_experiment_run_annotations = aliased(
+            models.ExperimentRunAnnotation, name="base_experiment_run_annotations"
+        )
+        query = (
+            select(base_experiment_run_annotations.name)
+            .select_from(base_experiment_runs)
+            .join(
+                base_experiment_run_annotations,
+                onclause=base_experiment_runs.c.id
+                == base_experiment_run_annotations.experiment_run_id,
+                isouter=True,
+            )
+            .group_by(base_experiment_run_annotations.name)
+            .order_by(base_experiment_run_annotations.name)
+        )
+        for compare_experiment_index, compare_experiment_rowid in enumerate(
+            compare_experiment_rowids
+        ):
+            compare_experiment_runs = (
+                select(models.ExperimentRun)
+                .where(
+                    models.ExperimentRun.experiment_id == compare_experiment_rowid,
+                )
+                .subquery()
+                .alias(f"comp_exp_{compare_experiment_index}_runs")
+            )
+            compare_experiment_run_annotations = aliased(
+                models.ExperimentRunAnnotation,
+                name=f"comp_exp_{compare_experiment_index}_run_annotations",
+            )
+            query = (
+                query.add_columns(
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        < compare_experiment_run_annotations.score,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_score"),
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        > compare_experiment_run_annotations.score,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_score"),
+                    _count_rows(
+                        base_experiment_run_annotations.score
+                        == compare_experiment_run_annotations.score,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_score"),
+                )
+                .join(
+                    compare_experiment_runs,
+                    onclause=base_experiment_runs.c.dataset_example_id
+                    == compare_experiment_runs.c.dataset_example_id,
+                    isouter=True,
+                )
+                .join(
+                    compare_experiment_run_annotations,
+                    onclause=compare_experiment_runs.c.id
+                    == compare_experiment_run_annotations.experiment_run_id,
+                    isouter=True,
+                )
+                .where(
+                    base_experiment_run_annotations.name == compare_experiment_run_annotations.name
+                )
+            )
+        async with info.context.db() as session:
+            result = (await session.execute(query)).all()
+        assert result is not None
+        num_columns_per_compare_experiment = (len(query.columns) - 1) // len(compare_experiment_ids)
+        metric_counts = []
+        for record in result:
+            annotation_name, *counts = record
+            for compare_experiment_index, compare_experiment_id in enumerate(
+                compare_experiment_ids
+            ):
+                start_index = compare_experiment_index * num_columns_per_compare_experiment
+                end_index = start_index + num_columns_per_compare_experiment
+                (
+                    num_runs_with_increased_score,
+                    num_runs_with_decreased_score,
+                    num_runs_with_equal_score,
+                ) = counts[start_index:end_index]
+                metric_counts.append(
+                    CompareExperimentRunAnnotationMetricCounts(
+                        annotation_name=annotation_name,
+                        compare_experiment_id=compare_experiment_id,
+                        num_increases=num_runs_with_increased_score,
+                        num_decreases=num_runs_with_decreased_score,
+                        num_equal=num_runs_with_equal_score,
+                    )
+                )
+        return metric_counts
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(
@@ -1106,3 +1536,20 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
         if s.startswith(prefix) and len(prefix) > len(longest):
             longest = prefix
     return longest
+
+
+def _count_rows(
+    condition: ColumnElement[Any],
+) -> ColumnElement[Any]:
+    """
+    Returns an expression that counts the number of rows satisfying the condition.
+    """
+    return func.coalesce(
+        func.sum(
+            case(
+                (condition, 1),
+                else_=0,
+            )
+        ),
+        0,
+    )

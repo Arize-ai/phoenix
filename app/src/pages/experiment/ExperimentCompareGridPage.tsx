@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { useLoaderData, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Alert, Loading, View } from "@phoenix/components";
+import { Loading } from "@phoenix/components";
 
 import { experimentCompareLoader } from "./experimentCompareLoader";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
@@ -18,11 +18,11 @@ export function ExperimentCompareGridPage({
   const [searchParams] = useSearchParams();
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required");
-  const [baseExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
-  return baseExperimentId != null ? (
+  return (
     <ExperimentRunFilterConditionProvider>
       <Suspense fallback={<Loading />}>
         <ExperimentCompareTable
@@ -34,11 +34,5 @@ export function ExperimentCompareGridPage({
         />
       </Suspense>
     </ExperimentRunFilterConditionProvider>
-  ) : (
-    <View padding="size-200">
-      <Alert variant="info" title="No Base Experiment Selected">
-        Please select a base experiment.
-      </Alert>
-    </View>
   );
 }
