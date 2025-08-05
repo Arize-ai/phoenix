@@ -1,3 +1,4 @@
+from . import llm, metrics, templating
 from .evaluators import (
     ERROR_SCORE,
     ClassificationEvaluator,
@@ -24,4 +25,7 @@ __all__ = [
     "list_evaluators",
     "simple_evaluator",
     "ERROR_SCORE",
+    "metrics",
+    "templating",
+    "llm",
 ]

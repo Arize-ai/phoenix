@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 import pytest
 
-from phoenix.evals.templating import (
+from phoenix.evals.preview.templating import (
     FormatterFactory,
     FStringFormatter,
     MustacheFormatter,

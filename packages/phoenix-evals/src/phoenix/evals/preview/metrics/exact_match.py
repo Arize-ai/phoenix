@@ -17,7 +17,7 @@ Example 2: (field_mapping needed to map input keys to those expected by the eval
 source='heuristic')]
 """
 
-from phoenix.evals.core.evaluators import Score, simple_evaluator
+from ..evaluators import Score, simple_evaluator
 
 
 @simple_evaluator(name="exact_match", source="heuristic")

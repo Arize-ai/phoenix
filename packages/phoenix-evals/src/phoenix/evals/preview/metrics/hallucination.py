@@ -24,9 +24,9 @@ source="llm", direction="maximize")]
 
 from typing import Union
 
-from phoenix.evals.core.evaluators import ClassificationEvaluator
-from phoenix.evals.llm import LLM, AsyncLLM
-from phoenix.evals.templating import Template
+from ..evaluators import ClassificationEvaluator
+from ..llm import LLM, AsyncLLM
+from ..templating import Template
 
 
 # --- Built-in LLM evaluator: hallucination ---

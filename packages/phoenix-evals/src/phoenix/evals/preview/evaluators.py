@@ -8,9 +8,9 @@ from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, 
 
 from typing_extensions import Mapping
 
-from phoenix.evals.llm import LLM, AsyncLLM
-from phoenix.evals.llm.types import ObjectGenerationMethod
-from phoenix.evals.templating import Template
+from .llm import LLM, AsyncLLM
+from .llm.types import ObjectGenerationMethod
+from .templating import Template
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
