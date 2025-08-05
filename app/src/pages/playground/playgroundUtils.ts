@@ -1407,10 +1407,11 @@ const applyAnthropicInvocationParameterConstraints = (
 };
 
 const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+const ONE_VALUE_INVOCATION_NAMES = ["temperature", "top_p"];
 
 /**
- * A function that filters out invocation parameters where 0 and null have the same effect
- * For these parameters, we can omit the 0 value because it's the same as null
+ * A function that filters out invocation parameters where 0 (or 1) and null have the same effect
+ * For these parameters, we can omit the 0 (or 1) value because it's the same as null
  * @param invocationParameters
  * @returns
  */
@@ -1423,6 +1424,12 @@ const filterZeroValueInvocationParameters = (
       ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
     ) {
       return !(param.valueFloat == 0 || param.valueInt == 0);
+    }
+    if (
+      param.invocationName &&
+      ONE_VALUE_INVOCATION_NAMES.includes(param.invocationName)
+    ) {
+      return !(param.valueFloat == 1 || param.valueInt == 1);
     }
     return true;
   });
