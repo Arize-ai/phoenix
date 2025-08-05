@@ -993,10 +993,10 @@ const getInvocationParameters = (
   instance: PlaygroundNormalizedInstance
 ): InvocationParameterInput[] => {
   return [...instance.model.invocationParameters].filter((param) => {
-    // Remove unset float values
+    // Remove unset float values or invalid float values
     if (
-      param.valueFloat === null ||
-      typeof param.valueFloat === "undefined" ||
+      param.valueFloat !== null &&
+      typeof param.valueFloat === "number" &&
       isNaN(param.valueFloat)
     ) {
       return false;

@@ -96,23 +96,25 @@ function PlaygroundOutputMessage({
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
-      <View
-        paddingX="size-200"
-        paddingY="size-200"
-        borderTopWidth="thin"
-        borderTopColor="blue-500"
-      >
-        {toolCalls && toolCalls.length > 0
-          ? toolCalls.map((toolCall) => {
-              return (
+
+      {toolCalls && toolCalls.length > 0
+        ? toolCalls.map((toolCall) => {
+            return (
+              <View
+                key={`tool-call-${getToolCallKey(toolCall)}`}
+                paddingX="size-200"
+                paddingY="size-200"
+                borderTopWidth="thin"
+                borderTopColor="blue-500"
+              >
                 <PlaygroundToolCall
                   key={getToolCallKey(toolCall)}
                   toolCall={toolCall}
                 />
-              );
-            })
-          : null}
-      </View>
+              </View>
+            );
+          })
+        : null}
     </Card>
   );
 }

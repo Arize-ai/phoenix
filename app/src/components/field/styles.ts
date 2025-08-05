@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
  * Base style for all fields (TextField, TextArea, ComboBox, etc.)
  */
 export const fieldBaseCSS = css`
-  width: 100%;
   &[data-required] {
     .react-aria-Label {
       &::after {
