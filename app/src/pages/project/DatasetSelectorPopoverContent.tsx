@@ -10,6 +10,7 @@ import {
   Heading,
   Input,
   SearchField,
+  SearchIcon,
   Text,
   View,
 } from "@phoenix/components";
@@ -56,6 +57,7 @@ export function DatasetSelectorPopoverContent(
             setSearch(newSearch);
           }}
         >
+          <SearchIcon />
           <Input placeholder="Search datasets" />
         </SearchField>
       </View>

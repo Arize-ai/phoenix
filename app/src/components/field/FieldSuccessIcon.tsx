@@ -1,5 +1,11 @@
 import { Icon, Icons } from "@phoenix/components/icon";
 
 export const FieldSuccessIcon = () => {
-  return <Icon color="success" svg={<Icons.CheckmarkCircleFilled />} />;
+  return (
+    <Icon
+      color="success"
+      className="ac-field-icon"
+      svg={<Icons.CheckmarkCircleFilled />}
+    />
+  );
 };
