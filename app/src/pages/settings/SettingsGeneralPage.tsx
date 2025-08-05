@@ -55,7 +55,7 @@ export function SettingsGeneralPage() {
                 </TextField>
                 <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
-              <Flex direction="row" gap="size-100" alignItems="start">
+              <Flex direction="row" gap="size-100" alignItems="end">
                 <TextField
                   value={`pip install 'arize-phoenix==${VERSION}'`}
                   isReadOnly
@@ -67,9 +67,7 @@ export function SettingsGeneralPage() {
                     to this Phoenix
                   </Text>
                 </TextField>
-                <View flex="none" paddingTop="size-300">
-                  <CopyToClipboardButton size="M" text={VERSION} />
-                </View>
+                <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
             </form>
           </Card>
