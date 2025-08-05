@@ -102,13 +102,6 @@ export const textFieldCSS = css`
 
   &:has(.ac-icon-wrap) {
     position: relative;
-
-    .react-aria-Input {
-      padding-right: calc(
-        var(--textfield-horizontal-padding) +
-          var(--ac-global-dimension-static-size-200)
-      );
-    }
   }
 
   .react-aria-Input,

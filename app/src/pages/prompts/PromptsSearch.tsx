@@ -2,7 +2,7 @@ import { startTransition, useCallback, useMemo } from "react";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
-import { Input, TextField } from "@phoenix/components";
+import { Input, SearchField, SearchIcon } from "@phoenix/components";
 
 type PromptsSearchProps = {
   onChange: (value: string) => void;
@@ -28,7 +28,7 @@ export function PromptsSearch({ onChange: propsOnChange }: PromptsSearchProps) {
   );
 
   return (
-    <TextField
+    <SearchField
       size="M"
       css={css`
         flex-basis: 100%;
@@ -38,7 +38,8 @@ export function PromptsSearch({ onChange: propsOnChange }: PromptsSearchProps) {
       type="search"
       onChange={onChange}
     >
+      <SearchIcon />
       <Input placeholder="Search prompts by name" />
-    </TextField>
+    </SearchField>
   );
 }
