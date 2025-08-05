@@ -117,7 +117,7 @@ def main():
     console.print(
         "[yellow]Generating traces... This may take a while as we are making many LLM calls."
     )
-    traces = generate_multiple_traces_per_query(queries, traces_per_query=2)
+    traces = generate_multiple_traces_per_query(queries, traces_per_query=10)
 
     # Filter successful traces
     successful_traces = [t for t in traces if t.attributes["success"]]
