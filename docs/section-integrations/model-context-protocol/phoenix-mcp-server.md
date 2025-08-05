@@ -117,6 +117,21 @@ Replacing:
 * [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint
 * `your-api-key` with your Phoenix API key
 {% endtab %}
+
+{% tab title="Connect via Claude Code CLI" %}
+```
+claude mcp add phoenix npx -y @arizeai/phoenix-mcp@latest \
+--baseUrl https://my-phoenix.com \
+--apiKey your-api-key
+```
+
+Replacing:
+
+* [https://my-phoenix.com](https://my-phoenix.com) with your Phoenix collector endpoint ([https://app.phoenix.arize.com](https://app.phoenix.arize.com) default for Phoenix Cloud)&#x20;
+* `your-api-key` with your Phoenix API key
+
+After installation, restart your Claude Code CLI session to start using the Phoenix MCP tools.
+{% endtab %}
 {% endtabs %}
 
 ## Using the Phoenix MCP Server
