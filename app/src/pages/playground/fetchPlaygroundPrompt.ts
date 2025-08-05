@@ -14,6 +14,7 @@ import {
   applyProviderInvocationParameterConstraints,
   areInvocationParamsEqual,
   getChatRole,
+  normalizeInvocationParameters,
   toCamelCase,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -346,6 +347,9 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     // we do a proper typecheck above to ensure that this cast is safe
   }) as ChatPromptVersionInput["template"]["messages"];
 
+  const invocationParameters = normalizeInvocationParameters(
+    instance.model.invocationParameters
+  );
   const newPromptVersion = {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
@@ -356,7 +360,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
       definition: tool.definition,
     })),
     responseFormat:
-      instance.model.invocationParameters
+      invocationParameters
         .filter(
           (invocationParameter) =>
             invocationParameter.canonicalName ===
@@ -369,7 +373,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
         .at(0) || undefined,
     invocationParameters: invocationParametersToObject(
       applyProviderInvocationParameterConstraints(
-        instance.model.invocationParameters
+        invocationParameters
           .filter(
             (invocationParameter) =>
               !HIDDEN_INVOCATION_PARAMETERS.some((hidden) =>

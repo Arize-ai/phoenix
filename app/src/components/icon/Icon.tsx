@@ -1,6 +1,8 @@
 import { HTMLAttributes, ReactNode } from "react";
 import { css } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 import { ColorValue, StylableProps } from "@phoenix/components/types";
 import { colorValue } from "@phoenix/components/utils";
 
@@ -27,12 +29,13 @@ export const Icon = ({
   isDisabled: _isDisabled,
   color = "inherit",
   css: propsCSS,
+  className = "",
   ...restProps
 }: IconProps) => {
   const resolvedColor = color === "inherit" ? "inherit" : colorValue(color);
   return (
     <i
-      className={"ac-icon-wrap"}
+      className={classNames("ac-icon-wrap", className)}
       css={css(
         css`
           width: 1em;

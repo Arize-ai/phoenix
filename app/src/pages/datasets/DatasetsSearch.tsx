@@ -8,7 +8,7 @@ import {
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
-import { Input, TextField } from "@phoenix/components";
+import { Input, SearchField, SearchIcon } from "@phoenix/components";
 
 type DatasetsSearchProps = {
   onChange: (value: string) => void;
@@ -48,7 +48,7 @@ export function DatasetsSearch({
   );
 
   return (
-    <TextField
+    <SearchField
       size="M"
       css={css`
         width: 100%;
@@ -59,7 +59,8 @@ export function DatasetsSearch({
       value={internalValue}
       onChange={onChange}
     >
+      <SearchIcon />
       <Input placeholder="Search datasets by name" />
-    </TextField>
+    </SearchField>
   );
 }

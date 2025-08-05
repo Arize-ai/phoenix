@@ -46,8 +46,8 @@ export const Gallery = () => (
     <TextField isInvalid>
       <Label>Label</Label>
       <Input type="text" />
-      <FieldError>Field error</FieldError>
       <FieldDangerIcon />
+      <FieldError>Field error</FieldError>
     </TextField>
     <TextField isReadOnly>
       <Label>Label</Label>

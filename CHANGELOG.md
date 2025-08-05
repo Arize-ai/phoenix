@@ -1,5 +1,29 @@
 # Changelog
 
+## [11.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.18.0...arize-phoenix-v11.19.0) (2025-08-05)
+
+
+### Features
+
+* add anthropic 4-1 ([#8938](https://github.com/Arize-ai/phoenix/issues/8938)) ([6a69927](https://github.com/Arize-ai/phoenix/commit/6a69927e3543a798d0bd0c212145a6ab8219075e))
+* delete span route along with span subtree ([#8877](https://github.com/Arize-ai/phoenix/issues/8877)) ([5f2e821](https://github.com/Arize-ai/phoenix/commit/5f2e821a83b0ce55033da75452e06f8298e26a1e))
+* **design:** add search icon ([#8929](https://github.com/Arize-ai/phoenix/issues/8929)) ([455a6fc](https://github.com/Arize-ai/phoenix/commit/455a6fc5b5cd33c0875cc1932efbb656c8a6c542))
+* **experiments:** experiment compare example counts ([#8899](https://github.com/Arize-ai/phoenix/issues/8899)) ([c720ad7](https://github.com/Arize-ai/phoenix/commit/c720ad731674d065388954d9304d77206d029169))
+* helm-configurable default data retention policy ([#8900](https://github.com/Arize-ai/phoenix/issues/8900)) ([8d6ecc2](https://github.com/Arize-ai/phoenix/commit/8d6ecc2266b8bb37cda91e02a86640e903088ae7))
+
+
+### Bug Fixes
+
+* allow click to propagate on token count tooltip ([#8921](https://github.com/Arize-ai/phoenix/issues/8921)) ([b5524d9](https://github.com/Arize-ai/phoenix/commit/b5524d9c65e667354c291e295ddbb7c37bacc56e))
+* sanitize invocation parameters before saving ([#8939](https://github.com/Arize-ai/phoenix/issues/8939)) ([dfd8645](https://github.com/Arize-ai/phoenix/commit/dfd864553cbffea77234ee284e953bc30c86418c))
+* **ui:** message role should not be required when rendering list of messages ([#8909](https://github.com/Arize-ai/phoenix/issues/8909)) ([714e9b0](https://github.com/Arize-ai/phoenix/commit/714e9b03c45bda73096fc94d77ff627417c99694))
+* validated persistence for different deployment scenarios ([#8881](https://github.com/Arize-ai/phoenix/issues/8881)) ([804a6d9](https://github.com/Arize-ai/phoenix/commit/804a6d91b83087ec8fd402c7f57adb1b5fb890e6))
+
+
+### Documentation
+
+* phoenix default retention policy ([#8925](https://github.com/Arize-ai/phoenix/issues/8925)) ([59e4136](https://github.com/Arize-ai/phoenix/commit/59e4136f7f2f498e7733e139be649d2b8e8b3f86))
+
 ## [11.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.17.0...arize-phoenix-v11.18.0) (2025-08-01)
 
 
