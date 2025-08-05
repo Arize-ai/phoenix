@@ -85,6 +85,7 @@ export const fieldPopoverCSS = css`
 
 export const textFieldCSS = css`
   position: relative;
+  width: 100%;
   --field-icon-vertical-position: 50%;
 
   :has(.react-aria-Label) {
