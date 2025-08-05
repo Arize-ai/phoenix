@@ -85,12 +85,6 @@ export const fieldPopoverCSS = css`
 `;
 
 export const textFieldCSS = css`
-  display: grid;
-  grid-template-areas:
-    "label label"
-    "icon input"
-    "help  help";
-  grid-template-columns: auto 1fr;
   position: relative;
   --field-icon-vertical-position: 50%;
 
@@ -113,14 +107,6 @@ export const textFieldCSS = css`
     --icon-size: var(--ac-global-font-size-l);
   }
 
-  &:has(.ac-icon-wrap) {
-    position: relative;
-  }
-
-  .react-aria-Label {
-    grid-area: label;
-  }
-
   &:has(.ac-field-icon) {
     .react-aria-Input {
       padding-right: calc(
@@ -137,8 +123,8 @@ export const textFieldCSS = css`
   }
 
   .react-aria-Input,
-  .react-aria-TextArea {
-    grid-area: input;
+  .react-aria-TextArea,
+  input {
     width: 100%;
     margin: 0;
     border: var(--ac-global-border-size-thin) solid
