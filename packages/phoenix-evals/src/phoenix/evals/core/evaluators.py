@@ -103,15 +103,15 @@ def _validate_field_value(value: Any, field_name: str, key: str) -> None:
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: RequiredFieldsType,
-    template_mapping: Optional[Mapping[str, str]] = None,
+    input_mapping: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
     """
-    Remap eval_input keys based on required_fields and an optional template_mapping.
+    Remap eval_input keys based on required_fields and an optional input_mapping.
 
     Args:
         eval_input: The input dictionary to be remapped.
         required_fields: The required field names. Can be a set, list, or any iterable of strings.
-        template_mapping: Optional mapping from evaluator-required field -> eval_input key.
+        input_mapping: Optional mapping from evaluator-required field -> eval_input key.
 
     Returns:
         A dictionary with keys as required_fields and values from eval_input.
@@ -120,7 +120,7 @@ def remap_eval_input(
         ValueError: If a required field is missing in eval_input or has a null/empty value.
     """
     # TODO add nested remapping
-    mapping = template_mapping or {}
+    mapping = input_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
 
     # Convert required_fields to a set if it's not already
@@ -209,18 +209,18 @@ class Evaluator(ABC):
         return cast(List[Score], result)
 
     def evaluate(
-        self, eval_input: EvalInput, template_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
-        per-call `template_mapping` (dict mapping evaluator-required field -> eval_input key).
+        per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
             A list of Score objects from this evaluator.  If evaluation fails, returns a single
             Score with name "error", score 0.0, explanation set to the exception message,
             and metadata containing exception details and retry count.
         """
-        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, template_mapping)
+        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
         try:
             return self._evaluate(remapped_eval_input)
         except Exception as e:
@@ -236,18 +236,18 @@ class Evaluator(ABC):
             return [err_score]
 
     async def aevaluate(
-        self, eval_input: EvalInput, template_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
-        per-call `template_mapping` (dict mapping evaluator-required field -> eval_input key).
+        per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
             A list of Score objects from this evaluator.  If evaluation fails, returns a
             Score with name "error", score 0.0, explanation set to the exception message,
             and metadata containing exception details.
         """
-        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, template_mapping)
+        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
         try:
             return await self._aevaluate(remapped_eval_input)
         except Exception as e:
@@ -268,20 +268,20 @@ class Evaluator(ABC):
     __call__.__doc__ = evaluate.__doc__
 
     def batch_evaluate(
-        self, eval_inputs: List[EvalInput], template_mapping: Optional[Mapping[str, str]] = None
+        self, eval_inputs: List[EvalInput], input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[List[Score]]:
         """
-        Apply `evaluate` to a list of `eval_input` mappings, reusing the same `template_mapping`.
+        Apply `evaluate` to a list of `eval_input` mappings, reusing the same `input_mapping`.
         """
-        return [self.evaluate(inp, template_mapping=template_mapping) for inp in eval_inputs]
+        return [self.evaluate(inp, input_mapping=input_mapping) for inp in eval_inputs]
 
     async def abatch_evaluate(
-        self, eval_inputs: List[EvalInput], template_mapping: Optional[Mapping[str, str]] = None
+        self, eval_inputs: List[EvalInput], input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[List[Score]]:
         """
-        Apply `aevaluate` to a list of `eval_input` mappings, reusing the same `template_mapping`.
+        Apply `aevaluate` to a list of `eval_input` mappings, reusing the same `input_mapping`.
         """
-        return [await self.aevaluate(inp, template_mapping=template_mapping) for inp in eval_inputs]
+        return [await self.aevaluate(inp, input_mapping=input_mapping) for inp in eval_inputs]
 
 
 # --- LLM Evaluator base ---
@@ -502,7 +502,7 @@ def simple_evaluator(
     single Score.
     The wrapper provides:
       - automatic required_fields inference from function signature
-      - per-call template_mapping support
+      - per-call input_mapping support
       - registration under the given name (queryable via list_evaluators)
 
     Args:
@@ -524,13 +524,13 @@ def simple_evaluator(
 
         @wraps(fn)
         def wrapper(
-            eval_input: EvalInput, template_mapping: Optional[Mapping[str, str]] = None
+            eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
         ) -> List[Score]:
             """
             Evaluate by extracting required fields from eval_input and calling the original
             function.
             """
-            remapped_input = remap_eval_input(eval_input, required, template_mapping)
+            remapped_input = remap_eval_input(eval_input, required, input_mapping)
 
             score = fn(**remapped_input)
             # Create a new Score with the correct name and source if needed
