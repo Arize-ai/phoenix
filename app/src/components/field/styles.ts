@@ -91,6 +91,7 @@ export const textFieldCSS = css`
     "help  help";
   grid-template-columns: auto 1fr;
   position: relative;
+  width: 100%;
   --field-icon-vertical-position: 50%;
 
   :has(.react-aria-Label) {
