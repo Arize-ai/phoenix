@@ -70,6 +70,9 @@ class Spans:
             ...     project_identifier="my-project"
             ... )
 
+            # Delete a span
+            >>> client.spans.delete_span(span_identifier="abc123def456")
+
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -498,6 +501,51 @@ class Spans:
         spans = _dataframe_to_spans(spans_dataframe)
         return self.log_spans(project_identifier=project_identifier, spans=spans, timeout=timeout)
 
+    def delete_span(
+        self,
+        *,
+        span_identifier: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Deletes a single span by identifier.
+
+        **Important**: This operation deletes ONLY the specified span itself and does NOT
+        delete its descendants/children. All child spans will remain in the trace and
+        become orphaned (their parent_id will point to a non-existent span).
+
+        Behavior:
+        - Deletes only the target span (preserves all descendant spans)
+        - If this was the last span in the trace, the trace record is also deleted
+        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+          are subtracted from all ancestor spans in the chain
+
+        **Note**: This operation is irreversible and may create orphaned spans.
+
+        Args:
+            span_identifier: The span identifier: either a relay GlobalID or OpenTelemetry span_id.
+            timeout: Optional request timeout in seconds.
+
+        Raises:
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.TimeoutException: If the request times out.
+
+        Example:
+            >>> from phoenix.client import Client
+            >>> client = Client()
+
+            # Delete by OpenTelemetry span_id
+            >>> client.spans.delete_span(span_identifier="abc123def456")
+
+            # Delete by Phoenix Global ID
+            >>> client.spans.delete_span(span_identifier="U3BhbjoxMjM=")
+        """
+        response = self._client.delete(
+            url=f"v1/spans/{span_identifier}",
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
 
 class AsyncSpans:
     """
@@ -546,6 +594,9 @@ class AsyncSpans:
             ...     span_ids=["span1", "span2"],
             ...     project_identifier="my-project"
             ... )
+
+            # Delete a span
+            >>> await client.spans.delete_span(span_identifier="abc123def456")
 
     """
 
@@ -981,6 +1032,51 @@ class AsyncSpans:
         return await self.log_spans(
             project_identifier=project_identifier, spans=spans, timeout=timeout
         )
+
+    async def delete_span(
+        self,
+        *,
+        span_identifier: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Deletes a single span by identifier.
+
+        **Important**: This operation deletes ONLY the specified span itself and does NOT
+        delete its descendants/children. All child spans will remain in the trace and
+        become orphaned (their parent_id will point to a non-existent span).
+
+        Behavior:
+        - Deletes only the target span (preserves all descendant spans)
+        - If this was the last span in the trace, the trace record is also deleted
+        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+          are subtracted from all ancestor spans in the chain
+
+        **Note**: This operation is irreversible and may create orphaned spans.
+
+        Args:
+            span_identifier: The span identifier: either a relay GlobalID or OpenTelemetry span_id.
+            timeout: Optional request timeout in seconds.
+
+        Raises:
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.TimeoutException: If the request times out.
+
+        Example:
+            >>> from phoenix.client import AsyncClient
+            >>> client = AsyncClient()
+
+            # Delete by OpenTelemetry span_id
+            >>> await client.spans.delete_span(span_identifier="abc123def456")
+
+            # Delete by Phoenix Global ID
+            >>> await client.spans.delete_span(span_identifier="U3BhbjoxMjM=")
+        """
+        response = await self._client.delete(
+            url=f"v1/spans/{span_identifier}",
+            timeout=timeout,
+        )
+        response.raise_for_status()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

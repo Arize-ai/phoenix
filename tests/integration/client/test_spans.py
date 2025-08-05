@@ -1485,3 +1485,391 @@ class TestClientForSpanCreation:
             assert compare_nested_objects(
                 row["attributes.llm.output_messages"], orig_row["attributes.llm.output_messages"]
             )
+
+
+class TestClientForSpanDeletion:
+    """Test the delete_span method with various span identifiers."""
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_delete_span_by_opentelemetry_span_id(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test deleting a span by OpenTelemetry span_id."""
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+
+        # Create a test span to delete
+        trace_id = f"trace_delete_{token_hex(16)}"
+        span_id = f"span_delete_{token_hex(8)}"
+
+        test_span = cast(
+            v1.Span,
+            {
+                "name": "span_to_delete",
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                },
+                "span_kind": "CHAIN",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+                "attributes": {"test_attr": "delete_test"},
+            },
+        )
+
+        # Create the span
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[test_span],
+            )
+        )
+        assert create_result["total_queued"] == 1
+
+        # Wait for span to be processed
+        await _until_spans_exist(_app, [span_id])
+
+        # Verify span exists before deletion
+        spans_before = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_before = {s["context"]["span_id"] for s in spans_before}
+        assert span_id in span_ids_before, "Test span should exist before deletion"
+
+        # Delete the span using OpenTelemetry span_id
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                span_identifier=span_id
+            )
+        )
+
+        # Verify span is deleted
+        spans_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_after = {s["context"]["span_id"] for s in spans_after}
+        assert span_id not in span_ids_after, "Test span should be deleted"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_delete_span_by_global_id(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test deleting a span by Phoenix Global ID."""
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+
+        # Create a test span to delete
+        trace_id = f"trace_delete_global_{token_hex(16)}"
+        span_id = f"span_delete_global_{token_hex(8)}"
+
+        test_span = cast(
+            v1.Span,
+            {
+                "name": "span_to_delete_by_global_id",
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                },
+                "span_kind": "LLM",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+                "attributes": {"test_attr": "global_id_delete_test"},
+            },
+        )
+
+        # Create the span
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[test_span],
+            )
+        )
+        assert create_result["total_queued"] == 1
+
+        # Wait for span to be processed
+        await _until_spans_exist(_app, [span_id])
+
+        # Get the span to retrieve its Global ID
+        spans_before = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+
+        # Find our test span
+        test_span_data = None
+        for span in spans_before:
+            if span["context"]["span_id"] == span_id:
+                test_span_data = span
+                break
+
+        assert test_span_data is not None, "Test span should exist before deletion"
+        span_global_id = test_span_data["id"]  # This is the Phoenix Global ID
+        assert span_global_id, "Span should have a global ID"
+
+        # Delete the span using Phoenix Global ID
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                span_identifier=span_global_id
+            )
+        )
+
+        # Verify span is deleted
+        spans_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_after = {s["context"]["span_id"] for s in spans_after}
+        assert span_id not in span_ids_after, "Test span should be deleted"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_span_orphaned_children_behavior(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that deleting a parent span orphans its children but doesn't delete them."""
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+
+        # Create parent and child spans
+        trace_id = f"trace_orphan_{token_hex(16)}"
+        parent_span_id = f"parent_{token_hex(8)}"
+        child_span_id = f"child_{token_hex(8)}"
+
+        parent_span = cast(
+            v1.Span,
+            {
+                "name": "parent_span",
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": parent_span_id,
+                },
+                "span_kind": "CHAIN",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat(),
+                "status_code": "OK",
+                "attributes": {"span_type": "parent"},
+            },
+        )
+
+        child_span = cast(
+            v1.Span,
+            {
+                "name": "child_span",
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": child_span_id,
+                },
+                "span_kind": "LLM",
+                "parent_id": parent_span_id,  # Set parent relationship
+                "start_time": (
+                    datetime.now(timezone.utc) + timedelta(milliseconds=100)
+                ).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+                "attributes": {"span_type": "child"},
+            },
+        )
+
+        # Create both spans
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[parent_span, child_span],
+            )
+        )
+        assert create_result["total_queued"] == 2
+
+        # Wait for spans to be processed
+        await _until_spans_exist(_app, [parent_span_id, child_span_id])
+
+        # Verify both spans exist before deletion
+        spans_before = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_before = {s["context"]["span_id"] for s in spans_before}
+        assert parent_span_id in span_ids_before, "Parent span should exist before deletion"
+        assert child_span_id in span_ids_before, "Child span should exist before deletion"
+
+        # Verify parent-child relationship
+        child_span_before = next(
+            s for s in spans_before if s["context"]["span_id"] == child_span_id
+        )
+        assert child_span_before.get("parent_id") == parent_span_id, (
+            "Child should have correct parent_id"
+        )
+
+        # Delete the parent span
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                span_identifier=parent_span_id
+            )
+        )
+
+        # Verify parent is deleted but child remains (orphaned)
+        spans_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_after = {s["context"]["span_id"] for s in spans_after}
+
+        assert parent_span_id not in span_ids_after, "Parent span should be deleted"
+        assert child_span_id in span_ids_after, "Child span should remain (orphaned)"
+
+        # Verify child is now orphaned (parent_id points to non-existent span)
+        child_span_after = next(s for s in spans_after if s["context"]["span_id"] == child_span_id)
+        assert child_span_after.get("parent_id") == parent_span_id, (
+            "Child should still reference deleted parent (orphaned)"
+        )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_nonexistent_span(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test error handling when trying to delete a non-existent span."""
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        import httpx
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        nonexistent_span_id = f"nonexistent_{token_hex(8)}"
+
+        # Attempt to delete non-existent span should raise 404
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                    span_identifier=nonexistent_span_id
+                )
+            )
+
+        assert exc_info.value.response.status_code == 404
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_span_timeout_parameter(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that timeout parameter is properly handled."""
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+
+        # Create a test span to delete
+        trace_id = f"trace_timeout_{token_hex(16)}"
+        span_id = f"span_timeout_{token_hex(8)}"
+
+        test_span = cast(
+            v1.Span,
+            {
+                "name": "timeout_test_span",
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                },
+                "span_kind": "TOOL",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+                "attributes": {"test_attr": "timeout_test"},
+            },
+        )
+
+        # Create the span
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[test_span],
+            )
+        )
+        assert create_result["total_queued"] == 1
+
+        # Wait for span to be processed
+        await _until_spans_exist(_app, [span_id])
+
+        # Delete with custom timeout (should work normally)
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                span_identifier=span_id,
+                timeout=10,  # Custom timeout
+            )
+        )
+
+        # Verify span is deleted
+        spans_after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                limit=1000,
+            )
+        )
+        span_ids_after = {s["context"]["span_id"] for s in spans_after}
+        assert span_id not in span_ids_after, "Test span should be deleted"
