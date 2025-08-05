@@ -628,7 +628,7 @@ def _create_span_limits_with_phoenix_defaults() -> SpanLimits:
     """
     # Check environment variables
     span_limit = os.getenv(OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT)
-    general_limit = os.environ.get(OTEL_ATTRIBUTE_COUNT_LIMIT)
+    general_limit = os.getenv(OTEL_ATTRIBUTE_COUNT_LIMIT)
 
     if span_limit or general_limit:
         # User has set some limit via environment variables
