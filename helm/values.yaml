@@ -45,7 +45,11 @@ ingress:
 postgresql:
   # -- Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
   # When disabled, you must configure database.url or database.postgres settings to point to your external database
-  # NOTE: When persistence.enabled=true, you typically want to set this to false and use SQLite for local storage
+  # IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite)
+  # Choose one persistence strategy:
+  #   - PostgreSQL: postgresql.enabled=true, persistence.enabled=false
+  #   - SQLite: postgresql.enabled=false, persistence.enabled=true
+  #   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured
   enabled: true
 
   auth:
@@ -71,7 +75,7 @@ postgresql:
       # -- Enable persistent storage for PostgreSQL data
       enabled: true
       # -- Size of the persistent volume for PostgreSQL
-      size: 10Gi
+      size: "20Gi"
       # -- Kubernetes storage class for PostgreSQL volume
       storageClass: ""
     persistentVolumeClaimRetentionPolicy:
@@ -96,7 +100,7 @@ postgres:
     enabled: true
 
     # -- Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence)
-    size: "10Gi"
+    size: "20Gi"
 
     # -- Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence)
     storageClass: "standard"
@@ -141,8 +145,12 @@ server:
   # -- External root URL for Phoenix (PHOENIX_ROOT_URL)
   rootUrl: ""
 
-  # -- The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR)
-  workingDir: ""
+  # -- The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR)
+  # Set to empty string to use container's $HOME directory (not recommended for persistence)
+  # Use `/data` as a default for volume mount - enables proper permissions in both strict and normal security contexts
+  # IMPORTANT: When persistence.enabled=true, this directory must be writable by the Phoenix container (UID 65532)
+  # The fsGroup setting in securityContext.pod ensures proper permissions when enabled
+  workingDir: "/data"
 
   # -- Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES)
   # Set to false in air-gapped environments to prevent external requests that can cause UI loading delays
@@ -172,8 +180,12 @@ service:
 # Persistence configuration for Phoenix home directory
 persistence:
   # -- Enable persistent storage for Phoenix home directory
-  # When enabled, Phoenix can use SQLite for local storage instead of requiring PostgreSQL
-  # Consider setting postgresql.enabled=false when using local persistence
+  # When enabled, Phoenix uses SQLite for local storage stored in the persistent volume
+  # IMPORTANT: Cannot be enabled simultaneously with postgresql.enabled=true
+  # Choose one persistence strategy:
+  #   - SQLite: persistence.enabled=true, postgresql.enabled=false
+  #   - PostgreSQL: persistence.enabled=false, postgresql.enabled=true  
+  #   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured
   enabled: false
 
   # -- Kubernetes storage class for Phoenix home volume
@@ -184,7 +196,7 @@ persistence:
     - ReadWriteOnce
 
   # -- Size of the persistent volume for Phoenix home directory
-  size: 20Gi
+  size: "20Gi"
 
   # -- Annotations to add to the PVC
   annotations: {}
@@ -193,22 +205,28 @@ persistence:
   labels: {}
 
 # Database configuration
-# You can use either a full SQL database URL or individual Postgres settings
-# If using SQLite, the database will be stored in the working directory (requires persistence.enabled=true)
+# IMPORTANT: Choose ONE persistence strategy to avoid conflicts:
 #
-# For local development with persistence:
+# Strategy 1 - SQLite with persistent storage (for development/single-node):
 # 1. Set persistence.enabled=true to enable persistent storage
-# 2. Set postgresql.enabled=false to disable PostgreSQL (Phoenix will use SQLite)
-# 3. Leave database.url empty (Phoenix will automatically use SQLite)
+# 2. Set postgresql.enabled=false to disable PostgreSQL
+# 3. Leave database.url empty (Phoenix will automatically use SQLite in the persistent volume)
+# NOTE: SQLite database will be created at: ${PHOENIX_WORKING_DIR}/phoenix.db
 #
-# For external databases (RDS, CloudSQL, etc.):
-# 1. Set postgresql.enabled=false to disable the built-in PostgreSQL
-# 2. Either set database.url with full connection string, or configure database.postgres settings
-# 3. Ensure the external database is accessible from the cluster
+# Strategy 2 - Built-in PostgreSQL (for production with managed state):
+# 1. Set persistence.enabled=false 
+# 2. Set postgresql.enabled=true (default)
+# 3. PostgreSQL data will be stored in its own persistent volume
+#
+# Strategy 3 - External database (for production with external managed database):
+# 1. Set persistence.enabled=false
+# 2. Set postgresql.enabled=false to disable the built-in PostgreSQL
+# 3. Set database.url with full connection string, OR configure database.postgres settings
+# 4. Ensure the external database is accessible from the cluster
 #
 database:
   # -- Storage allocation in GiB for the database persistent volume
-  allocatedStorageGiB: 10
+  allocatedStorageGiB: 20
 
   # -- Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS)
   # Set to 0 to disable automatic trace cleanup. When set to a positive value,
@@ -221,7 +239,8 @@ database:
 
     # -- Postgres Host (PHOENIX_POSTGRES_HOST)
     # Default points to the built-in PostgreSQL service when postgresql.enabled=true
-    # Change this to your external database host when using RDS, CloudSQL, etc.
+    # IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty)
+    # Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com"
     host: "phoenix-postgresql"
 
     # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
@@ -237,9 +256,16 @@ database:
     user: "postgres"
 
   # -- Full database connection URL (overrides postgres settings if provided)
-  # Use this for external databases like RDS. Example:
-  # url: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix"
-  # When using this, ensure postgresql.enabled=false
+  # IMPORTANT: Only set this for external databases (Strategy 3)
+  # - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume
+  # - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured
+  # - When using external database (Strategy 3): MUST be configured with full connection string
+  # 
+  # Examples for external databases:
+  # PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix"
+  # SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)
+  #
+  # WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation
   url: ""
 
 # Authentication and security
