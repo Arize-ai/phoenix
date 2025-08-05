@@ -344,8 +344,6 @@ class Experiments:
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Example:
         Basic usage:
             >>> from phoenix.client import Client
@@ -448,7 +446,6 @@ class Experiments:
         - `reference`: An alias for `expected`
         - `metadata`: Metadata associated with the dataset example
 
-        Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
         Args:
             dataset: The dataset on which to run the experiment.
@@ -1244,8 +1241,6 @@ class AsyncExperiments:
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Example:
         Basic usage:
             >>> from phoenix.client import AsyncClient
@@ -1348,8 +1343,6 @@ class AsyncExperiments:
         - `expected`: The expected or reference output of the dataset example
         - `reference`: An alias for `expected`
         - `metadata`: Metadata associated with the dataset example
-
-        Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
         Args:
             dataset: The dataset on which to run the experiment.
