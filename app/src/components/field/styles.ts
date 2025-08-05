@@ -94,6 +94,7 @@ export const textFieldCSS = css`
   --field-icon-vertical-position: 50%;
 
   :has(.react-aria-Label) {
+    /* 24px is the height of the label. TODO: make this variable based */
     --field-icon-vertical-position: calc(
       var(--textfield-vertical-padding) + 1px + 24px
     );
