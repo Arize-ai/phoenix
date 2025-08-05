@@ -333,6 +333,24 @@ class LLMEvaluator(Evaluator):
     async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _aevaluate")
 
+    def evaluate(
+        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+    ) -> List[Score]:
+        if isinstance(self.llm, AsyncLLM):
+            raise ValueError(
+                "AsyncLLM is not supported for synchronous evaluation. Use aevaluate instead."
+            )
+        return super().evaluate(eval_input, input_mapping)
+
+    async def aevaluate(
+        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+    ) -> List[Score]:
+        if isinstance(self.llm, LLM):
+            raise ValueError(
+                "LLM is not supported for asynchronous evaluation. Use evaluate instead."
+            )
+        return await super().aevaluate(eval_input, input_mapping)
+
 
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
@@ -402,11 +420,6 @@ class ClassificationEvaluator(LLMEvaluator):
         self.labels = labels
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-        if isinstance(self.llm, AsyncLLM):
-            raise ValueError(
-                "AsyncLLM is not supported for synchronous evaluation. Use aevaluate instead."
-            )
-
         prompt_filled = self.prompt_template.render(variables=eval_input)
         response = self.llm.generate_classification(
             prompt=prompt_filled,
@@ -441,11 +454,6 @@ class ClassificationEvaluator(LLMEvaluator):
         ]
 
     async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
-        if isinstance(self.llm, LLM):
-            raise ValueError(
-                "LLM is not supported for asynchronous evaluation. Use evaluate instead."
-            )
-
         prompt_filled = self.prompt_template.render(variables=eval_input)
         response = await self.llm.generate_classification(
             prompt=prompt_filled,
