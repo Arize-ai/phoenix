@@ -1,6 +1,6 @@
 # AI Evals Course
 
-This directory contains the solutions to the home work assignments prevented in the AI Evals Course.
+This directory contains the solutions to the homework assignments presented in the AI Evals Course.
 
 https://github.com/ai-evals-course/recipe-chatbot/tree/main/homeworks
 
