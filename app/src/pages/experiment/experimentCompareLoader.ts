@@ -23,34 +23,46 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
+  const view = url.searchParams.get("view") || "grid";
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentCompareLoaderQuery(
         $datasetId: ID!
-        $baselineExperimentId: ID!
+        $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
-        $hasBaselineExperimentId: Boolean!
+        $hasBaseExperiment: Boolean!
+        $includeGridView: Boolean!
+        $includeMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaselineExperimentId)
+          @include(if: $includeGridView)
           @arguments(
-            baselineExperimentId: $baselineExperimentId
+            baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
         ...ExperimentMultiSelector__data
-          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+          @arguments(hasBaseExperiment: $hasBaseExperiment)
+        ...ExperimentCompareMetricsPage_experiments
+          @include(if: $includeMetricsView)
+          @arguments(
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            datasetId: $datasetId
+          )
       }
     `,
     {
       datasetId,
-      baselineExperimentId: baselineExperimentId ?? "",
+      baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
-      hasBaselineExperimentId: baselineExperimentId != null,
+      hasBaseExperiment: baseExperimentId != null,
+      includeGridView: view === "grid" && baseExperimentId != null,
+      includeMetricsView: view === "metrics" && baseExperimentId != null,
     }
   ).toPromise();
 }

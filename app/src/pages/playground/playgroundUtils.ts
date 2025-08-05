@@ -986,6 +986,27 @@ function toGqlChatCompletionRole(
 }
 
 /**
+ * Normalizes invocation parameters by removing unset float values or invalid float values
+ * @param invocationParameters - the invocation parameters to normalize
+ * @returns the normalized invocation parameters
+ */
+export const normalizeInvocationParameters = (
+  invocationParameters: InvocationParameterInput[]
+): InvocationParameterInput[] => {
+  return invocationParameters.filter((param) => {
+    // Remove unset float values or invalid float values
+    if (
+      param.valueFloat !== null &&
+      typeof param.valueFloat === "number" &&
+      isNaN(param.valueFloat)
+    ) {
+      return false;
+    }
+    return true;
+  });
+};
+
+/**
  * Gets chat completion input for either running over a dataset or using variable input
  */
 const getBaseChatCompletionInput = ({
@@ -1019,9 +1040,8 @@ const getBaseChatCompletionInput = ({
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
 
-  let invocationParameters: InvocationParameterInput[] = [
-    ...instance.model.invocationParameters,
-  ];
+  let invocationParameters: InvocationParameterInput[] =
+    normalizeInvocationParameters(instance.model.invocationParameters);
   const convertedToolChoice = safelyConvertToolChoiceToProvider({
     toolChoice: instance.toolChoice,
     targetProvider: instance.model.provider,

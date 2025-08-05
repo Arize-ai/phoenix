@@ -2,7 +2,7 @@ import { startTransition, useCallback, useMemo } from "react";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
-import { Input, TextField } from "@phoenix/components";
+import { Input, SearchField, SearchIcon } from "@phoenix/components";
 
 type ProjectsSearchProps = {
   onChange: (value: string) => void;
@@ -30,7 +30,7 @@ export function ProjectsSearch({
   );
 
   return (
-    <TextField
+    <SearchField
       size="M"
       css={css`
         flex-basis: 100%;
@@ -40,7 +40,8 @@ export function ProjectsSearch({
       type="search"
       onChange={onChange}
     >
+      <SearchIcon />
       <Input placeholder="Search projects by name" />
-    </TextField>
+    </SearchField>
   );
 }

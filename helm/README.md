@@ -52,6 +52,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.secret[4].value | string | `""` | Default password for the admin user on initial setup, uses defaultAdminPassword if empty |
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `10` | Storage allocation in GiB for the database persistent volume |
+| database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS). Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. This setting configures the default retention policy that applies to all projects unless overridden on a per-project basis through the Phoenix UI. |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
 | database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (PHOENIX_POSTGRES_HOST). Default points to the built-in PostgreSQL service when postgresql.enabled=true. Change this to your external database host when using RDS, CloudSQL, etc. |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
@@ -87,7 +88,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
 | postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
 | postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
-| postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
+| postgres.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.persistence.storageClass | string | `"standard"` | Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.resources.limits.cpu | string | `"500m"` | CPU limit for PostgreSQL container (DEPRECATED for new postgresql) |
 | postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container (DEPRECATED for new postgresql) |
@@ -103,7 +104,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.auth.username | string | `""` | Name for a custom user to create |
 | postgresql.enabled | bool | `true` | Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL). When disabled, you must configure database.url or database.postgres settings to point to your external database |
 | postgresql.primary.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
-| postgresql.primary.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL |
+| postgresql.primary.persistence.size | string | `"20Gi"` | Size of the persistent volume for PostgreSQL |
 | postgresql.primary.persistence.storageClass | string | `""` | Kubernetes storage class for PostgreSQL volume |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.enabled | bool | `false` | Set to true if you want the volume to persist helm uninstalls |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
@@ -125,7 +126,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | server.labels | object | `{}` | Labels to add to the Phoenix service |
 | server.port | int | `6006` | Port for Phoenix web UI and HTTP API (PHOENIX_PORT) |
 | server.rootUrl | string | `""` | External root URL for Phoenix (PHOENIX_ROOT_URL) |
-| server.workingDir | string | `""` | The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR) |
+| server.workingDir | string | `"/data"` | The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR) |
 | server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) |
 | service.annotations | object | `{}` | Annotations to add to the Phoenix service (useful for service mesh configurations) |
 | service.labels | object | `{}` | Labels to add to the Phoenix service |

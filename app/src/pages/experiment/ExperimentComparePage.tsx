@@ -10,7 +10,7 @@ import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import { Alert, Flex, View } from "@phoenix/components";
 import {
   ExperimentCompareView,
   ExperimentCompareViewSelect,
@@ -33,7 +33,7 @@ export function ExperimentComparePage() {
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   const view = useMemo(() => {
     const view = searchParams.get("view");
@@ -71,15 +71,15 @@ export function ExperimentComparePage() {
           <Flex direction="row" gap="size-100" justifyContent="start">
             <ExperimentMultiSelector
               dataRef={loaderData}
-              selectedBaselineExperimentId={baselineExperimentId}
+              selectedBaseExperimentId={baseExperimentId}
               selectedCompareExperimentIds={compareExperimentIds}
-              onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
+              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
                 startTransition(() => {
-                  if (newBaselineExperimentId == null) {
+                  if (newBaseExperimentId == null) {
                     navigate(`/datasets/${datasetId}/compare`);
                   } else {
                     const queryParams = `?${[
-                      newBaselineExperimentId,
+                      newBaseExperimentId,
                       ...newCompareExperimentIds,
                     ]
                       .map((id) => `experimentId=${id}`)
@@ -107,10 +107,18 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      <ExperimentComparePageContent
-        view={view}
-        displayFullText={displayFullText}
-      />
+      {baseExperimentId == null ? (
+        <View padding="size-200">
+          <Alert variant="info" title="No Base Experiment Selected">
+            Please select a base experiment.
+          </Alert>
+        </View>
+      ) : (
+        <ExperimentComparePageContent
+          view={view}
+          displayFullText={displayFullText}
+        />
+      )}
     </main>
   );
 }

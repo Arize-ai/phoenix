@@ -12,6 +12,32 @@ In Phoenix 9.0 or greater you can automatically purge traces from projects by co
 
 By default Phoenix comes with 1 project retention policy called `Default`. Every project in your instance is associated with this retention policy unless specified otherwise. The `Default` policy also specifies 0 days, which is equal to "Indefinite" retention.
 
+### Configuring the Default Retention Policy
+
+The default retention policy can be configured at deployment time using the `PHOENIX_DEFAULT_RETENTION_POLICY_DAYS` environment variable. This is particularly useful for self-hosted deployments where you want to set a consistent retention policy across all projects from the start.
+
+**Environment Variable Configuration:**
+- `PHOENIX_DEFAULT_RETENTION_POLICY_DAYS=0` (default) - Infinite retention, no automatic cleanup
+- `PHOENIX_DEFAULT_RETENTION_POLICY_DAYS=30` - Automatically delete traces older than 30 days
+- `PHOENIX_DEFAULT_RETENTION_POLICY_DAYS=7` - Automatically delete traces older than 7 days
+
+When using Helm, you can set this in your `values.yaml`:
+```yaml
+database:
+  defaultRetentionPolicyDays: 30  # Set to desired number of days
+```
+
+Or when using Docker directly:
+```bash
+docker run -e PHOENIX_DEFAULT_RETENTION_POLICY_DAYS=30 arizephoenix/phoenix
+```
+
+**Important Notes:**
+- This setting only affects the default retention policy that applies to all projects
+- Individual projects can still override this setting through the Phoenix UI
+- Changes to this environment variable will update the default policy for new projects but won't affect existing project-specific policies
+- The cleanup runs on a scheduled basis (weekly by default) as configured in the retention policy
+
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/default_retention_policy.png" alt=""><figcaption><p>By default phoenix retains all the data you send it</p></figcaption></figure>
 
 If you simply want to preserve a static set amount of traces per project, you can simply adjust the max days traces will be stored in Phoenix and this will be applied to all current and future projects that get created.\

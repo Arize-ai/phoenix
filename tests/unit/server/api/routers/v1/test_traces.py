@@ -10,6 +10,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
@@ -150,13 +151,6 @@ async def test_delete_trace_by_trace_id(
         trace_id = trace.trace_id
         trace_row_id = trace.id
 
-        # Get the spans in this trace
-        span_result = await session.execute(
-            select(models.Span).where(models.Span.trace_rowid == trace_row_id)
-        )
-        spans = span_result.scalars().all()
-        span_row_ids = [span.id for span in spans]
-
     # Delete the trace via the API
     url = f"v1/traces/{trace_id}"
     response = await httpx_client.delete(url)
@@ -171,11 +165,6 @@ async def test_delete_trace_by_trace_id(
     async with db() as session:
         deleted_trace = await session.get(models.Trace, trace_row_id)
         assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
-
-        # Verify all spans in the trace were also deleted via CASCADE
-        for span_row_id in span_row_ids:
-            deleted_span = await session.get(models.Span, span_row_id)
-            assert deleted_span is None, f"Span {span_row_id} should be deleted via CASCADE"
 
 
 async def test_delete_trace_not_found(
@@ -285,3 +274,76 @@ async def test_delete_trace_with_multiple_spans(
 
         deleted_child = await session.get(models.Span, child_span_id)
         assert deleted_child is None, "Child span should be deleted via CASCADE"
+
+
+async def test_delete_trace_by_relay_global_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """
+    Test deleting a trace by relay GlobalID.
+
+    This test verifies that:
+    1. The DELETE /traces/{relay_id} endpoint returns a 204 status code
+    2. The trace and all its spans are successfully removed from the database
+    3. Relay GlobalID identifier type is handled correctly
+    """
+    # Get the trace and span data from the test fixture
+    async with db() as session:
+        # Get the trace that was created by the fixture
+        trace_result = await session.execute(
+            select(models.Trace).join(models.Project).where(models.Project.name == "project-name")
+        )
+        trace = trace_result.scalar_one()
+        trace_row_id = trace.id
+
+        # Get the spans in this trace
+        span_result = await session.execute(
+            select(models.Span).where(models.Span.trace_rowid == trace_row_id)
+        )
+        spans = span_result.scalars().all()
+        span_row_ids = [span.id for span in spans]
+
+    # Create relay GlobalID for the trace
+    trace_global_id = GlobalID(type_name="Trace", node_id=str(trace_row_id))
+
+    # Delete the trace via the API using relay GlobalID
+    url = f"v1/traces/{trace_global_id}"
+    response = await httpx_client.delete(url)
+
+    # Should return 204 No Content
+    assert response.status_code == 204, (
+        f"DELETE /traces/{trace_global_id} should return 204 status code, got {response.status_code}"
+    )
+    assert response.text == ""  # No content in response body
+
+    # Verify the trace was actually deleted from the database
+    async with db() as session:
+        deleted_trace = await session.get(models.Trace, trace_row_id)
+        assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
+
+        # Verify all spans in the trace were also deleted via CASCADE
+        for span_row_id in span_row_ids:
+            deleted_span = await session.get(models.Span, span_row_id)
+            assert deleted_span is None, f"Span {span_row_id} should be deleted via CASCADE"
+
+
+async def test_delete_trace_by_relay_id_not_found(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """
+    Test deleting a non-existent trace by relay GlobalID.
+
+    This test verifies that:
+    1. The DELETE endpoint returns a 404 status code for non-existent relay IDs
+    2. The error message mentions relay ID
+    """
+    # Create a relay GlobalID for a non-existent trace
+    non_existent_global_id = GlobalID(type_name="Trace", node_id="999999")
+    url = f"v1/traces/{non_existent_global_id}"
+
+    response = await httpx_client.delete(url)
+    assert response.status_code == 404
+    assert f"Trace with relay ID '{non_existent_global_id}' not found" in response.text

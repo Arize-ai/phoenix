@@ -29,6 +29,7 @@ from phoenix.evals.default_templates import (
 )
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import ExecutionStatus
+from phoenix.evals.models.base import ExtraInfo
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 
 
@@ -1589,7 +1590,7 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
     return_value = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool
         Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate_with_extra", return_value=(return_value, ExtraInfo())):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1617,7 +1618,7 @@ def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
     return_value = """Label: not correct\nExplanation: The Agent Output does not match the Human
         Tool Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate_with_extra", return_value=(return_value, ExtraInfo())):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1644,7 +1645,7 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
     )
     return_value = """incorrect EXPLANATION: This is incorrect because the user did not explicitly
         ask to speak to a live agent."""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate_with_extra", return_value=(return_value, ExtraInfo())):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1672,7 +1673,7 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
     return_value = """Explanation: The Agent Output does not match the Human Tool Selection.
         However, the agent appears to be on the correct path to answering the question.
         Label: not correct"""
-    with patch.object(model, "_generate", return_value=return_value):
+    with patch.object(model, "_generate_with_extra", return_value=(return_value, ExtraInfo())):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",

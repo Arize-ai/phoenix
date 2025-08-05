@@ -65,8 +65,6 @@ def run_experiment(
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Args:
         dataset: The dataset on which to run the experiment.
         task: The task to run on each example in the dataset.
@@ -235,8 +233,6 @@ async def async_run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
-
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
         base_url: The base URL for the API endpoint. If not provided, it will be read from the
@@ -501,8 +497,6 @@ def evaluate_experiment(
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment` or `get_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
@@ -598,8 +592,6 @@ async def async_evaluate_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
-
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment`.
