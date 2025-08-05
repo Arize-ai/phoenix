@@ -691,6 +691,60 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
   });
 });
 
+describe("transformSpanAttributesToPlaygroundInstance with prompt template variables", () => {
+  const mockSpan: PlaygroundSpan = {
+    id: "test-span-id",
+    attributes: JSON.stringify({
+      llm: {
+        input_messages: [
+          {
+            message: {
+              role: "user",
+              content:
+                "Hello {{name}}, how are you feeling today? The weather is {{weather}}.",
+            },
+          },
+        ],
+        prompt_template: {
+          variables: JSON.stringify({
+            name: "John",
+            weather: "sunny",
+          }),
+        },
+        model_name: "gpt-3.5-turbo",
+        provider: "openai",
+      },
+    }),
+    invocationParameters: [],
+    __typename: "Span",
+    project: { id: "project-id", name: "test-project" },
+    spanId: "test-span-id",
+    trace: { id: "trace-id", traceId: "test-trace-id" },
+  };
+
+  it("should apply template variables to messages", () => {
+    const result = transformSpanAttributesToPlaygroundInstance(mockSpan);
+
+    // Check that variables were extracted correctly
+    expect(result.playgroundInput).toBeDefined();
+    expect(result.playgroundInput?.variablesValueCache).toEqual({
+      name: "John",
+      weather: "sunny",
+    });
+
+    // Check that variables were applied to the message content
+    const messages =
+      result.playgroundInstance.template.__type === "chat"
+        ? result.playgroundInstance.template.messages
+        : [];
+
+    expect(messages.length).toBe(1);
+    expect(messages[0].content).toBe(
+      "Hello John, how are you feeling today? The weather is sunny."
+    );
+  });
+});
+
 describe("getChatRole", () => {
   it("should return the role if it is a valid ChatMessageRole", () => {
     expect(getChatRole("user")).toEqual("user");
