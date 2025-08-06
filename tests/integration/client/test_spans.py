@@ -1555,7 +1555,7 @@ class TestClientForSpanDeletion:
 
         # Delete the span using OpenTelemetry span_id
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete(
                 span_identifier=span_id
             )
         )
@@ -1644,7 +1644,7 @@ class TestClientForSpanDeletion:
 
         # Delete the span using Phoenix Global ID
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete(
                 span_identifier=span_global_id
             )
         )
@@ -1751,7 +1751,7 @@ class TestClientForSpanDeletion:
 
         # Delete the parent span
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete(
                 span_identifier=parent_span_id
             )
         )
@@ -1798,7 +1798,7 @@ class TestClientForSpanDeletion:
         # Attempt to delete non-existent span should raise 404
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+                Client(base_url=_app.base_url, api_key=api_key).spans.delete(
                     span_identifier=nonexistent_span_id
                 )
             )
@@ -1858,7 +1858,7 @@ class TestClientForSpanDeletion:
 
         # Delete with custom timeout (should work normally)
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).spans.delete_span(
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete(
                 span_identifier=span_id,
                 timeout=10,  # Custom timeout
             )

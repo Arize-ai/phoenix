@@ -71,7 +71,7 @@ class Spans:
             ... )
 
             # Delete a span
-            >>> client.spans.delete_span(span_identifier="abc123def456")
+            >>> client.spans.delete(span_identifier="abc123def456")
 
     """
 
@@ -501,7 +501,7 @@ class Spans:
         spans = _dataframe_to_spans(spans_dataframe)
         return self.log_spans(project_identifier=project_identifier, spans=spans, timeout=timeout)
 
-    def delete_span(
+    def delete(
         self,
         *,
         span_identifier: str,
@@ -535,10 +535,10 @@ class Spans:
             >>> client = Client()
 
             # Delete by OpenTelemetry span_id
-            >>> client.spans.delete_span(span_identifier="abc123def456")
+            >>> client.spans.delete(span_identifier="abc123def456")
 
             # Delete by Phoenix Global ID
-            >>> client.spans.delete_span(span_identifier="U3BhbjoxMjM=")
+            >>> client.spans.delete(span_identifier="U3BhbjoxMjM=")
         """
         response = self._client.delete(
             url=f"v1/spans/{span_identifier}",
@@ -596,7 +596,7 @@ class AsyncSpans:
             ... )
 
             # Delete a span
-            >>> await client.spans.delete_span(span_identifier="abc123def456")
+            >>> await client.spans.delete(span_identifier="abc123def456")
 
     """
 
@@ -1033,7 +1033,7 @@ class AsyncSpans:
             project_identifier=project_identifier, spans=spans, timeout=timeout
         )
 
-    async def delete_span(
+    async def delete(
         self,
         *,
         span_identifier: str,
@@ -1067,10 +1067,10 @@ class AsyncSpans:
             >>> client = AsyncClient()
 
             # Delete by OpenTelemetry span_id
-            >>> await client.spans.delete_span(span_identifier="abc123def456")
+            >>> await client.spans.delete(span_identifier="abc123def456")
 
             # Delete by Phoenix Global ID
-            >>> await client.spans.delete_span(span_identifier="U3BhbjoxMjM=")
+            >>> await client.spans.delete(span_identifier="U3BhbjoxMjM=")
         """
         response = await self._client.delete(
             url=f"v1/spans/{span_identifier}",
