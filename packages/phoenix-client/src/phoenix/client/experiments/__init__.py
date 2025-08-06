@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 if TYPE_CHECKING:
     from phoenix.client.client import AsyncClient, Client
 from phoenix.client.resources.datasets import Dataset
+from phoenix.client.resources.experiments.evaluators import create_evaluator
 from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
     ExperimentTask,
@@ -661,3 +662,14 @@ async def async_evaluate_experiment(
         concurrency=concurrency,
         rate_limit_errors=rate_limit_errors,
     )
+
+
+__all__ = [
+    "run_experiment",
+    "async_run_experiment",
+    "get_experiment",
+    "async_get_experiment",
+    "evaluate_experiment",
+    "async_evaluate_experiment",
+    "create_evaluator",
+]
