@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
+import opentelemetry.sdk.trace as trace_sdk
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 
 from phoenix.evals.templates import MultimodalPrompt
@@ -95,7 +96,12 @@ class LLM:
         self._sync_adapter = adapter_class(sync_client)
         self._async_adapter = adapter_class(async_client)
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
+        **kwargs: Any,
+    ) -> str:
         """
         Generate text given a prompt.
 
@@ -106,7 +112,7 @@ class LLM:
         Returns:
             The generated text.
         """
-        tracer = get_tracer()
+        tracer = get_tracer(tracer_provider=tracer_provider)
         with tracer.start_as_current_span("generate_text") as span:
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
@@ -122,7 +128,11 @@ class LLM:
             return result
 
     def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Generate an object given a prompt and a schema.
@@ -135,7 +145,7 @@ class LLM:
         Returns:
             The generated object.
         """
-        tracer = get_tracer()
+        tracer = get_tracer(tracer_provider=tracer_provider)
         with tracer.start_as_current_span("generate_object") as span:
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
@@ -155,6 +165,7 @@ class LLM:
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -190,9 +201,14 @@ class LLM:
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
 
-        return self.generate_object(prompt, schema, **kwargs)
+        return self.generate_object(prompt, schema, tracer_provider=tracer_provider, **kwargs)
 
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
+        **kwargs: Any,
+    ) -> str:
         """
         Asynchronously generate text given a prompt.
 
@@ -203,7 +219,7 @@ class LLM:
         Returns:
             The generated text.
         """
-        tracer = get_tracer()
+        tracer = get_tracer(tracer_provider=tracer_provider)
         with tracer.start_as_current_span("generate_text") as span:
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
@@ -219,7 +235,11 @@ class LLM:
             return result
 
     async def async_generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Asynchronously generate an object given a prompt and a schema.
@@ -232,7 +252,7 @@ class LLM:
         Returns:
             The generated object.
         """
-        tracer = get_tracer()
+        tracer = get_tracer(tracer_provider=tracer_provider)
         with tracer.start_as_current_span("generate_object") as span:
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
@@ -252,6 +272,7 @@ class LLM:
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
+        tracer_provider: Optional[trace_sdk.TracerProvider] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -271,7 +292,9 @@ class LLM:
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        return await self._async_adapter.agenerate_object(prompt, schema, **kwargs)
+        return await self._async_adapter.agenerate_object(
+            prompt, schema, tracer_provider=tracer_provider, **kwargs
+        )
 
 
 def show_provider_availability() -> None:

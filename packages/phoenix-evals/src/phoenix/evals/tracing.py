@@ -4,13 +4,10 @@ import logging
 import os
 from re import compile, split
 from typing import Optional, overload
-from urllib.parse import unquote, urljoin
+from urllib.parse import unquote
 
 import opentelemetry.sdk.trace as trace_sdk
 from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import NoOpTracer, Tracer
 
 logger = logging.getLogger(__name__)
@@ -157,39 +154,25 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     return value.strip()
 
 
-def get_tracer() -> Tracer:
+def get_tracer(tracer_provider: Optional[trace_sdk.TracerProvider] = None) -> Tracer:
     """
-    1. First check if there's a global tracer provider and pull from that
-    2. If not, create its own tracer using environment variables to configure the span processor
-    3. If there's any failure, return a no-op processor
+    1. Use the provided tracer_provider if given
+    2. Otherwise, pull from the global tracer provider
+    3. Fall back to NoOpTracer if all else fails
+
+    Args:
+        tracer_provider: Optional tracer provider to use. If None, will use global provider.
+
+    Returns:
+        A tracer instance
     """
     try:
+        if tracer_provider is not None:
+            return tracer_provider.get_tracer(__name__)
+
         global_tracer_provider = trace_api.get_tracer_provider()
-
-        if (
-            hasattr(global_tracer_provider, "get_tracer")
-            and not global_tracer_provider.__class__.__name__ == "NoOpTracerProvider"
-        ):
-            tracer = global_tracer_provider.get_tracer(__name__)
-            resource = getattr(global_tracer_provider, "_resource", Resource({}))
-            return tracer
-    except Exception:
-        logger.debug("No global tracer provider")
-
-    try:
-        resource = Resource({})
-        tracer_provider = trace_sdk.TracerProvider(resource=resource)
-
-        base_url = get_base_url()
-        endpoint = urljoin(base_url, "v1/traces")
-        span_processor: trace_sdk.SpanProcessor = SimpleSpanProcessor(
-            OTLPSpanExporter(
-                endpoint=endpoint,
-                headers=get_env_client_headers(),
-            )
-        )
-        tracer_provider.add_span_processor(span_processor)
-        return tracer_provider.get_tracer(__name__)
+        return global_tracer_provider.get_tracer(__name__)
 
     except Exception:
+        logger.debug("Failed to get tracer, falling back to NoOpTracer")
         return NoOpTracer()
