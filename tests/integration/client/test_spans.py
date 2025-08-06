@@ -1555,9 +1555,7 @@ class TestClientForSpanDeletion:
 
         # Delete the span using OpenTelemetry span_id
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).spans.delete(
-                span_identifier=span_id
-            )
+            Client(base_url=_app.base_url, api_key=api_key).spans.delete(span_identifier=span_id)
         )
 
         # Verify span is deleted
@@ -1831,8 +1829,8 @@ class TestClientForSpanDeletion:
         test_span: v1.Span = v1.Span(
             name="timeout_test_span",
             context={
-                    "trace_id": trace_id,
-                    "span_id": span_id,
+                "trace_id": trace_id,
+                "span_id": span_id,
             },
             span_kind="TOOL",
             start_time=datetime.now(timezone.utc).isoformat(),
