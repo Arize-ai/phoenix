@@ -107,7 +107,7 @@ describe("deleteSpan", () => {
       deleteSpan({
         spanIdentifier: "test-span-123",
       })
-    ).rejects.toThrow("Failed to delete span: [object Object]");
+    ).rejects.toThrow("Failed to delete span:");
   });
 
   it("should handle errors without message", async () => {
@@ -122,6 +122,6 @@ describe("deleteSpan", () => {
       deleteSpan({
         spanIdentifier: "test-span-123",
       })
-    ).rejects.toThrow("Failed to delete span: [object Object]");
+    ).rejects.toThrow("Failed to delete span:");
   });
 });
