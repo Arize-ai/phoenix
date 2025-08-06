@@ -1639,7 +1639,7 @@ class TestClientForSpanDeletion:
                 break
 
         assert test_span_data is not None, "Test span should exist before deletion"
-        span_global_id = test_span_data["id"]  # This is the Phoenix Global ID
+        span_global_id = test_span_data.get("id")  # This is the Phoenix Global ID
         assert span_global_id, "Span should have a global ID"
 
         # Delete the span using Phoenix Global ID
