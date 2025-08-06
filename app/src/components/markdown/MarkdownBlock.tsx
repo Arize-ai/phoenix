@@ -27,15 +27,13 @@ export function MarkdownBlock({
         `;
 
   return mode === "markdown" ? (
-    <div css={markdownCSS} data-margin={margin}>
+    <div css={markdownCSS}>
       <Markdown remarkPlugins={[remarkGfm]} css={spacingCSS}>
         {children}
       </Markdown>
     </div>
   ) : (
-    <PrettyText preCSS={spacingCSS} data-margin={margin}>
-      {children}
-    </PrettyText>
+    <PrettyText preCSS={spacingCSS}>{children}</PrettyText>
   );
 }
 
