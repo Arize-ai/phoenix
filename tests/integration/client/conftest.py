@@ -49,12 +49,8 @@ def _existing_spans(
 @pytest.fixture(scope="function")
 def _existing_project(
     _app: _AppInfo,
-) -> _ExistingProject:
-    project = Client(
-        base_url=_app.base_url,
-        api_key=_app.admin_secret,
-    ).projects.create(name=token_hex(16))
-    return _ExistingProject(
-        id=GlobalID.from_id(project["id"]),
-        name=project["name"],
-    )
+) -> Iterator[_ExistingProject]:
+    client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
+    project = client.projects.create(name=token_hex(16))
+    yield _ExistingProject(id=GlobalID.from_id(project["id"]), name=project["name"])
+    client.projects.delete(project_name=project["name"])
