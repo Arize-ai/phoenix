@@ -1828,20 +1828,17 @@ class TestClientForSpanDeletion:
         trace_id = f"trace_timeout_{token_hex(16)}"
         span_id = f"span_timeout_{token_hex(8)}"
 
-        test_span = cast(
-            v1.Span,
-            {
-                "name": "timeout_test_span",
-                "context": {
+        test_span: v1.Span = v1.Span(
+            name="timeout_test_span",
+            context={
                     "trace_id": trace_id,
                     "span_id": span_id,
-                },
-                "span_kind": "TOOL",
-                "start_time": datetime.now(timezone.utc).isoformat(),
-                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
-                "status_code": "OK",
-                "attributes": {"test_attr": "timeout_test"},
             },
+            span_kind="TOOL",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"test_attr": "timeout_test"},
         )
 
         # Create the span
