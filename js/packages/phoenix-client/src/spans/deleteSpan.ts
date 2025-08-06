@@ -70,11 +70,12 @@ export async function deleteSpan({
     if (isNotFound) {
       throw new Error(`Span not found: ${spanIdentifier}`);
     }
-    
+
     // Extract meaningful error information
-    const errorMessage = typeof error === "object" && error !== null
-      ? JSON.stringify(error, null, 2)
-      : String(error);
+    const errorMessage =
+      typeof error === "object" && error !== null
+        ? JSON.stringify(error, null, 2)
+        : String(error);
     throw new Error(`Failed to delete span: ${errorMessage}`);
   }
 }
