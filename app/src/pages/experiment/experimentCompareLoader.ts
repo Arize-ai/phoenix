@@ -34,6 +34,7 @@ export async function experimentCompareLoader(
         $datasetId: ID!
         $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
+        $experimentIds: [ID!]!
         $hasBaseExperiment: Boolean!
         $includeGridView: Boolean!
         $includeMetricsView: Boolean!
@@ -41,18 +42,24 @@ export async function experimentCompareLoader(
         ...ExperimentCompareTable_comparisons
           @include(if: $includeGridView)
           @arguments(
+            datasetId: $datasetId
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
-            datasetId: $datasetId
+            experimentIds: $experimentIds
           )
         ...ExperimentMultiSelector__data
-          @arguments(hasBaseExperiment: $hasBaseExperiment)
+          @arguments(
+            datasetId: $datasetId
+            experimentIds: $experimentIds
+            hasBaseExperiment: $hasBaseExperiment
+          )
         ...ExperimentCompareMetricsPage_experiments
           @include(if: $includeMetricsView)
           @arguments(
+            datasetId: $datasetId
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
-            datasetId: $datasetId
+            experimentIds: $experimentIds
           )
       }
     `,
@@ -60,6 +67,10 @@ export async function experimentCompareLoader(
       datasetId,
       baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
+      experimentIds: [
+        ...(baseExperimentId ? [baseExperimentId] : []),
+        ...compareExperimentIds,
+      ],
       hasBaseExperiment: baseExperimentId != null,
       includeGridView: view === "grid" && baseExperimentId != null,
       includeMetricsView: view === "metrics" && baseExperimentId != null,

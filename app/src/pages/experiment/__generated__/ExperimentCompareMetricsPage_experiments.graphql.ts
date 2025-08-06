@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b99ba60c1cb4011a2c241c10d689bbd>>
+ * @generated SignedSource<<5770e16659b194dd41394395fef2c9c8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -144,6 +144,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "datasetId"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "experimentIds"
     }
   ],
   "kind": "Fragment",
@@ -169,7 +174,13 @@ return {
           "selections": [
             {
               "alias": null,
-              "args": null,
+              "args": [
+                {
+                  "kind": "Variable",
+                  "name": "filterIds",
+                  "variableName": "experimentIds"
+                }
+              ],
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
               "name": "experiments",
@@ -373,6 +384,6 @@ return {
 };
 })();
 
-(node as any).hash = "e11be301f1cc94b71e2491e092528ddc";
+(node as any).hash = "e6231b9a95bfe0a54cfa4dc81db7ed75";
 
 export default node;
