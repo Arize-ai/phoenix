@@ -535,7 +535,7 @@ class Spans:
             >>> client = Client()
 
             # Delete by OpenTelemetry span_id
-            >>> client.spans.delete_span(span_identifier="abc123def456")
+            >>> client.spans.delete_span(span_identifier="051581bf3cb55c13")
 
             # Delete by Phoenix Global ID
             >>> client.spans.delete_span(span_identifier="U3BhbjoxMjM=")
