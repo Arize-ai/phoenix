@@ -1,7 +1,11 @@
+import json
 from typing import Any, Dict, List, Optional, Union
+
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 
 from phoenix.evals.templates import MultimodalPrompt
 
+from ..tracing import get_tracer
 from .adapters import register_adapters
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
 
@@ -107,7 +111,20 @@ class LLM(LLMBase):
         Returns:
             The generated text.
         """
-        return self._adapter.generate_text(prompt, **kwargs)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("generate_text") as span:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
+            )
+
+            span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
+            span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
+
+            result = self._adapter.generate_text(prompt, **kwargs)
+
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
+
+            return result
 
     def generate_object(
         self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
@@ -123,7 +140,19 @@ class LLM(LLMBase):
         Returns:
             The generated object.
         """
-        return self._adapter.generate_object(prompt, schema, **kwargs)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("generate_object") as span:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
+            )
+
+            span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
+            span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
+
+            result = self._adapter.generate_object(prompt, schema, **kwargs)
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
+
+            return result
 
     def generate_classification(
         self,
@@ -215,7 +244,20 @@ class AsyncLLM(LLMBase):
         Returns:
             The generated text.
         """
-        return await self._adapter.agenerate_text(prompt, **kwargs)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("generate_text") as span:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
+            )
+
+            span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
+            span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
+
+            result = await self._adapter.agenerate_text(prompt, **kwargs)
+
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
+
+            return result
 
     async def generate_object(
         self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
@@ -231,7 +273,19 @@ class AsyncLLM(LLMBase):
         Returns:
             The generated object.
         """
-        return await self._adapter.agenerate_object(prompt, schema, **kwargs)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("generate_object") as span:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
+            )
+
+            span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
+            span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
+
+            result = await self._adapter.agenerate_object(prompt, schema, **kwargs)
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
+
+            return result
 
     async def generate_classification(
         self,
