@@ -12,7 +12,37 @@ from .registries import PROVIDER_REGISTRY, adapter_availability_table
 register_adapters()
 
 
-class LLMBase:
+class LLM:
+    """
+    An LLM wrapper that simplifies the API for generating text and objects.
+
+    This wrapper delegates API access to SDK/client libraries that are installed in the active
+    Python environment. To show supported providers, use `show_provider_availability()`.
+
+    Args:
+        provider: The name of the provider to use.
+        model: The name of the model to use.
+        client: Optionally, name of the client to use. If not specified, the first available client
+            for the provider will be used.
+
+    Examples:
+        >>> from phoenix.evals.llm import LLM, show_provider_availability
+        >>> show_provider_availability()
+        >>> llm = LLM(provider="openai", model="gpt-4o")
+        >>> llm.generate_text(prompt="Hello, world!")
+        "Hello, world!"
+        >>> llm.generate_object(
+        ...     prompt="Hello, world!",
+        ...     schema={
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "text": {"type": "string"}
+        ...     },
+        ...     "required": ["text"]
+        ... })
+        {"text": "Hello, world!"}
+    """
+
     def __init__(
         self,
         *,
@@ -20,7 +50,6 @@ class LLMBase:
         model: Optional[str] = None,
         client: Optional[str] = None,
     ):
-        self._is_async: bool = getattr(self, "_is_async", False)
         self.provider = provider
         self.model = model
 
@@ -52,53 +81,19 @@ class LLMBase:
                 registration = provider_registrations[0]
 
             try:
-                client = registration.client_factory(model=model, is_async=self._is_async)
+                sync_client = registration.client_factory(model=model)
+                async_client = registration.client_factory(model=model, is_async=True)
                 adapter_class = registration.adapter_class
             except Exception as e:
                 raise ValueError(f"Failed to create client for provider '{provider}': {e}") from e
-
         else:
             # This should never happen due to the initial validation
             raise ValueError("Internal error: cannot initialize LLM wrapper.")
 
-        self._client = client
-        self._adapter = adapter_class(client)
-
-
-class LLM(LLMBase):
-    """
-    An LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import LLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = False
-        super().__init__(*args, **kwargs)
+        self._sync_client = sync_client
+        self._async_client = async_client
+        self._sync_adapter = adapter_class(sync_client)
+        self._async_adapter = adapter_class(async_client)
 
     def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """
@@ -120,7 +115,7 @@ class LLM(LLMBase):
             span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
             span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
 
-            result = self._adapter.generate_text(prompt, **kwargs)
+            result = self._sync_adapter.generate_text(prompt, **kwargs)
 
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
 
@@ -149,7 +144,7 @@ class LLM(LLMBase):
             span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
             span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
 
-            result = self._adapter.generate_object(prompt, schema, **kwargs)
+            result = self._sync_adapter.generate_object(prompt, schema, **kwargs)
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
 
             return result
@@ -197,43 +192,7 @@ class LLM(LLMBase):
 
         return self.generate_object(prompt, schema, **kwargs)
 
-
-class AsyncLLM(LLMBase):
-    """
-    An asynchronous LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import AsyncLLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = AsyncLLM(provider="openai", model="gpt-4o")
-        >>> await llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> await llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = True
-        super().__init__(*args, **kwargs)
-
-    async def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """
         Asynchronously generate text given a prompt.
 
@@ -253,13 +212,13 @@ class AsyncLLM(LLMBase):
             span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
             span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
 
-            result = await self._adapter.agenerate_text(prompt, **kwargs)
+            result = await self._async_adapter.agenerate_text(prompt, **kwargs)
 
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
 
             return result
 
-    async def generate_object(
+    async def async_generate_object(
         self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
     ) -> Dict[str, Any]:
         """
@@ -282,12 +241,12 @@ class AsyncLLM(LLMBase):
             span.set_attribute(SpanAttributes.LLM_MODEL_NAME, self.model or "")
             span.set_attribute(SpanAttributes.INPUT_VALUE, str(prompt))
 
-            result = await self._adapter.agenerate_object(prompt, schema, **kwargs)
+            result = await self._async_adapter.agenerate_object(prompt, schema, **kwargs)
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
 
             return result
 
-    async def generate_classification(
+    async def async_generate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
         labels: Union[List[str], Dict[str, str]],
@@ -312,7 +271,7 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        return await self.generate_object(prompt, schema, **kwargs)
+        return await self._async_adapter.agenerate_object(prompt, schema, **kwargs)
 
 
 def show_provider_availability() -> None:
