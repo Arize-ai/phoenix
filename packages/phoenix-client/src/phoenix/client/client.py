@@ -42,6 +42,7 @@ class Client:
             self._client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
+                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             )
         else:
             self._client = http_client
