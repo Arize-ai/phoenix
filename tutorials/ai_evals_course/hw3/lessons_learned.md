@@ -9,6 +9,8 @@
 7. Testing your evaluators and building evaluators you can trust is crucial. Faulty evaluators may allow bad LLM outputs to pass through to users, such as recommending sugar heavy diets to diabetic users. 
 8. Phoenix is an awesome tool to help you build reliable LLM-as-judge evaluators!
 
-Ask me any questions, or just stay in touch here
+Ask me any questions, or just stay in touch here:
+
 https://x.com/PriyanJindal
+
 https://www.linkedin.com/in/priyan-jindal/
