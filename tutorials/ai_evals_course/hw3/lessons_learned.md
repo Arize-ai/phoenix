@@ -7,3 +7,4 @@
 5. Prompting your evaluators to produce natural language explanations is very helpful. It allows you to understand what your model is thinking and why. You can use these explanations to iteratively improve upon your evaluator prompt. 
 6. Researching prompting strategies and building prompts with these strategies is important not only for your LLM applications, but also for LLM-as-judge evaluators that evaluate such applications. 
 7. Testing your evaluators and building evaluators you can trust is crucial. Faulty evaluators may allow bad LLM outputs to pass through to users, such as recommending sugar heavy diets to diabetic users. 
+8. Phoenix is an awesome tool to help you build reliable LLM-as-judge evaluators!
