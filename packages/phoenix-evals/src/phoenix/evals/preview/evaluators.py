@@ -63,7 +63,7 @@ class Score:
 def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, fn, *args, **kwargs)
+        return await loop.run_in_executor(None, lambda: fn(*args, **kwargs))
 
     return wrapper
 
