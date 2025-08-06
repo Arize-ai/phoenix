@@ -202,8 +202,6 @@ Report:
 2. **Your final judge prompt** with few-shot examples
 3. **Judge performance metrics** (TPR/TNR on test set)
 4. **Final evaluation results** using judgy (raw rate, corrected rate, confidence interval)
-5. **Brief analysis** (1-2 paragraphs) interpreting your results
-6. **Phoenix dashboard screenshots** showing your datasets/evaluation workflow
 
 ## Reference Implementation
 This repository contains a complete reference implementation showing one approach to this assignment. You can:
@@ -237,31 +235,9 @@ homeworks/hw3/
 │   ├── dev_set.csv                 # Development set for judge refinement (~60)
 │   └── test_set.csv                # Test set for final evaluation (~67)
 └── results/
-    ├── judge_performance.json      # TPR/TNR metrics on test set
-    ├── final_evaluation.json       # Results with confidence intervals
-    └── judge_prompt.txt            # Final judge prompt
-```
-
-### How to Run the Reference Implementation
-```bash
-# From project root directory
-cd homeworks/hw3
-
-# Step 1: Generate traces (creates raw_traces.csv)
-python scripts/generate_traces.py
-
-# Step 2: Label data (creates labeled_traces.csv)
-python scripts/label_data.py
-
-# Step 3: Split data (creates train/dev/test sets)
-python scripts/split_data.py
-
-# Step 4: Develop judge (creates judge_prompt.txt)
-python scripts/develop_judge.py
-
-# Step 5: Evaluate judge (creates judge_performance.json)
-python scripts/evaluate_judge.py
-
-# Step 6: Final evaluation (creates final_evaluation.json)
-python scripts/run_full_evaluation.py
+│   ├── judge_performance.json      # TPR/TNR metrics on test set
+│   ├── final_evaluation.json       # Results with confidence intervals
+│   └── judge_prompt.txt            # Final judge prompt
+└── README.md                       # Project Spec and general project guide
+└── ai_evals_hw3_solution.ipynb        # Guide containing helpful Phoenix methods and links to Phoenix documentation
 ```
