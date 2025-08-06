@@ -236,15 +236,15 @@ function EmptyExampleOutput({
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
-  const missingVariables = useMemo(() => {
-    const parsedDatasetExampleInput = isStringKeyedObject(datasetExampleInput)
-      ? datasetExampleInput
-      : {};
+  const parsedDatasetExampleInput = useMemo(() => {
+    return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
+  }, [datasetExampleInput]);
 
+  const missingVariables = useMemo(() => {
     return instanceVariables.filter((variable) => {
       return parsedDatasetExampleInput[variable] == null;
     });
-  }, [datasetExampleInput, instanceVariables]);
+  }, [parsedDatasetExampleInput, instanceVariables]);
   if (isRunning) {
     return <Loading />;
   }
@@ -254,9 +254,9 @@ function EmptyExampleOutput({
   }
   return (
     <PlaygroundErrorWrap>
-      {`Missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+      {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
         ", "
-      )}`}
+      )}. Possible inputs are ${Object.keys(parsedDatasetExampleInput).join(", ")}`}
     </PlaygroundErrorWrap>
   );
 }
