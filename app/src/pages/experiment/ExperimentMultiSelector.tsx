@@ -42,13 +42,17 @@ export function ExperimentMultiSelector(props: {
   const data = useFragment(
     graphql`
       fragment ExperimentMultiSelector__data on Query
-      @argumentDefinitions(hasBaseExperiment: { type: "Boolean!" }) {
+      @argumentDefinitions(
+        datasetId: { type: "ID!" }
+        experimentIds: { type: "[ID!]!" }
+        hasBaseExperiment: { type: "Boolean!" }
+      ) {
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
             id
             name
-            experiments {
+            experiments(filterIds: $experimentIds) {
               edges {
                 experiment: node {
                   id

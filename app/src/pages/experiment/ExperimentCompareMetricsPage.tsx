@@ -99,13 +99,14 @@ export function ExperimentCompareMetricsPage() {
     graphql`
       fragment ExperimentCompareMetricsPage_experiments on Query
       @argumentDefinitions(
+        datasetId: { type: "ID!" }
         baseExperimentId: { type: "ID!" }
         compareExperimentIds: { type: "[ID!]!" }
-        datasetId: { type: "ID!" }
+        experimentIds: { type: "[ID!]!" }
       ) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            experiments {
+            experiments(filterIds: $experimentIds) {
               edges {
                 experiment: node {
                   id

@@ -169,6 +169,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           after: { type: "String", defaultValue: null }
           baseExperimentId: { type: "ID!" }
           compareExperimentIds: { type: "[ID!]!" }
+          experimentIds: { type: "[ID!]!" }
           datasetId: { type: "ID!" }
           filterCondition: { type: "String", defaultValue: null }
         ) {
@@ -230,7 +231,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           dataset: node(id: $datasetId) {
             id
             ... on Dataset {
-              experiments {
+              experiments(filterIds: $experimentIds) {
                 edges {
                   experiment: node {
                     id
