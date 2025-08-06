@@ -256,7 +256,11 @@ function EmptyExampleOutput({
     <PlaygroundErrorWrap>
       {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
         ", "
-      )}. Possible inputs are ${Object.keys(parsedDatasetExampleInput).join(", ")}`}
+      )}.${
+        Object.keys(parsedDatasetExampleInput).length > 0
+          ? ` Possible inputs are: ${Object.keys(parsedDatasetExampleInput).join(", ")}`
+          : " No inputs found in dataset example."
+      }`}
     </PlaygroundErrorWrap>
   );
 }
