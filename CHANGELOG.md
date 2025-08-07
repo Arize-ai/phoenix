@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.20.0...arize-phoenix-v11.21.0) (2025-08-07)
+
+
+### Features
+
+* **playground:** support gpt-5 ([#8985](https://github.com/Arize-ai/phoenix/issues/8985)) ([8711bde](https://github.com/Arize-ai/phoenix/commit/8711bdecfeee479c480a1acebf32ebc1b11461cb))
+
+
+### Bug Fixes
+
+* **prompts:** ensure prompts can be saved ([#8987](https://github.com/Arize-ai/phoenix/issues/8987)) ([097692f](https://github.com/Arize-ai/phoenix/commit/097692f8d3d476da47350bbe76a146ea0f6e5e4e))
+
 ## [11.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.19.0...arize-phoenix-v11.20.0) (2025-08-07)
 
 
