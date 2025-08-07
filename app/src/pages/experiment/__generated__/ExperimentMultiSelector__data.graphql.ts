@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<851cded43af7e48d5304b7e09f76bd8e>>
+ * @generated SignedSource<<322e4e683c02e0da64be134eab714bd0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type ExperimentMultiSelector__data$data = {
     readonly name?: string;
   };
   readonly dataset: {
-    readonly experiments?: {
+    readonly allExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
           readonly createdAt: string;
@@ -65,11 +65,6 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "experimentIds"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
       "name": "hasBaseExperiment"
     }
   ],
@@ -97,14 +92,8 @@ return {
           "selections": [
             (v1/*: any*/),
             {
-              "alias": null,
-              "args": [
-                {
-                  "kind": "Variable",
-                  "name": "filterIds",
-                  "variableName": "experimentIds"
-                }
-              ],
+              "alias": "allExperiments",
+              "args": null,
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
               "name": "experiments",
@@ -197,6 +186,6 @@ return {
 };
 })();
 
-(node as any).hash = "6a2f2f212665a259ccc6138563f96b55";
+(node as any).hash = "d5fa542c1b16d3225eabd1619e55f26b";
 
 export default node;

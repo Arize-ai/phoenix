@@ -44,7 +44,6 @@ export function ExperimentMultiSelector(props: {
       fragment ExperimentMultiSelector__data on Query
       @argumentDefinitions(
         datasetId: { type: "ID!" }
-        experimentIds: { type: "[ID!]!" }
         hasBaseExperiment: { type: "Boolean!" }
       ) {
         dataset: node(id: $datasetId) {
@@ -52,7 +51,7 @@ export function ExperimentMultiSelector(props: {
           ... on Dataset {
             id
             name
-            experiments(filterIds: $experimentIds) {
+            allExperiments: experiments {
               edges {
                 experiment: node {
                   id
@@ -77,7 +76,7 @@ export function ExperimentMultiSelector(props: {
   );
   const experiments = useMemo(() => {
     return (
-      data.dataset.experiments?.edges.map((edge) => {
+      data.dataset.allExperiments?.edges.map((edge) => {
         return edge.experiment;
       }) ?? []
     );
