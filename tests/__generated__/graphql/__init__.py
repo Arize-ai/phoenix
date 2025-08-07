@@ -64,6 +64,14 @@ class InvocationParameterBase(BaseModel):
     required: bool
 
 
+class ModelInterface(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    name: str
+    providerKey: Optional[
+        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+    ] = None
+
+
 class Node(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: str = Field(...)
@@ -251,6 +259,25 @@ class Cluster(BaseModel):
     primaryToCorpusRatio: Optional[float] = Field(default=None)
 
 
+class CompareExperimentRunAnnotationMetricCounts(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationName: str
+    compareExperimentId: str
+    numDecreases: int
+    numEqual: int
+    numIncreases: int
+
+
+class CompareExperimentRunMetricCounts(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    compareExperimentId: str
+    completionTokenCount: MetricCounts
+    latency: MetricCounts
+    promptTokenCount: MetricCounts
+    totalCost: MetricCounts
+    totalTokenCount: MetricCounts
+
+
 class ContinuousAnnotationConfig(AnnotationConfigBase, Node):
     model_config = ConfigDict(frozen=True)
     annotationType: Literal["CATEGORICAL", "CONTINUOUS", "FREEFORM"]
@@ -262,11 +289,22 @@ class ContinuousAnnotationConfig(AnnotationConfigBase, Node):
     upperBound: Optional[float] = None
 
 
+class CostBreakdown(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cost: Optional[float] = None
+    tokens: Optional[float] = Field(default=None)
+
+
 class CreateAnnotationConfigPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: Union[
         "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
     ]
+
+
+class CreateModelMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    model: GenerativeModel
 
 
 class CreateSystemApiKeyMutationPayload(BaseModel):
@@ -394,6 +432,11 @@ class DeleteAnnotationConfigsPayload(BaseModel):
 class DeleteApiKeyMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     apiKeyId: str
+
+
+class DeleteModelMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    model: GenerativeModel
 
 
 class DeletePromptMutationPayload(BaseModel):
@@ -524,6 +567,8 @@ class Experiment(Node):
     model_config = ConfigDict(frozen=True)
     annotationSummaries: list[ExperimentAnnotationSummary]
     averageRunLatencyMs: Optional[float] = None
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
     createdAt: str
     description: Optional[str] = None
     errorRate: Optional[float] = None
@@ -549,10 +594,23 @@ class ExperimentAnnotationSummary(BaseModel):
     minScore: Optional[float] = None
 
 
-class ExperimentComparison(BaseModel):
+class ExperimentComparison(Node):
     model_config = ConfigDict(frozen=True)
     example: DatasetExample
+    id: str = Field(...)
     runComparisonItems: list[RunComparisonItem]
+
+
+class ExperimentComparisonConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[ExperimentComparisonEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class ExperimentComparisonEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: ExperimentComparison = Field(...)
 
 
 class ExperimentConnection(BaseModel):
@@ -575,6 +633,8 @@ class ExperimentMutationPayload(BaseModel):
 class ExperimentRun(Node):
     model_config = ConfigDict(frozen=True)
     annotations: ExperimentRunAnnotationConnection
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
     endTime: str
     error: Optional[str] = None
     example: DatasetExample
@@ -681,12 +741,23 @@ class Functionality(BaseModel):
     modelInferences: bool = Field(...)
 
 
-class GenerativeModel(BaseModel):
+class GenerativeModel(ModelInterface, Node):
     model_config = ConfigDict(frozen=True)
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
+    createdAt: str
+    id: str = Field(...)
+    kind: Literal["BUILT_IN", "CUSTOM"]
+    lastUsedAt: Optional[str] = None
     name: str
-    providerKey: Literal[
-        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
-    ]
+    namePattern: str
+    provider: Optional[str] = None
+    providerKey: Optional[
+        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+    ] = None
+    startTime: Optional[str] = None
+    tokenPrices: list[TokenPrice]
+    updatedAt: str
 
 
 class GenerativeProvider(BaseModel):
@@ -695,7 +766,9 @@ class GenerativeProvider(BaseModel):
     credentialsSet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
-    key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+    key: Literal[
+        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
     name: str
 
 
@@ -703,6 +776,18 @@ class GenerativeProviderCredentialConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
     envVarName: str
     isRequired: bool
+
+
+class InferenceModel(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    corpusInferences: Optional[Inferences] = None
+    dimensions: DimensionConnection
+    embeddingDimensions: EmbeddingDimensionConnection
+    exportedFiles: list[ExportedFile] = Field(...)
+    performanceMetric: Optional[float] = None
+    performanceTimeSeries: PerformanceTimeSeries = Field(...)
+    primaryInferences: Inferences
+    referenceInferences: Optional[Inferences] = None
 
 
 class Inferences(BaseModel):
@@ -785,21 +870,16 @@ class LabelFraction(BaseModel):
     label: str
 
 
+class MetricCounts(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    numDecreases: int
+    numEqual: int
+    numIncreases: int
+
+
 class MissingValueBin(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: Optional[str] = None
-
-
-class Model(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    corpusInferences: Optional[Inferences] = None
-    dimensions: DimensionConnection
-    embeddingDimensions: EmbeddingDimensionConnection
-    exportedFiles: list[ExportedFile] = Field(...)
-    performanceMetric: Optional[float] = None
-    performanceTimeSeries: PerformanceTimeSeries = Field(...)
-    primaryInferences: Inferences
-    referenceInferences: Optional[Inferences] = None
 
 
 class NominalBin(BaseModel):
@@ -826,6 +906,14 @@ class PerformanceTimeSeries(TimeSeries):
     data: list[TimeSeriesDataPoint]
 
 
+class PlaygroundModel(ModelInterface):
+    model_config = ConfigDict(frozen=True)
+    name: str
+    providerKey: Literal[
+        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
+
+
 class Point2D(BaseModel):
     model_config = ConfigDict(frozen=True)
     x: float
@@ -842,6 +930,7 @@ class Point3D(BaseModel):
 class Project(Node):
     model_config = ConfigDict(frozen=True)
     annotationConfigs: AnnotationConfigConnection
+    costSummary: SpanCostSummary
     createdAt: str
     documentEvaluationNames: list[str] = Field(...)
     documentEvaluationSummary: Optional[DocumentEvaluationSummary] = None
@@ -854,8 +943,9 @@ class Project(Node):
     recordCount: int
     sessions: ProjectSessionConnection
     spanAnnotationNames: list[str] = Field(...)
+    spanAnnotationScoreTimeSeries: SpanAnnotationScoreTimeSeries
     spanAnnotationSummary: Optional[AnnotationSummary] = None
-    spanCountTimeSeries: SpanCountTimeSeries = Field(...)
+    spanCountTimeSeries: SpanCountTimeSeries
     spanLatencyMsQuantile: Optional[float] = None
     spans: SpanConnection
     startTime: Optional[str] = None
@@ -863,11 +953,18 @@ class Project(Node):
     tokenCountCompletion: float
     tokenCountPrompt: float
     tokenCountTotal: float
+    topModelsByCost: list[GenerativeModel]
+    topModelsByTokenCount: list[GenerativeModel]
     trace: Optional[Trace] = None
     traceAnnotationSummary: Optional[AnnotationSummary] = None
     traceAnnotationsNames: list[str] = Field(...)
     traceCount: int
+    traceCountByStatusTimeSeries: TraceCountByStatusTimeSeries
+    traceCountTimeSeries: TraceCountTimeSeries
+    traceLatencyMsPercentileTimeSeries: TraceLatencyPercentileTimeSeries
     traceRetentionPolicy: ProjectTraceRetentionPolicy
+    traceTokenCostTimeSeries: TraceTokenCostTimeSeries
+    traceTokenCountTimeSeries: TraceTokenCountTimeSeries
     updatedAt: str
     validateSpanFilterCondition: ValidationResult
 
@@ -884,8 +981,15 @@ class ProjectEdge(BaseModel):
     node: Project = Field(...)
 
 
+class ProjectMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    project: Project
+
+
 class ProjectSession(Node):
     model_config = ConfigDict(frozen=True)
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
     endTime: str
     firstInput: Optional[SpanIOValue] = None
     id: str = Field(...)
@@ -1023,7 +1127,7 @@ class PromptVersion(Node):
     metadata: dict[str, Any]
     modelName: str
     modelProvider: Literal[
-        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
     ]
     previousVersion: Optional[PromptVersion] = None
     responseFormat: Optional[ResponseFormat] = None
@@ -1098,12 +1202,19 @@ class Segments(BaseModel):
     totalCounts: DatasetValues
 
 
+class ServerStatus(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    insufficientStorage: bool
+
+
 class Span(Node):
     model_config = ConfigDict(frozen=True)
     asExampleRevision: SpanAsExampleRevision = Field(...)
     attributes: str = Field(...)
     containedInDataset: bool = Field(...)
     context: SpanContext
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: Optional[SpanCostSummary] = None
     cumulativeTokenCountCompletion: Optional[int] = Field(default=None)
     cumulativeTokenCountPrompt: Optional[int] = Field(default=None)
     cumulativeTokenCountTotal: Optional[int] = Field(default=None)
@@ -1182,6 +1293,24 @@ class SpanAnnotationMutationPayload(BaseModel):
     spanAnnotations: list[SpanAnnotation]
 
 
+class SpanAnnotationScoreTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[SpanAnnotationScoreTimeSeriesDataPoint]
+    names: list[str]
+
+
+class SpanAnnotationScoreTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    scoresWithLabels: list[SpanAnnotationScoreWithLabel]
+    timestamp: str
+
+
+class SpanAnnotationScoreWithLabel(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    label: str
+    score: float
+
+
 class SpanAsExampleRevision(ExampleRevision):
     model_config = ConfigDict(frozen=True)
     input: dict[str, Any]
@@ -1201,9 +1330,32 @@ class SpanContext(BaseModel):
     traceId: str
 
 
-class SpanCountTimeSeries(TimeSeries):
+class SpanCostDetailSummaryEntry(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[TimeSeriesDataPoint]
+    isPrompt: bool
+    tokenType: str
+    value: CostBreakdown
+
+
+class SpanCostSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    completion: CostBreakdown
+    prompt: CostBreakdown
+    total: CostBreakdown
+
+
+class SpanCountTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[SpanCountTimeSeriesDataPoint]
+
+
+class SpanCountTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    errorCount: Optional[int] = None
+    okCount: Optional[int] = None
+    timestamp: str
+    totalCount: Optional[int] = None
+    unsetCount: Optional[int] = None
 
 
 class SpanEdge(BaseModel):
@@ -1330,11 +1482,19 @@ class TokenCountPromptDetails(BaseModel):
     cacheWrite: Optional[int] = None
 
 
+class TokenPrice(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    costPerMillionTokens: float
+    costPerToken: float
+    kind: Literal["COMPLETION", "PROMPT"]
+    tokenType: str
+
+
 class TokenUsage(BaseModel):
     model_config = ConfigDict(frozen=True)
-    completion: int
-    prompt: int
-    total: int
+    completion: float
+    prompt: float
+    total: float
 
 
 class ToolCallChunk(ChatCompletionSubscriptionPayload):
@@ -1379,6 +1539,8 @@ class ToolResultContentValue(BaseModel):
 
 class Trace(Node):
     model_config = ConfigDict(frozen=True)
+    costDetailSummaryEntries: list[SpanCostDetailSummaryEntry]
+    costSummary: SpanCostSummary
     endTime: str
     id: str = Field(...)
     latencyMs: Optional[float] = None
@@ -1420,10 +1582,45 @@ class TraceConnection(BaseModel):
     pageInfo: PageInfo = Field(...)
 
 
+class TraceCountByStatusTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[TraceCountByStatusTimeSeriesDataPoint]
+
+
+class TraceCountByStatusTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    errorCount: int
+    okCount: int
+    timestamp: str
+    totalCount: int
+
+
+class TraceCountTimeSeries(TimeSeries):
+    model_config = ConfigDict(frozen=True)
+    data: list[TimeSeriesDataPoint]
+
+
 class TraceEdge(BaseModel):
     model_config = ConfigDict(frozen=True)
     cursor: str = Field(...)
     node: Trace = Field(...)
+
+
+class TraceLatencyMsPercentileTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    max: Optional[float] = None
+    p50: Optional[float] = None
+    p75: Optional[float] = None
+    p90: Optional[float] = None
+    p95: Optional[float] = None
+    p99: Optional[float] = None
+    p999: Optional[float] = None
+    timestamp: str
+
+
+class TraceLatencyPercentileTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[TraceLatencyMsPercentileTimeSeriesDataPoint]
 
 
 class TraceRetentionRuleMaxCount(BaseModel):
@@ -1440,6 +1637,32 @@ class TraceRetentionRuleMaxDaysOrCount(BaseModel):
     model_config = ConfigDict(frozen=True)
     maxCount: int
     maxDays: float
+
+
+class TraceTokenCostTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[TraceTokenCostTimeSeriesDataPoint]
+
+
+class TraceTokenCostTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    completionCost: Optional[float] = None
+    promptCost: Optional[float] = None
+    timestamp: str
+    totalCost: Optional[float] = None
+
+
+class TraceTokenCountTimeSeries(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: list[TraceTokenCountTimeSeriesDataPoint]
+
+
+class TraceTokenCountTimeSeriesDataPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    completionTokenCount: Optional[float] = None
+    promptTokenCount: Optional[float] = None
+    timestamp: str
+    totalTokenCount: Optional[float] = None
 
 
 class UMAPPoint(BaseModel):
@@ -1467,6 +1690,11 @@ class UpdateAnnotationConfigPayload(BaseModel):
     ]
 
 
+class UpdateModelMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    model: GenerativeModel
+
+
 class User(Node):
     model_config = ConfigDict(frozen=True)
     apiKeys: list[UserApiKey]
@@ -1474,6 +1702,7 @@ class User(Node):
     createdAt: str
     email: str
     id: str = Field(...)
+    isManagementUser: bool
     passwordNeedsReset: bool
     profilePictureUrl: Optional[str] = None
     role: UserRole
@@ -1603,7 +1832,7 @@ class ChatPromptVersionInput(BaseModel):
     invocationParameters: dict[str, Any]
     modelName: str
     modelProvider: Literal[
-        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
     ]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
@@ -1676,6 +1905,23 @@ class CreateDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
+    name: str
+
+
+class CreateModelMutationInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    costs: list[TokenPriceInput]
+    name: str
+    namePattern: str
+    provider: Optional[str] = None
+    startTime: Optional[str] = None
+
+
+class CreateProjectInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    description: Optional[str] = None
+    gradientEndColor: Optional[str] = None
+    gradientStartColor: Optional[str] = None
     name: str
 
 
@@ -1827,6 +2073,11 @@ class DeleteExperimentsInput(BaseModel):
     experimentIds: list[str]
 
 
+class DeleteModelMutationInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    id: str
+
+
 class DeleteProjectTraceRetentionPolicyInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: str
@@ -1890,8 +2141,9 @@ class GenerativeModelInput(BaseModel):
     endpoint: Optional[str] = None
     name: str
     providerKey: Literal[
-        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
     ]
+    region: Optional[str] = None
 
 
 class Granularity(BaseModel):
@@ -1942,7 +2194,7 @@ class ModelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     modelName: Optional[str] = None
     providerKey: Optional[
-        Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
     ] = None
 
 
@@ -2025,7 +2277,7 @@ class ProjectFilter(BaseModel):
 
 class ProjectSessionSort(BaseModel):
     model_config = ConfigDict(frozen=True)
-    col: Literal["endTime", "numTraces", "startTime", "tokenCountTotal"]
+    col: Literal["costTotal", "endTime", "numTraces", "startTime", "tokenCountTotal"]
     dir: Literal["asc", "desc"]
 
 
@@ -2061,6 +2313,12 @@ class ProjectTraceRetentionRuleMaxDaysOrCountInput(BaseModel):
 class PromptChatTemplateInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     messages: list[PromptMessageInput]
+
+
+class PromptFilter(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    col: Literal["name",]
+    value: str
 
 
 class PromptMessageInput(BaseModel):
@@ -2122,12 +2380,14 @@ class SpanSort(BaseModel):
     model_config = ConfigDict(frozen=True)
     col: Optional[
         Literal[
+            "cumulativeTokenCostTotal",
             "cumulativeTokenCountCompletion",
             "cumulativeTokenCountPrompt",
             "cumulativeTokenCountTotal",
             "endTime",
             "latencyMs",
             "startTime",
+            "tokenCostTotal",
             "tokenCountCompletion",
             "tokenCountPrompt",
             "tokenCountTotal",
@@ -2142,10 +2402,23 @@ class TextContentValueInput(BaseModel):
     text: str
 
 
+class TimeBinConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    scale: Literal["DAY", "HOUR", "MINUTE", "MONTH", "WEEK", "YEAR"] = Field(...)
+    utcOffsetMinutes: int = Field(...)
+
+
 class TimeRange(BaseModel):
     model_config = ConfigDict(frozen=True)
     end: Optional[str] = Field(default=None)
     start: Optional[str] = Field(default=None)
+
+
+class TokenPriceInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    costPerMillionTokens: float
+    kind: Literal["COMPLETION", "PROMPT"]
+    tokenType: str
 
 
 class ToolCallContentValueInput(BaseModel):
@@ -2188,3 +2461,13 @@ class UpdateAnnotationConfigInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: AnnotationConfigInput
     id: str
+
+
+class UpdateModelMutationInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    costs: list[TokenPriceInput]
+    id: str
+    name: str
+    namePattern: str
+    provider: Optional[str] = None
+    startTime: Optional[str] = None
