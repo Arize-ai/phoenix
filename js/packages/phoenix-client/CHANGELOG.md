@@ -1,5 +1,15 @@
 # @arizeai/phoenix-client
 
+## 3.0.0
+
+### Major Changes
+
+- 3e80a50: delete span method
+
+### Minor Changes
+
+- 8711bde: update major version of openai to ^5
+
 ## 2.4.0
 
 ### Minor Changes
