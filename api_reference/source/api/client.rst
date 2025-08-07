@@ -20,3 +20,7 @@ phoenix.Client
    :members:
    :special-members: __init__
    :exclude-members: DatasetUploadError
+
+.. autoclass:: session.client::Client
+   :members: get_spans_dataframe, get_evaluations, get_trace_dataset, query_spans, log_evaluations, log_traces, get_dataset, get_dataset_versions, upload_dataset, append_to_dataset, get_experiment, web_url
+   :noindex:
