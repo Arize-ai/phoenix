@@ -153,13 +153,13 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
         if supports_structured_output:
             try:
-                _generate_structured_output()
+                return _generate_structured_output()
             except Exception as e:
                 logger.warning(f"Structured output failed: {e}, falling back to tool calling")
 
         if supports_tool_calls:
             try:
-                _generate_tool_call_output()
+                return _generate_tool_call_output()
             except Exception as e:
                 logger.warning(f"Tool calling failed: {e}")
 
