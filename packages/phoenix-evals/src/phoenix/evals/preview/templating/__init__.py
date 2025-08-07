@@ -2,6 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from string import Formatter
+from textwrap import dedent
 from typing import Any, Dict, List, Optional
 
 import pystache  # type: ignore
@@ -186,4 +187,4 @@ class Template:
     def render(self, variables: Dict[str, Any]) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
-        return self._formatter.render(self.template, variables)
+        return dedent(self._formatter.render(self.template, variables))
