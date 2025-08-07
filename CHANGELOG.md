@@ -1,5 +1,19 @@
 # Changelog
 
+## [11.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.19.0...arize-phoenix-v11.20.0) (2025-08-07)
+
+
+### Features
+
+* **ui:** playground error message lists valid options ([#8959](https://github.com/Arize-ai/phoenix/issues/8959)) ([5aca01e](https://github.com/Arize-ai/phoenix/commit/5aca01ee005c66752098e59454bb83a67980b9bf))
+
+
+### Bug Fixes
+
+* **experiments:** ensure experiment compare selector can select all experiments for a dataset ([#8964](https://github.com/Arize-ai/phoenix/issues/8964)) ([5e0d17a](https://github.com/Arize-ai/phoenix/commit/5e0d17a3902cc5b9439a65f9ab197cfc233a63d0))
+* missing markdown block for text in multi-part messages ([#8923](https://github.com/Arize-ai/phoenix/issues/8923)) ([ba65884](https://github.com/Arize-ai/phoenix/commit/ba65884c722ddcf077fa448ee7eada0fd5912382))
+* system user should be allowed to modify or delete project ([#8956](https://github.com/Arize-ai/phoenix/issues/8956)) ([6d74286](https://github.com/Arize-ai/phoenix/commit/6d74286faa44bb0d381faa58064bb8ed1f29a661))
+
 ## [11.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.18.0...arize-phoenix-v11.19.0) (2025-08-05)
 
 
