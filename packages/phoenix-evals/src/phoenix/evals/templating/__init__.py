@@ -1,10 +1,15 @@
+import json
 import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from string import Formatter
 from typing import Any, Dict, List, Optional
 
+import opentelemetry.sdk.trace as trace_sdk
 import pystache  # type: ignore
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+
+from ..tracing import get_tracer
 
 
 class TemplateFormat(str, Enum):
@@ -183,7 +188,26 @@ class Template:
     def variables(self) -> List[str]:
         return self._variables
 
-    def render(self, variables: Dict[str, Any]) -> str:
+    def render(
+        self, variables: Dict[str, Any], tracer_provider: Optional[trace_sdk.TracerProvider] = None
+    ) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
-        return self._formatter.render(self.template, variables)
+
+        tracer = get_tracer(tracer_provider=tracer_provider)
+        with tracer.start_as_current_span("template_render") as span:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.CHAIN.value
+            )
+
+            # Set template semantic conventions
+            span.set_attribute(SpanAttributes.LLM_PROMPT_TEMPLATE, self.template)
+            span.set_attribute(SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES, json.dumps(variables))
+
+            # Render the template
+            result = self._formatter.render(self.template, variables)
+
+            # Set output
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
+
+            return result
