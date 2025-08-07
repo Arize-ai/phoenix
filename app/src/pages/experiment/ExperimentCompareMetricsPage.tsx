@@ -81,9 +81,7 @@ function MetricCard({
   return (
     <div css={metricCardCSS}>
       <Flex direction="column" gap="size-200">
-        <Heading level={2} weight="heavy">
-          {title}
-        </Heading>
+        <Heading level={2}>{title}</Heading>
         <BaseExperimentMetric
           value={baseExperimentValue}
           formatter={formatter}
