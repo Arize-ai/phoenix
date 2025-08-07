@@ -205,8 +205,8 @@ importers:
         specifier: ^4.1.47
         version: 4.3.16(react@19.1.0)(zod@3.25.28)
       openai:
-        specifier: ^4.86.1
-        version: 4.103.0(zod@3.25.28)
+        specifier: ^5.12.1
+        version: 5.12.1(zod@3.25.28)
 
   packages/phoenix-evals:
     dependencies:
@@ -2144,6 +2144,18 @@ packages:
   openai@4.47.1:
     resolution: {integrity: sha512-WWSxhC/69ZhYWxH/OBsLEirIjUcfpQ5+ihkXKp06hmeYXgBBIUCa9IptMzYx6NdkiOCsSGYCnTIsxaic3AjRCQ==}
     hasBin: true
+
+  openai@5.12.1:
+    resolution: {integrity: sha512-26s536j4Fi7P3iUma1S9H33WRrw0Qu8pJ2nYJHffrlKHPU0JK4d0r3NcMgqEcAeTdNLGYNyoFsqN4g4YE9vutg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   openapi-fetch@0.12.5:
     resolution: {integrity: sha512-FnAMWLt0MNL6ComcL4q/YbB1tUgyz5YnYtwA1+zlJ5xcucmK5RlWsgH1ynxmEeu8fGJkYjm8armU/HVpORc9lw==}
@@ -4926,6 +4938,11 @@ snapshots:
       web-streams-polyfill: 3.3.3
     transitivePeerDependencies:
       - encoding
+
+  openai@5.12.1(zod@3.25.28):
+    optionalDependencies:
+      zod: 3.25.28
+    optional: true
 
   openapi-fetch@0.12.5:
     dependencies:
