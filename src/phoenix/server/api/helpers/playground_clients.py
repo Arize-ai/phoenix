@@ -1786,6 +1786,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+                label="Tool Choice",
+            ),
         ]
 
     async def chat_completion_create(
@@ -1802,9 +1807,20 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             messages
         )
 
+        # Convert tools and tool_choice into Google SDK types
+        tool_config_param = invocation_parameters.pop("tool_choice", None)
+        tools_param = tools or []
+
+        tools_list = self._to_google_tools(tools_param)
+        tool_config = self._to_google_tool_config(tool_config_param)
+
         model_args = {"model_name": self.model_name}
         if system_prompt:
             model_args["system_instruction"] = system_prompt
+        if tools_list:
+            model_args["tools"] = tools_list
+        if tool_config is not None:
+            model_args["tool_config"] = tool_config
         client = google_genai.GenerativeModel(**model_args)
 
         google_config = google_genai.GenerationConfig(
@@ -1818,15 +1834,62 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
 
         chat = client.start_chat(history=google_message_history)
         stream = await chat.send_message_async(**google_params)
+
+        # Track partial function_call args by id to emit deltas
+        prev_args_by_id: dict[str, str] = {}
+
         async for event in stream:
-            self._attributes.update(
-                {
-                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                }
-            )
-            yield TextChunk(content=event.text)
+            # Update token usage if available
+            try:
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                    }
+                )
+            except Exception:
+                pass
+
+            # Emit any text
+            if getattr(event, "text", None):
+                yield TextChunk(content=event.text)
+
+            # Inspect candidates for function calls
+            candidates = getattr(event, "candidates", None)
+            if not candidates:
+                continue
+            try:
+                parts = candidates[0].content.parts  # type: ignore[attr-defined]
+            except Exception:
+                parts = None
+            if not parts:
+                continue
+            for part in parts:
+                fc = getattr(part, "function_call", None)
+                if not fc:
+                    continue
+                # Extract id, name, and args
+                fc_id = getattr(fc, "id", None) or getattr(fc, "name", "") or ""
+                name = getattr(fc, "name", "") or ""
+                args_obj = getattr(fc, "args", None)
+                try:
+                    args_str = safe_json_dumps(args_obj) if args_obj is not None else ""
+                except Exception:
+                    args_str = ""
+
+                # Compute delta for arguments if we've seen this id before
+                prev = prev_args_by_id.get(fc_id, "")
+                delta = args_str[len(prev) :] if args_str.startswith(prev) else args_str
+                prev_args_by_id[fc_id] = args_str
+
+                yield ToolCallChunk(
+                    id=fc_id,
+                    function=FunctionCallChunk(
+                        name=name,
+                        arguments=delta,
+                    ),
+                )
 
     def _build_google_messages(
         self,
@@ -1842,7 +1905,25 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                # Represent tool result as a function_response part from the user
+                # content is expected to be a JSON string payload from the tool
+                try:
+                    response_obj = json.loads(content) if content else {}
+                except Exception:
+                    response_obj = content or ""
+                google_message_history.append(
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "function_response": {
+                                    "name": _tool_call_id or (response_obj.get("name") if isinstance(response_obj, dict) else ""),
+                                    "response": response_obj,
+                                }
+                            }
+                        ],
+                    }
+                )
             else:
                 assert_never(role)
         if google_message_history:
@@ -1851,6 +1932,49 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             prompt = ""
 
         return google_message_history, prompt, "\n".join(system_prompts)
+
+    def _to_google_tools(self, tools: list[JSONScalarType]) -> list["content_types.Tool"]:
+        # Convert a list of function declarations or Tools into a list containing
+        # a single content_types.Tool with aggregated function_declarations.
+        try:
+            from google.generativeai.types import content_types
+        except Exception:
+            return []
+        function_declarations: list["content_types.FunctionDeclaration"] = []
+        for t in tools:
+            if isinstance(t, dict) and "function_declarations" in t:
+                # Already a Tool schema: merge function_declarations
+                for fd in t.get("function_declarations") or []:
+                    if isinstance(fd, dict):
+                        function_declarations.append(
+                            content_types.FunctionDeclaration(
+                                name=str(fd.get("name", "")),
+                                description=str(fd.get("description", "")) if isinstance(fd.get("description"), str) else "",
+                                parameters=dict(fd.get("parameters", {})) if isinstance(fd.get("parameters"), dict) else None,
+                            )
+                        )
+            elif isinstance(t, dict) and "name" in t:
+                function_declarations.append(
+                    content_types.FunctionDeclaration(
+                        name=str(t.get("name", "")),
+                        description=str(t.get("description", "")) if isinstance(t.get("description"), str) else "",
+                        parameters=dict(t.get("parameters", {})) if isinstance(t.get("parameters"), dict) else None,
+                    )
+                )
+        if not function_declarations:
+            return []
+        return [content_types.Tool(function_declarations=function_declarations)]
+
+    def _to_google_tool_config(self, tool_choice: Any) -> Optional["protos.ToolConfig"]:
+        if not tool_choice:
+            return None
+        try:
+            from phoenix.server.api.helpers.prompts.conversions.google import (
+                GoogleToolChoiceConversion,
+            )
+            return GoogleToolChoiceConversion.from_google(tool_choice)[0]  # type: ignore[index]
+        except Exception:
+            return None
 
 
 def initialize_playground_clients() -> None:
