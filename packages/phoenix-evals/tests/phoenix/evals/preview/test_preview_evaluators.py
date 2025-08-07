@@ -425,24 +425,26 @@ class TestEvaluator:
         assert result[0].name == "test_evaluator"
 
     @pytest.mark.parametrize(
-        "eval_input,expected_raises",
+        "eval_input,required_fields,expected_raises",
         [
             pytest.param(
                 {"input": "test"},
+                {"input", "output"},
                 pytest.raises(ValueError, match="Missing required field"),
                 id="Missing required field raises ValueError",
             ),
             pytest.param(
                 {"input": ""},
+                {"input"},
                 pytest.raises(ValueError, match="cannot be empty"),
                 id="Empty required field raises ValueError",
             ),
         ],
     )
-    def test_evaluator_evaluate_error_handling(self, eval_input, expected_raises):
+    def test_evaluator_evaluate_error_handling(self, eval_input, required_fields, expected_raises):
         """Test that evaluation errors raise ValueError for validation issues."""
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input", "output"}
+            name="test_evaluator", source="llm", required_fields=required_fields
         )
 
         with expected_raises:
