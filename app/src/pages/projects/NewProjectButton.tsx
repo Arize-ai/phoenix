@@ -84,7 +84,7 @@ function NewProjectDialog() {
           <TabList>
             <Tab id="python">Python</Tab>
             <Tab id="typescript">TypeScript</Tab>
-            <Tab id="manual">No Tracing</Tab>
+            <Tab id="manual">Without Tracing</Tab>
           </TabList>
           <TabPanel id="python">
             <View padding="size-200" overflow="auto">
