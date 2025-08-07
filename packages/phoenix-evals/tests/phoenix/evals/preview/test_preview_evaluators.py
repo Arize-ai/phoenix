@@ -26,8 +26,10 @@ class MockLLM(LLM):
     """Mock LLM for testing that uses a valid provider."""
 
     def __init__(self, model: str = "test-model"):
-        # Use a valid provider that should be available
-        super().__init__(provider="openai", model=model)
+        # Mock the LLM without calling parent constructor to avoid API key issues
+        self.provider = "openai"
+        self.model = model
+        self._is_async = False
 
     def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
         return {"label": "good", "explanation": "This is a good result"}
@@ -37,8 +39,10 @@ class MockAsyncLLM(AsyncLLM):
     """Mock AsyncLLM for testing that uses a valid provider."""
 
     def __init__(self, model: str = "test-model"):
-        # Use a valid provider that should be available
-        super().__init__(provider="openai", model=model)
+        # Mock the AsyncLLM without calling parent constructor to avoid API key issues
+        self.provider = "openai"
+        self.model = model
+        self._is_async = True
 
     async def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
         return {"label": "good", "explanation": "This is a good result"}
