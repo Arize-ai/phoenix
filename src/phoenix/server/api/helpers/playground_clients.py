@@ -1786,7 +1786,65 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
         ]
+
+    def _convert_tools_for_gemini(self, tools: list[JSONScalarType]) -> list[dict[str, Any]]:
+        """
+        Convert OpenAI-style tools to Gemini Tool format.
+        Expected OpenAI-style tool: {"type": "function", "function": {"name": ..., "description": ..., "parameters": {...}}}
+        Gemini expects: [{"function_declarations": [{"name": ..., "description": ..., "parameters": {...}}, ...]}]
+        If input already appears Gemini-shaped, pass through.
+        """
+        if not tools:
+            return []
+        # Already Gemini-shaped
+        if isinstance(tools, list) and tools and isinstance(tools[0], dict) and (
+            "function_declarations" in tools[0] or "functionDeclarations" in tools[0]
+        ):
+            return tools  # type: ignore[return-value]
+
+        fns: list[dict[str, Any]] = []
+        for t in tools:
+            try:
+                if t.get("type") == "function" and isinstance(t.get("function"), dict):
+                    fn = t["function"]
+                    fns.append(
+                        {
+                            "name": fn.get("name", ""),
+                            "description": fn.get("description", ""),
+                            "parameters": fn.get("parameters", {}),
+                        }
+                    )
+            except Exception:
+                continue
+        return [{"function_declarations": fns}] if fns else []
+
+    def _convert_tool_choice_for_gemini(self, tool_choice: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        """
+        Map Phoenix/OpenAI-style tool_choice into Gemini ToolConfig.function_calling_config.
+        Supported types: none|auto|any|tool (specific function name)
+        """
+        if not tool_choice or not isinstance(tool_choice, dict):
+            return None
+        t = tool_choice.get("type")
+        if t == "none":
+            return {"function_calling_config": {"mode": "NONE"}}
+        if t == "auto" or t == "zero_or_more":
+            return {"function_calling_config": {"mode": "AUTO"}}
+        if t == "any" or t == "one_or_more":
+            return {"function_calling_config": {"mode": "ANY"}}
+        # Specific function
+        name = tool_choice.get("name") or tool_choice.get("function", {}).get("name")
+        if name:
+            return {
+                "function_calling_config": {"mode": "ANY", "allowed_function_names": [name]}
+            }
+        return None
 
     async def chat_completion_create(
         self,
@@ -1798,59 +1856,166 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import google.generativeai as google_genai
 
+        # Build message history and current user prompt, with tool-call/thread awareness
         google_message_history, current_message, system_prompt = self._build_google_messages(
             messages
         )
 
-        model_args = {"model_name": self.model_name}
+        # Convert OpenAI-style tools to Gemini Tool(function_declarations) schema if needed
+        converted_tools = self._convert_tools_for_gemini(tools or [])
+
+        model_args: dict[str, Any] = {"model_name": self.model_name}
         if system_prompt:
             model_args["system_instruction"] = system_prompt
+        if converted_tools:
+            model_args["tools"] = converted_tools
         client = google_genai.GenerativeModel(**model_args)
+
+        # Map tool_choice -> Gemini ToolConfig if provided
+        tool_config = self._convert_tool_choice_for_gemini(invocation_parameters.pop("tool_choice", None))
 
         google_config = google_genai.GenerationConfig(
             **invocation_parameters,
         )
-        google_params = {
+        google_params: dict[str, Any] = {
             "content": current_message,
             "generation_config": google_config,
             "stream": True,
         }
+        if tool_config is not None:
+            google_params["tool_config"] = tool_config
 
         chat = client.start_chat(history=google_message_history)
         stream = await chat.send_message_async(**google_params)
         async for event in stream:
-            self._attributes.update(
-                {
-                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                }
-            )
-            yield TextChunk(content=event.text)
+            # Token usage (when available)
+            if getattr(event, "usage_metadata", None):
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: getattr(event.usage_metadata, "prompt_token_count", 0) or 0,
+                        LLM_TOKEN_COUNT_COMPLETION: getattr(event.usage_metadata, "candidates_token_count", 0) or 0,
+                        LLM_TOKEN_COUNT_TOTAL: getattr(event.usage_metadata, "total_token_count", 0) or 0,
+                    }
+                )
+
+            # Text delta
+            if getattr(event, "text", None):
+                yield TextChunk(content=event.text)
+                continue
+
+            # Function call parts in streamed candidates
+            candidates = getattr(event, "candidates", None)
+            if candidates:
+                try:
+                    content = candidates[0].content
+                    parts = getattr(content, "parts", [])
+                    for part in parts:
+                        fn_call = getattr(part, "function_call", None) or getattr(part, "functionCall", None)
+                        if fn_call is not None:
+                            name = getattr(fn_call, "name", "")
+                            args = getattr(fn_call, "args", {}) or {}
+                            call_id = getattr(fn_call, "id", None) or name or "tool_call"
+                            yield ToolCallChunk(
+                                id=str(call_id),
+                                function=FunctionCallChunk(
+                                    name=name or "",
+                                    arguments=safe_json_dumps(args) if not isinstance(args, str) else args,
+                                ),
+                            )
+                except Exception:
+                    # Be permissive: ignore unexpected candidate structures
+                    pass
 
     def _build_google_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]],
     ) -> tuple[list["ContentType"], str, str]:
+        """
+        Convert Phoenix messages into google.generativeai Content history, tracking tool calls.
+        - Assistant (AI) messages with tool_calls become model role with functionCall parts
+        - Tool messages become user role with functionResponse parts
+        - System messages collected into a single system_instruction string
+        Returns: (history_without_current_user, current_user_text, system_instruction)
+        """
+        from google.generativeai.types import ContentType  # type: ignore
+
         google_message_history: list["ContentType"] = []
-        system_prompts = []
-        for role, content, _tool_call_id, _tool_calls in messages:
-            if role == ChatCompletionMessageRole.USER:
-                google_message_history.append({"role": "user", "parts": content})
-            elif role == ChatCompletionMessageRole.AI:
-                google_message_history.append({"role": "model", "parts": content})
-            elif role == ChatCompletionMessageRole.SYSTEM:
+        system_prompts: list[str] = []
+
+        # Build a map from tool_call_id -> function name from prior assistant messages
+        tool_id_to_name: dict[str, str] = {}
+        for role, _content, _tool_call_id, tool_calls in messages:
+            if role == ChatCompletionMessageRole.AI and tool_calls:
+                for tc in tool_calls:
+                    try:
+                        tc_id = tc.get("id") or ""
+                        fn = tc.get("function", {})
+                        fn_name = fn.get("name", "")
+                        if tc_id and fn_name:
+                            tool_id_to_name[tc_id] = fn_name
+                    except Exception:
+                        continue
+
+        # Now transform into Gemini message history
+        temp_history: list[dict[str, Any]] = []
+        for role, content, tool_call_id, tool_calls in messages:
+            if role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
+            elif role == ChatCompletionMessageRole.USER:
+                temp_history.append({"role": "user", "parts": [content] if content else []})
+            elif role == ChatCompletionMessageRole.AI:
+                parts: list[Any] = []
+                if content:
+                    parts.append({"text": content})
+                if tool_calls:
+                    for tc in tool_calls:
+                        try:
+                            fn = tc.get("function", {})
+                            fn_name = fn.get("name", "")
+                            raw_args = fn.get("arguments", {})
+                            args_obj = raw_args
+                            if isinstance(raw_args, str):
+                                try:
+                                    args_obj = json.loads(raw_args)
+                                except Exception:
+                                    args_obj = raw_args
+                            part = {"functionCall": {"name": fn_name, "args": args_obj}}
+                            if tc.get("id"):
+                                part["functionCall"]["id"] = tc["id"]
+                            parts.append(part)
+                        except Exception:
+                            continue
+                temp_history.append({"role": "model", "parts": parts or ([content] if content else [])})
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                # Tool response should be provided back as functionResponse
+                fn_name = tool_id_to_name.get(tool_call_id or "", "")
+                try:
+                    resp_obj = json.loads(content) if content else {}
+                except Exception:
+                    resp_obj = content or {}
+                fr_part = {"functionResponse": {"name": fn_name, "response": resp_obj}}
+                temp_history.append({"role": "user", "parts": [fr_part]})
             else:
                 assert_never(role)
-        if google_message_history:
-            prompt = google_message_history.pop()["parts"]
-        else:
-            prompt = ""
 
-        return google_message_history, prompt, "\n".join(system_prompts)
+        # The last user message is the current message; prior are history
+        if temp_history:
+            # Find last user turn; if last is not user, create empty user prompt
+            last_user_index = max((i for i, m in enumerate(temp_history) if m.get("role") == "user"), default=len(temp_history) - 1)
+            history = temp_history[:last_user_index]
+            current_user_parts = temp_history[last_user_index].get("parts") or []
+            # Collapse simple user text parts
+            if current_user_parts and isinstance(current_user_parts[0], dict) and "text" in current_user_parts[0]:
+                current_text = current_user_parts[0]["text"]
+            elif current_user_parts and isinstance(current_user_parts[0], str):
+                current_text = current_user_parts[0]
+            else:
+                # If the last user turn was a functionResponse, there may be no fresh user prompt
+                current_text = ""
+        else:
+            history, current_text = [], ""
+
+        return history, current_text, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
