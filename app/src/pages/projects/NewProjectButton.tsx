@@ -84,7 +84,7 @@ function NewProjectDialog() {
           <TabList>
             <Tab id="python">Python</Tab>
             <Tab id="typescript">TypeScript</Tab>
-            <Tab id="manual">Manual</Tab>
+            <Tab id="manual">No Tracing</Tab>
           </TabList>
           <TabPanel id="python">
             <View padding="size-200" overflow="auto">
@@ -100,6 +100,7 @@ function NewProjectDialog() {
           </TabPanel>
           <TabPanel id="manual">
             <View padding="size-200" overflow="auto">
+              <Text>Create a project without setting up tracing. You can add traces later.</Text>
               <ManualProjectGuide />
             </View>
           </TabPanel>
