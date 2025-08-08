@@ -414,7 +414,7 @@ class Query:
                 )
             ).first()
             if base_experiment is None:
-                raise NotFound(f"Could not find experiment with ID {base_experiment_rowid}")
+                raise NotFound(f"Could not find experiment with ID {base_experiment_id}")
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
