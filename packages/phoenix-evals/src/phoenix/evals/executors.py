@@ -24,6 +24,7 @@ from typing import (
 from tqdm.auto import tqdm  # pyright: ignore[reportMissingTypeStubs]
 
 from phoenix.evals.exceptions import PhoenixException
+from phoenix.evals.models.rate_limiters import RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +73,12 @@ class ConcurrencyController:
     """
     AIMD (Additive Increase/Multiplicative Decrease) controller for target concurrency.
 
-    Per window: if no timeout/retryable error, increase target by +a (increase_step);
-    otherwise decrease concurrency by a factor of β, clamped to [1, max_concurrency].
+    Per window: if no error, increase target by +a (increase_step); otherwise decrease concurrency
+    by a factor of β, clamped to [1, max_concurrency].
 
     Steady-state guide for choosing feedback constants:
       concurrency ~= a * (1 - r_e) / ((1 - β) * r_e)
-    where r_e is the fraction of windows that observe at least one timeout/retryable error.
+    where r_e is the fraction of windows that observe at least one error.
     To tend toward a single active worker when errors are frequent, select (a, β) so that
       concurrency <= 1 when r_e >= a / (a + 1 - β).
     Example: a=1, β=0.5 ⇒ threshold r_e >= 2/3.
@@ -104,7 +105,7 @@ class ConcurrencyController:
         self._window_started_at = time.time()
         self._success_count = 0
         self._timeout_count = 0
-        self._retryable_error_count = 0
+        self._error_count = 0
         self._smoothed_latency_seconds: Optional[float] = None
 
         self.inactive_check_interval = max(0.1, float(inactive_check_interval))
@@ -119,7 +120,7 @@ class ConcurrencyController:
 
     def _update_concurrency_target(self) -> None:
         now = time.time()
-        had_issue = (self._timeout_count + self._retryable_error_count) > 0
+        had_issue = (self._timeout_count + self._error_count) > 0
         if had_issue:
             new_target = max(1, int(self._current_target * self._decrease_ratio))
             self._current_target = max(1, min(self._max_concurrency, new_target))
@@ -130,7 +131,7 @@ class ConcurrencyController:
         self._window_started_at = now
         self._success_count = 0
         self._timeout_count = 0
-        self._retryable_error_count = 0
+        self._error_count = 0
 
     def record_success(self, latency_seconds: float) -> None:
         self._success_count += 1
@@ -148,8 +149,8 @@ class ConcurrencyController:
         if self._feedback_window_finished():
             self._update_concurrency_target()
 
-    def record_retryable_error(self) -> None:
-        self._retryable_error_count += 1
+    def record_error(self) -> None:
+        self._error_count += 1
         if self._feedback_window_finished():
             self._update_concurrency_target()
 
@@ -321,15 +322,23 @@ class AsyncExecutor(Executor):
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
                 details.log_runtime(task_start_time)
-                is_phoenix_exception = isinstance(exc, PhoenixException)
-                if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
-                    tqdm.write(
-                        f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
-                    )
-                    tqdm.write("Requeuing...")
-                    await queue.put((priority - 1, item))
-                    if self._concurrency_controller is not None:
-                        self._concurrency_controller.record_retryable_error()
+                is_rate_limit_error = isinstance(exc, RateLimitError)
+                is_phoenix_exception = isinstance(exc, PhoenixException) and not is_rate_limit_error
+                bypass_retries = is_phoenix_exception and not is_rate_limit_error
+                if (retry_count := abs(priority)) < self.max_retries and not bypass_retries:
+                    if is_rate_limit_error:
+                        tqdm.write(
+                            f"Rate limit throttle on attempt {retry_count + 1}: raised {repr(exc)}"
+                        )
+                        tqdm.write("Requeuing...")
+                        if self._concurrency_controller is not None:
+                            self._concurrency_controller.record_error()
+                    else:
+                        tqdm.write(
+                            f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
+                        )
+                        tqdm.write("Requeuing...")
+                        await queue.put((priority - 1, item))
                 else:
                     details = cast(ExecutionDetails, execution_details[index])
                     details.fail()
