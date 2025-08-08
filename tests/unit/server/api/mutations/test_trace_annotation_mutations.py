@@ -194,6 +194,21 @@ class TestTraceAnnotationMutations:
         )
         assert not res3.errors, f"CreateTraceAnnotations (no identifier) errors: {res3.errors}"
         ann3 = res3.data["createTraceAnnotations"]["traceAnnotations"][0]
+        assert ann3["name"] == base_no_id["name"], (
+            f"Create (no identifier) name mismatch. expected={base_no_id['name']} actual={ann3['name']}"
+        )
+        assert ann3["label"] == base_no_id["label"], (
+            f"Create (no identifier) label mismatch. expected={base_no_id['label']} actual={ann3['label']}"
+        )
+        assert ann3["score"] == base_no_id["score"], (
+            f"Create (no identifier) score mismatch. expected={base_no_id['score']} actual={ann3['score']}"
+        )
+        assert ann3["explanation"] == base_no_id["explanation"], (
+            f"Create (no identifier) explanation mismatch. expected={base_no_id['explanation']} actual={ann3['explanation']}"
+        )
+        assert ann3["identifier"] == "", (
+            f"Create (no identifier) expected empty identifier, actual={ann3['identifier']}"
+        )
 
         updated_no_id = {
             **base_no_id,
