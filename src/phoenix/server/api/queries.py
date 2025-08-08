@@ -7,7 +7,7 @@ from typing import cast as type_cast
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, distinct, func, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
 from sqlalchemy.orm import aliased, joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -375,40 +375,40 @@ class Query:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
             raise BadRequest("Compare experiment IDs must be unique")
-        experiment_ids = [
-            from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
-            for experiment_id in (base_experiment_id, *compare_experiment_ids)
-        ]
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        experiment_rowids = [base_experiment_rowid, *compare_experiment_rowids]
+
         cursor = Cursor.from_string(after) if after else None
         page_size = first or 50
 
         async with info.context.db() as session:
-            validation_result = (
-                await session.execute(
-                    select(
-                        func.count(distinct(models.DatasetVersion.dataset_id)),
-                        func.max(models.DatasetVersion.dataset_id),
-                        func.max(models.DatasetVersion.id),
-                        func.count(models.Experiment.id),
-                    )
-                    .select_from(models.DatasetVersion)
-                    .join(
-                        models.Experiment,
-                        models.Experiment.dataset_version_id == models.DatasetVersion.id,
-                    )
-                    .where(
-                        models.Experiment.id.in_(experiment_ids),
-                    )
-                )
-            ).first()
-            if validation_result is None:
-                raise NotFound("No experiments could be found for input IDs.")
-
-            num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
-            if num_datasets != 1:
-                raise BadRequest("Experiments must belong to the same dataset.")
-            if num_resolved_experiment_ids != len(experiment_ids):
-                raise NotFound("Unable to resolve one or more experiment IDs.")
+            result = await session.execute(
+                select(
+                    models.Experiment.dataset_id,
+                    models.Experiment.dataset_version_id,
+                ).where(models.Experiment.id == base_experiment_rowid)
+            )
+            if result is None:
+                raise NotFound(f"Could not find experiment with ID {base_experiment_rowid}")
+            base_experiment_dataset_id, base_experiment_dataset_version_id = result.first()
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -418,8 +418,9 @@ class Query:
                 )
                 .where(
                     and_(
-                        models.DatasetExampleRevision.dataset_version_id <= version_id,
-                        models.DatasetExample.dataset_id == dataset_id,
+                        models.DatasetExampleRevision.dataset_version_id
+                        <= base_experiment_dataset_version_id,
+                        models.DatasetExample.dataset_id == base_experiment_dataset_id,
                     )
                 )
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
@@ -447,7 +448,7 @@ class Query:
                 examples_query = update_examples_query_with_filter_condition(
                     query=examples_query,
                     filter_condition=filter_condition,
-                    experiment_ids=experiment_ids,
+                    experiment_ids=experiment_rowids,
                 )
 
             examples = (await session.scalars(examples_query)).all()
@@ -466,7 +467,7 @@ class Query:
                         models.ExperimentRun.dataset_example_id.in_(
                             example.id for example in examples
                         ),
-                        models.ExperimentRun.experiment_id.in_(experiment_ids),
+                        models.ExperimentRun.experiment_id.in_(experiment_rowids),
                     )
                 )
                 .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
@@ -479,7 +480,7 @@ class Query:
         cursors_and_nodes = []
         for example in examples:
             run_comparison_items = []
-            for experiment_id in experiment_ids:
+            for experiment_id in experiment_rowids:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
@@ -496,7 +497,7 @@ class Query:
                 example=DatasetExample(
                     id_attr=example.id,
                     created_at=example.created_at,
-                    version_id=version_id,
+                    version_id=base_experiment_dataset_version_id,
                 ),
                 run_comparison_items=run_comparison_items,
             )
