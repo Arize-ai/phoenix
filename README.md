@@ -79,8 +79,6 @@ The `arize-phoenix` package includes the entire Phoenix platfom. However if you 
 
 Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
-For OpenTelemetry setup with Phoenix using Envoy AI Gateway, see the [integration guide](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix).
-
 **Python Integrations**
 | Integration | Package | Version Badge |
 |------------------|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
@@ -132,6 +130,7 @@ For OpenTelemetry setup with Phoenix using Envoy AI Gateway, see the [integratio
 | [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                     |
 | [BeeAI](https://docs.beeai.dev/observability/agents-traceability)                                        | AI agent framework with built-in observability                 | [Integration Guide](https://docs.beeai.dev/observability/agents-traceability)                                 |
 | [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)  |
+| [Envoy AI Gateway](https://github.com/envoyproxy/ai-gateway)                                              | AI Gateway built on Envoy Proxy for AI workloads              | [OpenTelemetry Setup Guide](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix) |
 
 ## Community
 
