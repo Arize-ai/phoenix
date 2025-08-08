@@ -106,7 +106,6 @@ class ConcurrencyController:
         self._timeout_count = 0
         self._retryable_error_count = 0
         self._smoothed_latency_seconds: Optional[float] = None
-        self._lock = asyncio.Lock()
 
         self.inactive_check_interval = max(0.1, float(inactive_check_interval))
 
@@ -118,7 +117,7 @@ class ConcurrencyController:
         now = time.time()
         return (now - self._window_started_at) >= self._window_seconds
 
-    async def _update_concurrency_target(self) -> None:
+    def _update_concurrency_target(self) -> None:
         now = time.time()
         had_issue = (self._timeout_count + self._retryable_error_count) > 0
         if had_issue:
@@ -134,38 +133,25 @@ class ConcurrencyController:
         self._retryable_error_count = 0
 
     def record_success(self, latency_seconds: float) -> None:
-        # Fire-and-forget scheduling to avoid blocking the hot path
-        asyncio.create_task(self._record_success_async(latency_seconds))
-
-    async def _record_success_async(self, latency_seconds: float) -> None:
-        async with self._lock:
-            self._success_count += 1
-            if self._smoothed_latency_seconds is None:
-                self._smoothed_latency_seconds = float(latency_seconds)
-            else:
-                self._smoothed_latency_seconds = (
-                    1 - self._smoothing_factor
-                ) * self._smoothed_latency_seconds + self._smoothing_factor * float(latency_seconds)
-            if self._feedback_window_finished():
-                await self._update_concurrency_target()
+        self._success_count += 1
+        if self._smoothed_latency_seconds is None:
+            self._smoothed_latency_seconds = float(latency_seconds)
+        else:
+            self._smoothed_latency_seconds = (
+                1 - self._smoothing_factor
+            ) * self._smoothed_latency_seconds + self._smoothing_factor * float(latency_seconds)
+        if self._feedback_window_finished():
+            self._update_concurrency_target()
 
     def record_timeout(self) -> None:
-        asyncio.create_task(self._record_timeout_async())
-
-    async def _record_timeout_async(self) -> None:
-        async with self._lock:
-            self._timeout_count += 1
-            if self._feedback_window_finished():
-                await self._update_concurrency_target()
+        self._timeout_count += 1
+        if self._feedback_window_finished():
+            self._update_concurrency_target()
 
     def record_retryable_error(self) -> None:
-        asyncio.create_task(self._record_retryable_error_async())
-
-    async def _record_retryable_error_async(self) -> None:
-        async with self._lock:
-            self._retryable_error_count += 1
-            if self._feedback_window_finished():
-                await self._update_concurrency_target()
+        self._retryable_error_count += 1
+        if self._feedback_window_finished():
+            self._update_concurrency_target()
 
 
 class AsyncExecutor(Executor):
