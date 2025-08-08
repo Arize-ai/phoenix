@@ -217,7 +217,7 @@ class RateLimiter:
             raise RateLimitError(
                 f"Exceeded max ({self._max_rate_limit_retries}) retries",
                 current_rate_tokens_per_sec=self._throttler.rate,
-                initial_rate_tokens_per_sec=self._throttler._initial_rate,  # type: ignore[attr-defined]
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
                 enforcement_window_seconds=self._throttler.enforcement_window,
             )
 
@@ -275,7 +275,7 @@ class RateLimiter:
             raise RateLimitError(
                 f"Exceeded max ({self._max_rate_limit_retries}) retries",
                 current_rate_tokens_per_sec=self._throttler.rate,
-                initial_rate_tokens_per_sec=self._throttler._initial_rate,  # type: ignore[attr-defined]
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
                 enforcement_window_seconds=self._throttler.enforcement_window,
             )
 
