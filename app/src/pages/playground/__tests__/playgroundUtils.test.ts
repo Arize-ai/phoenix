@@ -27,6 +27,7 @@ import {
   areInvocationParamsEqual,
   areRequiredInvocationParametersConfigured,
   extractVariablesFromInstances,
+  getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
   getChatRole,
   getModelInvocationParametersFromAttributes,
@@ -967,7 +968,6 @@ describe("getModelConfigFromAttributes", () => {
         invocationParameters: [],
         supportedInvocationParameters: [],
         baseUrl: "https://api.openai.com/v1/chat/completions",
-        endpoint: "https://api.openai.com",
       },
       parsingErrors: [],
     });
@@ -998,14 +998,12 @@ describe("getModelConfigFromAttributes", () => {
         invocationParameters: [],
         supportedInvocationParameters: [],
         baseUrl: "https://api.openai.com/v1/",
-        endpoint: "https://api.openai.com",
-        apiVersion: "2020-05-03",
       },
       parsingErrors: [],
     });
   });
 
-  it("should return apiVersion if url.full contains api-version in params", () => {
+  it("should not set apiVersion for non-Azure providers even if url contains api-version", () => {
     const parsedAttributes = {
       llm: {
         model_name: "gpt-3.5-turbo",
@@ -1029,8 +1027,6 @@ describe("getModelConfigFromAttributes", () => {
         invocationParameters: [],
         supportedInvocationParameters: [],
         baseUrl: "https://api.openai.com/v1/chat/completions",
-        endpoint: "https://api.openai.com",
-        apiVersion: "2020-05-03",
       },
       parsingErrors: [],
     });
@@ -1651,5 +1647,128 @@ describe("normalizeMessageContent", () => {
   it("should handle double quoted strings", () => {
     const content = `"\\"Hello, world!\\""`;
     expect(normalizeMessageContent(content)).toBe(`"Hello, world!"`);
+  });
+});
+
+describe("getAzureConfigFromAttributes", () => {
+  it("returns values from URL when only URL is present (URL precedence)", () => {
+    const attrs = {
+      url: {
+        full: "https://example.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-10-01-preview",
+      },
+    };
+
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "gpt-4o-mini",
+      apiVersion: "2024-10-01-preview",
+      endpoint: "https://example.openai.azure.com",
+    });
+  });
+
+  it("falls back to metadata.ls_model_name when URL is absent", () => {
+    const attrs = {
+      metadata: {
+        ls_model_name: "my-azure-deployment",
+      },
+    };
+
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "my-azure-deployment",
+      apiVersion: null,
+      endpoint: null,
+    });
+  });
+
+  it("prefers URL deployment name over metadata when both are present", () => {
+    const attrs = {
+      url: {
+        full: "https://example.openai.azure.com/openai/deployments/url-deploy/chat/completions?api-version=2024-06-01",
+      },
+      metadata: {
+        ls_model_name: "meta-deploy",
+      },
+    };
+
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "url-deploy",
+      apiVersion: "2024-06-01",
+      endpoint: "https://example.openai.azure.com",
+    });
+  });
+
+  it("returns nulls when neither URL nor metadata are present", () => {
+    const attrs = {};
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: null,
+      apiVersion: null,
+      endpoint: null,
+    });
+  });
+
+  it("handles malformed URL by falling back to metadata", () => {
+    const attrs = {
+      url: {
+        full: "not a valid url",
+      },
+      metadata: {
+        ls_model_name: "meta-deploy",
+      },
+    };
+
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "meta-deploy",
+      apiVersion: null,
+      endpoint: null,
+    });
+  });
+
+  it("parses deployment when URL path ends with trailing slash", () => {
+    const attrs = {
+      url: {
+        full: "https://example.openai.azure.com/openai/deployments/url-deploy/",
+      },
+    };
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "url-deploy",
+      apiVersion: null,
+      endpoint: "https://example.openai.azure.com",
+    });
+  });
+
+  it("does not override metadata when URL has no deployments segment", () => {
+    const attrs = {
+      url: {
+        full: "https://example.openai.azure.com/openai/chat/completions",
+      },
+      metadata: {
+        ls_model_name: "meta-deploy",
+      },
+    };
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "meta-deploy",
+      apiVersion: null,
+      endpoint: "https://example.openai.azure.com",
+    });
+  });
+
+  it("trims ls_model_name from metadata", () => {
+    const attrs = {
+      metadata: {
+        ls_model_name: "  meta-deploy  ",
+      },
+    };
+    const result = getAzureConfigFromAttributes(attrs);
+    expect(result).toEqual({
+      deploymentName: "meta-deploy",
+      apiVersion: null,
+      endpoint: null,
+    });
   });
 });
