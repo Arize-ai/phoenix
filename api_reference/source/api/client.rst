@@ -14,6 +14,10 @@ phoenix.client.Client
    :members:
    :special-members: __init__
 
+.. autoclass:: client.client::Client
+   :members: get_spans_dataframe, get_evaluations, get_trace_dataset
+   :noindex:
+
 phoenix.Client
 --------------
 .. automodule:: session.client
@@ -21,6 +25,3 @@ phoenix.Client
    :special-members: __init__
    :exclude-members: DatasetUploadError
 
-.. autoclass:: session.client::Client
-   :members: get_spans_dataframe, get_evaluations, get_trace_dataset
-   :noindex:
