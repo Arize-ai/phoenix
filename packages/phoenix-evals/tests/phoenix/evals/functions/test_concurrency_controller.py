@@ -1,0 +1,124 @@
+import asyncio
+from typing import Final
+
+import pytest
+
+from phoenix.evals.executors import ConcurrencyController
+
+
+@pytest.mark.asyncio
+async def test_aimd_increase_on_clean_window() -> None:
+    max_c: Final[int] = 5
+    controller = ConcurrencyController(
+        max_concurrency=max_c,
+        initial_target=1,
+        window_seconds=0.1,
+        increase_step=1,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+    )
+
+    controller.record_success(0.01)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+
+    await asyncio.sleep(0.12)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+
+    assert controller.current_target == 2
+
+
+@pytest.mark.asyncio
+async def test_aimd_decrease_on_error_window() -> None:
+    controller = ConcurrencyController(
+        max_concurrency=10,
+        initial_target=4,
+        window_seconds=0.1,
+        increase_step=1,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+    )
+
+    controller.record_timeout()
+    await asyncio.sleep(0.02)
+
+    await asyncio.sleep(0.12)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+
+    assert controller.current_target == 2
+
+
+@pytest.mark.asyncio
+async def test_aimd_caps_at_max_concurrency() -> None:
+    controller = ConcurrencyController(
+        max_concurrency=3,
+        initial_target=2,
+        window_seconds=0.05,
+        increase_step=2,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+    )
+
+    controller.record_success(0.01)
+    await asyncio.sleep(0.06)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+
+    assert controller.current_target == 3
+
+
+@pytest.mark.asyncio
+async def test_aimd_no_change_before_window_end() -> None:
+    controller = ConcurrencyController(
+        max_concurrency=10,
+        initial_target=3,
+        window_seconds=0.5,
+        increase_step=2,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+    )
+
+    controller.record_success(0.01)
+    await asyncio.sleep(0.1)
+    # Still within the window; target should not change yet
+    assert controller.current_target == 3
+
+    # Now let the window end and trigger an update
+    await asyncio.sleep(0.45)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+    assert controller.current_target == 5
+
+
+@pytest.mark.asyncio
+async def test_aimd_multiple_error_windows_floor_at_one() -> None:
+    controller = ConcurrencyController(
+        max_concurrency=10,
+        initial_target=3,
+        window_seconds=0.05,
+        increase_step=1,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+    )
+
+    # First error window
+    controller.record_error()
+    await asyncio.sleep(0.06)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+    # 3 -> floor(3*0.5)=1
+    assert controller.current_target == 1
+
+    # Next error window should keep it at 1
+    controller.record_error()
+    await asyncio.sleep(0.06)
+    controller.record_success(0.02)
+    await asyncio.sleep(0.02)
+    assert controller.current_target == 1

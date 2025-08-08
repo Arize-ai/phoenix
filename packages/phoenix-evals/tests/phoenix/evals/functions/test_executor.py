@@ -565,3 +565,101 @@ def test_executor_factory_returns_async_not_in_thread_if_async_context():
 
     if not exception_log.empty():
         raise exception_log.get()
+
+
+# Executor-level concurrency integration tests
+
+
+class MockController:
+    def __init__(self, *, current_target: int, inactive_check_interval: float = 0.01) -> None:
+        self._current_target = current_target
+        self._inactive_check_interval = inactive_check_interval
+
+    @property
+    def current_target(self) -> int:
+        return self._current_target
+
+    @current_target.setter
+    def current_target(self, value: int) -> None:  # type: ignore[no-redef]
+        self._current_target = value
+
+    @property
+    def inactive_check_interval(self) -> float:
+        return self._inactive_check_interval
+
+    def record_success(self, latency_seconds: float) -> None:  # noqa: ARG002
+        pass
+
+    def record_timeout(self) -> None:
+        pass
+
+    def record_error(self) -> None:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_executor_respects_reduced_target() -> None:
+    inflight: int = 0
+    max_inflight: int = 0
+    lock = asyncio.Lock()
+
+    async def generate(x: int) -> int:
+        nonlocal inflight, max_inflight
+        async with lock:
+            inflight += 1
+            if inflight > max_inflight:
+                max_inflight = inflight
+        await asyncio.sleep(0.05)
+        async with lock:
+            inflight -= 1
+        return x
+
+    executor = AsyncExecutor(
+        generate, concurrency=4, max_retries=0, timeout=2, enable_dynamic_concurrency=True
+    )
+    stub = MockController(current_target=1)
+    executor._concurrency_controller = stub  # type: ignore[attr-defined]
+
+    inputs = list(range(20))
+    outputs, _ = await executor.execute(inputs)
+
+    assert outputs == inputs
+    assert max_inflight == 1
+
+
+@pytest.mark.asyncio
+async def test_executor_ramps_up_when_target_increases() -> None:
+    inflight: int = 0
+    max_inflight: int = 0
+    lock = asyncio.Lock()
+
+    async def generate(x: int) -> int:
+        nonlocal inflight, max_inflight
+        async with lock:
+            inflight += 1
+            if inflight > max_inflight:
+                max_inflight = inflight
+        await asyncio.sleep(0.05)
+        async with lock:
+            inflight -= 1
+        return x
+
+    executor = AsyncExecutor(
+        generate, concurrency=4, max_retries=0, timeout=3, enable_dynamic_concurrency=True
+    )
+    stub = MockController(current_target=1)
+    executor._concurrency_controller = stub  # type: ignore[attr-defined]
+
+    async def bump_target_later() -> None:
+        await asyncio.sleep(0.2)
+        stub.current_target = 3
+
+    bump_task = asyncio.create_task(bump_target_later())
+
+    inputs = list(range(40))
+    outputs, _ = await executor.execute(inputs)
+    await bump_task
+
+    assert outputs == inputs
+    assert max_inflight <= 4
+    assert max_inflight >= 3

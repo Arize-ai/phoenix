@@ -97,7 +97,7 @@ class ConcurrencyController:
     ) -> None:
         self._max_concurrency = max(1, int(max_concurrency))
         self._current_target = max(1, min(self._max_concurrency, int(initial_target)))
-        self._window_seconds = max(0.5, float(window_seconds))
+        self._window_seconds = float(window_seconds)
         self._increase_step = max(1, int(increase_step))
         self._decrease_ratio = float(decrease_ratio)
         self._smoothing_factor = smoothing_factor
