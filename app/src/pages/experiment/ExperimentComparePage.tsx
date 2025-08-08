@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useMemo, useState } from "react";
+import { startTransition, useCallback, useMemo } from "react";
 import {
   useLoaderData,
   useNavigate,
@@ -8,45 +8,42 @@ import {
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
-
 import { Alert, Flex, View } from "@phoenix/components";
 import {
-  ExperimentCompareView,
-  ExperimentCompareViewSelect,
-  isExperimentCompareView,
-} from "@phoenix/components/experiment/ExperimentCompareViewSelect";
+  ExperimentCompareViewMode,
+  ExperimentCompareViewModeToggle,
+  isExperimentCompareViewMode,
+} from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
 import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
+import { SelectedCompareExperiments } from "./SelectedCompareExperiments";
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  const showModeSelect = useFeatureFlag("experimentEnhancements");
+  const showViewModeSelect = useFeatureFlag("experimentEnhancements");
   invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
-  const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
   const [baseExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
-  const view = useMemo(() => {
-    const view = searchParams.get("view");
-    if (isExperimentCompareView(view)) {
-      return view;
+  const viewMode = useMemo(() => {
+    const viewMode = searchParams.get("view");
+    if (isExperimentCompareViewMode(viewMode)) {
+      return viewMode;
     }
     return "grid";
   }, [searchParams]);
   const navigate = useNavigate();
 
-  const onViewChange = useCallback(
-    (view: ExperimentCompareView) => {
-      searchParams.set("view", view);
+  const onViewModeChange = useCallback(
+    (viewMode: ExperimentCompareViewMode) => {
+      searchParams.set("view", viewMode);
       navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
     },
     [datasetId, navigate, searchParams]
@@ -68,43 +65,42 @@ export function ExperimentComparePage() {
         flex="none"
       >
         <Flex direction="row" justifyContent="space-between" alignItems="end">
-          <Flex direction="row" gap="size-100" justifyContent="start">
-            <ExperimentMultiSelector
-              dataRef={loaderData}
-              selectedBaseExperimentId={baseExperimentId}
-              selectedCompareExperimentIds={compareExperimentIds}
-              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
-                startTransition(() => {
-                  if (newBaseExperimentId == null) {
-                    navigate(`/datasets/${datasetId}/compare`);
-                  } else {
-                    const queryParams = `?${[
-                      newBaseExperimentId,
-                      ...newCompareExperimentIds,
-                    ]
-                      .map((id) => `experimentId=${id}`)
-                      .join("&")}`;
-                    navigate(`/datasets/${datasetId}/compare${queryParams}`);
-                  }
-                });
-              }}
-            />
-            {showModeSelect && (
-              <ExperimentCompareViewSelect
-                view={view}
-                onViewChange={onViewChange}
-              />
-            )}
-          </Flex>
-          <Switch
-            onChange={(isSelected) => {
-              setDisplayFullText(isSelected);
+          <ExperimentMultiSelector
+            dataRef={loaderData}
+            selectedBaseExperimentId={baseExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaseExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  searchParams.delete("experimentId");
+                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                    (experimentId) => {
+                      searchParams.append("experimentId", experimentId);
+                    }
+                  );
+                  navigate(
+                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                  );
+                }
+              });
             }}
-            defaultSelected={false}
-            labelPlacement="start"
+          />
+          <View
+            flex="1"
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            paddingBottom="size-115"
           >
-            Full Text
-          </Switch>
+            <SelectedCompareExperiments dataRef={loaderData} />
+          </View>
+          {showViewModeSelect && (
+            <ExperimentCompareViewModeToggle
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+            />
+          )}
         </Flex>
       </View>
       {baseExperimentId == null ? (
@@ -114,28 +110,26 @@ export function ExperimentComparePage() {
           </Alert>
         </View>
       ) : (
-        <ExperimentComparePageContent
-          view={view}
-          displayFullText={displayFullText}
-        />
+        <ExperimentComparePageContent />
       )}
     </main>
   );
 }
 
-type ExperimentComparePageContentProps = {
-  view: ExperimentCompareView;
-  displayFullText: boolean;
-};
-
-function ExperimentComparePageContent({
-  view,
-  displayFullText,
-}: ExperimentComparePageContentProps) {
-  if (view === "grid") {
-    return <ExperimentCompareGridPage displayFullText={displayFullText} />;
-  } else if (view === "metrics") {
+function ExperimentComparePageContent() {
+  const [searchParams] = useSearchParams();
+  const viewMode = searchParams.get("view") ?? "grid";
+  if (viewMode === "grid") {
+    return <ExperimentCompareGridPage />;
+  } else if (viewMode === "metrics") {
     return <ExperimentCompareMetricsPage />;
+  } else {
+    return (
+      <View padding="size-200">
+        <Alert variant="info" title={`Invalid View Mode Requested`}>
+          {`Please enter a valid view ("grid" or "metrics") in the URL query parameters.`}
+        </Alert>
+      </View>
+    );
   }
-  assertUnreachable(view);
 }

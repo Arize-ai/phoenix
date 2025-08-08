@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5770e16659b194dd41394395fef2c9c8>>
+ * @generated SignedSource<<ad70f5adf81068f7e07b1cf58369023d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,28 +15,34 @@ export type ExperimentCompareMetricsPage_experiments$data = {
     readonly annotationName: string;
     readonly compareExperimentId: string;
     readonly numDecreases: number;
+    readonly numEqual: number;
     readonly numIncreases: number;
   }>;
   readonly compareExperimentRunMetricCounts: ReadonlyArray<{
     readonly compareExperimentId: string;
     readonly completionTokenCount: {
       readonly numDecreases: number;
+      readonly numEqual: number;
       readonly numIncreases: number;
     };
     readonly latency: {
       readonly numDecreases: number;
+      readonly numEqual: number;
       readonly numIncreases: number;
     };
     readonly promptTokenCount: {
       readonly numDecreases: number;
+      readonly numEqual: number;
       readonly numIncreases: number;
     };
     readonly totalCost: {
       readonly numDecreases: number;
+      readonly numEqual: number;
       readonly numIncreases: number;
     };
     readonly totalTokenCount: {
       readonly numDecreases: number;
+      readonly numEqual: number;
       readonly numIncreases: number;
     };
   }>;
@@ -124,9 +130,17 @@ v6 = {
   "name": "numDecreases",
   "storageKey": null
 },
-v7 = [
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numEqual",
+  "storageKey": null
+},
+v8 = [
   (v5/*: any*/),
-  (v6/*: any*/)
+  (v6/*: any*/),
+  (v7/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -317,7 +331,7 @@ return {
           "kind": "LinkedField",
           "name": "latency",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -327,7 +341,7 @@ return {
           "kind": "LinkedField",
           "name": "promptTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -337,7 +351,7 @@ return {
           "kind": "LinkedField",
           "name": "completionTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -347,7 +361,7 @@ return {
           "kind": "LinkedField",
           "name": "totalTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -357,7 +371,7 @@ return {
           "kind": "LinkedField",
           "name": "totalCost",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         }
       ],
@@ -374,7 +388,8 @@ return {
         (v2/*: any*/),
         (v4/*: any*/),
         (v5/*: any*/),
-        (v6/*: any*/)
+        (v6/*: any*/),
+        (v7/*: any*/)
       ],
       "storageKey": null
     }
@@ -384,6 +399,6 @@ return {
 };
 })();
 
-(node as any).hash = "e6231b9a95bfe0a54cfa4dc81db7ed75";
+(node as any).hash = "a93c95876c83c3ea6e490693870bb7e2";
 
 export default node;
