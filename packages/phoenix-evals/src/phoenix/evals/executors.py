@@ -18,9 +18,10 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
-from tqdm.auto import tqdm
+from tqdm.auto import tqdm  # pyright: ignore[reportMissingTypeStubs]
 
 from phoenix.evals.exceptions import PhoenixException
 
@@ -67,6 +68,106 @@ class Executor(Protocol):
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]: ...
 
 
+class ConcurrencyController:
+    """
+    AIMD (Additive Increase/Multiplicative Decrease) controller for target concurrency.
+
+    Per window: if no timeout/retryable error, increase target by +a (increase_step);
+    otherwise decrease concurrency by a factor of β, clamped to [1, max_concurrency].
+
+    Steady-state guide for choosing feedback constants:
+      concurrency ~= a * (1 - r_e) / ((1 - β) * r_e)
+    where r_e is the fraction of windows that observe at least one timeout/retryable error.
+    To tend toward a single active worker when errors are frequent, select (a, β) so that
+      concurrency <= 1 when r_e >= a / (a + 1 - β).
+    Example: a=1, β=0.5 ⇒ threshold r_e >= 2/3.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_concurrency: int,
+        initial_target: int,
+        window_seconds: float = 10,
+        increase_step: int = 1,
+        decrease_ratio: float = 0.5,
+        inactive_check_interval: float = 1.0,
+        smoothing_factor: float = 0.2,
+    ) -> None:
+        self._max_concurrency = max(1, int(max_concurrency))
+        self._current_target = max(1, min(self._max_concurrency, int(initial_target)))
+        self._window_seconds = max(0.5, float(window_seconds))
+        self._increase_step = max(1, int(increase_step))
+        self._decrease_ratio = float(decrease_ratio)
+        self._smoothing_factor = smoothing_factor
+
+        self._window_started_at = time.time()
+        self._success_count = 0
+        self._timeout_count = 0
+        self._retryable_error_count = 0
+        self._smoothed_latency_seconds: Optional[float] = None
+        self._lock = asyncio.Lock()
+
+        self.inactive_check_interval = max(0.1, float(inactive_check_interval))
+
+    @property
+    def current_target(self) -> int:
+        return self._current_target
+
+    def _feedback_window_finished(self) -> bool:
+        now = time.time()
+        return (now - self._window_started_at) >= self._window_seconds
+
+    async def _update_concurrency_target(self) -> None:
+        now = time.time()
+        had_issue = (self._timeout_count + self._retryable_error_count) > 0
+        if had_issue:
+            new_target = max(1, int(self._current_target * self._decrease_ratio))
+            self._current_target = max(1, min(self._max_concurrency, new_target))
+        else:
+            self._current_target = min(
+                self._max_concurrency, self._current_target + self._increase_step
+            )
+        self._window_started_at = now
+        self._success_count = 0
+        self._timeout_count = 0
+        self._retryable_error_count = 0
+
+    def record_success(self, latency_seconds: float) -> None:
+        # Fire-and-forget scheduling to avoid blocking the hot path
+        asyncio.create_task(self._record_success_async(latency_seconds))
+
+    async def _record_success_async(self, latency_seconds: float) -> None:
+        async with self._lock:
+            self._success_count += 1
+            if self._smoothed_latency_seconds is None:
+                self._smoothed_latency_seconds = float(latency_seconds)
+            else:
+                self._smoothed_latency_seconds = (
+                    1 - self._smoothing_factor
+                ) * self._smoothed_latency_seconds + self._smoothing_factor * float(latency_seconds)
+            if self._feedback_window_finished():
+                await self._update_concurrency_target()
+
+    def record_timeout(self) -> None:
+        asyncio.create_task(self._record_timeout_async())
+
+    async def _record_timeout_async(self) -> None:
+        async with self._lock:
+            self._timeout_count += 1
+            if self._feedback_window_finished():
+                await self._update_concurrency_target()
+
+    def record_retryable_error(self) -> None:
+        asyncio.create_task(self._record_retryable_error_async())
+
+    async def _record_retryable_error_async(self) -> None:
+        async with self._lock:
+            self._retryable_error_count += 1
+            if self._feedback_window_finished():
+                await self._update_concurrency_target()
+
+
 class AsyncExecutor(Executor):
     """
     A class that provides asynchronous execution of tasks using a producer-consumer pattern.
@@ -105,6 +206,13 @@ class AsyncExecutor(Executor):
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
         timeout: Optional[int] = None,
+        *,
+        enable_dynamic_concurrency: bool = False,
+        dynamic_initial_target: Optional[int] = None,
+        dynamic_window_seconds: float = 5.0,
+        dynamic_increase_step: int = 1,
+        dynamic_decrease_ratio: float = 0.5,
+        dynamic_inactive_check_interval: float = 1.0,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -115,6 +223,18 @@ class AsyncExecutor(Executor):
         self.base_priority = 0
         self.termination_signal = termination_signal
         self.timeout: int = timeout or 120
+
+        # Dynamic concurrency controller (AIMD)
+        self._aimd: Optional[ConcurrencyController] = None
+        if enable_dynamic_concurrency:
+            self._aimd = ConcurrencyController(
+                max_concurrency=self.concurrency,
+                initial_target=dynamic_initial_target or self.concurrency,
+                window_seconds=dynamic_window_seconds,
+                increase_step=dynamic_increase_step,
+                decrease_ratio=dynamic_decrease_ratio,
+                inactive_check_interval=dynamic_inactive_check_interval,
+            )
 
     async def producer(
         self,
@@ -142,11 +262,17 @@ class AsyncExecutor(Executor):
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
         termination_event: asyncio.Event,
-        progress_bar: tqdm[Any],
+        progress_bar: Any,
+        worker_index: int,
     ) -> None:
         termination_event_watcher = None
         while True:
             marked_done = False
+            # Dynamic gating before dequeue; inactive workers do not touch the queue
+            if self._aimd is not None:
+                if worker_index >= self._aimd.current_target:
+                    await asyncio.sleep(self._aimd.inactive_check_interval)
+                    continue
             try:
                 priority, item = await asyncio.wait_for(queue.get(), timeout=1)
             except asyncio.TimeoutError:
@@ -161,11 +287,11 @@ class AsyncExecutor(Executor):
 
             index, payload = item
 
+            task_start_time = time.time()
             try:
-                task_start_time = time.time()
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
-                done, pending = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     [generate_task, termination_event_watcher],
                     timeout=self.timeout,
                     return_when=asyncio.FIRST_COMPLETED,
@@ -173,8 +299,11 @@ class AsyncExecutor(Executor):
 
                 if generate_task in done:
                     outputs[index] = generate_task.result()
-                    execution_details[index].complete()
-                    execution_details[index].log_runtime(task_start_time)
+                    details = cast(ExecutionDetails, execution_details[index])
+                    details.complete()
+                    details.log_runtime(task_start_time)
+                    if self._aimd is not None:
+                        self._aimd.record_success(time.time() - task_start_time)
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -193,10 +322,14 @@ class AsyncExecutor(Executor):
                     tqdm.write("Worker timeout, requeuing")
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))
-                    execution_details[index].log_runtime(task_start_time)
+                    details = cast(ExecutionDetails, execution_details[index])
+                    details.log_runtime(task_start_time)
+                    if self._aimd is not None:
+                        self._aimd.record_timeout()
             except Exception as exc:
-                execution_details[index].log_exception(exc)
-                execution_details[index].log_runtime(task_start_time)
+                details = cast(ExecutionDetails, execution_details[index])
+                details.log_exception(exc)
+                details.log_runtime(task_start_time)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
@@ -204,8 +337,11 @@ class AsyncExecutor(Executor):
                     )
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
+                    if self._aimd is not None:
+                        self._aimd.record_retryable_error()
                 else:
-                    execution_details[index].fail()
+                    details = cast(ExecutionDetails, execution_details[index])
+                    details.fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     if self.exit_on_error:
                         termination_event.set()
@@ -226,7 +362,7 @@ class AsyncExecutor(Executor):
 
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
-        execution_details = [ExecutionDetails() for _ in range(len(inputs))]
+        execution_details: List[ExecutionDetails] = [ExecutionDetails() for _ in range(len(inputs))]
         progress_bar = tqdm(
             total=len(inputs),
             bar_format=self.tqdm_bar_format,
@@ -252,15 +388,16 @@ class AsyncExecutor(Executor):
                     done_producing,
                     termination_event,
                     progress_bar,
+                    worker_index=i,
                 )
             )
-            for _ in range(self.concurrency)
+            for i in range(self.concurrency)
         ]
 
         await asyncio.gather(producer, *consumers)
         join_task = asyncio.create_task(queue.join())
         termination_event_watcher = asyncio.create_task(termination_event.wait())
-        done, pending = await asyncio.wait(
+        done, _ = await asyncio.wait(
             [join_task, termination_event_watcher], return_when=asyncio.FIRST_COMPLETED
         )
         if termination_event_watcher in done:
@@ -321,11 +458,11 @@ class SyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.termination_signal = termination_signal
 
-        self._TERMINATE = False
+        self._terminate = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
         tqdm.write("Process was interrupted. The return value will be incomplete...")
-        self._TERMINATE = True
+        self._terminate = True
 
     @contextmanager
     def _executor_signal_handling(self, signum: Optional[int]) -> Generator[None, None, None]:
@@ -353,9 +490,10 @@ class SyncExecutor(Executor):
 
             for index, input in enumerate(inputs):
                 task_start_time = time.time()
+                attempt = -1
                 try:
                     for attempt in range(self.max_retries + 1):
-                        if self._TERMINATE:
+                        if self._terminate:
                             return outputs, execution_details
                         try:
                             result = self.generate(input)
@@ -373,7 +511,10 @@ class SyncExecutor(Executor):
                                 tqdm.write("Retrying...")
                 except Exception as exc:
                     execution_details[index].fail()
-                    tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
+                    exhausted_attempt_local = attempt if attempt >= 0 else 0
+                    tqdm.write(
+                        f"Retries exhausted after {exhausted_attempt_local + 1} attempts: {exc}"
+                    )
                     if self.exit_on_error:
                         return outputs, execution_details
                     else:
