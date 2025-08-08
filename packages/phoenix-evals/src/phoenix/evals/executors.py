@@ -331,6 +331,7 @@ class AsyncExecutor(Executor):
                             f"Rate limit throttle on attempt {retry_count + 1}: raised {repr(exc)}"
                         )
                         tqdm.write("Requeuing...")
+                        await queue.put((priority - 1, item))
                         if self._concurrency_controller is not None:
                             self._concurrency_controller.record_error()
                     else:
