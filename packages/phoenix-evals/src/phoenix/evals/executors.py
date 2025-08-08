@@ -88,7 +88,7 @@ class ConcurrencyController:
         *,
         max_concurrency: int,
         initial_target: int,
-        window_seconds: float = 10,
+        window_seconds: float = 5,
         increase_step: int = 1,
         decrease_ratio: float = 0.5,
         inactive_check_interval: float = 1.0,
