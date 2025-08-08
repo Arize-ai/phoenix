@@ -110,7 +110,8 @@ class TestTraceAnnotationMutations:
         )
         assert not result_create.errors, f"CreateTraceAnnotations errors: {result_create.errors}"
         assert result_create.data is not None, "CreateTraceAnnotations returned no data"
-        created = result_create.data["createTraceAnnotations"]["traceAnnotations"][0]
+        data_create = result_create.data
+        created = data_create["createTraceAnnotations"]["traceAnnotations"][0]
         assert created["name"] == create_input["name"], (
             f"Created name mismatch. expected={create_input['name']} actual={created['name']}"
         )
@@ -146,7 +147,8 @@ class TestTraceAnnotationMutations:
             self.QUERY, {"input": [base_with_id]}, operation_name="CreateTraceAnnotations"
         )
         assert not res1.errors, f"CreateTraceAnnotations (with identifier) errors: {res1.errors}"
-        ann1 = res1.data["createTraceAnnotations"]["traceAnnotations"][0]
+        assert (data1 := res1.data)
+        ann1 = data1["createTraceAnnotations"]["traceAnnotations"][0]
         assert ann1["metadata"] == {"k": "v"}, (
             f"Initial metadata mismatch. expected={{'k': 'v'}} actual={ann1['metadata']}"
         )
@@ -162,7 +164,8 @@ class TestTraceAnnotationMutations:
             self.QUERY, {"input": [updated_with_id]}, operation_name="CreateTraceAnnotations"
         )
         assert not res2.errors, f"CreateTraceAnnotations upsert errors: {res2.errors}"
-        ann2 = res2.data["createTraceAnnotations"]["traceAnnotations"][0]
+        assert (data2 := res2.data)
+        ann2 = data2["createTraceAnnotations"]["traceAnnotations"][0]
         assert ann1["id"] == ann2["id"], (
             f"Upsert should preserve id. before={ann1['id']} after={ann2['id']}"
         )
@@ -193,7 +196,8 @@ class TestTraceAnnotationMutations:
             self.QUERY, {"input": [base_no_id]}, operation_name="CreateTraceAnnotations"
         )
         assert not res3.errors, f"CreateTraceAnnotations (no identifier) errors: {res3.errors}"
-        ann3 = res3.data["createTraceAnnotations"]["traceAnnotations"][0]
+        assert (data3 := res3.data)
+        ann3 = data3["createTraceAnnotations"]["traceAnnotations"][0]
         assert ann3["name"] == base_no_id["name"], (
             f"Create (no identifier) name mismatch. expected={base_no_id['name']} actual={ann3['name']}"
         )
@@ -222,7 +226,8 @@ class TestTraceAnnotationMutations:
         assert not res4.errors, (
             f"CreateTraceAnnotations upsert (no identifier) errors: {res4.errors}"
         )
-        ann4 = res4.data["createTraceAnnotations"]["traceAnnotations"][0]
+        assert (data4 := res4.data)
+        ann4 = data4["createTraceAnnotations"]["traceAnnotations"][0]
 
         # Optional: patch the last annotation (label, score, explanation, metadata)
         patch_input = [
@@ -238,7 +243,8 @@ class TestTraceAnnotationMutations:
             self.QUERY, {"input": patch_input}, operation_name="PatchTraceAnnotations"
         )
         assert not res_patch.errors, f"PatchTraceAnnotations errors: {res_patch.errors}"
-        patched = res_patch.data["patchTraceAnnotations"]["traceAnnotations"][0]
+        assert (data_patch := res_patch.data)
+        patched = data_patch["patchTraceAnnotations"]["traceAnnotations"][0]
         assert patched["id"] == ann4["id"], (
             f"Patched annotation id mismatch. expected={ann4['id']} actual={patched['id']}"
         )
@@ -260,7 +266,8 @@ class TestTraceAnnotationMutations:
             self.QUERY, {"input": delete_input}, operation_name="DeleteTraceAnnotations"
         )
         assert not res_delete.errors, f"DeleteTraceAnnotations errors: {res_delete.errors}"
-        deleted = res_delete.data["deleteTraceAnnotations"]["traceAnnotations"][0]
+        assert (data_delete := res_delete.data)
+        deleted = data_delete["deleteTraceAnnotations"]["traceAnnotations"][0]
         assert deleted["id"] == ann4["id"], (
             f"Deleted id mismatch. expected={ann4['id']} actual={deleted['id']}"
         )
