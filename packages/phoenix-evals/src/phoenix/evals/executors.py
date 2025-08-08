@@ -225,9 +225,9 @@ class AsyncExecutor(Executor):
         self.timeout: int = timeout or 120
 
         # Dynamic concurrency controller (AIMD)
-        self._aimd: Optional[ConcurrencyController] = None
+        self._concurrency_controller: Optional[ConcurrencyController] = None
         if enable_dynamic_concurrency:
-            self._aimd = ConcurrencyController(
+            self._concurrency_controller = ConcurrencyController(
                 max_concurrency=self.concurrency,
                 initial_target=dynamic_initial_target or self.concurrency,
                 window_seconds=dynamic_window_seconds,
@@ -269,9 +269,14 @@ class AsyncExecutor(Executor):
         while True:
             marked_done = False
             # Dynamic gating before dequeue; inactive workers do not touch the queue
-            if self._aimd is not None:
-                if worker_index >= self._aimd.current_target:
-                    await asyncio.sleep(self._aimd.inactive_check_interval)
+            if self._concurrency_controller is not None:
+                if worker_index >= self._concurrency_controller.current_target:
+                    # If production is finished and queue is empty, exit instead of sleeping
+                    if done_producing.is_set() and queue.empty():
+                        break
+                    if termination_event.is_set():
+                        break
+                    await asyncio.sleep(self._concurrency_controller.inactive_check_interval)
                     continue
             try:
                 priority, item = await asyncio.wait_for(queue.get(), timeout=1)
@@ -302,8 +307,8 @@ class AsyncExecutor(Executor):
                     details = cast(ExecutionDetails, execution_details[index])
                     details.complete()
                     details.log_runtime(task_start_time)
-                    if self._aimd is not None:
-                        self._aimd.record_success(time.time() - task_start_time)
+                    if self._concurrency_controller is not None:
+                        self._concurrency_controller.record_success(time.time() - task_start_time)
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -324,8 +329,8 @@ class AsyncExecutor(Executor):
                     await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
                     details.log_runtime(task_start_time)
-                    if self._aimd is not None:
-                        self._aimd.record_timeout()
+                    if self._concurrency_controller is not None:
+                        self._concurrency_controller.record_timeout()
             except Exception as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
@@ -337,8 +342,8 @@ class AsyncExecutor(Executor):
                     )
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
-                    if self._aimd is not None:
-                        self._aimd.record_retryable_error()
+                    if self._concurrency_controller is not None:
+                        self._concurrency_controller.record_retryable_error()
                 else:
                     details = cast(ExecutionDetails, execution_details[index])
                     details.fail()
