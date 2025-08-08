@@ -252,6 +252,7 @@ class OpenAIModel(BaseModel):
             api_key=self.api_key,
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
+            default_headers=self.default_headers,
         )
 
         # The client is not azure, so it must be openai
@@ -260,6 +261,7 @@ class OpenAIModel(BaseModel):
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
             max_retries=0,
+            default_headers=self.default_headers,
         )
 
     def _get_azure_options(self) -> AzureOptions:
