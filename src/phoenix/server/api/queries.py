@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy.orm import aliased, joinedload, load_only
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -400,15 +400,21 @@ class Query:
         page_size = first or 50
 
         async with info.context.db() as session:
-            result = await session.execute(
-                select(
-                    models.Experiment.dataset_id,
-                    models.Experiment.dataset_version_id,
-                ).where(models.Experiment.id == base_experiment_rowid)
-            )
-            if result is None:
+            base_experiment = (
+                await session.scalars(
+                    select(
+                        models.Experiment,
+                    )
+                    .where(models.Experiment.id == base_experiment_rowid)
+                    .options(
+                        load_only(
+                            models.Experiment.dataset_id, models.Experiment.dataset_version_id
+                        )
+                    )
+                )
+            ).first()
+            if base_experiment is None:
                 raise NotFound(f"Could not find experiment with ID {base_experiment_rowid}")
-            base_experiment_dataset_id, base_experiment_dataset_version_id = result.first()
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -419,8 +425,8 @@ class Query:
                 .where(
                     and_(
                         models.DatasetExampleRevision.dataset_version_id
-                        <= base_experiment_dataset_version_id,
-                        models.DatasetExample.dataset_id == base_experiment_dataset_id,
+                        <= base_experiment.dataset_version_id,
+                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
                     )
                 )
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
@@ -497,7 +503,7 @@ class Query:
                 example=DatasetExample(
                     id_attr=example.id,
                     created_at=example.created_at,
-                    version_id=base_experiment_dataset_version_id,
+                    version_id=base_experiment.dataset_version_id,
                 ),
                 run_comparison_items=run_comparison_items,
             )
