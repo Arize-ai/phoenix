@@ -167,7 +167,7 @@ class RateLimiter:
     def __init__(
         self,
         rate_limit_error: Optional[Type[BaseException]] = None,
-        max_rate_limit_retries: int = 3,
+        max_rate_limit_retries: int = 2,
         initial_per_second_request_rate: float = 1.0,
         maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
