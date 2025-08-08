@@ -79,6 +79,8 @@ The `arize-phoenix` package includes the entire Phoenix platfom. However if you 
 
 Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
+For OpenTelemetry setup with Phoenix using Envoy AI Gateway, see the [integration guide](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix).
+
 **Python Integrations**
 | Integration | Package | Version Badge |
 |------------------|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
