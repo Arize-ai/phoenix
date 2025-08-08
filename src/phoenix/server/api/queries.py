@@ -400,22 +400,27 @@ class Query:
         page_size = first or 50
 
         async with info.context.db() as session:
-            base_experiment = (
+            experiments = (
                 await session.scalars(
                     select(
                         models.Experiment,
                     )
-                    .where(models.Experiment.id == base_experiment_rowid)
+                    .where(models.Experiment.id.in_(experiment_rowids))
                     .options(
                         load_only(
                             models.Experiment.dataset_id, models.Experiment.dataset_version_id
                         )
                     )
                 )
-            ).first()
-            if base_experiment is None:
-                raise NotFound(f"Could not find experiment with ID {base_experiment_id}")
-
+            ).all()
+            if not experiments or len(experiments) < len(experiment_rowids):
+                raise NotFound("Unable to resolve one or more experiment IDs.")
+            num_datasets = len(set(experiment.dataset_id for experiment in experiments))
+            if num_datasets > 1:
+                raise BadRequest("Experiments must belong to the same dataset.")
+            base_experiment = next(
+                experiment for experiment in experiments if experiment.id == base_experiment_rowid
+            )
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
                 .join(
