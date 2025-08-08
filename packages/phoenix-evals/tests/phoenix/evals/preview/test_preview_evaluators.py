@@ -3,6 +3,7 @@ from contextlib import nullcontext as does_not_raise
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from phoenix.evals.preview.evaluators import (
@@ -12,6 +13,7 @@ from phoenix.evals.preview.evaluators import (
     Score,
     _validate_field_value,
     create_classifier,
+    evaluate_dataframe,
     list_evaluators,
     remap_eval_input,
     simple_evaluator,
@@ -497,6 +499,204 @@ class TestEvaluator:
         assert len(results) == 2
         assert len(results[0]) == 1
         assert len(results[1]) == 1
+
+
+class TestEvaluatorDataFrame:
+    """Tests for evaluate_dataframe and aevaluate_dataframe."""
+
+    class SingleScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=1.0, label="ok", source=self.source)]
+
+    class MultiScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            # Produce two scores with different names
+            return [
+                Score(name=f"{self.name}_a", score=0.9, label="A", source=self.source),
+                Score(name=f"{self.name}_b", score=0.1, label="B", source=self.source),
+            ]
+
+    def test_evaluate_dataframe_single_score_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["x", "y"]})
+
+        out = evaluator.evaluate_dataframe(df)
+
+        # Adds one column named by the score (evaluator.name)
+        assert "quality" in out.columns
+        # No error column should be present
+        assert not any(col.startswith("error_") for col in out.columns)
+        # Cells contain Score objects
+        assert isinstance(out.loc[0, "quality"], Score)
+        assert out.loc[0, "quality"].name == "quality"
+
+    def test_evaluate_dataframe_with_mapping_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"user_text": ["x", "y"]})
+
+        out = evaluator.evaluate_dataframe(df, input_mapping={"text": "user_text"})
+
+        assert "quality" in out.columns
+        assert isinstance(out.loc[1, "quality"], Score)
+
+    def test_evaluate_dataframe_error_creates_error_column(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        # Missing required column will trigger mapping error for each row
+        df = pd.DataFrame({"wrong": ["x", "y"]})
+
+        out = evaluator.evaluate_dataframe(df)
+
+        # Score column exists but rows should be None due to error
+        assert "quality" in out.columns
+        assert out.loc[0, "quality"] is None
+        assert out.loc[1, "quality"] is None
+        # Error column is present and contains error Score objects
+        err_col = "error_quality"
+        assert err_col in out.columns
+        assert isinstance(out.loc[0, err_col], Score)
+        assert out.loc[0, err_col].name == "ERROR"
+        assert "exception_type" in out.loc[0, err_col].metadata
+
+    def test_evaluate_dataframe_mixed_rows(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["ok", None]})
+
+        out = evaluator.evaluate_dataframe(df)
+
+        # Row 0 succeeds
+        assert isinstance(out.loc[0, "quality"], Score)
+        # Row 1 fails due to None (validation)
+        assert out.loc[1, "quality"] is None
+        assert "error_quality" in out.columns
+        assert isinstance(out.loc[1, "error_quality"], Score)
+
+    def test_evaluate_dataframe_multi_score_success_and_error(self):
+        evaluator = self.MultiScoreEvaluator(
+            name="multi", source="heuristic", required_fields={"text"}
+        )
+        # First row ok, second row None triggers validation error
+        df = pd.DataFrame({"text": ["ok", None]})
+
+        out = evaluator.evaluate_dataframe(df)
+
+        # Columns for each score name
+        col_a = "multi_a"
+        col_b = "multi_b"
+        assert col_a in out.columns and col_b in out.columns
+
+        # Row 0 has both scores
+        assert isinstance(out.loc[0, col_a], Score)
+        assert isinstance(out.loc[0, col_b], Score)
+
+        # Row 1 errored: both score columns None
+        assert out.loc[1, col_a] is None
+        assert out.loc[1, col_b] is None
+        # Error column present with error Score
+        assert "error_multi" in out.columns
+        assert isinstance(out.loc[1, "error_multi"], Score)
+
+    @pytest.mark.asyncio
+    async def test_aevaluate_dataframe_single_score_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["x", "y"]})
+
+        out = await evaluator.aevaluate_dataframe(df)
+
+        assert "quality" in out.columns
+        assert isinstance(out.loc[0, "quality"], Score)
+
+    @pytest.mark.asyncio
+    async def test_aevaluate_dataframe_error_creates_error_column(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"wrong": ["x"]})
+
+        out = await evaluator.aevaluate_dataframe(df)
+
+        assert "quality" in out.columns
+        assert out.loc[0, "quality"] is None
+        assert "error_quality" in out.columns
+        assert isinstance(out.loc[0, "error_quality"], Score)
+
+
+class TestStandaloneEvaluateDataFrame:
+    class SingleScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name="accuracy", score=0.9, label="good", explanation=None)]
+
+    class WithExplanationEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name="toxicity", score=None, label="low", explanation="ok")]
+
+    class MultiScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [
+                Score(name="precision", score=0.7, label=None),
+                Score(name="recall", score=0.8, label=None),
+            ]
+
+    def test_standalone_basic_success(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"text": ["a", "b"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # Details always present for observed score names
+        assert "accuracy_details" in out.columns
+        # Score and label columns present due to non-None values
+        assert "accuracy_score" in out.columns
+        assert "accuracy_label" in out.columns
+        # Explanation absent because all None
+        assert "accuracy_explanation" not in out.columns
+        # No error column
+        assert not any(col.startswith("error_") for col in out.columns)
+
+    def test_standalone_with_mapping(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"user_text": ["a"]})
+
+        out = evaluate_dataframe(df, evaluators, input_mappings={"ev1": {"text": "user_text"}})
+
+        assert "accuracy_details" in out.columns
+        assert out.loc[0, "accuracy_score"] == 0.9
+
+    def test_standalone_error_column_on_failure(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"bad": ["x"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # No score columns (no observed score); but no crash; ensure error column exists
+        assert "error_ev1" in out.columns
+        assert isinstance(out.loc[0, "error_ev1"], dict)
+
+    def test_standalone_multi_score_and_explanation(self):
+        evaluators = [
+            self.MultiScoreEvaluator("metrics", "heuristic", {"text"}),
+            self.WithExplanationEvaluator("tox", "heuristic", {"text"}),
+        ]
+        df = pd.DataFrame({"text": ["a", "b"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # Multi score
+        assert "precision_details" in out.columns and "recall_details" in out.columns
+        assert "precision_score" in out.columns and "recall_score" in out.columns
+        # Explanation columns should be included for toxicity
+        assert "toxicity_details" in out.columns
+        assert "toxicity_label" in out.columns
+        assert "toxicity_explanation" in out.columns
 
 
 class TestLLMEvaluator:

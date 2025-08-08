@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple, Union
 
+import pandas as pd
 from typing_extensions import Mapping
 
 from .llm import LLM, AsyncLLM
@@ -283,6 +284,147 @@ class Evaluator(ABC):
         Apply `aevaluate` to a list of `eval_input` mappings, reusing the same `input_mapping`.
         """
         return [await self.aevaluate(inp, input_mapping=input_mapping) for inp in eval_inputs]
+
+    def evaluate_dataframe(
+        self, dataframe: pd.DataFrame, input_mapping: Optional[Mapping[str, str]] = None
+    ) -> pd.DataFrame:
+        """
+        Evaluate each row in a dataframe and return a new dataframe with one column per Score.
+
+        - Each added column is named by the corresponding `Score.name`.
+        - Each cell contains the full `Score` object for that row/score, or None if not produced.
+        - Exceptions (including mapping errors) are converted into error `Score`s with name "ERROR"
+          and placed in the same columnar structure.
+
+        Args:
+            dataframe: Input dataframe whose columns map to this evaluator's `required_fields`.
+            input_mapping: Optional mapping of evaluator-required field -> dataframe column name.
+
+        Returns:
+            A dataframe with additional columns for each distinct score name produced.
+        """
+        if not isinstance(dataframe, pd.DataFrame):
+            raise ValueError("'dataframe' must be a pandas DataFrame")
+
+        per_row_scores: List[List[Score]] = []
+        per_row_error: List[Optional[Score]] = []
+        discovered_score_names: List[str] = []
+
+        for _, row in dataframe.iterrows():
+            eval_input: Dict[str, Any] = row.to_dict()
+            try:
+                scores = self.evaluate(eval_input, input_mapping=input_mapping)
+            except Exception as e:
+                scores = [
+                    Score(
+                        score=0.0,
+                        name=ERROR_SCORE,
+                        explanation=str(e),
+                        metadata={"exception_type": type(e).__name__},
+                        source=self.source,
+                        direction=self.direction,
+                    )
+                ]
+            # Detect evaluator-level error (our evaluate returns a single ERROR score on failure)
+            if len(scores) == 1 and (scores[0].name is None or scores[0].name == ERROR_SCORE):
+                per_row_error.append(scores[0])
+                per_row_scores.append([])
+            else:
+                per_row_error.append(None)
+                per_row_scores.append(scores)
+                for s in scores:
+                    if s.name is None:
+                        continue
+                    if s.name not in discovered_score_names:
+                        discovered_score_names.append(s.name)
+
+        out_df = dataframe.copy()
+        # If no score names were discovered (e.g., all rows errored), create a default
+        # primary score column using the evaluator's name to keep schema stable.
+        if not discovered_score_names:
+            discovered_score_names = [self.name]
+        for score_name in discovered_score_names:
+            column_values: List[Optional[Score]] = []
+            for scores in per_row_scores:
+                matched: Optional[Score] = None
+                for s in scores:
+                    if s.name == score_name:
+                        matched = s
+                        break
+                column_values.append(matched)
+            out_df[score_name] = column_values
+
+        # Add an error column only if any row had an error
+        error_column_name = f"error_{self.name}"
+        if any(err is not None for err in per_row_error):
+            out_df[error_column_name] = per_row_error
+
+        return out_df
+
+    async def aevaluate_dataframe(
+        self, dataframe: pd.DataFrame, input_mapping: Optional[Mapping[str, str]] = None
+    ) -> pd.DataFrame:
+        """
+        Asynchronous variant of `evaluate_dataframe`.
+
+        Processes rows sequentially (no concurrency) and mirrors the synchronous behavior:
+        - Adds one column per distinct `Score.name`.
+        - Each cell contains a `Score` object or None.
+        - Exceptions are converted into error `Score` objects with name "ERROR".
+        """
+        if not isinstance(dataframe, pd.DataFrame):
+            raise ValueError("'dataframe' must be a pandas DataFrame")
+
+        per_row_scores: List[List[Score]] = []
+        per_row_error: List[Optional[Score]] = []
+        discovered_score_names: List[str] = []
+
+        for _, row in dataframe.iterrows():
+            eval_input: Dict[str, Any] = row.to_dict()
+            try:
+                scores = await self.aevaluate(eval_input, input_mapping=input_mapping)
+            except Exception as e:
+                scores = [
+                    Score(
+                        score=0.0,
+                        name=ERROR_SCORE,
+                        explanation=str(e),
+                        metadata={"exception_type": type(e).__name__},
+                        source=self.source,
+                        direction=self.direction,
+                    )
+                ]
+            if len(scores) == 1 and (scores[0].name is None or scores[0].name == ERROR_SCORE):
+                per_row_error.append(scores[0])
+                per_row_scores.append([])
+            else:
+                per_row_error.append(None)
+                per_row_scores.append(scores)
+                for s in scores:
+                    if s.name is None:
+                        continue
+                    if s.name not in discovered_score_names:
+                        discovered_score_names.append(s.name)
+
+        out_df = dataframe.copy()
+        if not discovered_score_names:
+            discovered_score_names = [self.name]
+        for score_name in discovered_score_names:
+            column_values: List[Optional[Score]] = []
+            for scores in per_row_scores:
+                matched: Optional[Score] = None
+                for s in scores:
+                    if s.name == score_name:
+                        matched = s
+                        break
+                column_values.append(matched)
+            out_df[score_name] = column_values
+
+        error_column_name = f"error_{self.name}"
+        if any(err is not None for err in per_row_error):
+            out_df[error_column_name] = per_row_error
+
+        return out_df
 
 
 # --- LLM Evaluator base ---
@@ -613,3 +755,136 @@ def create_classifier(
         required_fields=required_fields,
         direction=direction,
     )
+
+
+# --- Standalone DataFrame evaluation ---
+def evaluate_dataframe(
+    dataframe: pd.DataFrame,
+    evaluators: List[Evaluator],
+    input_mappings: Optional[Dict[str, Mapping[str, str]]] = None,
+) -> pd.DataFrame:
+    """
+    Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
+
+    Behavior:
+    - For each produced Score (identified by Score.name), add columns:
+        - "{score_name}_score" (float/int)
+        - "{score_name}_label" (str)
+        - "{score_name}_explanation" (str)
+        - "{score_name}_details" (dict from Score.to_dict())
+      Only create the "_score", "_label", "_explanation" columns if any non-None values are
+      present for that property across all rows. The "_details" column is created for any score
+      name observed.
+    - For evaluator errors (exceptions or a single ERROR Score), add a column
+      "error_{evaluator.name}" containing the error Score serialized via to_dict(). The column is
+      created only if any row had an error for that evaluator.
+    - input_mappings: optional per-evaluator mapping from evaluator-required field -> dataframe
+      column name, keyed by evaluator.name.
+    """
+    if not isinstance(dataframe, pd.DataFrame):
+        raise ValueError("'dataframe' must be a pandas DataFrame")
+
+    num_rows = len(dataframe)
+    # Aggregators for score columns
+    details_cols: Dict[str, List[Optional[Dict[str, Any]]]] = {}
+    score_cols: Dict[str, List[Optional[Union[float, int]]]] = {}
+    label_cols: Dict[str, List[Optional[str]]] = {}
+    explanation_cols: Dict[str, List[Optional[str]]] = {}
+
+    # Flags for creating property columns only if used
+    score_used: Dict[str, bool] = {}
+    label_used: Dict[str, bool] = {}
+    explanation_used: Dict[str, bool] = {}
+
+    # Per-evaluator error columns
+    error_cols: Dict[str, List[Optional[Dict[str, Any]]]] = {
+        f"error_{evaluator.name}": [None] * num_rows for evaluator in evaluators
+    }
+    error_cols_used: Dict[str, bool] = {col: False for col in error_cols}
+
+    # Helper to ensure score-name columns exist with appropriate length
+    def ensure_score_columns(score_name: str) -> None:
+        if score_name not in details_cols:
+            details_cols[score_name] = [None] * num_rows
+        if score_name not in score_cols:
+            score_cols[score_name] = [None] * num_rows
+        if score_name not in label_cols:
+            label_cols[score_name] = [None] * num_rows
+        if score_name not in explanation_cols:
+            explanation_cols[score_name] = [None] * num_rows
+        score_used.setdefault(score_name, False)
+        label_used.setdefault(score_name, False)
+        explanation_used.setdefault(score_name, False)
+
+    for row_index, (_, row) in enumerate(dataframe.iterrows()):
+        row_dict: Dict[str, Any] = row.to_dict()
+        for evaluator in evaluators:
+            mapping: Optional[Mapping[str, str]] = None
+            if input_mappings is not None:
+                mapping = input_mappings.get(evaluator.name, None)
+
+            try:
+                scores = evaluator.evaluate(row_dict, input_mapping=mapping)
+            except Exception as exc:
+                # Exception during mapping or evaluation; record an error for this evaluator
+                err_score = Score(
+                    score=0.0,
+                    name=ERROR_SCORE,
+                    explanation=str(exc),
+                    metadata={"exception_type": type(exc).__name__},
+                    source=evaluator.source,
+                    direction=evaluator.direction,
+                )
+                err_col = f"error_{evaluator.name}"
+                error_cols[err_col][row_index] = err_score.to_dict()
+                error_cols_used[err_col] = True
+                continue
+
+            # Detect evaluator-level error as a single ERROR score
+            if len(scores) == 1 and (scores[0].name is None or scores[0].name == ERROR_SCORE):
+                err_col = f"error_{evaluator.name}"
+                error_cols[err_col][row_index] = scores[0].to_dict()
+                error_cols_used[err_col] = True
+                continue
+
+            for score in scores:
+                if score.name is None:
+                    # Skip unnamed scores for column generation
+                    continue
+                score_name = score.name
+                ensure_score_columns(score_name)
+
+                # details as dict always set when a score is present
+                details_cols[score_name][row_index] = score.to_dict()
+
+                # per-property values
+                if score.score is not None:
+                    score_cols[score_name][row_index] = score.score
+                    score_used[score_name] = True
+                if score.label is not None:
+                    label_cols[score_name][row_index] = score.label
+                    label_used[score_name] = True
+                if score.explanation is not None:
+                    explanation_cols[score_name][row_index] = score.explanation
+                    explanation_used[score_name] = True
+
+    # Build the output dataframe with original columns + generated ones
+    out_df = dataframe.copy()
+
+    # Add score-specific columns
+    for score_name in details_cols.keys():
+        # Always add details column for any observed score name
+        out_df[f"{score_name}_details"] = details_cols[score_name]
+        if score_used.get(score_name, False):
+            out_df[f"{score_name}_score"] = score_cols[score_name]
+        if label_used.get(score_name, False):
+            out_df[f"{score_name}_label"] = label_cols[score_name]
+        if explanation_used.get(score_name, False):
+            out_df[f"{score_name}_explanation"] = explanation_cols[score_name]
+
+    # Add error columns only if used
+    for col_name, used in error_cols_used.items():
+        if used:
+            out_df[col_name] = error_cols[col_name]
+
+    return out_df
