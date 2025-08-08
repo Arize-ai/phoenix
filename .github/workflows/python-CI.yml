@@ -96,7 +96,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           version: 0.6.3
-      - run: uvx --with tox-uv tox run -e phoenix_client -- -ra -x
+      - run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
     name: Phoenix Evals
@@ -120,7 +120,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           version: 0.6.3
-      - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
+      - run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
     name: Phoenix OTel
@@ -143,7 +143,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           version: 0.6.3
-      - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
+      - run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e phoenix_otel -- -ra -x
 
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
@@ -171,7 +171,7 @@ jobs:
             requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
-        run: uvx --with tox-uv tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
       - run: git diff --exit-code
 
   build-graphql-schema:
@@ -200,7 +200,7 @@ jobs:
             requirements/build-graphql-schema.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
-        run: uvx --with tox-uv tox run -e build_graphql_schema
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e build_graphql_schema
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -228,7 +228,7 @@ jobs:
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
-        run: uvx --with tox-uv tox run -e build_openapi_schema
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e build_openapi_schema
       - run: git diff --exit-code
 
   compile-protobuf:
@@ -257,7 +257,7 @@ jobs:
             requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: uvx --with tox-uv tox run -e compile_protobuf
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e compile_protobuf
       - run: git diff --exit-code
 
   ruff:
@@ -280,7 +280,7 @@ jobs:
         with:
           version: 0.6.3
       - name: Run `ruff`
-        run: uvx --with tox-uv tox run -e ruff
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e ruff
       - run: git diff --exit-code
 
   type-check:
@@ -317,9 +317,9 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
-        run: uvx --with tox-uv tox run -e type_check
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check
       - name: Ensure GraphQL mutations have permission classes
-        run: uvx --with tox-uv tox run -e ensure_graphql_mutations_have_permission_classes
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e ensure_graphql_mutations_have_permission_classes
 
   type-check-unit-tests:
     name: Type Check Unit Tests
@@ -358,7 +358,7 @@ jobs:
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on unit tests
-        run: uvx --with tox-uv tox run -e type_check_unit_tests
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check_unit_tests
 
   unit-tests:
     name: Unit Tests
@@ -403,10 +403,10 @@ jobs:
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x -n auto --reruns 5 --run-postgres
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x -n auto --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x -n auto --reruns 5
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x -n auto --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -444,7 +444,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on integration tests
-        run: uvx --with tox-uv tox run -e type_check_integration_tests
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests
@@ -508,7 +508,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
-        run: uvx --with tox-uv tox run -e integration_tests -- -ra -x -n auto --reruns 5
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x -n auto --reruns 5
 
   phoenix-client-canary-tests-sdk:
     name: Phoenix Client Canary Tests for Third-Party SDKs
@@ -542,4 +542,4 @@ jobs:
             requirements/canary/sdk/${{ matrix.pkg }}.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
-        run: uvx --with tox-uv tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
