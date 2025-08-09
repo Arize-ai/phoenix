@@ -520,6 +520,18 @@ def evaluator_function(
     single Score. The returned object is an Evaluator with full support for evaluate/aevaluate,
     batch_evaluate/abatch_evaluate, and direct callability.
 
+    Args:
+        name: The name of this evaluator, used for identification and Score naming.
+        source: The source of this evaluator (human, llm, or heuristic). Defaults to "heuristic".
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+        "maximize".
+
+    Returns:
+        An Evaluator instance.
+
+    Notes:
+    The decorated function should return Score objects. The name parameter is optional
+        since the decorator will set it automatically.
     Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
     """
 
@@ -599,7 +611,6 @@ def create_classifier(
     )
 
 
-# --- Standalone DataFrame evaluation ---
 def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
@@ -618,7 +629,7 @@ def evaluate_dataframe(
       present for that property across all rows. The "_details" column is created for any score
       name observed.
     - For evaluator errors (exceptions or a single ERROR Score), add a column
-      "error_{evaluator.name}" containing the error Score serialized via to_dict(). The column is
+      "{evaluator.name}_errors" containing the error Score serialized via to_dict(). The column is
       created only if any row had an error for that evaluator.
     - input_mappings: optional per-evaluator mapping from evaluator-required field -> dataframe
       column name, keyed by evaluator.name.
@@ -638,7 +649,6 @@ def evaluate_dataframe(
     label_used: Dict[str, bool] = {}
     explanation_used: Dict[str, bool] = {}
 
-    # Per-evaluator error columns
     # Pre-create error columns keyed by evaluator name
     error_cols: Dict[str, List[Optional[Dict[str, Any]]]] = {}
     error_cols_used: Dict[str, bool] = {}
