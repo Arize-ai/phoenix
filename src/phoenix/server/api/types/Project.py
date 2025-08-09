@@ -639,7 +639,14 @@ class Project(Node):
         session_filter: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("span", self.project_rowid, time_range, filter_condition, session_filter, annotation_name),
+            (
+                "span",
+                self.project_rowid,
+                time_range,
+                filter_condition,
+                session_filter,
+                annotation_name,
+            ),
         )
 
     @strawberry.field

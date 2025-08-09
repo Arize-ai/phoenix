@@ -1,7 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Literal, Optional, Type, Union, cast
-import re
 
 import pandas as pd
 from aioitertools.itertools import groupby
@@ -9,7 +8,6 @@ from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, and_, case, distinct, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
-from openinference.semconv.trace import SpanAttributes
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
@@ -28,43 +26,12 @@ AnnotationName: TypeAlias = str
 Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, FilterCondition, SessionFilter]
 Param: TypeAlias = AnnotationName
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter, AnnotationName]
+Key: TypeAlias = tuple[
+    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter, AnnotationName
+]
 Result: TypeAlias = Optional[AnnotationSummary]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
-
-
-def _apply_session_io_filter(stmt: Any, session_filter: str, project_rowid: int) -> Any:
-    """Apply session I/O filter logic extracted from Project.sessions() method"""
-    INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
-    OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
-    # If UUID format, filter by session_id directly
-    if re.match(r"^[0-9a-f-]{36}$", session_filter, re.IGNORECASE):
-        return stmt.join(models.ProjectSession).where(
-            models.ProjectSession.session_id == session_filter
-        )
-    else:
-        # I/O filter logic for substring search
-        filter_stmt = (
-            select(distinct(models.Trace.project_session_rowid).label("id"))
-            .filter_by(project_rowid=project_rowid)
-            .join_from(models.Trace, models.Span)
-            .where(models.Span.parent_id.is_(None))
-            .where(
-                or_(
-                    models.TextContains(
-                        models.Span.attributes[INPUT_VALUE].as_string(),
-                        session_filter,
-                    ),
-                    models.TextContains(
-                        models.Span.attributes[OUTPUT_VALUE].as_string(),
-                        session_filter,
-                    ),
-                )
-            )
-        )
-        filter_subq = filter_stmt.subquery()
-        return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
@@ -97,7 +64,9 @@ class AnnotationSummaryCache(
                 del self._cache[section]
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, project_rowid, interval, filter_condition, session_filter), annotation_name = _cache_key_fn(key)
+        (kind, project_rowid, interval, filter_condition, session_filter), annotation_name = (
+            _cache_key_fn(key)
+        )
         return (project_rowid, annotation_name, kind), (interval, filter_condition, session_filter)
 
 
@@ -176,14 +145,22 @@ def _get_stmt(
         )
         entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
         if session_filter:
-            entity_count_query = _apply_session_io_filter(entity_count_query, session_filter, project_rowid)
+            from phoenix.server.api.types.Project import _apply_session_io_filter
+
+            entity_count_query = _apply_session_io_filter(
+                entity_count_query, session_filter, project_rowid
+            )
     elif kind == "trace":
         entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
         entity_count_query = entity_count_query.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
         if session_filter:
-            entity_count_query = _apply_session_io_filter(entity_count_query, session_filter, project_rowid)
+            from phoenix.server.api.types.Project import _apply_session_io_filter
+
+            entity_count_query = _apply_session_io_filter(
+                entity_count_query, session_filter, project_rowid
+            )
 
     entity_count_query = entity_count_query.where(
         or_(score_column.is_not(None), label_column.is_not(None))
@@ -219,6 +196,8 @@ def _get_stmt(
             sf = SpanFilter(filter_condition)
             base_stmt = sf(base_stmt)
         if session_filter:
+            from phoenix.server.api.types.Project import _apply_session_io_filter
+
             base_stmt = _apply_session_io_filter(base_stmt, session_filter, project_rowid)
     elif kind == "trace":
         base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
@@ -226,6 +205,8 @@ def _get_stmt(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
         if session_filter:
+            from phoenix.server.api.types.Project import _apply_session_io_filter
+
             base_stmt = _apply_session_io_filter(base_stmt, session_filter, project_rowid)
     else:
         assert_never(kind)

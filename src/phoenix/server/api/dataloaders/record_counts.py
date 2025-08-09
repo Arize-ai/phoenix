@@ -106,7 +106,8 @@ def _get_stmt(
     elif kind == "trace":
         time_column = models.Trace.start_time
         if filter_condition:
-            # For trace count with span filter: count distinct traces containing spans matching filter
+            # For trace count with span filter: count distinct traces
+            # containing spans matching filter
             sf = SpanFilter(filter_condition)
             stmt = sf(stmt.join(models.Span))
             # Use distinct count of trace IDs to avoid counting multiple spans per trace
@@ -115,7 +116,7 @@ def _get_stmt(
             stmt = stmt.add_columns(func.count().label("count"))
     else:
         assert_never(kind)
-        
+
     # For span counts, add the count column (if not already added above)
     if kind == "span":
         stmt = stmt.add_columns(func.count().label("count"))
