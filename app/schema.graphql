@@ -1691,12 +1691,12 @@ type Project implements Node {
   startTime: DateTime
   endTime: DateTime
   recordCount(timeRange: TimeRange, filterCondition: String): Int!
-  traceCount(timeRange: TimeRange): Int!
+  traceCount(timeRange: TimeRange, filterCondition: String, sessionFilter: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
-  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
-  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
+  costSummary(timeRange: TimeRange, filterCondition: String, sessionFilter: String): SpanCostSummary!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilter: String): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
@@ -1715,7 +1715,7 @@ type Project implements Node {
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
-  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilter: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
