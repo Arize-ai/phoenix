@@ -176,7 +176,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.record_counts.load(
-            ("span", self.project_rowid, time_range, filter_condition),
+            ("span", self.project_rowid, time_range, filter_condition, None),
         )
 
     @strawberry.field
@@ -285,6 +285,7 @@ class Project(Node):
                 self.project_rowid,
                 time_range,
                 filter_condition,
+                None,
                 probability,
             ),
         )

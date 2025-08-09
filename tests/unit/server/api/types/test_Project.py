@@ -3806,7 +3806,6 @@ async def test_trace_count_with_span_filter_returns_correct_data(
     assert response.data is not None
     assert response.data["node"]["traceCount"] == 3
 
-
     # Test without filter returns all 5
     query_no_filter = """
         query ($projectId: ID!) {
@@ -3965,23 +3964,25 @@ async def test_session_filter_with_uuid_format(
     db: DbSessionFactory,
 ) -> None:
     """Test _apply_session_io_filter with UUID format session filter"""
-    from phoenix.server.api.types.Project import _apply_session_io_filter
-    from sqlalchemy import select
     import uuid
-    
+
+    from sqlalchemy import select
+
+    from phoenix.server.api.types.Project import _apply_session_io_filter
+
     async with db() as session:
         project = await _add_project(session, name="uuid-filter-test")
         # Generate a proper UUID for the session
         session_uuid = str(uuid.uuid4())
         session_obj = await _add_project_session(session, project, session_id=session_uuid)
-        
+
         # Create base statement
         stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
-        
+
         # Apply UUID session filter
         uuid_filter = str(session_obj.session_id)  # This should be a valid UUID
         filtered_stmt = _apply_session_io_filter(stmt, uuid_filter, project.id)
-        
+
         # Verify the statement was modified to join ProjectSession
         sql_str = str(filtered_stmt.compile())
         assert "project_session" in sql_str.lower()
@@ -3992,18 +3993,19 @@ async def test_session_filter_with_substring_format(
     db: DbSessionFactory,
 ) -> None:
     """Test _apply_session_io_filter with substring format session filter"""
-    from phoenix.server.api.types.Project import _apply_session_io_filter
     from sqlalchemy import select
-    
+
+    from phoenix.server.api.types.Project import _apply_session_io_filter
+
     async with db() as session:
         project = await _add_project(session, name="substring-filter-test")
-        
+
         # Create base statement
         stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
-        
+
         # Apply substring session filter
         filtered_stmt = _apply_session_io_filter(stmt, "test_substring", project.id)
-        
+
         # Verify the statement was modified to use I/O filtering
         sql_str = str(filtered_stmt.compile())
         assert "text_contains" in sql_str.lower() or "attributes" in sql_str.lower()
@@ -4034,7 +4036,7 @@ async def test_session_filter_edge_case_empty_filter(
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": ""}
     )
-    
+
     # Should not error, but may return 0 results
     assert not response.errors
     assert response.data is not None
@@ -4050,7 +4052,9 @@ async def test_session_filter_edge_case_special_characters(
         project = await _add_project(session, name="special-chars-test")
         session_obj = await _add_project_session(session, project)
         trace = await _add_trace(session, project, session_obj)
-        await _add_span(session, trace, attributes={"input": {"value": "query with @#$% special chars"}})
+        await _add_span(
+            session, trace, attributes={"input": {"value": "query with @#$% special chars"}}
+        )
 
     query = """
         query ($projectId: ID!, $sessionFilter: String!) {
@@ -4067,7 +4071,7 @@ async def test_session_filter_edge_case_special_characters(
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "@#$%"}
     )
-    
+
     assert not response.errors
     assert response.data is not None
     assert response.data["node"]["traceCount"] == 1
@@ -4102,7 +4106,7 @@ async def test_session_filter_edge_case_no_matching_sessions(
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "nonexistent_filter"}
     )
-    
+
     assert not response.errors
     # Should return 0 for counts and None/0 for metrics
     assert response.data is not None
@@ -4119,21 +4123,27 @@ async def test_combined_filters_span_and_session(
     """Test combining span filter and session filter"""
     async with db() as session:
         project = await _add_project(session, name="combined-filter-test")
-        
+
         # Session 1: LLM span with "important" input
         session1 = await _add_project_session(session, project)
         trace1 = await _add_trace(session, project, session1)
-        await _add_span(session, trace1, span_kind="LLM", attributes={"input": {"value": "important query"}})
-        
-        # Session 2: LLM span with "normal" input  
+        await _add_span(
+            session, trace1, span_kind="LLM", attributes={"input": {"value": "important query"}}
+        )
+
+        # Session 2: LLM span with "normal" input
         session2 = await _add_project_session(session, project)
         trace2 = await _add_trace(session, project, session2)
-        await _add_span(session, trace2, span_kind="LLM", attributes={"input": {"value": "normal query"}})
-        
+        await _add_span(
+            session, trace2, span_kind="LLM", attributes={"input": {"value": "normal query"}}
+        )
+
         # Session 3: CHAIN span with "important" input
         session3 = await _add_project_session(session, project)
         trace3 = await _add_trace(session, project, session3)
-        await _add_span(session, trace3, span_kind="CHAIN", attributes={"input": {"value": "important query"}})
+        await _add_span(
+            session, trace3, span_kind="CHAIN", attributes={"input": {"value": "important query"}}
+        )
 
     query = """
         query ($projectId: ID!, $filterCondition: String!, $sessionFilter: String!) {
@@ -4148,14 +4158,14 @@ async def test_combined_filters_span_and_session(
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
     # Should return only trace1 (LLM spans in sessions with "important")
     response = await gql_client.execute(
-        query=query, 
+        query=query,
         variables={
-            "projectId": project_gid, 
+            "projectId": project_gid,
             "filterCondition": "span_kind == 'LLM'",
-            "sessionFilter": "important"
-        }
+            "sessionFilter": "important",
+        },
     )
-    
+
     assert not response.errors
     assert response.data is not None
     assert response.data["node"]["traceCount"] == 1
@@ -4183,14 +4193,14 @@ async def test_session_filter_case_sensitivity(
     """
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
-    
+
     # Test lowercase - should still match (depends on DB text search implementation)
     response_lower = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "important"}
     )
     assert not response_lower.errors
     # Note: Actual behavior depends on database text search case sensitivity
-    
+
     # Test exact case
     response_exact = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "Important"}
@@ -4225,9 +4235,13 @@ async def test_session_filter_with_invalid_uuid_format(
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
     # Invalid UUID format should fall back to substring search and match "abc-def"
     response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "sessionFilter": "abc-def-123-invalid"}  # 36 chars but invalid UUID
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilter": "abc-def-123-invalid",
+        },  # 36 chars but invalid UUID
     )
-    
+
     assert not response.errors
     # Should return 0 since this invalid UUID doesn't match any session_id
     assert response.data is not None
@@ -4241,16 +4255,16 @@ async def test_session_filter_with_annotation_summaries(
     """Test session filter works with spanAnnotationSummary field"""
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-        
+
         # Session with span that has input containing "priority"
         session1 = await _add_project_session(session, project)
         trace1 = await _add_trace(session, project, session1)
         span1 = await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
-        
+
         # Add annotation to the span
         annotation = models.SpanAnnotation(
             span_rowid=span1.id,
-            name="test-annotation", 
+            name="test-annotation",
             label="important",
             score=1.0,
             explanation="Test annotation",
@@ -4259,17 +4273,17 @@ async def test_session_filter_with_annotation_summaries(
             source="APP",
         )
         session.add(annotation)
-        
+
         # Session with span that doesn't have "priority" in input
-        session2 = await _add_project_session(session, project) 
+        session2 = await _add_project_session(session, project)
         trace2 = await _add_trace(session, project, session2)
         span2 = await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
-        
+
         # Add annotation to this span too
         annotation2 = models.SpanAnnotation(
             span_rowid=span2.id,
             name="test-annotation",
-            label="normal", 
+            label="normal",
             score=0.5,
             explanation="Test annotation",
             metadata_={},
@@ -4298,12 +4312,12 @@ async def test_session_filter_with_annotation_summaries(
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "priority"}
     )
-    
+
     assert not response.errors
     assert response.data is not None
     summary = response.data["node"]["spanAnnotationSummary"]
     assert summary is not None
-    
+
     # Should only have the "important" label from the filtered session
     label_fractions = summary["labelFractions"]
     assert len(label_fractions) == 1
@@ -4318,7 +4332,7 @@ async def test_session_filter_with_large_dataset_performance(
     """Test session filter performance with larger dataset"""
     async with db() as session:
         project = await _add_project(session, name="performance-test")
-        
+
         # Create 20 sessions, each with a trace and span
         for i in range(20):
             session_obj = await _add_project_session(session, project)
@@ -4342,7 +4356,7 @@ async def test_session_filter_with_large_dataset_performance(
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilter": "special"}
     )
-    
+
     assert not response.errors
     # Should return exactly 10 traces (half of the 20 created)
     assert response.data is not None
