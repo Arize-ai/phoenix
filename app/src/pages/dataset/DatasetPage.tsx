@@ -30,7 +30,6 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
-import { DatasetHistoryButton } from "./DatasetHistoryButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
 export function DatasetPage() {
@@ -103,6 +102,8 @@ function DatasetPageContent({
         navigate(`/datasets/${datasetId}/experiments`);
       } else if (tabIndex === 1) {
         navigate(`/datasets/${datasetId}/examples`);
+      } else if (tabIndex === 2) {
+        navigate(`/datasets/${datasetId}/history`);
       }
     },
     [navigate, datasetId]
@@ -110,7 +111,11 @@ function DatasetPageContent({
 
   // Set the initial tab
   const location = useLocation();
-  const initialIndex = location.pathname.includes("examples") ? 1 : 0;
+  const initialIndex = location.pathname.includes("history")
+    ? 2
+    : location.pathname.includes("examples")
+    ? 1
+    : 0;
   return (
     <main css={mainCSS}>
       <View
@@ -173,10 +178,9 @@ function DatasetPageContent({
               <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
               <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
-            <DatasetHistoryButton datasetId={dataset.id} />
-            <DatasetCodeButton />
-            <RunExperimentButton />
-            <AddDatasetExampleButton
+                         <DatasetCodeButton />
+             <RunExperimentButton />
+<AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
                 notifySuccess({
@@ -201,7 +205,9 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs
-        defaultSelectedKey={initialIndex === 0 ? "experiments" : "examples"}
+        defaultSelectedKey={
+          initialIndex === 0 ? "experiments" : initialIndex === 1 ? "examples" : "history"
+        }
         onSelectionChange={(key) => {
           switch (key) {
             case "experiments":
@@ -209,6 +215,9 @@ function DatasetPageContent({
               break;
             case "examples":
               onTabChange(1);
+              break;
+            case "history":
+              onTabChange(2);
               break;
           }
         }}
@@ -220,6 +229,7 @@ function DatasetPageContent({
           <Tab id="examples">
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
+          <Tab id="history">History</Tab>
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -227,6 +237,11 @@ function DatasetPageContent({
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="examples">
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="history">
           <Suspense>
             <Outlet />
           </Suspense>

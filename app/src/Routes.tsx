@@ -53,6 +53,8 @@ import {
   APIsPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  datasetHistoryLoader,
+  DatasetHistoryPage,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -251,6 +253,11 @@ const router = createBrowserRouter(
                 >
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
+                <Route
+                  path="history"
+                  element={<DatasetHistoryPage />}
+                  loader={datasetHistoryLoader}
+                />
               </Route>
               <Route
                 path="compare"
