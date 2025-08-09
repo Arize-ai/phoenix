@@ -150,7 +150,7 @@ class Evaluator(ABC):
     """
     Core abstraction for evaluators.
     Instances are callable: `scores = evaluator(eval_input)` (sync or async via `aevaluate`).
-    Supports single-record (`evaluate`) and batch (`batch_evaluate`) modes,
+    Supports single-record (`evaluate`) and batch (`evaluate_batch`) modes,
     with optional per-call field_mapping.
     """
 
@@ -268,7 +268,7 @@ class Evaluator(ABC):
     # ensure the callable inherits evaluate's docs for IDE support
     __call__.__doc__ = evaluate.__doc__
 
-    def batch_evaluate(
+    def evaluate_batch(
         self, eval_inputs: List[EvalInput], input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[List[Score]]:
         """
@@ -276,7 +276,7 @@ class Evaluator(ABC):
         """
         return [self.evaluate(inp, input_mapping=input_mapping) for inp in eval_inputs]
 
-    async def abatch_evaluate(
+    async def aevaluate_batch(
         self, eval_inputs: List[EvalInput], input_mapping: Optional[Mapping[str, str]] = None
     ) -> List[List[Score]]:
         """
@@ -518,7 +518,7 @@ def evaluator_function(
 
     The decorated function should accept keyword args matching its required fields and return a
     single Score. The returned object is an Evaluator with full support for evaluate/aevaluate,
-    batch_evaluate/abatch_evaluate, and direct callability.
+    evaluate_batch/aevaluate_batch, and direct callability.
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
