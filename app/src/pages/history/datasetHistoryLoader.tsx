@@ -3,17 +3,17 @@ import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { historyLoaderQuery } from "./__generated__/historyLoaderQuery.graphql";
+import { datasetHistoryLoaderQuery } from "./__generated__/datasetHistoryLoaderQuery.graphql";
 
 /**
- * Loads the dataset data required for the history page
+ * Loads the dataset data required for the dataset history page
  */
-export async function historyLoader(args: LoaderFunctionArgs) {
+export async function datasetHistoryLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  return await fetchQuery<historyLoaderQuery>(
+  return await fetchQuery<datasetHistoryLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query historyLoaderQuery($id: ID!) {
+      query datasetHistoryLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ... on Dataset {

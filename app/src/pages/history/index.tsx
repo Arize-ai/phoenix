@@ -1,2 +1,2 @@
-export * from "./HistoryPage";
-export * from "./historyLoader";
+export * from "./DatasetHistoryPage";
+export * from "./datasetHistoryLoader";

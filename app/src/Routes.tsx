@@ -253,8 +253,8 @@ const router = createBrowserRouter(
                 </Route>
                 <Route
                   path="history"
-                  element={<HistoryPage />}
-                  loader={historyLoader}
+                  element={<DatasetHistoryPage />}
+                  loader={datasetHistoryLoader}
                 />
               </Route>
               <Route
