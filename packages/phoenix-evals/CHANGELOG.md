@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.1...arize-phoenix-evals-v0.27.0) (2025-08-09)
+
+
+### Features
+
+* new evaluator and score abstractions ([#8842](https://github.com/Arize-ai/phoenix/issues/8842)) ([f56b9cf](https://github.com/Arize-ai/phoenix/commit/f56b9cf92f7853575d0892aaea165a36dcf6c7a3))
+
+
+### Bug Fixes
+
+* Pass default headers to non-azure OpenAI clients ([#9001](https://github.com/Arize-ai/phoenix/issues/9001)) ([baf54a0](https://github.com/Arize-ai/phoenix/commit/baf54a040a1a6cbc258d960f18b3fe4efdf53413))
+* Properly return objects from Anthropic adapter ([#8977](https://github.com/Arize-ai/phoenix/issues/8977)) ([e9a2e11](https://github.com/Arize-ai/phoenix/commit/e9a2e11719de53ff1f54879f38463746a6813de8))
+
 ## [0.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.0...arize-phoenix-evals-v0.26.1) (2025-08-01)
 
 
