@@ -251,6 +251,11 @@ const router = createBrowserRouter(
                 >
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
+                <Route
+                  path="history"
+                  element={<HistoryPage />}
+                  loader={historyLoader}
+                />
               </Route>
               <Route
                 path="compare"
