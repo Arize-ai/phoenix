@@ -3,7 +3,7 @@ import inspect
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from functools import wraps
+from functools import wraps  # noqa: F401
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple, Union
 
 import pandas as pd
@@ -652,68 +652,52 @@ def list_evaluators() -> List[str]:
     return list(_registry.keys())
 
 
-def simple_evaluator(
-    name: str, source: SourceType, direction: DirectionType = "maximize"
-) -> Callable[
-    [Callable[..., Score]], Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]
-]:
+def evaluator_function(
+    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+) -> Callable[[Callable[..., Score]], Evaluator]:
     """
-    Decorator to register a simple heuristic evaluator function.
+    Decorator that turns a simple function into an Evaluator instance.
+
     The decorated function should accept keyword args matching its required fields and return a
-    single Score.
-    The wrapper provides:
-      - automatic required_fields inference from function signature
-      - per-call input_mapping support
-      - registration under the given name (queryable via list_evaluators)
+    single Score. The returned object is an Evaluator with full support for evaluate/aevaluate,
+    batch_evaluate/abatch_evaluate, and direct callability.
 
-    Args:
-        name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic).
-        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
-        "maximize".
-
-    Note:
-        The decorated function should create Score objects. The name parameter is optional
-        since the decorator will set it automatically. The wrapper will also set the source.
+    Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
     """
 
-    def deco(
-        fn: Callable[..., Score],
-    ) -> Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]:
+    def deco(fn: Callable[..., Score]) -> Evaluator:
         sig = inspect.signature(fn)
         required: Set[str] = set(sig.parameters.keys())
 
-        @wraps(fn)
-        def wrapper(
-            eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
-        ) -> List[Score]:
-            """
-            Evaluate by extracting required fields from eval_input and calling the original
-            function.
-            """
-            remapped_input = remap_eval_input(eval_input, required, input_mapping)
-
-            score = fn(**remapped_input)
-            # Create a new Score with the correct name and source if needed
-            if score.name != name or score.source != source:
-                score = Score(
-                    score=score.score,
+        class _FunctionEvaluator(Evaluator):
+            def __init__(self) -> None:
+                super().__init__(
                     name=name,
-                    label=score.label,
-                    explanation=score.explanation,
-                    metadata=score.metadata,
                     source=source,
+                    required_fields=required,
                     direction=direction,
                 )
-            return [score]
+                self._fn = fn
 
-        # Add attributes to the wrapper function
-        wrapper.required_fields = required  # type: ignore
-        wrapper.name = name  # type: ignore
-        wrapper.source = source  # type: ignore
-        wrapper.direction = direction  # type: ignore
-        _registry[name] = wrapper
-        return wrapper
+            def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                # eval_input is already remapped by Evaluator.evaluate(...)
+                score = self._fn(**eval_input)
+                if score.name != name or score.source != source or score.direction != direction:
+                    score = Score(
+                        score=score.score,
+                        name=name,
+                        label=score.label,
+                        explanation=score.explanation,
+                        metadata=score.metadata,
+                        source=source,
+                        direction=direction,
+                    )
+                return [score]
+
+        evaluator_instance = _FunctionEvaluator()
+        # Keep registry compatibility by storing a callable with expected signature
+        _registry[name] = evaluator_instance.evaluate
+        return evaluator_instance
 
     return deco
 
@@ -797,10 +781,14 @@ def evaluate_dataframe(
     explanation_used: Dict[str, bool] = {}
 
     # Per-evaluator error columns
-    error_cols: Dict[str, List[Optional[Dict[str, Any]]]] = {
-        f"error_{evaluator.name}": [None] * num_rows for evaluator in evaluators
-    }
-    error_cols_used: Dict[str, bool] = {col: False for col in error_cols}
+    # Pre-create error columns keyed by evaluator name
+    error_cols: Dict[str, List[Optional[Dict[str, Any]]]] = {}
+    error_cols_used: Dict[str, bool] = {}
+    for ev in evaluators:
+        ev_name = ev.name
+        err_col = f"error_{ev_name}"
+        error_cols[err_col] = [None] * num_rows
+        error_cols_used[err_col] = False
 
     # Helper to ensure score-name columns exist with appropriate length
     def ensure_score_columns(score_name: str) -> None:
@@ -819,9 +807,14 @@ def evaluate_dataframe(
     for row_index, (_, row) in enumerate(dataframe.iterrows()):
         row_dict: Dict[str, Any] = row.to_dict()
         for evaluator in evaluators:
+            # Resolve evaluator identity and optional mapping
+            ev_name = evaluator.name
+            ev_source = evaluator.source
+            ev_direction = evaluator.direction
+
             mapping: Optional[Mapping[str, str]] = None
             if input_mappings is not None:
-                mapping = input_mappings.get(evaluator.name, None)
+                mapping = input_mappings.get(ev_name, None)
 
             try:
                 scores = evaluator.evaluate(row_dict, input_mapping=mapping)
@@ -832,17 +825,17 @@ def evaluate_dataframe(
                     name=ERROR_SCORE,
                     explanation=str(exc),
                     metadata={"exception_type": type(exc).__name__},
-                    source=evaluator.source,
-                    direction=evaluator.direction,
+                    source=ev_source,
+                    direction=ev_direction,
                 )
-                err_col = f"error_{evaluator.name}"
+                err_col = f"error_{ev_name}"
                 error_cols[err_col][row_index] = err_score.to_dict()
                 error_cols_used[err_col] = True
                 continue
 
             # Detect evaluator-level error as a single ERROR score
             if len(scores) == 1 and (scores[0].name is None or scores[0].name == ERROR_SCORE):
-                err_col = f"error_{evaluator.name}"
+                err_col = f"error_{ev_name}"
                 error_cols[err_col][row_index] = scores[0].to_dict()
                 error_cols_used[err_col] = True
                 continue
