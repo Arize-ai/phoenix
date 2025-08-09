@@ -22,7 +22,7 @@ export * from "./profile";
 export * from "./playground";
 export * from "./prompts";
 export * from "./prompt";
-export * from "./history";
+export * from "./dataset_history";
 export * from "./AuthenticatedRoot";
 export * from "./authenticatedRootLoader";
 export * from "./support";
