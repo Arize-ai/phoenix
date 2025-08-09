@@ -522,15 +522,14 @@ class TestEvaluatorDataFrame:
         )
         df = pd.DataFrame({"text": ["x", "y"]})
 
-        out = evaluator.evaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
-        # Adds one column named by the score (evaluator.name)
-        assert "quality" in out.columns
-        # No error column should be present
-        assert not any(col.startswith("error_") for col in out.columns)
-        # Cells contain Score objects
-        assert isinstance(out.loc[0, "quality"], Score)
-        assert out.loc[0, "quality"].name == "quality"
+        # Adds property columns for the score
+        assert "quality_details" in out.columns
+        assert "quality_score" in out.columns
+        assert "quality_label" in out.columns
+        # Cells contain dicts for details
+        assert isinstance(out.loc[0, "quality_details"], dict)
 
     def test_evaluate_dataframe_with_mapping_success(self):
         evaluator = self.SingleScoreEvaluator(
@@ -538,10 +537,12 @@ class TestEvaluatorDataFrame:
         )
         df = pd.DataFrame({"user_text": ["x", "y"]})
 
-        out = evaluator.evaluate_dataframe(df, input_mapping={"text": "user_text"})
+        out = evaluate_dataframe(
+            df, [evaluator], input_mappings={evaluator.name: {"text": "user_text"}}
+        )
 
-        assert "quality" in out.columns
-        assert isinstance(out.loc[1, "quality"], Score)
+        assert "quality_details" in out.columns
+        assert isinstance(out.loc[1, "quality_details"], dict)
 
     def test_evaluate_dataframe_error_creates_error_column(self):
         evaluator = self.SingleScoreEvaluator(
@@ -550,18 +551,15 @@ class TestEvaluatorDataFrame:
         # Missing required column will trigger mapping error for each row
         df = pd.DataFrame({"wrong": ["x", "y"]})
 
-        out = evaluator.evaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
-        # Score column exists but rows should be None due to error
-        assert "quality" in out.columns
-        assert out.loc[0, "quality"] is None
-        assert out.loc[1, "quality"] is None
-        # Error column is present and contains error Score objects
-        err_col = "error_quality"
+        # Error column is present and contains error dicts
+        err_col = "quality_errors"
         assert err_col in out.columns
-        assert isinstance(out.loc[0, err_col], Score)
-        assert out.loc[0, err_col].name == "ERROR"
-        assert "exception_type" in out.loc[0, err_col].metadata
+        assert isinstance(out.loc[0, err_col], dict)
+        assert out.loc[0, err_col]["name"] == "ERROR"
+        assert "metadata" in out.loc[0, err_col]
+        assert "exception_type" in out.loc[0, err_col]["metadata"]
 
     def test_evaluate_dataframe_mixed_rows(self):
         evaluator = self.SingleScoreEvaluator(
@@ -569,14 +567,14 @@ class TestEvaluatorDataFrame:
         )
         df = pd.DataFrame({"text": ["ok", None]})
 
-        out = evaluator.evaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
         # Row 0 succeeds
-        assert isinstance(out.loc[0, "quality"], Score)
+        assert isinstance(out.loc[0, "quality_details"], dict)
         # Row 1 fails due to None (validation)
-        assert out.loc[1, "quality"] is None
-        assert "error_quality" in out.columns
-        assert isinstance(out.loc[1, "error_quality"], Score)
+        assert out.loc[1, "quality_details"] is None
+        assert "quality_errors" in out.columns
+        assert isinstance(out.loc[1, "quality_errors"], dict)
 
     def test_evaluate_dataframe_multi_score_success_and_error(self):
         evaluator = self.MultiScoreEvaluator(
@@ -585,23 +583,23 @@ class TestEvaluatorDataFrame:
         # First row ok, second row None triggers validation error
         df = pd.DataFrame({"text": ["ok", None]})
 
-        out = evaluator.evaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
-        # Columns for each score name
-        col_a = "multi_a"
-        col_b = "multi_b"
+        # Columns for each score name (details)
+        col_a = "multi_a_details"
+        col_b = "multi_b_details"
         assert col_a in out.columns and col_b in out.columns
 
         # Row 0 has both scores
-        assert isinstance(out.loc[0, col_a], Score)
-        assert isinstance(out.loc[0, col_b], Score)
+        assert isinstance(out.loc[0, col_a], dict)
+        assert isinstance(out.loc[0, col_b], dict)
 
         # Row 1 errored: both score columns None
         assert out.loc[1, col_a] is None
         assert out.loc[1, col_b] is None
         # Error column present with error Score
-        assert "error_multi" in out.columns
-        assert isinstance(out.loc[1, "error_multi"], Score)
+        assert "multi_errors" in out.columns
+        assert isinstance(out.loc[1, "multi_errors"], dict)
 
     @pytest.mark.asyncio
     async def test_aevaluate_dataframe_single_score_success(self):
@@ -610,10 +608,10 @@ class TestEvaluatorDataFrame:
         )
         df = pd.DataFrame({"text": ["x", "y"]})
 
-        out = await evaluator.aevaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
-        assert "quality" in out.columns
-        assert isinstance(out.loc[0, "quality"], Score)
+        assert "quality_details" in out.columns
+        assert isinstance(out.loc[0, "quality_details"], dict)
 
     @pytest.mark.asyncio
     async def test_aevaluate_dataframe_error_creates_error_column(self):
@@ -622,12 +620,10 @@ class TestEvaluatorDataFrame:
         )
         df = pd.DataFrame({"wrong": ["x"]})
 
-        out = await evaluator.aevaluate_dataframe(df)
+        out = evaluate_dataframe(df, [evaluator])
 
-        assert "quality" in out.columns
-        assert out.loc[0, "quality"] is None
-        assert "error_quality" in out.columns
-        assert isinstance(out.loc[0, "error_quality"], Score)
+        assert "quality_errors" in out.columns
+        assert isinstance(out.loc[0, "quality_errors"], dict)
 
 
 class TestStandaloneEvaluateDataFrame:
@@ -678,8 +674,8 @@ class TestStandaloneEvaluateDataFrame:
         out = evaluate_dataframe(df, evaluators)
 
         # No score columns (no observed score); but no crash; ensure error column exists
-        assert "error_ev1" in out.columns
-        assert isinstance(out.loc[0, "error_ev1"], dict)
+        assert "ev1_errors" in out.columns
+        assert isinstance(out.loc[0, "ev1_errors"], dict)
 
     def test_standalone_multi_score_and_explanation(self):
         evaluators = [
