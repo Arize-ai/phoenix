@@ -106,6 +106,7 @@ class PrecisionRecallFScore(Evaluator):
 
     def __init__(
         self,
+        *,
         beta: float = 1.0,
         average: AverageType = "macro",
         zero_division: float = 0.0,
