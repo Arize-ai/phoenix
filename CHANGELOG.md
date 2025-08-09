@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.0...arize-phoenix-v11.21.1) (2025-08-09)
+
+
+### Bug Fixes
+
+* **experiments:** make examples in experiments compare table based off dataset version of base experiment ([#8995](https://github.com/Arize-ai/phoenix/issues/8995)) ([640b1f5](https://github.com/Arize-ai/phoenix/commit/640b1f51d8840d1c4f94d414924770da8f93be05))
+
+
+### Documentation
+
+* Add opentelemetry integration guide link to readme ([#8996](https://github.com/Arize-ai/phoenix/issues/8996)) ([4974a6c](https://github.com/Arize-ai/phoenix/commit/4974a6ce039f016d22161784d0897c8a417e8185))
+
 ## [11.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.20.0...arize-phoenix-v11.21.0) (2025-08-07)
 
 
