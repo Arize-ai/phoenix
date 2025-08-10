@@ -64,7 +64,12 @@ export function ExperimentComparePage() {
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between" alignItems="end">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          gap="size-150"
+          alignItems="end"
+        >
           <ExperimentMultiSelector
             dataRef={loaderData}
             selectedBaseExperimentId={baseExperimentId}

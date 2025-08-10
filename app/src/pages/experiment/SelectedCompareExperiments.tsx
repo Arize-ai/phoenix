@@ -4,8 +4,8 @@ import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Text } from "@phoenix/components";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 
 import type {
   SelectedCompareExperiments_dataset$data,
@@ -62,18 +62,15 @@ export function SelectedCompareExperiments({
     (experimentId) => idToExperiment[experimentId]
   );
   return (
-    <Flex direction="row" gap="size-200" alignItems="center">
+    <Flex direction="row" gap="size-250" alignItems="center">
       {compareExperiments.map((experiment, experimentIndex) => (
         <Flex
           direction="row"
-          gap="size-100"
+          gap="size-130"
           key={experiment.id}
           alignItems="center"
         >
-          <SequenceNumberToken
-            sequenceNumber={experiment.sequenceNumber}
-            color={getExperimentColor(experimentIndex)}
-          />
+          <ColorSwatch color={getExperimentColor(experimentIndex)} />
           <Text
             css={css`
               white-space: nowrap;

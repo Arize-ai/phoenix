@@ -17,6 +17,7 @@ import {
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
@@ -111,12 +112,9 @@ export function ExperimentMultiSelector(props: {
         <DialogTrigger>
           <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
-              <Flex direction="row" gap="size-100" alignItems="center">
+              <Flex direction="row" gap="size-130" alignItems="center">
                 {data.baseExperiment.sequenceNumber && (
-                  <SequenceNumberToken
-                    sequenceNumber={data.baseExperiment.sequenceNumber}
-                    color={baseExperimentColor}
-                  />
+                  <ColorSwatch color={baseExperimentColor} />
                 )}
                 <Text
                   css={css`

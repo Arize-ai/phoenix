@@ -54,6 +54,7 @@ import {
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import {
   DialogContent,
   DialogHeader,
@@ -371,7 +372,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           const name = experiment?.name;
           const metadata = experiment?.metadata;
           const projectId = experiment?.project?.id;
-          const sequenceNumber = experiment?.sequenceNumber || 0;
           const experimentColor =
             experimentIndex === 0
               ? baseExperimentColor
@@ -384,11 +384,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <Flex direction="row" gap="size-100" wrap alignItems="center">
-                <SequenceNumberToken
-                  sequenceNumber={sequenceNumber}
-                  color={experimentColor}
-                />
+              <Flex direction="row" gap="size-130" wrap alignItems="center">
+                <ColorSwatch color={experimentColor} />
                 <Text
                   css={css`
                     max-width: var(--ac-global-dimension-size-2000);
@@ -1082,7 +1079,6 @@ function SelectedExampleDialog({
   datasetId: string;
   experimentInfoById: ExperimentInfoMap;
 }) {
-  const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   return (
     <Dialog>
       <DialogContent>
@@ -1179,84 +1175,76 @@ function SelectedExampleDialog({
                     gap: var(--ac-global-dimension-static-size-200);
                   `}
                 >
-                  {selectedExample.runComparisonItems.map(
-                    (runItem, runItemIndex) => {
-                      const experiment =
-                        experimentInfoById[runItem.experimentId];
-                      const experimentColor =
-                        runItemIndex === 0
-                          ? baseExperimentColor
-                          : getExperimentColor(runItemIndex - 1);
-                      return (
-                        <li key={runItem.experimentId}>
-                          <Card
-                            {...defaultCardProps}
-                            title={experiment?.name ?? ""}
-                            titleExtra={
-                              experiment && (
-                                <SequenceNumberToken
-                                  sequenceNumber={experiment.sequenceNumber}
-                                  color={experimentColor}
-                                />
-                              )
-                            }
-                          >
-                            <ul>
-                              {runItem.runs.map((run, index) => (
-                                <li key={index}>
-                                  <Flex direction="row">
-                                    <View flex>
-                                      {run.error ? (
-                                        <View padding="size-200">
-                                          <RunError error={run.error} />
-                                        </View>
-                                      ) : (
-                                        <JSONBlock
-                                          value={JSON.stringify(
-                                            run.output,
-                                            null,
-                                            2
-                                          )}
-                                        />
-                                      )}
-                                    </View>
-                                    <ViewSummaryAside width="size-3000">
-                                      <RunLatency
-                                        startTime={run.startTime}
-                                        endTime={run.endTime}
+                  {selectedExample.runComparisonItems.map((runItem) => {
+                    const experiment = experimentInfoById[runItem.experimentId];
+                    return (
+                      <li key={runItem.experimentId}>
+                        <Card
+                          {...defaultCardProps}
+                          title={experiment?.name ?? ""}
+                          titleExtra={
+                            experiment && (
+                              <SequenceNumberToken
+                                sequenceNumber={experiment.sequenceNumber}
+                              />
+                            )
+                          }
+                        >
+                          <ul>
+                            {runItem.runs.map((run, index) => (
+                              <li key={index}>
+                                <Flex direction="row">
+                                  <View flex>
+                                    {run.error ? (
+                                      <View padding="size-200">
+                                        <RunError error={run.error} />
+                                      </View>
+                                    ) : (
+                                      <JSONBlock
+                                        value={JSON.stringify(
+                                          run.output,
+                                          null,
+                                          2
+                                        )}
                                       />
-                                      <ul
-                                        css={css`
-                                          margin-top: var(
-                                            --ac-global-dimension-static-size-100
-                                          );
-                                          display: flex;
-                                          flex-direction: column;
-                                          justify-content: flex-start;
-                                          align-items: flex-end;
-                                          gap: var(
-                                            --ac-global-dimension-static-size-100
-                                          );
-                                        `}
-                                      >
-                                        {run.annotations?.edges.map((edge) => (
-                                          <li key={edge.annotation.id}>
-                                            <AnnotationLabel
-                                              annotation={edge.annotation}
-                                            />
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </ViewSummaryAside>
-                                  </Flex>
-                                </li>
-                              ))}
-                            </ul>
-                          </Card>
-                        </li>
-                      );
-                    }
-                  )}
+                                    )}
+                                  </View>
+                                  <ViewSummaryAside width="size-3000">
+                                    <RunLatency
+                                      startTime={run.startTime}
+                                      endTime={run.endTime}
+                                    />
+                                    <ul
+                                      css={css`
+                                        margin-top: var(
+                                          --ac-global-dimension-static-size-100
+                                        );
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: flex-start;
+                                        align-items: flex-end;
+                                        gap: var(
+                                          --ac-global-dimension-static-size-100
+                                        );
+                                      `}
+                                    >
+                                      {run.annotations?.edges.map((edge) => (
+                                        <li key={edge.annotation.id}>
+                                          <AnnotationLabel
+                                            annotation={edge.annotation}
+                                          />
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </ViewSummaryAside>
+                                </Flex>
+                              </li>
+                            ))}
+                          </ul>
+                        </Card>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </Flex>
