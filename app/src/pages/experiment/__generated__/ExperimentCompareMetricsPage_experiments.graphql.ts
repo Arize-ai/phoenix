@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1856031a0c07da1868cf16d84520b97e>>
+ * @generated SignedSource<<708eeb0026d99c807a864ed989d0f7f2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,12 +20,22 @@ export type ExperimentCompareMetricsPage_experiments$data = {
   }>;
   readonly compareExperimentRunMetricCounts: ReadonlyArray<{
     readonly compareExperimentId: string;
+    readonly completionCost: {
+      readonly numDecreases: number;
+      readonly numEqual: number;
+      readonly numIncreases: number;
+    };
     readonly completionTokenCount: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
     };
     readonly latency: {
+      readonly numDecreases: number;
+      readonly numEqual: number;
+      readonly numIncreases: number;
+    };
+    readonly promptCost: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
@@ -338,6 +348,16 @@ return {
           "args": null,
           "concreteType": "MetricCounts",
           "kind": "LinkedField",
+          "name": "totalTokenCount",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
           "name": "promptTokenCount",
           "plural": false,
           "selections": (v7/*: any*/),
@@ -358,7 +378,7 @@ return {
           "args": null,
           "concreteType": "MetricCounts",
           "kind": "LinkedField",
-          "name": "totalTokenCount",
+          "name": "totalCost",
           "plural": false,
           "selections": (v7/*: any*/),
           "storageKey": null
@@ -368,7 +388,17 @@ return {
           "args": null,
           "concreteType": "MetricCounts",
           "kind": "LinkedField",
-          "name": "totalCost",
+          "name": "promptCost",
+          "plural": false,
+          "selections": (v7/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "MetricCounts",
+          "kind": "LinkedField",
+          "name": "completionCost",
           "plural": false,
           "selections": (v7/*: any*/),
           "storageKey": null
@@ -398,6 +428,6 @@ return {
 };
 })();
 
-(node as any).hash = "7adaa10197de7286da0112679907bf87";
+(node as any).hash = "3b6d3f606d3692c5c8d21ef95a326556";
 
 export default node;

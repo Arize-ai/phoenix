@@ -358,6 +358,8 @@ type CompareExperimentRunMetricCounts {
   completionTokenCount: MetricCounts!
   totalTokenCount: MetricCounts!
   totalCost: MetricCounts!
+  promptCost: MetricCounts!
+  completionCost: MetricCounts!
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart

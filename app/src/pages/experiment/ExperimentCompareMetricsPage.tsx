@@ -161,6 +161,11 @@ export function ExperimentCompareMetricsPage() {
             numDecreases
             numEqual
           }
+          totalTokenCount {
+            numIncreases
+            numDecreases
+            numEqual
+          }
           promptTokenCount {
             numIncreases
             numDecreases
@@ -171,12 +176,17 @@ export function ExperimentCompareMetricsPage() {
             numDecreases
             numEqual
           }
-          totalTokenCount {
+          totalCost {
             numIncreases
             numDecreases
             numEqual
           }
-          totalCost {
+          promptCost {
+            numIncreases
+            numDecreases
+            numEqual
+          }
+          completionCost {
             numIncreases
             numDecreases
             numEqual
@@ -190,7 +200,6 @@ export function ExperimentCompareMetricsPage() {
           compareExperimentId
           numIncreases
           numDecreases
-
           numEqual
         }
       }
@@ -350,17 +359,28 @@ export function ExperimentCompareMetricsPage() {
       promptCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.prompt.cost,
-        numIncreases: 0,
-        numDecreases: 0,
-        numEqual: 0,
+        numIncreases:
+          compareExperimentIdToCounts[experiment.id]?.promptCost.numIncreases ??
+          0,
+        numDecreases:
+          compareExperimentIdToCounts[experiment.id]?.promptCost.numDecreases ??
+          0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.promptCost.numEqual ?? 0,
         color: experimentColor,
       });
       completionCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.completion.cost,
-        numIncreases: 0,
-        numDecreases: 0,
-        numEqual: 0,
+        numIncreases:
+          compareExperimentIdToCounts[experiment.id]?.completionCost
+            .numIncreases ?? 0,
+        numDecreases:
+          compareExperimentIdToCounts[experiment.id]?.completionCost
+            .numDecreases ?? 0,
+        numEqual:
+          compareExperimentIdToCounts[experiment.id]?.completionCost.numEqual ??
+          0,
         color: experimentColor,
       });
     });

@@ -118,10 +118,12 @@ class MetricCounts:
 class CompareExperimentRunMetricCounts:
     compare_experiment_id: GlobalID
     latency: MetricCounts
+    total_token_count: MetricCounts
     prompt_token_count: MetricCounts
     completion_token_count: MetricCounts
-    total_token_count: MetricCounts
     total_cost: MetricCounts
+    prompt_cost: MetricCounts
+    completion_cost: MetricCounts
 
 
 @strawberry.type
@@ -568,6 +570,10 @@ class Query:
                     "completion_tokens"
                 ),
                 func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                func.coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
+                func.coalesce(func.sum(models.SpanCost.completion_cost), 0).label(
+                    "completion_cost"
+                ),
             )
             .select_from(models.SpanCost)
             .group_by(
@@ -599,6 +605,8 @@ class Query:
         base_experiment_run_completion_token_count = base_experiment_span_costs.c.completion_tokens
         base_experiment_run_total_token_count = base_experiment_span_costs.c.total_tokens
         base_experiment_run_total_cost = base_experiment_span_costs.c.total_cost
+        base_experiment_run_prompt_cost = base_experiment_span_costs.c.prompt_cost
+        base_experiment_run_completion_cost = base_experiment_span_costs.c.completion_cost
 
         for compare_experiment_index, compare_experiment_rowid in enumerate(
             compare_experiment_rowids
@@ -623,6 +631,10 @@ class Query:
                         "completion_tokens"
                     ),
                     func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                    func.coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
+                    func.coalesce(func.sum(models.SpanCost.completion_cost), 0).label(
+                        "completion_cost"
+                    ),
                 )
                 .select_from(models.SpanCost)
                 .group_by(models.SpanCost.trace_rowid)
@@ -640,6 +652,8 @@ class Query:
             )
             compare_experiment_run_total_token_count = compare_experiment_span_costs.c.total_tokens
             compare_experiment_run_total_cost = compare_experiment_span_costs.c.total_cost
+            compare_experiment_run_prompt_cost = compare_experiment_span_costs.c.prompt_cost
+            compare_experiment_run_completion_cost = compare_experiment_span_costs.c.completion_cost
 
             query = (
                 query.add_columns(
@@ -715,6 +729,31 @@ class Query:
                     _count_rows(
                         base_experiment_run_total_cost == compare_experiment_run_total_cost,
                     ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_total_cost"),
+                    _count_rows(
+                        base_experiment_run_prompt_cost < compare_experiment_run_prompt_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_prompt_cost"),
+                    _count_rows(
+                        base_experiment_run_prompt_cost > compare_experiment_run_prompt_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_prompt_cost"),
+                    _count_rows(
+                        base_experiment_run_prompt_cost == compare_experiment_run_prompt_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_prompt_cost"),
+                    _count_rows(
+                        base_experiment_run_completion_cost
+                        < compare_experiment_run_completion_cost,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_increased_completion_cost"
+                    ),
+                    _count_rows(
+                        base_experiment_run_completion_cost
+                        > compare_experiment_run_completion_cost,
+                    ).label(
+                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_completion_cost"
+                    ),
+                    _count_rows(
+                        base_experiment_run_completion_cost
+                        == compare_experiment_run_completion_cost,
+                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_completion_cost"),
                 )
                 .join(
                     compare_experiment_runs,
@@ -761,6 +800,12 @@ class Query:
                 num_runs_with_increased_total_cost,
                 num_runs_with_decreased_total_cost,
                 num_runs_with_equal_total_cost,
+                num_runs_with_increased_prompt_cost,
+                num_runs_with_decreased_prompt_cost,
+                num_runs_with_equal_prompt_cost,
+                num_runs_with_increased_completion_cost,
+                num_runs_with_decreased_completion_cost,
+                num_runs_with_equal_completion_cost,
             ) = result[start_index:end_index]
             counts.append(
                 CompareExperimentRunMetricCounts(
@@ -769,6 +814,11 @@ class Query:
                         num_increases=num_runs_with_increased_latency,
                         num_decreases=num_runs_with_decreased_latency,
                         num_equal=num_runs_with_equal_latency,
+                    ),
+                    total_token_count=MetricCounts(
+                        num_increases=num_runs_with_increased_total_token_count,
+                        num_decreases=num_runs_with_decreased_total_token_count,
+                        num_equal=num_runs_with_equal_total_token_count,
                     ),
                     prompt_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_prompt_token_count,
@@ -780,15 +830,20 @@ class Query:
                         num_decreases=num_runs_with_decreased_completion_token_count,
                         num_equal=num_runs_with_equal_completion_token_count,
                     ),
-                    total_token_count=MetricCounts(
-                        num_increases=num_runs_with_increased_total_token_count,
-                        num_decreases=num_runs_with_decreased_total_token_count,
-                        num_equal=num_runs_with_equal_total_token_count,
-                    ),
                     total_cost=MetricCounts(
                         num_increases=num_runs_with_increased_total_cost,
                         num_decreases=num_runs_with_decreased_total_cost,
                         num_equal=num_runs_with_equal_total_cost,
+                    ),
+                    prompt_cost=MetricCounts(
+                        num_increases=num_runs_with_increased_prompt_cost,
+                        num_decreases=num_runs_with_decreased_prompt_cost,
+                        num_equal=num_runs_with_equal_prompt_cost,
+                    ),
+                    completion_cost=MetricCounts(
+                        num_increases=num_runs_with_increased_completion_cost,
+                        num_decreases=num_runs_with_decreased_completion_cost,
+                        num_equal=num_runs_with_equal_completion_cost,
                     ),
                 )
             )
