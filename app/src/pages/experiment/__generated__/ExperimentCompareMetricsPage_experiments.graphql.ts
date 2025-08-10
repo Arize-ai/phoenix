@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad70f5adf81068f7e07b1cf58369023d>>
+ * @generated SignedSource<<1856031a0c07da1868cf16d84520b97e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,9 +57,11 @@ export type ExperimentCompareMetricsPage_experiments$data = {
           readonly averageRunLatencyMs: number | null;
           readonly costSummary: {
             readonly completion: {
+              readonly cost: number | null;
               readonly tokens: number | null;
             };
             readonly prompt: {
+              readonly cost: number | null;
               readonly tokens: number | null;
             };
             readonly total: {
@@ -80,24 +82,30 @@ export type ExperimentCompareMetricsPage_experiments$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokens",
-  "storageKey": null
-},
-v1 = [
-  (v0/*: any*/)
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
 ],
-v2 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotationName",
   "storageKey": null
 },
-v3 = [
+v2 = [
   {
     "kind": "Variable",
     "name": "baseExperimentId",
@@ -109,38 +117,38 @@ v3 = [
     "variableName": "compareExperimentIds"
   }
 ],
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "compareExperimentId",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "numIncreases",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "numDecreases",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "numEqual",
   "storageKey": null
 },
-v8 = [
+v7 = [
+  (v4/*: any*/),
   (v5/*: any*/),
-  (v6/*: any*/),
-  (v7/*: any*/)
+  (v6/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -245,16 +253,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": [
-                                (v0/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "cost",
-                                  "storageKey": null
-                                }
-                              ],
+                              "selections": (v0/*: any*/),
                               "storageKey": null
                             },
                             {
@@ -264,7 +263,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v1/*: any*/),
+                              "selections": (v0/*: any*/),
                               "storageKey": null
                             },
                             {
@@ -274,7 +273,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v1/*: any*/),
+                              "selections": (v0/*: any*/),
                               "storageKey": null
                             }
                           ],
@@ -288,7 +287,7 @@ return {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            (v2/*: any*/),
+                            (v1/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -317,13 +316,13 @@ return {
     },
     {
       "alias": null,
-      "args": (v3/*: any*/),
+      "args": (v2/*: any*/),
       "concreteType": "CompareExperimentRunMetricCounts",
       "kind": "LinkedField",
       "name": "compareExperimentRunMetricCounts",
       "plural": true,
       "selections": [
-        (v4/*: any*/),
+        (v3/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -331,7 +330,7 @@ return {
           "kind": "LinkedField",
           "name": "latency",
           "plural": false,
-          "selections": (v8/*: any*/),
+          "selections": (v7/*: any*/),
           "storageKey": null
         },
         {
@@ -341,7 +340,7 @@ return {
           "kind": "LinkedField",
           "name": "promptTokenCount",
           "plural": false,
-          "selections": (v8/*: any*/),
+          "selections": (v7/*: any*/),
           "storageKey": null
         },
         {
@@ -351,7 +350,7 @@ return {
           "kind": "LinkedField",
           "name": "completionTokenCount",
           "plural": false,
-          "selections": (v8/*: any*/),
+          "selections": (v7/*: any*/),
           "storageKey": null
         },
         {
@@ -361,7 +360,7 @@ return {
           "kind": "LinkedField",
           "name": "totalTokenCount",
           "plural": false,
-          "selections": (v8/*: any*/),
+          "selections": (v7/*: any*/),
           "storageKey": null
         },
         {
@@ -371,7 +370,7 @@ return {
           "kind": "LinkedField",
           "name": "totalCost",
           "plural": false,
-          "selections": (v8/*: any*/),
+          "selections": (v7/*: any*/),
           "storageKey": null
         }
       ],
@@ -379,17 +378,17 @@ return {
     },
     {
       "alias": null,
-      "args": (v3/*: any*/),
+      "args": (v2/*: any*/),
       "concreteType": "CompareExperimentRunAnnotationMetricCounts",
       "kind": "LinkedField",
       "name": "compareExperimentRunAnnotationMetricCounts",
       "plural": true,
       "selections": [
-        (v2/*: any*/),
+        (v1/*: any*/),
+        (v3/*: any*/),
         (v4/*: any*/),
         (v5/*: any*/),
-        (v6/*: any*/),
-        (v7/*: any*/)
+        (v6/*: any*/)
       ],
       "storageKey": null
     }
@@ -399,6 +398,6 @@ return {
 };
 })();
 
-(node as any).hash = "a93c95876c83c3ea6e490693870bb7e2";
+(node as any).hash = "7adaa10197de7286da0112679907bf87";
 
 export default node;

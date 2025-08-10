@@ -135,9 +135,11 @@ export function ExperimentCompareMetricsPage() {
                     }
                     prompt {
                       tokens
+                      cost
                     }
                     completion {
                       tokens
+                      cost
                     }
                   }
                   annotationSummaries {
@@ -167,19 +169,16 @@ export function ExperimentCompareMetricsPage() {
           completionTokenCount {
             numIncreases
             numDecreases
-
             numEqual
           }
           totalTokenCount {
             numIncreases
             numDecreases
-
             numEqual
           }
           totalCost {
             numIncreases
             numDecreases
-
             numEqual
           }
         }
@@ -249,22 +248,34 @@ export function ExperimentCompareMetricsPage() {
     };
     const totalTokensMetric: MetricCardProps = {
       title: "Total Tokens",
-      baseExperimentValue: baseExperiment.costSummary?.total.tokens,
+      baseExperimentValue: baseExperiment.costSummary.total.tokens,
       compareExperiments: [],
     };
     const promptTokensMetric: MetricCardProps = {
       title: "Prompt Tokens",
-      baseExperimentValue: baseExperiment.costSummary?.prompt.tokens,
+      baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
       compareExperiments: [],
     };
     const completionTokensMetric: MetricCardProps = {
       title: "Completion Tokens",
-      baseExperimentValue: baseExperiment.costSummary?.completion.tokens,
+      baseExperimentValue: baseExperiment.costSummary.completion.tokens,
       compareExperiments: [],
     };
     const totalCostMetric: MetricCardProps = {
       title: "Total Cost",
-      baseExperimentValue: baseExperiment.costSummary?.total.cost,
+      baseExperimentValue: baseExperiment.costSummary.total.cost,
+      compareExperiments: [],
+      formatter: costFormatter,
+    };
+    const promptCostMetric: MetricCardProps = {
+      title: "Prompt Cost",
+      baseExperimentValue: baseExperiment.costSummary.prompt.cost,
+      compareExperiments: [],
+      formatter: costFormatter,
+    };
+    const completionCostMetric: MetricCardProps = {
+      title: "Completion Cost",
+      baseExperimentValue: baseExperiment.costSummary.completion.cost,
       compareExperiments: [],
       formatter: costFormatter,
     };
@@ -283,7 +294,7 @@ export function ExperimentCompareMetricsPage() {
       });
       promptTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
-        value: experiment.costSummary?.prompt?.tokens,
+        value: experiment.costSummary.prompt.tokens,
         numIncreases:
           compareExperimentIdToCounts[experiment.id]?.promptTokenCount
             .numIncreases ?? 0,
@@ -297,7 +308,7 @@ export function ExperimentCompareMetricsPage() {
       });
       completionTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
-        value: experiment.costSummary?.completion?.tokens,
+        value: experiment.costSummary.completion.tokens,
         numIncreases:
           compareExperimentIdToCounts[experiment.id]?.completionTokenCount
             .numIncreases ?? 0,
@@ -311,7 +322,7 @@ export function ExperimentCompareMetricsPage() {
       });
       totalTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
-        value: experiment.costSummary?.total?.tokens,
+        value: experiment.costSummary.total.tokens,
         numIncreases:
           compareExperimentIdToCounts[experiment.id]?.totalTokenCount
             .numIncreases ?? 0,
@@ -325,7 +336,7 @@ export function ExperimentCompareMetricsPage() {
       });
       totalCostMetric.compareExperiments.push({
         experimentId: experiment.id,
-        value: experiment.costSummary?.total?.cost,
+        value: experiment.costSummary.total.cost,
         numIncreases:
           compareExperimentIdToCounts[experiment.id]?.totalCost.numIncreases ??
           0,
@@ -336,9 +347,29 @@ export function ExperimentCompareMetricsPage() {
           compareExperimentIdToCounts[experiment.id]?.totalCost.numEqual ?? 0,
         color: experimentColor,
       });
+      promptCostMetric.compareExperiments.push({
+        experimentId: experiment.id,
+        value: experiment.costSummary.prompt.cost,
+        numIncreases: 0,
+        numDecreases: 0,
+        numEqual: 0,
+        color: experimentColor,
+      });
+      completionCostMetric.compareExperiments.push({
+        experimentId: experiment.id,
+        value: experiment.costSummary.completion.cost,
+        numIncreases: 0,
+        numDecreases: 0,
+        numEqual: 0,
+        color: experimentColor,
+      });
     });
     const performanceMetrics = [latencyMetric];
-    const costMetrics = [totalCostMetric];
+    const costMetrics = [
+      totalCostMetric,
+      promptCostMetric,
+      completionCostMetric,
+    ];
     const tokenCountMetrics = [
       totalTokensMetric,
       promptTokensMetric,
