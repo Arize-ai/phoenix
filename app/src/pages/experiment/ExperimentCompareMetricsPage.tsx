@@ -81,7 +81,7 @@ function MetricCard({
   return (
     <div css={metricCardCSS}>
       <Flex direction="column" gap="size-200">
-        <Heading level={2}>{title}</Heading>
+        <Heading level={3}>{title}</Heading>
         <BaseExperimentMetric
           value={baseExperimentValue}
           formatter={formatter}
@@ -202,7 +202,12 @@ export function ExperimentCompareMetricsPage() {
     throw new Error("Empty state not implemented");
   }
 
-  const metrics = useMemo(() => {
+  const {
+    annotationMetrics,
+    costMetrics,
+    performanceMetrics,
+    tokenCountMetrics,
+  } = useMemo(() => {
     const experimentIdToExperiment: Record<string, Experiment> = {};
     data.dataset.experiments?.edges.forEach((edge) => {
       const experiment = edge.experiment;
@@ -242,6 +247,11 @@ export function ExperimentCompareMetricsPage() {
       compareExperiments: [],
       formatter: latencyMsFormatter,
     };
+    const totalTokensMetric: MetricCardProps = {
+      title: "Total Tokens",
+      baseExperimentValue: baseExperiment.costSummary?.total.tokens,
+      compareExperiments: [],
+    };
     const promptTokensMetric: MetricCardProps = {
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary?.prompt.tokens,
@@ -250,11 +260,6 @@ export function ExperimentCompareMetricsPage() {
     const completionTokensMetric: MetricCardProps = {
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary?.completion.tokens,
-      compareExperiments: [],
-    };
-    const totalTokensMetric: MetricCardProps = {
-      title: "Total Tokens",
-      baseExperimentValue: baseExperiment.costSummary?.total.tokens,
       compareExperiments: [],
     };
     const totalCostMetric: MetricCardProps = {
@@ -332,12 +337,12 @@ export function ExperimentCompareMetricsPage() {
         color: experimentColor,
       });
     });
-    const builtInMetrics = [
-      latencyMetric,
+    const performanceMetrics = [latencyMetric];
+    const costMetrics = [totalCostMetric];
+    const tokenCountMetrics = [
+      totalTokensMetric,
       promptTokensMetric,
       completionTokensMetric,
-      totalTokensMetric,
-      totalCostMetric,
     ];
 
     const annotationNameToBaseExperimentMeanScore: Record<string, number> = {};
@@ -421,35 +426,159 @@ export function ExperimentCompareMetricsPage() {
         compareExperiments: annotationMetricCompareExperiments,
       });
     }
-    return [...annotationMetrics, ...builtInMetrics];
+    return {
+      annotationMetrics,
+      costMetrics,
+      performanceMetrics,
+      tokenCountMetrics,
+    };
   }, [baseExperimentId, compareExperimentIds, data, getExperimentColor]);
 
   return (
-    <View padding="size-200" width="100%">
-      <ul
-        css={css`
-          display: grid;
-          grid-template-columns: repeat(
-            auto-fill,
-            minmax(var(--ac-global-dimension-size-3600), 1fr)
-          );
-          gap: var(--ac-global-dimension-size-200);
-        `}
-      >
-        {metrics.map((metric: MetricCardProps) => (
-          <li
-            key={metric.title}
-            css={css`
-              display: flex;
-              flex-direction: column;
-              height: 100%;
-            `}
-          >
-            <MetricCard {...metric} />
-          </li>
-        ))}
-      </ul>
-    </View>
+    <div
+      css={css`
+        overflow: auto;
+      `}
+    >
+      <View padding="size-200">
+        <Flex direction="row" gap="size-250">
+          {annotationMetrics.length > 0 && (
+            <View>
+              <Heading
+                level={2}
+                css={css`
+                  margin-bottom: var(--ac-global-dimension-size-150);
+                `}
+              >
+                Evaluations
+              </Heading>
+              <ul
+                css={css`
+                  display: grid;
+                  grid-template-columns: repeat(
+                    auto-fill,
+                    minmax(var(--ac-global-dimension-size-3600), 1fr)
+                  );
+                  gap: var(--ac-global-dimension-size-200);
+                `}
+              >
+                {annotationMetrics.map((metric: MetricCardProps) => (
+                  <li
+                    key={metric.title}
+                    css={css`
+                      display: flex;
+                      flex-direction: column;
+                      height: 100%;
+                    `}
+                  >
+                    <MetricCard {...metric} />
+                  </li>
+                ))}
+              </ul>
+            </View>
+          )}
+          <View>
+            <Heading
+              level={2}
+              css={css`
+                margin-bottom: var(--ac-global-dimension-size-150);
+              `}
+            >
+              Cost
+            </Heading>
+            <ul
+              css={css`
+                display: grid;
+                grid-template-columns: repeat(
+                  auto-fill,
+                  minmax(var(--ac-global-dimension-size-3600), 1fr)
+                );
+                gap: var(--ac-global-dimension-size-200);
+              `}
+            >
+              {costMetrics.map((metric: MetricCardProps) => (
+                <li
+                  key={metric.title}
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                  `}
+                >
+                  <MetricCard {...metric} />
+                </li>
+              ))}
+            </ul>
+          </View>
+          <View>
+            <Heading
+              level={2}
+              css={css`
+                margin-bottom: var(--ac-global-dimension-size-150);
+              `}
+            >
+              Performance
+            </Heading>
+            <ul
+              css={css`
+                display: grid;
+                grid-template-columns: repeat(
+                  auto-fill,
+                  minmax(var(--ac-global-dimension-size-3600), 1fr)
+                );
+                gap: var(--ac-global-dimension-size-200);
+              `}
+            >
+              {performanceMetrics.map((metric: MetricCardProps) => (
+                <li
+                  key={metric.title}
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                  `}
+                >
+                  <MetricCard {...metric} />
+                </li>
+              ))}
+            </ul>
+          </View>
+          <View>
+            <Heading
+              level={2}
+              css={css`
+                margin-bottom: var(--ac-global-dimension-size-150);
+              `}
+            >
+              Token Counts
+            </Heading>
+            <ul
+              css={css`
+                display: grid;
+                grid-template-columns: repeat(
+                  auto-fill,
+                  minmax(var(--ac-global-dimension-size-3600), 1fr)
+                );
+                gap: var(--ac-global-dimension-size-200);
+              `}
+            >
+              {tokenCountMetrics.map((metric: MetricCardProps) => (
+                <li
+                  key={metric.title}
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                  `}
+                >
+                  <MetricCard {...metric} />
+                </li>
+              ))}
+            </ul>
+          </View>
+        </Flex>
+      </View>
+    </div>
   );
 }
 
