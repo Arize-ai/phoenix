@@ -3886,6 +3886,84 @@ async def test_cost_summary_with_session_filter_returns_filtered_data(
     assert response_no_filter.data["node"]["costSummary"]["total"]["cost"] == 150.0
 
 
+async def test_cost_summary_with_span_filter_returns_correct_cost(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test cost_summary with span filter returns correct cost"""
+    async with db() as session:
+        project = await _add_project(session, name="span-cost-filter-test")
+
+        # Create spans with different kinds and costs
+        # Span 1: LLM span with $100 cost
+        trace1 = await _add_trace(session, project)
+        span1 = await _add_span(
+            session, trace1, span_kind="LLM", attributes={"input": {"value": "llm query"}}
+        )
+        model = await _add_generative_model(session, "test-model")
+        await _add_span_cost(session, span1, trace1, model, total_cost=100.0)
+
+        # Span 2: CHAIN span with $50 cost (should be filtered out)
+        trace2 = await _add_trace(session, project)
+        span2 = await _add_span(
+            session, trace2, span_kind="CHAIN", attributes={"input": {"value": "chain query"}}
+        )
+        await _add_span_cost(session, span2, trace2, model, total_cost=50.0)
+
+        # Span 3: Another LLM span with $75 cost
+        trace3 = await _add_trace(session, project)
+        span3 = await _add_span(
+            session, trace3, span_kind="LLM", attributes={"input": {"value": "another llm query"}}
+        )
+        await _add_span_cost(session, span3, trace3, model, total_cost=75.0)
+
+        await session.commit()
+
+    query = """
+        query ($projectId: ID!, $filterCondition: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary(filterCondition: $filterCondition) {
+                        total { cost }
+                        prompt { cost }
+                        completion { cost }
+                    }
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # Filter for LLM spans only - should return $175 total (100 + 75)
+    response = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filterCondition": 'span_kind == "LLM"'}
+    )
+    assert not response.errors
+    assert response.data is not None
+    cost_summary = response.data["node"]["costSummary"]
+    assert cost_summary["total"]["cost"] == 175.0
+
+    # No filter should return $225 total (100 + 50 + 75)
+    query_no_filter = """
+        query ($projectId: ID!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary {
+                        total { cost }
+                    }
+                }
+            }
+        }
+    """
+    response_no_filter = await gql_client.execute(
+        query=query_no_filter, variables={"projectId": project_gid}
+    )
+    assert not response_no_filter.errors
+    assert response_no_filter.data is not None
+    assert response_no_filter.data["node"]["costSummary"]["total"]["cost"] == 225.0
+
+
 async def test_latency_quantile_with_filters_returns_accurate_percentiles(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

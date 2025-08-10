@@ -110,36 +110,75 @@ def _get_stmt(
     (start_time, end_time), filter_condition, session_filter = segment
     pid = models.Trace.project_rowid
 
-    stmt: Select[Any] = (
-        select(
-            pid,
-            coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-            coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
-            coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-            coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-            coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
-            coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+    # When filters are applied, we need to prevent duplicate SpanCost records
+    # caused by joins with annotation tables. Use a subquery to get distinct SpanCost IDs first.
+    if filter_condition or session_filter:
+        # Build subquery to get distinct SpanCost IDs that match the filter
+        subquery_stmt = select(models.SpanCost.id.label("cost_id"), pid).join_from(
+            models.SpanCost, models.Trace
         )
-        .join_from(models.SpanCost, models.Trace)
-        .group_by(pid)
-    )
 
-    if start_time:
-        stmt = stmt.where(start_time <= models.Trace.start_time)
-    if end_time:
-        stmt = stmt.where(models.Trace.start_time < end_time)
+        if start_time:
+            subquery_stmt = subquery_stmt.where(start_time <= models.Trace.start_time)
+        if end_time:
+            subquery_stmt = subquery_stmt.where(models.Trace.start_time < end_time)
 
-    if filter_condition:
-        sf = SpanFilter(filter_condition)
-        stmt = sf(stmt.join_from(models.SpanCost, models.Span))
+        if filter_condition:
+            sf = SpanFilter(filter_condition)
+            subquery_stmt = sf(subquery_stmt.join_from(models.SpanCost, models.Span))
 
-    if session_filter:
-        from phoenix.server.api.types.Project import _apply_session_io_filter
+        if session_filter:
+            from phoenix.server.api.types.Project import _apply_session_io_filter
 
-        # Apply session filter to stmt - project_rowid is the first from params
-        stmt = _apply_session_io_filter(stmt, session_filter, next(iter(params)))
+            # Apply session filter to subquery - project_rowid is the first from params
+            subquery_stmt = _apply_session_io_filter(
+                subquery_stmt, session_filter, next(iter(params))
+            )
 
-    project_ids = [rowid for rowid in params]
-    stmt = stmt.where(pid.in_(project_ids))
+        project_ids = [rowid for rowid in params]
+        subquery_stmt = subquery_stmt.where(pid.in_(project_ids))
+
+        # Create the distinct subquery
+        distinct_costs = subquery_stmt.distinct().subquery()
+
+        # Main query joins with the distinct cost IDs
+        stmt = (
+            select(
+                distinct_costs.c.project_rowid,
+                coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
+                coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+                coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
+                coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
+                coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+            )
+            .select_from(
+                distinct_costs.join(models.SpanCost, distinct_costs.c.cost_id == models.SpanCost.id)
+            )
+            .group_by(distinct_costs.c.project_rowid)
+        )
+    else:
+        # No filters applied, use simple query
+        stmt = (
+            select(
+                pid,
+                coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
+                coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+                coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
+                coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
+                coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+            )
+            .join_from(models.SpanCost, models.Trace)
+            .group_by(pid)
+        )
+
+        if start_time:
+            stmt = stmt.where(start_time <= models.Trace.start_time)
+        if end_time:
+            stmt = stmt.where(models.Trace.start_time < end_time)
+
+        project_ids = [rowid for rowid in params]
+        stmt = stmt.where(pid.in_(project_ids))
 
     return stmt
