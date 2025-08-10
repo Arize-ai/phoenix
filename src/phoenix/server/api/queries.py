@@ -24,6 +24,7 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import LatencyMs
+from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -112,6 +113,7 @@ class MetricCounts:
     num_increases: int
     num_decreases: int
     num_equal: int
+    optimization_direction: OptimizationDirection
 
 
 @strawberry.type
@@ -133,6 +135,7 @@ class CompareExperimentRunAnnotationMetricCounts:
     num_increases: int
     num_decreases: int
     num_equal: int
+    optimization_direction: OptimizationDirection
 
 
 @strawberry.type
@@ -814,36 +817,43 @@ class Query:
                         num_increases=num_runs_with_increased_latency,
                         num_decreases=num_runs_with_decreased_latency,
                         num_equal=num_runs_with_equal_latency,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     total_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_total_token_count,
                         num_decreases=num_runs_with_decreased_total_token_count,
                         num_equal=num_runs_with_equal_total_token_count,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     prompt_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_prompt_token_count,
                         num_decreases=num_runs_with_decreased_prompt_token_count,
                         num_equal=num_runs_with_equal_prompt_token_count,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     completion_token_count=MetricCounts(
                         num_increases=num_runs_with_increased_completion_token_count,
                         num_decreases=num_runs_with_decreased_completion_token_count,
                         num_equal=num_runs_with_equal_completion_token_count,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     total_cost=MetricCounts(
                         num_increases=num_runs_with_increased_total_cost,
                         num_decreases=num_runs_with_decreased_total_cost,
                         num_equal=num_runs_with_equal_total_cost,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     prompt_cost=MetricCounts(
                         num_increases=num_runs_with_increased_prompt_cost,
                         num_decreases=num_runs_with_decreased_prompt_cost,
                         num_equal=num_runs_with_equal_prompt_cost,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                     completion_cost=MetricCounts(
                         num_increases=num_runs_with_increased_completion_cost,
                         num_decreases=num_runs_with_decreased_completion_cost,
                         num_equal=num_runs_with_equal_completion_cost,
+                        optimization_direction=OptimizationDirection.MINIMIZE,
                     ),
                 )
             )
@@ -974,6 +984,7 @@ class Query:
                         num_increases=num_runs_with_increased_score,
                         num_decreases=num_runs_with_decreased_score,
                         num_equal=num_runs_with_equal_score,
+                        optimization_direction=OptimizationDirection.NONE,
                     )
                 )
         return metric_counts

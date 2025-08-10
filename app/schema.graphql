@@ -349,14 +349,15 @@ type CompareExperimentRunAnnotationMetricCounts {
   numIncreases: Int!
   numDecreases: Int!
   numEqual: Int!
+  optimizationDirection: OptimizationDirection!
 }
 
 type CompareExperimentRunMetricCounts {
   compareExperimentId: ID!
   latency: MetricCounts!
+  totalTokenCount: MetricCounts!
   promptTokenCount: MetricCounts!
   completionTokenCount: MetricCounts!
-  totalTokenCount: MetricCounts!
   totalCost: MetricCounts!
   promptCost: MetricCounts!
   completionCost: MetricCounts!
@@ -1485,6 +1486,7 @@ type MetricCounts {
   numIncreases: Int!
   numDecreases: Int!
   numEqual: Int!
+  optimizationDirection: OptimizationDirection!
 }
 
 enum MimeType {

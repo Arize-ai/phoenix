@@ -25,6 +25,7 @@ import {
 import type {
   ExperimentCompareMetricsPage_experiments$data,
   ExperimentCompareMetricsPage_experiments$key,
+  OptimizationDirection,
 } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
@@ -52,6 +53,7 @@ type CompareExperimentData = {
   numIncreases: number;
   numDecreases: number;
   numEqual: number;
+  optimizationDirection: OptimizationDirection;
   color: string;
 };
 
@@ -95,6 +97,7 @@ function MetricCard({
             numIncreases={compareExperiment.numIncreases}
             numDecreases={compareExperiment.numDecreases}
             numEqual={compareExperiment.numEqual}
+            optimizationDirection={compareExperiment.optimizationDirection}
             color={compareExperiment.color}
           />
         ))}
@@ -160,36 +163,43 @@ export function ExperimentCompareMetricsPage() {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           totalTokenCount {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           promptTokenCount {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           completionTokenCount {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           totalCost {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           promptCost {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
           completionCost {
             numIncreases
             numDecreases
             numEqual
+            optimizationDirection
           }
         }
         compareExperimentRunAnnotationMetricCounts(
@@ -201,6 +211,7 @@ export function ExperimentCompareMetricsPage() {
           numIncreases
           numDecreases
           numEqual
+          optimizationDirection
         }
       }
     `,
@@ -290,97 +301,71 @@ export function ExperimentCompareMetricsPage() {
     };
     compareExperiments.forEach((experiment, experimentIndex) => {
       const experimentColor = getExperimentColor(experimentIndex);
+      const counts = compareExperimentIdToCounts[experiment.id];
       latencyMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.averageRunLatencyMs,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.latency.numIncreases ?? 0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.latency.numDecreases ?? 0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.latency.numEqual ?? 0,
+        numIncreases: counts.latency.numIncreases,
+        numDecreases: counts.latency.numDecreases,
+        numEqual: counts.latency.numEqual,
+        optimizationDirection: counts.latency.optimizationDirection,
         color: experimentColor,
       });
       promptTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.prompt.tokens,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
-            .numIncreases ?? 0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
-            .numDecreases ?? 0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.promptTokenCount
-            .numEqual ?? 0,
+        numIncreases: counts.promptTokenCount.numIncreases,
+        numDecreases: counts.promptTokenCount.numDecreases,
+        numEqual: counts.promptTokenCount.numEqual,
+        optimizationDirection: counts.promptTokenCount.optimizationDirection,
         color: experimentColor,
       });
       completionTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.completion.tokens,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
-            .numIncreases ?? 0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
-            .numDecreases ?? 0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.completionTokenCount
-            .numEqual ?? 0,
+        numIncreases: counts.completionTokenCount.numIncreases,
+        numDecreases: counts.completionTokenCount.numDecreases,
+        numEqual: counts.completionTokenCount.numEqual,
+        optimizationDirection:
+          counts.completionTokenCount.optimizationDirection,
         color: experimentColor,
       });
       totalTokensMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.total.tokens,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
-            .numIncreases ?? 0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
-            .numDecreases ?? 0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.totalTokenCount
-            .numEqual ?? 0,
+        numIncreases: counts.totalTokenCount.numIncreases,
+        numDecreases: counts.totalTokenCount.numDecreases,
+        numEqual: counts.totalTokenCount.numEqual,
+        optimizationDirection: counts.totalTokenCount.optimizationDirection,
         color: experimentColor,
       });
       totalCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.total.cost,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.totalCost.numIncreases ??
-          0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.totalCost.numDecreases ??
-          0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.totalCost.numEqual ?? 0,
+        numIncreases: counts.totalCost.numIncreases,
+        numDecreases: counts.totalCost.numDecreases,
+        numEqual: counts.totalCost.numEqual,
+
+        optimizationDirection: counts.totalCost.optimizationDirection,
         color: experimentColor,
       });
       promptCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.prompt.cost,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.promptCost.numIncreases ??
-          0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.promptCost.numDecreases ??
-          0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.promptCost.numEqual ?? 0,
+        numIncreases: counts.promptCost.numIncreases,
+        numDecreases: counts.promptCost.numDecreases,
+        numEqual: counts.promptCost.numEqual,
+
+        optimizationDirection: counts.promptCost.optimizationDirection,
         color: experimentColor,
       });
       completionCostMetric.compareExperiments.push({
         experimentId: experiment.id,
         value: experiment.costSummary.completion.cost,
-        numIncreases:
-          compareExperimentIdToCounts[experiment.id]?.completionCost
-            .numIncreases ?? 0,
-        numDecreases:
-          compareExperimentIdToCounts[experiment.id]?.completionCost
-            .numDecreases ?? 0,
-        numEqual:
-          compareExperimentIdToCounts[experiment.id]?.completionCost.numEqual ??
-          0,
+        numIncreases: counts.completionCost.numIncreases,
+        numDecreases: counts.completionCost.numDecreases,
+        numEqual: counts.completionCost.numEqual,
+        optimizationDirection: counts.completionCost.optimizationDirection,
         color: experimentColor,
       });
     });
@@ -450,24 +435,20 @@ export function ExperimentCompareMetricsPage() {
               compareExperimentId
             ];
         }
-        const numIncreases =
-          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
+        const annotationCounts =
+          annotationNameToCompareExperimentIdToCounts[annotationName][
             compareExperimentId
-          ]?.numIncreases ?? 0;
-        const numDecreases =
-          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
-            compareExperimentId
-          ]?.numDecreases ?? 0;
-        const numEqual =
-          annotationNameToCompareExperimentIdToCounts[annotationName]?.[
-            compareExperimentId
-          ]?.numEqual ?? 0;
+          ];
+        const numIncreases = annotationCounts.numIncreases;
+        const numDecreases = annotationCounts.numDecreases;
+        const numEqual = annotationCounts.numEqual;
         annotationMetricCompareExperiments.push({
           experimentId: compareExperimentId,
           value: compareExperimentMeanScore,
           numIncreases,
           numDecreases,
           numEqual,
+          optimizationDirection: annotationCounts.optimizationDirection,
           color: experimentColor,
         });
       });
@@ -657,6 +638,7 @@ function CompareExperimentMetric({
   numIncreases,
   numDecreases,
   numEqual,
+  optimizationDirection,
   color,
 }: {
   value: MetricValue;
@@ -665,6 +647,7 @@ function CompareExperimentMetric({
   numIncreases: number;
   numDecreases: number;
   numEqual: number;
+  optimizationDirection: OptimizationDirection;
   color: string;
 }) {
   const { valueText, deltaText, percentageDeltaText } = useMemo(() => {
@@ -710,12 +693,136 @@ function CompareExperimentMetric({
           </Flex>
         </Flex>
       </Flex>
+      <ChangeCounter
+        numIncreases={numIncreases}
+        numDecreases={numDecreases}
+        numEqual={numEqual}
+        optimizationDirection={optimizationDirection}
+      />
+    </Flex>
+  );
+}
+
+function ChangeCounter({
+  numIncreases,
+  numDecreases,
+  numEqual,
+  optimizationDirection,
+}: {
+  numIncreases: number;
+  numDecreases: number;
+  numEqual: number;
+  optimizationDirection: OptimizationDirection;
+}) {
+  if (optimizationDirection === "NONE") {
+    return (
       <IncreaseAndDecreaseCounter
         numIncreases={numIncreases}
         numDecreases={numDecreases}
         numEqual={numEqual}
       />
-    </Flex>
+    );
+  }
+  return (
+    <ImprovementAndRegressionCounter
+      numIncreases={numIncreases}
+      numDecreases={numDecreases}
+      numEqual={numEqual}
+      optimizationDirection={optimizationDirection}
+    />
+  );
+}
+
+function ImprovementAndRegressionCounter({
+  numIncreases,
+  numDecreases,
+  numEqual,
+  optimizationDirection,
+}: {
+  numIncreases: number;
+  numDecreases: number;
+  numEqual: number;
+  optimizationDirection: OptimizationDirection;
+}) {
+  let numImprovements: number;
+  let numRegressions: number;
+  if (optimizationDirection === "MAXIMIZE") {
+    numImprovements = numIncreases;
+    numRegressions = numDecreases;
+  } else if (optimizationDirection === "MINIMIZE") {
+    numImprovements = numDecreases;
+    numRegressions = numIncreases;
+  } else {
+    throw new Error(
+      `Cannot compute improvement and regression counts for optimization direction: ${optimizationDirection}`
+    );
+  }
+  const { disableTooltip, tooltipTexts } = useMemo(() => {
+    const tooltipTexts: string[] = [];
+    if (numImprovements > 0) {
+      tooltipTexts.push(
+        `${numImprovements} example${numImprovements > 1 ? "s" : ""} improved`
+      );
+    }
+    if (numRegressions > 0) {
+      tooltipTexts.push(
+        `${numRegressions} example${numRegressions > 1 ? "s" : ""} regressed`
+      );
+    }
+    if (numEqual > 0) {
+      tooltipTexts.push(
+        `${numEqual} example${numEqual > 1 ? "s" : ""} stayed the same`
+      );
+    }
+    return { disableTooltip: tooltipTexts.length === 0, tooltipTexts };
+  }, [numEqual, numImprovements, numRegressions]);
+  return (
+    <TooltipTrigger isDisabled={disableTooltip} delay={200}>
+      <TriggerWrap>
+        <Flex direction="row" gap="size-100">
+          {numImprovements > 0 && (
+            <Flex direction="row" gap="size-75" alignItems="center">
+              <Text size="M">{numImprovements}</Text>
+              <Icon
+                svg={<Icons.ThumbsUpOutline />}
+                color="success"
+                css={css`
+                  svg {
+                    fill: none;
+                    width: 0.8em;
+                    height: 0.8em;
+                  }
+                `}
+              />
+            </Flex>
+          )}
+          {numRegressions > 0 && (
+            <Flex direction="row" gap="size-75" alignItems="center">
+              <Text size="M">{numRegressions}</Text>
+              <Icon
+                svg={<Icons.ThumbsDownOutline />}
+                color="danger"
+                css={css`
+                  padding-top: 0.4em;
+                  svg {
+                    fill: none;
+                    width: 0.8em;
+                    height: 0.8em;
+                  }
+                `}
+              />
+            </Flex>
+          )}
+        </Flex>
+      </TriggerWrap>
+      <Tooltip>
+        <Flex direction="column" gap="size-50">
+          {tooltipTexts.map((tooltipText) => (
+            <Text key={tooltipText}>{tooltipText}</Text>
+          ))}
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -756,7 +863,7 @@ function IncreaseAndDecreaseCounter({
               <Text size="M">{numIncreases}</Text>
               <Icon
                 svg={<Icons.ArrowDiagonalUpRightOutline />}
-                color="green-900"
+                color="grey-500"
               />
             </Flex>
           )}
@@ -765,7 +872,7 @@ function IncreaseAndDecreaseCounter({
               <Text size="M">{numDecreases}</Text>
               <Icon
                 svg={<Icons.ArrowDiagonalDownRightOutline />}
-                color="red-900"
+                color="grey-500"
               />
             </Flex>
           )}

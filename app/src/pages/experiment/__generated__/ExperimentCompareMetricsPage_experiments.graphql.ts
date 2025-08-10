@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<708eeb0026d99c807a864ed989d0f7f2>>
+ * @generated SignedSource<<510431bd2362575f0f6a8078e7437379>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
   readonly compareExperimentRunAnnotationMetricCounts: ReadonlyArray<{
@@ -17,6 +18,7 @@ export type ExperimentCompareMetricsPage_experiments$data = {
     readonly numDecreases: number;
     readonly numEqual: number;
     readonly numIncreases: number;
+    readonly optimizationDirection: OptimizationDirection;
   }>;
   readonly compareExperimentRunMetricCounts: ReadonlyArray<{
     readonly compareExperimentId: string;
@@ -24,36 +26,43 @@ export type ExperimentCompareMetricsPage_experiments$data = {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly completionTokenCount: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly latency: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly promptCost: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly promptTokenCount: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly totalCost: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
     readonly totalTokenCount: {
       readonly numDecreases: number;
       readonly numEqual: number;
       readonly numIncreases: number;
+      readonly optimizationDirection: OptimizationDirection;
     };
   }>;
   readonly dataset: {
@@ -155,10 +164,18 @@ v6 = {
   "name": "numEqual",
   "storageKey": null
 },
-v7 = [
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v8 = [
   (v4/*: any*/),
   (v5/*: any*/),
-  (v6/*: any*/)
+  (v6/*: any*/),
+  (v7/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -340,7 +357,7 @@ return {
           "kind": "LinkedField",
           "name": "latency",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -350,7 +367,7 @@ return {
           "kind": "LinkedField",
           "name": "totalTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -360,7 +377,7 @@ return {
           "kind": "LinkedField",
           "name": "promptTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -370,7 +387,7 @@ return {
           "kind": "LinkedField",
           "name": "completionTokenCount",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -380,7 +397,7 @@ return {
           "kind": "LinkedField",
           "name": "totalCost",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -390,7 +407,7 @@ return {
           "kind": "LinkedField",
           "name": "promptCost",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         },
         {
@@ -400,7 +417,7 @@ return {
           "kind": "LinkedField",
           "name": "completionCost",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v8/*: any*/),
           "storageKey": null
         }
       ],
@@ -418,7 +435,8 @@ return {
         (v3/*: any*/),
         (v4/*: any*/),
         (v5/*: any*/),
-        (v6/*: any*/)
+        (v6/*: any*/),
+        (v7/*: any*/)
       ],
       "storageKey": null
     }
@@ -428,6 +446,6 @@ return {
 };
 })();
 
-(node as any).hash = "3b6d3f606d3692c5c8d21ef95a326556";
+(node as any).hash = "2eb63ca83d3b69fb1799aa771c2a798d";
 
 export default node;
