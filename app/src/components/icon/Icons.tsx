@@ -65,6 +65,38 @@ export const ArrowIosBackOutline = () => (
   </svg>
 );
 
+export const ArrowDiagonalUpRightOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="diagonal-arrow-right-up">
+        <rect
+          width="24"
+          height="24"
+          transform="rotate(180 12 12)"
+          opacity="0"
+        />
+        <path d="M18 7.05a1 1 0 0 0-1-1L9 6a1 1 0 0 0 0 2h5.56l-8.27 8.29a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0L16 9.42V15a1 1 0 0 0 1 1 1 1 0 0 0 1-1z" />
+      </g>
+    </g>
+  </svg>
+);
+
+export const ArrowDiagonalDownRightOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="diagonal-arrow-right-down">
+        <rect
+          width="24"
+          height="24"
+          transform="rotate(-90 12 12)"
+          opacity="0"
+        />
+        <path d="M17 8a1 1 0 0 0-1 1v5.59l-8.29-8.3a1 1 0 0 0-1.42 1.42l8.3 8.29H9a1 1 0 0 0 0 2h8a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z" />
+      </g>
+    </g>
+  </svg>
+);
+
 export const ArrowDown = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">

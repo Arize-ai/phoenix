@@ -754,15 +754,19 @@ function IncreaseAndDecreaseCounter({
           {numIncreases > 0 && (
             <Flex direction="row" gap="size-25" alignItems="center">
               <Text size="M">{numIncreases}</Text>
-
-              <Icon svg={<Icons.ArrowUpwardOutline />} color="green-900" />
+              <Icon
+                svg={<Icons.ArrowDiagonalUpRightOutline />}
+                color="green-900"
+              />
             </Flex>
           )}
           {numDecreases > 0 && (
             <Flex direction="row" gap="size-25" alignItems="center">
               <Text size="M">{numDecreases}</Text>
-
-              <Icon svg={<Icons.ArrowDownwardOutline />} color="red-900" />
+              <Icon
+                svg={<Icons.ArrowDiagonalDownRightOutline />}
+                color="red-900"
+              />
             </Flex>
           )}
         </Flex>
