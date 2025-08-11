@@ -114,8 +114,8 @@ function DatasetPageContent({
   const initialIndex = location.pathname.includes("history")
     ? 2
     : location.pathname.includes("examples")
-    ? 1
-    : 0;
+      ? 1
+      : 0;
   return (
     <main css={mainCSS}>
       <View
@@ -178,9 +178,9 @@ function DatasetPageContent({
               <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
               <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
-                         <DatasetCodeButton />
-             <RunExperimentButton />
-<AddDatasetExampleButton
+            <DatasetCodeButton />
+            <RunExperimentButton />
+            <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
                 notifySuccess({
@@ -206,7 +206,11 @@ function DatasetPageContent({
       </View>
       <Tabs
         defaultSelectedKey={
-          initialIndex === 0 ? "experiments" : initialIndex === 1 ? "examples" : "history"
+          initialIndex === 0
+            ? "experiments"
+            : initialIndex === 1
+              ? "examples"
+              : "history"
         }
         onSelectionChange={(key) => {
           switch (key) {
