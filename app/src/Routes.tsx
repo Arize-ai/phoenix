@@ -53,8 +53,6 @@ import {
   APIsPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
-  datasetHistoryLoader,
-  DatasetHistoryPage,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
