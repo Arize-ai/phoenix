@@ -386,13 +386,25 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
-    const urlInfo = getUrlInfoFromAttributes(parsedAttributes);
+    const { baseUrl } = getUrlInfoFromAttributes(parsedAttributes);
+    const azureConfig =
+      provider === "AZURE_OPENAI"
+        ? getAzureConfigFromAttributes(parsedAttributes)
+        : { deploymentName: null, apiVersion: null, endpoint: null };
+    const modelName =
+      provider === "AZURE_OPENAI" && azureConfig.deploymentName
+        ? azureConfig.deploymentName
+        : data.llm.model_name;
     return {
       modelConfig: {
         ...Object.fromEntries(
-          Object.entries(urlInfo).filter(([_, value]) => value !== null)
+          Object.entries({
+            baseUrl,
+            endpoint: azureConfig.endpoint,
+            apiVersion: azureConfig.apiVersion,
+          }).filter(([_, value]) => value !== null)
         ),
-        modelName: data.llm.model_name,
+        modelName,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -403,10 +415,62 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
 }
 
+/**
+ * Temporary stopgap: Extract Azure config (deploymentName, apiVersion, endpoint)
+ * from span attributes until vendor-specific OpenInference conventions exist.
+ *
+ * Important: This currently only works for two types of spans:
+ * - Phoenix playground spans (URL present → parsed for deployment/apiVersion/endpoint)
+ * - LangChain spans (metadata.ls_model_name)
+ *
+ * Note: For Azure, `llm.model_name` is NOT the deployment name.
+ *
+ * Where we look (in order of precedence):
+ * 1) URL (preferred): When the request URL is present (most often on playground
+ *    generated spans), parse it to extract:
+ *    - deploymentName from the path segment: deployments/<name>/...
+ *    - apiVersion from the query param: api-version=<version>
+ *    - endpoint from the URL origin
+ * 2) Metadata (fallback): If the URL is not present or not parseable, use
+ *    `llm.metadata.ls_model_name` (commonly emitted by some LangChain spans) as
+ *    the deploymentName.
+ *
+ * Notes:
+ * - URL is typically only included for spans emitted by the Phoenix playground;
+ *   external OpenTelemetry spans may not include it, so we rely on metadata
+ *   when necessary.
+ * - This is a temporary stopgap until vendor-specific OpenInference conventions
+ *   exist for Azure configuration. We cannot reliably detect LangChain emitters.
+ */
+export function getAzureConfigFromAttributes(parsedAttributes: unknown): {
+  deploymentName: string | null;
+  apiVersion: string | null;
+  endpoint: string | null;
+} {
+  const { success: metaSuccess, data: meta } =
+    LS_METADATA_SCHEMA.safeParse(parsedAttributes);
+  const deploymentNameFromMetadata =
+    metaSuccess &&
+    typeof meta?.metadata?.ls_model_name === "string" &&
+    meta.metadata.ls_model_name.trim()
+      ? meta.metadata.ls_model_name.trim()
+      : null;
+  // Derive deployment name, endpoint and apiVersion from URL when available
+  const { success: urlSuccess, data: urlData } =
+    urlSchema.safeParse(parsedAttributes);
+  const { endpoint, apiVersion, deploymentName } = urlSuccess
+    ? parseAzureDeploymentInfoFromUrl(urlData.url.full)
+    : { endpoint: null, apiVersion: null, deploymentName: null };
+  return {
+    // URL takes precedence when present; fall back to metadata-derived name
+    deploymentName: deploymentName ?? deploymentNameFromMetadata,
+    apiVersion,
+    endpoint,
+  };
+}
+
 export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   baseUrl: string | null;
-  endpoint: string | null;
-  apiVersion: string | null;
 } {
   const { success, data } = urlSchema.safeParse(parsedAttributes);
   if (success) {
@@ -422,8 +486,6 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
       }
       return {
         baseUrl: `${baseUrl.origin}${baseUrl.pathname}`,
-        endpoint: url.origin,
-        apiVersion: url.searchParams.get("api-version") || null,
       };
     } catch (_) {
       // If the URL is invalid, we will just return null for all values
@@ -431,8 +493,6 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   }
   return {
     baseUrl: null,
-    apiVersion: null,
-    endpoint: null,
   };
 }
 
@@ -1473,3 +1533,38 @@ export const applyProviderInvocationParameterConstraints = (
   }
   return filteredInvocationParameters;
 };
+
+// --- Azure helpers (module-level) --------------------------------------------------------------
+// Regex to extract deployment name from a path like: deployments/<name>/chat/completions
+const AZURE_DEPLOYMENT_PATH_REGEX = /(?:^|\/)deployments\/([^/]+)(?:\/?|$)/;
+
+// Optional schema to read LangChain-provided deployment name from metadata
+const LS_METADATA_SCHEMA = z
+  .object({
+    metadata: z
+      .object({
+        ls_model_name: z.string().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+// Parse Azure details (endpoint, apiVersion, deployment name) from URL
+function parseAzureDeploymentInfoFromUrl(fullUrl: string): {
+  endpoint: string | null;
+  apiVersion: string | null;
+  deploymentName: string | null;
+} {
+  try {
+    const urlObj = new URL(fullUrl);
+    const endpoint = urlObj.origin.trim();
+    const apiVer = urlObj.searchParams.get("api-version");
+    const apiVersion = apiVer && apiVer.trim() ? apiVer.trim() : null;
+    const path = (urlObj.pathname || "").toString();
+    const match = path.match(AZURE_DEPLOYMENT_PATH_REGEX);
+    const deploymentName = match && match[1] ? match[1].trim() : null;
+    return { endpoint, apiVersion, deploymentName };
+  } catch {
+    return { endpoint: null, apiVersion: null, deploymentName: null };
+  }
+}
