@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 from collections.abc import Callable
@@ -46,13 +47,18 @@ def validate_evaluator_signature(sig: inspect.Signature) -> None:
 
 def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArguments:
     """Bind evaluator function parameters with provided arguments."""
+    # Deep copy to ensure evaluators cannot mutate shared example/task state
+    example_copy = (
+        copy.deepcopy(kwargs.get("example")) if kwargs.get("example") is not None else None
+    )
     parameter_mapping = {
-        "input": kwargs.get("input"),
-        "output": kwargs.get("output"),
-        "expected": kwargs.get("expected"),
-        "reference": kwargs.get("reference"),  # `reference` is an alias for `expected`
-        "metadata": kwargs.get("metadata"),
-        "example": kwargs.get("example"),
+        "input": copy.deepcopy(kwargs.get("input")),
+        "output": copy.deepcopy(kwargs.get("output")),
+        "expected": copy.deepcopy(kwargs.get("expected")),
+        # `reference` is an alias for `expected`
+        "reference": copy.deepcopy(kwargs.get("reference")),
+        "metadata": copy.deepcopy(kwargs.get("metadata")),
+        "example": example_copy,
     }
     params = sig.parameters
     if len(params) == 1:

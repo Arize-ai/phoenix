@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 import json
@@ -267,12 +268,14 @@ def _bind_task_signature(
     sig: inspect.Signature, example: v1.DatasetExample
 ) -> inspect.BoundArguments:
     """Bind task function signature to example data."""
+    # Deep copy to ensure task cannot mutate shared dataset/example state
+    example_copy = copy.deepcopy(example)
     parameter_mapping = {
-        "input": example["input"],
-        "expected": example["output"],
-        "reference": example["output"],
-        "metadata": example["metadata"],
-        "example": example,
+        "input": copy.deepcopy(example.get("input")),
+        "expected": copy.deepcopy(example.get("output")),
+        "reference": copy.deepcopy(example.get("output")),
+        "metadata": copy.deepcopy(example.get("metadata")),
+        "example": example_copy,
     }
     params = sig.parameters
     if len(params) == 1:
