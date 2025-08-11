@@ -1,5 +1,20 @@
 # Changelog
 
+## [11.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.0...arize-phoenix-v11.21.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9011](https://github.com/Arize-ai/phoenix/issues/9011)) ([7fd9bbf](https://github.com/Arize-ai/phoenix/commit/7fd9bbfd5711b1163070ad723a12e07b1ba4a189))
+* **experiments:** make examples in experiments compare table based off dataset version of base experiment ([#8995](https://github.com/Arize-ai/phoenix/issues/8995)) ([640b1f5](https://github.com/Arize-ai/phoenix/commit/640b1f51d8840d1c4f94d414924770da8f93be05))
+* **playground:** parse Azure deployment from LangChain metadata ([#9003](https://github.com/Arize-ai/phoenix/issues/9003)) ([38c05be](https://github.com/Arize-ai/phoenix/commit/38c05beb89c6844564b0c9e053da0076a80e182d))
+
+
+### Documentation
+
+* Add opentelemetry integration guide link to readme ([#8996](https://github.com/Arize-ai/phoenix/issues/8996)) ([4974a6c](https://github.com/Arize-ai/phoenix/commit/4974a6ce039f016d22161784d0897c8a417e8185))
+* Update Cursor CTA ([#9031](https://github.com/Arize-ai/phoenix/issues/9031)) ([e13fc10](https://github.com/Arize-ai/phoenix/commit/e13fc10c58339f69ec10bad16bce79aa0d9cf8f7))
+
 ## [11.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.20.0...arize-phoenix-v11.21.0) (2025-08-07)
 
 
