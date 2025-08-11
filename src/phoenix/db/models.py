@@ -191,7 +191,7 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
         return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) else {}
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
-        return orjson.loads(orjson.dumps(value)) if value else {}
+        return orjson.loads(orjson.dumps(value)) if value else value
 
 
 class JsonList(TypeDecorator[list[Any]]):
@@ -203,7 +203,7 @@ class JsonList(TypeDecorator[list[Any]]):
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) else []
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
-        return orjson.loads(orjson.dumps(value)) if value else []
+        return orjson.loads(orjson.dumps(value)) if value else value
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
