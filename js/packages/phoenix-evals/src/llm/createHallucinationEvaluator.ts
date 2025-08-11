@@ -8,8 +8,10 @@ import { createClassificationEvaluator } from "./createClassificationEvaluator";
 export interface HallucinationEvaluatorArgs
   extends Omit<
     CreateClassificationEvaluatorArgs,
-    "promptTemplate" | "choices"
+    "promptTemplate" | "choices" | "optimizationDirection" | "name"
   > {
+  optimizationDirection?: CreateClassificationEvaluatorArgs["optimizationDirection"];
+  name?: CreateClassificationEvaluatorArgs["name"];
   choices?: CreateClassificationEvaluatorArgs["choices"];
   promptTemplate?: CreateClassificationEvaluatorArgs["promptTemplate"];
 }
