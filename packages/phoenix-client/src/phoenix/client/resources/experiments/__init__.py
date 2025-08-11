@@ -343,6 +343,7 @@ class Experiments:
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Example:
         Basic usage:
@@ -445,6 +446,7 @@ class Experiments:
         - `expected`: The expected or reference output of the dataset example
         - `reference`: An alias for `expected`
         - `metadata`: Metadata associated with the dataset example
+        - `example`: The dataset `Example` object with all associated fields
 
 
         Args:
@@ -1241,6 +1243,7 @@ class AsyncExperiments:
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Example:
         Basic usage:
@@ -1344,6 +1347,7 @@ class AsyncExperiments:
         - `expected`: The expected or reference output of the dataset example
         - `reference`: An alias for `expected`
         - `metadata`: Metadata associated with the dataset example
+        - `example`: The dataset `Example` object with all associated fields
 
         Args:
             dataset: The dataset on which to run the experiment.

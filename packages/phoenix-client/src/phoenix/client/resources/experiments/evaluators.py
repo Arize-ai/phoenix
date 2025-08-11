@@ -118,6 +118,7 @@ def create_evaluator(
         `expected`: The expected or reference output of the dataset example
         `reference`: An alias for `expected`
         `metadata`: Metadata associated with the dataset example
+        `example`: The dataset `Example` object with all associated fields
 
     Args:
         kind (str | AnnotatorKind): Broadly indicates how the evaluator scores an experiment run.
