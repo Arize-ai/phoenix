@@ -69,9 +69,16 @@ def _apply_session_io_filter(stmt: Any, session_filter: str, project_rowid: int)
     OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 
     # If UUID format, filter by session_id directly
-    if re.match(r"^[0-9a-f-]{36}$", session_filter, re.IGNORECASE):
+    if re.match(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        session_filter,
+        re.IGNORECASE,
+    ):
         return stmt.join(models.ProjectSession).where(
-            models.ProjectSession.session_id == session_filter
+            and_(
+                models.ProjectSession.session_id == session_filter,
+                models.ProjectSession.project_id == project_rowid,
+            )
         )
     else:
         # Reuse existing I/O filter logic from lines 400-424

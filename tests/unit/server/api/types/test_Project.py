@@ -3820,6 +3820,7 @@ async def test_trace_count_with_span_filter_returns_correct_data(
         query=query_no_filter, variables={"projectId": project_gid}
     )
     assert not response_no_filter.errors
+    assert response_no_filter.data is not None
     assert response_no_filter.data["node"]["traceCount"] == 5
 
 
@@ -4316,14 +4317,81 @@ async def test_session_filter_with_invalid_uuid_format(
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionFilter": "abc-def-123-invalid",
-        },  # 36 chars but invalid UUID
+            "sessionFilter": "abc-def",
+        },  # Invalid UUID format, should use substring search
     )
 
     assert not response.errors
-    # Should return 0 since this invalid UUID doesn't match any session_id
+    # Should return 1 since substring search finds "abc-def" in span input "test abc-def query"
+    assert response.data is not None
+    assert response.data["node"]["traceCount"] == 1
+
+
+async def test_session_filter_prevents_cross_project_access(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that session filter with UUID prevents access to sessions from other projects"""
+    import uuid
+
+    async with db() as session:
+        # Create two separate projects
+        project1 = await _add_project(session, name="project1-security-test")
+        project2 = await _add_project(session, name="project2-security-test")
+
+        # Create a session in project1 with proper UUID
+        project1_session_uuid = str(uuid.uuid4())
+        session1 = await _add_project_session(session, project1, session_id=project1_session_uuid)
+        trace1 = await _add_trace(session, project1, session1)
+        await _add_span(session, trace1, attributes={"input": {"value": "project1 data"}})
+
+        # Create a session in project2 with proper UUID
+        project2_session_uuid = str(uuid.uuid4())
+        session2 = await _add_project_session(session, project2, session_id=project2_session_uuid)
+        trace2 = await _add_trace(session, project2, session2)
+        await _add_span(session, trace2, attributes={"input": {"value": "project2 data"}})
+
+    query = """
+        query ($projectId: ID!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount(sessionFilter: $sessionFilter)
+                }
+            }
+        }
+    """
+
+    # Try to access project1's session from project2's context
+    project2_gid = str(GlobalID(type_name="Project", node_id=str(project2.id)))
+    project1_session_id = project1_session_uuid  # UUID from project1
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project2_gid,  # Querying project2
+            "sessionFilter": project1_session_id,  # But using project1's session UUID
+        },
+    )
+
+    assert not response.errors
+    # Should return 0 because project1's session should not be accessible from project2
     assert response.data is not None
     assert response.data["node"]["traceCount"] == 0
+
+    # Verify the session IS accessible from the correct project
+    project1_gid = str(GlobalID(type_name="Project", node_id=str(project1.id)))
+    response_correct = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project1_gid,  # Querying project1
+            "sessionFilter": project1_session_id,  # Using project1's session UUID
+        },
+    )
+
+    assert not response_correct.errors
+    # Should return 1 because project1's session should be accessible from project1
+    assert response_correct.data is not None
+    assert response_correct.data["node"]["traceCount"] == 1
 
 
 async def test_session_filter_with_annotation_summaries(
