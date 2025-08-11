@@ -7,7 +7,7 @@ from phoenix.server.api.helpers.playground_clients import (
 
 
 def _make_messages(
-    items: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]]
+    items: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]],
 ):
     return items
 
@@ -44,7 +44,7 @@ def test_build_google_messages_with_tool_response_mapping():
         [
             (ChatCompletionMessageRole.SYSTEM, "sys", None, None),
             (ChatCompletionMessageRole.AI, "", None, tool_calls),
-            (ChatCompletionMessageRole.TOOL, "{\"temp\": 70}", "abc", None),
+            (ChatCompletionMessageRole.TOOL, '{"temp": 70}', "abc", None),
             (ChatCompletionMessageRole.USER, "Final question", None, None),
         ]
     )

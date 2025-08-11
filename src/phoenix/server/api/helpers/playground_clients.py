@@ -1713,30 +1713,31 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
         "gemini-1.0-pro",
     ],
 )
- class GoogleStreamingClient(PlaygroundStreamingClient):
-     @staticmethod
-     def _map_tool_choice_to_google(tool_choice: Any) -> tuple[str, Optional[list[str]]]:
-         """
-         Map a generic tool_choice payload to Google ToolConfig settings.
-         Returns a tuple of (mode, allowed_function_names) where mode is one of
-         "NONE", "AUTO", or "ANY".
-         """
-         try:
-             if not isinstance(tool_choice, dict) or "type" not in tool_choice:
-                 return "AUTO", None
-             t = tool_choice.get("type")
-             if t in ("none", "NONE"):
-                 return "NONE", None
-             if t in ("auto", "zero_or_more", "AUTO"):
-                 return "AUTO", None
-             if t in ("any", "one_or_more", "ANY"):
-                 return "ANY", None
-             if t in ("specific_function", "SPECIFIC_FUNCTION"):
-                 name = tool_choice.get("name") or tool_choice.get("function_name")
-                 return "ANY", [name] if name else None
-         except Exception:
-             pass
-         return "AUTO", None
+class GoogleStreamingClient(PlaygroundStreamingClient):
+    @staticmethod
+    def _map_tool_choice_to_google(tool_choice: Any) -> tuple[str, Optional[list[str]]]:
+        """
+        Map a generic tool_choice payload to Google ToolConfig settings.
+        Returns a tuple of (mode, allowed_function_names) where mode is one of
+        "NONE", "AUTO", or "ANY".
+        """
+        try:
+            if not isinstance(tool_choice, dict) or "type" not in tool_choice:
+                return "AUTO", None
+            t = tool_choice.get("type")
+            if t in ("none", "NONE"):
+                return "NONE", None
+            if t in ("auto", "zero_or_more", "AUTO"):
+                return "AUTO", None
+            if t in ("any", "one_or_more", "ANY"):
+                return "ANY", None
+            if t in ("specific_function", "SPECIFIC_FUNCTION"):
+                name = tool_choice.get("name") or tool_choice.get("function_name")
+                return "ANY", [name] if name else None
+        except Exception:
+            pass
+        return "AUTO", None
+
     def __init__(
         self,
         model: GenerativeModelInput,
@@ -1767,225 +1768,242 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
         return [Dependency(name="google-generativeai", module_name="google.generativeai")]
 
     @classmethod
-     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-         return [
-             BoundedFloatInvocationParameter(
-                 invocation_name="temperature",
-                 canonical_name=CanonicalParameterName.TEMPERATURE,
-                 label="Temperature",
-                 default_value=1.0,
-                 min_value=0.0,
-                 max_value=2.0,
-             ),
-             IntInvocationParameter(
-                 invocation_name="max_output_tokens",
-                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                 label="Max Output Tokens",
-             ),
-             StringListInvocationParameter(
-                 invocation_name="stop_sequences",
-                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                 label="Stop Sequences",
-             ),
-             FloatInvocationParameter(
-                 invocation_name="presence_penalty",
-                 label="Presence Penalty",
-                 default_value=0.0,
-             ),
-             FloatInvocationParameter(
-                 invocation_name="frequency_penalty",
-                 label="Frequency Penalty",
-                 default_value=0.0,
-             ),
-             BoundedFloatInvocationParameter(
-                 invocation_name="top_p",
-                 canonical_name=CanonicalParameterName.TOP_P,
-                 label="Top P",
-                 default_value=1.0,
-                 min_value=0.0,
-                 max_value=1.0,
-             ),
-             IntInvocationParameter(
-                 invocation_name="top_k",
-                 label="Top K",
-             ),
-             JSONInvocationParameter(
-                 invocation_name="tool_choice",
-                 label="Tool Choice",
-                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
-             ),
-         ]
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_output_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Output Tokens",
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop_sequences",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            FloatInvocationParameter(
+                invocation_name="presence_penalty",
+                label="Presence Penalty",
+                default_value=0.0,
+            ),
+            FloatInvocationParameter(
+                invocation_name="frequency_penalty",
+                label="Frequency Penalty",
+                default_value=0.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="top_k",
+                label="Top K",
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+        ]
 
-     async def chat_completion_create(
-         self,
-         messages: list[
-             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-         ],
-         tools: list[JSONScalarType],
-         **invocation_parameters: Any,
-     ) -> AsyncIterator[ChatCompletionChunk]:
-         import google.generativeai as google_genai
- 
-         # Build messages and system prompt
-         google_message_history, current_message, system_prompt = self._build_google_messages(
-             messages
-         )
- 
-         # Prepare model args, attach tools and optional tool_config (tool_choice)
-         model_args: dict[str, Any] = {"model_name": self.model_name}
-         if system_prompt:
-             model_args["system_instruction"] = system_prompt
- 
-         # Pass tools if provided
-         if tools:
-             model_args["tools"] = tools
- 
-         # Map tool_choice to Google ToolConfig if present in invocation_parameters
-         tool_choice = invocation_parameters.pop("tool_choice", None)
-         if tool_choice is not None:
-             # Map to (mode, allowed_function_names)
-             mode, allowed = self._map_tool_choice_to_google(tool_choice)
-             try:
-                 from google.generativeai import protos
-                 from google.generativeai.types import content_types
- 
-                 tc: protos.ToolConfig = protos.ToolConfig()  # type: ignore[no-untyped-call]
-                 if mode == "NONE":
-                     tc.function_calling_config.mode = content_types.FunctionCallingMode.NONE
-                 elif mode == "AUTO":
-                     tc.function_calling_config.mode = content_types.FunctionCallingMode.AUTO
-                 elif mode == "ANY":
-                     tc.function_calling_config.mode = content_types.FunctionCallingMode.ANY
-                 if allowed:
-                     tc.function_calling_config.allowed_function_names = allowed
-                 model_args["tool_config"] = tc
-             except Exception:
-                 # If the SDK types are not available, ignore tool_config gracefully
-                 pass
- 
-         client = google_genai.GenerativeModel(**model_args)
- 
-         google_config = google_genai.GenerationConfig(
-             **invocation_parameters,
-         )
-         google_params = {
-             "content": current_message,
-             "generation_config": google_config,
-             "stream": True,
-         }
- 
-         chat = client.start_chat(history=google_message_history)
-         stream = await chat.send_message_async(**google_params)
-         async for event in stream:
-             # Usage if available
-             try:
-                 self._attributes.update(
-                     {
-                         LLM_TOKEN_COUNT_PROMPT: getattr(event, "usage_metadata").prompt_token_count,
-                         LLM_TOKEN_COUNT_COMPLETION: getattr(event, "usage_metadata").candidates_token_count,
-                         LLM_TOKEN_COUNT_TOTAL: getattr(event, "usage_metadata").total_token_count,
-                     }
-                 )
-             except Exception:
-                 pass
- 
-             # Emit text if present
-             try:
-                 if getattr(event, "text", None):
-                     yield TextChunk(content=event.text)
-             except Exception:
-                 pass
- 
-             # Detect function calls in streamed candidates and emit ToolCallChunk
-             try:
-                 candidates = getattr(event, "candidates", None) or []
-                 for cand in candidates:
-                     content = getattr(cand, "content", None) or {}
-                     parts = getattr(content, "parts", None) or getattr(content, "Parts", None) or []
-                     # parts may be list of objects or dicts
-                     for part in parts:
-                         fc = None
-                         if hasattr(part, "function_call") and getattr(part, "function_call"):
-                             fc = getattr(part, "function_call")
-                         elif isinstance(part, dict) and ("functionCall" in part or "function_call" in part):
-                             fc = part.get("functionCall") or part.get("function_call")
-                         if fc:
-                             # Extract name and args
-                             name = getattr(fc, "name", None) or (fc.get("name") if isinstance(fc, dict) else None) or ""
-                             args = getattr(fc, "args", None) or (fc.get("args") if isinstance(fc, dict) else None) or {}
-                             try:
-                                 arg_str = json.dumps(args) if not isinstance(args, str) else args
-                             except Exception:
-                                 arg_str = str(args)
-                             yield ToolCallChunk(
-                                 id=getattr(fc, "id", None) or (fc.get("id") if isinstance(fc, dict) else ""),
-                                 function=FunctionCallChunk(name=name, arguments=arg_str),
-                             )
-             except Exception:
-                 # If structure unknown, skip tool call streaming gracefully
-                 pass
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import google.generativeai as google_genai
 
-     def _build_google_messages(
-         self,
-         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
-     ) -> tuple[list["ContentType"], str, str]:
-         # Build a lookup from tool_call_id to function name from prior AI messages
-         tool_id_to_name: dict[str, str] = {}
-         for role, _content, _id, tool_calls in messages:
-             if role == ChatCompletionMessageRole.AI and tool_calls:
-                 for tc in tool_calls:
-                     try:
-                         if isinstance(tc, dict):
-                             tc_id = tc.get("id") or tc.get("tool_use_id") or ""
-                             fn = tc.get("function", {}) if isinstance(tc.get("function"), dict) else {}
-                             name = fn.get("name") or tc.get("name") or ""
-                             if tc_id and name:
-                                 tool_id_to_name[tc_id] = name
-                     except Exception:
-                         continue
- 
-         google_message_history: list["ContentType"] = []
-         system_prompts: list[str] = []
-         for role, content, tool_call_id, _tool_calls in messages:
-             if role == ChatCompletionMessageRole.USER:
-                 google_message_history.append({"role": "user", "parts": content})
-             elif role == ChatCompletionMessageRole.AI:
-                 google_message_history.append({"role": "model", "parts": content})
-             elif role == ChatCompletionMessageRole.SYSTEM:
-                 system_prompts.append(content)
-             elif role == ChatCompletionMessageRole.TOOL:
-                 # Convert tool result to functionResponse part expected by Gemini
-                 try:
-                     response_json: Any
-                     try:
-                         response_json = json.loads(content) if isinstance(content, str) else content
-                     except Exception:
-                         response_json = {"content": content}
-                     name = tool_id_to_name.get(tool_call_id or "", "")
-                     google_message_history.append(
-                         {
-                             "role": "user",
-                             "parts": [
-                                 {
-                                     "functionResponse": {
-                                         "name": name or (tool_call_id or ""),
-                                         "response": response_json,
-                                     }
-                                 }
-                             ],
-                         }
-                     )
-                 except Exception:
-                     # If anything goes wrong, fall back to appending as user text
-                     google_message_history.append({"role": "user", "parts": content})
-             else:
-                 assert_never(role)
-         if google_message_history:
-             prompt = google_message_history.pop()["parts"]
-         else:
-             prompt = ""
- 
-         return google_message_history, prompt, "\n".join(system_prompts)
+        # Build messages and system prompt
+        google_message_history, current_message, system_prompt = self._build_google_messages(
+            messages
+        )
+
+        # Prepare model args, attach tools and optional tool_config (tool_choice)
+        model_args: dict[str, Any] = {"model_name": self.model_name}
+        if system_prompt:
+            model_args["system_instruction"] = system_prompt
+
+        # Pass tools if provided
+        if tools:
+            model_args["tools"] = tools
+
+        # Map tool_choice to Google ToolConfig if present in invocation_parameters
+        tool_choice = invocation_parameters.pop("tool_choice", None)
+        if tool_choice is not None:
+            # Map to (mode, allowed_function_names)
+            mode, allowed = self._map_tool_choice_to_google(tool_choice)
+            try:
+                from google.generativeai import protos
+                from google.generativeai.types import content_types
+
+                tc: protos.ToolConfig = protos.ToolConfig()  # type: ignore[no-untyped-call]
+                if mode == "NONE":
+                    tc.function_calling_config.mode = content_types.FunctionCallingMode.NONE
+                elif mode == "AUTO":
+                    tc.function_calling_config.mode = content_types.FunctionCallingMode.AUTO
+                elif mode == "ANY":
+                    tc.function_calling_config.mode = content_types.FunctionCallingMode.ANY
+                if allowed:
+                    tc.function_calling_config.allowed_function_names = allowed
+                model_args["tool_config"] = tc
+            except Exception:
+                # If the SDK types are not available, ignore tool_config gracefully
+                pass
+
+        client = google_genai.GenerativeModel(**model_args)
+
+        google_config = google_genai.GenerationConfig(
+            **invocation_parameters,
+        )
+        google_params = {
+            "content": current_message,
+            "generation_config": google_config,
+            "stream": True,
+        }
+
+        chat = client.start_chat(history=google_message_history)
+        stream = await chat.send_message_async(**google_params)
+        async for event in stream:
+            # Usage if available
+            try:
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: getattr(event, "usage_metadata").prompt_token_count,
+                        LLM_TOKEN_COUNT_COMPLETION: getattr(
+                            event, "usage_metadata"
+                        ).candidates_token_count,
+                        LLM_TOKEN_COUNT_TOTAL: getattr(event, "usage_metadata").total_token_count,
+                    }
+                )
+            except Exception:
+                pass
+
+            # Emit text if present
+            try:
+                if getattr(event, "text", None):
+                    yield TextChunk(content=event.text)
+            except Exception:
+                pass
+
+            # Detect function calls in streamed candidates and emit ToolCallChunk
+            try:
+                candidates = getattr(event, "candidates", None) or []
+                for cand in candidates:
+                    content = getattr(cand, "content", None) or {}
+                    parts = getattr(content, "parts", None) or getattr(content, "Parts", None) or []
+                    # parts may be list of objects or dicts
+                    for part in parts:
+                        fc = None
+                        if hasattr(part, "function_call") and getattr(part, "function_call"):
+                            fc = getattr(part, "function_call")
+                        elif isinstance(part, dict) and (
+                            "functionCall" in part or "function_call" in part
+                        ):
+                            fc = part.get("functionCall") or part.get("function_call")
+                        if fc:
+                            # Extract name and args
+                            name = (
+                                getattr(fc, "name", None)
+                                or (fc.get("name") if isinstance(fc, dict) else None)
+                                or ""
+                            )
+                            args = (
+                                getattr(fc, "args", None)
+                                or (fc.get("args") if isinstance(fc, dict) else None)
+                                or {}
+                            )
+                            try:
+                                arg_str = json.dumps(args) if not isinstance(args, str) else args
+                            except Exception:
+                                arg_str = str(args)
+                            yield ToolCallChunk(
+                                id=getattr(fc, "id", None)
+                                or (fc.get("id") if isinstance(fc, dict) else ""),
+                                function=FunctionCallChunk(name=name, arguments=arg_str),
+                            )
+            except Exception:
+                # If structure unknown, skip tool call streaming gracefully
+                pass
+
+    def _build_google_messages(
+        self,
+        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+    ) -> tuple[list["ContentType"], str, str]:
+        # Build a lookup from tool_call_id to function name from prior AI messages
+        tool_id_to_name: dict[str, str] = {}
+        for role, _content, _id, tool_calls in messages:
+            if role == ChatCompletionMessageRole.AI and tool_calls:
+                for tc in tool_calls:
+                    try:
+                        if isinstance(tc, dict):
+                            tc_id = tc.get("id") or tc.get("tool_use_id") or ""
+                            fn = (
+                                tc.get("function", {})
+                                if isinstance(tc.get("function"), dict)
+                                else {}
+                            )
+                            name = fn.get("name") or tc.get("name") or ""
+                            if tc_id and name:
+                                tool_id_to_name[tc_id] = name
+                    except Exception:
+                        continue
+
+        google_message_history: list["ContentType"] = []
+        system_prompts: list[str] = []
+        for role, content, tool_call_id, _tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                google_message_history.append({"role": "user", "parts": content})
+            elif role == ChatCompletionMessageRole.AI:
+                google_message_history.append({"role": "model", "parts": content})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompts.append(content)
+            elif role == ChatCompletionMessageRole.TOOL:
+                # Convert tool result to functionResponse part expected by Gemini
+                try:
+                    response_json: Any
+                    try:
+                        response_json = json.loads(content) if isinstance(content, str) else content
+                    except Exception:
+                        response_json = {"content": content}
+                    name = tool_id_to_name.get(tool_call_id or "", "")
+                    google_message_history.append(
+                        {
+                            "role": "user",
+                            "parts": [
+                                {
+                                    "functionResponse": {
+                                        "name": name or (tool_call_id or ""),
+                                        "response": response_json,
+                                    }
+                                }
+                            ],
+                        }
+                    )
+                except Exception:
+                    # If anything goes wrong, fall back to appending as user text
+                    google_message_history.append({"role": "user", "parts": content})
+            else:
+                assert_never(role)
+        if google_message_history:
+            prompt = google_message_history.pop()["parts"]
+        else:
+            prompt = ""
+
+        return google_message_history, prompt, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
