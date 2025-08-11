@@ -140,14 +140,6 @@ const tableWrapCSS = css`
   }
 `;
 
-const annotationTooltipExtraCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  color: var(--ac-global-color-primary);
-  gap: var(--ac-global-dimension-size-50);
-`;
-
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
@@ -950,58 +942,27 @@ function ExperimentRunOutput(
       height="100%"
       justifyContent="space-between"
     >
-      <LargeTextWrap>
-        <JSONText json={output} disableTitle space={displayFullText ? 2 : 0} />
-      </LargeTextWrap>
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: row;
-          gap: var(--ac-global-dimension-static-size-100);
-          align-items: center;
-          flex-wrap: wrap;
-        `}
-      >
-        {annotationsList.map((annotation) => {
-          const traceId = annotation.trace?.traceId;
-          const projectId = annotation.trace?.projectId;
-          const clickable = traceId != null && projectId != null;
-
-          return (
-            <li key={annotation.id}>
-              <AnnotationTooltip
-                annotation={annotation}
-                extra={
-                  clickable && (
-                    <View paddingTop="size-100">
-                      <div css={annotationTooltipExtraCSS}>
-                        <Icon svg={<Icons.InfoOutline />} />
-                        <span>Click to view evaluator trace</span>
-                      </div>
-                    </View>
-                  )
-                }
-              >
-                <AnnotationLabel
-                  annotation={annotation}
-                  clickable={clickable}
-                  onClick={() => {
-                    if (clickable) {
-                      setDialog(
-                        <TraceDetailsDialog
-                          title={`Evaluator Trace: ${annotation.name}`}
-                          traceId={traceId}
-                          projectId={projectId}
-                        />
-                      );
-                    }
-                  }}
-                />
-              </AnnotationTooltip>
-            </li>
+      <View padding="size-200" flex="1 1 auto">
+        <LargeTextWrap>
+          <JSONText
+            json={output}
+            disableTitle
+            space={displayFullText ? 2 : 0}
+          />
+        </LargeTextWrap>
+      </View>
+      <ExperimentRunCellAnnotationsList
+        annotations={annotationsList}
+        onTraceClick={({ traceId, projectId, annotationName }) => {
+          setDialog(
+            <TraceDetailsDialog
+              title={`Evaluator Trace: ${annotationName}`}
+              traceId={traceId}
+              projectId={projectId}
+            />
           );
-        })}
-      </ul>
+        }}
+      />
     </Flex>
   );
 }
@@ -1060,6 +1021,7 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
       css={css`
         max-height: 300px;
         overflow-y: auto;
+        flex: 1 1 auto;
       `}
     >
       {children}
@@ -1290,5 +1252,88 @@ function PaddedCell({ children }: { children: ReactNode }) {
     <View paddingX="size-200" paddingY="size-100">
       {children}
     </View>
+  );
+}
+
+type ExperimentRunAnnotation =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number]["annotations"]["edges"][number]["annotation"];
+export type ExperimentRunCellAnnotationsListProps = {
+  annotations: ExperimentRunAnnotation[];
+  onTraceClick: ({
+    annotationName,
+    traceId,
+    projectId,
+  }: {
+    annotationName: string;
+    traceId: string;
+    projectId: string;
+  }) => void;
+};
+
+export function ExperimentRunCellAnnotationsList(
+  props: ExperimentRunCellAnnotationsListProps
+) {
+  const { annotations, onTraceClick } = props;
+  return (
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-100);
+        flex: none;
+        padding: var(--ac-global-dimension-static-size-100);
+        li:hover {
+          background-color: var(--ac-global-color-grey-100);
+          cursor: pointer;
+        }
+      `}
+    >
+      {annotations.map((annotation) => {
+        const traceId = annotation.trace?.traceId;
+        const projectId = annotation.trace?.projectId;
+        const hasTrace = traceId != null && projectId != null;
+        return (
+          <li
+            key={annotation.id}
+            css={css`
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              justify-content: space-between;
+              gap: var(--ac-global-dimension-static-size-50);
+            `}
+          >
+            <AnnotationTooltip annotation={annotation}>
+              <AnnotationLabel annotation={annotation} />
+            </AnnotationTooltip>
+            <Flex direction="row" gap="size-100">
+              <IconButton size="S">
+                <Icon svg={<Icons.InfoOutline />} />
+              </IconButton>
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  onPress={() => {
+                    if (hasTrace) {
+                      onTraceClick({
+                        annotationName: annotation.name,
+                        traceId,
+                        projectId,
+                      });
+                    }
+                  }}
+                >
+                  <Icon svg={<Icons.Trace />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  View evaluation trace
+                </Tooltip>
+              </TooltipTrigger>
+            </Flex>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
