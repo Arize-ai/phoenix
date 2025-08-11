@@ -10,7 +10,7 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
 
 
 @pytest.mark.parametrize(
-    "description, kwargs, y_true, y_pred, expected_names, expected_scores, expects_exception",
+    "description, kwargs, expected, output, expected_names, expected_scores, expects_exception",
     [
         pytest.param(
             "binary ints default positive=1",
@@ -91,14 +91,14 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
 def test_precision_recall_fscore_success(
     description: str,
     kwargs: Dict[str, Any],
-    y_true: List[Any],
-    y_pred: List[Any],
+    expected: List[Any],
+    output: List[Any],
     expected_names: List[str],
     expected_scores: Dict[str, float],
     expects_exception: bool,
 ) -> None:
     evaluator = PrecisionRecallFScore(**kwargs)
-    scores = evaluator({"y_true": y_true, "y_pred": y_pred})
+    scores = evaluator({"expected": expected, "output": output})
     names = [s.name for s in scores]
     assert names == expected_names
     by_name = _scores_by_name(scores)
@@ -107,7 +107,7 @@ def test_precision_recall_fscore_success(
 
 
 @pytest.mark.parametrize(
-    "description, kwargs, y_true, y_pred, expects_exception",
+    "description, kwargs, expected, output, expects_exception",
     [
         pytest.param(
             "single string input should error",
@@ -154,16 +154,16 @@ def test_precision_recall_fscore_success(
 def test_precision_recall_fscore_errors(
     description: str,
     kwargs: Dict[str, Any],
-    y_true: Any,
-    y_pred: Any,
+    expected: Any,
+    output: Any,
     expects_exception: bool,
 ) -> None:
     evaluator = PrecisionRecallFScore(**kwargs)
     if expects_exception:
         with pytest.raises(ValueError):
-            _ = evaluator({"y_true": y_true, "y_pred": y_pred})
+            _ = evaluator({"expected": expected, "output": output})
     else:
-        scores = evaluator({"y_true": y_true, "y_pred": y_pred})
+        scores = evaluator({"expected": expected, "output": output})
         # Evaluators return an ERROR score instead of raising
         assert len(scores) == 1
         err = scores[0]

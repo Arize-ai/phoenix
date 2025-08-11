@@ -25,16 +25,16 @@ Examples:
 1) Multi-class (macro):
 >>> from phoenix.evals.preview.metrics.precision_recall import PrecisionRecallFScore
 >>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
->>> eval_input = {"y_true": ["cat", "dog", "cat", "bird"],
-...               "y_pred": ["cat", "cat", "cat", "bird"]}
+>>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
+...               "output": ["cat", "cat", "cat", "bird"]}
 >>> scores = evaluator(eval_input)
 >>> [s.name for s in scores]
 ['precision', 'recall', 'f1']
 
 2) Binary with explicit positive label:
 >>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
->>> eval_input = {"y_true": ["spam", "ham", "spam"],
-...               "y_pred": ["spam", "spam", "ham"]}
+>>> eval_input = {"expected": ["spam", "ham", "spam"],
+...               "output": ["spam", "spam", "ham"]}
 >>> scores = evaluator(eval_input)
 >>> [s.name for s in scores]
 ['precision', 'recall', 'f0_5']
@@ -85,7 +85,7 @@ class PrecisionRecallFScore(Evaluator):
     """
     Heuristic evaluator that computes precision, recall, and F-score.
 
-    - Required fields: `y_true`, `y_pred` (sequences of labels)
+    - Required fields: `expected`, `output` (sequences of labels)
     - Supports labels as strings or integers
     - Supports binary and multi-class via averaging strategies
 
@@ -100,7 +100,7 @@ class PrecisionRecallFScore(Evaluator):
     - zero_division: value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
 
     Inputs
-    - y_true, y_pred: sequences (e.g., list, tuple, NumPy array) of hashable labels. Passing a
+    - expected, output: sequences (e.g., list, tuple, NumPy array) of hashable labels. Passing a
       single string (e.g., 'cat') is not supported; pass a sequence instead (e.g., ['cat']).
     """
 
@@ -115,7 +115,7 @@ class PrecisionRecallFScore(Evaluator):
         super().__init__(
             name="precision_recall_fscore",
             source="heuristic",
-            required_fields={"y_true", "y_pred"},
+            required_fields={"expected", "output"},
             direction="maximize",
         )
         if beta <= 0:
@@ -128,32 +128,33 @@ class PrecisionRecallFScore(Evaluator):
         self.positive_label = positive_label
 
     def _evaluate(self, eval_input: Mapping[str, Any]) -> List[Score]:
-        y_true_raw = eval_input["y_true"]
-        y_pred_raw = eval_input["y_pred"]
+        expected_raw = eval_input["expected"]
+        output_raw = eval_input["output"]
 
         # Disallow accidental single-string inputs (strings are Sequences)
-        if isinstance(y_true_raw, (str, bytes)) or isinstance(y_pred_raw, (str, bytes)):
-            raise ValueError("y_true and y_pred must be sequences of labels, not single strings")
+        if isinstance(expected_raw, (str, bytes)) or isinstance(output_raw, (str, bytes)):
+            raise ValueError("expected and output must be sequences of labels, not single strings")
 
-        if not isinstance(y_true_raw, Sequence) or not isinstance(y_pred_raw, Sequence):
-            raise ValueError("y_true and y_pred must be sequences of labels")
+        if not isinstance(expected_raw, Sequence) or not isinstance(output_raw, Sequence):
+            raise ValueError("expected and output must be sequences of labels")
 
-        y_true = list(y_true_raw)
-        y_pred = list(y_pred_raw)
+        expected = list(expected_raw)
+        output = list(output_raw)
 
         # Ensure labels are hashable so they can be used as dict/set keys
-        self._assert_hashable_labels(y_true, "y_true")
-        self._assert_hashable_labels(y_pred, "y_pred")
+        self._assert_hashable_labels(expected, "expected")
+        self._assert_hashable_labels(output, "output")
 
-        if len(y_true) != len(y_pred):
+        if len(expected) != len(output):
             raise ValueError(
-                f"y_true and y_pred must have the same length. Got {len(y_true)} and {len(y_pred)}"
+                f"expected and output must have the same length. Got {len(expected)} and "
+                f"{len(output)}"
             )
-        if len(y_true) == 0:
-            raise ValueError("y_true and y_pred must be non-empty")
+        if len(expected) == 0:
+            raise ValueError("expected and output must be non-empty")
 
-        labels = self._collect_labels(y_true, y_pred)
-        counts_by_label = self._compute_counts(y_true, y_pred, labels)
+        labels = self._collect_labels(expected, output)
+        counts_by_label = self._compute_counts(expected, output, labels)
 
         # Determine if we are in binary (positive_label) mode
         pos_label = self._resolve_positive_label(self.positive_label, labels)
@@ -219,26 +220,26 @@ class PrecisionRecallFScore(Evaluator):
         ]
 
     def _collect_labels(
-        self, y_true: Sequence[Hashable], y_pred: Sequence[Hashable]
+        self, expected: Sequence[Hashable], output: Sequence[Hashable]
     ) -> List[Hashable]:
-        # Preserve a stable, interpretable order: first seen in y_true, then unseen from y_pred
+        # Preserve a stable, interpretable order: first seen in expected, then unseen from output
         seen = set()
         ordered: List[Hashable] = []
-        for y in y_true:
+        for y in expected:
             if y not in seen:
                 seen.add(y)
                 ordered.append(y)
-        for y in y_pred:
+        for y in output:
             if y not in seen:
                 seen.add(y)
                 ordered.append(y)
         return ordered
 
     def _compute_counts(
-        self, y_true: Sequence[Hashable], y_pred: Sequence[Hashable], labels: Sequence[Hashable]
+        self, expected: Sequence[Hashable], output: Sequence[Hashable], labels: Sequence[Hashable]
     ) -> Dict[Hashable, _ClassCounts]:
         counts: Dict[Hashable, _ClassCounts] = {label: _ClassCounts() for label in labels}
-        for yt, yp in zip(y_true, y_pred):
+        for yt, yp in zip(expected, output):
             if yt == yp:
                 tp = counts[yt].true_positive + 1
                 counts[yt] = _ClassCounts(
