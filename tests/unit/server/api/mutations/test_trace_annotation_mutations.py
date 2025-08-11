@@ -11,14 +11,14 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
-@pytest.fixture(autouse=True)
-async def trace_data(db: DbSessionFactory) -> models.Trace:
+@pytest.fixture
+async def _trace_data(db: DbSessionFactory) -> models.Trace:
     """Create and persist a single `Trace` record for annotation tests.
 
     Returns the created `Trace` so tests can derive a stable Relay `GlobalID`.
     """
     async with db() as session:
-        project = models.Project(name="default")
+        project = models.Project(name=token_hex(8))
         session.add(project)
         await session.flush()
 
@@ -79,9 +79,9 @@ class TestTraceAnnotationMutations:
 
     async def test_trace_annotations_create_upsert_patch_delete(
         self,
+        _trace_data: models.Trace,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        trace_data: models.Trace,
     ) -> None:
         """End-to-end CRUD:
 
@@ -91,7 +91,7 @@ class TestTraceAnnotationMutations:
         - Patch (label)
         - Delete
         """
-        trace_gid = str(GlobalID("Trace", str(trace_data.id)))
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
 
         # 1) Basic create (no identifier)
         create_input: dict[str, Any] = {
@@ -108,28 +108,16 @@ class TestTraceAnnotationMutations:
         result_create = await gql_client.execute(
             self.QUERY, {"input": [create_input]}, operation_name="CreateTraceAnnotations"
         )
-        assert not result_create.errors, f"CreateTraceAnnotations errors: {result_create.errors}"
-        assert result_create.data is not None, "CreateTraceAnnotations returned no data"
+        assert not result_create.errors
+        assert result_create.data is not None
         data_create = result_create.data
         created = data_create["createTraceAnnotations"]["traceAnnotations"][0]
-        assert created["name"] == create_input["name"], (
-            f"Created name mismatch. expected={create_input['name']} actual={created['name']}"
-        )
-        assert created["label"] == create_input["label"], (
-            f"Created label mismatch. expected={create_input['label']} actual={created['label']}"
-        )
-        assert created["score"] == create_input["score"], (
-            f"Created score mismatch. expected={create_input['score']} actual={created['score']}"
-        )
-        assert created["explanation"] == create_input["explanation"], (
-            f"Created explanation mismatch. expected={create_input['explanation']} actual={created['explanation']}"
-        )
-        assert created["identifier"] == "", (
-            f"Expected empty identifier, actual={created['identifier']}"
-        )
-        assert isinstance(created["id"], str), (
-            f"Expected id to be str, actual_type={type(created['id']).__name__} value={created['id']}"
-        )
+        assert created["name"] == create_input["name"]
+        assert created["label"] == create_input["label"]
+        assert created["score"] == create_input["score"]
+        assert created["explanation"] == create_input["explanation"]
+        assert created["identifier"] == ""
+        assert isinstance(created["id"], str)
 
         # 2) Upsert with identifier (should update in place)
         base_with_id: dict[str, Any] = {
@@ -146,12 +134,10 @@ class TestTraceAnnotationMutations:
         res1 = await gql_client.execute(
             self.QUERY, {"input": [base_with_id]}, operation_name="CreateTraceAnnotations"
         )
-        assert not res1.errors, f"CreateTraceAnnotations (with identifier) errors: {res1.errors}"
+        assert not res1.errors
         assert (data1 := res1.data)
         ann1 = data1["createTraceAnnotations"]["traceAnnotations"][0]
-        assert ann1["metadata"] == {"k": "v"}, (
-            f"Initial metadata mismatch. expected={{'k': 'v'}} actual={ann1['metadata']}"
-        )
+        assert ann1["metadata"] == {"k": "v"}
 
         updated_with_id = {
             **base_with_id,
@@ -163,22 +149,14 @@ class TestTraceAnnotationMutations:
         res2 = await gql_client.execute(
             self.QUERY, {"input": [updated_with_id]}, operation_name="CreateTraceAnnotations"
         )
-        assert not res2.errors, f"CreateTraceAnnotations upsert errors: {res2.errors}"
+        assert not res2.errors
         assert (data2 := res2.data)
         ann2 = data2["createTraceAnnotations"]["traceAnnotations"][0]
-        assert ann1["id"] == ann2["id"], (
-            f"Upsert should preserve id. before={ann1['id']} after={ann2['id']}"
-        )
-        assert ann2["label"] == "UPDATED_LABEL", (
-            f"Upsert label mismatch. expected=UPDATED_LABEL actual={ann2['label']}"
-        )
-        assert ann2["score"] == 2.0, f"Upsert score mismatch. expected=2.0 actual={ann2['score']}"
-        assert ann2["explanation"] == "Updated explanation", (
-            f"Upsert explanation mismatch. expected='Updated explanation' actual={ann2['explanation']}"
-        )
-        assert ann2["metadata"] == {"k": "v2", "x": 1}, (
-            f"Upsert metadata mismatch. expected={{'k': 'v2', 'x': 1}} actual={ann2['metadata']}"
-        )
+        assert ann1["id"] == ann2["id"]
+        assert ann2["label"] == "UPDATED_LABEL"
+        assert ann2["score"] == 2.0
+        assert ann2["explanation"] == "Updated explanation"
+        assert ann2["metadata"] == {"k": "v2", "x": 1}
 
         # 3) Upsert without identifier (empty identifier also conflicts on (trace, name))
         base_no_id: dict[str, Any] = {
@@ -195,24 +173,14 @@ class TestTraceAnnotationMutations:
         res3 = await gql_client.execute(
             self.QUERY, {"input": [base_no_id]}, operation_name="CreateTraceAnnotations"
         )
-        assert not res3.errors, f"CreateTraceAnnotations (no identifier) errors: {res3.errors}"
+        assert not res3.errors
         assert (data3 := res3.data)
         ann3 = data3["createTraceAnnotations"]["traceAnnotations"][0]
-        assert ann3["name"] == base_no_id["name"], (
-            f"Create (no identifier) name mismatch. expected={base_no_id['name']} actual={ann3['name']}"
-        )
-        assert ann3["label"] == base_no_id["label"], (
-            f"Create (no identifier) label mismatch. expected={base_no_id['label']} actual={ann3['label']}"
-        )
-        assert ann3["score"] == base_no_id["score"], (
-            f"Create (no identifier) score mismatch. expected={base_no_id['score']} actual={ann3['score']}"
-        )
-        assert ann3["explanation"] == base_no_id["explanation"], (
-            f"Create (no identifier) explanation mismatch. expected={base_no_id['explanation']} actual={ann3['explanation']}"
-        )
-        assert ann3["identifier"] == "", (
-            f"Create (no identifier) expected empty identifier, actual={ann3['identifier']}"
-        )
+        assert ann3["name"] == base_no_id["name"]
+        assert ann3["label"] == base_no_id["label"]
+        assert ann3["score"] == base_no_id["score"]
+        assert ann3["explanation"] == base_no_id["explanation"]
+        assert ann3["identifier"] == ""
 
         updated_no_id = {
             **base_no_id,
@@ -223,9 +191,7 @@ class TestTraceAnnotationMutations:
         res4 = await gql_client.execute(
             self.QUERY, {"input": [updated_no_id]}, operation_name="CreateTraceAnnotations"
         )
-        assert not res4.errors, (
-            f"CreateTraceAnnotations upsert (no identifier) errors: {res4.errors}"
-        )
+        assert not res4.errors
         assert (data4 := res4.data)
         ann4 = data4["createTraceAnnotations"]["traceAnnotations"][0]
 
@@ -242,32 +208,20 @@ class TestTraceAnnotationMutations:
         res_patch = await gql_client.execute(
             self.QUERY, {"input": patch_input}, operation_name="PatchTraceAnnotations"
         )
-        assert not res_patch.errors, f"PatchTraceAnnotations errors: {res_patch.errors}"
+        assert not res_patch.errors
         assert (data_patch := res_patch.data)
         patched = data_patch["patchTraceAnnotations"]["traceAnnotations"][0]
-        assert patched["id"] == ann4["id"], (
-            f"Patched annotation id mismatch. expected={ann4['id']} actual={patched['id']}"
-        )
-        assert patched["label"] == "PATCHED_LABEL", (
-            f"Patched label mismatch. expected=PATCHED_LABEL actual={patched['label']}"
-        )
-        assert patched["score"] == 3.5, (
-            f"Patched score mismatch. expected=3.5 actual={patched['score']}"
-        )
-        assert patched["explanation"] == "Patched explanation", (
-            f"Patched explanation mismatch. expected='Patched explanation' actual={patched['explanation']}"
-        )
-        assert patched["metadata"] == {"patched": True}, (
-            f"Patched metadata mismatch. expected={{'patched': True}} actual={patched['metadata']}"
-        )
+        assert patched["id"] == ann4["id"]
+        assert patched["label"] == "PATCHED_LABEL"
+        assert patched["score"] == 3.5
+        assert patched["explanation"] == "Patched explanation"
+        assert patched["metadata"] == {"patched": True}
 
         delete_input = {"annotationIds": [ann4["id"]]}
         res_delete = await gql_client.execute(
             self.QUERY, {"input": delete_input}, operation_name="DeleteTraceAnnotations"
         )
-        assert not res_delete.errors, f"DeleteTraceAnnotations errors: {res_delete.errors}"
+        assert not res_delete.errors
         assert (data_delete := res_delete.data)
         deleted = data_delete["deleteTraceAnnotations"]["traceAnnotations"][0]
-        assert deleted["id"] == ann4["id"], (
-            f"Deleted id mismatch. expected={ann4['id']} actual={deleted['id']}"
-        )
+        assert deleted["id"] == ann4["id"]
