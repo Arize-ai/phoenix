@@ -1248,7 +1248,10 @@ export function ExperimentRunCellAnnotationsList(
         gap: var(--ac-global-dimension-static-size-100);
         flex: none;
         padding: var(--ac-global-dimension-static-size-100);
-        border-top: 1px solid var(--ac-global-color-grey-300);
+        li:hover {
+          background-color: var(--ac-global-color-grey-100);
+          cursor: pointer;
+        }
       `}
     >
       {annotations.map((annotation) => {
@@ -1270,20 +1273,29 @@ export function ExperimentRunCellAnnotationsList(
               <AnnotationLabel annotation={annotation} />
             </AnnotationTooltip>
             <Flex direction="row" gap="size-100">
-              <IconButton
-                size="S"
-                onPress={() => {
-                  if (hasTrace) {
-                    onTraceClick({
-                      annotationName: annotation.name,
-                      traceId,
-                      projectId,
-                    });
-                  }
-                }}
-              >
-                <Icon svg={<Icons.Trace />} />
+              <IconButton size="S">
+                <Icon svg={<Icons.InfoOutline />} />
               </IconButton>
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  onPress={() => {
+                    if (hasTrace) {
+                      onTraceClick({
+                        annotationName: annotation.name,
+                        traceId,
+                        projectId,
+                      });
+                    }
+                  }}
+                >
+                  <Icon svg={<Icons.Trace />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  View evaluation trace
+                </Tooltip>
+              </TooltipTrigger>
             </Flex>
           </li>
         );
