@@ -1284,7 +1284,8 @@ const fontFamilyCSS = css`
     font-family: "Geist", sans-serif;
     font-optical-sizing: auto;
   }
-  .font-mono {
+  .font-mono,
+  pre {
     font-family: "Geist Mono", monospace;
     font-optical-sizing: auto;
   }
