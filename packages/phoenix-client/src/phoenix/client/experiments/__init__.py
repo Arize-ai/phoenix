@@ -118,7 +118,7 @@ def run_experiment(
             ...     dataset=dataset,
             ...     task=my_task,
             ...     experiment_name="greeting-experiment"
-            ... ) 
+            ... )
 
         With evaluators:
             >>> def accuracy_evaluator(output, expected):
