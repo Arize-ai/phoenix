@@ -12,9 +12,9 @@ from phoenix.evals.preview.evaluators import (
     Score,
     _validate_field_value,
     create_classifier,
+    evaluator_function,
     list_evaluators,
     remap_eval_input,
-    simple_evaluator,
     to_thread,
 )
 from phoenix.evals.preview.llm import LLM, AsyncLLM
@@ -700,10 +700,10 @@ class TestRegistryAndDecorator:
             _registry.clear()
             _registry.update(original_registry)
 
-    def test_simple_evaluator_decorator(self):
-        """Test simple_evaluator decorator."""
+    def test_evaluator_function_decorator(self):
+        """Test evaluator_function decorator."""
 
-        @simple_evaluator("test_evaluator", "heuristic", "maximize")
+        @evaluator_function("test_evaluator", "heuristic", "maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, explanation="test")
 
@@ -713,10 +713,10 @@ class TestRegistryAndDecorator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_simple_evaluator_with_mapping(self):
-        """Test simple_evaluator with input mapping."""
+    def test_evaluator_function_with_mapping(self):
+        """Test evaluator_function with input mapping."""
 
-        @simple_evaluator("test_evaluator", "heuristic")
+        @evaluator_function("test_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 
@@ -725,10 +725,10 @@ class TestRegistryAndDecorator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_simple_evaluator_registration(self):
-        """Test that simple_evaluator registers the function."""
+    def test_evaluator_function_registration(self):
+        """Test that evaluator_function registers the function."""
 
-        @simple_evaluator("registered_evaluator", "heuristic")
+        @evaluator_function("registered_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 
