@@ -20,7 +20,7 @@ TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 SessionFilter: TypeAlias = Optional[str]
 
-Segment: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
+Segment: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]]
 Param: TypeAlias = ProjectRowId
 
 Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
@@ -34,7 +34,10 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (interval, filter_condition, session_filter), project_rowid
+    # Include project_rowid in segment when session_filter is present to prevent
+    # cross-project batching
+    segment_project_id = project_rowid if session_filter else None
+    return (interval, filter_condition, session_filter, segment_project_id), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
@@ -54,7 +57,7 @@ class SpanCostSummaryCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (interval, filter_condition, session_filter), project_rowid = _cache_key_fn(key)
+        (interval, filter_condition, session_filter, _), project_rowid = _cache_key_fn(key)
         return project_rowid, (interval, filter_condition, session_filter)
 
 
@@ -107,7 +110,7 @@ def _get_stmt(
     segment: Segment,
     *params: Param,
 ) -> Select[Any]:
-    (start_time, end_time), filter_condition, session_filter = segment
+    (start_time, end_time), filter_condition, session_filter, segment_project_id = segment
     pid = models.Trace.project_rowid
 
     # When filters are applied, we need to prevent duplicate SpanCost records
@@ -131,11 +134,15 @@ def _get_stmt(
         if session_filter:
             from phoenix.server.api.types.Project import _apply_session_io_filter
 
-            # Apply session filter to subquery - project_rowid is the first from params
+            # Apply session filter to subquery - use segment_project_id for correct project scoping
             if not params:
                 return select().where(literal(False))  # Return empty result for empty params
+            # When session_filter is present, segment_project_id contains the correct project ID
+            project_id_for_session = (
+                segment_project_id if segment_project_id is not None else next(iter(params))
+            )
             subquery_stmt = _apply_session_io_filter(
-                subquery_stmt, session_filter, next(iter(params))
+                subquery_stmt, session_filter, project_id_for_session
             )
 
         project_ids = [rowid for rowid in params]

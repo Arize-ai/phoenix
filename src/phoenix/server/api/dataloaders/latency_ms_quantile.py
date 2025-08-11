@@ -36,7 +36,9 @@ SessionFilter: TypeAlias = Optional[str]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, SessionFilter]
+Segment: TypeAlias = tuple[
+    Kind, TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]
+]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
 Key: TypeAlias = tuple[
@@ -54,7 +56,13 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition, session_filter), (project_rowid, probability)
+    # Include project_rowid in segment when session_filter is present to prevent
+    # cross-project batching
+    segment_project_id = project_rowid if session_filter else None
+    return (kind, interval, filter_condition, session_filter, segment_project_id), (
+        project_rowid,
+        probability,
+    )
 
 
 _Section: TypeAlias = ProjectRowId
@@ -74,7 +82,7 @@ class LatencyMsQuantileCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition, session_filter), (project_rowid, probability) = (
+        (kind, interval, filter_condition, session_filter, _), (project_rowid, probability) = (
             _cache_key_fn(key)
         )
         return project_rowid, (interval, filter_condition, session_filter, kind, probability)
@@ -118,7 +126,7 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition, session_filter = segment
+    kind, (start_time, end_time), filter_condition, session_filter, segment_project_id = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
         latency_column = cast(FloatCol, models.Trace.latency_ms)
@@ -139,11 +147,14 @@ async def _get_results(
     if session_filter:
         from phoenix.server.api.types.Project import _apply_session_io_filter
 
-        # Apply session filter to stmt - get project_rowid from first param
+        # Apply session filter to stmt - use segment_project_id for correct project scoping
         if not params:
             return  # No results for empty params
-        first_project_rowid = next(iter(params.keys()))[0]
-        stmt = _apply_session_io_filter(stmt, session_filter, first_project_rowid)
+        # When session_filter is present, segment_project_id contains the correct project ID
+        project_id_for_session = (
+            segment_project_id if segment_project_id is not None else next(iter(params.keys()))[0]
+        )
+        stmt = _apply_session_io_filter(stmt, session_filter, project_id_for_session)
     if start_time:
         stmt = stmt.where(start_time <= time_column)
     if end_time:
