@@ -761,6 +761,14 @@ class TestExperimentsIntegration:
                 "explanation": f"Difficulty: {difficulty}, Topic: {topic}",
             }
 
+        def example_evaluator(example: Dict[str, Any]) -> Dict[str, Any]:
+            has_id = bool(example.get("id"))
+            has_input = isinstance(example.get("input"), dict)
+            return {
+                "score": 1.0 if has_id and has_input else 0.0,
+                "label": "has_example",
+            }
+
         result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
@@ -771,6 +779,7 @@ class TestExperimentsIntegration:
                     "comprehensive": comprehensive_evaluator,
                     "reference": reference_evaluator,
                     "metadata": metadata_evaluator,
+                    "example": example_evaluator,
                 },
                 experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
@@ -778,7 +787,7 @@ class TestExperimentsIntegration:
         )
 
         assert len(result["task_runs"]) == 2
-        assert len(result["evaluation_runs"]) == 10  # 2 examples * 5 evaluators
+        assert len(result["evaluation_runs"]) == 12  # 2 examples * 6 evaluators
 
         comprehensive_evals = [
             eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "comprehensive"
@@ -809,6 +818,15 @@ class TestExperimentsIntegration:
             assert eval_run.result.get("score") is not None
             assert eval_run.result.get("label") is not None
             assert eval_run.result.get("explanation") is not None
+
+        example_evals = [
+            eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "example"
+        ]
+        assert len(example_evals) == 2
+        for eval_run in example_evals:
+            assert eval_run.result is not None
+            assert eval_run.result.get("score") == 1.0
+            assert eval_run.result.get("label") == "has_example"
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_task_dynamic_parameter_binding(

@@ -26,7 +26,7 @@ def get_func_name(fn: Callable[..., Any]) -> str:
 def validate_evaluator_signature(sig: inspect.Signature) -> None:
     """Check that the wrapped function has a valid signature for use as an evaluator."""
     params = sig.parameters
-    valid_named_params = {"input", "output", "expected", "reference", "metadata"}
+    valid_named_params = {"input", "output", "expected", "reference", "metadata", "example"}
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -52,6 +52,7 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
         "expected": kwargs.get("expected"),
         "reference": kwargs.get("reference"),  # `reference` is an alias for `expected`
         "metadata": kwargs.get("metadata"),
+        "example": kwargs.get("example"),
     }
     params = sig.parameters
     if len(params) == 1:
