@@ -140,6 +140,8 @@ async def _get_results(
         from phoenix.server.api.types.Project import _apply_session_io_filter
 
         # Apply session filter to stmt - get project_rowid from first param
+        if not params:
+            return  # No results for empty params
         first_project_rowid = next(iter(params.keys()))[0]
         stmt = _apply_session_io_filter(stmt, session_filter, first_project_rowid)
     if start_time:

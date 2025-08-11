@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, literal, select
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -125,12 +125,15 @@ def _get_stmt(
 
         if filter_condition:
             sf = SpanFilter(filter_condition)
-            subquery_stmt = sf(subquery_stmt.join_from(models.SpanCost, models.Span))
+            # Add Span join while preserving existing Trace join
+            subquery_stmt = sf(subquery_stmt.join(models.Span))
 
         if session_filter:
             from phoenix.server.api.types.Project import _apply_session_io_filter
 
             # Apply session filter to subquery - project_rowid is the first from params
+            if not params:
+                return select().where(literal(False))  # Return empty result for empty params
             subquery_stmt = _apply_session_io_filter(
                 subquery_stmt, session_filter, next(iter(params))
             )

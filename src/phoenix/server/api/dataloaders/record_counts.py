@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, distinct, func, select
+from sqlalchemy import Select, distinct, func, literal, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -125,6 +125,8 @@ def _get_stmt(
         from phoenix.server.api.types.Project import _apply_session_io_filter
 
         # Apply session filter to stmt - project_rowid is the first from project_rowids
+        if not project_rowids:
+            return select().where(literal(False))  # Return empty result for empty project_rowids
         stmt = _apply_session_io_filter(stmt, session_filter, next(iter(project_rowids)))
     stmt = stmt.group_by(pid)
     if start_time:
