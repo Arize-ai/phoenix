@@ -459,7 +459,7 @@ export function getAzureConfigFromAttributes(parsedAttributes: unknown): {
   const { success: urlSuccess, data: urlData } =
     urlSchema.safeParse(parsedAttributes);
   const { endpoint, apiVersion, deploymentName } = urlSuccess
-    ? parseAzureFromUrl(urlData.url.full)
+    ? parseAzureDeploymentInfoFromUrl(urlData.url.full)
     : { endpoint: null, apiVersion: null, deploymentName: null };
   return {
     // URL takes precedence when present; fall back to metadata-derived name
@@ -1550,7 +1550,7 @@ const LS_METADATA_SCHEMA = z
   .passthrough();
 
 // Parse Azure details (endpoint, apiVersion, deployment name) from URL
-function parseAzureFromUrl(fullUrl: string): {
+function parseAzureDeploymentInfoFromUrl(fullUrl: string): {
   endpoint: string | null;
   apiVersion: string | null;
   deploymentName: string | null;
