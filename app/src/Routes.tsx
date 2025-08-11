@@ -57,6 +57,7 @@ import {
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
+  DatasetVersionsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -99,7 +100,6 @@ import {
   spanPlaygroundPageLoader,
   SupportPage,
   TracePage,
-  DatasetVersionsPage,
 } from "./pages";
 
 const router = createBrowserRouter(
