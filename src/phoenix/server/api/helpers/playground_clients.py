@@ -349,42 +349,48 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=True,
-            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        ):
-            if (usage := chunk.usage) is not None:
-                token_usage = usage
-            if not chunk.choices:
-                # for Azure, initial chunk contains the content filter
-                continue
-            choice = chunk.choices[0]
-            delta = choice.delta
-            if choice.finish_reason is None:
-                if isinstance(chunk_content := delta.content, str):
-                    text_chunk = TextChunk(content=chunk_content)
-                    yield text_chunk
-                if (tool_calls := delta.tool_calls) is not None:
-                    for tool_call_index, tool_call in enumerate(tool_calls):
-                        tool_call_id = (
-                            tool_call.id
-                            if tool_call.id is not None
-                            else tool_call_ids[tool_call_index]
-                        )
-                        tool_call_ids[tool_call_index] = tool_call_id
-                        if (function := tool_call.function) is not None:
-                            tool_call_chunk = ToolCallChunk(
-                                id=tool_call_id,
-                                function=FunctionCallChunk(
-                                    name=function.name or "",
-                                    arguments=function.arguments or "",
-                                ),
+        try:
+            async for chunk in await throttled_create(
+                messages=openai_messages,
+                model=self.model_name,
+                stream=True,
+                stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
+                tools=tools or NOT_GIVEN,
+                **invocation_parameters,
+            ):
+                if (usage := chunk.usage) is not None:
+                    token_usage = usage
+                if not chunk.choices:
+                    # for Azure, initial chunk contains the content filter
+                    continue
+                choice = chunk.choices[0]
+                delta = choice.delta
+                if choice.finish_reason is None:
+                    if isinstance(chunk_content := delta.content, str):
+                        text_chunk = TextChunk(content=chunk_content)
+                        yield text_chunk
+                    if (tool_calls := delta.tool_calls) is not None:
+                        for tool_call_index, tool_call in enumerate(tool_calls):
+                            tool_call_id = (
+                                tool_call.id
+                                if tool_call.id is not None
+                                else tool_call_ids[tool_call_index]
                             )
-                            yield tool_call_chunk
+                            tool_call_ids[tool_call_index] = tool_call_id
+                            if (function := tool_call.function) is not None:
+                                tool_call_chunk = ToolCallChunk(
+                                    id=tool_call_id,
+                                    function=FunctionCallChunk(
+                                        name=function.name or "",
+                                        arguments=function.arguments or "",
+                                    ),
+                                )
+                                yield tool_call_chunk
+        except httpx.RemoteProtocolError as e:
+            # TODO: Temporary resolution for vllm streaming
+            # https://github.com/Arize-ai/phoenix/issues/8177
+            print(f"Error handling chunk in chat_completion_create: {e}")
+            pass
         if token_usage is not None:
             self._attributes.update(dict(self._llm_token_counts(token_usage)))
 
