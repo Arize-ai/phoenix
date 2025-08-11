@@ -2182,17 +2182,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 5e-6,
+          "base_rate": 1.25e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
