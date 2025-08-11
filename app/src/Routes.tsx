@@ -413,7 +413,7 @@ const router = createBrowserRouter(
             errorElement={<ErrorElement />}
           />
           <Route
-            path="/redirects/sessions/:session_otel_id"
+            path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
             errorElement={<ErrorElement />}
           />
