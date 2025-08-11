@@ -4,13 +4,13 @@ import invariant from "tiny-invariant";
 
 import { DatasetHistoryTable } from "@phoenix/pages/dataset/DatasetHistoryTable";
 
-import { datasetHistoryLoader } from "./datasetHistoryLoader";
+import { datasetVersionsLoader } from "./datasetVersionsLoader";
 
 /**
  * Dataset-specific history page that lists dataset version history.
  */
-export function DatasetHistoryPage() {
-  const loaderData = useLoaderData<typeof datasetHistoryLoader>();
+export function DatasetVersionsPage() {
+  const loaderData = useLoaderData<typeof datasetVersionsLoader>();
   invariant(loaderData, "loaderData is required");
   return (
     <>

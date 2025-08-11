@@ -58,6 +58,7 @@ import {
   datasetLoader,
   DatasetPage,
   DatasetsPage,
+  datasetVersionsLoader,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -100,6 +101,7 @@ import {
   spanPlaygroundPageLoader,
   SupportPage,
   TracePage,
+  DatasetVersionsPage,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -254,9 +256,9 @@ const router = createBrowserRouter(
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
                 <Route
-                  path="history"
-                  element={<DatasetHistoryPage />}
-                  loader={datasetHistoryLoader}
+                  path="versions"
+                  element={<DatasetVersionsPage />}
+                  loader={datasetVersionsLoader}
                 />
               </Route>
               <Route

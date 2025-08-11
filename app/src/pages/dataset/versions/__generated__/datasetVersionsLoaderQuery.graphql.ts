@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a555281f5a9d23211a700acd8b90a811>>
+ * @generated SignedSource<<259c1f01e87701bec192789de0ca988a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,18 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type datasetHistoryLoaderQuery$variables = {
+export type datasetVersionsLoaderQuery$variables = {
   id: string;
 };
-export type datasetHistoryLoaderQuery$data = {
+export type datasetVersionsLoaderQuery$data = {
   readonly dataset: {
     readonly id: string;
     readonly " $fragmentSpreads": FragmentRefs<"DatasetHistoryTable_versions">;
   };
 };
-export type datasetHistoryLoaderQuery = {
-  response: datasetHistoryLoaderQuery$data;
-  variables: datasetHistoryLoaderQuery$variables;
+export type datasetVersionsLoaderQuery = {
+  response: datasetVersionsLoaderQuery$data;
+  variables: datasetVersionsLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -65,7 +65,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "datasetHistoryLoaderQuery",
+    "name": "datasetVersionsLoaderQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -99,7 +99,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "datasetHistoryLoaderQuery",
+    "name": "datasetVersionsLoaderQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -214,16 +214,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "91773093d03a2c5cfa7dc156ef0f08b0",
+    "cacheID": "ccd74bfc8e94dcbfc16bc569ce1f377a",
     "id": null,
     "metadata": {},
-    "name": "datasetHistoryLoaderQuery",
+    "name": "datasetVersionsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetHistoryLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetHistoryTable_versions\n    }\n  }\n}\n\nfragment DatasetHistoryTable_versions on Dataset {\n  versions(first: 100) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query datasetVersionsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetHistoryTable_versions\n    }\n  }\n}\n\nfragment DatasetHistoryTable_versions on Dataset {\n  versions(first: 100) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e8356742e628ca57ad13152bae20a4da";
+(node as any).hash = "cc354793d8ae8557ee05c57a77cd7ee2";
 
 export default node;

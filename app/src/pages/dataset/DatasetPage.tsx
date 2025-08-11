@@ -103,7 +103,7 @@ function DatasetPageContent({
       } else if (tabIndex === 1) {
         navigate(`/datasets/${datasetId}/examples`);
       } else if (tabIndex === 2) {
-        navigate(`/datasets/${datasetId}/history`);
+        navigate(`/datasets/${datasetId}/versions`);
       }
     },
     [navigate, datasetId]
@@ -111,7 +111,7 @@ function DatasetPageContent({
 
   // Set the initial tab
   const location = useLocation();
-  const initialIndex = location.pathname.includes("history")
+  const initialIndex = location.pathname.includes("versions")
     ? 2
     : location.pathname.includes("examples")
       ? 1
@@ -210,7 +210,7 @@ function DatasetPageContent({
             ? "experiments"
             : initialIndex === 1
               ? "examples"
-              : "history"
+              : "versions"
         }
         onSelectionChange={(key) => {
           switch (key) {
@@ -220,7 +220,7 @@ function DatasetPageContent({
             case "examples":
               onTabChange(1);
               break;
-            case "history":
+            case "versions":
               onTabChange(2);
               break;
           }
@@ -233,7 +233,7 @@ function DatasetPageContent({
           <Tab id="examples">
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
-          <Tab id="history">History</Tab>
+          <Tab id="versions">Versions</Tab>
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -245,7 +245,7 @@ function DatasetPageContent({
             <Outlet />
           </Suspense>
         </LazyTabPanel>
-        <LazyTabPanel id="history">
+        <LazyTabPanel id="versions">
           <Suspense>
             <Outlet />
           </Suspense>
