@@ -673,7 +673,9 @@ function ProjectMetricsRow({
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
         </Text>
-        <Text size="L">{intFormatter(traceCount)}</Text>
+        <Text size="L" fontFamily="mono">
+          {intFormatter(traceCount)}
+        </Text>
       </Flex>
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">

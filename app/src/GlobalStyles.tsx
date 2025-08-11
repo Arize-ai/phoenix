@@ -1279,6 +1279,18 @@ const chartCSS = css`
   }
 `;
 
+const fontFamilyCSS = css`
+  .font-default {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+  }
+  .font-mono,
+  pre {
+    font-family: "Geist Mono", monospace;
+    font-optical-sizing: auto;
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1294,7 +1306,8 @@ export function GlobalStyles() {
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         ReactGridLayoutCSS,
-        chartCSS
+        chartCSS,
+        fontFamilyCSS
       )}
     />
   );
