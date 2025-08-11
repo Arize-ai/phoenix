@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { createClassifier } from "../../src/llm/createClassifier";
+import { createClassifier } from "../../src/llm/createClassifierFn";
 import { MockLanguageModelV2 } from "ai/test";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
 

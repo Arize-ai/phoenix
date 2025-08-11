@@ -22,9 +22,9 @@ function choicesToLabels(
 }
 
 /**
- * A function that serves as a factory that will output a classification evaluator
+ * A function that serves as a factory that will output a classification evaluator function
  */
-export function createClassifier<ExampleType extends Record<string, unknown>>(
+export function createClassifierFn<ExampleType extends Record<string, unknown>>(
   args: CreateClassifierArgs
 ): EvaluatorFn<ExampleType> {
   const { model, choices, promptTemplate, ...rest } = args;

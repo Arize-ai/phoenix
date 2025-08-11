@@ -1,4 +1,4 @@
 export * from "./generateClassification";
-export * from "./createClassifier";
+export * from "./createClassifierFn";
 export * from "./createHallucinationEvaluator";
 export * from "./createDocumentRelevancyEvaluator";

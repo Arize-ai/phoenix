@@ -1,14 +1,17 @@
-import { createClassifier } from "./createClassifier";
-import { CreateClassifierArgs, EvaluatorFn } from "../types/evals";
+import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
 import {
   DOCUMENT_RELEVANCY_TEMPLATE,
   DOCUMENT_RELEVANCY_CHOICES,
 } from "../default_templates/DOCUMENT_RELEVANCY_TEMPLATE";
+import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface DocumentRelevancyEvaluatorArgs
-  extends Omit<CreateClassifierArgs, "promptTemplate" | "choices"> {
-  choices?: CreateClassifierArgs["choices"];
-  promptTemplate?: CreateClassifierArgs["promptTemplate"];
+  extends Omit<
+    CreateClassificationEvaluatorArgs,
+    "promptTemplate" | "choices"
+  > {
+  choices?: CreateClassificationEvaluatorArgs["choices"];
+  promptTemplate?: CreateClassificationEvaluatorArgs["promptTemplate"];
 }
 
 /**
@@ -38,7 +41,7 @@ export type DocumentRelevancyExample = {
  * @example
  * ```ts
  * const evaluator = createDocumentRelevancyEvaluator({ model: openai("gpt-4o-mini") });
- * const result = await evaluator({
+ * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   documentText: "Paris is the capital and most populous city of France.",
  * });
@@ -47,18 +50,21 @@ export type DocumentRelevancyExample = {
  */
 export function createDocumentRelevancyEvaluator(
   args: DocumentRelevancyEvaluatorArgs
-): EvaluatorFn<DocumentRelevancyExample> {
+): Evaluator<DocumentRelevancyExample> {
   const {
     choices = DOCUMENT_RELEVANCY_CHOICES,
     promptTemplate = DOCUMENT_RELEVANCY_TEMPLATE,
+    optimizationDirection = "MAXIMIZE",
+    name = "document_relevancy",
     ...rest
   } = args;
-  const documentRelevancyEvaluatorFn =
-    createClassifier<DocumentRelevancyExample>({
-      ...args,
-      promptTemplate,
-      choices,
-      ...rest,
-    });
-  return documentRelevancyEvaluatorFn;
+
+  return createClassificationEvaluator<DocumentRelevancyExample>({
+    ...args,
+    promptTemplate,
+    choices,
+    optimizationDirection,
+    name,
+    ...rest,
+  });
 }

@@ -26,6 +26,6 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 export const HALLUCINATION_CHOICES = {
-  factual: 1,
-  hallucinated: 0,
+  hallucinated: 1,
+  factual: 0,
 };

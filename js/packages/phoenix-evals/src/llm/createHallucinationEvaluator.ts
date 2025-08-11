@@ -1,14 +1,17 @@
-import { createClassifier } from "./createClassifier";
-import { CreateClassifierArgs, EvaluatorFn } from "../types/evals";
+import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
 import {
   HALLUCINATION_TEMPLATE,
   HALLUCINATION_CHOICES,
 } from "../default_templates/HALLUCINATION_TEMPLATE";
+import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface HallucinationEvaluatorArgs
-  extends Omit<CreateClassifierArgs, "promptTemplate" | "choices"> {
-  choices?: CreateClassifierArgs["choices"];
-  promptTemplate?: CreateClassifierArgs["promptTemplate"];
+  extends Omit<
+    CreateClassificationEvaluatorArgs,
+    "promptTemplate" | "choices"
+  > {
+  choices?: CreateClassificationEvaluatorArgs["choices"];
+  promptTemplate?: CreateClassificationEvaluatorArgs["promptTemplate"];
 }
 
 /**
@@ -28,17 +31,20 @@ export type HallucinationExample = {
  */
 export function createHallucinationEvaluator(
   args: HallucinationEvaluatorArgs
-): EvaluatorFn<HallucinationExample> {
+): Evaluator<HallucinationExample> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
+    optimizationDirection = "MINIMIZE",
+    name = "hallucination",
     ...rest
   } = args;
-  const hallucinationEvaluatorFn = createClassifier<HallucinationExample>({
+  return createClassificationEvaluator<HallucinationExample>({
     ...args,
     promptTemplate,
     choices,
+    optimizationDirection,
+    name,
     ...rest,
   });
-  return hallucinationEvaluatorFn;
 }
