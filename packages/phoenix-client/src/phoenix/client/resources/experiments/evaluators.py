@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from phoenix.client.resources.experiments.types import (
     EvaluationResult,
     EvaluationScore,
     Evaluator,
+    ExampleProxy,
     ExperimentEvaluation,
     ExperimentEvaluator,
     ScoreResult,
@@ -75,14 +77,21 @@ def validate_evaluator_signature(sig: inspect.Signature) -> None:
 
 def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArguments:
     """Bind evaluator function parameters with provided arguments."""
+    if (example := kwargs.get("example")) is not None:
+        example_proxy: Union[ExampleProxy, None] = ExampleProxy(example)
+    else:
+        example_proxy = None
+
     parameter_mapping = {
-        "input": kwargs.get("input"),
-        "output": kwargs.get("output"),
-        "expected": kwargs.get("expected"),
-        "reference": kwargs.get("reference"),  # `reference` is an alias for `expected`
-        "metadata": kwargs.get("metadata"),
-        "example": kwargs.get("example"),
+        "input": copy.deepcopy(kwargs.get("input")),
+        "output": copy.deepcopy(kwargs.get("output")),
+        "expected": copy.deepcopy(kwargs.get("expected")),
+        # `reference` is an alias for `expected`
+        "reference": copy.deepcopy(kwargs.get("reference")),
+        "metadata": copy.deepcopy(kwargs.get("metadata")),
+        "example": example_proxy,
     }
+
     params = sig.parameters
     if len(params) == 1:
         parameter_name = next(iter(params))

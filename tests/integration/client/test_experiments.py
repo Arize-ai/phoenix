@@ -471,6 +471,78 @@ class TestExperimentsIntegration:
         assert len(result["task_runs"]) == 1
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_examples_are_copied_for_task_and_evaluators(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_copying_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"text": "Hello"}],
+                outputs=[{"expected": "greeting"}],
+                metadata=[{"category": "test"}],
+            )
+        )
+
+        def mutating_task(
+            input: Dict[str, Any],
+            expected: Dict[str, Any],
+            metadata: Dict[str, Any],
+            example: Dict[str, Any],
+        ) -> str:
+            input["added_by_task"] = True
+            expected["added_by_task"] = True
+            metadata["added_by_task"] = True
+            example.setdefault("input", {}).setdefault("added_in_example_by_task", True)
+            return "ok"
+
+        observations: Dict[str, Optional[bool]] = {
+            "ev2_input_had_ev1": None,
+            "ev2_example_had_ev1": None,
+        }
+
+        def evaluator_one(input: Dict[str, Any], example: Dict[str, Any]) -> float:
+            input["added_by_ev1"] = True
+            example.setdefault("input", {}).setdefault("added_by_ev1", True)
+            return 1.0
+
+        def evaluator_two(input: Dict[str, Any], example: Dict[str, Any]) -> float:
+            observations["ev2_input_had_ev1"] = "added_by_ev1" in input
+            observations["ev2_example_had_ev1"] = bool(example.get("input", {}).get("added_by_ev1"))
+            return 1.0
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=mutating_task,
+                evaluators=[evaluator_one, evaluator_two],
+                experiment_name=f"test_copying_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result["task_runs"]) == 1
+        assert len(result["evaluation_runs"]) == 2
+
+        assert observations["ev2_input_had_ev1"] is False
+        assert observations["ev2_example_had_ev1"] is False
+
+        original_example = next(iter(dataset.examples))
+        assert "added_by_task" not in original_example["input"]
+        assert "added_in_example_by_task" not in original_example.get("input", {})
+
     async def test_run_experiment_evaluator_types(
         self,
         is_async: bool,
