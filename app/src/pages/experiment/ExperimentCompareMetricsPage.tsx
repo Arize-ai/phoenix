@@ -16,6 +16,7 @@ import {
 } from "@phoenix/components";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { HorizontalBarChart } from "@phoenix/components/HorizontalBarChart";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -80,10 +81,23 @@ function MetricCard({
   compareExperiments,
   formatter = numberFormatter,
 }: MetricCardProps) {
+  const { baseExperimentColor } = useExperimentColors();
   return (
     <div css={metricCardCSS}>
       <Flex direction="column" gap="size-200">
         <Heading level={3}>{title}</Heading>
+        <HorizontalBarChart
+          bars={[
+            {
+              value: baseExperimentValue ?? 0,
+              color: baseExperimentColor,
+            },
+            ...compareExperiments.map((experiment) => ({
+              value: experiment.value ?? 0,
+              color: experiment.color,
+            })),
+          ]}
+        />
         <BaseExperimentMetric
           value={baseExperimentValue}
           formatter={formatter}
