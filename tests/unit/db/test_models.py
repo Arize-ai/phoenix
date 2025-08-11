@@ -230,7 +230,7 @@ class TestJsonSanitization:
                 ]
             },
         }
-        sanitized = {
+        sanitized_attrs = {
             "a": None,
             "b": [1, None, {"c": None, "ci": None}, [None]],
             "d": {"e": None, "f": [None, {"g": None, "gi": None}]},
@@ -244,7 +244,7 @@ class TestJsonSanitization:
         EVENT_NAME = "Guten Tag!"
         EVENT_TS = "2022-04-29T18:52:58.114561Z"
         event = {"name": EVENT_NAME, "timestamp": EVENT_TS, "attributes": attrs}
-        no_nan_event = {**event, "attributes": sanitized}
+        sanitized_event = {**event, "attributes": sanitized_attrs}
 
         # === SECTION 1: Test Span attributes and events ===
         # Insert spans with NaN/Inf payload, verify sanitization in both raw SQL and ORM reads
@@ -310,11 +310,11 @@ class TestJsonSanitization:
         async with db() as session:
             attributes_rows = (await session.scalars(attributes_stmt)).all()
             attributes_rows = _decode_if_sqlite(attributes_rows, db.dialect)
-            assert attributes_rows == [sanitized, sanitized]
+            assert attributes_rows == [sanitized_attrs, sanitized_attrs]
 
             events_rows = (await session.scalars(events_stmt)).all()
             events_rows = _decode_if_sqlite(events_rows, db.dialect)
-            assert events_rows == [[no_nan_event], [no_nan_event]]
+            assert events_rows == [[sanitized_event], [sanitized_event]]
 
         # SQLite note:
         # - SQLite will happily persist NaN/Inf/-Inf inside JSON TEXT columns.
@@ -350,10 +350,10 @@ class TestJsonSanitization:
             # Even with raw NaN/Inf in DB, ORM reads should still return sanitized values
             async with db() as session:
                 attributes_rows = (await session.scalars(select(models.Span.attributes))).all()
-                assert attributes_rows == [sanitized, sanitized]
+                assert attributes_rows == [sanitized_attrs, sanitized_attrs]
 
                 events_rows = (await session.scalars(select(models.Span.events))).all()
-                assert events_rows == [[no_nan_event], [no_nan_event]]
+                assert events_rows == [[sanitized_event], [sanitized_event]]
 
         # === SECTION 2: Test metadata_ fields across all entities ===
         # Create annotations/datasets with NaN/Inf in metadata_, verify sanitization
@@ -425,12 +425,12 @@ class TestJsonSanitization:
                 rows = _decode_if_sqlite(rows, db.dialect)
                 rows_by_table.append(rows)
 
-            assert rows_by_table[0] == [sanitized]  # span_annotations
-            assert rows_by_table[1] == [sanitized]  # trace_annotations
-            assert rows_by_table[2] == [sanitized]  # document_annotations
-            assert rows_by_table[3] == [sanitized]  # datasets
-            assert rows_by_table[4] == [sanitized]  # dataset_versions
-            assert rows_by_table[5] == [sanitized]  # experiments
+            assert rows_by_table[0] == [sanitized_attrs]  # span_annotations
+            assert rows_by_table[1] == [sanitized_attrs]  # trace_annotations
+            assert rows_by_table[2] == [sanitized_attrs]  # document_annotations
+            assert rows_by_table[3] == [sanitized_attrs]  # datasets
+            assert rows_by_table[4] == [sanitized_attrs]  # dataset_versions
+            assert rows_by_table[5] == [sanitized_attrs]  # experiments
 
         # SQLite-only: reinsert raw JSON TEXT with NaN/Inf into metadata columns to
         # verify that ORM reads still sanitize to None on read.
@@ -500,22 +500,22 @@ class TestJsonSanitization:
             # Even with raw NaN/Inf in metadata DB storage, ORM reads should return sanitized values
             async with db() as session:
                 assert (await session.scalars(select(models.SpanAnnotation.metadata_))).all() == [
-                    sanitized
+                    sanitized_attrs
                 ]
                 assert (await session.scalars(select(models.TraceAnnotation.metadata_))).all() == [
-                    sanitized
+                    sanitized_attrs
                 ]
                 assert (
                     await session.scalars(select(models.DocumentAnnotation.metadata_))
-                ).all() == [sanitized]
+                ).all() == [sanitized_attrs]
                 assert (await session.scalars(select(models.Dataset.metadata_))).all() == [
-                    sanitized
+                    sanitized_attrs
                 ]
                 assert (await session.scalars(select(models.DatasetVersion.metadata_))).all() == [
-                    sanitized
+                    sanitized_attrs
                 ]
                 assert (await session.scalars(select(models.Experiment.metadata_))).all() == [
-                    sanitized
+                    sanitized_attrs
                 ]
 
 
