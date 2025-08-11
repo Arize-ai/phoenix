@@ -17,7 +17,7 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Field } from "@arizeai/components";
+import { Field } from "@arizeai/components";
 
 import {
   Button,
