@@ -75,6 +75,13 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.trace.attributes import get_attribute_value
 
+try:
+    from pandas.io.json import ujson_dumps, ujson_loads  # type: ignore
+except ImportError:
+    # https://github.com/pandas-dev/pandas/pull/54581
+    from pandas.io.json import dumps as ujson_dumps  # type: ignore
+    from pandas.io.json import loads as ujson_loads  # type: ignore
+
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
@@ -187,7 +194,10 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     impl = JSON_
 
     def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
-        return value if isinstance(value, dict) else {}
+        return ujson_loads(ujson_dumps(value)) if isinstance(value, dict) else {}
+
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
+        return ujson_loads(ujson_dumps(value)) if value else {}
 
 
 class JsonList(TypeDecorator[list[Any]]):
@@ -196,7 +206,10 @@ class JsonList(TypeDecorator[list[Any]]):
     impl = JSON_
 
     def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
-        return value if isinstance(value, list) else []
+        return ujson_loads(ujson_dumps(value)) if isinstance(value, list) else []
+
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
+        return ujson_loads(ujson_dumps(value)) if value else []
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
