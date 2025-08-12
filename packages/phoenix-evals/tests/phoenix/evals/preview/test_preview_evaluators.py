@@ -12,7 +12,7 @@ from phoenix.evals.preview.evaluators import (
     Score,
     _validate_field_value,
     create_classifier,
-    evaluator_function,
+    create_evaluator,
     list_evaluators,
     remap_eval_input,
     to_thread,
@@ -700,10 +700,10 @@ class TestRegistryAndDecorator:
             _registry.clear()
             _registry.update(original_registry)
 
-    def test_evaluator_function_decorator(self):
-        """Test evaluator_function decorator."""
+    def test_create_evaluator_decorator(self):
+        """Test create_evaluator decorator."""
 
-        @evaluator_function("test_evaluator", "heuristic", "maximize")
+        @create_evaluator("test_evaluator", "heuristic", "maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, explanation="test")
 
@@ -713,10 +713,10 @@ class TestRegistryAndDecorator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_function_with_mapping(self):
-        """Test evaluator_function with input mapping."""
+    def test_create_evaluator_with_mapping(self):
+        """Test create_evaluator with input mapping."""
 
-        @evaluator_function("test_evaluator", "heuristic")
+        @create_evaluator("test_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 
@@ -725,10 +725,10 @@ class TestRegistryAndDecorator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_function_registration(self):
-        """Test that evaluator_function registers the function."""
+    def test_create_evaluator_registration(self):
+        """Test that create_evaluator registers the function."""
 
-        @evaluator_function("registered_evaluator", "heuristic")
+        @create_evaluator("registered_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 

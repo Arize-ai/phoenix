@@ -17,10 +17,10 @@ Example 2: (field_mapping needed to map input keys to those expected by the eval
 source='heuristic')]
 """
 
-from ..evaluators import Score, evaluator_function
+from ..evaluators import Score, create_evaluator
 
 
-@evaluator_function(name="exact_match", source="heuristic")
+@create_evaluator(name="exact_match", source="heuristic")
 def exact_match(output: str, expected: str) -> Score:
     """Return exact_match score: 1.0 if output == expected else 0.0."""
     correct = output == expected

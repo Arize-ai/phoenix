@@ -509,7 +509,7 @@ def list_evaluators() -> List[str]:
     return list(_registry.keys())
 
 
-def evaluator_function(
+def create_evaluator(
     name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
 ) -> Callable[[Callable[..., Score]], Evaluator]:
     """
