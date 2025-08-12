@@ -32,23 +32,17 @@ class TestProjectSessionAnnotationMutations:
     """
     End-to-end tests for project session annotations GraphQL mutations.
 
-    This single test covers:
-    1. Creating a new annotation for a `ProjectSession`.
-    2. Upserting (update-on-conflict) when an annotation with the same
-       (projectSessionId, name, identifier) already exists.
-    3. Upserting for both identifier cases: non-empty identifier and empty "".
-    4. Identifier omitted (UNSET) with source=APP resolves to empty string.
-    5. Batch create ordering and metadata round-trip.
-    6. Clearing semantics for nullable fields via upsert.
-    7. Patch mutation success and duplicate-id error path.
-    8. Delete mutation success (order preserved) and duplicate-id error path.
-    9. Invalid GlobalID types and missing-id errors.
+        Test structure:
+    A. CREATE operations (success cases)
+    B. UPDATE operations (success and error cases)
+    C. DELETE operations (success and error cases)
+    D. CREATE error cases (validation and constraint errors)
     """
 
     QUERY = """
-    mutation CreateProjectSessionAnnotations($input: [CreateProjectSessionAnnotationInput!]!) {
+    mutation CreateProjectSessionAnnotations($input: CreateProjectSessionAnnotationInput!) {
       createProjectSessionAnnotations(input: $input) {
-        projectSessionAnnotations {
+        projectSessionAnnotation {
           id
           name
           label
@@ -59,9 +53,9 @@ class TestProjectSessionAnnotationMutations:
         }
       }
     }
-    mutation PatchProjectSessionAnnotations($input: [PatchAnnotationInput!]!) {
-      patchProjectSessionAnnotations(input: $input) {
-        projectSessionAnnotations {
+    mutation UpdateProjectSessionAnnotations($input: UpdateAnnotationInput!) {
+      updateProjectSessionAnnotations(input: $input) {
+        projectSessionAnnotation {
           id
           name
           label
@@ -72,9 +66,9 @@ class TestProjectSessionAnnotationMutations:
         }
       }
     }
-    mutation DeleteProjectSessionAnnotations($input: DeleteAnnotationsInput!) {
-      deleteProjectSessionAnnotations(input: $input) {
-        projectSessionAnnotations {
+    mutation DeleteProjectSessionAnnotation($id: ID!) {
+      deleteProjectSessionAnnotation(id: $id) {
+        projectSessionAnnotation {
           id
           name
         }
@@ -82,322 +76,253 @@ class TestProjectSessionAnnotationMutations:
     }
     """
 
-    async def test_create_and_upsert_annotations(
+    async def test_create_annotations(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         project_session_data: models.ProjectSession,
     ) -> None:
         """
-        Verifies create and upsert behavior for project session annotations for
-        both non-empty and empty identifiers.
+        Verifies create behavior for project session annotations.
         """
-        session_gid = str(GlobalID("ProjectSession", str(project_session_data.id)))
+        project_session_gid = str(GlobalID("ProjectSession", str(project_session_data.id)))
 
-        # 1. Create a basic annotation (identifier = "")
-        create_basic_vars: dict[str, Any] = {
-            "input": [
-                {
-                    "projectSessionId": session_gid,
-                    "name": "test_annotation",
-                    "label": "LABEL1",
-                    "score": 0.75,
-                    "explanation": "Initial explanation",
-                    "annotatorKind": "HUMAN",
-                    "metadata": {},
-                    "identifier": "",
-                    "source": "API",
-                }
-            ]
+        # ============================================================================
+        # A. CREATE OPERATIONS (Success Cases)
+        # ============================================================================
+
+        # A1. Create a basic annotation with explicit empty identifier
+        basic_annotation_input: dict[str, Any] = {
+            "input": {
+                "projectSessionId": project_session_gid,
+                "name": "test_annotation",
+                "label": "LABEL1",
+                "score": 0.75,
+                "explanation": "Initial explanation",
+                "annotatorKind": "HUMAN",
+                "metadata": {},
+                "identifier": "",
+                "source": "API",
+            }
         }
-        res_basic = await gql_client.execute(self.QUERY, create_basic_vars)
-        assert not res_basic.errors
-        assert res_basic.data is not None
-        data_basic = res_basic.data["createProjectSessionAnnotations"]["projectSessionAnnotations"][
-            0
-        ]
-        expected_basic = create_basic_vars["input"][0]
-        assert data_basic["name"] == expected_basic["name"]
-        assert data_basic["label"] == expected_basic["label"]
-        assert data_basic["score"] == expected_basic["score"]
-        assert data_basic["explanation"] == expected_basic["explanation"]
-        assert data_basic["identifier"] == ""
-        assert isinstance(data_basic["id"], str)
+        basic_annotation_response = await gql_client.execute(self.QUERY, basic_annotation_input)
+        assert not basic_annotation_response.errors
+        assert basic_annotation_response.data is not None
+        created_basic_annotation = basic_annotation_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        expected_basic_data = basic_annotation_input["input"]
+        assert created_basic_annotation["name"] == expected_basic_data["name"]
+        assert created_basic_annotation["label"] == expected_basic_data["label"]
+        assert created_basic_annotation["score"] == expected_basic_data["score"]
+        assert created_basic_annotation["explanation"] == expected_basic_data["explanation"]
+        assert created_basic_annotation["identifier"] == ""
+        assert isinstance(created_basic_annotation["id"], str)
 
-        # 1.1 Create with identifier omitted (UNSET) and source=APP → resolves to ""
-        unset_identifier_vars: dict[str, Any] = {
-            "input": [
-                {
-                    "projectSessionId": session_gid,
-                    "name": "unset_identifier",
-                    "label": "LBL",
-                    "score": 0.5,
-                    "explanation": "Unset identifier should map to empty string",
-                    "annotatorKind": "HUMAN",
-                    # identifier omitted on purpose
-                    "metadata": {"a": 1, "nested": {"b": True}, "list": [1, 2, 3]},
-                    "source": "APP",
-                }
-            ]
+        # A2. Create with identifier omitted (UNSET) and source=APP → resolves to ""
+        unset_identifier_input: dict[str, Any] = {
+            "input": {
+                "projectSessionId": project_session_gid,
+                "name": "unset_identifier",
+                "label": "LBL",
+                "score": 0.5,
+                "explanation": "Unset identifier should map to empty string",
+                "annotatorKind": "HUMAN",
+                # identifier omitted on purpose
+                "metadata": {"a": 1, "nested": {"b": True}, "list": [1, 2, 3]},
+                "source": "APP",
+            }
         }
-        res_unset_id = await gql_client.execute(self.QUERY, unset_identifier_vars)
-        assert not res_unset_id.errors
-        assert res_unset_id.data is not None
-        data_unset_id = res_unset_id.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ][0]
-        assert data_unset_id["identifier"] == ""
-        assert data_unset_id["name"] == "unset_identifier"
-        assert data_unset_id["metadata"] == unset_identifier_vars["input"][0]["metadata"]
+        unset_identifier_response = await gql_client.execute(self.QUERY, unset_identifier_input)
+        assert not unset_identifier_response.errors
+        assert unset_identifier_response.data is not None
+        created_unset_annotation = unset_identifier_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert created_unset_annotation["identifier"] == ""
+        assert created_unset_annotation["name"] == "unset_identifier"
+        assert created_unset_annotation["metadata"] == unset_identifier_input["input"]["metadata"]
 
-        # 2. Upsert with non-empty identifier (should update in-place)
-        base_conflict_input = {
-            "projectSessionId": session_gid,
-            "name": "conflict_test",
-            "label": "FIRST_LABEL",
-            "score": 1.0,
-            "explanation": "First",
+        # A3. Create multiple annotations with different metadata
+        first_metadata_annotation_input = {
+            "projectSessionId": project_session_gid,
+            "name": "first_metadata_annotation",
+            "label": "A",
+            "score": 0.1,
+            "explanation": "first annotation with metadata",
             "annotatorKind": "HUMAN",
-            "metadata": {},
-            "identifier": "conflict",
-            "source": "APP",
-        }
-        res_create_conflict = await gql_client.execute(self.QUERY, {"input": [base_conflict_input]})
-        assert not res_create_conflict.errors
-        assert res_create_conflict.data is not None
-        id_conflict_1 = res_create_conflict.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ][0]["id"]
-
-        updated_conflict_input = base_conflict_input.copy()
-        updated_conflict_input.update(
-            {"label": "UPDATED_LABEL", "score": 2.0, "explanation": "Updated explanation"}
-        )
-        res_update_conflict = await gql_client.execute(
-            self.QUERY, {"input": [updated_conflict_input]}
-        )
-        assert not res_update_conflict.errors
-        assert res_update_conflict.data is not None
-        ann_conflict_2 = res_update_conflict.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ][0]
-        assert ann_conflict_2["id"] == id_conflict_1
-        assert ann_conflict_2["label"] == "UPDATED_LABEL"
-        assert ann_conflict_2["score"] == 2.0
-        assert ann_conflict_2["explanation"] == "Updated explanation"
-
-        # 3. Upsert with empty identifier (should update in-place for that identifier)
-        base_empty_id_input = {
-            "projectSessionId": session_gid,
-            "name": "conflict_test",
-            "label": "FIRST_LABEL",
-            "score": 1.0,
-            "explanation": "First",
-            "annotatorKind": "HUMAN",
-            "metadata": {},
             "identifier": "",
-            "source": "APP",
+            "metadata": {"test_key": 1},
+            "source": "API",
         }
-        res_create_empty = await gql_client.execute(self.QUERY, {"input": [base_empty_id_input]})
-        assert not res_create_empty.errors
-        assert res_create_empty.data is not None
-        id_empty_1 = res_create_empty.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ][0]["id"]
-        assert id_conflict_1 != id_empty_1
-
-        updated_empty_id_input = base_empty_id_input.copy()
-        updated_empty_id_input.update(
-            {"label": "UPDATED_LABEL", "score": 2.0, "explanation": "Updated explanation"}
-        )
-        res_update_empty = await gql_client.execute(self.QUERY, {"input": [updated_empty_id_input]})
-        assert not res_update_empty.errors
-        assert res_update_empty.data is not None
-        ann_empty_2 = res_update_empty.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ][0]
-        assert ann_empty_2["id"] == id_empty_1
-        assert ann_empty_2["label"] == "UPDATED_LABEL"
-        assert ann_empty_2["score"] == 2.0
-        assert ann_empty_2["explanation"] == "Updated explanation"
-
-        # 4. Batch create 2 annotations and verify return order is preserved
-        batch_inputs = [
-            {
-                "projectSessionId": session_gid,
-                "name": "batch_a",
-                "label": "A",
-                "score": 0.1,
-                "explanation": "first",
-                "annotatorKind": "HUMAN",
-                "identifier": "",
-                "metadata": {"m": 1},
-                "source": "API",
-            },
-            {
-                "projectSessionId": session_gid,
-                "name": "batch_b",
-                "label": "B",
-                "score": 0.2,
-                "explanation": "second",
-                "annotatorKind": "HUMAN",
-                "identifier": "",
-                "metadata": {"n": 2},
-                "source": "API",
-            },
-        ]
-        res_batch = await gql_client.execute(self.QUERY, {"input": batch_inputs})
-        assert not res_batch.errors
-        assert res_batch.data is not None
-        returned_batch = res_batch.data["createProjectSessionAnnotations"][
-            "projectSessionAnnotations"
-        ]
-        assert [a["name"] for a in returned_batch] == [i["name"] for i in batch_inputs]
-        assert returned_batch[0]["metadata"] == {"m": 1}
-        assert returned_batch[1]["metadata"] == {"n": 2}
-
-        # 5. Clearing semantics - set nullable fields to null on upsert
-        # Start by updating the initial basic annotation to known non-null values
-        res_set_values = await gql_client.execute(
-            self.QUERY,
-            {
-                "input": [
-                    {
-                        "projectSessionId": session_gid,
-                        "name": "test_annotation",
-                        "label": "TO_CLEAR",
-                        "score": 9.9,
-                        "explanation": "to clear",
-                        "annotatorKind": "HUMAN",
-                        "identifier": "",
-                        "metadata": {},
-                        "source": "API",
-                    }
-                ]
-            },
-        )
-        assert not res_set_values.errors
-        # Now clear label and explanation by setting them to null (keep score to avoid clearing it)
-        res_clear = await gql_client.execute(
-            self.QUERY,
-            {
-                "input": [
-                    {
-                        "projectSessionId": session_gid,
-                        "name": "test_annotation",
-                        "label": None,
-                        "score": 9.9,
-                        "explanation": None,
-                        "annotatorKind": "HUMAN",
-                        "identifier": "",
-                        "metadata": {},
-                        "source": "API",
-                    }
-                ]
-            },
-        )
-        assert not res_clear.errors
-        assert res_clear.data is not None
-        cleared = res_clear.data["createProjectSessionAnnotations"]["projectSessionAnnotations"][0]
-        assert cleared["label"] is None
-        assert cleared["explanation"] is None
-        assert cleared["score"] == 9.9
-
-        # 6. Patch mutation - update name and metadata of an existing annotation
-        # Use the previously created conflict annotation id
-        patch_res = await gql_client.execute(
-            self.QUERY,
-            {
-                "input": [
-                    {
-                        "annotationId": ann_conflict_2["id"],
-                        "name": "conflict_test_renamed",
-                        "metadata": {"patched": True},
-                    }
-                ]
-            },
-            operation_name="PatchProjectSessionAnnotations",
-        )
-        assert not patch_res.errors
-        assert patch_res.data is not None
-        patched = patch_res.data["patchProjectSessionAnnotations"]["projectSessionAnnotations"][0]
-        assert patched["id"] == ann_conflict_2["id"]
-        assert patched["name"] == "conflict_test_renamed"
-        assert patched["metadata"] == {"patched": True}
-
-        # 7. Patch duplicate ids should error
-        dup_patch_res = await gql_client.execute(
-            self.QUERY,
-            {
-                "input": [
-                    {"annotationId": patched["id"], "name": "x"},
-                    {"annotationId": patched["id"], "name": "y"},
-                ]
-            },
-            operation_name="PatchProjectSessionAnnotations",
-        )
-        assert dup_patch_res.errors
-
-        # 8. Delete mutation - delete two created batch annotations, ensure order preserved
-        del_res = await gql_client.execute(
-            self.QUERY,
-            {"input": {"annotationIds": [returned_batch[1]["id"], returned_batch[0]["id"]]}},
-            operation_name="DeleteProjectSessionAnnotations",
-        )
-        assert not del_res.errors
-        assert del_res.data is not None
-        deleted = del_res.data["deleteProjectSessionAnnotations"]["projectSessionAnnotations"]
-        assert [d["id"] for d in deleted] == [returned_batch[1]["id"], returned_batch[0]["id"]]
-
-        # 8.1 Delete with duplicate ids should error
-        dup_del_res = await gql_client.execute(
-            self.QUERY,
-            {"input": {"annotationIds": [patched["id"], patched["id"]]}},
-            operation_name="DeleteProjectSessionAnnotations",
-        )
-        assert dup_del_res.errors
-
-        # 9. Create with invalid projectSessionId type should error (bad GID type)
-        bad_gid_vars = {
-            "input": [
-                {
-                    "projectSessionId": str(GlobalID("Span", "123")),
-                    "name": "bad",
-                    "label": "X",
-                    "score": 0.0,
-                    "explanation": "bad gid",
-                    "annotatorKind": "HUMAN",
-                    "metadata": {},
-                    "identifier": "",
-                    "source": "API",
-                }
-            ]
+        second_metadata_annotation_input = {
+            "projectSessionId": project_session_gid,
+            "name": "second_metadata_annotation",
+            "label": "B",
+            "score": 0.2,
+            "explanation": "second annotation with metadata",
+            "annotatorKind": "HUMAN",
+            "identifier": "",
+            "metadata": {"test_key": 2},
+            "source": "API",
         }
-        bad_res = await gql_client.execute(
-            self.QUERY, bad_gid_vars, operation_name="CreateProjectSessionAnnotations"
-        )
-        assert bad_res.errors
 
-        # 9.1 Patch with wrong type GID should error
-        wrong_type_patch = await gql_client.execute(
-            self.QUERY,
-            {
-                "input": [
-                    {
-                        "annotationId": str(GlobalID("Span", "999")),
-                        "name": "nope",
-                    }
-                ]
-            },
-            operation_name="PatchProjectSessionAnnotations",
+        first_metadata_response = await gql_client.execute(
+            self.QUERY, {"input": first_metadata_annotation_input}
         )
-        assert wrong_type_patch.errors
+        assert not first_metadata_response.errors
+        assert first_metadata_response.data is not None
+        created_first_metadata_annotation = first_metadata_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
 
-        # 9.2 Delete with missing id should error
-        missing_id = str(GlobalID("ProjectSessionAnnotation", "999999"))
-        missing_del_res = await gql_client.execute(
-            self.QUERY,
-            {"input": {"annotationIds": [missing_id]}},
-            operation_name="DeleteProjectSessionAnnotations",
+        second_metadata_response = await gql_client.execute(
+            self.QUERY, {"input": second_metadata_annotation_input}
         )
-        assert missing_del_res.errors
+        assert not second_metadata_response.errors
+        assert second_metadata_response.data is not None
+        created_second_metadata_annotation = second_metadata_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+
+        assert created_first_metadata_annotation["name"] == "first_metadata_annotation"
+        assert created_first_metadata_annotation["metadata"] == {"test_key": 1}
+        assert created_second_metadata_annotation["name"] == "second_metadata_annotation"
+        assert created_second_metadata_annotation["metadata"] == {"test_key": 2}
+
+        # Store for later deletion test
+        created_metadata_annotations = [
+            created_first_metadata_annotation,
+            created_second_metadata_annotation,
+        ]
+
+        # ============================================================================
+        # B. UPDATE OPERATIONS (Success and Error Cases)
+        # ============================================================================
+
+        # B1. Update mutation - update name and metadata of an existing annotation
+        # Use the basic annotation we created
+        patch_input = {
+            "input": {
+                "annotationId": created_basic_annotation["id"],
+                "name": "test_annotation_renamed",
+                "metadata": {"patched": True},
+            }
+        }
+        patch_response = await gql_client.execute(
+            self.QUERY,
+            patch_input,
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert not patch_response.errors
+        assert patch_response.data is not None
+        patched_annotation = patch_response.data["updateProjectSessionAnnotations"][
+            "projectSessionAnnotation"
+        ]
+        assert patched_annotation["id"] == created_basic_annotation["id"]
+        assert patched_annotation["name"] == "test_annotation_renamed"
+        assert patched_annotation["metadata"] == {"patched": True}
+
+        # B2. Update nonexistent annotation should error
+        nonexistent_patch_input = {
+            "input": {
+                "annotationId": str(GlobalID("ProjectSessionAnnotation", "999999")),
+                "name": "should_fail",
+            }
+        }
+        nonexistent_patch_response = await gql_client.execute(
+            self.QUERY,
+            nonexistent_patch_input,
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert nonexistent_patch_response.errors
+
+        # B3. Update with wrong type GID should error
+        invalid_gid_patch_input = {
+            "input": {
+                "annotationId": str(GlobalID("Span", "999")),
+                "name": "should_fail",
+            }
+        }
+        invalid_gid_patch_response = await gql_client.execute(
+            self.QUERY,
+            invalid_gid_patch_input,
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert invalid_gid_patch_response.errors
+
+        # ============================================================================
+        # C. DELETE OPERATIONS (Success and Error Cases)
+        # ============================================================================
+
+        # C1. Delete mutation - delete first created annotation
+        delete_response = await gql_client.execute(
+            self.QUERY,
+            {"id": created_metadata_annotations[0]["id"]},
+            operation_name="DeleteProjectSessionAnnotation",
+        )
+        assert not delete_response.errors
+        assert delete_response.data is not None
+        deleted_annotation = delete_response.data["deleteProjectSessionAnnotation"][
+            "projectSessionAnnotation"
+        ]
+        assert deleted_annotation["id"] == created_metadata_annotations[0]["id"]
+
+        # C2. Delete nonexistent annotation should error
+        nonexistent_delete_response = await gql_client.execute(
+            self.QUERY,
+            {"id": str(GlobalID("ProjectSessionAnnotation", "999999"))},
+            operation_name="DeleteProjectSessionAnnotation",
+        )
+        assert nonexistent_delete_response.errors
+
+        # C3. Delete with wrong type GID should error
+        invalid_gid_delete_response = await gql_client.execute(
+            self.QUERY,
+            {"id": str(GlobalID("Span", "999"))},
+            operation_name="DeleteProjectSessionAnnotation",
+        )
+        assert invalid_gid_delete_response.errors
+
+        # ============================================================================
+        # D. CREATE ERROR CASES (Validation and Constraint Errors)
+        # ============================================================================
+
+        # D1. Create with nonexistent foreign key should error
+        nonexistent_project_session_id = str(GlobalID("ProjectSession", "999999"))
+        invalid_foreign_key_input = {
+            "input": {
+                "projectSessionId": nonexistent_project_session_id,
+                "name": "test_annotation",
+                "label": "LABEL1",
+                "score": 0.75,
+                "explanation": "This should fail due to nonexistent session",
+                "annotatorKind": "HUMAN",
+                "metadata": {},
+                "identifier": "",
+                "source": "API",
+            }
+        }
+        invalid_foreign_key_response = await gql_client.execute(
+            self.QUERY, invalid_foreign_key_input, operation_name="CreateProjectSessionAnnotations"
+        )
+        assert invalid_foreign_key_response.errors
+
+        # D2. Create with invalid projectSessionId type should error (bad GID type)
+        wrong_gid_type_input = {
+            "input": {
+                "projectSessionId": str(GlobalID("Span", "123")),
+                "name": "invalid_gid_test",
+                "label": "X",
+                "score": 0.0,
+                "explanation": "This should fail due to wrong GID type",
+                "annotatorKind": "HUMAN",
+                "metadata": {},
+                "identifier": "",
+                "source": "API",
+            }
+        }
+        wrong_gid_type_response = await gql_client.execute(
+            self.QUERY, wrong_gid_type_input, operation_name="CreateProjectSessionAnnotations"
+        )
+        assert wrong_gid_type_response.errors

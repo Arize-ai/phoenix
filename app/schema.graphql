@@ -1582,9 +1582,9 @@ type Mutation {
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
-  createProjectSessionAnnotations(input: [CreateProjectSessionAnnotationInput!]!): ProjectSessionAnnotationMutationPayload!
-  patchProjectSessionAnnotations(input: [PatchAnnotationInput!]!): ProjectSessionAnnotationMutationPayload!
-  deleteProjectSessionAnnotations(input: DeleteAnnotationsInput!): ProjectSessionAnnotationMutationPayload!
+  createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
@@ -1844,7 +1844,7 @@ type ProjectSessionAnnotation implements Node {
 }
 
 type ProjectSessionAnnotationMutationPayload {
-  projectSessionAnnotations: [ProjectSessionAnnotation!]!
+  projectSessionAnnotation: ProjectSessionAnnotation!
   query: Query!
 }
 
@@ -2877,6 +2877,18 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
+}
+
+input UpdateAnnotationInput {
+  annotationId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  identifier: String! = ""
+  source: AnnotationSource! = APP
 }
 
 input UpdateModelMutationInput {
