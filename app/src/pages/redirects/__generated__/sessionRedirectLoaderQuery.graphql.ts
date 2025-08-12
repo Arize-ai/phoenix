@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c147ffdebaa3780f82bcb4189a5691cc>>
+ * @generated SignedSource<<50593fc38166886b6f694885518e4c00>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type sessionRedirectLoaderQuery$variables = {
-  sessionOtelId: string;
+  sessionId: string;
 };
 export type sessionRedirectLoaderQuery$data = {
   readonly session: {
@@ -28,7 +28,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "sessionOtelId"
+    "name": "sessionId"
   }
 ],
 v1 = [
@@ -38,12 +38,12 @@ v1 = [
       {
         "kind": "Variable",
         "name": "sessionId",
-        "variableName": "sessionOtelId"
+        "variableName": "sessionId"
       }
     ],
     "concreteType": "ProjectSession",
     "kind": "LinkedField",
-    "name": "getProjectSessionByOtelId",
+    "name": "getProjectSessionById",
     "plural": false,
     "selections": [
       {
@@ -82,16 +82,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "4bb8960df96b198310aada6cff07b536",
+    "cacheID": "db3660ac192256a7757e3572b57899cb",
     "id": null,
     "metadata": {},
     "name": "sessionRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query sessionRedirectLoaderQuery(\n  $sessionOtelId: String!\n) {\n  session: getProjectSessionByOtelId(sessionId: $sessionOtelId) {\n    projectId\n    id\n  }\n}\n"
+    "text": "query sessionRedirectLoaderQuery(\n  $sessionId: String!\n) {\n  session: getProjectSessionById(sessionId: $sessionId) {\n    projectId\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a5fa7aeac5b76471c9ac7fcf2ae8e05f";
+(node as any).hash = "55a0fc73eef2ceb3ec05e5dd36630eae";
 
 export default node;

@@ -625,3 +625,133 @@ class TestClientForUsersAPI:
             assert len(welcome_emails_to_user) == 1, "Welcome email should be sent"
         else:
             assert not welcome_emails_to_user, "No welcome email should be sent"
+
+
+class TestEmailSanitization:
+    """Test email sanitization for user creation via REST API.
+
+    These tests verify that uppercase emails are properly sanitized and stored
+    as lowercase in the database, fixing GitHub issue #8865.
+    """
+
+    async def test_rest_api_email_sanitization_local_user(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that uppercase emails are sanitized when creating LOCAL users via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with uppercase email
+        uppercase_email = f"TEST.USER.{token_hex(8).upper()}@EXAMPLE.COM"
+        expected_lowercase_email = uppercase_email.lower()
+
+        user_data = v1.LocalUserData(
+            email=uppercase_email,
+            username=f"test_sanitize_local_{token_hex(8)}",
+            role="MEMBER",
+            auth_method="LOCAL",
+            password="test_password",
+        )
+
+        # Create user with uppercase email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the lowercase email
+        assert created_user["email"] == expected_lowercase_email, (
+            f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Verify in user list as well
+        all_users = users_api.list()
+        created_user_from_list = next(
+            (user for user in all_users if user["id"] == created_user["id"]), None
+        )
+        assert created_user_from_list is not None
+        assert created_user_from_list["email"] == expected_lowercase_email, (
+            f"Email in user list should be lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user_from_list['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])
+
+    async def test_rest_api_email_sanitization_oauth2_user(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that uppercase emails are sanitized when creating OAuth2 users via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with uppercase email
+        uppercase_email = f"OAUTH.USER.{token_hex(8).upper()}@DOMAIN.NET"
+        expected_lowercase_email = uppercase_email.lower()
+
+        user_data = v1.OAuth2UserData(
+            email=uppercase_email,
+            username=f"test_sanitize_oauth_{token_hex(8)}",
+            role="ADMIN",
+            auth_method="OAUTH2",
+            oauth2_client_id="test_client",
+            oauth2_user_id="test_oauth_user_id",
+        )
+
+        # Create user with uppercase email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the lowercase email
+        assert created_user["email"] == expected_lowercase_email, (
+            f"Expected email to be sanitized to lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Verify in user list as well
+        all_users = users_api.list()
+        created_user_from_list = next(
+            (user for user in all_users if user["id"] == created_user["id"]), None
+        )
+        assert created_user_from_list is not None
+        assert created_user_from_list["email"] == expected_lowercase_email, (
+            f"Email in user list should be lowercase: {expected_lowercase_email}, "
+            f"but got: {created_user_from_list['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])
+
+    async def test_rest_api_email_with_whitespace_sanitization(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that emails with whitespace are trimmed and lowercased via REST API."""
+        u = _get_user(_app, _ADMIN).log_in(_app)
+        users_api = _UsersApi(_httpx_client(_app, u.create_api_key(_app)))
+
+        # Test with whitespace and uppercase
+        messy_email = f"  TRIM.ME.{token_hex(8).upper()}@WHITESPACE.COM  "
+        expected_clean_email = messy_email.strip().lower()
+
+        user_data = v1.LocalUserData(
+            email=messy_email,
+            username=f"test_sanitize_trim_{token_hex(8)}",
+            role="MEMBER",
+            auth_method="LOCAL",
+            password="test_password",
+        )
+
+        # Create user with messy email
+        created_user = users_api.create(user=user_data)
+
+        # Verify the response contains the cleaned email
+        assert created_user["email"] == expected_clean_email, (
+            f"Expected email to be sanitized: {expected_clean_email}, "
+            f"but got: {created_user['email']}"
+        )
+
+        # Clean up
+        users_api.delete(user_id=created_user["id"])

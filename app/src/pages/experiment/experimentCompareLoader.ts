@@ -23,34 +23,56 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
+  const view = url.searchParams.get("view") || "grid";
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentCompareLoaderQuery(
         $datasetId: ID!
-        $baselineExperimentId: ID!
+        $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
-        $hasBaselineExperimentId: Boolean!
+        $experimentIds: [ID!]!
+        $hasBaseExperiment: Boolean!
+        $includeGridView: Boolean!
+        $includeMetricsView: Boolean!
       ) {
         ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaselineExperimentId)
+          @include(if: $includeGridView)
           @arguments(
-            baselineExperimentId: $baselineExperimentId
-            compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            experimentIds: $experimentIds
           )
         ...ExperimentMultiSelector__data
-          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+          @arguments(
+            datasetId: $datasetId
+            hasBaseExperiment: $hasBaseExperiment
+          )
+        ...ExperimentCompareMetricsPage_experiments
+          @include(if: $includeMetricsView)
+          @arguments(
+            datasetId: $datasetId
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            experimentIds: $experimentIds
+          )
       }
     `,
     {
       datasetId,
-      baselineExperimentId: baselineExperimentId ?? "",
+      baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
-      hasBaselineExperimentId: baselineExperimentId != null,
+      experimentIds: [
+        ...(baseExperimentId ? [baseExperimentId] : []),
+        ...compareExperimentIds,
+      ],
+      hasBaseExperiment: baseExperimentId != null,
+      includeGridView: view === "grid" && baseExperimentId != null,
+      includeMetricsView: view === "metrics" && baseExperimentId != null,
     }
   ).toPromise();
 }

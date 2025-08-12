@@ -53,6 +53,16 @@ export function OAuthUserForm({
       role: role ?? UserRole.MEMBER,
     },
   });
+
+  const handleFormSubmit = (data: OAuthUserFormParams) => {
+    // Sanitize email by trimming whitespace and converting to lowercase
+    const sanitizedData = {
+      ...data,
+      email: data.email.trim().toLowerCase(),
+    };
+    onSubmit(sanitizedData);
+  };
+
   return (
     <div
       css={css`
@@ -65,7 +75,7 @@ export function OAuthUserForm({
         }
       `}
     >
-      <Form onSubmit={handleSubmit(onSubmit)}>
+      <Form onSubmit={handleSubmit(handleFormSubmit)}>
         <View padding="size-200">
           <Flex direction="column" gap="size-100">
             <Controller

@@ -56,6 +56,8 @@ import {
   datasetLoader,
   DatasetPage,
   DatasetsPage,
+  datasetVersionsLoader,
+  DatasetVersionsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -251,6 +253,11 @@ const router = createBrowserRouter(
                 >
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
+                <Route
+                  path="versions"
+                  element={<DatasetVersionsPage />}
+                  loader={datasetVersionsLoader}
+                />
               </Route>
               <Route
                 path="compare"
@@ -406,7 +413,7 @@ const router = createBrowserRouter(
             errorElement={<ErrorElement />}
           />
           <Route
-            path="/redirects/sessions/:session_otel_id"
+            path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
             errorElement={<ErrorElement />}
           />

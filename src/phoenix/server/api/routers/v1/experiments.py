@@ -20,6 +20,7 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses, add_text_csv_content_to_responses
@@ -159,7 +160,7 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = f"Experiment-{getrandbits(96).to_bytes(12, 'big').hex()}"
+        project_name = generate_experiment_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )

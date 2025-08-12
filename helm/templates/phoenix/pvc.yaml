@@ -1,3 +1,4 @@
+{{- include "phoenix.validatePersistence" . }}
 {{- if .Values.persistence.enabled | toString | eq "true" }}
 apiVersion: v1
 kind: PersistentVolumeClaim

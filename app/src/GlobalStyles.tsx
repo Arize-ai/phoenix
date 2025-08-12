@@ -1107,6 +1107,7 @@ const appGlobalStylesCSS = css`
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+    color: var(--ac-global-text-color-900);
   }
   .ac-theme {
     color: var(--ac-global-text-color-900);
@@ -1278,6 +1279,18 @@ const chartCSS = css`
   }
 `;
 
+const fontFamilyCSS = css`
+  .font-default {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+  }
+  .font-mono,
+  pre {
+    font-family: "Geist Mono", monospace;
+    font-optical-sizing: auto;
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1293,7 +1306,8 @@ export function GlobalStyles() {
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         ReactGridLayoutCSS,
-        chartCSS
+        chartCSS,
+        fontFamilyCSS
       )}
     />
   );

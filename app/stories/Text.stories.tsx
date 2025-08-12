@@ -29,6 +29,8 @@ const colors: TextProps["color"][] = [
   ...GLOBAL_COLORS,
 ];
 
+const fontFamilies: TextProps["fontFamily"][] = ["default", "mono"];
+
 /**
  * A gallery of all the variants
  */
@@ -89,6 +91,26 @@ function GalleryComponent() {
           return (
             <Text key={color} size="L" color={color} weight="heavy">
               {`I will not waste chalk`}
+            </Text>
+          );
+        })}
+      </p>
+      <p
+        css={css`
+          .ac-text {
+            display: block;
+          }
+        `}
+      >
+        {fontFamilies.map((fontFamily) => {
+          return (
+            <Text
+              key={fontFamily}
+              size="L"
+              fontFamily={fontFamily}
+              weight="heavy"
+            >
+              {`I will not waste chalk (${fontFamily})`}
             </Text>
           );
         })}

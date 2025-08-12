@@ -83,11 +83,11 @@ def _build_session_io_filter_subquery(
         .where(models.Span.parent_id.is_(None))
         .where(
             or_(
-                models.TextContains(
+                models.CaseInsensitiveContains(
                     models.Span.attributes[INPUT_VALUE].as_string(),
                     session_filter,
                 ),
-                models.TextContains(
+                models.CaseInsensitiveContains(
                     models.Span.attributes[OUTPUT_VALUE].as_string(),
                     session_filter,
                 ),

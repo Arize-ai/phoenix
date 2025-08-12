@@ -139,9 +139,5 @@ export function isAttributeMessages(
 export function isAttributeMessage(
   message: unknown
 ): message is AttributeMessage {
-  return (
-    typeof message === "object" &&
-    message !== null &&
-    MessageAttributePostfixes.role in message
-  );
+  return typeof message === "object" && message !== null;
 }

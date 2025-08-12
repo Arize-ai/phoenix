@@ -1,0 +1,7 @@
+-r ../ci.txt
+anthropic
+google-genai
+litellm
+mistralai
+mypy-boto3-bedrock-runtime
+openai

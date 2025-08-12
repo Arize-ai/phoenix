@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generator, Optional, Sequence
+from typing import Any, Generator, NamedTuple, Optional, Sequence, Tuple
 
 from typing_extensions import TypeVar, Union
 
@@ -36,6 +36,16 @@ def set_verbosity(model: "BaseModel", verbose: bool = False) -> Generator["BaseM
     finally:
         model._verbose = _model_verbose_setting
         model._rate_limiter._verbose = _rate_limiter_verbose_setting
+
+
+class Usage(NamedTuple):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+class ExtraInfo(NamedTuple):
+    usage: Optional[Usage] = None
 
 
 @dataclass
@@ -89,12 +99,22 @@ class BaseModel(ABC):
         # run with `verbose=True`
         return ""
 
-    @abstractmethod
     async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        return (await self._async_generate_with_extra(prompt, **kwargs))[0]
+
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        return self._generate_with_extra(prompt, **kwargs)[0]
+
+    @abstractmethod
+    async def _async_generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, ExtraInfo]:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, ExtraInfo]:
         raise NotImplementedError
 
     @staticmethod

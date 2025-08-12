@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 if TYPE_CHECKING:
     from phoenix.client.client import AsyncClient, Client
 from phoenix.client.resources.datasets import Dataset
+from phoenix.client.resources.experiments.evaluators import create_evaluator
 from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
     ExperimentTask,
@@ -65,8 +66,6 @@ def run_experiment(
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Args:
         dataset: The dataset on which to run the experiment.
         task: The task to run on each example in the dataset.
@@ -112,9 +111,10 @@ def run_experiment(
             ... )
 
         With client configuration:
+            >>> from phoenix.client import Client
+            >>> client = Client()
             >>> experiment = run_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
+            ...     client = client,
             ...     dataset=dataset,
             ...     task=my_task,
             ...     experiment_name="greeting-experiment"
@@ -235,8 +235,6 @@ async def async_run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
-
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
         base_url: The base URL for the API endpoint. If not provided, it will be read from the
@@ -501,8 +499,6 @@ def evaluate_experiment(
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment` or `get_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
@@ -599,8 +595,6 @@ async def async_evaluate_experiment(
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
-
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
@@ -669,3 +663,14 @@ async def async_evaluate_experiment(
         concurrency=concurrency,
         rate_limit_errors=rate_limit_errors,
     )
+
+
+__all__ = [
+    "run_experiment",
+    "async_run_experiment",
+    "get_experiment",
+    "async_get_experiment",
+    "evaluate_experiment",
+    "async_evaluate_experiment",
+    "create_evaluator",
+]

@@ -21,19 +21,26 @@ import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumb
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { selectCSS } from "@phoenix/components/select/styles";
 
-import type { ExperimentMultiSelector__data$key } from "./__generated__/ExperimentMultiSelector__data.graphql";
+import type {
+  ExperimentMultiSelector__data$data,
+  ExperimentMultiSelector__data$key,
+} from "./__generated__/ExperimentMultiSelector__data.graphql";
+
+type Experiment = NonNullable<
+  ExperimentMultiSelector__data$data["dataset"]["allExperiments"]
+>["edges"][number]["experiment"];
 
 export function ExperimentMultiSelector(props: {
-  selectedBaselineExperimentId: string | undefined;
+  selectedBaseExperimentId: string | undefined;
   selectedCompareExperimentIds: string[];
   onChange: (
-    selectedBaselineExperimentId: string | undefined,
+    selectedBaseExperimentId: string | undefined,
     selectedCompareExperimentIds: string[]
   ) => void;
   dataRef: ExperimentMultiSelector__data$key;
 }) {
   const {
-    selectedBaselineExperimentId,
+    selectedBaseExperimentId,
     selectedCompareExperimentIds,
     onChange,
     dataRef,
@@ -42,13 +49,16 @@ export function ExperimentMultiSelector(props: {
   const data = useFragment(
     graphql`
       fragment ExperimentMultiSelector__data on Query
-      @argumentDefinitions(hasBaselineExperimentId: { type: "Boolean!" }) {
+      @argumentDefinitions(
+        datasetId: { type: "ID!" }
+        hasBaseExperiment: { type: "Boolean!" }
+      ) {
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
             id
             name
-            experiments {
+            allExperiments: experiments {
               edges {
                 experiment: node {
                   id
@@ -60,8 +70,8 @@ export function ExperimentMultiSelector(props: {
             }
           }
         }
-        baselineExperiment: node(id: $baselineExperimentId)
-          @include(if: $hasBaselineExperimentId) {
+        baseExperiment: node(id: $baseExperimentId)
+          @include(if: $hasBaseExperiment) {
           ... on Experiment {
             id
             name
@@ -71,16 +81,21 @@ export function ExperimentMultiSelector(props: {
     `,
     dataRef
   );
-  const experiments = useMemo(() => {
-    return (
-      data.dataset.experiments?.edges.map((edge) => {
-        return edge.experiment;
-      }) ?? []
-    );
-  }, [data]);
-  const baselineExperimentDisplayText = useMemo(
-    () => data.baselineExperiment?.name ?? "No baseline selected",
-    [data.baselineExperiment]
+  const { allExperiments, nonBaseExperiments } = useMemo(() => {
+    const allExperiments: Experiment[] = [];
+    const nonBaseExperiments: Experiment[] = [];
+    data.dataset.allExperiments?.edges.forEach((edge) => {
+      const experiment = edge.experiment;
+      allExperiments.push(experiment);
+      if (experiment.id !== selectedBaseExperimentId) {
+        nonBaseExperiments.push(experiment);
+      }
+    });
+    return { allExperiments, nonBaseExperiments };
+  }, [data.dataset.allExperiments, selectedBaseExperimentId]);
+  const baseExperimentDisplayText = useMemo(
+    () => data.baseExperiment?.name ?? "No base experiment selected",
+    [data.baseExperiment]
   );
   const compareExperimentsDisplayText = useMemo(() => {
     const numExperiments = selectedCompareExperimentIds.length;
@@ -93,10 +108,10 @@ export function ExperimentMultiSelector(props: {
   return (
     <Flex direction="row" gap="size-100">
       <div css={css(fieldBaseCSS, selectCSS)}>
-        <Label>baseline experiment</Label>
+        <Label>base experiment</Label>
         <DialogTrigger>
           <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
-            {baselineExperimentDisplayText}
+            {baseExperimentDisplayText}
           </Button>
           <Popover placement="bottom start">
             <Dialog>
@@ -105,29 +120,27 @@ export function ExperimentMultiSelector(props: {
                 selectionBehavior="replace"
                 selectedKeys={
                   new Set(
-                    selectedBaselineExperimentId
-                      ? [selectedBaselineExperimentId]
-                      : []
+                    selectedBaseExperimentId ? [selectedBaseExperimentId] : []
                   )
                 }
                 onSelectionChange={(keys) => {
-                  const [baselineExperimentId] = keys;
+                  const [baseExperimentId] = keys;
                   invariant(
-                    typeof baselineExperimentId !== "number",
-                    "baselineExperimentId should not be a number"
+                    typeof baseExperimentId == "string",
+                    "baseExperimentId should be a string"
                   );
                   const compareExperimentIds = [
-                    ...(selectedBaselineExperimentId
-                      ? [selectedBaselineExperimentId]
+                    ...(selectedBaseExperimentId
+                      ? [selectedBaseExperimentId]
                       : []),
                     ...selectedCompareExperimentIds.filter(
-                      (id) => id !== baselineExperimentId
+                      (id) => id !== baseExperimentId
                     ),
                   ];
-                  onChange(baselineExperimentId, compareExperimentIds);
+                  onChange(baseExperimentId, compareExperimentIds);
                 }}
               >
-                {experiments.map((experiment) => (
+                {allExperiments.map((experiment) => (
                   <ListBoxItem key={experiment.id} id={experiment.id}>
                     {({ isSelected }) => (
                       <Flex
@@ -156,7 +169,7 @@ export function ExperimentMultiSelector(props: {
           </Popover>
         </DialogTrigger>
       </div>
-      {selectedBaselineExperimentId && (
+      {selectedBaseExperimentId && nonBaseExperiments.length > 0 && (
         <div css={css(fieldBaseCSS, selectCSS)}>
           <Label>compare experiments</Label>
           <DialogTrigger>
@@ -169,50 +182,36 @@ export function ExperimentMultiSelector(props: {
                   selectionMode="multiple"
                   selectedKeys={new Set(selectedCompareExperimentIds)}
                   onSelectionChange={(keys) => {
-                    if (keys === "all") {
-                      onChange(
-                        selectedBaselineExperimentId,
-                        experiments.map((exp) => exp.id)
-                      );
-                    } else {
-                      onChange(
-                        selectedBaselineExperimentId,
-                        Array.from(keys) as string[]
-                      );
-                    }
+                    onChange(
+                      selectedBaseExperimentId,
+                      Array.from(keys) as string[]
+                    );
                   }}
                 >
-                  {experiments
-                    .filter(
-                      (experiment) =>
-                        experiment.id !== selectedBaselineExperimentId
-                    )
-                    .map((experiment) => (
-                      <ListBoxItem key={experiment.id} id={experiment.id}>
-                        {({ isSelected }) => (
-                          <Flex
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Flex direction="column" gap="size-50">
-                              <Flex direction="row" gap="size-100">
-                                <SequenceNumberToken
-                                  sequenceNumber={experiment.sequenceNumber}
-                                />
-                                <Text>{experiment.name}</Text>
-                              </Flex>
-                              <Text size="XS" color="text-700">
-                                {new Date(
-                                  experiment.createdAt
-                                ).toLocaleString()}
-                              </Text>
+                  {nonBaseExperiments.map((experiment) => (
+                    <ListBoxItem key={experiment.id} id={experiment.id}>
+                      {({ isSelected }) => (
+                        <Flex
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Flex direction="column" gap="size-50">
+                            <Flex direction="row" gap="size-100">
+                              <SequenceNumberToken
+                                sequenceNumber={experiment.sequenceNumber}
+                              />
+                              <Text>{experiment.name}</Text>
                             </Flex>
-                            {isSelected && <Icon svg={<Icons.Checkmark />} />}
+                            <Text size="XS" color="text-700">
+                              {new Date(experiment.createdAt).toLocaleString()}
+                            </Text>
                           </Flex>
-                        )}
-                      </ListBoxItem>
-                    ))}
+                          {isSelected && <Icon svg={<Icons.Checkmark />} />}
+                        </Flex>
+                      )}
+                    </ListBoxItem>
+                  ))}
                 </ListBox>
               </Dialog>
             </Popover>

@@ -24,6 +24,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.trace.attributes import flatten, get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
@@ -890,6 +891,9 @@ class TestChatCompletionOverDatasetSubscription:
         trace {
           id
           traceId
+          project {
+            name
+          }
         }
       }
 
@@ -1229,7 +1233,8 @@ class TestChatCompletionOverDatasetSubscription:
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
         assert experiment.pop("name") == "playground-experiment"
-        assert experiment.pop("projectName") == "playground"
+        project_name = experiment.pop("projectName")
+        assert is_experiment_project_name(project_name)
         assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
@@ -1258,6 +1263,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert project["name"] == project_name
         assert not trace
         assert not run
 
@@ -1281,6 +1288,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert project["name"] == project_name
         assert not trace
         assert not run
 

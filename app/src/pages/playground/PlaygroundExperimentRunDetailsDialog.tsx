@@ -3,9 +3,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Dialog,
   Flex,
@@ -97,16 +97,13 @@ export function PlaygroundExperimentRunDetailsDialog({
                   <Card
                     title="Input"
                     {...defaultCardProps}
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
                     extra={
                       <CopyToClipboardButton text={JSON.stringify(input)} />
                     }
                   >
-                    <JSONBlock value={JSON.stringify(input, null, 2)} />
+                    <View maxHeight="300px" overflow="auto">
+                      <JSONBlock value={JSON.stringify(input, null, 2)} />
+                    </View>
                   </Card>
                 </View>
                 <View width="50%">
@@ -118,15 +115,12 @@ export function PlaygroundExperimentRunDetailsDialog({
                         text={JSON.stringify(referenceOutput)}
                       />
                     }
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
                   >
-                    <JSONBlock
-                      value={JSON.stringify(referenceOutput, null, 2)}
-                    />
+                    <View maxHeight="300px" overflow="auto">
+                      <JSONBlock
+                        value={JSON.stringify(referenceOutput, null, 2)}
+                      />
+                    </View>
                   </Card>
                 </View>
               </Flex>
@@ -153,41 +147,51 @@ export function PlaygroundExperimentRunDetailsDialog({
                   padding: var(--ac-global-dimension-static-size-200);
                 `}
               >
-                <Flex direction="row">
-                  <View flex>
-                    {run.error ? (
-                      <View padding="size-200">
-                        <RunError error={run.error} />
-                      </View>
-                    ) : (
-                      <JSONBlock value={JSON.stringify(run.output, null, 2)} />
-                    )}
-                  </View>
-                  <ViewSummaryAside width="size-3000">
-                    {run.startTime && run.endTime && (
-                      <RunLatency
-                        startTime={run.startTime}
-                        endTime={run.endTime}
-                      />
-                    )}
-                    <ul
-                      css={css`
-                        margin-top: var(--ac-global-dimension-static-size-100);
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: flex-start;
-                        align-items: flex-end;
-                        gap: var(--ac-global-dimension-static-size-100);
-                      `}
-                    >
-                      {run.annotations?.edges.map((edge) => (
-                        <li key={edge.annotation.id}>
-                          <AnnotationLabel annotation={edge.annotation} />
-                        </li>
-                      ))}
-                    </ul>
-                  </ViewSummaryAside>
-                </Flex>
+                <View
+                  borderColor="dark"
+                  borderWidth="thin"
+                  borderRadius="small"
+                >
+                  <Flex direction="row">
+                    <View flex>
+                      {run.error ? (
+                        <View padding="size-200">
+                          <RunError error={run.error} />
+                        </View>
+                      ) : (
+                        <JSONBlock
+                          value={JSON.stringify(run.output, null, 2)}
+                        />
+                      )}
+                    </View>
+                    <ViewSummaryAside width="size-3000">
+                      {run.startTime && run.endTime && (
+                        <RunLatency
+                          startTime={run.startTime}
+                          endTime={run.endTime}
+                        />
+                      )}
+                      <ul
+                        css={css`
+                          margin-top: var(
+                            --ac-global-dimension-static-size-100
+                          );
+                          display: flex;
+                          flex-direction: column;
+                          justify-content: flex-start;
+                          align-items: flex-end;
+                          gap: var(--ac-global-dimension-static-size-100);
+                        `}
+                      >
+                        {run.annotations?.edges.map((edge) => (
+                          <li key={edge.annotation.id}>
+                            <AnnotationLabel annotation={edge.annotation} />
+                          </li>
+                        ))}
+                      </ul>
+                    </ViewSummaryAside>
+                  </Flex>
+                </View>
               </div>
             </Flex>
           </Panel>
@@ -229,9 +233,5 @@ function RunError({ error }: { error: string }) {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: {
-    padding: 0,
-  },
 };

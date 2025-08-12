@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.2...arize-phoenix-client-v1.15.0) (2025-08-07)
+
+
+### Features
+
+* **playground:** support gpt-5 ([#8985](https://github.com/Arize-ai/phoenix/issues/8985)) ([8711bde](https://github.com/Arize-ai/phoenix/commit/8711bdecfeee479c480a1acebf32ebc1b11461cb))
+* python phoenix-client delete span method ([#8944](https://github.com/Arize-ai/phoenix/issues/8944)) ([c7a0a1a](https://github.com/Arize-ai/phoenix/commit/c7a0a1a9fa63a659f86c5675ef913168df8962bf))
+* Reexport experiment utilities in top-level client module ([#8953](https://github.com/Arize-ai/phoenix/issues/8953)) ([1f9a9cb](https://github.com/Arize-ai/phoenix/commit/1f9a9cb8d9ac3bf63db05a8541e5826e099a153b))
+
+
+### Bug Fixes
+
+* Update notebooks to use new client ([#8891](https://github.com/Arize-ai/phoenix/issues/8891)) ([6ebbfb4](https://github.com/Arize-ai/phoenix/commit/6ebbfb4d6a9bfb40cf7a7d6a8db1464b4d931bd0))
+
+## [1.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.1...arize-phoenix-client-v1.14.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* Remove reference to experiment evaluators in client docstrings ([#8933](https://github.com/Arize-ai/phoenix/issues/8933)) ([3a45871](https://github.com/Arize-ai/phoenix/commit/3a45871775494496b1993d816a3a9fd26630e51e))
+
+## [1.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.0...arize-phoenix-client-v1.14.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* reconcile schema `str` type with runtime `datetime` type ([#8862](https://github.com/Arize-ai/phoenix/issues/8862)) ([f7a2403](https://github.com/Arize-ai/phoenix/commit/f7a24031e147f86d07e8f4832e72fb33839a03fc))
+
 ## [1.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.2...arize-phoenix-client-v1.14.0) (2025-07-29)
 
 

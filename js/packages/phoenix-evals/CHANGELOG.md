@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.0.8
+
+### Patch Changes
+
+- 7b204a5: bump the ai sdk to 5
+
 ## 0.0.7
 
 ### Patch Changes

@@ -45,6 +45,7 @@ from .models import (
     AnthropicModel,
     BedrockModel,
     GeminiModel,
+    GoogleGenAIModel,
     LiteLLMModel,
     MistralAIModel,
     OpenAIModel,
@@ -60,17 +61,17 @@ from .templates import (
     ClassificationTemplate,
     PromptTemplate,
 )
-from .utils import NOT_PARSABLE, download_benchmark_dataset
+from .utils import NOT_PARSABLE, download_benchmark_dataset, emoji_guard
 
 EXPERIMENTAL_MODULES: Dict[str, Dict[str, Any]] = {
-    "phoenix.evals.llm": {
+    "phoenix.evals.preview": {
         "warning_message": (
-            "\n\n⚠️  EXPERIMENTAL: The phoenix.evals.llm module and all its components "
-            "are experimental and subject to change without notice. This code should not be "
-            "used in production."
+            f"\n\n{emoji_guard('⚠️', '!!')} EXPERIMENTAL: The phoenix.evals.preview module and all "
+            "its components are experimental and subject to change without notice. This code "
+            "should not be used in production."
         ),
         "warn_on_access": True,
-        "warning_on_import": False,
+        "warning_on_import": True,
     },
 }
 
@@ -165,19 +166,20 @@ class ExperimentalModuleLoader(Loader):
 
 sys.meta_path.insert(0, ExperimentalModuleFinder())
 
-from . import llm  # noqa: E402
+from . import preview  # noqa: E402
 
 __version__ = version("arize-phoenix-evals")
 
 __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
-    "llm",
     "llm_classify",
     "llm_generate",
+    "preview",
     "OpenAIModel",
     "AnthropicModel",
     "GeminiModel",
+    "GoogleGenAIModel",
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",

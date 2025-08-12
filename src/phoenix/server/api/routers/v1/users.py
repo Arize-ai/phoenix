@@ -31,6 +31,7 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
+    sanitize_email,
     validate_email_format,
     validate_password_format,
 )
@@ -205,6 +206,8 @@ async def create_user(
 ) -> CreateUserResponseBody:
     user_data = request_body.user
     email, username, role = user_data.email, user_data.username, user_data.role
+    # Sanitize email by trimming and lowercasing
+    email = sanitize_email(email)
     validate_email_format(email)
 
     # Prevent creation of SYSTEM users

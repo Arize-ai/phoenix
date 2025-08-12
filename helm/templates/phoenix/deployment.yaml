@@ -1,3 +1,8 @@
+{{/*
+Validate persistence configuration to prevent conflicts
+*/}}
+{{- include "phoenix.validatePersistence" . }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -75,8 +80,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
-          {{- if .Values.auth.secret }}
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) }}
           env:
+          {{- if .Values.auth.secret }}
           {{- range $authSecrets := .Values.auth.secret }}
             - name: {{ $authSecrets.key }}
               valueFrom:
@@ -85,8 +91,22 @@ spec:
                   key: {{ $authSecrets.key }}
           {{- end }}
           {{- end }}
-          {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+          {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+          {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+          {{- if $provider_config.client_secret }}
+          {{- $provider_upper := $provider_name | upper }}
+            - name: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.auth.name }}
+                  key: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+
           volumeMounts:
+            {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
             - name: tmp-volume
               mountPath: /tmp
             - name: var-tmp-volume
@@ -95,16 +115,12 @@ spec:
               mountPath: /var/log
             - name: home-volume
               mountPath: /home/phoenix
-
-            {{- if and .Values.server.workingDir (ne .Values.server.workingDir "") }}
-            - name: working-dir-volume
-              mountPath: {{ .Values.server.workingDir }}
             {{- end }}
+            - name: data
+              mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
 
-          {{- end }}
-
-      {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
       volumes:
+        {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
         - name: tmp-volume
           emptyDir: {}
         - name: var-tmp-volume
@@ -112,17 +128,17 @@ spec:
         - name: var-log-volume
           emptyDir: {}
         - name: home-volume
-          {{- if .Values.persistence.enabled | toString | eq "true" }}
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data-pvc
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        {{- if .Values.server.workingDir }}
-        - name: working-dir-volume
           emptyDir: {}
         {{- end }}
-      {{- end }}
+        {{- if .Values.persistence.enabled | toString | eq "true" }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data-pvc
+        {{- else }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+
       {{- if .Values.serviceAccount.imagePullSecrets }}
       imagePullSecrets:
         {{- range .Values.serviceAccount.imagePullSecrets }}

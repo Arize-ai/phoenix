@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 
 from typing_extensions import NotRequired
@@ -66,7 +67,7 @@ class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
     metadata: Mapping[str, Any]
-    created_at: str
+    created_at: datetime
 
 
 class DatasetWithExampleCount(TypedDict):
@@ -236,7 +237,7 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -247,7 +248,7 @@ class PromptDeepSeekInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptGoogleInvocationParametersContent(TypedDict):
@@ -268,7 +269,7 @@ class PromptOllamaInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptOpenAIInvocationParametersContent(TypedDict):
@@ -279,7 +280,7 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
@@ -337,7 +338,7 @@ class PromptXAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class SpanAnnotationResult(TypedDict):

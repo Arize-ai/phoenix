@@ -2,8 +2,6 @@ import { useMemo } from "react";
 import { useRouteError } from "react-router";
 import { css } from "@emotion/react";
 
-import { EmptyGraphic } from "@arizeai/components";
-
 import { Button, ExternalLink, Flex } from "@phoenix/components";
 
 export function ErrorElement() {
@@ -46,7 +44,6 @@ function NotFoundContent() {
   return (
     <>
       <Flex direction="column" width="100%" alignItems="center">
-        <EmptyGraphic graphicKey="not found" />
         <h1>Server disconnected</h1>
       </Flex>
       <p>
@@ -61,7 +58,6 @@ function ErrorContent({ error }: { error: unknown }) {
   return (
     <>
       <Flex direction="column" width="100%" alignItems="center">
-        <EmptyGraphic graphicKey="error" />
         <h1>Something went wrong</h1>
       </Flex>
       <p>

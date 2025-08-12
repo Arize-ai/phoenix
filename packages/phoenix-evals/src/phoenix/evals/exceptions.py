@@ -12,3 +12,7 @@ class PhoenixTemplateMappingError(PhoenixException):
 
 class PhoenixUnsupportedAudioFormat(PhoenixException):
     pass
+
+
+class PhoenixUnsupportedImageFormat(PhoenixException):
+    pass

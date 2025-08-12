@@ -1,12 +1,7 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Dialog,
-  DialogTrigger,
-  Modal,
-  ModalOverlay,
-} from "@phoenix/components";
+import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -42,28 +37,26 @@ export function DatasetHistoryDialog(props: DatasetHistoryDialogProps) {
     }
   );
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <ModalOverlay isDismissable>
-        <Modal>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Dataset History</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <div
-                css={css`
-                  height: 500px;
-                `}
-              >
-                <DatasetHistoryTable dataset={data.dataset} />
-              </div>
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Dataset History</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton slot="close" />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <div
+              css={css`
+                height: 500px;
+              `}
+            >
+              <DatasetHistoryTable dataset={data.dataset} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

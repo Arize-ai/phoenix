@@ -7,9 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
-
-import { Loading, View } from "@phoenix/components";
+import { Card, Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -94,33 +92,29 @@ function PlaygroundOutputMessage({
   const styles = useChatMessageStyles(role);
 
   return (
-    <Card
-      title={role}
-      {...styles}
-      variant="compact"
-      extra={<ConnectedMarkdownModeSelect />}
-      bodyStyle={{ padding: 0 }}
-    >
+    <Card title={role} {...styles} extra={<ConnectedMarkdownModeSelect />}>
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
-      <View
-        paddingX="size-200"
-        paddingY="size-200"
-        borderTopWidth="thin"
-        borderTopColor="blue-500"
-      >
-        {toolCalls && toolCalls.length > 0
-          ? toolCalls.map((toolCall) => {
-              return (
+
+      {toolCalls && toolCalls.length > 0
+        ? toolCalls.map((toolCall) => {
+            return (
+              <View
+                key={`tool-call-${getToolCallKey(toolCall)}`}
+                paddingX="size-200"
+                paddingY="size-200"
+                borderTopWidth="thin"
+                borderTopColor="blue-500"
+              >
                 <PlaygroundToolCall
                   key={getToolCallKey(toolCall)}
                   toolCall={toolCall}
                 />
-              );
-            })
-          : null}
-      </View>
+              </View>
+            );
+          })
+        : null}
     </Card>
   );
 }
@@ -444,10 +438,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           />
         ) : null
       }
-      titleSeparator
       collapsible
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
     >
       {loading ? (
         <View padding="size-200">

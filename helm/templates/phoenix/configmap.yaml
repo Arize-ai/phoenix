@@ -1,3 +1,6 @@
+{{- include "phoenix.validatePersistence" . }}
+{{- include "phoenix.validateExternalDatabase" . }}
+{{- include "phoenix.validateDatabaseUrl" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,12 +18,30 @@ data:
   PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
   
+  # OAuth2/OIDC Identity Provider Configuration
+  {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+  {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+  {{- $provider_upper := $provider_name | upper }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ID: {{ $provider_config.client_id | quote }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_OIDC_CONFIG_URL: {{ $provider_config.oidc_config_url | quote }}
+  {{- if $provider_config.display_name }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_DISPLAY_NAME: {{ $provider_config.display_name | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "allow_sign_up" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOW_SIGN_UP: {{ $provider_config.allow_sign_up | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "auto_login" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}
   PHOENIX_PORT: {{ .Values.server.port | quote }}
   PHOENIX_GRPC_PORT: {{ .Values.server.grpcPort | quote }}
   PHOENIX_HOST_ROOT_PATH: {{ .Values.server.hostRootPath | quote }}
-  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | quote }}
+  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | default "/data" | quote }}
   PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
   PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
@@ -33,6 +54,7 @@ data:
   PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
   PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
   PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
+  PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}
 
   # SMTP configuration
   PHOENIX_SMTP_HOSTNAME: {{ .Values.smtp.hostname | quote }}

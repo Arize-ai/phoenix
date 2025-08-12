@@ -318,6 +318,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/traces/{trace_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a trace by identifier
+         * @description Delete an entire trace by its identifier. The identifier can be either:
+         *     1. A Relay node ID (base64-encoded)
+         *     2. An OpenTelemetry trace_id (hex string)
+         *
+         *     This will permanently remove all spans in the trace and their associated data.
+         */
+        delete: operations["deleteTrace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_identifier}/spans/otlpv1": {
         parameters: {
             query?: never;
@@ -374,6 +398,38 @@ export interface paths {
         /** Create span annotations */
         post: operations["annotateSpans"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/spans/{span_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a span by span_identifier
+         * @description Delete a single span by identifier.
+         *
+         *             **Important**: This operation deletes ONLY the specified span itself and does NOT
+         *             delete its descendants/children. All child spans will remain in the trace and
+         *             become orphaned (their parent_id will point to a non-existent span).
+         *
+         *             Behavior:
+         *             - Deletes only the target span (preserves all descendant spans)
+         *             - If this was the last span in the trace, the trace record is also deleted
+         *             - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+         *               are subtracted from all ancestor spans in the chain
+         *
+         *             **Note**: This operation is irreversible and may create orphaned spans.
+         */
+        delete: operations["deleteSpan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1636,7 +1692,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -1685,7 +1741,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -1752,7 +1808,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
@@ -1783,7 +1839,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -1976,7 +2032,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** Span */
         Span: {
@@ -3459,6 +3515,54 @@ export interface operations {
             };
         };
     };
+    deleteTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     spanSearch: {
         parameters: {
             query?: {
@@ -3675,6 +3779,54 @@ export interface operations {
                 };
             };
             /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteSpan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                span_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3a183720811edcd307a513f3c3a37b1>>
+ * @generated SignedSource<<322e4e683c02e0da64be134eab714bd0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,12 +11,12 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentMultiSelector__data$data = {
-  readonly baselineExperiment?: {
+  readonly baseExperiment?: {
     readonly id?: string;
     readonly name?: string;
   };
   readonly dataset: {
-    readonly experiments?: {
+    readonly allExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
           readonly createdAt: string;
@@ -55,16 +55,17 @@ return {
   "argumentDefinitions": [
     {
       "kind": "RootArgument",
-      "name": "baselineExperimentId"
+      "name": "baseExperimentId"
     },
     {
-      "kind": "RootArgument",
+      "defaultValue": null,
+      "kind": "LocalArgument",
       "name": "datasetId"
     },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "hasBaselineExperimentId"
+      "name": "hasBaseExperiment"
     }
   ],
   "kind": "Fragment",
@@ -91,7 +92,7 @@ return {
           "selections": [
             (v1/*: any*/),
             {
-              "alias": null,
+              "alias": "allExperiments",
               "args": null,
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
@@ -147,17 +148,17 @@ return {
       "storageKey": null
     },
     {
-      "condition": "hasBaselineExperimentId",
+      "condition": "hasBaseExperiment",
       "kind": "Condition",
       "passingValue": true,
       "selections": [
         {
-          "alias": "baselineExperiment",
+          "alias": "baseExperiment",
           "args": [
             {
               "kind": "Variable",
               "name": "id",
-              "variableName": "baselineExperimentId"
+              "variableName": "baseExperimentId"
             }
           ],
           "concreteType": null,
@@ -185,6 +186,6 @@ return {
 };
 })();
 
-(node as any).hash = "0339567f8094904cd05e8fc4e8a5ef1a";
+(node as any).hash = "d5fa542c1b16d3225eabd1619e55f26b";
 
 export default node;

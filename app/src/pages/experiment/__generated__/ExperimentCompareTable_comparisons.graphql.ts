@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<86d55b2887f767c117e132723d0b3c68>>
+ * @generated SignedSource<<36aab213bb1e425b1b59e337e7c6a6c9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -161,7 +161,7 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "baselineExperimentId"
+      "name": "baseExperimentId"
     },
     {
       "defaultValue": null,
@@ -172,6 +172,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "datasetId"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "experimentIds"
     },
     {
       "defaultValue": null,
@@ -214,8 +219,8 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "baselineExperimentId",
-          "variableName": "baselineExperimentId"
+          "name": "baseExperimentId",
+          "variableName": "baseExperimentId"
         },
         {
           "kind": "Variable",
@@ -512,7 +517,13 @@ return {
           "selections": [
             {
               "alias": null,
-              "args": null,
+              "args": [
+                {
+                  "kind": "Variable",
+                  "name": "filterIds",
+                  "variableName": "experimentIds"
+                }
+              ],
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
               "name": "experiments",
@@ -622,6 +633,6 @@ return {
 };
 })();
 
-(node as any).hash = "1b1046fc73951ce93e4ee9e5f6e90490";
+(node as any).hash = "d94346bf96bd527ddb757879eded860a";
 
 export default node;
