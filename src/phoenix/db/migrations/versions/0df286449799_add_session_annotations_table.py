@@ -1,7 +1,7 @@
 """add session annotations table
 
 Revision ID: 0df286449799
-Revises: a20694b15f82
+Revises: 735d3d93c33e
 Create Date: 2025-08-06 11:27:01.479664
 
 """
@@ -16,7 +16,7 @@ from sqlalchemy.ext.compiler import compiles
 
 # revision identifiers, used by Alembic.
 revision: str = "0df286449799"
-down_revision: Union[str, None] = "a20694b15f82"
+down_revision: Union[str, None] = "735d3d93c33e"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
