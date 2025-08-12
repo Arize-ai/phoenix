@@ -38,7 +38,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       model,
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
       reference:
@@ -77,7 +77,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       choices: { yes: 0, no: 1 }, // Custom choices for custom template
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       output: "Arize Phoenix costs $1000 per month.",
       input: "How much does Arize Phoenix cost?",
       reference:
@@ -115,7 +115,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       choices: customChoices,
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       output: "Arize Phoenix is not open source.",
       input: "Is Arize Phoenix Open Source?",
       reference:
@@ -140,7 +140,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       // Note: we're not explicitly setting telemetry options here
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
       reference:
@@ -169,7 +169,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       telemetry: { isEnabled: false }, // Explicitly disable telemetry
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
       reference:
@@ -203,7 +203,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
       },
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       output: "Arize Phoenix is open source.",
       input: "Is Arize Phoenix Open Source?",
       reference:
@@ -238,7 +238,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const testOutput = "The capital of France is Paris.";
     const testReference = "Paris is the capital and largest city of France.";
 
-    await evaluator({
+    await evaluator.evaluate({
       output: testOutput,
       input: testInput,
       reference: testReference,

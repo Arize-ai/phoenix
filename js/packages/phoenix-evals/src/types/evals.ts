@@ -124,7 +124,7 @@ export interface Evaluator<ExampleType extends Record<string, unknown>> {
    * The direction to optimize the numeric evaluation score
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
    */
-  optimizationDirection: OptimizationDirection;
+  optimizationDirection?: OptimizationDirection;
   /**
    * The function that evaluates the example
    */
