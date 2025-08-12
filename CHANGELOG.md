@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.1...arize-phoenix-v11.22.0) (2025-08-12)
+
+
+### Features
+
+* **design:** add geist mono for values ([#9039](https://github.com/Arize-ai/phoenix/issues/9039)) ([df013a3](https://github.com/Arize-ai/phoenix/commit/df013a345beb6f9668ff382eb70343e842460345))
+
+
+### Bug Fixes
+
+* sanitize NaN/Inf values in ORM adapters for JsonDict/JsonList ([#9041](https://github.com/Arize-ai/phoenix/issues/9041)) ([4eeb8e9](https://github.com/Arize-ai/phoenix/commit/4eeb8e9ce68839a9f1f27fa67f488679bcd3f13b))
+
 ## [11.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.0...arize-phoenix-v11.21.1) (2025-08-11)
 
 
