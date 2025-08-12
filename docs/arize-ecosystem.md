@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Arize Ecosystem
 
 Arize offers two powerful paths for AI observability, evals and experimentation & improvement.
