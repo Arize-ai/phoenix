@@ -97,7 +97,7 @@ async def test_aimd_no_change_before_window_end() -> None:
 
 
 @pytest.mark.asyncio
-async def test_aimd_multiple_error_windows_floor_at_one() -> None:
+async def test_aimd_multiple_error_windows_fractional_then_floor_to_one() -> None:
     controller = ConcurrencyController(
         max_concurrency=10,
         initial_target=3,
@@ -108,17 +108,37 @@ async def test_aimd_multiple_error_windows_floor_at_one() -> None:
         smoothing_factor=0.2,
     )
 
-    # First error window
+    # First error window → 3 * 0.5 = 1.5
     controller.record_error()
     await asyncio.sleep(0.06)
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
-    # 3 -> floor(3*0.5)=1
-    assert controller.current_target == 1
+    assert controller.current_target == 1.5
 
-    # Next error window should keep it at 1
+    # Second error window → 1.5 * 0.5 = 0.75 ⇒ clamped to 1.0
     controller.record_error()
     await asyncio.sleep(0.06)
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
-    assert controller.current_target == 1
+    assert controller.current_target == 1.0
+
+
+@pytest.mark.asyncio
+async def test_collapse_on_burst_errors_within_window() -> None:
+    controller = ConcurrencyController(
+        max_concurrency=10,
+        initial_target=6,
+        window_seconds=1.0,
+        increase_step=1,
+        decrease_ratio=0.5,
+        inactive_check_interval=0.01,
+        smoothing_factor=0.2,
+        collapse_window_seconds=0.2,
+        collapse_error_threshold=2,
+    )
+
+    # Two errors quickly within collapse window should immediately set target to 1.0
+    controller.record_error()
+    controller.record_error()
+    # No need to wait for window end; collapse is immediate on threshold
+    assert controller.current_target == 1.0
