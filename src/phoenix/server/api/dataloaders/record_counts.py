@@ -131,7 +131,7 @@ def _get_stmt(
 
         # Apply session filter to stmt - use segment_project_id for correct project scoping
         if not project_rowids:
-            return select().where(literal(False))  # Return empty result for empty project_rowids
+            return select(pid, literal(0).label("count")).where(literal(False))
         # When session_filter is present, segment_project_id contains the correct project ID
         project_id_for_session = (
             segment_project_id if segment_project_id is not None else next(iter(project_rowids))

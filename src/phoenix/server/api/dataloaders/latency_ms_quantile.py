@@ -144,12 +144,10 @@ async def _get_results(
             stmt = sf(stmt)
     else:
         assert_never(kind)
-    if session_filter:
+    if session_filter and params:
         from phoenix.server.api.types.Project import apply_session_io_filter
 
         # Apply session filter to stmt - use segment_project_id for correct project scoping
-        if not params:
-            return  # No results for empty params
         # When session_filter is present, segment_project_id contains the correct project ID
         project_id_for_session = (
             segment_project_id if segment_project_id is not None else next(iter(params.keys()))[0]

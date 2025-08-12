@@ -134,7 +134,15 @@ def _get_stmt(
         from phoenix.server.api.types.Project import apply_session_io_filter
 
         if not params:
-            return select().where(literal(False))  # Return empty result for empty params
+            return select(
+                literal(0).label("project_rowid"),
+                literal(0.0).label("prompt_cost"),
+                literal(0.0).label("completion_cost"),
+                literal(0.0).label("total_cost"),
+                literal(0).label("prompt_tokens"),
+                literal(0).label("completion_tokens"),
+                literal(0).label("total_tokens"),
+            ).where(literal(False))
 
         # When session_filter is present, segment_project_id contains the correct project ID
         project_id_for_session = (
