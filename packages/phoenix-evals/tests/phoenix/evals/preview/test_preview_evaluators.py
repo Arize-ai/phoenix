@@ -3,6 +3,7 @@ from contextlib import nullcontext as does_not_raise
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from phoenix.evals.preview.evaluators import (
@@ -12,9 +13,10 @@ from phoenix.evals.preview.evaluators import (
     Score,
     _validate_field_value,
     create_classifier,
+    evaluate_dataframe,
+    evaluator_function,
     list_evaluators,
     remap_eval_input,
-    simple_evaluator,
     to_thread,
 )
 from phoenix.evals.preview.llm import LLM, AsyncLLM
@@ -461,13 +463,13 @@ class TestEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_batch_evaluate(self):
+    def test_evaluator_evaluate_batch(self):
         """Test batch evaluation."""
         evaluator = self.MockEvaluator(
             name="test_evaluator", source="llm", required_fields={"input"}
         )
 
-        results = evaluator.batch_evaluate([{"input": "test1"}, {"input": "test2"}])
+        results = evaluator.evaluate_batch([{"input": "test1"}, {"input": "test2"}])
 
         assert len(results) == 2
         assert len(results[0]) == 1
@@ -486,17 +488,211 @@ class TestEvaluator:
         assert result[0].name == "test_evaluator"
 
     @pytest.mark.asyncio
-    async def test_evaluator_abatch_evaluate(self):
+    async def test_evaluator_aevaluate_batch(self):
         """Test async batch evaluation."""
         evaluator = self.MockEvaluator(
             name="test_evaluator", source="llm", required_fields={"input"}
         )
 
-        results = await evaluator.abatch_evaluate([{"input": "test1"}, {"input": "test2"}])
+        results = await evaluator.aevaluate_batch([{"input": "test1"}, {"input": "test2"}])
 
         assert len(results) == 2
         assert len(results[0]) == 1
         assert len(results[1]) == 1
+
+
+class TestEvaluatorDataFrame:
+    """Tests for evaluate_dataframe and aevaluate_dataframe."""
+
+    class SingleScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=1.0, label="ok", source=self.source)]
+
+    class MultiScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            # Produce two scores with different names
+            return [
+                Score(name=f"{self.name}_a", score=0.9, label="A", source=self.source),
+                Score(name=f"{self.name}_b", score=0.1, label="B", source=self.source),
+            ]
+
+    def test_evaluate_dataframe_single_score_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["x", "y"]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        # Adds property columns for the score
+        assert "quality_details" in out.columns
+        assert "quality_score" in out.columns
+        assert "quality_label" in out.columns
+        # Cells contain dicts for details
+        assert isinstance(out.loc[0, "quality_details"], dict)
+
+    def test_evaluate_dataframe_with_mapping_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"user_text": ["x", "y"]})
+
+        out = evaluate_dataframe(
+            df, [evaluator], input_mappings={evaluator.name: {"text": "user_text"}}
+        )
+
+        assert "quality_details" in out.columns
+        assert isinstance(out.loc[1, "quality_details"], dict)
+
+    def test_evaluate_dataframe_error_creates_error_column(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        # Missing required column will trigger mapping error for each row
+        df = pd.DataFrame({"wrong": ["x", "y"]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        # Error column is present and contains error dicts
+        err_col = "quality_errors"
+        assert err_col in out.columns
+        assert isinstance(out.loc[0, err_col], dict)
+        assert out.loc[0, err_col]["name"] == "ERROR"
+        assert "metadata" in out.loc[0, err_col]
+        assert "exception_type" in out.loc[0, err_col]["metadata"]
+
+    def test_evaluate_dataframe_mixed_rows(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["ok", None]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        # Row 0 succeeds
+        assert isinstance(out.loc[0, "quality_details"], dict)
+        # Row 1 fails due to None (validation)
+        assert out.loc[1, "quality_details"] is None
+        assert "quality_errors" in out.columns
+        assert isinstance(out.loc[1, "quality_errors"], dict)
+
+    def test_evaluate_dataframe_multi_score_success_and_error(self):
+        evaluator = self.MultiScoreEvaluator(
+            name="multi", source="heuristic", required_fields={"text"}
+        )
+        # First row ok, second row None triggers validation error
+        df = pd.DataFrame({"text": ["ok", None]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        # Columns for each score name (details)
+        col_a = "multi_a_details"
+        col_b = "multi_b_details"
+        assert col_a in out.columns and col_b in out.columns
+
+        # Row 0 has both scores
+        assert isinstance(out.loc[0, col_a], dict)
+        assert isinstance(out.loc[0, col_b], dict)
+
+        # Row 1 errored: both score columns None
+        assert out.loc[1, col_a] is None
+        assert out.loc[1, col_b] is None
+        # Error column present with error Score
+        assert "multi_errors" in out.columns
+        assert isinstance(out.loc[1, "multi_errors"], dict)
+
+    @pytest.mark.asyncio
+    async def test_aevaluate_dataframe_single_score_success(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"text": ["x", "y"]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        assert "quality_details" in out.columns
+        assert isinstance(out.loc[0, "quality_details"], dict)
+
+    @pytest.mark.asyncio
+    async def test_aevaluate_dataframe_error_creates_error_column(self):
+        evaluator = self.SingleScoreEvaluator(
+            name="quality", source="heuristic", required_fields={"text"}
+        )
+        df = pd.DataFrame({"wrong": ["x"]})
+
+        out = evaluate_dataframe(df, [evaluator])
+
+        assert "quality_errors" in out.columns
+        assert isinstance(out.loc[0, "quality_errors"], dict)
+
+
+class TestStandaloneEvaluateDataFrame:
+    class SingleScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name="accuracy", score=0.9, label="good", explanation=None)]
+
+    class WithExplanationEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name="toxicity", score=None, label="low", explanation="ok")]
+
+    class MultiScoreEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [
+                Score(name="precision", score=0.7, label=None),
+                Score(name="recall", score=0.8, label=None),
+            ]
+
+    def test_standalone_basic_success(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"text": ["a", "b"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # Details always present for observed score names
+        assert "accuracy_details" in out.columns
+        # Score and label columns present due to non-None values
+        assert "accuracy_score" in out.columns
+        assert "accuracy_label" in out.columns
+        # Explanation absent because all None
+        assert "accuracy_explanation" not in out.columns
+        # No error column
+        assert not any(col.startswith("error_") for col in out.columns)
+
+    def test_standalone_with_mapping(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"user_text": ["a"]})
+
+        out = evaluate_dataframe(df, evaluators, input_mappings={"ev1": {"text": "user_text"}})
+
+        assert "accuracy_details" in out.columns
+        assert out.loc[0, "accuracy_score"] == 0.9
+
+    def test_standalone_error_column_on_failure(self):
+        evaluators = [self.SingleScoreEvaluator("ev1", "heuristic", {"text"})]
+        df = pd.DataFrame({"bad": ["x"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # No score columns (no observed score); but no crash; ensure error column exists
+        assert "ev1_errors" in out.columns
+        assert isinstance(out.loc[0, "ev1_errors"], dict)
+
+    def test_standalone_multi_score_and_explanation(self):
+        evaluators = [
+            self.MultiScoreEvaluator("metrics", "heuristic", {"text"}),
+            self.WithExplanationEvaluator("tox", "heuristic", {"text"}),
+        ]
+        df = pd.DataFrame({"text": ["a", "b"]})
+
+        out = evaluate_dataframe(df, evaluators)
+
+        # Multi score
+        assert "precision_details" in out.columns and "recall_details" in out.columns
+        assert "precision_score" in out.columns and "recall_score" in out.columns
+        # Explanation columns should be included for toxicity
+        assert "toxicity_details" in out.columns
+        assert "toxicity_label" in out.columns
+        assert "toxicity_explanation" in out.columns
 
 
 class TestLLMEvaluator:
@@ -701,9 +897,9 @@ class TestRegistryAndDecorator:
             _registry.update(original_registry)
 
     def test_simple_evaluator_decorator(self):
-        """Test simple_evaluator decorator."""
+        """Test evaluator_function decorator."""
 
-        @simple_evaluator("test_evaluator", "heuristic", "maximize")
+        @evaluator_function("test_evaluator", "heuristic", "maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, explanation="test")
 
@@ -714,9 +910,9 @@ class TestRegistryAndDecorator:
         assert result[0].name == "test_evaluator"
 
     def test_simple_evaluator_with_mapping(self):
-        """Test simple_evaluator with input mapping."""
+        """Test evaluator_function with input mapping."""
 
-        @simple_evaluator("test_evaluator", "heuristic")
+        @evaluator_function("test_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 
@@ -726,9 +922,9 @@ class TestRegistryAndDecorator:
         assert result[0].name == "test_evaluator"
 
     def test_simple_evaluator_registration(self):
-        """Test that simple_evaluator registers the function."""
+        """Test that evaluator_function registers the function."""
 
-        @simple_evaluator("registered_evaluator", "heuristic")
+        @evaluator_function("registered_evaluator", "heuristic")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8)
 
