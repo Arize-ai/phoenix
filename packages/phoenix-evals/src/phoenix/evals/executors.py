@@ -5,6 +5,7 @@ import logging
 import signal
 import threading
 import time
+from collections import deque
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
@@ -90,28 +91,34 @@ class ConcurrencyController:
         max_concurrency: int,
         initial_target: int,
         window_seconds: float = 5,
-        increase_step: int = 1,
+        increase_step: float = 0.5,
         decrease_ratio: float = 0.5,
         inactive_check_interval: float = 1.0,
         smoothing_factor: float = 0.2,
+        collapse_window_seconds: float = 30.0,
+        collapse_error_threshold: int = 2,
     ) -> None:
         self._max_concurrency = max(1, int(max_concurrency))
-        self._current_target = max(1, min(self._max_concurrency, int(initial_target)))
+        self._current_target = max(1.0, min(float(self._max_concurrency), float(initial_target)))
         self._window_seconds = float(window_seconds)
-        self._increase_step = max(1, int(increase_step))
+        self._increase_step = float(increase_step)
         self._decrease_ratio = float(decrease_ratio)
         self._smoothing_factor = smoothing_factor
+        self._collapse_window_seconds = float(collapse_window_seconds)
+        self._collapse_error_threshold = max(1, int(collapse_error_threshold))
 
         self._window_started_at = time.time()
         self._success_count = 0
         self._timeout_count = 0
         self._error_count = 0
         self._smoothed_latency_seconds: Optional[float] = None
+        # Track only the most recent N error timestamps; bounded by threshold
+        self._error_timestamps: deque[float] = deque(maxlen=self._collapse_error_threshold)
 
         self.inactive_check_interval = max(0.1, float(inactive_check_interval))
 
     @property
-    def current_target(self) -> int:
+    def current_target(self) -> float:
         return self._current_target
 
     def _feedback_window_finished(self) -> bool:
@@ -122,11 +129,11 @@ class ConcurrencyController:
         now = time.time()
         had_issue = (self._timeout_count + self._error_count) > 0
         if had_issue:
-            new_target = max(1, int(self._current_target * self._decrease_ratio))
-            self._current_target = max(1, min(self._max_concurrency, new_target))
+            new_target = max(1.0, float(self._current_target) * self._decrease_ratio)
+            self._current_target = max(1.0, min(float(self._max_concurrency), new_target))
         else:
             self._current_target = min(
-                self._max_concurrency, self._current_target + self._increase_step
+                float(self._max_concurrency), self._current_target + self._increase_step
             )
         self._window_started_at = now
         self._success_count = 0
@@ -150,7 +157,14 @@ class ConcurrencyController:
             self._update_concurrency_target()
 
     def record_error(self) -> None:
+        now = time.time()
         self._error_count += 1
+        self._error_timestamps.append(now)
+        if (
+            len(self._error_timestamps) >= self._collapse_error_threshold
+            and (now - self._error_timestamps[0]) <= self._collapse_window_seconds
+        ):
+            self._current_target = 1.0
         if self._feedback_window_finished():
             self._update_concurrency_target()
 
@@ -221,6 +235,7 @@ class AsyncExecutor(Executor):
                 increase_step=dynamic_increase_step,
                 decrease_ratio=dynamic_decrease_ratio,
                 inactive_check_interval=dynamic_inactive_check_interval,
+                collapse_window_seconds=30.0,
             )
 
     async def producer(
