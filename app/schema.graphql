@@ -451,12 +451,12 @@ input CreateProjectInput {
 input CreateProjectSessionAnnotationInput {
   projectSessionId: ID!
   name: String!
-  annotatorKind: AnnotatorKind!
+  annotatorKind: AnnotatorKind! = HUMAN
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  source: AnnotationSource!
+  source: AnnotationSource! = APP
   identifier: String
 }
 
@@ -2887,7 +2887,6 @@ input UpdateAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  identifier: String! = ""
   source: AnnotationSource! = APP
 }
 

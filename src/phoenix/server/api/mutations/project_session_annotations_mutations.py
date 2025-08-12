@@ -112,7 +112,6 @@ class ProjectSessionAnnotationMutationMixin:
             anno.explanation = input.explanation
             anno.annotator_kind = input.annotator_kind.value
             anno.metadata_ = input.metadata
-            anno.identifier = input.identifier
             anno.source = input.source.value
 
             session.add(anno)
