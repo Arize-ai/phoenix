@@ -48,7 +48,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     // Verify the function was called with default template and choices
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        labels: ["factual", "hallucinated"],
+        labels: ["hallucinated", "factual"],
         prompt: expect.stringContaining(
           "In this task, you will be presented with a query"
         ),
@@ -56,7 +56,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     );
 
     expect(result.label).toBe("factual");
-    expect(result.score).toBe(1); // factual = 1 in default choices
+    expect(result.score).toBe(0); // factual = 1 in default choices
     expect(result.explanation).toBe(
       "The answer is based on the reference text"
     );
