@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.1.0
+
+### Minor Changes
+
+- f11969d: capture source and optimization direction
+
 ## 0.0.8
 
 ### Patch Changes
