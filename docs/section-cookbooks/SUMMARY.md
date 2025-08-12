@@ -3,6 +3,13 @@
 * [Featured Tutorials](README.md)
 * [Agent Cookbooks](agent-cookbooks.md)
 * [Agent Demos](agent-demos.md)
+* [Agent Workflow Patterns](agent-workflow-patterns/README.md)
+  * [AutoGen](agent-workflow-patterns/autogen.md)
+  * [CrewAI](agent-workflow-patterns/crewai.md)
+  * [Google GenAI SDK (Manual Orchestration)](agent-workflow-patterns/google-genai-sdk-manual-orchestration.md)
+  * [OpenAI Agents](agent-workflow-patterns/openai-agents.md)
+  * [LangGraph](agent-workflow-patterns/langgraph.md)
+  * [Smolagents](agent-workflow-patterns/smolagents.md)
 
 ## Tracing & Annotations
 
