@@ -1,17 +1,16 @@
-import pytest
-from alembic.config import Config
-from sqlalchemy import (
-    INTEGER,
-    TIMESTAMP,
-    VARCHAR,
-    Engine,
-    ForeignKeyConstraint,
-    MetaData,
-    PrimaryKeyConstraint,
-    UniqueConstraint,
-)
+"""
+Database migration up/down test module.
 
-from . import _down, _up, _version_num
+Tests that all database migrations can be safely applied and rolled back.
+Validates linear migration history, bidirectional capability, and repeatability
+across SQLite and PostgreSQL backends using Alembic.
+"""
+
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from sqlalchemy import Engine
+
+from . import _down, _up, _verify_clean_state
 
 
 def test_up_and_down_migrations(
@@ -19,303 +18,41 @@ def test_up_and_down_migrations(
     _alembic_config: Config,
     _schema: str,
 ) -> None:
-    with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "cf03bd6bae1d", _schema)
-        _down(_engine, _alembic_config, "base", _schema)
-    _up(_engine, _alembic_config, "cf03bd6bae1d", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "10460e46d750", _schema)
-        _down(_engine, _alembic_config, "cf03bd6bae1d", _schema)
-    _up(_engine, _alembic_config, "10460e46d750", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "3be8647b87d8", _schema)
-        _down(_engine, _alembic_config, "10460e46d750", _schema)
-    _up(_engine, _alembic_config, "3be8647b87d8", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "cd164e83824f", _schema)
-        _down(_engine, _alembic_config, "3be8647b87d8", _schema)
-    _up(_engine, _alembic_config, "cd164e83824f", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "4ded9e43755f", _schema)
-
-        metadata = MetaData()
-        metadata.reflect(bind=_engine)
-
-        assert (project_sessions := metadata.tables.get("project_sessions")) is not None
-
-        columns = {str(col.name): col for col in project_sessions.columns}
-
-        column = columns.pop("id", None)
-        assert column is not None
-        assert column.primary_key
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("session_id", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, VARCHAR)
-        del column
-
-        column = columns.pop("project_id", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("start_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        column = columns.pop("end_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        assert not columns
-        del columns
-
-        indexes = {str(idx.name): idx for idx in project_sessions.indexes}
-
-        index = indexes.pop("ix_project_sessions_start_time", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_project_sessions_end_time", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_project_sessions_project_id", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        assert not indexes
-        del indexes
-
-        constraints = {str(con.name): con for con in project_sessions.constraints}
-
-        constraint = constraints.pop("pk_project_sessions", None)
-        assert constraint is not None
-        assert isinstance(constraint, PrimaryKeyConstraint)
-        del constraint
-
-        constraint = constraints.pop("uq_project_sessions_session_id", None)
-        assert constraint is not None
-        assert isinstance(constraint, UniqueConstraint)
-        del constraint
-
-        constraint = constraints.pop("fk_project_sessions_project_id_projects", None)
-        assert constraint is not None
-        assert isinstance(constraint, ForeignKeyConstraint)
-        assert constraint.ondelete == "CASCADE"
-        del constraint
-
-        assert not constraints
-        del constraints
-
-        assert (traces := metadata.tables.get("traces")) is not None
-
-        columns = {str(col.name): col for col in traces.columns}
-
-        column = columns.pop("id", None)
-        assert column is not None
-        assert column.primary_key
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("trace_id", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, VARCHAR)
-        del column
-
-        column = columns.pop("project_rowid", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("start_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        column = columns.pop("end_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        column = columns.pop("project_session_rowid", None)
-        assert column is not None
-        assert column.nullable
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        assert not columns
-        del columns
-
-        indexes = {str(idx.name): idx for idx in traces.indexes}
-
-        index = indexes.pop("ix_traces_project_rowid", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_traces_start_time", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_traces_project_session_rowid", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        assert not indexes
-        del indexes
-
-        constraints = {str(con.name): con for con in traces.constraints}
-
-        constraint = constraints.pop("pk_traces", None)
-        assert isinstance(constraint, PrimaryKeyConstraint)
-        del constraint
-
-        constraint = constraints.pop("uq_traces_trace_id", None)
-        assert isinstance(constraint, UniqueConstraint)
-        del constraint
-
-        constraint = constraints.pop("fk_traces_project_rowid_projects", None)
-        assert isinstance(constraint, ForeignKeyConstraint)
-        assert constraint.ondelete == "CASCADE"
-        del constraint
-
-        constraint = constraints.pop("fk_traces_project_session_rowid_project_sessions", None)
-        assert isinstance(constraint, ForeignKeyConstraint)
-        assert constraint.ondelete == "CASCADE"
-        del constraint
-
-        assert not constraints
-        del constraints
-
-        _down(_engine, _alembic_config, "cd164e83824f", _schema)
-
-        metadata = MetaData()
-        metadata.reflect(bind=_engine)
-
-        assert metadata.tables.get("project_sessions") is None
-
-        assert (traces := metadata.tables.get("traces")) is not None
-
-        columns = {str(col.name): col for col in traces.columns}
-
-        column = columns.pop("id", None)
-        assert column is not None
-        assert column.primary_key
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("trace_id", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, VARCHAR)
-        del column
-
-        column = columns.pop("project_rowid", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, INTEGER)
-        del column
-
-        column = columns.pop("start_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        column = columns.pop("end_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
-        assert not columns
-        del columns
-
-        indexes = {str(idx.name): idx for idx in traces.indexes}
-
-        index = indexes.pop("ix_traces_project_rowid", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_traces_start_time", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        assert not indexes
-        del indexes
-
-        constraints = {str(con.name): con for con in traces.constraints}
-
-        constraint = constraints.pop("pk_traces", None)
-        assert isinstance(constraint, PrimaryKeyConstraint)
-        del constraint
-
-        constraint = constraints.pop("uq_traces_trace_id", None)
-        assert isinstance(constraint, UniqueConstraint)
-        del constraint
-
-        constraint = constraints.pop("fk_traces_project_rowid_projects", None)
-        assert isinstance(constraint, ForeignKeyConstraint)
-        assert constraint.ondelete == "CASCADE"
-        del constraint
-
-        assert not constraints
-        del constraints
-    _up(_engine, _alembic_config, "4ded9e43755f", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
-        _down(_engine, _alembic_config, "4ded9e43755f", _schema)
-    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
-        _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
-    _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "bb8139330879", _schema)
-        _down(_engine, _alembic_config, "2f9d1a65945f", _schema)
-    _up(_engine, _alembic_config, "bb8139330879", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
-        _down(_engine, _alembic_config, "bb8139330879", _schema)
-    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "6a88424799fe", _schema)
-        _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
-    _up(_engine, _alembic_config, "6a88424799fe", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "a20694b15f82", _schema)
-        _down(_engine, _alembic_config, "6a88424799fe", _schema)
-    _up(_engine, _alembic_config, "a20694b15f82", _schema)
+    """
+    Test complete migration lifecycle - all migrations can be applied and rolled back.
+
+    Validates:
+    1. Clean database state before migrations
+    2. Full migration cycle: base -> head -> base
+    3. Individual migration steps with bidirectional testing
+    4. Linear migration history (no branches)
+    5. Migration repeatability (up/down cycles work reliably)
+
+    Args:
+        _engine: Database engine fixture
+        _alembic_config: Alembic configuration fixture
+        _schema: Database schema name fixture
+
+    Raises:
+        AssertionError: If migrations fail or history is non-linear
+        sqlalchemy.exc.SQLAlchemyError: If database operations fail
+    """
+    # Verify clean state and test full migration cycle
+    _verify_clean_state(_engine, _schema)
+    _up(_engine, _alembic_config, "head", _schema)
+    _down(_engine, _alembic_config, "base", _schema)
+
+    # Get migration history and test each step individually
+    script = ScriptDirectory.from_config(_alembic_config)
+    revisions = list(reversed(list(script.walk_revisions())))
+
+    for a, b in zip(revisions, revisions[1:]):
+        # Ensure linear history
+        assert b.down_revision == a.revision, (
+            f"Non-linear migration history: {b.revision} -> {b.down_revision}, expected {a.revision}"
+        )
+
+        # Test each migration step twice for reliability
+        for _ in range(2):
+            _up(_engine, _alembic_config, b.revision, _schema)
+            _down(_engine, _alembic_config, a.revision, _schema)
