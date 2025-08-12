@@ -34,8 +34,8 @@ export function HorizontalBarChart({ bars }: HorizontalBarChartProps) {
           key={index}
           css={css`
             background-color: ${bar.color};
-            height: 0.6rem;
-            border-radius: 0 2px 2px 0;
+            height: 0.3rem;
+            border-radius: 2px;
             width: ${barLengths[index]}%;
           `}
         />

@@ -45,6 +45,7 @@ import {
   ModalOverlay,
   Popover,
   Text,
+  Token,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
@@ -371,6 +372,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           const experiment = experimentInfoById[experimentId];
           const name = experiment?.name;
           const metadata = experiment?.metadata;
+          const isBaseExperiment = experimentId === baseExperimentId;
           const projectId = experiment?.project?.id;
           const experimentColor =
             experimentIndex === 0
@@ -384,18 +386,23 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <Flex direction="row" gap="size-130" wrap alignItems="center">
-                <ColorSwatch color={experimentColor} />
-                <Text
-                  css={css`
-                    max-width: var(--ac-global-dimension-size-2000);
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                  `}
-                >
-                  {name}
-                </Text>
-                {experiment && <ExperimentMetadata experiment={experiment} />}
+              <Flex direction="column" gap="size-50">
+                <Flex direction="row" gap="size-100" wrap alignItems="center">
+                  <ColorSwatch color={experimentColor} shape="circle" />
+                  <Text
+                    css={css`
+                      max-width: var(--ac-global-dimension-size-2000);
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                    `}
+                  >
+                    {name}
+                  </Text>
+                  {isBaseExperiment && <Token size="S">base</Token>}
+                </Flex>
+                <div>
+                  {experiment && <ExperimentMetadata experiment={experiment} />}
+                </div>
               </Flex>
               <Flex
                 direction="row"
@@ -883,7 +890,8 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
       ? null
       : tokenCountTotal / runCount;
   return (
-    <Flex direction="row" gap="size-100">
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <Text size="S">avg:</Text>
       {averageRunLatencyMs != null && (
         <LatencyText size="S" latencyMs={averageRunLatencyMs} />
       )}

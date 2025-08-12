@@ -66,11 +66,14 @@ export function SelectedCompareExperiments({
       {compareExperiments.map((experiment, experimentIndex) => (
         <Flex
           direction="row"
-          gap="size-130"
+          gap="size-100"
           key={experiment.id}
           alignItems="center"
         >
-          <ColorSwatch color={getExperimentColor(experimentIndex)} />
+          <ColorSwatch
+            color={getExperimentColor(experimentIndex)}
+            shape="circle"
+          />
           <Text
             css={css`
               white-space: nowrap;

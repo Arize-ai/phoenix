@@ -30,13 +30,13 @@ import type {
 } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
+const thumbIconCSS = css`
+  font-size: var(--ac-global-text-font-size-l);
+`;
+
 const metricCardCSS = css`
   padding: var(--ac-global-dimension-size-200);
-  border: 1px solid var(--ac-global-color-grey-400);
-  background-color: var(--ac-global-color-grey-100);
-  box-shadow:
-    0 0 1px 0px var(--ac-global-color-grey-400) inset,
-    0 0 1px 0px var(--ac-global-color-grey-400);
+  border: 1px solid var(--ac-global-color-grey-200);
   border-radius: var(--ac-global-rounding-medium);
   transition: border-color 0.2s;
   display: flex;
@@ -98,23 +98,25 @@ function MetricCard({
             })),
           ]}
         />
-        <BaseExperimentMetric
-          value={baseExperimentValue}
-          formatter={formatter}
-        />
-        {compareExperiments.map((compareExperiment) => (
-          <CompareExperimentMetric
-            key={compareExperiment.experimentId}
-            value={compareExperiment.value}
+        <Flex direction="column">
+          <BaseExperimentMetric
+            value={baseExperimentValue}
             formatter={formatter}
-            baseExperimentValue={baseExperimentValue}
-            numIncreases={compareExperiment.numIncreases}
-            numDecreases={compareExperiment.numDecreases}
-            numEqual={compareExperiment.numEqual}
-            optimizationDirection={compareExperiment.optimizationDirection}
-            color={compareExperiment.color}
           />
-        ))}
+          {compareExperiments.map((compareExperiment) => (
+            <CompareExperimentMetric
+              key={compareExperiment.experimentId}
+              value={compareExperiment.value}
+              formatter={formatter}
+              baseExperimentValue={baseExperimentValue}
+              numIncreases={compareExperiment.numIncreases}
+              numDecreases={compareExperiment.numDecreases}
+              numEqual={compareExperiment.numEqual}
+              optimizationDirection={compareExperiment.optimizationDirection}
+              color={compareExperiment.color}
+            />
+          ))}
+        </Flex>
       </Flex>
     </div>
   );
@@ -484,6 +486,7 @@ export function ExperimentCompareMetricsPage() {
     <div
       css={css`
         overflow: auto;
+        min-width: 1280px;
       `}
     >
       <View padding="size-200">
@@ -638,9 +641,11 @@ function BaseExperimentMetric({
   const { baseExperimentColor } = useExperimentColors();
   const valueText = formatter(value);
   return (
-    <Flex direction="row" alignItems="center" gap="size-150">
-      <ColorSwatch color={baseExperimentColor} />
-      <Text size="L">{valueText}</Text>
+    <Flex direction="row" alignItems="center" gap="size-100">
+      <ColorSwatch color={baseExperimentColor} shape="circle" />
+      <Text size="M" fontFamily="mono" weight="heavy">
+        {valueText}
+      </Text>
     </Flex>
   );
 }
@@ -664,7 +669,7 @@ function CompareExperimentMetric({
   optimizationDirection: OptimizationDirection;
   color: string;
 }) {
-  const { valueText, deltaText, percentageDeltaText } = useMemo(() => {
+  const { valueText, percentageDeltaText } = useMemo(() => {
     const valueText = formatter(value);
     let deltaText: string | null = null;
     let percentageDeltaText: string | null = null;
@@ -689,22 +694,17 @@ function CompareExperimentMetric({
 
   return (
     <Flex direction="row" justifyContent="space-between">
-      <Flex direction="row" alignItems="center" gap="size-150">
-        <ColorSwatch color={color} />
-        <Flex direction="row" alignItems="center" gap="size-115">
-          <Text size="L">{valueText}</Text>
-          <Flex direction="row" alignItems="center" gap="size-75">
-            {deltaText && (
-              <Text color="text-500" size="M">
-                {deltaText}
-              </Text>
-            )}
-            {percentageDeltaText && (
-              <Text color="text-500" size="M">
-                {percentageDeltaText}
-              </Text>
-            )}
-          </Flex>
+      <Flex direction="row" alignItems="center" gap="size-100">
+        <ColorSwatch color={color} shape="circle" />
+        <Flex direction="row" alignItems="center" gap="size-50">
+          <Text size="M" fontFamily="mono">
+            {valueText}
+          </Text>
+          {percentageDeltaText && (
+            <Text color="text-500" size="S" fontFamily="mono">
+              {percentageDeltaText}
+            </Text>
+          )}
         </Flex>
       </Flex>
       <ChangeCounter
@@ -793,37 +793,28 @@ function ImprovementAndRegressionCounter({
   return (
     <TooltipTrigger isDisabled={disableTooltip} delay={200}>
       <TriggerWrap>
-        <Flex direction="row" gap="size-100">
+        <Flex direction="row" gap="size-100" alignItems="center">
           {numImprovements > 0 && (
             <Flex direction="row" gap="size-75" alignItems="center">
-              <Text size="M">{numImprovements}</Text>
+              <Text size="S" fontFamily="mono">
+                {numImprovements}
+              </Text>
               <Icon
                 svg={<Icons.ThumbsUpOutline />}
                 color="success"
-                css={css`
-                  svg {
-                    fill: none;
-                    width: 0.8em;
-                    height: 0.8em;
-                  }
-                `}
+                css={thumbIconCSS}
               />
             </Flex>
           )}
           {numRegressions > 0 && (
             <Flex direction="row" gap="size-75" alignItems="center">
-              <Text size="M">{numRegressions}</Text>
+              <Text size="S" fontFamily="mono">
+                {numRegressions}
+              </Text>
               <Icon
                 svg={<Icons.ThumbsDownOutline />}
                 color="danger"
-                css={css`
-                  padding-top: 0.4em;
-                  svg {
-                    fill: none;
-                    width: 0.8em;
-                    height: 0.8em;
-                  }
-                `}
+                css={thumbIconCSS}
               />
             </Flex>
           )}
@@ -874,7 +865,9 @@ function IncreaseAndDecreaseCounter({
         <Flex direction="row" gap="size-100">
           {numIncreases > 0 && (
             <Flex direction="row" gap="size-25" alignItems="center">
-              <Text size="M">{numIncreases}</Text>
+              <Text size="S" fontFamily="mono">
+                {numIncreases}
+              </Text>
               <Icon
                 svg={<Icons.ArrowDiagonalUpRightOutline />}
                 color="grey-500"
@@ -883,7 +876,9 @@ function IncreaseAndDecreaseCounter({
           )}
           {numDecreases > 0 && (
             <Flex direction="row" gap="size-25" alignItems="center">
-              <Text size="M">{numDecreases}</Text>
+              <Text size="S" fontFamily="mono">
+                {numDecreases}
+              </Text>
               <Icon
                 svg={<Icons.ArrowDiagonalDownRightOutline />}
                 color="grey-500"

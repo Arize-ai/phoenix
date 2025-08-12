@@ -114,7 +114,7 @@ export function ExperimentMultiSelector(props: {
             {data.baseExperiment != null ? (
               <Flex direction="row" gap="size-130" alignItems="center">
                 {data.baseExperiment.sequenceNumber && (
-                  <ColorSwatch color={baseExperimentColor} />
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
                 )}
                 <Text
                   css={css`
