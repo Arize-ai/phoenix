@@ -543,6 +543,7 @@ class TestExperimentsIntegration:
         assert "added_by_task" not in original_example["input"]
         assert "added_in_example_by_task" not in original_example.get("input", {})
 
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_run_experiment_evaluator_types(
         self,
         is_async: bool,
