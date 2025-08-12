@@ -2,7 +2,7 @@
 Database migration up/down test module.
 
 Tests that all database migrations can be safely applied and rolled back.
-Validates linear migration history, bidirectional capability, and idempotency
+Validates linear migration history, bidirectional capability, and repeatability
 across SQLite and PostgreSQL backends using Alembic.
 """
 
@@ -26,7 +26,7 @@ def test_up_and_down_migrations(
     2. Full migration cycle: base -> head -> base
     3. Individual migration steps with bidirectional testing
     4. Linear migration history (no branches)
-    5. Migration idempotency (repeated applications work)
+    5. Migration repeatability (up/down cycles work reliably)
 
     Args:
         _engine: Database engine fixture
@@ -52,7 +52,7 @@ def test_up_and_down_migrations(
             f"Non-linear migration history: {b.revision} -> {b.down_revision}, expected {a.revision}"
         )
 
-        # Test each migration step twice for idempotency
+        # Test each migration step twice for reliability
         for _ in range(2):
             _up(_engine, _alembic_config, b.revision, _schema)
             _down(_engine, _alembic_config, a.revision, _schema)
