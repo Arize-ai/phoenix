@@ -134,7 +134,7 @@ async def _get_results(
         if filter_condition:
             # For trace latency with span filter: include traces containing spans matching filter
             sf = SpanFilter(filter_condition)
-            stmt = sf(stmt.join(models.Span).distinct())
+            stmt = sf(stmt.join(models.Span)).distinct()
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)
         time_column = models.Span.start_time
