@@ -3,7 +3,6 @@ import inspect
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple, Union
 
 from typing_extensions import Mapping
@@ -510,68 +509,64 @@ def list_evaluators() -> List[str]:
     return list(_registry.keys())
 
 
-def simple_evaluator(
-    name: str, source: SourceType, direction: DirectionType = "maximize"
-) -> Callable[
-    [Callable[..., Score]], Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]
-]:
+def create_evaluator(
+    name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
+) -> Callable[[Callable[..., Score]], Evaluator]:
     """
-    Decorator to register a simple heuristic evaluator function.
+    Decorator that turns a simple function into an Evaluator instance.
+
     The decorated function should accept keyword args matching its required fields and return a
-    single Score.
-    The wrapper provides:
-      - automatic required_fields inference from function signature
-      - per-call input_mapping support
-      - registration under the given name (queryable via list_evaluators)
+    single Score. The returned object is an Evaluator with full support for evaluate/aevaluate,
+    evaluate_batch/aevaluate_batch, and direct callability.
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic).
+        source: The source of this evaluator (human, llm, or heuristic). Defaults to "heuristic".
         direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
         "maximize".
 
-    Note:
-        The decorated function should create Score objects. The name parameter is optional
-        since the decorator will set it automatically. The wrapper will also set the source.
+    Returns:
+        An Evaluator instance.
+
+    Notes:
+    The decorated function should return Score objects. The name parameter is optional
+        since the decorator will set it automatically.
+    Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
     """
 
-    def deco(
-        fn: Callable[..., Score],
-    ) -> Callable[[EvalInput, Optional[Mapping[str, str]]], List[Score]]:
+    def deco(fn: Callable[..., Score]) -> Evaluator:
         sig = inspect.signature(fn)
         required: Set[str] = set(sig.parameters.keys())
 
-        @wraps(fn)
-        def wrapper(
-            eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
-        ) -> List[Score]:
-            """
-            Evaluate by extracting required fields from eval_input and calling the original
-            function.
-            """
-            remapped_input = remap_eval_input(eval_input, required, input_mapping)
-
-            score = fn(**remapped_input)
-            # Create a new Score with the correct name and source if needed
-            if score.name != name or score.source != source:
-                score = Score(
-                    score=score.score,
+        class _FunctionEvaluator(Evaluator):
+            def __init__(self) -> None:
+                super().__init__(
                     name=name,
-                    label=score.label,
-                    explanation=score.explanation,
-                    metadata=score.metadata,
                     source=source,
+                    required_fields=required,
                     direction=direction,
                 )
-            return [score]
+                self._fn = fn
 
-        # Add attributes to the wrapper function
-        wrapper.required_fields = required  # type: ignore
-        wrapper.name = name  # type: ignore
-        wrapper.source = source  # type: ignore
-        wrapper.direction = direction  # type: ignore
-        _registry[name] = wrapper
-        return wrapper
+            def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                # eval_input is already remapped by Evaluator.evaluate(...)
+                score = self._fn(**eval_input)
+                if score.name != name or score.source != source or score.direction != direction:
+                    score = Score(
+                        score=score.score,
+                        name=name,
+                        label=score.label,
+                        explanation=score.explanation,
+                        metadata=score.metadata,
+                        source=source,
+                        direction=direction,
+                    )
+                return [score]
+
+        evaluator_instance = _FunctionEvaluator()
+        # Keep registry compatibility by storing a callable with expected signature
+        _registry[name] = evaluator_instance.evaluate
+        return evaluator_instance
 
     return deco
 

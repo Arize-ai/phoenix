@@ -9,8 +9,8 @@ from .evaluators import (
     Score,
     SourceType,
     create_classifier,
+    create_evaluator,
     list_evaluators,
-    simple_evaluator,
 )
 
 __all__ = [
@@ -23,7 +23,7 @@ __all__ = [
     "SourceType",
     "create_classifier",
     "list_evaluators",
-    "simple_evaluator",
+    "create_evaluator",
     "ERROR_SCORE",
     "metrics",
     "templating",
