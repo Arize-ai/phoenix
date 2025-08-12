@@ -1,0 +1,3314 @@
+{
+  "summary": {
+    "examples": 100,
+    "k": 200,
+    "show_top_k": 5,
+    "recall@1": 0.52,
+    "recall@3": 0.63,
+    "recall@5": 0.68,
+    "mrr": 0.5793,
+    "hit_rate@show_top_k": 0.68
+  },
+  "results": [
+    {
+      "query": "What should be the initial quantity of flour added to the bowl of the heavy duty mixer when combining with milk, yeast, and egg for the brioche recipe?",
+      "salient_fact": "1 cup of flour",
+      "target_id": "51546",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "51546",
+          "title": "brioche"
+        },
+        {
+          "id": "325571",
+          "title": "5 minute artisan bread"
+        },
+        {
+          "id": "239666",
+          "title": "italian vienna bread 2007"
+        },
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        },
+        {
+          "id": "534616",
+          "title": "faux laminated maple brioche rolls"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the boiling water be for this recipe?",
+      "salient_fact": "The boiling water should be at a temperature of 212°F.",
+      "target_id": "366250",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        },
+        {
+          "id": "319013",
+          "title": "makluba"
+        },
+        {
+          "id": "312733",
+          "title": "how to boiled eggs 101"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        },
+        {
+          "id": "344742",
+          "title": "cilantro lime leftover turkey stew"
+        }
+      ]
+    },
+    {
+      "query": "How long should the crêpe batter rest before using it?",
+      "salient_fact": "The crêpe batter should rest for at least 1 hour before using it.",
+      "target_id": "418779",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "365509",
+          "title": "tiramisu cake"
+        },
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        }
+      ]
+    },
+    {
+      "query": "At what temperature should the sweet kolaches be baked for optimal results?",
+      "salient_fact": "Bake the sweet kolaches at 375°F for 12-15 minutes until golden brown.",
+      "target_id": "39387",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "39387",
+          "title": "sweet kolache recipe"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        },
+        {
+          "id": "490085",
+          "title": "seitan roast with shitakes and leeks vegan"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for this recipe?",
+      "salient_fact": "preheat oven to 350 degrees f",
+      "target_id": "531516",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for preparing the fresh roasted pumpkin in the holiday pumpkin pie recipe?",
+      "salient_fact": "preheat oven to 375°F",
+      "target_id": "491289",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "394148",
+          "title": "my special roasted pumpkin bisque a fall tradition"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the classic pumpkin pie?",
+      "salient_fact": "Preheat the oven to 425°F.",
+      "target_id": "284729",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "292326",
+          "title": "step by step meringue"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the bananas foster cake recipe?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "365731",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "365731",
+          "title": "bananas foster cake"
+        },
+        {
+          "id": "472184",
+          "title": "7 day diet fat burning cabbage soup"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        }
+      ]
+    },
+    {
+      "query": "How long should the yeast dough rest before moving on to the next step?",
+      "salient_fact": "The yeast dough should rest in a warm place for about 1 hour until it doubles in size.",
+      "target_id": "47467",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "534616",
+          "title": "faux laminated maple brioche rolls"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "463117",
+          "title": "coffee cookie buns aka mexican coffee buns rotiboy copycat"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the vanilla cake?",
+      "salient_fact": "Preheat the oven to 180°C (350°F) for the vanilla cake.",
+      "target_id": "536747",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "350964",
+          "title": "yule log"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "528649",
+          "title": "jack o lantern cake"
+        }
+      ]
+    },
+    {
+      "query": "What is the recommended temperature for proofing the bagel dough?",
+      "salient_fact": "Proof the dough in a warm place, around 80-90°F, until doubled in size, about 1 hour.",
+      "target_id": "309135",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        }
+      ]
+    },
+    {
+      "query": "How long should the dough rise for in the first step of the recipe?",
+      "salient_fact": "Let the dough rise in a warm place until doubled in size, about 1 hour.",
+      "target_id": "510490",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "534616",
+          "title": "faux laminated maple brioche rolls"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        },
+        {
+          "id": "51546",
+          "title": "brioche"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when activating the quick-acting active dry yeast in this recipe?",
+      "salient_fact": "The water should be between 120°F and 130°F when activating the quick-acting active dry yeast.",
+      "target_id": "18411",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "18411",
+          "title": "spiral challah"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        }
+      ]
+    },
+    {
+      "query": "How much water should be put in the container to start the recipe?",
+      "salient_fact": "start by putting 700g water in a 6qt container with a lid",
+      "target_id": "436156",
+      "top_k": 200,
+      "hit_rank": 5,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.2,
+      "top5": [
+        {
+          "id": "521829",
+          "title": "short smoked salmon"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "386789",
+          "title": "kielbasa homemade kielbasa fresh polish sausage"
+        },
+        {
+          "id": "194768",
+          "title": "egyptian style stuffed cabbage leaves mashy crump"
+        },
+        {
+          "id": "436156",
+          "title": "magic bread box yeast bread all week with barely any work"
+        }
+      ]
+    },
+    {
+      "query": "What is the temperature of the water needed for the white bread variation?",
+      "salient_fact": "Use warm water (110-115°F) for the white bread variation.",
+      "target_id": "158120",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "413958",
+          "title": "very berry bread pudding"
+        },
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "196201",
+          "title": "zurie s overnight no knead bread"
+        }
+      ]
+    },
+    {
+      "query": "What is the recommended temperature for baking the Napoletana pizza dough?",
+      "salient_fact": "Bake the Napoletana pizza dough at 500°F.",
+      "target_id": "371543",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "371543",
+          "title": "peter reinhart s napoletana pizza dough recipe"
+        },
+        {
+          "id": "498847",
+          "title": "the greek pizza california pizza kitchen"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        }
+      ]
+    },
+    {
+      "query": "How much milk should be combined with the sugar and vanilla bean in the saucepan?",
+      "salient_fact": "1 1/2 cups of milk should be combined with the sugar and vanilla bean in the saucepan.",
+      "target_id": "303454",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "536747",
+          "title": "lemon pom pom cake"
+        },
+        {
+          "id": "531516",
+          "title": "peach cobbler ice cream cake"
+        },
+        {
+          "id": "321939",
+          "title": "the chocolate mousse cake that fell from heaven"
+        },
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the vegan chocolate cake?",
+      "salient_fact": "Preheat the oven to 350°F for baking the vegan chocolate cake.",
+      "target_id": "329485",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "329485",
+          "title": "vegan chocolate cake"
+        },
+        {
+          "id": "350964",
+          "title": "yule log"
+        },
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "321939",
+          "title": "the chocolate mousse cake that fell from heaven"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the Vampire's Kiss Cake?",
+      "salient_fact": "Preheat the oven to 325°F.",
+      "target_id": "537089",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "528649",
+          "title": "jack o lantern cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the base of the rosemary Christmas tree centerpiece?",
+      "salient_fact": "Preheat the oven to 350°F for making the base of the rosemary Christmas tree centerpiece.",
+      "target_id": "534552",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "534552",
+          "title": "rosemary christmas tree centerpiece"
+        },
+        {
+          "id": "488531",
+          "title": "roast chicken with root vegetables rosemary and garlic"
+        },
+        {
+          "id": "107441",
+          "title": "julia child cabbage stuffed with leftover turkey and sausage"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        },
+        {
+          "id": "366243",
+          "title": "baumtorte tree cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for this baked macaroni and cheese recipe?",
+      "salient_fact": "preheat the oven to 400°F",
+      "target_id": "379601",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "379601",
+          "title": "baked macaroni and cheese by mark bittman"
+        },
+        {
+          "id": "492692",
+          "title": "cinnamon roll with vanilla frosting"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        },
+        {
+          "id": "292326",
+          "title": "step by step meringue"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        }
+      ]
+    },
+    {
+      "query": "What are the specific seasonings to combine with flour and cornmeal in the large bowl?",
+      "salient_fact": "1 tsp garlic, 1/2 tsp Italian seasoning, basil, 1/2 tsp Creole seasoning, 1 tsp salt, 1/2 tsp pepper, and optional cayenne pepper",
+      "target_id": "102877",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "102877",
+          "title": "fried breaded veggies"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "454787",
+          "title": "best authentic mexican tamales ever"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "371543",
+          "title": "peter reinhart s napoletana pizza dough recipe"
+        }
+      ]
+    },
+    {
+      "query": "How much flour and water should be used to refresh the starter on day one of making sourdough wild yeast bread?",
+      "salient_fact": "you will need 2 / 3 cup flour and 2 / 3 cup bottled water",
+      "target_id": "376618",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "60861",
+          "title": "crusty italian loaf"
+        },
+        {
+          "id": "312865",
+          "title": "artisan italian bread"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "325571",
+          "title": "5 minute artisan bread"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the genoise in this recipe?",
+      "salient_fact": "Preheat the oven to 350 degrees F.",
+      "target_id": "65378",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        },
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the death by chocolate a la trellis dessert?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "356724",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "356724",
+          "title": "death by chocolate a la trellis"
+        },
+        {
+          "id": "51667",
+          "title": "individual baked alaska"
+        },
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "122055",
+          "title": "very healthy oatmeal rhubarb orange and ginger pudding"
+        }
+      ]
+    },
+    {
+      "query": "How long should the turkey roast for?",
+      "salient_fact": "Roast the turkey at 325°F for 3 to 3.5 hours or until the internal temperature reaches 180°F in the thigh and 170°F in the breast.",
+      "target_id": "142638",
+      "top_k": 200,
+      "hit_rank": 3,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.3333333333333333,
+      "top5": [
+        {
+          "id": "227572",
+          "title": "shirley s sausage stuffing"
+        },
+        {
+          "id": "333303",
+          "title": "ultimate brine for turkey"
+        },
+        {
+          "id": "142638",
+          "title": "roast turkey complete dinner"
+        },
+        {
+          "id": "146101",
+          "title": "lets talk turkey"
+        },
+        {
+          "id": "195886",
+          "title": "cajun deep fried turkey"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the chocolate caramel yule log?",
+      "salient_fact": "Preheat the oven to 375°F.",
+      "target_id": "525187",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "525187",
+          "title": "pielogen"
+        },
+        {
+          "id": "350964",
+          "title": "yule log"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the Thanksgiving Piecaken recipe?",
+      "salient_fact": "The oven should be preheated to 350°F.",
+      "target_id": "524744",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "107441",
+          "title": "julia child cabbage stuffed with leftover turkey and sausage"
+        },
+        {
+          "id": "490085",
+          "title": "seitan roast with shitakes and leeks vegan"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the New York style cheesecake on shortbread crust?",
+      "salient_fact": "Preheat the oven to 325°F.",
+      "target_id": "14561",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        },
+        {
+          "id": "446066",
+          "title": "pumpkin bourbon cheesecake with graham pecan crust creme"
+        },
+        {
+          "id": "107529",
+          "title": "white chocolate coconut cheesecake"
+        },
+        {
+          "id": "525187",
+          "title": "pielogen"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the sponge cake in the mango mousse cake recipe?",
+      "salient_fact": "preheat oven to 350°F",
+      "target_id": "108877",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "108877",
+          "title": "mango mousse cake"
+        },
+        {
+          "id": "156491",
+          "title": "godiva chocolate coffee almond mousse trifle"
+        },
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "33121",
+          "title": "triple layer chocolate mousse cake"
+        },
+        {
+          "id": "65363",
+          "title": "italian rum cake"
+        }
+      ]
+    },
+    {
+      "query": "How long should the donuts be fried for?",
+      "salient_fact": "Fry the donuts for about 1 minute on each side until golden brown.",
+      "target_id": "461562",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "461562",
+          "title": "donut shop donuts filling and icings glazes"
+        },
+        {
+          "id": "271524",
+          "title": "indian moghul chicken biryani"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "102877",
+          "title": "fried breaded veggies"
+        },
+        {
+          "id": "401126",
+          "title": "beef and potato tacos"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the gingerbread castle?",
+      "salient_fact": "Preheat the oven to 350°F for baking the gingerbread castle.",
+      "target_id": "529383",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the necco wafer gingerbread house from New England?",
+      "salient_fact": "Preheat the oven to 375°F for baking the necco wafer gingerbread house from New England.",
+      "target_id": "193445",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        },
+        {
+          "id": "251957",
+          "title": "new england style hot dog rolls buns for lobster rolls etc"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        }
+      ]
+    },
+    {
+      "query": "How should I blend the flour and salt in the food processor?",
+      "salient_fact": "Blend the flour and 1/2 tsp salt in the food processor.",
+      "target_id": "214024",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "312864",
+          "title": "how to make chapatis"
+        },
+        {
+          "id": "166227",
+          "title": "french croissant"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "440718",
+          "title": "jerusalem artichoke relish"
+        },
+        {
+          "id": "395716",
+          "title": "layered corn black bean and chorizo chowder"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when making Zurie's overnight no knead bread?",
+      "salient_fact": "The water should be lukewarm, around 100°F, when making Zurie's overnight no knead bread.",
+      "target_id": "196201",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "196201",
+          "title": "zurie s overnight no knead bread"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "227572",
+          "title": "shirley s sausage stuffing"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for this moussaka recipe?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "126431",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "126431",
+          "title": "authentic traditional moussaka"
+        },
+        {
+          "id": "448320",
+          "title": "moussaka meat or vegetarian"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the warm water be when placing the yeast in the large bowl?",
+      "salient_fact": "The warm water should be at a temperature of 110°F to 115°F when placing the yeast in the large bowl.",
+      "target_id": "266726",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "413958",
+          "title": "very berry bread pudding"
+        },
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        }
+      ]
+    },
+    {
+      "query": "How long should the pie pumpkins be baked for in order to soften them for the pumpkin pie recipe?",
+      "salient_fact": "Bake the pie pumpkins at 350°F for about 45-60 minutes until they are soft.",
+      "target_id": "337926",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "292326",
+          "title": "step by step meringue"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the vegetable oil be heated to for this recipe?",
+      "salient_fact": "Heat the vegetable oil to 350°F for this recipe.",
+      "target_id": "146101",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "528649",
+          "title": "jack o lantern cake"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "490085",
+          "title": "seitan roast with shitakes and leeks vegan"
+        },
+        {
+          "id": "163051",
+          "title": "copycat rankin irish fruit soda bread"
+        },
+        {
+          "id": "319013",
+          "title": "makluba"
+        }
+      ]
+    },
+    {
+      "query": "How long should the cake bake for?",
+      "salient_fact": "Bake the cake at 350°F for 25-30 minutes, or until a toothpick inserted into the center comes out clean.",
+      "target_id": "535288",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "365509",
+          "title": "tiramisu cake"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the devil's food cake in this recipe?",
+      "salient_fact": "preheat to 350 degrees f",
+      "target_id": "3934",
+      "top_k": 200,
+      "hit_rank": 3,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.3333333333333333,
+      "top5": [
+        {
+          "id": "350964",
+          "title": "yule log"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "3934",
+          "title": "chocolate espresso fudge cake"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        }
+      ]
+    },
+    {
+      "query": "How much warm water should be combined with the yeast and sugar in the first step of the recipe?",
+      "salient_fact": "1/4 cup of warm water",
+      "target_id": "251957",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        },
+        {
+          "id": "463117",
+          "title": "coffee cookie buns aka mexican coffee buns rotiboy copycat"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        }
+      ]
+    },
+    {
+      "query": "How long should the yeast be left in the 1/2 cup warm water?",
+      "salient_fact": "The recipe does not specify a specific duration for the yeast to be in the 1/2 cup warm water.",
+      "target_id": "220851",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "251957",
+          "title": "new england style hot dog rolls buns for lobster rolls etc"
+        },
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when activating the dry yeast?",
+      "salient_fact": "The water should be between 105°F to 115°F when activating the dry yeast.",
+      "target_id": "39387",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for this chocolate raspberry ruffle cake?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "156874",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        },
+        {
+          "id": "102953",
+          "title": "incredible yes incredible chocolate cake"
+        },
+        {
+          "id": "64948",
+          "title": "dobosh torte seven layer torte"
+        },
+        {
+          "id": "192468",
+          "title": "chocolate raspberry mousse truffle cake raspberry cassis sauce"
+        },
+        {
+          "id": "350964",
+          "title": "yule log"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the burekas?",
+      "salient_fact": "Preheat the oven to 375°F for baking the burekas.",
+      "target_id": "156025",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "156025",
+          "title": "burekas other spelling borekas"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the warm water be for this recipe?",
+      "salient_fact": "The warm water should be between 105°F and 115°F for activating the active dry yeast.",
+      "target_id": "510490",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "401126",
+          "title": "beef and potato tacos"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the surprise pi symbols?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "535290",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "107441",
+          "title": "julia child cabbage stuffed with leftover turkey and sausage"
+        }
+      ]
+    },
+    {
+      "query": "How long should the crepes cook on each side?",
+      "salient_fact": "Cook for 1 minute on the first side and 30 seconds on the other side.",
+      "target_id": "71506",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "71506",
+          "title": "shrimp crab crepes in wine cheese sauce"
+        },
+        {
+          "id": "225319",
+          "title": "galette de bretagne buckwheat crepes from brittany france"
+        },
+        {
+          "id": "487694",
+          "title": "stuffed vine leaves with cheese dressing rsc"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "319013",
+          "title": "makluba"
+        }
+      ]
+    },
+    {
+      "query": "What size container should I use for this recipe?",
+      "salient_fact": "start by putting 700g water in a 6qt container with a lid",
+      "target_id": "436156",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "436156",
+          "title": "magic bread box yeast bread all week with barely any work"
+        },
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        },
+        {
+          "id": "18414",
+          "title": "ed s chicago cocoa chili"
+        },
+        {
+          "id": "413958",
+          "title": "very berry bread pudding"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water and milk mixture be heated to for the white bread variation?",
+      "salient_fact": "Heat the water and milk mixture to 120-130°F.",
+      "target_id": "158120",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "413958",
+          "title": "very berry bread pudding"
+        },
+        {
+          "id": "158120",
+          "title": "easy yeast bread with variations"
+        },
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        },
+        {
+          "id": "225319",
+          "title": "galette de bretagne buckwheat crepes from brittany france"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when mixing the dough?",
+      "salient_fact": "The water should be between 55-65°F when mixing the dough.",
+      "target_id": "371543",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        },
+        {
+          "id": "251957",
+          "title": "new england style hot dog rolls buns for lobster rolls etc"
+        }
+      ]
+    },
+    {
+      "query": "What is the specific amount of flour to sift into the medium-sized bowl?",
+      "salient_fact": "Sift 1 cup of the flour into a medium sized bowl.",
+      "target_id": "164566",
+      "top_k": 200,
+      "hit_rank": 4,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.25,
+      "top5": [
+        {
+          "id": "122235",
+          "title": "multi grain bread gluten dairy and egg free"
+        },
+        {
+          "id": "122236",
+          "title": "raisin bread gluten free"
+        },
+        {
+          "id": "122237",
+          "title": "apricot and almond bread gluten dairy and egg free"
+        },
+        {
+          "id": "164566",
+          "title": "dee s hot cross buns"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature is recommended for cooking the chicken and potatoes in this recipe?",
+      "salient_fact": "The recommended temperature for cooking the chicken and potatoes in this recipe is 375°F.",
+      "target_id": "127357",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "127357",
+          "title": "my mother s chicken and potatoes with special touches"
+        },
+        {
+          "id": "319013",
+          "title": "makluba"
+        },
+        {
+          "id": "397321",
+          "title": "nacatamales any banana leaf wrapped central american tamales"
+        },
+        {
+          "id": "488655",
+          "title": "chicken empanadas colombia empanadas de pollo"
+        },
+        {
+          "id": "401126",
+          "title": "beef and potato tacos"
+        }
+      ]
+    },
+    {
+      "query": "How much garlic is required in the mixture for the fried breaded veggies?",
+      "salient_fact": "1 tsp of garlic is required in the mixture for the fried breaded veggies.",
+      "target_id": "102877",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "102877",
+          "title": "fried breaded veggies"
+        },
+        {
+          "id": "179233",
+          "title": "authentic chicken parmesan"
+        },
+        {
+          "id": "333303",
+          "title": "ultimate brine for turkey"
+        },
+        {
+          "id": "18414",
+          "title": "ed s chicago cocoa chili"
+        },
+        {
+          "id": "536360",
+          "title": "hamburger potpie with homemade crust"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to?",
+      "salient_fact": "preheat the oven to 375°F",
+      "target_id": "491177",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "386570",
+          "title": "real down home southern country biscuits and gravy"
+        }
+      ]
+    },
+    {
+      "query": "How much flour and water should be used to refresh the starter on day one of making the sourdough wild yeast bread?",
+      "salient_fact": "you will need 2 / 3 cup flour and 2 / 3 cup bottled water",
+      "target_id": "376618",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "60861",
+          "title": "crusty italian loaf"
+        },
+        {
+          "id": "312865",
+          "title": "artisan italian bread"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "325571",
+          "title": "5 minute artisan bread"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the genoise?",
+      "salient_fact": "Preheat the oven to 350 degrees f",
+      "target_id": "65378",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        },
+        {
+          "id": "325615",
+          "title": "hazelnut chocolate mocha torte"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        }
+      ]
+    },
+    {
+      "query": "How long should the Italian sponge cake bake for?",
+      "salient_fact": "Bake the Italian sponge cake at 350°F for 25-30 minutes.",
+      "target_id": "65363",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "65363",
+          "title": "italian rum cake"
+        },
+        {
+          "id": "312865",
+          "title": "artisan italian bread"
+        },
+        {
+          "id": "60861",
+          "title": "crusty italian loaf"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "365509",
+          "title": "tiramisu cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the chocolate macadamia nut crust?",
+      "salient_fact": "preheat to 350 degrees f",
+      "target_id": "107529",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "107529",
+          "title": "white chocolate coconut cheesecake"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "441844",
+          "title": "mayonnaise immersion blender"
+        }
+      ]
+    },
+    {
+      "query": "When making the cannoli cake, how long should the cake batter be baked for and at what temperature?",
+      "salient_fact": "Bake the cannoli cake batter at 350°F for 30-35 minutes.",
+      "target_id": "126279",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "365509",
+          "title": "tiramisu cake"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "302828",
+          "title": "cannoli shells and ricotta cream filling"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "64948",
+          "title": "dobosh torte seven layer torte"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the Thanksgiving Piecaken?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "524744",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "107441",
+          "title": "julia child cabbage stuffed with leftover turkey and sausage"
+        },
+        {
+          "id": "490085",
+          "title": "seitan roast with shitakes and leeks vegan"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "146101",
+          "title": "lets talk turkey"
+        }
+      ]
+    },
+    {
+      "query": "How long should the New York style cheesecake bake for in the oven?",
+      "salient_fact": "Bake the cheesecake in the preheated oven at 325°F for 1 hour and 15 minutes.",
+      "target_id": "14561",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "107529",
+          "title": "white chocolate coconut cheesecake"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        },
+        {
+          "id": "251957",
+          "title": "new england style hot dog rolls buns for lobster rolls etc"
+        },
+        {
+          "id": "525187",
+          "title": "pielogen"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the sponge cake in this recipe?",
+      "salient_fact": "preheat oven to 350°F",
+      "target_id": "108877",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "60861",
+          "title": "crusty italian loaf"
+        },
+        {
+          "id": "65363",
+          "title": "italian rum cake"
+        },
+        {
+          "id": "312865",
+          "title": "artisan italian bread"
+        },
+        {
+          "id": "350964",
+          "title": "yule log"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the chocolate cake be baked at?",
+      "salient_fact": "Bake the chocolate cake at 350°F.",
+      "target_id": "533590",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "64948",
+          "title": "dobosh torte seven layer torte"
+        },
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        }
+      ]
+    },
+    {
+      "query": "What is the specific temperature to bake the gingerbread castle?",
+      "salient_fact": "Bake the gingerbread castle at 350°F for 12-15 minutes.",
+      "target_id": "529383",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "122235",
+          "title": "multi grain bread gluten dairy and egg free"
+        },
+        {
+          "id": "122236",
+          "title": "raisin bread gluten free"
+        },
+        {
+          "id": "122237",
+          "title": "apricot and almond bread gluten dairy and egg free"
+        }
+      ]
+    },
+    {
+      "query": "What is the precise amount of salt to blend with the flour in the food processor?",
+      "salient_fact": "1/2 tsp salt",
+      "target_id": "214024",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "440718",
+          "title": "jerusalem artichoke relish"
+        },
+        {
+          "id": "329485",
+          "title": "vegan chocolate cake"
+        },
+        {
+          "id": "102953",
+          "title": "incredible yes incredible chocolate cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when preparing Zurie's overnight no knead bread?",
+      "salient_fact": "The water should be lukewarm, around 100°F, when preparing Zurie's overnight no knead bread.",
+      "target_id": "196201",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "196201",
+          "title": "zurie s overnight no knead bread"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "325571",
+          "title": "5 minute artisan bread"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        }
+      ]
+    },
+    {
+      "query": "How long should the pie pumpkins be baked for in order to prepare them for the pumpkin pie recipe?",
+      "salient_fact": "The pie pumpkins should be baked for about 1 hour in order to prepare them for the pumpkin pie recipe.",
+      "target_id": "337926",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "292326",
+          "title": "step by step meringue"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to and what size of springform pan should be used for this recipe?",
+      "salient_fact": "The oven should be preheated to 350°F and a 9-inch springform pan should be generously buttered for this recipe.",
+      "target_id": "336188",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "511611",
+          "title": "easy shortcut lasagna"
+        },
+        {
+          "id": "692",
+          "title": "cream puff paste"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        },
+        {
+          "id": "401126",
+          "title": "beef and potato tacos"
+        }
+      ]
+    },
+    {
+      "query": "How much warm water should the yeast be put in?",
+      "salient_fact": "1/2 cup",
+      "target_id": "220851",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "194768",
+          "title": "egyptian style stuffed cabbage leaves mashy crump"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        },
+        {
+          "id": "251957",
+          "title": "new england style hot dog rolls buns for lobster rolls etc"
+        }
+      ]
+    },
+    {
+      "query": "When baking the cakes, what is the recommended temperature and time for baking?",
+      "salient_fact": "Bake the cakes at 350°F for 25-30 minutes.",
+      "target_id": "536836",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "3934",
+          "title": "chocolate espresso fudge cake"
+        },
+        {
+          "id": "122236",
+          "title": "raisin bread gluten free"
+        },
+        {
+          "id": "122237",
+          "title": "apricot and almond bread gluten dairy and egg free"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for preparing the fresh roasted pumpkin in this recipe?",
+      "salient_fact": "Preheat oven to 375°F",
+      "target_id": "491289",
+      "top_k": 200,
+      "hit_rank": 4,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.25,
+      "top5": [
+        {
+          "id": "394148",
+          "title": "my special roasted pumpkin bisque a fall tradition"
+        },
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "528649",
+          "title": "jack o lantern cake"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for this cake?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "156874",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "269806",
+          "title": "danish pastry cinnamon rolls"
+        },
+        {
+          "id": "528649",
+          "title": "jack o lantern cake"
+        }
+      ]
+    },
+    {
+      "query": "How hot should the hot water be for this recipe?",
+      "salient_fact": "The hot water should be between 105°F and 110°F for this recipe.",
+      "target_id": "59676",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "463117",
+          "title": "coffee cookie buns aka mexican coffee buns rotiboy copycat"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "196201",
+          "title": "zurie s overnight no knead bread"
+        },
+        {
+          "id": "312733",
+          "title": "how to boiled eggs 101"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be for the pizza dough recipe?",
+      "salient_fact": "The water should be between 55°F and 65°F for the pizza dough recipe.",
+      "target_id": "371543",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "498847",
+          "title": "the greek pizza california pizza kitchen"
+        },
+        {
+          "id": "371543",
+          "title": "peter reinhart s napoletana pizza dough recipe"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the biscuits?",
+      "salient_fact": "Preheat the oven to 450°F for baking the biscuits.",
+      "target_id": "386570",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "386570",
+          "title": "real down home southern country biscuits and gravy"
+        },
+        {
+          "id": "406757",
+          "title": "savory cheese and herb biscuits"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "266726",
+          "title": "peanut butter and chocolate rolls"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the checkerboard cookies?",
+      "salient_fact": "The oven should be preheated to 350°F and the rack should be placed in the center of the oven.",
+      "target_id": "74227",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "74227",
+          "title": "checkerboard cookies"
+        },
+        {
+          "id": "389774",
+          "title": "chocolate pecan cookies better than publix bakery"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "533590",
+          "title": "hocus pocus cottage cake"
+        }
+      ]
+    },
+    {
+      "query": "How long should the burger seasoning be left on the meat before cooking?",
+      "salient_fact": "Let the burger seasoning sit on the meat for at least 1 hour before cooking.",
+      "target_id": "11869",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "11869",
+          "title": "mc donald s hamburgers and big mac sauce"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "263072",
+          "title": "turducken a chicken in a duck in a turkey"
+        },
+        {
+          "id": "386789",
+          "title": "kielbasa homemade kielbasa fresh polish sausage"
+        },
+        {
+          "id": "227572",
+          "title": "shirley s sausage stuffing"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to and for how long when making the Greek Pizza California Pizza Kitchen?",
+      "salient_fact": "Preheat the oven to 450°F and let the seasoned pizza stone heat up for at least 30 minutes.",
+      "target_id": "498847",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "498847",
+          "title": "the greek pizza california pizza kitchen"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "371543",
+          "title": "peter reinhart s napoletana pizza dough recipe"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oil be heated to for frying the donuts?",
+      "salient_fact": "Heat the oil to 375°F for frying the donuts.",
+      "target_id": "461562",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "461562",
+          "title": "donut shop donuts filling and icings glazes"
+        },
+        {
+          "id": "95667",
+          "title": "tamales de pollo chicken tamales"
+        },
+        {
+          "id": "319013",
+          "title": "makluba"
+        },
+        {
+          "id": "225319",
+          "title": "galette de bretagne buckwheat crepes from brittany france"
+        },
+        {
+          "id": "401126",
+          "title": "beef and potato tacos"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for baking the necco wafer gingerbread house?",
+      "salient_fact": "Preheat the oven to 375°F before baking the necco wafer gingerbread house.",
+      "target_id": "193445",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "533590",
+          "title": "hocus pocus cottage cake"
+        },
+        {
+          "id": "107529",
+          "title": "white chocolate coconut cheesecake"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        }
+      ]
+    },
+    {
+      "query": "How should the flour and salt be combined in the food processor?",
+      "salient_fact": "in a food processor, blend the flour and 1/2 tsp salt",
+      "target_id": "214024",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "440718",
+          "title": "jerusalem artichoke relish"
+        },
+        {
+          "id": "312864",
+          "title": "how to make chapatis"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "491289",
+          "title": "holiday pumpkin pie"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        }
+      ]
+    },
+    {
+      "query": "At what temperature should the mixture simmer until you need the thermometer?",
+      "salient_fact": "Simmer the mixture until it reaches 260°F on the thermometer.",
+      "target_id": "7351",
+      "top_k": 200,
+      "hit_rank": 5,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.2,
+      "top5": [
+        {
+          "id": "309744",
+          "title": "maple walnut fudge"
+        },
+        {
+          "id": "65378",
+          "title": "carioca"
+        },
+        {
+          "id": "446473",
+          "title": "meyer lemon and navel orange marmalade"
+        },
+        {
+          "id": "373670",
+          "title": "meyer lemon marmalade"
+        },
+        {
+          "id": "7351",
+          "title": "basic divinity"
+        }
+      ]
+    },
+    {
+      "query": "How long should the crust bake for?",
+      "salient_fact": "The crust should bake for 10 minutes at 350°F.",
+      "target_id": "328609",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        },
+        {
+          "id": "14561",
+          "title": "new york style cheesecake on shortbread crust"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the warm water be when placing it with the yeast and sugar?",
+      "salient_fact": "The water should be warm, but not too hot, ideally around 110°F to activate the yeast effectively.",
+      "target_id": "266726",
+      "top_k": 200,
+      "hit_rank": 5,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.2,
+      "top5": [
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "413958",
+          "title": "very berry bread pudding"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "266726",
+          "title": "peanut butter and chocolate rolls"
+        }
+      ]
+    },
+    {
+      "query": "How long should the pie pumpkins be baked for?",
+      "salient_fact": "The pie pumpkins should be baked for about 1 hour or until tender.",
+      "target_id": "337926",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "337926",
+          "title": "pumpkin pie made from a real pumpkin"
+        },
+        {
+          "id": "292326",
+          "title": "step by step meringue"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "284729",
+          "title": "classic pumpkin pie for expats"
+        },
+        {
+          "id": "525187",
+          "title": "pielogen"
+        }
+      ]
+    },
+    {
+      "query": "What is the initial amount of flour to be added to the bowl of the heavy duty mixer in the first step of the recipe?",
+      "salient_fact": "1 cup of flour",
+      "target_id": "51546",
+      "top_k": 200,
+      "hit_rank": 3,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.3333333333333333,
+      "top5": [
+        {
+          "id": "47467",
+          "title": "classic crumb buns"
+        },
+        {
+          "id": "325571",
+          "title": "5 minute artisan bread"
+        },
+        {
+          "id": "51546",
+          "title": "brioche"
+        },
+        {
+          "id": "7351",
+          "title": "basic divinity"
+        },
+        {
+          "id": "156874",
+          "title": "chocolate raspberry ruffle cake"
+        }
+      ]
+    },
+    {
+      "query": "How much warm water should be used to put the yeast in?",
+      "salient_fact": "1/2 cup warm water",
+      "target_id": "220851",
+      "top_k": 200,
+      "hit_rank": 3,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.3333333333333333,
+      "top5": [
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "196201",
+          "title": "zurie s overnight no knead bread"
+        },
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "194768",
+          "title": "egyptian style stuffed cabbage leaves mashy crump"
+        },
+        {
+          "id": "60861",
+          "title": "crusty italian loaf"
+        }
+      ]
+    },
+    {
+      "query": "What temperature and duration should the cakes be baked at?",
+      "salient_fact": "The cakes should be baked at 350°F for 25-30 minutes.",
+      "target_id": "536836",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "507192",
+          "title": "steak gorgonzola alfredo with reduced balsamic copycat olive ga"
+        },
+        {
+          "id": "207187",
+          "title": "the beefiest juiciest brisket what am the smokyokie method"
+        },
+        {
+          "id": "537089",
+          "title": "vampire s kiss cake"
+        },
+        {
+          "id": "524744",
+          "title": "thanksgiving piecaken"
+        },
+        {
+          "id": "64948",
+          "title": "dobosh torte seven layer torte"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water be when adding it to the bread machine for the mixer method?",
+      "salient_fact": "Add water at 80°F to 90°F when using the mixer method for this recipe.",
+      "target_id": "18411",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        },
+        {
+          "id": "18411",
+          "title": "spiral challah"
+        },
+        {
+          "id": "122236",
+          "title": "raisin bread gluten free"
+        },
+        {
+          "id": "122237",
+          "title": "apricot and almond bread gluten dairy and egg free"
+        },
+        {
+          "id": "122235",
+          "title": "multi grain bread gluten dairy and egg free"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the water and milk be when adding them to the dry ingredients for the white bread variation?",
+      "salient_fact": "Add water and milk at 120-130°F to the dry ingredients for the white bread variation.",
+      "target_id": "158120",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "158434",
+          "title": "texas rancher chicken n dumplings"
+        },
+        {
+          "id": "309135",
+          "title": "bagels 101 using a stand mixer"
+        },
+        {
+          "id": "164385",
+          "title": "homemade bagels"
+        },
+        {
+          "id": "18411",
+          "title": "spiral challah"
+        },
+        {
+          "id": "314409",
+          "title": "new england style buttermilk hot dog bun s lobster rolls"
+        }
+      ]
+    },
+    {
+      "query": "How much flour should be sifted into the medium sized bowl in the first step of the recipe?",
+      "salient_fact": "sift 1 cup of the flour into a medium sized bowl",
+      "target_id": "164566",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "164566",
+          "title": "dee s hot cross buns"
+        },
+        {
+          "id": "352020",
+          "title": "family reunion chicken and dumplings"
+        },
+        {
+          "id": "59676",
+          "title": "rustic boule"
+        },
+        {
+          "id": "492692",
+          "title": "cinnamon roll with vanilla frosting"
+        },
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        }
+      ]
+    },
+    {
+      "query": "How long should the chocolate sour cream cake bake for?",
+      "salient_fact": "Bake the chocolate sour cream cake at 350°F for 25-30 minutes.",
+      "target_id": "192468",
+      "top_k": 200,
+      "hit_rank": 2,
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "top5": [
+        {
+          "id": "102953",
+          "title": "incredible yes incredible chocolate cake"
+        },
+        {
+          "id": "192468",
+          "title": "chocolate raspberry mousse truffle cake raspberry cassis sauce"
+        },
+        {
+          "id": "365509",
+          "title": "tiramisu cake"
+        },
+        {
+          "id": "356724",
+          "title": "death by chocolate a la trellis"
+        },
+        {
+          "id": "64948",
+          "title": "dobosh torte seven layer torte"
+        }
+      ]
+    },
+    {
+      "query": "How much garlic should be combined with the flour and cornmeal mixture for the fried breaded veggies?",
+      "salient_fact": "1 tsp of garlic should be combined with the flour and cornmeal mixture for the fried breaded veggies.",
+      "target_id": "102877",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "102877",
+          "title": "fried breaded veggies"
+        },
+        {
+          "id": "179233",
+          "title": "authentic chicken parmesan"
+        },
+        {
+          "id": "61247",
+          "title": "swedish meatballs in sour cream sauce"
+        },
+        {
+          "id": "448320",
+          "title": "moussaka meat or vegetarian"
+        },
+        {
+          "id": "376618",
+          "title": "sourdough wild yeast bread"
+        }
+      ]
+    },
+    {
+      "query": "At what temperature should the oven be preheated for Chef Rebecca Rather's coconut cake?",
+      "salient_fact": "Preheat the oven to 350°F.",
+      "target_id": "282649",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "107529",
+          "title": "white chocolate coconut cheesecake"
+        },
+        {
+          "id": "120644",
+          "title": "true scottish shortbread"
+        },
+        {
+          "id": "336188",
+          "title": "junior s lemon coconut cheesecake"
+        },
+        {
+          "id": "536747",
+          "title": "lemon pom pom cake"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for the Greek Pizza California Pizza Kitchen recipe?",
+      "salient_fact": "preheat to 450°F",
+      "target_id": "498847",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "498847",
+          "title": "the greek pizza california pizza kitchen"
+        },
+        {
+          "id": "248174",
+          "title": "how to make pizza"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        },
+        {
+          "id": "371543",
+          "title": "peter reinhart s napoletana pizza dough recipe"
+        },
+        {
+          "id": "510384",
+          "title": "ciabatta a old italian bread"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for roasting the turkey?",
+      "salient_fact": "Preheat oven to 325°F.",
+      "target_id": "142638",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "142638",
+          "title": "roast turkey complete dinner"
+        },
+        {
+          "id": "227572",
+          "title": "shirley s sausage stuffing"
+        },
+        {
+          "id": "146101",
+          "title": "lets talk turkey"
+        },
+        {
+          "id": "263072",
+          "title": "turducken a chicken in a duck in a turkey"
+        },
+        {
+          "id": "333303",
+          "title": "ultimate brine for turkey"
+        }
+      ]
+    },
+    {
+      "query": "What temperature should the oven be preheated to for making the gingerbread castle?",
+      "salient_fact": "Preheat the oven to 350°F for making the gingerbread castle.",
+      "target_id": "529383",
+      "top_k": 200,
+      "hit_rank": 1,
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "top5": [
+        {
+          "id": "529383",
+          "title": "gingerbread castle"
+        },
+        {
+          "id": "193445",
+          "title": "necco wafer gingerbread house from new england"
+        },
+        {
+          "id": "534552",
+          "title": "rosemary christmas tree centerpiece"
+        },
+        {
+          "id": "313100",
+          "title": "butter croissants"
+        },
+        {
+          "id": "309834",
+          "title": "artisan boule bread"
+        }
+      ]
+    },
+    {
+      "query": "What specific amount of salt should be blended with the flour in the food processor?",
+      "salient_fact": "1/2 tsp salt",
+      "target_id": "214024",
+      "top_k": 200,
+      "hit_rank": null,
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "rr": 0.0,
+      "top5": [
+        {
+          "id": "220851",
+          "title": "jane s challah bread using food processor"
+        },
+        {
+          "id": "329485",
+          "title": "vegan chocolate cake"
+        },
+        {
+          "id": "33121",
+          "title": "triple layer chocolate mousse cake"
+        },
+        {
+          "id": "440718",
+          "title": "jerusalem artichoke relish"
+        },
+        {
+          "id": "102953",
+          "title": "incredible yes incredible chocolate cake"
+        }
+      ]
+    }
+  ]
+}
