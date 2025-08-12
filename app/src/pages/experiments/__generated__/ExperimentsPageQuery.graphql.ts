@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5565c7eec468a15dd9a9594a5bb65760>>
+ * @generated SignedSource<<9948664940cc8a06fe104b8fc7211460>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,19 +10,19 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type experimentsLoaderQuery$variables = {
-  id: string;
+export type ExperimentsPageQuery$variables = {
+  datasetId: string;
 };
-export type experimentsLoaderQuery$data = {
+export type ExperimentsPageQuery$data = {
   readonly dataset: {
     readonly experimentCount?: number;
     readonly id: string;
-    readonly " $fragmentSpreads": FragmentRefs<"ExperimentsPageFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ExperimentsTableFragment">;
   };
 };
-export type experimentsLoaderQuery = {
-  response: experimentsLoaderQuery$data;
-  variables: experimentsLoaderQuery$variables;
+export type ExperimentsPageQuery = {
+  response: ExperimentsPageQuery$data;
+  variables: ExperimentsPageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -30,14 +30,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "id"
+    "name": "datasetId"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "id"
+    "variableName": "datasetId"
   }
 ],
 v2 = {
@@ -96,7 +96,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "experimentsLoaderQuery",
+    "name": "ExperimentsPageQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -110,15 +110,15 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "ExperimentsPageFragment"
-              },
               (v3/*: any*/)
             ],
             "type": "Dataset",
             "abstractKey": null
+          },
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "ExperimentsTableFragment"
           }
         ],
         "storageKey": null
@@ -131,7 +131,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "experimentsLoaderQuery",
+    "name": "ExperimentsPageQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -146,6 +146,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -387,8 +388,7 @@ return {
                 "key": "ExperimentsTable_experiments",
                 "kind": "LinkedHandle",
                 "name": "experiments"
-              },
-              (v3/*: any*/)
+              }
             ],
             "type": "Dataset",
             "abstractKey": null
@@ -399,16 +399,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "624a134ceaa3922c906a595f7be5a2a5",
+    "cacheID": "24b93d4fc2fabcb21e5ce7290e6861ce",
     "id": null,
     "metadata": {},
-    "name": "experimentsLoaderQuery",
+    "name": "ExperimentsPageQuery",
     "operationKind": "query",
-    "text": "query experimentsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsPageFragment\n      experimentCount\n    }\n  }\n}\n\nfragment ExperimentsPageFragment on Dataset {\n  id\n  ...ExperimentsTableFragment\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "57f5cb0b9ae2a3ea1b3efcfd23008518";
+(node as any).hash = "72428d5b7cecc029f5f05ae1802abb9f";
 
 export default node;
