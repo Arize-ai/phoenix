@@ -111,30 +111,18 @@ class TestProjectSessionAnnotationMutations:
             ]
         }
         res_basic = await gql_client.execute(self.QUERY, create_basic_vars)
-        assert not res_basic.errors, f"1. create returned errors: {res_basic.errors}"
-        assert res_basic.data is not None, "1. create returned no data"
+        assert not res_basic.errors
+        assert res_basic.data is not None
         data_basic = res_basic.data["createProjectSessionAnnotations"]["projectSessionAnnotations"][
             0
         ]
         expected_basic = create_basic_vars["input"][0]
-        assert data_basic["name"] == expected_basic["name"], (
-            f"1. name mismatch: got={data_basic['name']} expected={expected_basic['name']}"
-        )
-        assert data_basic["label"] == expected_basic["label"], (
-            f"1. label mismatch: got={data_basic['label']} expected={expected_basic['label']}"
-        )
-        assert data_basic["score"] == expected_basic["score"], (
-            f"1. score mismatch: got={data_basic['score']} expected={expected_basic['score']}"
-        )
-        assert data_basic["explanation"] == expected_basic["explanation"], (
-            f"1. explanation mismatch: got={data_basic['explanation']} expected={expected_basic['explanation']}"
-        )
-        assert data_basic["identifier"] == "", (
-            f"1. identifier should be empty, got {data_basic['identifier']}"
-        )
-        assert isinstance(data_basic["id"], str), (
-            f"1. id should be a str, got type={type(data_basic['id'])}"
-        )
+        assert data_basic["name"] == expected_basic["name"]
+        assert data_basic["label"] == expected_basic["label"]
+        assert data_basic["score"] == expected_basic["score"]
+        assert data_basic["explanation"] == expected_basic["explanation"]
+        assert data_basic["identifier"] == ""
+        assert isinstance(data_basic["id"], str)
 
         # 1.1 Create with identifier omitted (UNSET) and source=APP → resolves to ""
         unset_identifier_vars: dict[str, Any] = {
@@ -153,22 +141,14 @@ class TestProjectSessionAnnotationMutations:
             ]
         }
         res_unset_id = await gql_client.execute(self.QUERY, unset_identifier_vars)
-        assert not res_unset_id.errors, (
-            f"1.1 unset identifier create returned errors: {res_unset_id.errors}"
-        )
-        assert res_unset_id.data is not None, "1.1 unset identifier create returned no data"
+        assert not res_unset_id.errors
+        assert res_unset_id.data is not None
         data_unset_id = res_unset_id.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ][0]
-        assert data_unset_id["identifier"] == "", (
-            f"1.1 identifier should resolve to empty for APP source, got {data_unset_id['identifier']}"
-        )
-        assert data_unset_id["name"] == "unset_identifier", (
-            f"1.1 name mismatch: got={data_unset_id['name']}"
-        )
-        assert data_unset_id["metadata"] == unset_identifier_vars["input"][0]["metadata"], (
-            "1.1 metadata did not round-trip"
-        )
+        assert data_unset_id["identifier"] == ""
+        assert data_unset_id["name"] == "unset_identifier"
+        assert data_unset_id["metadata"] == unset_identifier_vars["input"][0]["metadata"]
 
         # 2. Upsert with non-empty identifier (should update in-place)
         base_conflict_input = {
@@ -183,10 +163,8 @@ class TestProjectSessionAnnotationMutations:
             "source": "APP",
         }
         res_create_conflict = await gql_client.execute(self.QUERY, {"input": [base_conflict_input]})
-        assert not res_create_conflict.errors, (
-            f"2. initial create returned errors: {res_create_conflict.errors}"
-        )
-        assert res_create_conflict.data is not None, "2. initial create returned no data"
+        assert not res_create_conflict.errors
+        assert res_create_conflict.data is not None
         id_conflict_1 = res_create_conflict.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ][0]["id"]
@@ -198,23 +176,15 @@ class TestProjectSessionAnnotationMutations:
         res_update_conflict = await gql_client.execute(
             self.QUERY, {"input": [updated_conflict_input]}
         )
-        assert not res_update_conflict.errors, (
-            f"2. upsert update returned errors: {res_update_conflict.errors}"
-        )
-        assert res_update_conflict.data is not None, "2. upsert update returned no data"
+        assert not res_update_conflict.errors
+        assert res_update_conflict.data is not None
         ann_conflict_2 = res_update_conflict.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ][0]
-        assert ann_conflict_2["id"] == id_conflict_1, "2. upsert should keep the same id"
-        assert ann_conflict_2["label"] == "UPDATED_LABEL", (
-            f"2. label not updated: got={ann_conflict_2['label']}"
-        )
-        assert ann_conflict_2["score"] == 2.0, (
-            f"2. score not updated: got={ann_conflict_2['score']}"
-        )
-        assert ann_conflict_2["explanation"] == "Updated explanation", (
-            f"2. explanation not updated: got={ann_conflict_2['explanation']}"
-        )
+        assert ann_conflict_2["id"] == id_conflict_1
+        assert ann_conflict_2["label"] == "UPDATED_LABEL"
+        assert ann_conflict_2["score"] == 2.0
+        assert ann_conflict_2["explanation"] == "Updated explanation"
 
         # 3. Upsert with empty identifier (should update in-place for that identifier)
         base_empty_id_input = {
@@ -229,37 +199,27 @@ class TestProjectSessionAnnotationMutations:
             "source": "APP",
         }
         res_create_empty = await gql_client.execute(self.QUERY, {"input": [base_empty_id_input]})
-        assert not res_create_empty.errors, (
-            f"3. initial create (empty id) returned errors: {res_create_empty.errors}"
-        )
-        assert res_create_empty.data is not None, "3. initial create (empty id) returned no data"
+        assert not res_create_empty.errors
+        assert res_create_empty.data is not None
         id_empty_1 = res_create_empty.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ][0]["id"]
-        assert id_conflict_1 != id_empty_1, (
-            "3. same annotation name should allow distinct records when identifier differs"
-        )
+        assert id_conflict_1 != id_empty_1
 
         updated_empty_id_input = base_empty_id_input.copy()
         updated_empty_id_input.update(
             {"label": "UPDATED_LABEL", "score": 2.0, "explanation": "Updated explanation"}
         )
         res_update_empty = await gql_client.execute(self.QUERY, {"input": [updated_empty_id_input]})
-        assert not res_update_empty.errors, (
-            f"3. upsert update (empty id) returned errors: {res_update_empty.errors}"
-        )
-        assert res_update_empty.data is not None, "3. upsert update (empty id) returned no data"
+        assert not res_update_empty.errors
+        assert res_update_empty.data is not None
         ann_empty_2 = res_update_empty.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ][0]
-        assert ann_empty_2["id"] == id_empty_1, "3. upsert (empty id) should keep the same id"
-        assert ann_empty_2["label"] == "UPDATED_LABEL", (
-            f"3. label not updated: got={ann_empty_2['label']}"
-        )
-        assert ann_empty_2["score"] == 2.0, f"3. score not updated: got={ann_empty_2['score']}"
-        assert ann_empty_2["explanation"] == "Updated explanation", (
-            f"3. explanation not updated: got={ann_empty_2['explanation']}"
-        )
+        assert ann_empty_2["id"] == id_empty_1
+        assert ann_empty_2["label"] == "UPDATED_LABEL"
+        assert ann_empty_2["score"] == 2.0
+        assert ann_empty_2["explanation"] == "Updated explanation"
 
         # 4. Batch create 2 annotations and verify return order is preserved
         batch_inputs = [
@@ -287,20 +247,14 @@ class TestProjectSessionAnnotationMutations:
             },
         ]
         res_batch = await gql_client.execute(self.QUERY, {"input": batch_inputs})
-        assert not res_batch.errors, f"4. batch create returned errors: {res_batch.errors}"
-        assert res_batch.data is not None, "4. batch create returned no data"
+        assert not res_batch.errors
+        assert res_batch.data is not None
         returned_batch = res_batch.data["createProjectSessionAnnotations"][
             "projectSessionAnnotations"
         ]
-        assert [a["name"] for a in returned_batch] == [i["name"] for i in batch_inputs], (
-            "4. returned order does not match input order"
-        )
-        assert returned_batch[0]["metadata"] == {"m": 1}, (
-            f"4. metadata[0] mismatch: got={returned_batch[0]['metadata']}"
-        )
-        assert returned_batch[1]["metadata"] == {"n": 2}, (
-            f"4. metadata[1] mismatch: got={returned_batch[1]['metadata']}"
-        )
+        assert [a["name"] for a in returned_batch] == [i["name"] for i in batch_inputs]
+        assert returned_batch[0]["metadata"] == {"m": 1}
+        assert returned_batch[1]["metadata"] == {"n": 2}
 
         # 5. Clearing semantics - set nullable fields to null on upsert
         # Start by updating the initial basic annotation to known non-null values
@@ -322,9 +276,7 @@ class TestProjectSessionAnnotationMutations:
                 ]
             },
         )
-        assert not res_set_values.errors, (
-            f"5. set-values upsert returned errors: {res_set_values.errors}"
-        )
+        assert not res_set_values.errors
         # Now clear label and explanation by setting them to null (keep score to avoid clearing it)
         res_clear = await gql_client.execute(
             self.QUERY,
@@ -344,14 +296,12 @@ class TestProjectSessionAnnotationMutations:
                 ]
             },
         )
-        assert not res_clear.errors, f"5. clear upsert returned errors: {res_clear.errors}"
-        assert res_clear.data is not None, "5. clear upsert returned no data"
+        assert not res_clear.errors
+        assert res_clear.data is not None
         cleared = res_clear.data["createProjectSessionAnnotations"]["projectSessionAnnotations"][0]
-        assert cleared["label"] is None, f"5. label not cleared: got={cleared['label']}"
-        assert cleared["explanation"] is None, (
-            f"5. explanation not cleared: got={cleared['explanation']}"
-        )
-        assert cleared["score"] == 9.9, f"5. score unexpectedly changed: got={cleared['score']}"
+        assert cleared["label"] is None
+        assert cleared["explanation"] is None
+        assert cleared["score"] == 9.9
 
         # 6. Patch mutation - update name and metadata of an existing annotation
         # Use the previously created conflict annotation id
@@ -368,16 +318,12 @@ class TestProjectSessionAnnotationMutations:
             },
             operation_name="PatchProjectSessionAnnotations",
         )
-        assert not patch_res.errors, f"6. patch returned errors: {patch_res.errors}"
-        assert patch_res.data is not None, "6. patch returned no data"
+        assert not patch_res.errors
+        assert patch_res.data is not None
         patched = patch_res.data["patchProjectSessionAnnotations"]["projectSessionAnnotations"][0]
-        assert patched["id"] == ann_conflict_2["id"], "6. patch changed id unexpectedly"
-        assert patched["name"] == "conflict_test_renamed", (
-            f"6. patch did not update name: got={patched['name']}"
-        )
-        assert patched["metadata"] == {"patched": True}, (
-            f"6. patch did not update metadata: got={patched['metadata']}"
-        )
+        assert patched["id"] == ann_conflict_2["id"]
+        assert patched["name"] == "conflict_test_renamed"
+        assert patched["metadata"] == {"patched": True}
 
         # 7. Patch duplicate ids should error
         dup_patch_res = await gql_client.execute(
@@ -390,7 +336,7 @@ class TestProjectSessionAnnotationMutations:
             },
             operation_name="PatchProjectSessionAnnotations",
         )
-        assert dup_patch_res.errors, "7. duplicate patch ids should produce errors"
+        assert dup_patch_res.errors
 
         # 8. Delete mutation - delete two created batch annotations, ensure order preserved
         del_res = await gql_client.execute(
@@ -398,12 +344,10 @@ class TestProjectSessionAnnotationMutations:
             {"input": {"annotationIds": [returned_batch[1]["id"], returned_batch[0]["id"]]}},
             operation_name="DeleteProjectSessionAnnotations",
         )
-        assert not del_res.errors, f"8. delete returned errors: {del_res.errors}"
-        assert del_res.data is not None, "8. delete returned no data"
+        assert not del_res.errors
+        assert del_res.data is not None
         deleted = del_res.data["deleteProjectSessionAnnotations"]["projectSessionAnnotations"]
-        assert [d["id"] for d in deleted] == [returned_batch[1]["id"], returned_batch[0]["id"]], (
-            "8. delete did not preserve order"
-        )
+        assert [d["id"] for d in deleted] == [returned_batch[1]["id"], returned_batch[0]["id"]]
 
         # 8.1 Delete with duplicate ids should error
         dup_del_res = await gql_client.execute(
@@ -411,7 +355,7 @@ class TestProjectSessionAnnotationMutations:
             {"input": {"annotationIds": [patched["id"], patched["id"]]}},
             operation_name="DeleteProjectSessionAnnotations",
         )
-        assert dup_del_res.errors, "8.1 duplicate delete ids should produce errors"
+        assert dup_del_res.errors
 
         # 9. Create with invalid projectSessionId type should error (bad GID type)
         bad_gid_vars = {
@@ -432,7 +376,7 @@ class TestProjectSessionAnnotationMutations:
         bad_res = await gql_client.execute(
             self.QUERY, bad_gid_vars, operation_name="CreateProjectSessionAnnotations"
         )
-        assert bad_res.errors, "9. creating with wrong GID type should produce errors"
+        assert bad_res.errors
 
         # 9.1 Patch with wrong type GID should error
         wrong_type_patch = await gql_client.execute(
@@ -447,7 +391,7 @@ class TestProjectSessionAnnotationMutations:
             },
             operation_name="PatchProjectSessionAnnotations",
         )
-        assert wrong_type_patch.errors, "9.1 patch with wrong GID type should produce errors"
+        assert wrong_type_patch.errors
 
         # 9.2 Delete with missing id should error
         missing_id = str(GlobalID("ProjectSessionAnnotation", "999999"))
@@ -456,4 +400,4 @@ class TestProjectSessionAnnotationMutations:
             {"input": {"annotationIds": [missing_id]}},
             operation_name="DeleteProjectSessionAnnotations",
         )
-        assert missing_del_res.errors, "9.2 delete with missing id should produce errors"
+        assert missing_del_res.errors
