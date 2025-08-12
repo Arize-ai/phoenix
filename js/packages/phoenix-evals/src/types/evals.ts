@@ -80,8 +80,16 @@ export interface CreateClassifierArgs extends WithTelemetry {
 
 export interface CreateClassificationEvaluatorArgs
   extends CreateClassifierArgs {
+  /**
+   * The name of the metric that the evaluator produces
+   * E.x. "correctness"
+   */
   name: string;
-  optimizationDirection: OptimizationDirection;
+  /**
+   * If present, represents the direction in which you want the metric to be optimized
+   * E.x. "MAXIMIZE" means you want the number to be higher.
+   */
+  optimizationDirection?: OptimizationDirection;
 }
 
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
