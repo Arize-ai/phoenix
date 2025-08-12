@@ -21,11 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.execute(
         sa.text(
-            "CREATE INDEX ix_project_sessions_project_rowid_start_time "
+            "CREATE INDEX ix_project_sessions_project_id_start_time "
             "ON project_sessions (project_id, start_time DESC)"
         )
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_project_sessions_project_rowid_start_time", table_name="project_sessions")
+    op.drop_index("ix_project_sessions_project_id_start_time", table_name="project_sessions")
