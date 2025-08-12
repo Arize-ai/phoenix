@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { createClassifier } from "../../src/llm/createClassifier";
+import { createClassifierFn } from "../../src/llm/createClassifierFn";
 import { MockLanguageModelV2 } from "ai/test";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
 
@@ -56,7 +56,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
       }),
     });
 
-    const classifier = createClassifier({
+    const classifier = createClassifierFn({
       model: mockModel,
       choices: { factual: 1, hallucinated: 0 },
       promptTemplate: hallucinationPromptTemplate,
@@ -102,7 +102,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
       explanation: "Test explanation",
     });
 
-    const classifier = createClassifier({
+    const classifier = createClassifierFn({
       model: mockModel,
       choices: { factual: 1, hallucinated: 0 },
       promptTemplate: hallucinationPromptTemplate,
@@ -166,7 +166,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
       explanation: "Test explanation",
     });
 
-    const classifier = createClassifier({
+    const classifier = createClassifierFn({
       model: mockModel,
       choices: { factual: 1, hallucinated: 0 },
       promptTemplate: hallucinationPromptTemplate,
