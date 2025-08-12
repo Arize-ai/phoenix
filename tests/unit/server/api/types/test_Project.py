@@ -4042,12 +4042,12 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 async def test_session_filter_with_uuid_format(
     db: DbSessionFactory,
 ) -> None:
-    """Test _apply_session_io_filter with UUID format session filter"""
+    """Test apply_session_io_filter with UUID format session filter uses I/O filtering"""
     import uuid
 
     from sqlalchemy import select
 
-    from phoenix.server.api.types.Project import _apply_session_io_filter
+    from phoenix.server.api.types.Project import apply_session_io_filter
 
     async with db() as session:
         project = await _add_project(session, name="uuid-filter-test")
@@ -4058,14 +4058,16 @@ async def test_session_filter_with_uuid_format(
         # Create base statement
         stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
 
-        # Apply UUID session filter
+        # Apply UUID session filter - should use I/O filtering, not direct session_id lookup
         uuid_filter = str(session_obj.session_id)  # This should be a valid UUID
-        filtered_stmt = _apply_session_io_filter(stmt, uuid_filter, project.id)
+        filtered_stmt = apply_session_io_filter(stmt, uuid_filter, project.id)
 
-        # Verify the statement was modified to join ProjectSession
+        # Verify the statement uses I/O filtering (not direct session_id lookup)
         sql_str = str(filtered_stmt.compile())
-        assert "project_session" in sql_str.lower()
-        assert "session_id" in sql_str.lower()
+        assert "project_session_rowid" in sql_str.lower()
+        assert "spans.attributes" in sql_str.lower()  # Should search in span attributes
+        # Should NOT directly query session_id (old behavior was removed)
+        assert "session_id" not in sql_str.lower()
 
 
 async def test_session_filter_with_substring_format(
@@ -4074,7 +4076,7 @@ async def test_session_filter_with_substring_format(
     """Test _apply_session_io_filter with substring format session filter"""
     from sqlalchemy import select
 
-    from phoenix.server.api.types.Project import _apply_session_io_filter
+    from phoenix.server.api.types.Project import apply_session_io_filter
 
     async with db() as session:
         project = await _add_project(session, name="substring-filter-test")
@@ -4083,7 +4085,7 @@ async def test_session_filter_with_substring_format(
         stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
 
         # Apply substring session filter
-        filtered_stmt = _apply_session_io_filter(stmt, "test_substring", project.id)
+        filtered_stmt = apply_session_io_filter(stmt, "test_substring", project.id)
 
         # Verify the statement was modified to use I/O filtering
         sql_str = str(filtered_stmt.compile())
@@ -4205,7 +4207,7 @@ async def test_session_filter_prevents_cross_project_access(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test that session filter with UUID prevents access to sessions from other projects"""
+    """Test that session filter with text search prevents access to sessions from other projects"""
     import uuid
 
     async with db() as session:
@@ -4213,17 +4215,17 @@ async def test_session_filter_prevents_cross_project_access(
         project1 = await _add_project(session, name="project1-security-test")
         project2 = await _add_project(session, name="project2-security-test")
 
-        # Create a session in project1 with proper UUID
+        # Create a session in project1 with distinctive content
         project1_session_uuid = str(uuid.uuid4())
         session1 = await _add_project_session(session, project1, session_id=project1_session_uuid)
         trace1 = await _add_trace(session, project1, session1)
-        await _add_span(session, trace1, attributes={"input": {"value": "project1 data"}})
+        await _add_span(session, trace1, attributes={"input": {"value": "secret project1 content"}})
 
-        # Create a session in project2 with proper UUID
+        # Create a session in project2 with different content
         project2_session_uuid = str(uuid.uuid4())
         session2 = await _add_project_session(session, project2, session_id=project2_session_uuid)
         trace2 = await _add_trace(session, project2, session2)
-        await _add_span(session, trace2, attributes={"input": {"value": "project2 data"}})
+        await _add_span(session, trace2, attributes={"input": {"value": "project2 general data"}})
 
     query = """
         query ($projectId: ID!, $sessionFilter: String!) {
@@ -4235,35 +4237,35 @@ async def test_session_filter_prevents_cross_project_access(
         }
     """
 
-    # Try to access project1's session from project2's context
+    # Security test: Try to access project1's content from project2's context
     project2_gid = str(GlobalID(type_name="Project", node_id=str(project2.id)))
-    project1_session_id = project1_session_uuid  # UUID from project1
+    project1_content_filter = "secret project1 content"  # Text from project1's session
 
     response = await gql_client.execute(
         query=query,
         variables={
             "projectId": project2_gid,  # Querying project2
-            "sessionFilter": project1_session_id,  # But using project1's session UUID
+            "sessionFilter": project1_content_filter,  # But searching for project1's content
         },
     )
 
     assert not response.errors
-    # Should return 0 because project1's session should not be accessible from project2
+    # Should return 0 because project1's content should not be accessible from project2
     assert response.data is not None
     assert response.data["node"]["traceCount"] == 0
 
-    # Verify the session IS accessible from the correct project
+    # Functionality test: Verify content search works within the correct project
     project1_gid = str(GlobalID(type_name="Project", node_id=str(project1.id)))
     response_correct = await gql_client.execute(
         query=query,
         variables={
             "projectId": project1_gid,  # Querying project1
-            "sessionFilter": project1_session_id,  # Using project1's session UUID
+            "sessionFilter": project1_content_filter,  # Searching for project1's content
         },
     )
 
     assert not response_correct.errors
-    # Should return 1 because project1's session should be accessible from project1
+    # Should return 1 because project1's content should be found in project1
     assert response_correct.data is not None
     assert response_correct.data["node"]["traceCount"] == 1
 

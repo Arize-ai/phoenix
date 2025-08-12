@@ -58,50 +58,64 @@ if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
 
-def _apply_session_io_filter(stmt: Any, session_filter: str, project_rowid: int) -> Any:
-    """Apply session I/O filter logic extracted from Project.sessions() method"""
-    import re
+def _build_session_io_filter_subquery(
+    session_filter: str,
+    project_rowid: int,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+) -> Any:
+    """Build session I/O filter subquery with optional time filtering
 
+    Returns a subquery that finds session IDs containing the session_filter
+    string in their input/output attributes, optionally filtered by time range.
+    """
     from openinference.semconv.trace import SpanAttributes
 
     # Constants defined at bottom of file
     INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
     OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 
-    # If UUID format, filter by session_id directly
-    if re.match(
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        session_filter,
-        re.IGNORECASE,
-    ):
-        return stmt.join(models.ProjectSession).where(
-            and_(
-                models.ProjectSession.session_id == session_filter,
-                models.ProjectSession.project_id == project_rowid,
+    # Build session filter subquery
+    filter_stmt = (
+        select(distinct(models.Trace.project_session_rowid).label("id"))
+        .filter_by(project_rowid=project_rowid)
+        .join_from(models.Trace, models.Span)
+        .where(models.Span.parent_id.is_(None))
+        .where(
+            or_(
+                models.TextContains(
+                    models.Span.attributes[INPUT_VALUE].as_string(),
+                    session_filter,
+                ),
+                models.TextContains(
+                    models.Span.attributes[OUTPUT_VALUE].as_string(),
+                    session_filter,
+                ),
             )
         )
-    else:
-        # Reuse existing I/O filter logic from lines 400-424
-        filter_stmt = (
-            select(distinct(models.Trace.project_session_rowid).label("id"))
-            .filter_by(project_rowid=project_rowid)
-            .join_from(models.Trace, models.Span)
-            .where(models.Span.parent_id.is_(None))
-            .where(
-                or_(
-                    models.TextContains(
-                        models.Span.attributes[INPUT_VALUE].as_string(),
-                        session_filter,
-                    ),
-                    models.TextContains(
-                        models.Span.attributes[OUTPUT_VALUE].as_string(),
-                        session_filter,
-                    ),
-                )
-            )
-        )
-        filter_subq = filter_stmt.subquery()
-        return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
+    )
+
+    # Apply time filtering within the session filter subquery
+    if start_time:
+        filter_stmt = filter_stmt.where(start_time <= models.Trace.start_time)
+    if end_time:
+        filter_stmt = filter_stmt.where(models.Trace.start_time < end_time)
+
+    return filter_stmt.subquery()
+
+
+def apply_session_io_filter(
+    stmt: Any,
+    session_filter: str,
+    project_rowid: int,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+) -> Any:
+    """Apply session I/O filter logic with optional time filtering using WHERE IN"""
+    filter_subq = _build_session_io_filter_subquery(
+        session_filter, project_rowid, start_time, end_time
+    )
+    return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
 
 
 @strawberry.type
@@ -452,30 +466,12 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            filter_stmt = (
-                select(distinct(models.Trace.project_session_rowid).label("id"))
-                .filter_by(project_rowid=self.project_rowid)
-                .join_from(models.Trace, models.Span)
-                .where(models.Span.parent_id.is_(None))
-                .where(
-                    or_(
-                        models.TextContains(
-                            models.Span.attributes[INPUT_VALUE].as_string(),
-                            filter_io_substring,
-                        ),
-                        models.TextContains(
-                            models.Span.attributes[OUTPUT_VALUE].as_string(),
-                            filter_io_substring,
-                        ),
-                    )
-                )
+            filter_subq = _build_session_io_filter_subquery(
+                filter_io_substring,
+                self.project_rowid,
+                time_range.start if time_range else None,
+                time_range.end if time_range else None,
             )
-            if time_range:
-                if time_range.start:
-                    filter_stmt = filter_stmt.where(time_range.start <= models.Trace.start_time)
-                if time_range.end:
-                    filter_stmt = filter_stmt.where(models.Trace.start_time < time_range.end)
-            filter_subq = filter_stmt.subquery()
             stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
         if sort:
             key: ColumnElement[Any]

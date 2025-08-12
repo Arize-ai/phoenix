@@ -132,7 +132,7 @@ def _get_stmt(
             subquery_stmt = sf(subquery_stmt.join(models.Span))
 
         if session_filter:
-            from phoenix.server.api.types.Project import _apply_session_io_filter
+            from phoenix.server.api.types.Project import apply_session_io_filter
 
             # Apply session filter to subquery - use segment_project_id for correct project scoping
             if not params:
@@ -141,8 +141,8 @@ def _get_stmt(
             project_id_for_session = (
                 segment_project_id if segment_project_id is not None else next(iter(params))
             )
-            subquery_stmt = _apply_session_io_filter(
-                subquery_stmt, session_filter, project_id_for_session
+            subquery_stmt = apply_session_io_filter(
+                subquery_stmt, session_filter, project_id_for_session, start_time, end_time
             )
 
         project_ids = [rowid for rowid in params]

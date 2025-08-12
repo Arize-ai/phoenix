@@ -145,10 +145,10 @@ def _get_stmt(
         )
         entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
         if session_filter:
-            from phoenix.server.api.types.Project import _apply_session_io_filter
+            from phoenix.server.api.types.Project import apply_session_io_filter
 
-            entity_count_query = _apply_session_io_filter(
-                entity_count_query, session_filter, project_rowid
+            entity_count_query = apply_session_io_filter(
+                entity_count_query, session_filter, project_rowid, start_time, end_time
             )
     elif kind == "trace":
         entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
@@ -156,10 +156,10 @@ def _get_stmt(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
         if session_filter:
-            from phoenix.server.api.types.Project import _apply_session_io_filter
+            from phoenix.server.api.types.Project import apply_session_io_filter
 
-            entity_count_query = _apply_session_io_filter(
-                entity_count_query, session_filter, project_rowid
+            entity_count_query = apply_session_io_filter(
+                entity_count_query, session_filter, project_rowid, start_time, end_time
             )
 
     entity_count_query = entity_count_query.where(
@@ -196,18 +196,22 @@ def _get_stmt(
             sf = SpanFilter(filter_condition)
             base_stmt = sf(base_stmt)
         if session_filter:
-            from phoenix.server.api.types.Project import _apply_session_io_filter
+            from phoenix.server.api.types.Project import apply_session_io_filter
 
-            base_stmt = _apply_session_io_filter(base_stmt, session_filter, project_rowid)
+            base_stmt = apply_session_io_filter(
+                base_stmt, session_filter, project_rowid, start_time, end_time
+            )
     elif kind == "trace":
         base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
         base_stmt = base_stmt.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
         if session_filter:
-            from phoenix.server.api.types.Project import _apply_session_io_filter
+            from phoenix.server.api.types.Project import apply_session_io_filter
 
-            base_stmt = _apply_session_io_filter(base_stmt, session_filter, project_rowid)
+            base_stmt = apply_session_io_filter(
+                base_stmt, session_filter, project_rowid, start_time, end_time
+            )
     else:
         assert_never(kind)
 

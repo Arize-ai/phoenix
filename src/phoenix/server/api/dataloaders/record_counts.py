@@ -127,7 +127,7 @@ def _get_stmt(
         stmt = stmt.add_columns(func.count().label("count"))
     stmt = stmt.where(pid.in_(project_rowids))
     if session_filter:
-        from phoenix.server.api.types.Project import _apply_session_io_filter
+        from phoenix.server.api.types.Project import apply_session_io_filter
 
         # Apply session filter to stmt - use segment_project_id for correct project scoping
         if not project_rowids:
@@ -136,7 +136,9 @@ def _get_stmt(
         project_id_for_session = (
             segment_project_id if segment_project_id is not None else next(iter(project_rowids))
         )
-        stmt = _apply_session_io_filter(stmt, session_filter, project_id_for_session)
+        stmt = apply_session_io_filter(
+            stmt, session_filter, project_id_for_session, start_time, end_time
+        )
     stmt = stmt.group_by(pid)
     if start_time:
         stmt = stmt.where(start_time <= time_column)
