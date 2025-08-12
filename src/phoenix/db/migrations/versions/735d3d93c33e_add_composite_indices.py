@@ -1,8 +1,8 @@
-"""add index to project_sessions
+"""add composite indices to traces and project_sessions
 
-Revision ID: 5d4f7806d5ac
-Revises: 9b4dfcfa8c2f
-Create Date: 2025-08-11 21:12:09.746960
+Revision ID: 735d3d93c33e
+Revises: 272b66ff50f8
+Create Date: 2025-08-11 20:52:47.477712
 
 """
 
@@ -12,13 +12,19 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "5d4f7806d5ac"
-down_revision: Union[str, None] = "9b4dfcfa8c2f"
+revision: str = "735d3d93c33e"
+down_revision: Union[str, None] = "272b66ff50f8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.execute(
+        sa.text(
+            "CREATE INDEX ix_traces_project_rowid_start_time "
+            "ON traces (project_rowid, start_time DESC)"
+        )
+    )
     op.execute(
         sa.text(
             "CREATE INDEX ix_project_sessions_project_id_start_time "
@@ -28,4 +34,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_traces_project_rowid_start_time", table_name="traces")
     op.drop_index("ix_project_sessions_project_id_start_time", table_name="project_sessions")

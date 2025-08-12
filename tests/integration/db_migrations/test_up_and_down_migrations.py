@@ -329,13 +329,3 @@ def test_up_and_down_migrations(
         _up(_engine, _alembic_config, "735d3d93c33e", _schema)
         _down(_engine, _alembic_config, "272b66ff50f8", _schema)
     _up(_engine, _alembic_config, "735d3d93c33e", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "9b4dfcfa8c2f", _schema)
-        _down(_engine, _alembic_config, "735d3d93c33e", _schema)
-    _up(_engine, _alembic_config, "9b4dfcfa8c2f", _schema)
-
-    for _ in range(2):
-        _up(_engine, _alembic_config, "5d4f7806d5ac", _schema)
-        _down(_engine, _alembic_config, "9b4dfcfa8c2f", _schema)
-    _up(_engine, _alembic_config, "5d4f7806d5ac", _schema)
