@@ -20,6 +20,10 @@ export interface DebouncedSearchProps extends SearchFieldProps {
    * @default 200
    */
   debounceMs?: number;
+  /**
+   * The aria-label for the search field. Since there is no label, we need to provide one.
+   */
+  "aria-label": string;
 }
 
 /**
@@ -29,6 +33,7 @@ export function DebouncedSearch({
   onChange: propsOnChange,
   debounceMs = 200,
   placeholder,
+  ...props
 }: DebouncedSearchProps) {
   const debouncedOnChange = useMemo(
     () =>
@@ -47,7 +52,7 @@ export function DebouncedSearch({
   );
 
   return (
-    <SearchField onChange={onChange}>
+    <SearchField onChange={onChange} {...props}>
       <SearchIcon />
       <Input placeholder={placeholder} />
     </SearchField>

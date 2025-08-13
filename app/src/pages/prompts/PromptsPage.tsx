@@ -34,6 +34,7 @@ export function PromptsPage() {
           gap="size-100"
         >
           <DebouncedSearch
+            aria-label="Search prompts by name"
             onChange={setSearchFilter}
             placeholder="Search prompts by name"
           />

@@ -327,6 +327,7 @@ export function ProjectsPageContent({
           gap="size-100"
         >
           <DebouncedSearch
+            aria-label="Search projects by name"
             placeholder="Search projects by name"
             onChange={(newSearch) => {
               setFilter(newSearch);

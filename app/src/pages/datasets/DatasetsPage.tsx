@@ -50,6 +50,7 @@ export function DatasetsPageContent() {
           gap="size-100"
         >
           <DebouncedSearch
+            aria-label="Search datasets by name"
             onChange={setFilter}
             value={filter}
             placeholder="Search datasets by name"
