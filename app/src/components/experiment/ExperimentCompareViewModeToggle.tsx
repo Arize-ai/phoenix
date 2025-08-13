@@ -49,9 +49,7 @@ export function ExperimentCompareViewModeToggle({
         if (isExperimentCompareViewMode(selectedKey)) {
           onViewModeChange(selectedKey);
         } else {
-          throw new Error(
-            `Unknown experiment compare view mode: ${selectedKey}`
-          );
+          onViewModeChange("grid");
         }
       }}
       size="M"
