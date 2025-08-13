@@ -333,21 +333,20 @@ class Evaluator(ABC):
         input_schema: Optional[type[BaseModel]] = None,
     ):
         """
-        Initialize the evaluator with a required name, source, and optional required fields.
+        Initialize the evaluator with a required name, source, and optional input schema.
 
         Args:
             name: The name of this evaluator, used for identification and Score naming.
             source: The source of this evaluator (human, llm, or heuristic).
-            required_fields: Optional field names this evaluator requires. Can be a set, list,
-                or any iterable of strings. If None, subclasses should infer fields from prompts or
-                function signatures.
+            input_schema: Optional pydantic BaseModel for input typing and validation. If None,
+                subclasses will attempt to infer fields from prompts or function signatures.
             direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
         self._name = name
         self._source = source
         self._direction = direction
-        self.input_schema: Optional[type[BaseModel]] = input_schema
+        self._input_schema: Optional[type[BaseModel]] = input_schema
 
     @property
     def name(self) -> str:
@@ -363,6 +362,11 @@ class Evaluator(ABC):
     def direction(self) -> DirectionType:
         """The direction for score optimization."""
         return self._direction
+
+    @property
+    def input_schema(self) -> Optional[type[BaseModel]]:
+        """Read-only Pydantic input schema for this evaluator, if set."""
+        return self._input_schema
 
     @abstractmethod
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
