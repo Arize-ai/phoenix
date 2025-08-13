@@ -31,6 +31,7 @@ import { css } from "@emotion/react";
 import { useNotification } from "@arizeai/components";
 
 import {
+  DebouncedSearch,
   Flex,
   FlexProps,
   Heading,
@@ -73,7 +74,6 @@ import {
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
-import { ProjectsSearch } from "./ProjectsSearch";
 
 const PAGE_SIZE = 10;
 
@@ -326,7 +326,8 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <ProjectsSearch
+          <DebouncedSearch
+            placeholder="Search projects by name"
             onChange={(newSearch) => {
               setFilter(newSearch);
               refetch({

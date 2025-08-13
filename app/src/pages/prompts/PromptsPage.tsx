@@ -2,10 +2,16 @@ import { useState } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Icon, Icons, LinkButton, View } from "@phoenix/components";
+import {
+  DebouncedSearch,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  View,
+} from "@phoenix/components";
 import { promptsLoader } from "@phoenix/pages/prompts/promptsLoader";
 
-import { PromptsSearch } from "./PromptsSearch";
 import { PromptsTable } from "./PromptsTable";
 
 export function PromptsPage() {
@@ -27,7 +33,10 @@ export function PromptsPage() {
           alignItems="center"
           gap="size-100"
         >
-          <PromptsSearch onChange={setSearchFilter} />
+          <DebouncedSearch
+            onChange={setSearchFilter}
+            placeholder="Search prompts by name"
+          />
           <LinkButton
             size="M"
             leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}

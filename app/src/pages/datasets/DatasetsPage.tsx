@@ -1,10 +1,9 @@
 import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Loading, View } from "@phoenix/components";
+import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
-import { DatasetsSearch } from "./DatasetsSearch";
 import { DatasetsTable } from "./DatasetsTable";
 import { NewDatasetActionMenu } from "./NewDatasetActionMenu";
 
@@ -50,7 +49,11 @@ export function DatasetsPageContent() {
           alignItems="center"
           gap="size-100"
         >
-          <DatasetsSearch onChange={setFilter} value={filter} />
+          <DebouncedSearch
+            onChange={setFilter}
+            value={filter}
+            placeholder="Search datasets by name"
+          />
           <View flex="none">
             <NewDatasetActionMenu onDatasetCreated={onDatasetCreated} />
           </View>
