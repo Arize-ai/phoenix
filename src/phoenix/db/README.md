@@ -327,7 +327,7 @@ erDiagram
     Prompt ||--o{ PromptVersion : has
     Prompt ||--o{ PromptPromptLabel : has
     Prompt ||--o{ PromptVersionTag : has
-    Prompt ||--o{ Prompt : has
+    Prompt ||--o{ Prompt : derived_from
     Prompt {
         int id PK
         int source_prompt_id FK
