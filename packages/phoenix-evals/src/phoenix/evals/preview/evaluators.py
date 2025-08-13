@@ -120,6 +120,28 @@ TransformFunc = Callable[[Any], Any]
 def _get_builtin_transform(name: str) -> Optional[TransformFunc]:
     """
     Get a built-in transform function by name.
+
+    Supported transforms for input mapping pipes (used after a path with `|`):
+
+    - first: Return the first element of a list/tuple; None if the sequence is empty or if
+      the value is not a sequence.
+    - strip: Trim leading and trailing whitespace on strings; pass through non-strings unchanged.
+    - lower: Convert strings to lowercase; pass through non-strings unchanged.
+    - upper: Convert strings to uppercase; pass through non-strings unchanged.
+    - as_str, coerce:str: Convert non-None values to str.
+    - coerce:int: Convert non-None values to int.
+    - coerce:float: Convert non-None values to float.
+    - coerce:bool: Convert non-None values to bool.
+
+    Notes:
+    - Unknown transform names are ignored with a warning.
+    - Transforms are applied left-to-right.
+    - String-specific transforms (strip/lower/upper) pass through non-string values unchanged.
+
+    Examples:
+    - "input.docs[0] | strip | lower"
+    - "response.score | coerce:float"
+    - "metadata.tags | first | as_str"
     """
     simple = name.strip().lower()
     if simple == "first":
@@ -235,7 +257,7 @@ def _required_fields_from_model(model: Optional[type[BaseModel]]) -> Set[str]:
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
-    input_mapping: InputMappingType = None,
+    input_mapping: Optional[InputMappingType] = None,
 ) -> Dict[str, Any]:
     """
     Remap eval_input keys based on required_fields and an optional input_mapping.
@@ -357,7 +379,7 @@ class Evaluator(ABC):
         return cast(List[Score], result)
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: InputMappingType = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
@@ -383,7 +405,7 @@ class Evaluator(ABC):
         return self._evaluate(remapped_eval_input)
 
     async def aevaluate(
-        self, eval_input: EvalInput, input_mapping: InputMappingType = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
@@ -413,7 +435,7 @@ class Evaluator(ABC):
     # ensure the callable inherits evaluate's docs for IDE support
     __call__.__doc__ = evaluate.__doc__
 
-    def _get_required_fields(self, input_mapping: InputMappingType) -> Set[str]:
+    def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
         Determine required field names for mapping/validation.
         Prefers Pydantic schema; falls back to mapping keys if no schema.
@@ -531,7 +553,7 @@ class LLMEvaluator(Evaluator):
         raise NotImplementedError("Subclasses must implement _aevaluate")
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: InputMappingType = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         if isinstance(self.llm, AsyncLLM):
             raise ValueError(
@@ -540,7 +562,7 @@ class LLMEvaluator(Evaluator):
         return super().evaluate(eval_input, input_mapping)
 
     async def aevaluate(
-        self, eval_input: EvalInput, input_mapping: InputMappingType = None
+        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         if isinstance(self.llm, LLM):
             raise ValueError(
@@ -831,7 +853,7 @@ class BoundEvaluator:
     def __init__(
         self,
         evaluator: Evaluator,
-        mapping: Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]],
+        mapping: InputMappingType,
     ) -> None:
         # Mapping is optional per-field; unspecified fields will be read directly
         # from eval_input using their field name. Static syntax checks happen later.
@@ -865,7 +887,7 @@ class BoundEvaluator:
 
 def bind_evaluator(
     evaluator: Evaluator,
-    mapping: Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]],
+    mapping: InputMappingType,
 ) -> BoundEvaluator:
     """Helper to create a BoundEvaluator."""
     return BoundEvaluator(evaluator, mapping)
