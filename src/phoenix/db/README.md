@@ -59,6 +59,10 @@ Below is a Mermaid diagram showing the current relationships between the main en
 
 ```mermaid
 erDiagram
+    AlembicVersion {
+        string version_num PK
+    }
+
     ProjectTraceRetentionPolicy ||--o{ Project : applied_to
     ProjectTraceRetentionPolicy {
         int id PK
@@ -68,6 +72,7 @@ erDiagram
     }
 
     Project ||--o{ Trace : has
+    Project ||--o{ ProjectSession : has
     Project ||--o| ProjectTraceRetentionPolicy : has
     Project ||--o{ ProjectAnnotationConfig : has
     Project {
@@ -82,6 +87,7 @@ erDiagram
     }
 
     ProjectSession ||--o{ Trace : has
+    ProjectSession ||--o{ ProjectSessionAnnotation : has
     ProjectSession {
         int id PK
         string session_id
@@ -91,9 +97,8 @@ erDiagram
     }
 
     Trace ||--o{ Span : contains
-    Trace ||--o{ ExperimentRun : has
+    Trace ||--o{ SpanCost : has
     Trace ||--o{ TraceAnnotation : has
-    Trace ||--o{ ExperimentRunAnnotation : has
     Trace {
         int id PK
         int project_rowid FK
@@ -106,6 +111,7 @@ erDiagram
     Span ||--o{ DocumentAnnotation : has
     Span ||--o{ DatasetExample : has
     Span ||--o{ SpanAnnotation : has
+    Span ||--o{ SpanCost : has
     Span {
         int id PK
         int trace_rowid FK
@@ -175,8 +181,25 @@ erDiagram
         int user_id FK
     }
 
+    ProjectSessionAnnotation {
+        bigint id PK
+        bigint project_session_id FK
+        string name
+        string label
+        float score
+        string explanation
+        json metadata
+        string annotator_kind
+        bigint user_id FK
+        string identifier
+        string source
+        datetime created_at
+        datetime updated_at
+    }
+
     Dataset ||--o{ DatasetVersion : has
     Dataset ||--o{ DatasetExample : contains
+    Dataset ||--o{ Experiment : has
     Dataset {
         int id PK
         string name
@@ -187,6 +210,7 @@ erDiagram
     }
 
     DatasetVersion ||--o{ DatasetExampleRevision : has
+    DatasetVersion ||--o{ Experiment : has
     DatasetVersion {
         int id PK
         int dataset_id FK
@@ -196,6 +220,7 @@ erDiagram
     }
 
     DatasetExample ||--o{ DatasetExampleRevision : has
+    DatasetExample ||--o{ ExperimentRun : has
     DatasetExample {
         int id PK
         int dataset_id FK
@@ -267,6 +292,7 @@ erDiagram
     User ||--o{ SpanAnnotation : has
     User ||--o{ DocumentAnnotation : has
     User ||--o{ TraceAnnotation : has
+    User ||--o{ ProjectSessionAnnotation : has
     User {
         int id PK
         int user_role_id FK
@@ -306,6 +332,7 @@ erDiagram
         int refresh_token_id FK
     }
 
+    RefreshToken ||--o| AccessToken : has
     RefreshToken {
         int id PK
         int user_id FK
@@ -386,5 +413,53 @@ erDiagram
         int id PK
         int project_id FK
         int annotation_config_id FK
+    }
+
+    GenerativeModel ||--o{ TokenPrice : has
+    GenerativeModel ||--o{ SpanCost : has
+    GenerativeModel {
+        bigint id PK
+        string name
+        string provider
+        string name_pattern
+        boolean is_built_in
+        datetime start_time
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+
+    TokenPrice {
+        bigint id PK
+        bigint model_id FK
+        string token_type
+        boolean is_prompt
+        float base_rate
+        json customization
+    }
+
+    SpanCost ||--o{ SpanCostDetail : has
+    SpanCost {
+        bigint id PK
+        bigint span_rowid FK
+        bigint trace_rowid FK
+        bigint model_id FK
+        datetime span_start_time
+        float total_cost
+        float total_tokens
+        float prompt_cost
+        float prompt_tokens
+        float completion_cost
+        float completion_tokens
+    }
+
+    SpanCostDetail {
+        bigint id PK
+        bigint span_cost_id FK
+        string token_type
+        boolean is_prompt
+        float cost
+        float tokens
+        float cost_per_token
     }
 ```
