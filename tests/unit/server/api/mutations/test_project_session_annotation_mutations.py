@@ -38,17 +38,20 @@ class TestProjectSessionAnnotationMutations:
 
     Test Organization:
     ==================
-    A. CREATE operations (A1-A10):
+    A. CREATE operations (A1-A12):
        - Basic creation scenarios with various field combinations
        - Different AnnotatorKind values (HUMAN, LLM, CODE)
        - Different AnnotationSource values (API, APP)
        - Single-field scenarios (score-only, label-only, explanation-only)
+       - Field trimming behavior (name, identifier, label, explanation)
        - Complex metadata structures and validation edge cases
 
-    B. UPDATE operations (B1-B13):
+    B. UPDATE operations (B1-B15):
        - Field updates and combinations
        - Setting values to null (score/label/explanation to null)
        - Enum value changes (annotatorKind, source)
+       - Field trimming behavior (name, label, explanation)
+       - Identifier immutability verification
        - Full-replacement behavior testing
        - Validation rule enforcement
        - Error scenarios (nonexistent IDs, wrong GID types)
@@ -66,6 +69,8 @@ class TestProjectSessionAnnotationMutations:
     - UpdateAnnotationInput performs FULL REPLACEMENT, not partial updates
     - Both Create and Update inputs enforce: "At least one of score, label, or explanation must be not null/empty"
     - All AnnotatorKind (HUMAN, LLM, CODE) and AnnotationSource (API, APP) values are supported
+    - Identifier field is immutable after creation (not included in UpdateAnnotationInput)
+    - Error messages are meaningful and don't contain "unexpected" system errors
     """
 
     QUERY = """
@@ -373,7 +378,85 @@ class TestProjectSessionAnnotationMutations:
         assert created_explanation_only_annotation["label"] is None
         assert created_explanation_only_annotation["annotatorKind"] == "CODE"
 
-        # A9. Create with all null optional fields (should fail validation)
+        # A9. Test identifier trimming behavior (whitespace should be stripped)
+        padded_identifier_input = {
+            "input": {
+                "projectSessionId": project_session_gid,
+                "name": "padded_identifier_test",
+                "label": "PADDED_TEST",
+                "annotatorKind": "HUMAN",
+                "metadata": {"test": "trimming"},
+                "identifier": "   padded_identifier   ",  # Should be trimmed to "padded_identifier"
+                "source": "API",
+            }
+        }
+        padded_identifier_response = await gql_client.execute(self.QUERY, padded_identifier_input)
+        assert not padded_identifier_response.errors
+        assert padded_identifier_response.data is not None
+        created_padded_identifier_annotation = padded_identifier_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert created_padded_identifier_annotation["name"] == "padded_identifier_test"
+        assert (
+            created_padded_identifier_annotation["identifier"] == "padded_identifier"
+        )  # Whitespace trimmed
+        assert created_padded_identifier_annotation["label"] == "PADDED_TEST"
+
+        # A10. Test duplicate identifier behavior (should be allowed)
+        duplicate_identifier_input = {
+            "input": {
+                "projectSessionId": project_session_gid,
+                "name": "duplicate_identifier_test",
+                "score": 0.33,
+                "annotatorKind": "CODE",
+                "metadata": {"duplicate": True},
+                "identifier": "padded_identifier",  # Same as previous test (after trimming)
+                "source": "APP",
+            }
+        }
+        duplicate_identifier_response = await gql_client.execute(
+            self.QUERY, duplicate_identifier_input
+        )
+        assert not duplicate_identifier_response.errors
+        assert duplicate_identifier_response.data is not None
+        created_duplicate_identifier_annotation = duplicate_identifier_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert created_duplicate_identifier_annotation["name"] == "duplicate_identifier_test"
+        assert (
+            created_duplicate_identifier_annotation["identifier"] == "padded_identifier"
+        )  # Same identifier allowed
+        assert created_duplicate_identifier_annotation["score"] == 0.33
+
+        # A11. Test name, label and explanation trimming behavior (whitespace should be stripped)
+        padded_fields_input = {
+            "input": {
+                "projectSessionId": project_session_gid,
+                "name": "   padded_fields_test   ",  # Should be trimmed to "padded_fields_test"
+                "label": "   PADDED_LABEL   ",  # Should be trimmed to "PADDED_LABEL"
+                "explanation": "   This explanation has padding   ",  # Should be trimmed
+                "annotatorKind": "HUMAN",
+                "metadata": {"test": "field_trimming"},
+                "identifier": "field_trimming_test",
+                "source": "API",
+            }
+        }
+        padded_fields_response = await gql_client.execute(self.QUERY, padded_fields_input)
+        assert not padded_fields_response.errors
+        assert padded_fields_response.data is not None
+        created_padded_fields_annotation = padded_fields_response.data[
+            "createProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert (
+            created_padded_fields_annotation["name"] == "padded_fields_test"
+        )  # Whitespace trimmed
+        assert created_padded_fields_annotation["label"] == "PADDED_LABEL"  # Whitespace trimmed
+        assert (
+            created_padded_fields_annotation["explanation"] == "This explanation has padding"
+        )  # Whitespace trimmed
+        assert created_padded_fields_annotation["identifier"] == "field_trimming_test"
+
+        # A12. Create with all null optional fields (should fail validation)
         all_null_create_input = {
             "input": {
                 "projectSessionId": project_session_gid,
@@ -388,6 +471,9 @@ class TestProjectSessionAnnotationMutations:
         all_null_create_response = await gql_client.execute(self.QUERY, all_null_create_input)
         # This should fail validation since CreateProjectSessionAnnotationInput has the same validation as UpdateAnnotationInput
         assert all_null_create_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(all_null_create_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # A10. Create with complex metadata structure
         complex_metadata_input = {
@@ -467,6 +553,9 @@ class TestProjectSessionAnnotationMutations:
             operation_name="UpdateProjectSessionAnnotations",
         )
         assert nonexistent_patch_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(nonexistent_patch_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # B3. Update with wrong type GID should error
         invalid_gid_patch_input = {
@@ -482,6 +571,9 @@ class TestProjectSessionAnnotationMutations:
             operation_name="UpdateProjectSessionAnnotations",
         )
         assert invalid_gid_patch_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(invalid_gid_patch_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # B4. Update score from non-null to null (with label to satisfy validation)
         score_to_null_input = {
@@ -540,6 +632,9 @@ class TestProjectSessionAnnotationMutations:
             operation_name="UpdateProjectSessionAnnotations",
         )
         assert invalid_all_null_response.errors  # Should fail validation
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(invalid_all_null_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # B6. Test individual field update: score only
         # IMPORTANT: This reveals that UpdateAnnotationInput performs FULL REPLACEMENT
@@ -748,6 +843,78 @@ class TestProjectSessionAnnotationMutations:
         assert updated_code_annotator_annotation["score"] == 0.88
         assert updated_code_annotator_annotation["name"] == "code_annotator_test"
 
+        # B14. Test identifier immutability (identifier cannot be updated via UpdateAnnotationInput)
+        # Note: UpdateAnnotationInput does not have an identifier field, so identifier should remain unchanged
+        identifier_immutable_input = {
+            "input": {
+                "annotationId": created_padded_identifier_annotation[
+                    "id"
+                ],  # Use annotation with identifier="padded_identifier"
+                "name": "identifier_immutability_test",
+                "label": "IDENTIFIER_IMMUTABLE_TEST",
+                "metadata": {"test": "identifier_should_not_change"},
+                "annotatorKind": "LLM",
+                "source": "API",
+            }
+        }
+        identifier_immutable_response = await gql_client.execute(
+            self.QUERY,
+            identifier_immutable_input,
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert not identifier_immutable_response.errors
+        assert identifier_immutable_response.data is not None
+        updated_identifier_immutable_annotation = identifier_immutable_response.data[
+            "updateProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert (
+            updated_identifier_immutable_annotation["id"]
+            == created_padded_identifier_annotation["id"]
+        )
+        assert updated_identifier_immutable_annotation["name"] == "identifier_immutability_test"
+        assert updated_identifier_immutable_annotation["label"] == "IDENTIFIER_IMMUTABLE_TEST"
+        assert updated_identifier_immutable_annotation["annotatorKind"] == "LLM"
+        # CRITICAL: Identifier should remain unchanged despite the update
+        assert updated_identifier_immutable_annotation["identifier"] == "padded_identifier"
+
+        # B15. Test name, label and explanation trimming in updates
+        field_trimming_update_input = {
+            "input": {
+                "annotationId": created_padded_fields_annotation[
+                    "id"
+                ],  # Use annotation we created in A11
+                "name": "   field_trimming_update_test   ",  # Should be trimmed
+                "label": "   UPDATED_TRIMMED_LABEL   ",  # Should be trimmed
+                "explanation": "   This updated explanation also has padding   ",  # Should be trimmed
+                "metadata": {"updated": True, "trimming": "tested"},
+                "annotatorKind": "LLM",
+                "source": "APP",
+            }
+        }
+        field_trimming_update_response = await gql_client.execute(
+            self.QUERY,
+            field_trimming_update_input,
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert not field_trimming_update_response.errors
+        assert field_trimming_update_response.data is not None
+        updated_field_trimming_annotation = field_trimming_update_response.data[
+            "updateProjectSessionAnnotations"
+        ]["projectSessionAnnotation"]
+        assert updated_field_trimming_annotation["id"] == created_padded_fields_annotation["id"]
+        assert (
+            updated_field_trimming_annotation["name"] == "field_trimming_update_test"
+        )  # Whitespace trimmed
+        assert (
+            updated_field_trimming_annotation["label"] == "UPDATED_TRIMMED_LABEL"
+        )  # Whitespace trimmed
+        assert (
+            updated_field_trimming_annotation["explanation"]
+            == "This updated explanation also has padding"
+        )  # Trimmed
+        assert updated_field_trimming_annotation["annotatorKind"] == "LLM"
+        assert updated_field_trimming_annotation["source"] == "APP"
+
         # ============================================================================
         # C. DELETE OPERATIONS (Success and Error Cases)
         # ============================================================================
@@ -772,6 +939,9 @@ class TestProjectSessionAnnotationMutations:
             operation_name="DeleteProjectSessionAnnotation",
         )
         assert nonexistent_delete_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(nonexistent_delete_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # C3. Delete with wrong type GID should error
         invalid_gid_delete_response = await gql_client.execute(
@@ -780,6 +950,9 @@ class TestProjectSessionAnnotationMutations:
             operation_name="DeleteProjectSessionAnnotation",
         )
         assert invalid_gid_delete_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(invalid_gid_delete_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # ============================================================================
         # D. CREATE ERROR CASES (Validation and Constraint Errors)
@@ -804,6 +977,9 @@ class TestProjectSessionAnnotationMutations:
             self.QUERY, invalid_foreign_key_input, operation_name="CreateProjectSessionAnnotations"
         )
         assert invalid_foreign_key_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(invalid_foreign_key_response.errors[0].message).lower()
+        assert "unexpected" not in error_message
 
         # D2. Create with invalid projectSessionId type should error (bad GID type)
         wrong_gid_type_input = {
@@ -823,3 +999,6 @@ class TestProjectSessionAnnotationMutations:
             self.QUERY, wrong_gid_type_input, operation_name="CreateProjectSessionAnnotations"
         )
         assert wrong_gid_type_response.errors
+        # Verify error message is meaningful and not an unexpected system error
+        error_message = str(wrong_gid_type_response.errors[0].message).lower()
+        assert "unexpected" not in error_message

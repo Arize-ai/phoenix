@@ -60,14 +60,21 @@ class ProjectSessionAnnotationMutationMixin:
         elif input.source == AnnotationSource.APP and user_id is not None:
             identifier = get_user_identifier(user_id)
 
+        # Trim whitespace from name, label and explanation
+        name = input.name.strip() if isinstance(input.name, str) else input.name
+        label = input.label.strip() if isinstance(input.label, str) else input.label
+        explanation = (
+            input.explanation.strip() if isinstance(input.explanation, str) else input.explanation
+        )
+
         try:
             async with info.context.db() as session:
                 anno = models.ProjectSessionAnnotation(
                     project_session_id=project_session_id,
-                    name=input.name,
-                    label=input.label,
+                    name=name,
+                    label=label,
                     score=input.score,
-                    explanation=input.explanation,
+                    explanation=explanation,
                     annotator_kind=input.annotator_kind.value,
                     metadata_=input.metadata,
                     identifier=identifier,
@@ -105,11 +112,20 @@ class ProjectSessionAnnotationMutationMixin:
             if anno.user_id != user_id:
                 raise Unauthorized("Session annotation is not associated with the current user.")
 
+            # Trim whitespace from name, label and explanation
+            name = input.name.strip() if isinstance(input.name, str) else input.name
+            label = input.label.strip() if isinstance(input.label, str) else input.label
+            explanation = (
+                input.explanation.strip()
+                if isinstance(input.explanation, str)
+                else input.explanation
+            )
+
             # Update the annotation fields
-            anno.name = input.name
-            anno.label = input.label
+            anno.name = name
+            anno.label = label
             anno.score = input.score
-            anno.explanation = input.explanation
+            anno.explanation = explanation
             anno.annotator_kind = input.annotator_kind.value
             anno.metadata_ = input.metadata
             anno.source = input.source.value

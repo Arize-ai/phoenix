@@ -21,5 +21,16 @@ class UpdateAnnotationInput:
     source: AnnotationSource = AnnotationSource.APP
 
     def __post_init__(self) -> None:
+        self.name = self.name.strip()
+        if isinstance(self.label, str):
+            self.label = self.label.strip()
+        if not self.label:
+            self.label = None
+        if isinstance(self.explanation, str):
+            self.explanation = self.explanation.strip()
+        if not self.explanation:
+            self.explanation = None
+        if isinstance(self.identifier, str):
+            self.identifier = self.identifier.strip()
         if self.score is None and not self.label and not self.explanation:
             raise BadRequest("At least one of score, label, or explanation must be not null/empty.")
