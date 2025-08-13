@@ -912,7 +912,7 @@ function PercentageDelta({
   }, [baseExperimentValue, compareExperimentValue]);
   return (
     <Flex direction="row" alignItems="center" gap="size-25">
-      <Text color="text-500" size="S" fontFamily="mono">
+      <Text color="grey-500" size="S" fontFamily="mono">
         {percentageDeltaText}
       </Text>
       {sign === "positive" && (
