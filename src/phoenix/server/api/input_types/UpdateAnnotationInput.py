@@ -30,7 +30,5 @@ class UpdateAnnotationInput:
             self.explanation = self.explanation.strip()
         if not self.explanation:
             self.explanation = None
-        if isinstance(self.identifier, str):
-            self.identifier = self.identifier.strip()
         if self.score is None and not self.label and not self.explanation:
             raise BadRequest("At least one of score, label, or explanation must be not null/empty.")
