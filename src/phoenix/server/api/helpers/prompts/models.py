@@ -321,6 +321,13 @@ class BedrockToolDefinition(DBBaseModel):
     toolSpec: dict[str, Any]
 
 
+# Google tool definitions (function declarations)
+class GoogleFunctionDeclaration(DBBaseModel):
+    name: str
+    description: str = UNDEFINED
+    parameters: dict[str, Any] = UNDEFINED
+
+
 class PromptOpenAIInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
@@ -565,6 +572,54 @@ def normalize_tools(
     elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
+    elif model_provider is ModelProvider.GOOGLE:
+        # Accept either a list of function declarations or Tool objects with function_declarations
+        tools = []
+        for schema in schemas:
+            # If this looks like a Tool with function_declarations
+            if isinstance(schema, Mapping) and "function_declarations" in schema:
+                fdecls = schema.get("function_declarations") or []
+                for fd in fdecls:
+                    if not isinstance(fd, Mapping):
+                        continue
+                    name = str(fd.get("name", ""))
+                    description = (
+                        str(fd["description"]) if isinstance(fd.get("description"), str) else UNDEFINED
+                    )
+                    parameters = (
+                        dict(fd["parameters"]) if isinstance(fd.get("parameters"), Mapping) else UNDEFINED
+                    )
+                    tools.append(
+                        PromptToolFunction(
+                            type="function",
+                            function=PromptToolFunctionDefinition(
+                                name=name,
+                                description=description,
+                                parameters=parameters,
+                            ),
+                        )
+                    )
+            else:
+                # Treat schema as a single function declaration
+                if not isinstance(schema, Mapping):
+                    continue
+                name = str(schema.get("name", ""))
+                description = (
+                    str(schema["description"]) if isinstance(schema.get("description"), str) else UNDEFINED
+                )
+                parameters = (
+                    dict(schema["parameters"]) if isinstance(schema.get("parameters"), Mapping) else UNDEFINED
+                )
+                tools.append(
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(
+                            name=name,
+                            description=description,
+                            parameters=parameters,
+                        ),
+                    )
+                )
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
@@ -587,6 +642,14 @@ def normalize_tools(
             ans.tool_choice = choice
             if disable_parallel_tool_calls is not None:
                 ans.disable_parallel_tool_calls = disable_parallel_tool_calls
+        elif model_provider is ModelProvider.GOOGLE:
+            # Accept Google ToolConfig-like input
+            from phoenix.server.api.helpers.prompts.conversions.google import (
+                GoogleToolChoiceConversion,
+            )
+
+            choice, _ = GoogleToolChoiceConversion.from_google(tool_choice)  # type: ignore[arg-type]
+            ans.tool_choice = choice
     return ans
 
 
@@ -614,6 +677,24 @@ def denormalize_tools(
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
         if tools.tool_choice and tools.tool_choice.type != "none":
             tool_choice = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
+    elif model_provider is ModelProvider.GOOGLE:
+        # For Google, return a flat list of function declarations
+        denormalized_tools = []
+        for tool in tools.tools:
+            fn = tool.function
+            denormalized_tools.append(
+                GoogleFunctionDeclaration(
+                    name=fn.name,
+                    description=fn.description if isinstance(fn.description, str) else UNDEFINED,
+                    parameters=fn.parameters if isinstance(fn.parameters, dict) else UNDEFINED,
+                )
+            )
+        if tools.tool_choice:
+            from phoenix.server.api.helpers.prompts.conversions.google import (
+                GoogleToolChoiceConversion,
+            )
+
+            tool_choice = GoogleToolChoiceConversion.to_google(tools.tool_choice)
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     return [tool.model_dump() for tool in denormalized_tools], tool_choice
