@@ -48,6 +48,43 @@ Spans
    :members:
    :show-inheritance:
 
+ .. rubric:: Data extraction
+
+ .. automethod:: phoenix.client.resources.spans.Spans.get_spans_dataframe
+
+ .. automethod:: phoenix.client.resources.spans.Spans.get_span_annotations_dataframe
+
+ .. note::
+    In phoenix-client, evaluations are represented as annotations. Use
+    ``get_spans_dataframe`` together with
+    ``get_span_annotations_dataframe`` to assemble analysis-ready data.
+
+ .. rubric:: Example: build a trace dataset (spans + evaluations)
+
+ .. code-block:: python
+
+    from phoenix.client import Client
+    from phoenix.client.types.spans import SpanQuery
+
+    client = Client()
+
+    # Get spans
+    spans_df = client.spans.get_spans_dataframe(
+        query=SpanQuery(),
+        project_identifier="default",
+        limit=1000,
+    )
+
+    # Get evaluations (annotations) for those spans
+    evals_df = client.spans.get_span_annotations_dataframe(
+        spans_dataframe=spans_df,
+        project_identifier="default",
+    )
+
+    # Merge spans and evaluations on span id
+    merged = spans_df.set_index("context.span_id").join(evals_df, how="left")
+
+
 AsyncSpans
 ~~~~~~~~~~
 .. autoclass:: phoenix.client.resources.spans.AsyncSpans
