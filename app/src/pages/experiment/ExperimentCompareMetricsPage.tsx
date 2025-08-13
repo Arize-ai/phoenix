@@ -540,13 +540,9 @@ function MetricCard({
             <CompareExperimentMetric
               key={comparison.compareExperimentId}
               value={comparison.compareExperimentValue}
-              formatter={formatter}
               baseExperimentValue={baseExperimentValue}
-              numIncreases={comparison.numIncreases}
-              numDecreases={comparison.numDecreases}
-              numEqual={comparison.numEqual}
-              optimizationDirection={comparison.optimizationDirection}
               color={comparison.compareExperimentColor}
+              formatter={formatter}
             />
           ))}
         </Flex>
@@ -577,19 +573,11 @@ function BaseExperimentMetric({
 function CompareExperimentMetric({
   value,
   baseExperimentValue,
-  numIncreases,
-  numDecreases,
-  numEqual,
-  optimizationDirection,
   color,
   formatter = numberFormatter,
 }: {
   value: MetricValue;
   baseExperimentValue: MetricValue;
-  numIncreases: number;
-  numDecreases: number;
-  numEqual: number;
-  optimizationDirection: OptimizationDirection;
   color: string;
   formatter?: (value: MetricValue) => string;
 }) {
