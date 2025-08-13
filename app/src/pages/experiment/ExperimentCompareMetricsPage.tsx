@@ -609,24 +609,16 @@ function CompareExperimentMetric({
   }, [baseExperimentValue, value]);
 
   return (
-    <Flex direction="row" justifyContent="space-between">
-      <Flex direction="row" alignItems="center" gap="size-100">
-        <ColorSwatch color={color} shape="circle" />
-        <Flex direction="row" alignItems="center" gap="size-50">
-          <Text size="M" fontFamily="mono">
-            {valueText}
-          </Text>
-          <Text color="grey-500" size="S" fontFamily="mono">
-            {percentageDeltaText}
-          </Text>
-        </Flex>
+    <Flex direction="row" alignItems="center" gap="size-100">
+      <ColorSwatch color={color} shape="circle" />
+      <Flex direction="row" alignItems="center" gap="size-50">
+        <Text size="M" fontFamily="mono">
+          {valueText}
+        </Text>
+        <Text color="grey-500" size="S" fontFamily="mono">
+          {percentageDeltaText}
+        </Text>
       </Flex>
-      <ExampleChangeCounter
-        numIncreases={numIncreases}
-        numDecreases={numDecreases}
-        numEqual={numEqual}
-        optimizationDirection={optimizationDirection}
-      />
     </Flex>
   );
 }
