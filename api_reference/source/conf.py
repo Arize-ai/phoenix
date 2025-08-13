@@ -125,8 +125,8 @@ autodoc_default_options = {
     "private-members": False,
     "special-members": "",
     "undoc-members": False,
-    "inherited-members": False,
-    "show-inheritance": False,
+    "inherited-members": True,
+    "show-inheritance": True,
 }
 
 # -- Internationalization ----------------------------------------------------
