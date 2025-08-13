@@ -121,6 +121,15 @@ class TestUsers(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                [
+                    "password_hash",
+                    "password_salt",
+                    "oauth2_client_id",
+                    "oauth2_user_id",
+                    "profile_picture_url",
+                ]
+            ),  # These columns are nullable
         )
 
     @classmethod
@@ -176,6 +185,15 @@ class TestUsers(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                [
+                    "password_hash",
+                    "password_salt",
+                    "oauth2_client_id",
+                    "oauth2_user_id",
+                    "profile_picture_url",
+                ]
+            ),  # These columns are nullable
         )
 
     def test_db_schema(
