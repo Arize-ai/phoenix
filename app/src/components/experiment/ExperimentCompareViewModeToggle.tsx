@@ -1,5 +1,3 @@
-import { css } from "@emotion/react";
-
 import {
   Icon,
   Icons,
@@ -36,9 +34,6 @@ export function ExperimentCompareViewModeToggle({
 }) {
   return (
     <ToggleButtonGroup
-      css={css`
-        flex-basis: fit-content;
-      `}
       selectedKeys={[viewMode]}
       selectionMode="single"
       onSelectionChange={(selection) => {
@@ -57,7 +52,6 @@ export function ExperimentCompareViewModeToggle({
       <ToggleButton id="grid" leadingVisual={<Icon svg={<Icons.Grid />} />}>
         Grid
       </ToggleButton>
-
       <ToggleButton
         id="metrics"
         leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
