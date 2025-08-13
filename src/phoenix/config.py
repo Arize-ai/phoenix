@@ -1125,7 +1125,7 @@ class DirectoryError(Exception):
 
 # Regex for LEGACY backward compatibility: matches ONLY simple host:port patterns.
 # While this parsing was designed to be convenient, it has limitations when used with
-# complex host strings (Cloud SQL mount paths, IPv6 addresses, URLs with schemes, etc.).
+# complex host strings (IPv6 addresses, URLs with schemes, file paths, etc.).
 #
 # LEGACY SUPPORT: This host:port parsing is maintained for backward compatibility
 # with existing Phoenix deployments. For new deployments, we recommend setting
@@ -1138,7 +1138,7 @@ class DirectoryError(Exception):
 #
 # Examples:
 #   ✓ Matches:    "localhost:5432", "db.example.com:5432", "192.168.1.1:5432"
-#   ✗ Rejects:    "/cloudsql/proj:region:inst", "2001:db8::1", "http://localhost"
+#   ✗ Rejects:    "/path/to/socket:resource", "2001:db8::1", "http://localhost"
 _HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
 
@@ -1148,7 +1148,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
 
     Required environment variables:
         PHOENIX_POSTGRES_HOST: Database host
-            Examples: 'localhost', '192.168.1.100', '/cloudsql/project:region:instance'
+            Examples: 'localhost', '192.168.1.100'
         PHOENIX_POSTGRES_USER: Database username
         PHOENIX_POSTGRES_PASSWORD: Database password (automatically URL-encoded)
 
@@ -1167,7 +1167,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
         Phoenix previously attempted to be helpful by automatically parsing host:port
         combinations from PHOENIX_POSTGRES_HOST (e.g., "localhost:5432"). While this was
         designed for convenience, it has limitations with complex host strings like
-        Cloud SQL mount paths, IPv6 addresses, and URLs. This parsing is maintained for
+        file paths, IPv6 addresses, and URLs. This parsing is maintained for
         backward compatibility with existing deployments. For new deployments, we recommend
         using separate host and port variables as shown above.
 
