@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, literal, select
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -18,26 +18,30 @@ from phoenix.trace.dsl import SpanFilter
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilter: TypeAlias = Optional[str]
 
-Segment: TypeAlias = tuple[TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition]
+Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
 Result: TypeAlias = SpanCostSummary
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = SpanCostSummary()
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    project_rowid, time_range, filter_condition = key
+    project_rowid, time_range, filter_condition, session_filter = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (interval, filter_condition), project_rowid
+    # Include project_rowid in segment when session_filter is present to prevent
+    # cross-project batching
+    segment_project_id = project_rowid if session_filter else None
+    return (interval, filter_condition, session_filter, segment_project_id), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
 
 
 class SpanCostSummaryCache(
@@ -53,8 +57,8 @@ class SpanCostSummaryCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (interval, filter_condition), project_rowid = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition)
+        (interval, filter_condition, session_filter, _), project_rowid = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, session_filter)
 
 
 class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
@@ -106,12 +110,59 @@ def _get_stmt(
     segment: Segment,
     *params: Param,
 ) -> Select[Any]:
-    (start_time, end_time), filter_condition = segment
+    (start_time, end_time), filter_condition, session_filter, segment_project_id = segment
     pid = models.Trace.project_rowid
 
-    stmt: Select[Any] = (
+    # Prevent duplicate SpanCost records caused by joins with annotation tables
+    subquery_stmt = select(models.SpanCost.id.label("cost_id"), pid).join_from(
+        models.SpanCost, models.Trace
+    )
+
+    # Apply time range filters
+    if start_time:
+        subquery_stmt = subquery_stmt.where(start_time <= models.Trace.start_time)
+    if end_time:
+        subquery_stmt = subquery_stmt.where(models.Trace.start_time < end_time)
+
+    # Apply span filters if present
+    if filter_condition:
+        sf = SpanFilter(filter_condition)
+        subquery_stmt = sf(subquery_stmt.join(models.Span))
+
+    # Apply session filters if present
+    if session_filter:
+        from phoenix.server.api.types.Project import apply_session_io_filter
+
+        if not params:
+            return select(
+                literal(0).label("project_rowid"),
+                literal(0.0).label("prompt_cost"),
+                literal(0.0).label("completion_cost"),
+                literal(0.0).label("total_cost"),
+                literal(0).label("prompt_tokens"),
+                literal(0).label("completion_tokens"),
+                literal(0).label("total_tokens"),
+            ).where(literal(False))
+
+        # When session_filter is present, segment_project_id contains the correct project ID
+        project_id_for_session = (
+            segment_project_id if segment_project_id is not None else next(iter(params))
+        )
+        subquery_stmt = apply_session_io_filter(
+            subquery_stmt, session_filter, project_id_for_session, start_time, end_time
+        )
+
+    # Apply project filtering
+    project_ids = [rowid for rowid in params]
+    subquery_stmt = subquery_stmt.where(pid.in_(project_ids))
+
+    # Create distinct subquery
+    distinct_costs = subquery_stmt.distinct().subquery()
+
+    # Final aggregation query
+    stmt = (
         select(
-            pid,
+            distinct_costs.c.project_rowid,
             coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
             coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
             coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
@@ -119,20 +170,10 @@ def _get_stmt(
             coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
             coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         )
-        .join_from(models.SpanCost, models.Trace)
-        .group_by(pid)
+        .select_from(
+            distinct_costs.join(models.SpanCost, distinct_costs.c.cost_id == models.SpanCost.id)
+        )
+        .group_by(distinct_costs.c.project_rowid)
     )
-
-    if start_time:
-        stmt = stmt.where(start_time <= models.Trace.start_time)
-    if end_time:
-        stmt = stmt.where(models.Trace.start_time < end_time)
-
-    if filter_condition:
-        sf = SpanFilter(filter_condition)
-        stmt = sf(stmt.join_from(models.SpanCost, models.Span))
-
-    project_ids = [rowid for rowid in params]
-    stmt = stmt.where(pid.in_(project_ids))
 
     return stmt

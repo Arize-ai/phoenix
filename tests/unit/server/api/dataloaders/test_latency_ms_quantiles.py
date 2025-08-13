@@ -56,6 +56,7 @@ async def test_latency_ms_quantiles_p25_p50_p75(
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
+            None,  # session_filter
             probability,
         )
         for kind in kinds

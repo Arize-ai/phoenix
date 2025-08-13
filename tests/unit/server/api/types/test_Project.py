@@ -3848,3 +3848,583 @@ async def test_paginate_spans_by_trace_start_time(
         "root-span-3",
         "orphan-span-2",
     ]  # Descending order: trace 3, then trace 2
+
+
+async def test_trace_count_with_span_filter_returns_correct_data(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test trace_count with span filter returns actual filtered count, not all traces"""
+    # Create project with 5 traces, 3 have LLM spans
+    async with db() as session:
+        project = await _add_project(session, name="filter-test")
+
+        # Create 3 traces with LLM spans (should be counted)
+        for i in range(3):
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace, span_kind="LLM")
+
+        # Create 2 traces with non-LLM spans (should NOT be counted)
+        for i in range(2):
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace, span_kind="CHAIN")
+
+    query = """
+        query ($projectId: ID!, $filter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount(filterCondition: $filter)
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filter": "span_kind == 'LLM'"}
+    )
+
+    # CRITICAL: Must return 3 (filtered count), NOT 5 (total count)
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["traceCount"] == 3
+
+    # Test without filter returns all 5
+    query_no_filter = """
+        query ($projectId: ID!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount
+                }
+            }
+        }
+    """
+    response_no_filter = await gql_client.execute(
+        query=query_no_filter, variables={"projectId": project_gid}
+    )
+    assert not response_no_filter.errors
+    assert response_no_filter.data is not None
+    assert response_no_filter.data["node"]["traceCount"] == 5
+
+
+async def test_cost_summary_with_session_filter_returns_filtered_data(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test cost_summary with session filter returns cost from filtered sessions only"""
+    # Create test data similar to _cost_data fixture but with session-specific costs
+    async with db() as session:
+        project = await _add_project(session, name="session-cost-test")
+
+        # Session 1: $100 cost, input contains "important"
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        span1 = await _add_span(session, trace1, attributes={"input": {"value": "important query"}})
+        model = await _add_generative_model(session, "test-model")
+        await _add_span_cost(session, span1, trace1, model, total_cost=100.0)
+
+        # Session 2: $50 cost, input contains "normal"
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        span2 = await _add_span(session, trace2, attributes={"input": {"value": "normal query"}})
+        await _add_span_cost(session, span2, trace2, model, total_cost=50.0)
+
+    query = """
+        query ($projectId: ID!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary(sessionFilter: $sessionFilter) {
+                        total { cost }
+                    }
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    # Filter for "important" should return only $100 cost
+    response = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "sessionFilter": "important"}
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["costSummary"]["total"]["cost"] == 100.0
+
+    # No filter should return $150 total
+    query_no_filter = """
+        query ($projectId: ID!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary {
+                        total { cost }
+                    }
+                }
+            }
+        }
+    """
+    response_no_filter = await gql_client.execute(
+        query=query_no_filter, variables={"projectId": project_gid}
+    )
+    assert not response_no_filter.errors
+    assert response_no_filter.data is not None
+    assert response_no_filter.data["node"]["costSummary"]["total"]["cost"] == 150.0
+
+
+async def test_cost_summary_with_span_filter_returns_correct_cost(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test cost_summary with span filter returns correct cost"""
+    async with db() as session:
+        project = await _add_project(session, name="span-cost-filter-test")
+
+        # Create spans with different kinds and costs
+        # Span 1: LLM span with $100 cost
+        trace1 = await _add_trace(session, project)
+        span1 = await _add_span(
+            session, trace1, span_kind="LLM", attributes={"input": {"value": "llm query"}}
+        )
+        model = await _add_generative_model(session, "test-model")
+        await _add_span_cost(session, span1, trace1, model, total_cost=100.0)
+
+        # Span 2: CHAIN span with $50 cost (should be filtered out)
+        trace2 = await _add_trace(session, project)
+        span2 = await _add_span(
+            session, trace2, span_kind="CHAIN", attributes={"input": {"value": "chain query"}}
+        )
+        await _add_span_cost(session, span2, trace2, model, total_cost=50.0)
+
+        # Span 3: Another LLM span with $75 cost
+        trace3 = await _add_trace(session, project)
+        span3 = await _add_span(
+            session, trace3, span_kind="LLM", attributes={"input": {"value": "another llm query"}}
+        )
+        await _add_span_cost(session, span3, trace3, model, total_cost=75.0)
+
+        await session.commit()
+
+    query = """
+        query ($projectId: ID!, $filterCondition: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary(filterCondition: $filterCondition) {
+                        total { cost }
+                        prompt { cost }
+                        completion { cost }
+                    }
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # Filter for LLM spans only - should return $175 total (100 + 75)
+    response = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filterCondition": 'span_kind == "LLM"'}
+    )
+    assert not response.errors
+    assert response.data is not None
+    cost_summary = response.data["node"]["costSummary"]
+    assert cost_summary["total"]["cost"] == 175.0
+
+    # No filter should return $225 total (100 + 50 + 75)
+    query_no_filter = """
+        query ($projectId: ID!) {
+            node(id: $projectId) {
+                ... on Project {
+                    costSummary {
+                        total { cost }
+                    }
+                }
+            }
+        }
+    """
+    response_no_filter = await gql_client.execute(
+        query=query_no_filter, variables={"projectId": project_gid}
+    )
+    assert not response_no_filter.errors
+    assert response_no_filter.data is not None
+    assert response_no_filter.data["node"]["costSummary"]["total"]["cost"] == 225.0
+
+
+async def test_latency_quantile_with_filters_returns_accurate_percentiles(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test latency quantiles with filters return percentiles of filtered data only"""
+    async with db() as session:
+        project = await _add_project(session, name="latency-filter-test")
+
+        # Create traces with different latencies and span types
+        latencies_llm = [100, 200, 300]  # P50 = 200ms for LLM spans
+        latencies_chain = [400, 500, 600]  # P50 = 500ms for CHAIN spans
+
+        for latency in latencies_llm:
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency),
+            )
+            await _add_span(
+                session,
+                trace,
+                span_kind="LLM",
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+
+        for latency in latencies_chain:
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency),
+            )
+            await _add_span(
+                session,
+                trace,
+                span_kind="CHAIN",
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            )
+
+    query = """
+        query ($projectId: ID!, $filter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    latencyMsQuantile(probability: 0.5, filterCondition: $filter)
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # Filter for LLM spans should return P50 = 200ms
+    response_llm = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filter": "span_kind == 'LLM'"}
+    )
+    assert not response_llm.errors
+    assert response_llm.data is not None
+    assert response_llm.data["node"]["latencyMsQuantile"] == 200.0
+
+    # Filter for CHAIN spans should return P50 = 500ms
+    response_chain = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filter": "span_kind == 'CHAIN'"}
+    )
+    assert not response_chain.errors
+    assert response_chain.data is not None
+    assert response_chain.data["node"]["latencyMsQuantile"] == 500.0
+
+
+# Session Filter Unit Tests
+
+
+async def test_session_filter_with_uuid_format(
+    db: DbSessionFactory,
+) -> None:
+    """Test apply_session_io_filter with UUID format session filter uses I/O filtering"""
+    import uuid
+
+    from sqlalchemy import select
+
+    from phoenix.server.api.types.Project import apply_session_io_filter
+
+    async with db() as session:
+        project = await _add_project(session, name="uuid-filter-test")
+        # Generate a proper UUID for the session
+        session_uuid = str(uuid.uuid4())
+        session_obj = await _add_project_session(session, project, session_id=session_uuid)
+
+        # Create base statement
+        stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
+
+        # Apply UUID session filter - should use I/O filtering, not direct session_id lookup
+        uuid_filter = str(session_obj.session_id)  # This should be a valid UUID
+        filtered_stmt = apply_session_io_filter(stmt, uuid_filter, project.id)
+
+        # Verify the statement uses I/O filtering (not direct session_id lookup)
+        sql_str = str(filtered_stmt.compile())
+        assert "project_session_rowid" in sql_str.lower()
+        assert "spans.attributes" in sql_str.lower()  # Should search in span attributes
+        # Should NOT directly query session_id (old behavior was removed)
+        assert "session_id" not in sql_str.lower()
+
+
+async def test_session_filter_with_substring_format(
+    db: DbSessionFactory,
+) -> None:
+    """Test _apply_session_io_filter with substring format session filter"""
+    from sqlalchemy import select
+
+    from phoenix.server.api.types.Project import apply_session_io_filter
+
+    async with db() as session:
+        project = await _add_project(session, name="substring-filter-test")
+
+        # Create base statement
+        stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
+
+        # Apply substring session filter
+        filtered_stmt = apply_session_io_filter(stmt, "test_substring", project.id)
+
+        # Verify the statement was modified to use I/O filtering
+        sql_str = str(filtered_stmt.compile())
+        assert "text_contains" in sql_str.lower() or "attributes" in sql_str.lower()
+
+
+async def test_session_filter_edge_cases(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test session filter edge cases: empty string, special characters, and no matches"""
+    async with db() as session:
+        project = await _add_project(session, name="edge-cases-test")
+        session_obj = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, session_obj)
+        await _add_span(
+            session, trace, attributes={"input": {"value": "query with @#$% special chars"}}
+        )
+
+    query = """
+        query ($projectId: ID!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount(sessionFilter: $sessionFilter)
+                    costSummary(sessionFilter: $sessionFilter) {
+                        total { cost }
+                    }
+                    latencyMsQuantile(probability: 0.5, sessionFilter: $sessionFilter)
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # Test 1: Empty string should be treated as substring filter
+    response_empty = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "sessionFilter": ""}
+    )
+    assert not response_empty.errors
+    assert response_empty.data is not None
+    assert isinstance(response_empty.data["node"]["traceCount"], int)
+
+    # Test 2: Special characters should work with substring search
+    response_special = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "sessionFilter": "@#$%"}
+    )
+    assert not response_special.errors
+    assert response_special.data is not None
+    assert response_special.data["node"]["traceCount"] == 1
+
+    # Test 3: No matching sessions should return zeros/nulls
+    response_no_match = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "sessionFilter": "nonexistent_filter"}
+    )
+    assert not response_no_match.errors
+    assert response_no_match.data is not None
+    assert response_no_match.data["node"]["traceCount"] == 0
+    assert response_no_match.data["node"]["costSummary"]["total"]["cost"] is None
+    assert response_no_match.data["node"]["latencyMsQuantile"] is None
+
+
+async def test_combined_filters_span_and_session(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test combining span filter and session filter"""
+    async with db() as session:
+        project = await _add_project(session, name="combined-filter-test")
+
+        # Session 1: LLM span with "important" input
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        await _add_span(
+            session, trace1, span_kind="LLM", attributes={"input": {"value": "important query"}}
+        )
+
+        # Session 2: LLM span with "normal" input
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        await _add_span(
+            session, trace2, span_kind="LLM", attributes={"input": {"value": "normal query"}}
+        )
+
+        # Session 3: CHAIN span with "important" input
+        session3 = await _add_project_session(session, project)
+        trace3 = await _add_trace(session, project, session3)
+        await _add_span(
+            session, trace3, span_kind="CHAIN", attributes={"input": {"value": "important query"}}
+        )
+
+    query = """
+        query ($projectId: ID!, $filterCondition: String!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount(filterCondition: $filterCondition, sessionFilter: $sessionFilter)
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    # Should return only trace1 (LLM spans in sessions with "important")
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterCondition": "span_kind == 'LLM'",
+            "sessionFilter": "important",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["traceCount"] == 1
+
+
+async def test_session_filter_prevents_cross_project_access(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that session filter with text search prevents access to sessions from other projects"""
+    import uuid
+
+    async with db() as session:
+        # Create two separate projects
+        project1 = await _add_project(session, name="project1-security-test")
+        project2 = await _add_project(session, name="project2-security-test")
+
+        # Create a session in project1 with distinctive content
+        project1_session_uuid = str(uuid.uuid4())
+        session1 = await _add_project_session(session, project1, session_id=project1_session_uuid)
+        trace1 = await _add_trace(session, project1, session1)
+        await _add_span(session, trace1, attributes={"input": {"value": "secret project1 content"}})
+
+        # Create a session in project2 with different content
+        project2_session_uuid = str(uuid.uuid4())
+        session2 = await _add_project_session(session, project2, session_id=project2_session_uuid)
+        trace2 = await _add_trace(session, project2, session2)
+        await _add_span(session, trace2, attributes={"input": {"value": "project2 general data"}})
+
+    query = """
+        query ($projectId: ID!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceCount(sessionFilter: $sessionFilter)
+                }
+            }
+        }
+    """
+
+    # Security test: Try to access project1's content from project2's context
+    project2_gid = str(GlobalID(type_name="Project", node_id=str(project2.id)))
+    project1_content_filter = "secret project1 content"  # Text from project1's session
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project2_gid,  # Querying project2
+            "sessionFilter": project1_content_filter,  # But searching for project1's content
+        },
+    )
+
+    assert not response.errors
+    # Should return 0 because project1's content should not be accessible from project2
+    assert response.data is not None
+    assert response.data["node"]["traceCount"] == 0
+
+    # Functionality test: Verify content search works within the correct project
+    project1_gid = str(GlobalID(type_name="Project", node_id=str(project1.id)))
+    response_correct = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project1_gid,  # Querying project1
+            "sessionFilter": project1_content_filter,  # Searching for project1's content
+        },
+    )
+
+    assert not response_correct.errors
+    # Should return 1 because project1's content should be found in project1
+    assert response_correct.data is not None
+    assert response_correct.data["node"]["traceCount"] == 1
+
+
+async def test_session_filter_with_annotation_summaries(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test session filter works with spanAnnotationSummary field"""
+    async with db() as session:
+        project = await _add_project(session, name="annotation-session-test")
+
+        # Session with span that has input containing "priority"
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        span1 = await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
+
+        # Add annotation to the span
+        annotation = models.SpanAnnotation(
+            span_rowid=span1.id,
+            name="test-annotation",
+            label="important",
+            score=1.0,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation)
+
+        # Session with span that doesn't have "priority" in input
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        span2 = await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
+
+        # Add annotation to this span too
+        annotation2 = models.SpanAnnotation(
+            span_rowid=span2.id,
+            name="test-annotation",
+            label="normal",
+            score=0.5,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation2)
+
+    query = """
+        query ($projectId: ID!, $sessionFilter: String!) {
+            node(id: $projectId) {
+                ... on Project {
+                    spanAnnotationSummary(annotationName: "test-annotation", sessionFilter: $sessionFilter) {
+                        labelFractions {
+                            label
+                            fraction
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    # Filter for sessions with "priority" should only return annotations from span1
+    response = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "sessionFilter": "priority"}
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    summary = response.data["node"]["spanAnnotationSummary"]
+    assert summary is not None
+
+    # Should only have the "important" label from the filtered session
+    label_fractions = summary["labelFractions"]
+    assert len(label_fractions) == 1
+    assert label_fractions[0]["label"] == "important"
+    assert label_fractions[0]["fraction"] == 1.0

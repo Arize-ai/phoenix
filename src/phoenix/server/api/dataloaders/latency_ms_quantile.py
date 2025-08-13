@@ -32,13 +32,18 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilter: TypeAlias = Optional[str]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[
+    Kind, TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]
+]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability]
+Key: TypeAlias = tuple[
+    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter, Probability
+]
 Result: TypeAlias = Optional[QuantileValue]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -47,15 +52,21 @@ FloatCol: TypeAlias = SQLColumnExpression[Float[float]]
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, probability = key
+    kind, project_rowid, time_range, filter_condition, session_filter, probability = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition), (project_rowid, probability)
+    # Include project_rowid in segment when session_filter is present to prevent
+    # cross-project batching
+    segment_project_id = project_rowid if session_filter else None
+    return (kind, interval, filter_condition, session_filter, segment_project_id), (
+        project_rowid,
+        probability,
+    )
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind, Probability]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Kind, Probability]
 
 
 class LatencyMsQuantileCache(
@@ -71,8 +82,10 @@ class LatencyMsQuantileCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition), (project_rowid, probability) = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition, kind, probability)
+        (kind, interval, filter_condition, session_filter, _), (project_rowid, probability) = (
+            _cache_key_fn(key)
+        )
+        return project_rowid, (interval, filter_condition, session_filter, kind, probability)
 
 
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
@@ -113,11 +126,15 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition = segment
+    kind, (start_time, end_time), filter_condition, session_filter, segment_project_id = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
         latency_column = cast(FloatCol, models.Trace.latency_ms)
         time_column = models.Trace.start_time
+        if filter_condition:
+            # For trace latency with span filter: include traces containing spans matching filter
+            sf = SpanFilter(filter_condition)
+            stmt = sf(stmt.join(models.Span)).distinct()
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)
         time_column = models.Span.start_time
@@ -127,6 +144,17 @@ async def _get_results(
             stmt = sf(stmt)
     else:
         assert_never(kind)
+    if session_filter and params:
+        from phoenix.server.api.types.Project import apply_session_io_filter
+
+        # Apply session filter to stmt - use segment_project_id for correct project scoping
+        # When session_filter is present, segment_project_id contains the correct project ID
+        project_id_for_session = (
+            segment_project_id if segment_project_id is not None else next(iter(params.keys()))[0]
+        )
+        stmt = apply_session_io_filter(
+            stmt, session_filter, project_id_for_session, start_time, end_time
+        )
     if start_time:
         stmt = stmt.where(start_time <= time_column)
     if end_time:

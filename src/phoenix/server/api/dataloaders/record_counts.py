@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, distinct, func, literal, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -17,27 +17,33 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilter: TypeAlias = Optional[str]
 SpanCount: TypeAlias = int
 
-Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[
+    Kind, TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]
+]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition]
+Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
 Result: TypeAlias = SpanCount
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = 0
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition = key
+    kind, project_rowid, time_range, filter_condition, session_filter = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition), project_rowid
+    # Include project_rowid in segment when session_filter is present to prevent
+    # cross-project batching
+    segment_project_id = project_rowid if session_filter else None
+    return (kind, interval, filter_condition, session_filter, segment_project_id), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Kind]
 
 
 class RecordCountCache(
@@ -53,8 +59,8 @@ class RecordCountCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition), project_rowid = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition, kind)
+        (kind, interval, filter_condition, session_filter, _), project_rowid = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, session_filter, kind)
 
 
 class RecordCountDataLoader(DataLoader[Key, Result]):
@@ -93,7 +99,7 @@ def _get_stmt(
     segment: Segment,
     *project_rowids: Param,
 ) -> Select[Any]:
-    kind, (start_time, end_time), filter_condition = segment
+    kind, (start_time, end_time), filter_condition, session_filter, segment_project_id = segment
     pid = models.Trace.project_rowid
     stmt = select(pid)
     if kind == "span":
@@ -104,10 +110,35 @@ def _get_stmt(
             stmt = sf(stmt)
     elif kind == "trace":
         time_column = models.Trace.start_time
+        if filter_condition:
+            # For trace count with span filter: count distinct traces
+            # containing spans matching filter
+            sf = SpanFilter(filter_condition)
+            stmt = sf(stmt.join(models.Span))
+            # Use distinct count of trace IDs to avoid counting multiple spans per trace
+            stmt = stmt.add_columns(func.count(distinct(models.Trace.id)).label("count"))
+        else:
+            stmt = stmt.add_columns(func.count().label("count"))
     else:
         assert_never(kind)
-    stmt = stmt.add_columns(func.count().label("count"))
+
+    # For span counts, add the count column (if not already added above)
+    if kind == "span":
+        stmt = stmt.add_columns(func.count().label("count"))
     stmt = stmt.where(pid.in_(project_rowids))
+    if session_filter:
+        from phoenix.server.api.types.Project import apply_session_io_filter
+
+        # Apply session filter to stmt - use segment_project_id for correct project scoping
+        if not project_rowids:
+            return select(pid, literal(0).label("count")).where(literal(False))
+        # When session_filter is present, segment_project_id contains the correct project ID
+        project_id_for_session = (
+            segment_project_id if segment_project_id is not None else next(iter(project_rowids))
+        )
+        stmt = apply_session_io_filter(
+            stmt, session_filter, project_id_for_session, start_time, end_time
+        )
     stmt = stmt.group_by(pid)
     if start_time:
         stmt = stmt.where(start_time <= time_column)
