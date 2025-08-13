@@ -58,13 +58,6 @@ type ExperimentComparison = {
   optimizationDirection: OptimizationDirection;
 };
 
-type MetricCardProps = {
-  title: string;
-  baseExperimentValue: MetricValue;
-  comparisons: ExperimentComparison[];
-  formatter?: (value: MetricValue) => string;
-};
-
 type Experiment = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
@@ -76,53 +69,6 @@ type CompareExperimentRunMetricCounts = NonNullable<
 type CompareExperimentRunAnnotationMetricCounts = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationMetricCounts"]
 >[number];
-
-function MetricCard({
-  title,
-  baseExperimentValue,
-  comparisons,
-  formatter = numberFormatter,
-}: MetricCardProps) {
-  const { baseExperimentColor } = useExperimentColors();
-  return (
-    <div css={metricCardCSS}>
-      <Flex direction="column" gap="size-200">
-        <Heading level={3}>{title}</Heading>
-        <HorizontalBarChart
-          bars={[
-            {
-              value: baseExperimentValue ?? 0,
-              color: baseExperimentColor,
-            },
-            ...comparisons.map((comparison) => ({
-              value: comparison.compareExperimentValue ?? 0,
-              color: comparison.compareExperimentColor,
-            })),
-          ]}
-        />
-        <Flex direction="column">
-          <BaseExperimentMetric
-            value={baseExperimentValue}
-            formatter={formatter}
-          />
-          {comparisons.map((comparison) => (
-            <CompareExperimentMetric
-              key={comparison.compareExperimentId}
-              value={comparison.compareExperimentValue}
-              formatter={formatter}
-              baseExperimentValue={baseExperimentValue}
-              numIncreases={comparison.numIncreases}
-              numDecreases={comparison.numDecreases}
-              numEqual={comparison.numEqual}
-              optimizationDirection={comparison.optimizationDirection}
-              color={comparison.compareExperimentColor}
-            />
-          ))}
-        </Flex>
-      </Flex>
-    </div>
-  );
-}
 
 export function ExperimentCompareMetricsPage() {
   const [searchParams] = useSearchParams();
@@ -628,6 +574,60 @@ export function ExperimentCompareMetricsPage() {
             ))}
           </ul>
         </View>
+      </Flex>
+    </div>
+  );
+}
+
+type MetricCardProps = {
+  title: string;
+  baseExperimentValue: MetricValue;
+  comparisons: ExperimentComparison[];
+  formatter?: (value: MetricValue) => string;
+};
+
+function MetricCard({
+  title,
+  baseExperimentValue,
+  comparisons,
+  formatter = numberFormatter,
+}: MetricCardProps) {
+  const { baseExperimentColor } = useExperimentColors();
+  return (
+    <div css={metricCardCSS}>
+      <Flex direction="column" gap="size-200">
+        <Heading level={3}>{title}</Heading>
+        <HorizontalBarChart
+          bars={[
+            {
+              value: baseExperimentValue ?? 0,
+              color: baseExperimentColor,
+            },
+            ...comparisons.map((comparison) => ({
+              value: comparison.compareExperimentValue ?? 0,
+              color: comparison.compareExperimentColor,
+            })),
+          ]}
+        />
+        <Flex direction="column">
+          <BaseExperimentMetric
+            value={baseExperimentValue}
+            formatter={formatter}
+          />
+          {comparisons.map((comparison) => (
+            <CompareExperimentMetric
+              key={comparison.compareExperimentId}
+              value={comparison.compareExperimentValue}
+              formatter={formatter}
+              baseExperimentValue={baseExperimentValue}
+              numIncreases={comparison.numIncreases}
+              numDecreases={comparison.numDecreases}
+              numEqual={comparison.numEqual}
+              optimizationDirection={comparison.optimizationDirection}
+              color={comparison.compareExperimentColor}
+            />
+          ))}
+        </Flex>
       </Flex>
     </div>
   );
