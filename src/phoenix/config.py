@@ -1124,17 +1124,21 @@ class DirectoryError(Exception):
 
 
 # Regex for LEGACY backward compatibility: matches ONLY simple host:port patterns.
-# This parsing approach has proven problematic as it conflicts with complex host strings
-# (Cloud SQL mount paths, IPv6 addresses, URLs with schemes, etc.).
+# While this parsing was designed to be convenient, it has limitations when used with
+# complex host strings (Cloud SQL mount paths, IPv6 addresses, URLs with schemes, etc.).
 #
-# DEPRECATED BEHAVIOR: This host:port parsing exists only to avoid breaking
-# existing Phoenix deployments. New deployments should set PHOENIX_POSTGRES_HOST
-# and PHOENIX_POSTGRES_PORT as separate environment variables.
+# LEGACY SUPPORT: This host:port parsing is maintained for backward compatibility
+# with existing Phoenix deployments. For new deployments, we recommend setting
+# PHOENIX_POSTGRES_HOST and PHOENIX_POSTGRES_PORT as separate environment variables.
 #
-# Pattern explanation:
-#   ^[^:]+    - starts with one or more non-colon characters (the host part)
+# Pattern: ^[^:]+:\d{1,5}$
+#   ^[^:]+    - one or more non-colon characters from start (host part)
 #   :         - exactly one colon separator
-#   \d{1,5}$  - ends with 1-5 digits (the port number)
+#   \d{1,5}$  - 1-5 digits at end (port number)
+#
+# Examples:
+#   ✓ Matches:    "localhost:5432", "db.example.com:5432", "192.168.1.1:5432"
+#   ✗ Rejects:    "/cloudsql/proj:region:inst", "2001:db8::1", "http://localhost"
 _HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
 
@@ -1159,12 +1163,13 @@ def get_env_postgres_connection_str() -> Optional[str]:
             PHOENIX_POSTGRES_USER="myuser"
             PHOENIX_POSTGRES_PASSWORD="mypass"
 
-    LEGACY/DEPRECATED BEHAVIOR:
+    LEGACY BEHAVIOR:
         Phoenix previously attempted to be helpful by automatically parsing host:port
-        combinations from PHOENIX_POSTGRES_HOST (e.g., "localhost:5432"). However, this
-        approach has proven problematic as it conflicts with complex host strings like
-        Cloud SQL mount paths, IPv6 addresses, and URLs. This parsing is maintained only
-        to avoid breaking existing deployments - do not rely on it for new deployments.
+        combinations from PHOENIX_POSTGRES_HOST (e.g., "localhost:5432"). While this was
+        designed for convenience, it has limitations with complex host strings like
+        Cloud SQL mount paths, IPv6 addresses, and URLs. This parsing is maintained for
+        backward compatibility with existing deployments. For new deployments, we recommend
+        using separate host and port variables as shown above.
 
     Returns:
         PostgreSQL connection string in one of these formats:
