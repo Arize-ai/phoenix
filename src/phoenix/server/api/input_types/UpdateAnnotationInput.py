@@ -11,7 +11,7 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 @strawberry.input
 class UpdateAnnotationInput:
-    annotation_id: GlobalID
+    id: GlobalID
     name: str
     annotator_kind: AnnotatorKind = AnnotatorKind.HUMAN
     label: Optional[str] = None

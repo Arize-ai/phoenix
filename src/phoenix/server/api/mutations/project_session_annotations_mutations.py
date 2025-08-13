@@ -60,19 +60,14 @@ class ProjectSessionAnnotationMutationMixin:
         elif input.source == AnnotationSource.APP and user_id is not None:
             identifier = get_user_identifier(user_id)
 
-        # Input fields are already trimmed in __post_init__
-        name = input.name
-        label = input.label
-        explanation = input.explanation
-
         try:
             async with info.context.db() as session:
                 anno = models.ProjectSessionAnnotation(
                     project_session_id=project_session_id,
-                    name=name,
-                    label=label,
+                    name=input.name,
+                    label=input.label,
                     score=input.score,
-                    explanation=explanation,
+                    explanation=input.explanation,
                     annotator_kind=input.annotator_kind.value,
                     metadata_=input.metadata,
                     identifier=identifier,
@@ -100,26 +95,21 @@ class ProjectSessionAnnotationMutationMixin:
             user_id = int(user.identity)
 
         try:
-            id_ = from_global_id_with_expected_type(input.annotation_id, "ProjectSessionAnnotation")
+            id_ = from_global_id_with_expected_type(input.id, "ProjectSessionAnnotation")
         except ValueError:
-            raise BadRequest(f"Invalid session annotation ID: {input.annotation_id}")
+            raise BadRequest(f"Invalid session annotation ID: {input.id}")
 
         async with info.context.db() as session:
             if not (anno := await session.get(models.ProjectSessionAnnotation, id_)):
-                raise NotFound(f"Could not find session annotation with ID: {input.annotation_id}")
+                raise NotFound(f"Could not find session annotation with ID: {input.id}")
             if anno.user_id != user_id:
                 raise Unauthorized("Session annotation is not associated with the current user.")
 
-            # Input fields are already trimmed in __post_init__
-            name = input.name
-            label = input.label
-            explanation = input.explanation
-
             # Update the annotation fields
-            anno.name = name
-            anno.label = label
+            anno.name = input.name
+            anno.label = input.label
             anno.score = input.score
-            anno.explanation = explanation
+            anno.explanation = input.explanation
             anno.annotator_kind = input.annotator_kind.value
             anno.metadata_ = input.metadata
             anno.source = input.source.value

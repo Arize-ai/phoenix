@@ -518,7 +518,7 @@ class TestProjectSessionAnnotationMutations:
         # Use the basic annotation we created
         patch_input = {
             "input": {
-                "annotationId": created_basic_annotation["id"],
+                "id": created_basic_annotation["id"],
                 "name": "test_annotation_renamed",
                 "label": "UPDATED_LABEL",  # Provide label to satisfy validation
                 "metadata": {"patched": True},
@@ -542,7 +542,7 @@ class TestProjectSessionAnnotationMutations:
         # B2. Update nonexistent annotation should error
         nonexistent_patch_input = {
             "input": {
-                "annotationId": str(GlobalID("ProjectSessionAnnotation", "999999")),
+                "id": str(GlobalID("ProjectSessionAnnotation", "999999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
             }
@@ -560,7 +560,7 @@ class TestProjectSessionAnnotationMutations:
         # B3. Update with wrong type GID should error
         invalid_gid_patch_input = {
             "input": {
-                "annotationId": str(GlobalID("Span", "999")),
+                "id": str(GlobalID("Span", "999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
             }
@@ -578,7 +578,7 @@ class TestProjectSessionAnnotationMutations:
         # B4. Update score from non-null to null (with label to satisfy validation)
         score_to_null_input = {
             "input": {
-                "annotationId": created_omitted_identifier_annotation[
+                "id": created_omitted_identifier_annotation[
                     "id"
                 ],  # Use the annotation with score=0.5
                 "name": "score_set_to_null",
@@ -619,7 +619,7 @@ class TestProjectSessionAnnotationMutations:
         # B5. Update with score=null, label=null, explanation="" should fail validation
         invalid_all_null_input = {
             "input": {
-                "annotationId": created_basic_annotation["id"],
+                "id": created_basic_annotation["id"],
                 "name": "should_fail_validation",
                 "score": None,
                 "label": None,
@@ -641,9 +641,7 @@ class TestProjectSessionAnnotationMutations:
         # Fields not provided in the input are reset to their default values (null)
         score_only_input = {
             "input": {
-                "annotationId": created_first_metadata_annotation[
-                    "id"
-                ],  # Use annotation with score=0.1
+                "id": created_first_metadata_annotation["id"],  # Use annotation with score=0.1
                 "name": created_first_metadata_annotation["name"],  # Keep same name
                 "score": 0.95,  # Change score from 0.1 to 0.95
             }
@@ -668,9 +666,7 @@ class TestProjectSessionAnnotationMutations:
         # B7. Test individual field update: label only
         label_only_input = {
             "input": {
-                "annotationId": created_second_metadata_annotation[
-                    "id"
-                ],  # Use annotation with label="B"
+                "id": created_second_metadata_annotation["id"],  # Use annotation with label="B"
                 "name": created_second_metadata_annotation["name"],  # Keep same name
                 "label": "UPDATED_B_LABEL",  # Change label from "B" to "UPDATED_B_LABEL"
             }
@@ -695,7 +691,7 @@ class TestProjectSessionAnnotationMutations:
         # B8. Test individual field update: explanation only
         explanation_only_input = {
             "input": {
-                "annotationId": created_basic_annotation["id"],  # Use basic annotation
+                "id": created_basic_annotation["id"],  # Use basic annotation
                 "name": "explanation_only_test",  # Change name too
                 "explanation": "This is a completely new explanation",  # Change explanation
             }
@@ -722,7 +718,7 @@ class TestProjectSessionAnnotationMutations:
         # B9. Test setting field to null: label from non-null to null
         label_to_null_input = {
             "input": {
-                "annotationId": updated_label_annotation["id"],  # Use annotation that has label
+                "id": updated_label_annotation["id"],  # Use annotation that has label
                 "name": "label_set_to_null",
                 "label": None,
                 "score": 0.75,  # Provide score to satisfy validation
@@ -746,9 +742,7 @@ class TestProjectSessionAnnotationMutations:
         # B10. Test setting field to null: explanation from non-null to null
         explanation_to_null_input = {
             "input": {
-                "annotationId": updated_explanation_annotation[
-                    "id"
-                ],  # Use annotation that has explanation
+                "id": updated_explanation_annotation["id"],  # Use annotation that has explanation
                 "name": "explanation_set_to_null",
                 "explanation": None,
                 "label": "EXPLANATION_NULL_TEST",  # Provide label to satisfy validation
@@ -772,7 +766,7 @@ class TestProjectSessionAnnotationMutations:
         # B11. Test enum field update: annotatorKind (HUMAN → LLM)
         annotator_kind_input = {
             "input": {
-                "annotationId": created_basic_annotation["id"],
+                "id": created_basic_annotation["id"],
                 "name": "annotator_kind_test",
                 "annotatorKind": "LLM",  # Change from HUMAN to LLM
                 "label": "ANNOTATOR_KIND_TEST",  # Provide label to satisfy validation
@@ -796,7 +790,7 @@ class TestProjectSessionAnnotationMutations:
         # B12. Test enum field update: source (APP → API)
         source_input = {
             "input": {
-                "annotationId": created_omitted_identifier_annotation[
+                "id": created_omitted_identifier_annotation[
                     "id"
                 ],  # This was created with source=APP
                 "name": "source_test",
@@ -822,7 +816,7 @@ class TestProjectSessionAnnotationMutations:
         # B13. Test CODE annotatorKind (complete enum coverage)
         code_annotator_input = {
             "input": {
-                "annotationId": updated_source_annotation["id"],
+                "id": updated_source_annotation["id"],
                 "name": "code_annotator_test",
                 "annotatorKind": "CODE",  # Test the third enum value
                 "score": 0.88,  # Provide score to satisfy validation
@@ -847,7 +841,7 @@ class TestProjectSessionAnnotationMutations:
         # Note: UpdateAnnotationInput does not have an identifier field, so identifier should remain unchanged
         identifier_immutable_input = {
             "input": {
-                "annotationId": created_padded_identifier_annotation[
+                "id": created_padded_identifier_annotation[
                     "id"
                 ],  # Use annotation with identifier="padded_identifier"
                 "name": "identifier_immutability_test",
@@ -880,9 +874,7 @@ class TestProjectSessionAnnotationMutations:
         # B15. Test name, label and explanation trimming in updates
         field_trimming_update_input = {
             "input": {
-                "annotationId": created_padded_fields_annotation[
-                    "id"
-                ],  # Use annotation we created in A11
+                "id": created_padded_fields_annotation["id"],  # Use annotation we created in A11
                 "name": "   field_trimming_update_test   ",  # Should be trimmed
                 "label": "   UPDATED_TRIMMED_LABEL   ",  # Should be trimmed
                 "explanation": "   This updated explanation also has padding   ",  # Should be trimmed
