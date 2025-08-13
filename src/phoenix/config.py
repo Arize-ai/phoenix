@@ -1123,14 +1123,18 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+_HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
-    if pg_host and ":" in pg_host:
+
+def get_env_postgres_connection_str() -> Optional[str]:
+    if not (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/")):
+        return None
+    pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if pg_host and _HOST_PORT_REGEX.match(pg_host):  # maintain backwards compatibility
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
