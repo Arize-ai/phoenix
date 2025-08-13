@@ -1,15 +1,13 @@
 import { css } from "@emotion/react";
 
-import { SizingProps } from "@phoenix/components/types";
-
-type HorizontalBarChartProps = {
+export function HorizontalBarChart({
+  bars,
+}: {
   bars: {
     value: number;
     color: string;
   }[];
-} & SizingProps;
-
-export function HorizontalBarChart({ bars }: HorizontalBarChartProps) {
+}) {
   if (bars.length === 0) {
     return null;
   }
