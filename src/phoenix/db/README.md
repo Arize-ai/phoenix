@@ -438,5 +438,5 @@ erDiagram
         float cost
         float tokens
         float cost_per_token
-    }gr
+    }
 ```
