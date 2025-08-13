@@ -1,5 +1,6 @@
 {{- include "phoenix.validatePersistence" . }}
-{{- if .Values.persistence.enabled | toString | eq "true" }}
+{{- $isMemoryDatabase := eq .Values.database.url "sqlite:///:memory:" }}
+{{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
