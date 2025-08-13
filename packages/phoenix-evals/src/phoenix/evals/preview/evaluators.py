@@ -338,10 +338,11 @@ class Evaluator(ABC):
         Args:
             name: The name of this evaluator, used for identification and Score naming.
             source: The source of this evaluator (human, llm, or heuristic).
-            input_schema: Optional pydantic BaseModel for input typing and validation. If None,
-                subclasses will attempt to infer fields from prompts or function signatures.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
-                "maximize".
+            input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
+                subclasses infer fields from prompts or function signatures and may construct a
+                model dynamically.
+            direction: The direction for score optimization ("maximize" or "minimize"). Defaults
+                to "maximize".
         """
         self._name = name
         self._source = source
@@ -370,11 +371,11 @@ class Evaluator(ABC):
 
     @abstractmethod
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-        """Implement core logic assuming eval_input has required fields."""
+        """Implement core logic assuming `eval_input` has required fields per schema/mapping."""
         raise NotImplementedError("Subclasses must implement _evaluate")
 
     async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
-        """Implement async core logic assuming eval_input has required fields.
+        """Implement async core logic assuming `eval_input` has required fields per schema/mapping.
 
         By default, this runs the synchronous _evaluate method in a thread pool.
         Subclasses can override this for more efficient async implementations.
@@ -386,13 +387,14 @@ class Evaluator(ABC):
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
-        Validate and remap `eval_input` keys based on `required_fields` and an optional
-        per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
+        Validate and remap `eval_input` using the evaluator's input fields (from
+        `input_schema` when available, otherwise from the provided `input_mapping`). An optional
+        per-call `input_mapping` maps evaluator-required field names to keys/paths in `eval_input`.
 
         Returns:
-            A list of Score objects from this evaluator.  If evaluation fails, returns a single
-            Score with name "error", score 0.0, explanation set to the exception message,
-            and metadata containing exception details and retry count.
+            A list of Score objects. If evaluation fails, returns a single Score with name
+            "ERROR", score 0.0, the exception message in `explanation`, and metadata including
+            the exception type.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
@@ -412,13 +414,12 @@ class Evaluator(ABC):
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
-        Validate and remap `eval_input` keys based on `required_fields` and an optional
-        per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
+        Async variant of `evaluate`. Validates and remaps input as described in `evaluate`.
 
         Returns:
-            A list of Score objects from this evaluator.  If evaluation fails, returns a
-            Score with name "error", score 0.0, explanation set to the exception message,
-            and metadata containing exception details.
+            A list of Score objects. If evaluation fails, returns a single Score with name
+            "ERROR", score 0.0, the exception message in `explanation`, and metadata including
+            the exception type.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
@@ -499,8 +500,8 @@ class Evaluator(ABC):
 # --- LLM Evaluator base ---
 class LLMEvaluator(Evaluator):
     """
-    Base LLM evaluator that:
-      - Infers `required_fields` automatically from its prompt template.
+    Base LLM evaluator that infers required input fields from its prompt template and
+    constructs a default Pydantic input schema when none is supplied.
     """
 
     def __init__(
@@ -516,17 +517,17 @@ class LLMEvaluator(Evaluator):
         Initialize the LLM evaluator.
 
         Args:
-            name: The name of this evaluator, used for identification and Score naming.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template string with placeholders for required fields.
-            schema: Optional schema for structured output / tool calls.
-            required_fields: Optional field names this evaluator requires. Can be a set, list,
-                or any iterable of strings. If None, fields will be inferred from the prompt
-                template.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+            name: Identifier for this evaluator and the name used in produced Scores.
+            llm: The LLM or AsyncLLM instance to use for evaluation.
+            prompt_template: The prompt template (string or Template) with placeholders for
+                required fields; used to infer required variables.
+            schema: Optional tool/JSON schema for structured output when supported by the LLM.
+            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
+                a model is dynamically created from the prompt variables (all str, required).
+            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
-        # Infer required fields from prompt_template if not provided
+        # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
         required_fields = prompt_template.variables
@@ -578,7 +579,8 @@ class LLMEvaluator(Evaluator):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
     """
-    A specialized LLM evaluator for classification tasks.
+    LLM-based evaluator for classification tasks. Supports label-only or label+score mappings,
+    and returns explanations by default.
     """
 
     def __init__(
@@ -597,18 +599,17 @@ class ClassificationEvaluator(LLMEvaluator):
         Initialize the LLM evaluator.
 
         Args:
-            name: The name of this evaluator, used for identification and Score naming.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template string with placeholders for required fields.
-            choices: The labels to use for the classification. Can be a list of string labels,
-                a dictionary mapping labels to scores, or a dictionary mapping labels to
-                a tuple of (score, description).
-            include_explanation: Whether to ask the LLM to provide an explanation for its
-                classification.
-            required_fields: Optional field names this evaluator requires. Can be a set, list,
-                or any iterable of strings. If None, fields will be inferred from the prompt
-                template.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+            name: Identifier for this evaluator and the name used in produced Scores.
+            llm: The LLM or AsyncLLM instance to use for evaluation.
+            prompt_template: The prompt template (string or Template) with placeholders for inputs.
+            choices: One of:
+                - List[str]: set of label names; scores will be None.
+                - Dict[str, Union[float, int]]: map label -> score.
+                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
+            include_explanation: If True, request an explanation in addition to the label.
+            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
+                a model is derived from prompt variables.
+            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
                 "maximize".
         """
         super().__init__(
@@ -738,23 +739,24 @@ def create_evaluator(
     """
     Decorator that turns a simple function into an Evaluator instance.
 
-    The decorated function should accept keyword args matching its required fields and return a
+    The decorated function should accept keyword arguments matching its input fields and return a
     single Score. The returned object is an Evaluator with full support for evaluate/aevaluate
     and direct callability.
 
     Args:
-        name: The name of this evaluator, used for identification and Score naming.
-        source: The source of this evaluator (human, llm, or heuristic). Defaults to "heuristic".
-        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
-        "maximize".
+        name: Identifier for the evaluator and the name used in produced Scores.
+        source: The source of this evaluator ("human", "llm", or "heuristic"). Defaults to
+            "heuristic".
+        direction: The score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
 
     Returns:
-        An Evaluator instance.
+        An `Evaluator` instance.
 
     Notes:
-    The decorated function should return Score objects. The name parameter is optional
-        since the decorator will set it automatically.
-    Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
+        - The decorated function should return a `Score`. If the returned `Score` has a different
+          name/source/direction, these will be normalized to the decorator’s parameters.
+        - The evaluator is registered so it appears in `list_evaluators()`.
     """
 
     def deco(fn: Callable[..., Score]) -> Evaluator:
@@ -821,22 +823,19 @@ def create_classifier(
     direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
     """
-    Factory to create a ClassificationEvaluator.
+    Factory to create a `ClassificationEvaluator`.
 
     Args:
-        name: The name of this evaluator, used for identification and Score naming.
-        llm: The LLM instance to use for evaluation.
-        prompt_template: The prompt template string with placeholders for required fields.
-        choices: The labels to use for the classification. Can be a list of string labels,
-            a dictionary mapping labels to scores, or a dictionary mapping labels to
-            a tuple of (score, description).
-        required_fields: Optional field names this evaluator requires. Can be a set, list, or any
-            iterable of strings. If None, fields will be inferred from the prompt template.
-        direction: The direction for score optimization ("maximize" or "minimize"). Defaults to
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM or AsyncLLM instance to use for evaluation.
+        prompt_template: Prompt template string with placeholders for inputs.
+        choices: One of List[str], Dict[str, number], or Dict[str, Tuple[number, str]] describing
+            classification labels (and optional scores/descriptions).
+        direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
 
     Returns:
-        A ClassificationEvaluator instance.
+        A `ClassificationEvaluator` instance.
     """
     return ClassificationEvaluator(
         name=name,
@@ -893,5 +892,5 @@ def bind_evaluator(
     evaluator: Evaluator,
     mapping: InputMappingType,
 ) -> BoundEvaluator:
-    """Helper to create a BoundEvaluator."""
+    """Helper to create a `BoundEvaluator` with a fixed input mapping."""
     return BoundEvaluator(evaluator, mapping)
