@@ -41,6 +41,21 @@ class TraceDataExtractor(ABC):
         project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[pd.DataFrame]:
+        """
+        Retrieves spans as a pandas DataFrame based on optional filter conditions.
+
+        Args:
+            filter_condition: Optional filter condition string
+            start_time: Optional start time for filtering  
+            end_time: Optional end time for filtering
+            limit: Maximum number of spans to return
+            root_spans_only: Whether to return only root spans
+            project_name: Optional project name to filter by
+            timeout: Request timeout in seconds
+
+        Returns:
+            pandas DataFrame containing span data, or None if no spans found
+        """
         return cast(
             Optional[pd.DataFrame],
             self.query_spans(
@@ -70,6 +85,20 @@ class TraceDataExtractor(ABC):
         root_spans_only: Optional[bool] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[TraceDataset]:
+        """
+        Retrieves a complete trace dataset including spans and evaluations.
+
+        Args:
+            project_name: Optional project name to filter by
+            start_time: Optional start time for filtering
+            end_time: Optional end time for filtering
+            limit: Maximum number of spans to return
+            root_spans_only: Whether to return only root spans
+            timeout: Request timeout in seconds
+
+        Returns:
+            TraceDataset object containing spans and evaluations, or None if no data found
+        """
         if (
             dataframe := self.get_spans_dataframe(
                 project_name=project_name,

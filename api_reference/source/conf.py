@@ -84,7 +84,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "myst_parser",
     "sphinx_design",
-    "sphinxcontrib.autodoc_inherit_overload",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
