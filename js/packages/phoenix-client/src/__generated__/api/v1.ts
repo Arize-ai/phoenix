@@ -2351,11 +2351,11 @@ export interface components {
              * @description The end time of the evaluation in ISO format
              */
             end_time: string;
-            /** @description The result of the evaluation */
-            result: components["schemas"]["ExperimentEvaluationResult"];
+            /** @description The result of the evaluation. Either result or error must be provided. */
+            result?: components["schemas"]["ExperimentEvaluationResult"] | null;
             /**
              * Error
-             * @description Optional error message if the evaluation encountered an error
+             * @description Error message if the evaluation encountered an error. Either result or error must be provided.
              */
             error?: string | null;
             /**
