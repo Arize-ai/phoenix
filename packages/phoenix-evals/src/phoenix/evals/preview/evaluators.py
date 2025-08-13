@@ -1,10 +1,12 @@
 import asyncio
 import inspect
 import json
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
+from pydantic import BaseModel, ValidationError, create_model
 from typing_extensions import Mapping
 
 from .llm import LLM, AsyncLLM
@@ -16,7 +18,7 @@ EvalInput = Dict[str, Any]
 Schema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
-RequiredFieldsType = Optional[Union[Set[str], List[str], Iterable[str]]]
+InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
 
 # --- Score model ---
@@ -65,50 +67,160 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def _validate_field_value(value: Any, field_name: str, key: str) -> None:
+def _tokenize_path(path: str) -> List[Union[str, int]]:
     """
-    Validate that a field value is not null or empty.
+    Convert a dotted/bracket path into tokens.
+    Supports:
+      - dict traversal via dots: input.query
+      - list index via brackets: items[0]
 
-    Args:
-        value: The value to validate
-        field_name: The evaluator's expected field name
-        key: The actual key in the input dictionary
+    This is intentionally simple; quoted keys and complex expressions are not supported yet.
+
+    Returns:
+        A list of tokens.
 
     Raises:
-        ValueError: If the value is null or empty
+        ValueError: If the path is invalid.
     """
-    if value is None:
-        raise ValueError(
-            f"Required field '{field_name}' (from '{key}') cannot be None. "
-            f"eval_input[{key}] = {value}"
-        )
+    tokens: List[Union[str, int]] = []
+    # Split on '.' first
+    parts = path.split(".") if path else []
+    for part in parts:
+        # Handle zero or more [index] suffixes
+        buf = ""
+        i = 0
+        # accumulate leading identifier
+        while i < len(part) and part[i] != "[":
+            buf += part[i]
+            i += 1
+        if buf:
+            tokens.append(buf)
+        # parse any bracket segments
+        while i < len(part):
+            if part[i] != "[":
+                break
+            j = part.find("]", i + 1)
+            if j == -1:
+                # malformed; treat the rest literally
+                break
+            index_str = part[i + 1 : j]
+            try:
+                idx = int(index_str)
+                tokens.append(idx)
+            except ValueError:
+                # non-integer indexes not supported in this minimal version
+                tokens.append(index_str)
+            i = j + 1
+    return tokens
 
-    # Check for empty strings (including whitespace-only)
-    if isinstance(value, str) and not value.strip():
-        raise ValueError(
-            f"Required field '{field_name}' (from '{key}') cannot be empty or whitespace-only. "
-            f"eval_input[{key}] = {repr(value)}"
-        )
 
-    # Check for empty collections
-    if isinstance(value, (list, tuple, dict)) and len(value) == 0:
-        raise ValueError(
-            f"Required field '{field_name}' (from '{key}') cannot be empty. "
-            f"eval_input[{key}] = {value}"
-        )
+TransformFunc = Callable[[Any], Any]
+
+
+def _get_builtin_transform(name: str) -> Optional[TransformFunc]:
+    """
+    Get a built-in transform function by name.
+    """
+    simple = name.strip().lower()
+    if simple == "first":
+        return lambda v: (v[0] if isinstance(v, (list, tuple)) and v else None)
+    if simple == "strip":
+        return lambda v: (v.strip() if isinstance(v, str) else v)
+    if simple == "lower":
+        return lambda v: (v.lower() if isinstance(v, str) else v)
+    if simple == "upper":
+        return lambda v: (v.upper() if isinstance(v, str) else v)
+    if simple in {"as_str", "coerce:str"}:
+        return lambda v: (str(v) if v is not None else v)
+    if simple == "coerce:int":
+        return lambda v: (int(v) if v is not None else v)
+    if simple == "coerce:float":
+        return lambda v: (float(v) if v is not None else v)
+    if simple == "coerce:bool":
+        return lambda v: (bool(v) if v is not None else v)
+    return None
+
+
+def _apply_transforms(value: Any, transforms: List[TransformFunc]) -> Any:
+    """
+    Apply a list of transforms to a value.
+    """
+    result = value
+    for transform in transforms:
+        result = transform(result)
+    return result
+
+
+def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
+    """
+    Extract a value from a nested JSON structure using a path.
+
+    The path is a string with the following format:
+    - dict traversal via dots: input.query
+    - list index via brackets: items[0]
+    - combination of both: input.docs[0]
+    - can be combined with transforms: input.docs[0] | strip | lower
+
+    Returns:
+        The extracted value.
+
+    Raises:
+        ValueError: If the path is invalid or the value is not found.
+    """
+    if not path:
+        return None
+    tokens = _tokenize_path(path)
+    current: Any = payload
+    for tok in tokens:
+        if isinstance(tok, int):
+            if not isinstance(current, (list, tuple)) or tok >= len(current):
+                msg = f"Index out of range at '{tok}' for path '{path}'"
+                raise ValueError(msg)
+            current = current[tok]
+        else:
+            if not isinstance(current, Mapping) or tok not in current:
+                msg = f"Missing key '{tok}' while resolving path '{path}'"
+                raise ValueError(msg)
+            current = current[tok]
+    return current
+
+
+def _parse_mapping_spec(spec: str) -> Tuple[str, List[TransformFunc]]:
+    """
+    Parse a mapping spec like "input.docs[0] | strip | lower" into (path, transforms).
+    Unknown transforms are ignored silently for now.
+    """
+    parts = [p.strip() for p in spec.split("|")]
+    path = parts[0] if parts else ""
+    transforms: List[TransformFunc] = []
+    for p in parts[1:]:
+        tf = _get_builtin_transform(p)
+        if tf is not None:
+            transforms.append(tf)
+        else:
+            # warn on unknown transform names to surface typos early
+            if p:
+                warnings.warn(f"Unknown transform '{p}' in mapping spec: '{spec}'", RuntimeWarning)
+    return path, transforms
+
+
+def _required_fields_from_model(model: Optional[type[BaseModel]]) -> Set[str]:
+    if model is None:
+        return set()
+    return {name for name, field in model.model_fields.items() if field.is_required()}
 
 
 def remap_eval_input(
     eval_input: Mapping[str, Any],
-    required_fields: RequiredFieldsType,
-    input_mapping: Optional[Mapping[str, str]] = None,
+    required_fields: Set[str],
+    input_mapping: InputMappingType = None,
 ) -> Dict[str, Any]:
     """
     Remap eval_input keys based on required_fields and an optional input_mapping.
 
     Args:
         eval_input: The input dictionary to be remapped.
-        required_fields: The required field names. Can be a set, list, or any iterable of strings.
+        required_fields: The required field names as a set of strings.
         input_mapping: Optional mapping from evaluator-required field -> eval_input key.
 
     Returns:
@@ -117,26 +229,46 @@ def remap_eval_input(
     Raises:
         ValueError: If a required field is missing in eval_input or has a null/empty value.
     """
-    # TODO add nested remapping
     mapping = input_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
 
-    # Convert required_fields to a set if it's not already
-    if required_fields is None:
-        required_fields_set: Set[str] = set()
-    else:
-        required_fields_set = set(required_fields)
-
-    for field_name in required_fields_set:
-        key = mapping.get(field_name, field_name)
-        if key not in eval_input:
-            raise ValueError(
-                f"Missing required field: '{field_name}' (from '{key}'). "
-                f"eval_input keys={list(eval_input)}"
+    for field_name in required_fields:
+        extractor = mapping.get(field_name, field_name)
+        # Compute value
+        if callable(extractor):
+            value = extractor(eval_input)
+        elif isinstance(extractor, str):
+            path, transforms = _parse_mapping_spec(extractor)
+            # If path is empty, try direct key
+            if not path:
+                key = field_name
+                if key not in eval_input:
+                    msg = (
+                        f"Missing required field: '{field_name}' (no path). "
+                        f"eval_input keys={list(eval_input.keys())}"
+                    )
+                    raise ValueError(msg)
+                value = eval_input[key]
+            else:
+                value = _extract_with_path(eval_input, path)
+            value = _apply_transforms(value, transforms)
+        else:
+            # Unsupported extractor type
+            msg = (
+                f"Invalid mapping for field '{field_name}': expected str or callable, "
+                f"got {type(extractor)}"
             )
+            raise TypeError(msg)
 
-        value = eval_input[key]
-        _validate_field_value(value, field_name, key)
+        # Minimal presence check; defer strict checks to Pydantic
+        key_repr = (
+            extractor
+            if isinstance(extractor, str)
+            else f"callable:{getattr(extractor, '__name__', 'lambda')}"
+        )
+        if value is None:
+            raise ValueError(f"Required field '{field_name}' (from '{key_repr}') resolved to None.")
+
         remapped_eval_input[field_name] = value
 
     return remapped_eval_input
@@ -154,8 +286,8 @@ class Evaluator(ABC):
         self,
         name: str,
         source: SourceType,
-        required_fields: RequiredFieldsType = None,
         direction: DirectionType = "maximize",
+        input_schema: Optional[type[BaseModel]] = None,
     ):
         """
         Initialize the evaluator with a required name, source, and optional required fields.
@@ -172,7 +304,7 @@ class Evaluator(ABC):
         self._name = name
         self._source = source
         self._direction = direction
-        self.required_fields = set(required_fields) if required_fields is not None else set()
+        self.input_schema: Optional[type[BaseModel]] = input_schema
 
     @property
     def name(self) -> str:
@@ -206,41 +338,75 @@ class Evaluator(ABC):
         return cast(List[Score], result)
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: InputMappingType = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
         per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
-            A list of Score objects from this evaluator.
-
-        Raises:
-            Exceptions raised by the underlying evaluator implementation are propagated as-is.
+            A list of Score objects from this evaluator.  If evaluation fails, returns a single
+            Score with name "error", score 0.0, explanation set to the exception message,
+            and metadata containing exception details and retry count.
         """
-        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
+        required_fields = self._get_required_fields(input_mapping)
+        remapped_eval_input = remap_eval_input(
+            eval_input,
+            required_fields,
+            input_mapping,
+        )
+        if self.input_schema is not None:
+            try:
+                model_instance = self.input_schema.model_validate(remapped_eval_input)
+                remapped_eval_input = model_instance.model_dump()
+            except ValidationError as e:
+                raise ValueError(f"Input validation failed: {e}")
         return self._evaluate(remapped_eval_input)
 
     async def aevaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: InputMappingType = None
     ) -> List[Score]:
         """
         Validate and remap `eval_input` keys based on `required_fields` and an optional
         per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
-            A list of Score objects from this evaluator.
-
-        Raises:
-            Exceptions raised by the underlying evaluator implementation are propagated as-is.
+            A list of Score objects from this evaluator.  If evaluation fails, returns a
+            Score with name "error", score 0.0, explanation set to the exception message,
+            and metadata containing exception details.
         """
-        remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
+        required_fields = self._get_required_fields(input_mapping)
+        remapped_eval_input = remap_eval_input(
+            eval_input,
+            required_fields,
+            input_mapping,
+        )
+        if self.input_schema is not None:
+            try:
+                model_instance = self.input_schema.model_validate(remapped_eval_input)
+                remapped_eval_input = model_instance.model_dump()
+            except ValidationError as e:
+                raise ValueError(f"Input validation failed: {e}")
         return await self._aevaluate(remapped_eval_input)
 
     # allow instances to be called directly: `evaluator(eval_input)`
     __call__ = evaluate
     # ensure the callable inherits evaluate's docs for IDE support
     __call__.__doc__ = evaluate.__doc__
+
+    def _get_required_fields(self, input_mapping: InputMappingType) -> Set[str]:
+        """
+        Determine required field names for mapping/validation.
+        Prefers Pydantic schema; falls back to mapping keys if no schema.
+        """
+        if self.input_schema is not None:
+            return _required_fields_from_model(self.input_schema)
+        if input_mapping is not None:
+            return set(input_mapping.keys())
+        raise ValueError(
+            f"Cannot determine input fields for evaluator '{self.name}'. Provide an input_schema or"
+            f" an input_mapping whose keys list the evaluator's required fields."
+        )
 
 
 # --- LLM Evaluator base ---
@@ -256,7 +422,7 @@ class LLMEvaluator(Evaluator):
         llm: Union[LLM, AsyncLLM],
         prompt_template: Union[str, Template],
         schema: Optional[Schema] = None,
-        required_fields: RequiredFieldsType = None,
+        input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
         """
@@ -276,11 +442,19 @@ class LLMEvaluator(Evaluator):
         # Infer required fields from prompt_template if not provided
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
-        if required_fields is None:
-            required_fields = prompt_template.variables
+        required_fields = prompt_template.variables
+
+        # If no explicit input_schema, create a Pydantic model with all fields as required str
+        if input_schema is None:
+            model_name = f"{name.capitalize()}Input"
+            field_defs: Dict[str, Tuple[Any, Any]] = {var: (str, ...) for var in required_fields}
+            input_schema = create_model(model_name, **cast(Any, field_defs))
 
         super().__init__(
-            name=name, source="llm", required_fields=required_fields, direction=direction
+            name=name,
+            source="llm",
+            direction=direction,
+            input_schema=input_schema,
         )
         self.llm = llm
         self.prompt_template = prompt_template
@@ -293,7 +467,7 @@ class LLMEvaluator(Evaluator):
         raise NotImplementedError("Subclasses must implement _aevaluate")
 
     def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: InputMappingType = None
     ) -> List[Score]:
         if isinstance(self.llm, AsyncLLM):
             raise ValueError(
@@ -302,7 +476,7 @@ class LLMEvaluator(Evaluator):
         return super().evaluate(eval_input, input_mapping)
 
     async def aevaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
+        self, eval_input: EvalInput, input_mapping: InputMappingType = None
     ) -> List[Score]:
         if isinstance(self.llm, LLM):
             raise ValueError(
@@ -326,7 +500,7 @@ class ClassificationEvaluator(LLMEvaluator):
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
         ],
         include_explanation: bool = True,
-        required_fields: RequiredFieldsType = None,
+        input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
         """
@@ -351,7 +525,7 @@ class ClassificationEvaluator(LLMEvaluator):
             name=name,
             llm=llm,
             prompt_template=prompt_template,
-            required_fields=required_fields,
+            input_schema=input_schema,
             direction=direction,
         )
 
@@ -495,15 +669,31 @@ def create_evaluator(
 
     def deco(fn: Callable[..., Score]) -> Evaluator:
         sig = inspect.signature(fn)
-        required: Set[str] = set(sig.parameters.keys())
 
         class _FunctionEvaluator(Evaluator):
             def __init__(self) -> None:
                 super().__init__(
                     name=name,
                     source=source,
-                    required_fields=required,
                     direction=direction,
+                    # infer input schema from function signature
+                    input_schema=create_model(
+                        f"{name.capitalize()}Input",
+                        **cast(
+                            Any,
+                            {
+                                p: (
+                                    (
+                                        param.annotation
+                                        if param.annotation is not inspect._empty
+                                        else Any
+                                    ),
+                                    (param.default if param.default is not inspect._empty else ...),
+                                )
+                                for p, param in sig.parameters.items()
+                            },
+                        ),
+                    ),
                 )
                 self._fn = fn
 
@@ -538,7 +728,6 @@ def create_classifier(
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
-    required_fields: RequiredFieldsType = None,
     direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
     """
@@ -564,6 +753,48 @@ def create_classifier(
         llm=llm,
         prompt_template=prompt_template,
         choices=choices,
-        required_fields=required_fields,
         direction=direction,
     )
+
+
+# --- Bound Evaluator ---
+class BoundEvaluator:
+    """
+    A prepared evaluator with a fixed mapping specification. Evaluates payloads without
+    requiring per-call mapping arguments.
+    """
+
+    def __init__(
+        self,
+        evaluator: Evaluator,
+        mapping: Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]],
+    ) -> None:
+        # Mapping is optional per-field; unspecified fields will be read directly
+        # from eval_input using their field name. Static syntax checks happen later.
+        self._evaluator = evaluator
+        self._mapping = mapping
+
+    @property
+    def input_schema(self) -> Optional[type[BaseModel]]:
+        return self._evaluator.input_schema
+
+    @property
+    def name(self) -> str:
+        return self._evaluator.name
+
+    def evaluate(self, payload: EvalInput) -> List[Score]:
+        return self._evaluator.evaluate(payload, input_mapping=self._mapping)
+
+    async def aevaluate(self, payload: EvalInput) -> List[Score]:
+        return await self._evaluator.aevaluate(payload, input_mapping=self._mapping)
+
+    def mapping_description(self) -> Dict[str, Any]:
+        return {"evaluator": self._evaluator.name, "mapping_keys": list(self._mapping.keys())}
+
+
+def bind_evaluator(
+    evaluator: Evaluator,
+    mapping: Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]],
+) -> BoundEvaluator:
+    """Helper to create a BoundEvaluator."""
+    return BoundEvaluator(evaluator, mapping)
