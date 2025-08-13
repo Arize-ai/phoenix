@@ -1127,10 +1127,12 @@ _HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
 
 def get_env_postgres_connection_str() -> Optional[str]:
-    if not (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/")):
+    if not (
+        (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
+        and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
+        and (pg_password := getenv(ENV_PHOENIX_POSTGRES_PASSWORD))
+    ):
         return None
-    pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
     pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
     pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
 
@@ -1138,16 +1140,14 @@ def get_env_postgres_connection_str() -> Optional[str]:
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
+    encoded_password = quote_plus(pg_password)
+    connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+    if pg_port:
+        connection_str = f"{connection_str}:{pg_port}"
+    if pg_db:
+        connection_str = f"{connection_str}/{pg_db}"
 
-        return connection_str
-    return None
+    return connection_str
 
 
 def _no_local_storage() -> bool:
