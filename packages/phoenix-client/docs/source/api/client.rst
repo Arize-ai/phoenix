@@ -61,13 +61,10 @@ Spans
 For compatibility with the main phoenix package API:
 
 .. automethod:: phoenix.session.client.Client.get_spans_dataframe
-   :no-index:
 
 .. automethod:: phoenix.session.client.Client.get_evaluations
-   :no-index:
 
 .. automethod:: phoenix.session.client.Client.get_trace_dataset
-   :no-index:
 
 .. note::
    In phoenix-client, evaluations are represented as annotations. Use
