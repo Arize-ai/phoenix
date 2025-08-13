@@ -74,6 +74,27 @@ def _get_common_annotation_columns() -> set[str]:
     }
 
 
+def _get_common_nullable_columns() -> set[str]:
+    """
+    Get the set of columns that are nullable in all annotation tables.
+
+    These are the columns that allow NULL values according to the annotation schema.
+
+    Returns:
+        Set of nullable column names:
+        - score: Numeric score (nullable)
+        - explanation: Textual explanation (nullable)
+        - label: Human-readable label (nullable)
+        - user_id: Foreign key to users table (nullable)
+    """
+    return {
+        "explanation",  # VARCHAR (nullable)
+        "label",  # VARCHAR (nullable)
+        "score",  # DOUBLE PRECISION (nullable)
+        "user_id",  # INTEGER FK to users (nullable)
+    }
+
+
 def _get_common_constraint_names(
     table_name: AnnotationTableName,
 ) -> set[str]:
@@ -221,6 +242,7 @@ def _get_expected_schema_info(
     foreign_key_column: str,
     db_backend: _DBBackend,
     additional_columns: Sequence[str] = (),
+    additional_nullable_columns: Sequence[str] = (),
 ) -> _TableSchemaInfo:
     """
     Build complete schema info for an annotation table.
@@ -231,15 +253,17 @@ def _get_expected_schema_info(
     - Any additional columns unique to the table
     - All constraint names (common + table-specific)
     - All index names (foreign key + database-specific auto-indexes)
+    - Nullable column information
 
     Args:
         table_name: Name of the annotation table (must be one of the supported types)
         foreign_key_column: Name of the foreign key column (e.g., 'span_rowid', 'trace_rowid', 'project_session_id')
         db_backend: Database backend type ('postgresql' or 'sqlite')
         additional_columns: Any additional columns specific to this table (e.g., ['document_position'] for document_annotations)
+        additional_nullable_columns: Any additional nullable columns specific to this table
 
     Returns:
-        Complete schema information including all columns, indexes, and constraints
+        Complete schema information including all columns, indexes, constraints, and nullable columns
         that should exist for the specified annotation table in the given database backend.
     """
     # Start with common columns and add the foreign key column
@@ -249,6 +273,11 @@ def _get_expected_schema_info(
     # Add any additional columns specific to this table
     if additional_columns:
         column_names.update(additional_columns)
+
+    # Build nullable column names
+    nullable_column_names = _get_common_nullable_columns()
+    if additional_nullable_columns:
+        nullable_column_names.update(additional_nullable_columns)
 
     # Build index names
     foreign_key_index = _get_foreign_key_index_name(table_name, foreign_key_column)
@@ -276,6 +305,7 @@ def _get_expected_schema_info(
         column_names=frozenset(column_names),
         index_names=frozenset(index_names),
         constraint_names=frozenset(constraint_names),
+        nullable_column_names=frozenset(nullable_column_names),
     )
 
 
@@ -289,11 +319,12 @@ class TestDBSchema:
     """
 
     @pytest.mark.parametrize(
-        "table_name,foreign_key_column,additional_columns",
+        "table_name,foreign_key_column,additional_columns,additional_nullable_columns",
         [
             pytest.param(
                 "span_annotations",
                 "span_rowid",
+                [],
                 [],
                 id="span_annotations",
             ),
@@ -301,18 +332,21 @@ class TestDBSchema:
                 "trace_annotations",
                 "trace_rowid",
                 [],
+                [],
                 id="trace_annotations",
             ),
             pytest.param(
                 "project_session_annotations",
                 "project_session_id",
                 [],
+                [],  # no additional nullable columns - uses same as other annotation tables
                 id="project_session_annotations",
             ),
             pytest.param(
                 "document_annotations",
                 "span_rowid",
                 ["document_position"],  # Additional column for document position within spans
+                [],
                 id="document_annotations",
             ),
         ],
@@ -322,6 +356,7 @@ class TestDBSchema:
         table_name: AnnotationTableName,
         foreign_key_column: str,
         additional_columns: list[str],
+        additional_nullable_columns: list[str],
         _engine: Engine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
@@ -354,6 +389,7 @@ class TestDBSchema:
             foreign_key_column=foreign_key_column,
             db_backend=_db_backend,
             additional_columns=additional_columns,
+            additional_nullable_columns=additional_nullable_columns,
         )
 
         # Get actual schema from database
