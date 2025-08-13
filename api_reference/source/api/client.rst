@@ -21,3 +21,9 @@ phoenix.Client
    :special-members: __init__
    :inherited-members:
    :exclude-members: DatasetUploadError
+
+.. automethod:: session.client.Client.get_spans_dataframe
+   :noindex:
+
+.. automethod:: session.client.Client.get_trace_dataset
+   :noindex:
