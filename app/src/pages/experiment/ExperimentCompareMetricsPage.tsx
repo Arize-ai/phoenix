@@ -594,6 +594,19 @@ function CompareExperimentMetric({
   formatter?: (value: MetricValue) => string;
 }) {
   const valueText = useMemo(() => formatter(value), [formatter, value]);
+  const percentageDeltaText = useMemo(() => {
+    let percentageDeltaText: string = "+0%";
+    if (baseExperimentValue == null || value == null) {
+      return percentageDeltaText;
+    }
+    const delta = baseExperimentValue - value;
+    const sign = delta >= 0 ? "+" : "-";
+    if (value !== 0) {
+      const absolutePercentageDelta = Math.abs(delta / value) * 100;
+      percentageDeltaText = `${sign}${percentFormatter(absolutePercentageDelta)}`;
+    }
+    return percentageDeltaText;
+  }, [baseExperimentValue, value]);
 
   return (
     <Flex direction="row" justifyContent="space-between">
@@ -603,10 +616,9 @@ function CompareExperimentMetric({
           <Text size="M" fontFamily="mono">
             {valueText}
           </Text>
-          <PercentageDelta
-            baseExperimentValue={baseExperimentValue}
-            compareExperimentValue={value}
-          />
+          <Text color="grey-500" size="S" fontFamily="mono">
+            {percentageDeltaText}
+          </Text>
         </Flex>
       </Flex>
       <ExampleChangeCounter
@@ -791,54 +803,6 @@ function IncreaseAndDecreaseCounter({
         </Flex>
       </Tooltip>
     </TooltipTrigger>
-  );
-}
-
-function PercentageDelta({
-  baseExperimentValue,
-  compareExperimentValue,
-}: {
-  baseExperimentValue: MetricValue;
-  compareExperimentValue: MetricValue;
-}) {
-  const { percentageDeltaText, sign } = useMemo(() => {
-    let percentageDeltaText: string = "+0%";
-    let sign: "positive" | "negative" | "zero" = "zero";
-    if (baseExperimentValue == null || compareExperimentValue == null) {
-      return {
-        percentageDeltaText,
-        sign,
-      };
-    }
-    const delta = baseExperimentValue - compareExperimentValue;
-    if (delta > 0) {
-      sign = "positive";
-    } else if (delta < 0) {
-      sign = "negative";
-    }
-    const signSymbol = sign === "positive" || sign === "zero" ? "+" : "-";
-    if (compareExperimentValue !== 0) {
-      const absolutePercentageDelta =
-        Math.abs(delta / compareExperimentValue) * 100;
-      percentageDeltaText = `${signSymbol}${percentFormatter(absolutePercentageDelta)}`;
-    }
-    return {
-      percentageDeltaText,
-      sign,
-    };
-  }, [baseExperimentValue, compareExperimentValue]);
-  return (
-    <Flex direction="row" alignItems="center" gap="size-25">
-      <Text color="grey-500" size="S" fontFamily="mono">
-        {percentageDeltaText}
-      </Text>
-      {sign === "positive" && (
-        <Icon svg={<Icons.TrendingUpOutline />} color="grey-500" />
-      )}
-      {sign === "negative" && (
-        <Icon svg={<Icons.TrendingDownOutline />} color="grey-500" />
-      )}
-    </Flex>
   );
 }
 
