@@ -30,6 +30,7 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
+import { TransferTracesButton } from "./TransferTracesButton";
 
 interface SelectedSpan {
   id: string;
@@ -193,6 +194,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Suspense>
             </Popover>
           </DialogTrigger>
+          <TransferTracesButton />
           {/* Add dataset dialog */}
           <DialogTrigger
             isOpen={isCreatingDataset}
