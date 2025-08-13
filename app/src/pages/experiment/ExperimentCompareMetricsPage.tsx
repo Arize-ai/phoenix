@@ -770,10 +770,7 @@ function IncreaseAndDecreaseCounter({
               <Text size="S" fontFamily="mono">
                 {numIncreases}
               </Text>
-              <Icon
-                svg={<Icons.ArrowDiagonalUpRightOutline />}
-                color="grey-500"
-              />
+              <Icon svg={<Icons.ArrowUpwardOutline />} color="grey-500" />
             </Flex>
           )}
           {numDecreases > 0 && (
@@ -781,10 +778,7 @@ function IncreaseAndDecreaseCounter({
               <Text size="S" fontFamily="mono">
                 {numDecreases}
               </Text>
-              <Icon
-                svg={<Icons.ArrowDiagonalDownRightOutline />}
-                color="grey-500"
-              />
+              <Icon svg={<Icons.ArrowDownwardOutline />} color="grey-500" />
             </Flex>
           )}
         </Flex>
