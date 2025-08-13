@@ -69,11 +69,13 @@ type Experiment = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type CompareExperimentRunMetricCounts =
-  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunMetricCounts"][number];
+type CompareExperimentRunMetricCounts = NonNullable<
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunMetricCounts"]
+>[number];
 
-type CompareExperimentRunAnnotationMetricCounts =
-  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationMetricCounts"][number];
+type CompareExperimentRunAnnotationMetricCounts = NonNullable<
+  ExperimentCompareMetricsPage_experiments$data["compareExperimentRunAnnotationMetricCounts"]
+>[number];
 
 function MetricCard({
   title,
@@ -139,6 +141,7 @@ export function ExperimentCompareMetricsPage() {
         baseExperimentId: { type: "ID!" }
         compareExperimentIds: { type: "[ID!]!" }
         experimentIds: { type: "[ID!]!" }
+        hasCompareExperiments: { type: "Boolean!" }
       ) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
@@ -173,7 +176,7 @@ export function ExperimentCompareMetricsPage() {
         compareExperimentRunMetricCounts(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
-        ) {
+        ) @include(if: $hasCompareExperiments) {
           compareExperimentId
           latency {
             numIncreases
@@ -221,7 +224,7 @@ export function ExperimentCompareMetricsPage() {
         compareExperimentRunAnnotationMetricCounts(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
-        ) {
+        ) @include(if: $hasCompareExperiments) {
           annotationName
           compareExperimentId
           numIncreases
@@ -257,7 +260,7 @@ export function ExperimentCompareMetricsPage() {
       string,
       CompareExperimentRunMetricCounts
     > = {};
-    data.compareExperimentRunMetricCounts.map((counts) => {
+    data.compareExperimentRunMetricCounts?.map((counts) => {
       compareExperimentIdToCounts[counts.compareExperimentId] = counts;
     });
 
@@ -265,7 +268,7 @@ export function ExperimentCompareMetricsPage() {
       string,
       Record<string, CompareExperimentRunAnnotationMetricCounts>
     > = {};
-    data.compareExperimentRunAnnotationMetricCounts.forEach((counts) => {
+    data.compareExperimentRunAnnotationMetricCounts?.forEach((counts) => {
       const compareExperimentId = counts.compareExperimentId;
       const annotationName = counts.annotationName;
       if (!(annotationName in annotationNameToCompareExperimentIdToCounts)) {
