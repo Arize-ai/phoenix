@@ -45,7 +45,7 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_result_or_error(self):
         if self.result is None and self.error is None:
             raise ValueError("Either 'result' or 'error' must be provided")

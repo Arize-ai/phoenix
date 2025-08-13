@@ -7735,7 +7735,14 @@
             "description": "The end time of the evaluation in ISO format"
           },
           "result": {
-            "$ref": "#/components/schemas/ExperimentEvaluationResult",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentEvaluationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "The result of the evaluation"
           },
           "error": {

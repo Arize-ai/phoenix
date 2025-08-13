@@ -398,7 +398,7 @@ class UpsertExperimentEvaluationRequestBody(TypedDict):
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
     start_time: str
     end_time: str
-    result: ExperimentEvaluationResult
+    result: Optional[ExperimentEvaluationResult]
     error: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
     trace_id: NotRequired[str]
