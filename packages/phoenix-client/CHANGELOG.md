@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.0...arize-phoenix-client-v1.15.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* **experiments:** record end time after span ends ([#9070](https://github.com/Arize-ai/phoenix/issues/9070)) ([7961d43](https://github.com/Arize-ai/phoenix/commit/7961d43d9b3002d769be11f06605790d01ca5820))
+
+
+### Documentation
+
+* client config for run_experiment docstring ([#9032](https://github.com/Arize-ai/phoenix/issues/9032)) ([41384be](https://github.com/Arize-ai/phoenix/commit/41384be0e7e65d55285899b54033b269c4c3cc22))
+
 ## [1.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.2...arize-phoenix-client-v1.15.0) (2025-08-07)
 
 
