@@ -377,7 +377,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           const experimentColor =
             experimentIndex === 0
               ? baseExperimentColor
-              : getExperimentColor(experimentIndex - 1); // base experiment is at index 0
+              : getExperimentColor(experimentIndex - 1);
           return (
             <Flex
               direction="row"
@@ -1191,11 +1191,9 @@ function SelectedExampleDialog({
                           {...defaultCardProps}
                           title={experiment?.name ?? ""}
                           titleExtra={
-                            experiment && (
-                              <SequenceNumberToken
-                                sequenceNumber={experiment.sequenceNumber}
-                              />
-                            )
+                            <SequenceNumberToken
+                              sequenceNumber={experiment?.sequenceNumber ?? 0}
+                            />
                           }
                         >
                           <ul>
