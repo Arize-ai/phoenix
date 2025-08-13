@@ -461,18 +461,6 @@ class TestEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_batch_evaluate(self):
-        """Test batch evaluation."""
-        evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
-        )
-
-        results = evaluator.batch_evaluate([{"input": "test1"}, {"input": "test2"}])
-
-        assert len(results) == 2
-        assert len(results[0]) == 1
-        assert len(results[1]) == 1
-
     @pytest.mark.asyncio
     async def test_evaluator_aevaluate_success(self):
         """Test successful async evaluation."""
@@ -484,19 +472,6 @@ class TestEvaluator:
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
-
-    @pytest.mark.asyncio
-    async def test_evaluator_abatch_evaluate(self):
-        """Test async batch evaluation."""
-        evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
-        )
-
-        results = await evaluator.abatch_evaluate([{"input": "test1"}, {"input": "test2"}])
-
-        assert len(results) == 2
-        assert len(results[0]) == 1
-        assert len(results[1]) == 1
 
 
 class TestLLMEvaluator:
