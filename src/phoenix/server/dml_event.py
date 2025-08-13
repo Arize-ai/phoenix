@@ -128,6 +128,19 @@ class TraceAnnotationDeleteEvent(TraceAnnotationDmlEvent): ...
 
 
 @dataclass(frozen=True)
+class ProjectSessionAnnotationDmlEvent(DmlEvent):
+    table = models.ProjectSessionAnnotation
+
+
+@dataclass(frozen=True)
+class ProjectSessionAnnotationInsertEvent(ProjectSessionAnnotationDmlEvent): ...
+
+
+@dataclass(frozen=True)
+class ProjectSessionAnnotationDeleteEvent(ProjectSessionAnnotationDmlEvent): ...
+
+
+@dataclass(frozen=True)
 class DocumentAnnotationDmlEvent(DmlEvent):
     table = models.DocumentAnnotation
 

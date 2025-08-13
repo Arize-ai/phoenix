@@ -10,6 +10,9 @@ from phoenix.server.api.mutations.experiment_mutations import ExperimentMutation
 from phoenix.server.api.mutations.export_events_mutations import ExportEventsMutationMixin
 from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
+from phoenix.server.api.mutations.project_session_annotations_mutations import (
+    ProjectSessionAnnotationMutationMixin,
+)
 from phoenix.server.api.mutations.project_trace_retention_policy_mutations import (
     ProjectTraceRetentionPolicyMutationMixin,
 )
@@ -37,6 +40,7 @@ class Mutation(
     PromptVersionTagMutationMixin,
     PromptLabelMutationMixin,
     SpanAnnotationMutationMixin,
+    ProjectSessionAnnotationMutationMixin,
     TraceAnnotationMutationMixin,
     TraceMutationMixin,
     UserMutationMixin,
