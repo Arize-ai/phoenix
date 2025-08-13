@@ -17,7 +17,7 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Field } from "@arizeai/components";
+import { Field } from "@arizeai/components";
 
 import {
   Button,
@@ -66,12 +66,15 @@ const fieldCSS = css`
   &:hover,
   &[data-is-focused="true"] {
     border-color: var(--ac-global-input-field-border-color-active);
-    background-color: var(--ac-global-input-field-background-color-active);
   }
   &[data-is-invalid="true"] {
     border-color: var(--ac-global-color-danger);
   }
   box-sizing: border-box;
+  .search-icon {
+    margin-left: var(--ac-global-dimension-static-size-100);
+    margin-top: var(--ac-global-dimension-static-size-100);
+  }
 `;
 
 function filterConditionCompletions(
@@ -266,9 +269,7 @@ export function ExperimentRunFilterConditionField(
       ref={filterConditionFieldRef}
     >
       <Flex direction="row">
-        <AddonBefore>
-          <Icon svg={<Icons.Search />} />
-        </AddonBefore>
+        <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
           css={codeMirrorCSS}
           indentWithTab={false}
@@ -306,7 +307,9 @@ export function ExperimentRunFilterConditionField(
           <IconButton
             css={css`
               color: var(--ac-global-text-color-700);
-              background-color: var(--ac-global-color-grey-300);
+              border-left: 1px solid var(--ac-global-input-field-border-color);
+              border-bottom: 0;
+              border-top: 0;
               padding-left: var(--ac-global-dimension-static-size-100);
               padding-right: var(--ac-global-dimension-static-size-100);
               border-radius: 0;
@@ -314,7 +317,7 @@ export function ExperimentRunFilterConditionField(
             `}
             className="button--reset"
           >
-            <Icon svg={<Icons.PlusCircleOutline />} />
+            <Icon svg={<Icons.PlusOutline />} />
           </IconButton>
           <Popover placement="bottom right">
             <FilterConditionBuilder

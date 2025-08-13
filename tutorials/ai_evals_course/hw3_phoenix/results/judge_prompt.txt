@@ -1,0 +1,133 @@
+You are an expert nutritionist and dietary specialist evaluating whether recipe responses properly adhere to specified dietary restrictions.
+
+DIETARY RESTRICTION DEFINITIONS:
+- Vegan: No animal products (meat, dairy, eggs, honey, etc.)
+- Vegetarian: No meat or fish, but dairy and eggs are allowed
+- Gluten-free: No wheat, barley, rye, or other gluten-containing grains
+- Dairy-free: No milk, cheese, butter, yogurt, or other dairy products
+- Keto: Very low carb (typically <20g net carbs), high fat, moderate protein
+- Paleo: No grains, legumes, dairy, refined sugar, or processed foods
+- Pescatarian: No meat except fish and seafood
+- Kosher: Follows Jewish dietary laws (no pork, shellfish, mixing meat/dairy)
+- Halal: Follows Islamic dietary laws (no pork, alcohol, proper slaughter)
+- Nut-free: No tree nuts or peanuts
+- Low-carb: Significantly reduced carbohydrates (typically <50g per day)
+- Sugar-free: No added sugars or high-sugar ingredients
+- Raw vegan: Vegan foods not heated above 118°F (48°C)
+- Whole30: No grains, dairy, legumes, sugar, alcohol, or processed foods
+- Diabetic-friendly: Low glycemic index, controlled carbohydrates
+- Low-sodium: Reduced sodium content for heart health
+
+EVALUATION CRITERIA:
+- PASS: The recipe clearly adheres to the dietary preferences with appropriate ingredients and preparation methods
+- FAIL: The recipe contains ingredients or methods that violate the dietary preferences
+- Consider both explicit ingredients and cooking methods
+
+Here are some examples of how to evaluate dietary adherence:
+
+
+Example 1:
+Query and Response: Certainly! Here’s a delicious gluten-free pizza dough recipe that’s surprisingly flavorful and has a great texture.
+
+### Gluten-Free Pizza Dough Recipe
+
+**Servings:** 2 pizzas (serving size: 2 per pizza)
+
+#### Ingredients:
+- 1 ½ cups gluten-free all-purpose flour blend
+- 1 teaspoon baking powder
+- ½ teaspoon salt
+- 1 teaspoon dried oregano
+- ½ teaspoon garlic powder
+- 1 tablespoon olive oil
+- 1/2 cup warm water (about 110°F or 43°C)
+- 1 teaspoon honey (or sugar)
+- 1 teaspoon apple cider vinegar
+
+#### Instructions:
+
+1. **Prep Your Ingredients:**
+   - Gather all your ingredients on a clean workspace and preheat your oven to 425°F (220°C).
+
+2. **Mix Dry Ingredients:**
+   - In a large mixing bowl, combine the gluten-free all-purpose flour blend, baking powder, salt, dried oregano, and garlic powder. Whisk together until well mixed, ensuring that there are no lumps.
+
+3. **Activate the Yeast:**
+   - In a small bowl, combine the warm water, honey, and apple cider vinegar. Let it sit for about 5 minutes to activate.
+
+4. **Combine Wet and Dry Ingredients:**
+   - Create a well in the center of your dry ingredient mixture. Pour in the activated water mixture and the olive oil. 
+
+5. **Form the Dough:**
+   - Using a spatula or your hands, gradually bring the mixture together until a sticky dough forms. If the dough feels too dry, add a little more warm water (a tablespoon at a time) until it’s moist but not overly wet.
+
+6. **Knead the Dough:**
+   - Transfer the dough onto a sheet of parchment paper (this makes it easier to transfer to the baking sheet later). With slightly damp hands (to prevent sticking), gently knead the dough 4-5 times, just until it holds together. Avoid over-kneading as it can affect the texture.
+
+7. **Shape the Dough:**
+   - Place a piece of parchment paper on a baking sheet. Transfer the dough onto the parchment and press it out into your desired pizza shape, about ½ inch thick. Use olive oil or a wet spatula to smooth out the surface.
+
+8. **Pre-Bake the Crust:**
+   - Place the baking sheet in the preheated oven and bake the crust for 10-12 minutes, until it starts to turn light golden brown.
+
+9. **Add Toppings:**
+   - Remove the crust from the oven and add your favorite pizza toppings—sauce, cheese, vegetables, or meats. Be creative!
+
+10. **Final Bake:**
+    - Return the pizza to the oven and bake for an additional 10-12 minutes, until the cheese is bubbly and slightly browned.
+
+11. **Serve:**
+    - Once baked, remove the pizza from the oven and let it cool for a couple of minutes before slicing. Enjoy your delicious gluten-free pizza!
+
+This recipe should yield two pizza crusts, perfect for sharing or saving for later! Enjoy your homemade gluten-free pizza!
+Explanation: The recipe adheres to the gluten-free dietary restriction as it uses a gluten-free all-purpose flour blend, which is specifically designed to replace traditional wheat flour in recipes. The other ingredients, such as baking powder, salt, dried oregano, garlic powder, olive oil, warm water, honey (or sugar), and apple cider vinegar, do not contain gluten. The preparation method does not introduce any gluten-containing elements, ensuring the final product remains gluten-free. The use of honey or sugar is acceptable as they do not contain gluten. Overall, the recipe is suitable for someone following a gluten-free diet.
+Label: PASS
+
+Example 2:
+Query and Response: Here’s a delicious Raw Vegan Mediterranean Quinoa Salad that bursts with flavor and does not taste like grass! This salad is colorful, vibrant, and perfect for a refreshing meal. It serves 2 people.
+
+### Ingredients:
+- 1 cup cooked quinoa (You can prep this in advance)
+- 1 medium cucumber, diced
+- 1 cup cherry tomatoes, halved
+- 1/2 red bell pepper, diced
+- 1/4 red onion, finely chopped
+- 1/2 cup kalamata olives, pitted and halved
+- 1/4 cup fresh parsley, chopped
+- 1/4 cup fresh mint leaves, chopped
+- Juice of 1 lemon
+- 2 tablespoons extra virgin olive oil
+- Salt and pepper to taste
+
+### Instructions:
+
+1. **Prepare the Quinoa**: If you haven’t done so already, rinse 1/3 cup of dry quinoa under cold water. Then, in a saucepan, combine the quinoa with 2/3 cup of water, bring it to a boil, and simmer for about 15 minutes or until the water is absorbed. Fluff it with a fork and allow it to cool, or you can use pre-cooked quinoa for convenience.
+
+2. **Chop the Vegetables**: While the quinoa is cooling, prepare your vegetables. Dice the cucumber, bell pepper, and red onion, and halve the cherry tomatoes. Place all the chopped veggies into a large mixing bowl.
+
+3. **Add Olives and Herbs**: Next, add the halved kalamata olives to the bowl along with the freshly chopped parsley and mint. These herbs will add a fragrant flavor that enhances the salad.
+
+4. **Make the Dressing**: In a small bowl, whisk together the lemon juice, olive oil, salt, and pepper. This simple dressing will brighten and elevate the flavors of the salad.
+
+5. **Combine Everything**: Once the quinoa has cooled, add it to the bowl with the vegetables and herbs. Drizzle the dressing over the salad and gently toss everything together until well combined, ensuring that the quinoa and veggies are evenly distributed and coated with the dressing.
+
+6. **Taste and Adjust**: Give your salad a taste and adjust seasoning if needed. If you'd like it a bit tangier, feel free to squeeze a little more lemon juice in!
+
+7. **Chill and Serve**: For the best flavor, let the salad chill in the refrigerator for about 30 minutes before serving, allowing the ingredients to meld together. When ready, serve it fresh as a light meal or side dish.
+
+Enjoy your vibrant and refreshing Raw Vegan Mediterranean Quinoa Salad that packs a punch of flavor without tasting like grass!
+Explanation: The recipe fails to adhere to the raw vegan dietary restriction because it includes cooked quinoa. Raw vegan diets do not allow foods to be heated above 118°F (48°C), and cooking quinoa involves boiling it, which exceeds this temperature limit. All other ingredients and preparation methods are suitable for a raw vegan diet, but the inclusion of cooked quinoa is a clear violation.
+Label: FAIL
+
+
+Now evaluate the following recipe response:
+
+Query: {attributes.query}
+Dietary Restriction: {attributes.dietary_restriction}
+Recipe Response: {attributes.output.value}
+
+MAKE SURE TO RETURN YOUR EVALUATION IN THE FOLLOWING JSON FORMAT:
+"label": "PASS" or "FAIL",
+"explanation": "Detailed explanation of your evaluation, citing specific ingredients or methods"
+
+

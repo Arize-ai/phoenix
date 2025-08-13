@@ -1,7 +1,8 @@
 import { Suspense } from "react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { Outlet, useLoaderData } from "react-router";
+import { Outlet, useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Button,
@@ -13,25 +14,34 @@ import {
 } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { ExperimentsChart } from "@phoenix/pages/experiments/ExperimentsChart";
-import { experimentsLoader } from "@phoenix/pages/experiments/experimentsLoader";
 
-import { ExperimentsPageFragment$key } from "./__generated__/ExperimentsPageFragment.graphql";
+import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import { ExperimentsTable } from "./ExperimentsTable";
 
 export function ExperimentsPage() {
-  const loaderData = useLoaderData<typeof experimentsLoader>();
-  const data = useFragment<ExperimentsPageFragment$key>(
+  const { datasetId } = useParams();
+  invariant(datasetId, "datasetId is required to view experiments");
+  // We use a lazyLoadQuery here due to the fact that there is an issue with Relay connections
+  // @see https://github.com/facebook/relay/issues/4875#issuecomment-3138533719
+  const data = useLazyLoadQuery<ExperimentsPageQuery>(
     graphql`
-      fragment ExperimentsPageFragment on Dataset {
-        id
-        ...ExperimentsTableFragment
+      query ExperimentsPageQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            experimentCount
+          }
+          ...ExperimentsTableFragment
+        }
       }
     `,
-    loaderData.dataset
+    {
+      datasetId,
+    }
   );
 
-  if (loaderData.dataset.experimentCount === 0) {
+  if (!data.dataset?.experimentCount) {
     return <ExperimentsEmpty />;
   }
 
@@ -42,13 +52,13 @@ export function ExperimentsPage() {
           <View paddingX="size-200" paddingY="size-100">
             <Heading level={2}>Experiments Analysis</Heading>
           </View>
-          <ExperimentsChart datasetId={loaderData.dataset.id} />
+          <ExperimentsChart datasetId={datasetId} />
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel order={1}>
           <View height="100%" overflow="hidden" flex="1 1 auto">
             <ErrorBoundary fallback={ErrorBoundaryFallback}>
-              <ExperimentsTable dataset={data} />
+              <ExperimentsTable dataset={data.dataset} />
             </ErrorBoundary>
           </View>
         </Panel>

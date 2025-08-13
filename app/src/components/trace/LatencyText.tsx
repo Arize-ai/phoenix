@@ -51,7 +51,7 @@ export function LatencyText({
           />
         </Text>
       ) : null}
-      <Text color={color} size={size}>
+      <Text color={color} size={size} fontFamily="mono">
         {latencyText}
       </Text>
     </Flex>

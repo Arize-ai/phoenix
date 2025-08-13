@@ -237,7 +237,7 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -248,7 +248,7 @@ class PromptDeepSeekInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptGoogleInvocationParametersContent(TypedDict):
@@ -269,7 +269,7 @@ class PromptOllamaInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptOpenAIInvocationParametersContent(TypedDict):
@@ -280,7 +280,7 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
@@ -338,7 +338,7 @@ class PromptXAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
 class SpanAnnotationResult(TypedDict):

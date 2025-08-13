@@ -37,7 +37,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       model,
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       input: "What is Arize Phoenix?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -75,7 +75,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       choices: { yes: 0, no: 1 }, // Custom choices for custom template
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       input: "How much does Arize Phoenix cost?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -112,7 +112,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       choices: customChoices,
     });
 
-    const result = await evaluator({
+    const result = await evaluator.evaluate({
       input: "What is Arize Phoenix?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -136,7 +136,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       // Note: we're not explicitly setting telemetry options here
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       input: "What is Arize Phoenix?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -164,7 +164,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       telemetry: { isEnabled: false }, // Explicitly disable telemetry
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       input: "What is Arize Phoenix?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -197,7 +197,7 @@ describe("createDocumentRelevancyEvaluator", () => {
       },
     });
 
-    await evaluator({
+    await evaluator.evaluate({
       input: "What is Arize Phoenix?",
       documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
@@ -230,7 +230,7 @@ describe("createDocumentRelevancyEvaluator", () => {
     const testInput = "What is the capital of France?";
     const testOutput = "Paris is the capital and largest city of France.";
 
-    await evaluator({
+    await evaluator.evaluate({
       documentText: testOutput,
       input: testInput,
     });

@@ -111,9 +111,10 @@ def run_experiment(
             ... )
 
         With client configuration:
+            >>> from phoenix.client import Client
+            >>> client = Client()
             >>> experiment = run_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
+            ...     client = client,
             ...     dataset=dataset,
             ...     task=my_task,
             ...     experiment_name="greeting-experiment"

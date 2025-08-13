@@ -1,5 +1,44 @@
 # Changelog
 
+## [11.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.1...arize-phoenix-v11.22.0) (2025-08-12)
+
+
+### Features
+
+* **design:** add geist mono for values ([#9039](https://github.com/Arize-ai/phoenix/issues/9039)) ([df013a3](https://github.com/Arize-ai/phoenix/commit/df013a345beb6f9668ff382eb70343e842460345))
+
+
+### Bug Fixes
+
+* sanitize NaN/Inf values in ORM adapters for JsonDict/JsonList ([#9041](https://github.com/Arize-ai/phoenix/issues/9041)) ([4eeb8e9](https://github.com/Arize-ai/phoenix/commit/4eeb8e9ce68839a9f1f27fa67f488679bcd3f13b))
+
+## [11.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.0...arize-phoenix-v11.21.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9011](https://github.com/Arize-ai/phoenix/issues/9011)) ([7fd9bbf](https://github.com/Arize-ai/phoenix/commit/7fd9bbfd5711b1163070ad723a12e07b1ba4a189))
+* **experiments:** make examples in experiments compare table based off dataset version of base experiment ([#8995](https://github.com/Arize-ai/phoenix/issues/8995)) ([640b1f5](https://github.com/Arize-ai/phoenix/commit/640b1f51d8840d1c4f94d414924770da8f93be05))
+* **playground:** parse Azure deployment from LangChain metadata ([#9003](https://github.com/Arize-ai/phoenix/issues/9003)) ([38c05be](https://github.com/Arize-ai/phoenix/commit/38c05beb89c6844564b0c9e053da0076a80e182d))
+
+
+### Documentation
+
+* Add opentelemetry integration guide link to readme ([#8996](https://github.com/Arize-ai/phoenix/issues/8996)) ([4974a6c](https://github.com/Arize-ai/phoenix/commit/4974a6ce039f016d22161784d0897c8a417e8185))
+* Update Cursor CTA ([#9031](https://github.com/Arize-ai/phoenix/issues/9031)) ([e13fc10](https://github.com/Arize-ai/phoenix/commit/e13fc10c58339f69ec10bad16bce79aa0d9cf8f7))
+
+## [11.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.20.0...arize-phoenix-v11.21.0) (2025-08-07)
+
+
+### Features
+
+* **playground:** support gpt-5 ([#8985](https://github.com/Arize-ai/phoenix/issues/8985)) ([8711bde](https://github.com/Arize-ai/phoenix/commit/8711bdecfeee479c480a1acebf32ebc1b11461cb))
+
+
+### Bug Fixes
+
+* **prompts:** ensure prompts can be saved ([#8987](https://github.com/Arize-ai/phoenix/issues/8987)) ([097692f](https://github.com/Arize-ai/phoenix/commit/097692f8d3d476da47350bbe76a146ea0f6e5e4e))
+
 ## [11.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.19.0...arize-phoenix-v11.20.0) (2025-08-07)
 
 

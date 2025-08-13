@@ -5,6 +5,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 import {
   ColorValue,
   DOMProps,
@@ -49,6 +51,11 @@ export interface TextProps extends AriaTextProps, DOMProps, StyleProps {
    */
   fontStyle?: CSSProperties["fontStyle"];
   /**
+   * The font family
+   * @default 'default'
+   */
+  fontFamily?: "default" | "mono";
+  /**
    * The disabled state of the text
    */
   isDisabled?: boolean;
@@ -84,13 +91,14 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
     size = "S",
     weight = "normal",
     fontStyle = "normal",
+    fontFamily = "default",
     ...otherProps
   } = props;
   const { styleProps } = useStyleProps(otherProps);
 
   return (
     <AriaText
-      className="ac-text"
+      className={classNames("ac-text", `font-${fontFamily}`)}
       {...otherProps}
       {...styleProps}
       css={css`

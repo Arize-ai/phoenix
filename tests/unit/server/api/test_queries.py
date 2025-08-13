@@ -485,7 +485,7 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
 
     Experiment 1: V1 (1 repetition)
     Experiment 2: V2 (1 repetition)
-    Experiment 3: V2 (2 repetitions)
+    Experiment 3: V3 (2 repetitions)
     Experiment 4: V3 (1 repetition)
     """
 
@@ -614,7 +614,7 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 },
                                 {
                                     "dataset_id": dataset_id,
-                                    "dataset_version_id": version_ids[1],
+                                    "dataset_version_id": version_ids[2],
                                 },
                                 {
                                     "dataset_id": dataset_id,
