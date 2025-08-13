@@ -1123,10 +1123,56 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
+# Regex for LEGACY backward compatibility: matches ONLY simple host:port patterns.
+# This parsing approach has proven problematic as it conflicts with complex host strings
+# (Cloud SQL mount paths, IPv6 addresses, URLs with schemes, etc.).
+#
+# DEPRECATED BEHAVIOR: This host:port parsing exists only to avoid breaking
+# existing Phoenix deployments. New deployments should set PHOENIX_POSTGRES_HOST
+# and PHOENIX_POSTGRES_PORT as separate environment variables.
+#
+# Pattern explanation:
+#   ^[^:]+    - starts with one or more non-colon characters (the host part)
+#   :         - exactly one colon separator
+#   \d{1,5}$  - ends with 1-5 digits (the port number)
 _HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
 
 def get_env_postgres_connection_str() -> Optional[str]:
+    """
+    Build a PostgreSQL connection string from environment variables.
+
+    Required environment variables:
+        PHOENIX_POSTGRES_HOST: Database host
+            Examples: 'localhost', '192.168.1.100', '/cloudsql/project:region:instance'
+        PHOENIX_POSTGRES_USER: Database username
+        PHOENIX_POSTGRES_PASSWORD: Database password (automatically URL-encoded)
+
+    Optional environment variables:
+        PHOENIX_POSTGRES_PORT: Database port (if not specified, no port is added to connection string)
+        PHOENIX_POSTGRES_DB: Database name
+
+    RECOMMENDED USAGE:
+        Set host and port as separate variables for clarity and compatibility:
+            PHOENIX_POSTGRES_HOST="localhost"
+            PHOENIX_POSTGRES_PORT="5432"
+            PHOENIX_POSTGRES_USER="myuser"
+            PHOENIX_POSTGRES_PASSWORD="mypass"
+
+    LEGACY/DEPRECATED BEHAVIOR:
+        Phoenix previously attempted to be helpful by automatically parsing host:port
+        combinations from PHOENIX_POSTGRES_HOST (e.g., "localhost:5432"). However, this
+        approach has proven problematic as it conflicts with complex host strings like
+        Cloud SQL mount paths, IPv6 addresses, and URLs. This parsing is maintained only
+        to avoid breaking existing deployments - do not rely on it for new deployments.
+
+    Returns:
+        PostgreSQL connection string in one of these formats:
+        - postgresql://user:password@host (no port specified)
+        - postgresql://user:password@host:port
+        - postgresql://user:password@host:port/database
+        Returns None if any required environment variable is missing.
+    """  # noqa: E501
     if not (
         (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
         and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
@@ -1136,7 +1182,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
     pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
     pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
 
-    if _HOST_PORT_REGEX.match(pg_host):  # maintain backwards compatibility
+    if _HOST_PORT_REGEX.match(pg_host):  # maintain backward compatibility
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
