@@ -15,7 +15,7 @@ from .templating import Template
 
 # --- Type Aliases ---
 EvalInput = Dict[str, Any]
-Schema = Optional[Dict[str, Any]]
+ToolSchema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
@@ -151,6 +151,28 @@ def _apply_transforms(value: Any, transforms: List[TransformFunc]) -> Any:
     return result
 
 
+def _validate_field_value(value: Any, field_name: str, key: str) -> None:
+    """
+    Validate that a required field value is present and not empty.
+
+    Raises ValueError if:
+      - value is None
+      - value is an empty or whitespace-only string
+      - value is an empty list/tuple/dict
+    """
+    if value is None:
+        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be None")
+    if isinstance(value, str):
+        if value.strip() == "":
+            raise ValueError(
+                f"Required field '{field_name}' (from '{key}') cannot be empty or whitespace-only"
+            )
+    elif isinstance(value, (list, tuple)) and len(value) == 0:
+        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be empty")
+    elif isinstance(value, dict) and len(value) == 0:
+        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be empty")
+
+
 def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
     """
     Extract a value from a nested JSON structure using a path.
@@ -188,7 +210,7 @@ def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
 def _parse_mapping_spec(spec: str) -> Tuple[str, List[TransformFunc]]:
     """
     Parse a mapping spec like "input.docs[0] | strip | lower" into (path, transforms).
-    Unknown transforms are ignored silently for now.
+    Unknown transforms are ignored with a warning.
     """
     parts = [p.strip() for p in spec.split("|")]
     path = parts[0] if parts else ""
@@ -266,8 +288,7 @@ def remap_eval_input(
             if isinstance(extractor, str)
             else f"callable:{getattr(extractor, '__name__', 'lambda')}"
         )
-        if value is None:
-            raise ValueError(f"Required field '{field_name}' (from '{key_repr}') resolved to None.")
+        _validate_field_value(value, field_name, str(key_repr))
 
         remapped_eval_input[field_name] = value
 
@@ -332,8 +353,6 @@ class Evaluator(ABC):
         By default, this runs the synchronous _evaluate method in a thread pool.
         Subclasses can override this for more efficient async implementations.
         """
-        from typing import cast
-
         result = await to_thread(self._evaluate)(eval_input)
         return cast(List[Score], result)
 
@@ -408,6 +427,48 @@ class Evaluator(ABC):
             f" an input_mapping whose keys list the evaluator's required fields."
         )
 
+    # --- Introspection helpers ---
+    def describe(self) -> Dict[str, Any]:
+        """
+        Return a JSON-serializable description of the evaluator, including
+        its name, source, direction, and input fields derived from the
+        Pydantic input schema when available.
+        """
+        fields: Dict[str, Any] = {}
+        if self.input_schema is not None:
+            for field_name, field in self.input_schema.model_fields.items():
+                # Best-effort human-readable type
+                annotation = getattr(field, "annotation", Any)
+                type_repr = getattr(annotation, "__name__", str(annotation))
+                fields[field_name] = {
+                    "type": type_repr,
+                    "required": field.is_required(),
+                }
+        else:
+            # Fallback minimal description when no schema is provided
+            fields = {"unspecified": {"type": "any", "required": False}}
+
+        return {
+            "name": self.name,
+            "source": self.source,
+            "direction": self.direction,
+            "input_fields": fields,
+        }
+
+    def describe_schema(self) -> Dict[str, Any]:
+        """
+        Return the JSON Schema of the evaluator's input, if available.
+        If no schema is available, returns a minimal placeholder.
+        """
+        if self.input_schema is not None:
+            return self.input_schema.model_json_schema()
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": f"{self.name}Input",
+            "type": "object",
+            "additionalProperties": True,
+        }
+
 
 # --- LLM Evaluator base ---
 class LLMEvaluator(Evaluator):
@@ -421,7 +482,7 @@ class LLMEvaluator(Evaluator):
         name: str,
         llm: Union[LLM, AsyncLLM],
         prompt_template: Union[str, Template],
-        schema: Optional[Schema] = None,
+        schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
@@ -448,7 +509,10 @@ class LLMEvaluator(Evaluator):
         if input_schema is None:
             model_name = f"{name.capitalize()}Input"
             field_defs: Dict[str, Tuple[Any, Any]] = {var: (str, ...) for var in required_fields}
-            input_schema = create_model(model_name, **cast(Any, field_defs))
+            input_schema = create_model(
+                model_name,
+                **cast(Any, field_defs),
+            )
 
         super().__init__(
             name=name,
@@ -790,6 +854,13 @@ class BoundEvaluator:
 
     def mapping_description(self) -> Dict[str, Any]:
         return {"evaluator": self._evaluator.name, "mapping_keys": list(self._mapping.keys())}
+
+    # Introspection passthroughs
+    def describe(self) -> Dict[str, Any]:
+        return self._evaluator.describe()
+
+    def describe_schema(self) -> Dict[str, Any]:
+        return self._evaluator.describe_schema()
 
 
 def bind_evaluator(
