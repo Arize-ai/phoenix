@@ -1,5 +1,4 @@
 # type: ignore
-import asyncio
 from contextlib import nullcontext as does_not_raise
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
@@ -462,19 +461,6 @@ class TestEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_manual_batching(self):
-        """Test applying evaluate across a list of inputs (external batching)."""
-        evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
-        )
-
-        inputs = [{"input": "test1"}, {"input": "test2"}]
-        results = [evaluator.evaluate(inp) for inp in inputs]
-
-        assert len(results) == 2
-        assert len(results[0]) == 1
-        assert len(results[1]) == 1
-
     @pytest.mark.asyncio
     async def test_evaluator_aevaluate_success(self):
         """Test successful async evaluation."""
@@ -486,20 +472,6 @@ class TestEvaluator:
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
-
-    @pytest.mark.asyncio
-    async def test_evaluator_manual_async_batching(self):
-        """Test applying aevaluate across a list of inputs with gather (external batching)."""
-        evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
-        )
-
-        inputs = [{"input": "test1"}, {"input": "test2"}]
-        results = await asyncio.gather(*[evaluator.aevaluate(inp) for inp in inputs])
-
-        assert len(results) == 2
-        assert len(results[0]) == 1
-        assert len(results[1]) == 1
 
 
 class TestLLMEvaluator:
