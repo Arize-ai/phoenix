@@ -48,20 +48,20 @@ const metricCardCSS = css`
 
 type MetricValue = number | null | undefined;
 
-type CompareExperimentData = {
-  experimentId: string;
-  value: MetricValue;
+type ExperimentComparison = {
+  compareExperimentId: string;
+  compareExperimentValue: MetricValue;
+  compareExperimentColor: string;
   numIncreases: number;
   numDecreases: number;
   numEqual: number;
   optimizationDirection: OptimizationDirection;
-  color: string;
 };
 
 type MetricCardProps = {
   title: string;
   baseExperimentValue: MetricValue;
-  compareExperiments: CompareExperimentData[];
+  comparisons: ExperimentComparison[];
   formatter?: (value: MetricValue) => string;
 };
 
@@ -80,7 +80,7 @@ type CompareExperimentRunAnnotationMetricCounts = NonNullable<
 function MetricCard({
   title,
   baseExperimentValue,
-  compareExperiments,
+  comparisons,
   formatter = numberFormatter,
 }: MetricCardProps) {
   const { baseExperimentColor } = useExperimentColors();
@@ -94,9 +94,9 @@ function MetricCard({
               value: baseExperimentValue ?? 0,
               color: baseExperimentColor,
             },
-            ...compareExperiments.map((experiment) => ({
-              value: experiment.value ?? 0,
-              color: experiment.color,
+            ...comparisons.map((comparison) => ({
+              value: comparison.compareExperimentValue ?? 0,
+              color: comparison.compareExperimentColor,
             })),
           ]}
         />
@@ -105,17 +105,17 @@ function MetricCard({
             value={baseExperimentValue}
             formatter={formatter}
           />
-          {compareExperiments.map((compareExperiment) => (
+          {comparisons.map((comparison) => (
             <CompareExperimentMetric
-              key={compareExperiment.experimentId}
-              value={compareExperiment.value}
+              key={comparison.compareExperimentId}
+              value={comparison.compareExperimentValue}
               formatter={formatter}
               baseExperimentValue={baseExperimentValue}
-              numIncreases={compareExperiment.numIncreases}
-              numDecreases={compareExperiment.numDecreases}
-              numEqual={compareExperiment.numEqual}
-              optimizationDirection={compareExperiment.optimizationDirection}
-              color={compareExperiment.color}
+              numIncreases={comparison.numIncreases}
+              numDecreases={comparison.numDecreases}
+              numEqual={comparison.numEqual}
+              optimizationDirection={comparison.optimizationDirection}
+              color={comparison.compareExperimentColor}
             />
           ))}
         </Flex>
@@ -282,110 +282,110 @@ export function ExperimentCompareMetricsPage() {
     const latencyMetric: MetricCardProps = {
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
-      compareExperiments: [],
+      comparisons: [],
       formatter: latencyMsFormatter,
     };
     const totalTokensMetric: MetricCardProps = {
       title: "Total Tokens",
       baseExperimentValue: baseExperiment.costSummary.total.tokens,
-      compareExperiments: [],
+      comparisons: [],
     };
     const promptTokensMetric: MetricCardProps = {
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
-      compareExperiments: [],
+      comparisons: [],
     };
     const completionTokensMetric: MetricCardProps = {
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary.completion.tokens,
-      compareExperiments: [],
+      comparisons: [],
     };
     const totalCostMetric: MetricCardProps = {
       title: "Total Cost",
       baseExperimentValue: baseExperiment.costSummary.total.cost,
-      compareExperiments: [],
+      comparisons: [],
       formatter: costFormatter,
     };
     const promptCostMetric: MetricCardProps = {
       title: "Prompt Cost",
       baseExperimentValue: baseExperiment.costSummary.prompt.cost,
-      compareExperiments: [],
+      comparisons: [],
       formatter: costFormatter,
     };
     const completionCostMetric: MetricCardProps = {
       title: "Completion Cost",
       baseExperimentValue: baseExperiment.costSummary.completion.cost,
-      compareExperiments: [],
+      comparisons: [],
       formatter: costFormatter,
     };
     compareExperiments.forEach((experiment, experimentIndex) => {
       const experimentColor = getExperimentColor(experimentIndex);
       const counts = compareExperimentIdToCounts[experiment.id];
-      latencyMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.averageRunLatencyMs,
+      latencyMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.averageRunLatencyMs,
         numIncreases: counts.latency.numIncreases,
         numDecreases: counts.latency.numDecreases,
         numEqual: counts.latency.numEqual,
         optimizationDirection: counts.latency.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      promptTokensMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.prompt.tokens,
+      promptTokensMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.prompt.tokens,
         numIncreases: counts.promptTokenCount.numIncreases,
         numDecreases: counts.promptTokenCount.numDecreases,
         numEqual: counts.promptTokenCount.numEqual,
         optimizationDirection: counts.promptTokenCount.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      completionTokensMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.completion.tokens,
+      completionTokensMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.completion.tokens,
         numIncreases: counts.completionTokenCount.numIncreases,
         numDecreases: counts.completionTokenCount.numDecreases,
         numEqual: counts.completionTokenCount.numEqual,
         optimizationDirection:
           counts.completionTokenCount.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      totalTokensMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.total.tokens,
+      totalTokensMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.total.tokens,
         numIncreases: counts.totalTokenCount.numIncreases,
         numDecreases: counts.totalTokenCount.numDecreases,
         numEqual: counts.totalTokenCount.numEqual,
         optimizationDirection: counts.totalTokenCount.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      totalCostMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.total.cost,
+      totalCostMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.total.cost,
         numIncreases: counts.totalCost.numIncreases,
         numDecreases: counts.totalCost.numDecreases,
         numEqual: counts.totalCost.numEqual,
 
         optimizationDirection: counts.totalCost.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      promptCostMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.prompt.cost,
+      promptCostMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.prompt.cost,
         numIncreases: counts.promptCost.numIncreases,
         numDecreases: counts.promptCost.numDecreases,
         numEqual: counts.promptCost.numEqual,
 
         optimizationDirection: counts.promptCost.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
-      completionCostMetric.compareExperiments.push({
-        experimentId: experiment.id,
-        value: experiment.costSummary.completion.cost,
+      completionCostMetric.comparisons.push({
+        compareExperimentId: experiment.id,
+        compareExperimentValue: experiment.costSummary.completion.cost,
         numIncreases: counts.completionCost.numIncreases,
         numDecreases: counts.completionCost.numDecreases,
         numEqual: counts.completionCost.numEqual,
         optimizationDirection: counts.completionCost.optimizationDirection,
-        color: experimentColor,
+        compareExperimentColor: experimentColor,
       });
     });
     const performanceMetrics = [latencyMetric];
@@ -435,10 +435,10 @@ export function ExperimentCompareMetricsPage() {
       if (!(annotationName in annotationNameToCompareExperimentIdToMeanScore)) {
         continue;
       }
-      const annotationMetricCompareExperiments: CompareExperimentData[] = [];
+      const annotationMetricComparisons: ExperimentComparison[] = [];
       compareExperiments.forEach((experiment, experimentIndex) => {
         const compareExperimentId = experiment.id;
-        const experimentColor = getExperimentColor(experimentIndex);
+        const compareExperimentColor = getExperimentColor(experimentIndex);
         let compareExperimentMeanScore: MetricValue = null;
         if (
           compareExperimentId == null ||
@@ -461,20 +461,20 @@ export function ExperimentCompareMetricsPage() {
         const numIncreases = annotationCounts.numIncreases;
         const numDecreases = annotationCounts.numDecreases;
         const numEqual = annotationCounts.numEqual;
-        annotationMetricCompareExperiments.push({
-          experimentId: compareExperimentId,
-          value: compareExperimentMeanScore,
+        annotationMetricComparisons.push({
+          compareExperimentId: compareExperimentId,
+          compareExperimentValue: compareExperimentMeanScore,
           numIncreases,
           numDecreases,
           numEqual,
           optimizationDirection: annotationCounts.optimizationDirection,
-          color: experimentColor,
+          compareExperimentColor,
         });
       });
       annotationMetrics.push({
         title: annotationName,
         baseExperimentValue: baseExperimentMeanScore,
-        compareExperiments: annotationMetricCompareExperiments,
+        comparisons: annotationMetricComparisons,
       });
     }
     return {
@@ -655,22 +655,22 @@ function BaseExperimentMetric({
 
 function CompareExperimentMetric({
   value,
-  formatter = numberFormatter,
   baseExperimentValue,
   numIncreases,
   numDecreases,
   numEqual,
   optimizationDirection,
   color,
+  formatter = numberFormatter,
 }: {
   value: MetricValue;
-  formatter?: (value: MetricValue) => string;
   baseExperimentValue: MetricValue;
   numIncreases: number;
   numDecreases: number;
   numEqual: number;
   optimizationDirection: OptimizationDirection;
   color: string;
+  formatter?: (value: MetricValue) => string;
 }) {
   const valueText = useMemo(() => formatter(value), [formatter, value]);
 
@@ -688,7 +688,7 @@ function CompareExperimentMetric({
           />
         </Flex>
       </Flex>
-      <ChangeCounter
+      <ExampleChangeCounter
         numIncreases={numIncreases}
         numDecreases={numDecreases}
         numEqual={numEqual}
@@ -698,7 +698,7 @@ function CompareExperimentMetric({
   );
 }
 
-function ChangeCounter({
+function ExampleChangeCounter({
   numIncreases,
   numDecreases,
   numEqual,
