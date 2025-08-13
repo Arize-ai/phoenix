@@ -18,8 +18,6 @@ SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
 RequiredFieldsType = Optional[Union[Set[str], List[str], Iterable[str]]]
 
-ERROR_SCORE = "ERROR"
-
 
 # --- Score model ---
 @dataclass(frozen=True)
@@ -215,24 +213,13 @@ class Evaluator(ABC):
         per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
-            A list of Score objects from this evaluator.  If evaluation fails, returns a single
-            Score with name "error", score 0.0, explanation set to the exception message,
-            and metadata containing exception details and retry count.
+            A list of Score objects from this evaluator.
+
+        Raises:
+            Exceptions raised by the underlying evaluator implementation are propagated as-is.
         """
         remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
-        try:
-            return self._evaluate(remapped_eval_input)
-        except Exception as e:
-            err_score = Score(
-                score=0.0,
-                name=ERROR_SCORE,
-                explanation=str(e),
-                metadata={
-                    "exception_type": type(e).__name__,
-                },
-                source=self.source,
-            )
-            return [err_score]
+        return self._evaluate(remapped_eval_input)
 
     async def aevaluate(
         self, eval_input: EvalInput, input_mapping: Optional[Mapping[str, str]] = None
@@ -242,24 +229,13 @@ class Evaluator(ABC):
         per-call `input_mapping` (dict mapping evaluator-required field -> eval_input key).
 
         Returns:
-            A list of Score objects from this evaluator.  If evaluation fails, returns a
-            Score with name "error", score 0.0, explanation set to the exception message,
-            and metadata containing exception details.
+            A list of Score objects from this evaluator.
+
+        Raises:
+            Exceptions raised by the underlying evaluator implementation are propagated as-is.
         """
         remapped_eval_input = remap_eval_input(eval_input, self.required_fields, input_mapping)
-        try:
-            return await self._aevaluate(remapped_eval_input)
-        except Exception as e:
-            err_score = Score(
-                score=0.0,
-                name=ERROR_SCORE,
-                explanation=str(e),
-                metadata={
-                    "exception_type": type(e).__name__,
-                },
-                source=self.source,
-            )
-            return [err_score]
+        return await self._aevaluate(remapped_eval_input)
 
     # allow instances to be called directly: `evaluator(eval_input)`
     __call__ = evaluate
