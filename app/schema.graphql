@@ -431,6 +431,18 @@ input CreateProjectInput {
   gradientEndColor: String
 }
 
+input CreateProjectSessionAnnotationInput {
+  projectSessionId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  source: AnnotationSource! = APP
+  identifier: String
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -1613,6 +1625,9 @@ type Mutation {
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
@@ -1854,6 +1869,26 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+}
+
+type ProjectSessionAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String
+  score: Float
+  explanation: String
+  metadata: JSON!
+  identifier: String!
+  source: AnnotationSource!
+  projectSessionId: ID!
+  user: User
+}
+
+type ProjectSessionAnnotationMutationPayload {
+  projectSessionAnnotation: ProjectSessionAnnotation!
+  query: Query!
 }
 
 enum ProjectSessionColumn {
@@ -2889,6 +2924,17 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
+}
+
+input UpdateAnnotationInput {
+  id: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  source: AnnotationSource! = APP
 }
 
 input UpdateModelMutationInput {
