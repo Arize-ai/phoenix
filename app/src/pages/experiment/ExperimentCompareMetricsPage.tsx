@@ -21,6 +21,7 @@ import {
   costFormatter,
   latencyMsFormatter,
   numberFormatter,
+  percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
 import type {
@@ -669,28 +670,7 @@ function CompareExperimentMetric({
   optimizationDirection: OptimizationDirection;
   color: string;
 }) {
-  const { valueText, percentageDeltaText } = useMemo(() => {
-    const valueText = formatter(value);
-    let deltaText: string | null = null;
-    let percentageDeltaText: string | null = null;
-    if (value != null && baseExperimentValue != null) {
-      const delta = value - baseExperimentValue;
-      const sign = delta >= 0 ? "+" : "-";
-      const absoluteDelta = Math.abs(delta);
-      deltaText = `(${sign}${formatter(absoluteDelta)})`;
-      if (baseExperimentValue !== 0) {
-        const absolutePercentageDelta = Math.abs(
-          (delta / baseExperimentValue) * 100
-        ).toFixed(0);
-        percentageDeltaText = `${sign}${absolutePercentageDelta}%`;
-      }
-    }
-    return {
-      valueText,
-      deltaText,
-      percentageDeltaText,
-    };
-  }, [baseExperimentValue, formatter, value]);
+  const valueText = useMemo(() => formatter(value), [formatter, value]);
 
   return (
     <Flex direction="row" justifyContent="space-between">
@@ -700,11 +680,10 @@ function CompareExperimentMetric({
           <Text size="M" fontFamily="mono">
             {valueText}
           </Text>
-          {percentageDeltaText && (
-            <Text color="text-500" size="S" fontFamily="mono">
-              {percentageDeltaText}
-            </Text>
-          )}
+          <PercentageDelta
+            baseExperimentValue={baseExperimentValue}
+            compareExperimentValue={value}
+          />
         </Flex>
       </Flex>
       <ChangeCounter
@@ -864,7 +843,7 @@ function IncreaseAndDecreaseCounter({
       <TriggerWrap>
         <Flex direction="row" gap="size-100">
           {numIncreases > 0 && (
-            <Flex direction="row" gap="size-25" alignItems="center">
+            <Flex direction="row" alignItems="center">
               <Text size="S" fontFamily="mono">
                 {numIncreases}
               </Text>
@@ -875,7 +854,7 @@ function IncreaseAndDecreaseCounter({
             </Flex>
           )}
           {numDecreases > 0 && (
-            <Flex direction="row" gap="size-25" alignItems="center">
+            <Flex direction="row" alignItems="center">
               <Text size="S" fontFamily="mono">
                 {numDecreases}
               </Text>
@@ -895,5 +874,53 @@ function IncreaseAndDecreaseCounter({
         </Flex>
       </Tooltip>
     </TooltipTrigger>
+  );
+}
+
+function PercentageDelta({
+  baseExperimentValue,
+  compareExperimentValue,
+}: {
+  baseExperimentValue: MetricValue;
+  compareExperimentValue: MetricValue;
+}) {
+  const { percentageDeltaText, sign } = useMemo(() => {
+    let percentageDeltaText: string = "+0%";
+    let sign: "positive" | "negative" | "zero" = "zero";
+    if (baseExperimentValue == null || compareExperimentValue == null) {
+      return {
+        percentageDeltaText,
+        sign,
+      };
+    }
+    const delta = baseExperimentValue - compareExperimentValue;
+    if (delta > 0) {
+      sign = "positive";
+    } else if (delta < 0) {
+      sign = "negative";
+    }
+    const signSymbol = sign === "positive" || sign === "zero" ? "+" : "-";
+    if (compareExperimentValue !== 0) {
+      const absolutePercentageDelta =
+        Math.abs(delta / compareExperimentValue) * 100;
+      percentageDeltaText = `${signSymbol}${percentFormatter(absolutePercentageDelta)}`;
+    }
+    return {
+      percentageDeltaText,
+      sign,
+    };
+  }, [baseExperimentValue, compareExperimentValue]);
+  return (
+    <Flex direction="row" alignItems="center" gap="size-25">
+      <Text color="text-500" size="S" fontFamily="mono">
+        {percentageDeltaText}
+      </Text>
+      {sign === "positive" && (
+        <Icon svg={<Icons.TrendingUpOutline />} color="grey-500" />
+      )}
+      {sign === "negative" && (
+        <Icon svg={<Icons.TrendingDownOutline />} color="grey-500" />
+      )}
+    </Flex>
   );
 }
