@@ -16,7 +16,6 @@ import {
 } from "@phoenix/components";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
-import { HorizontalBarChart } from "@phoenix/components/HorizontalBarChart";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -922,5 +921,47 @@ function PercentageDelta({
         <Icon svg={<Icons.TrendingDownOutline />} color="grey-500" />
       )}
     </Flex>
+  );
+}
+
+export function HorizontalBarChart({
+  bars,
+}: {
+  bars: {
+    value: number;
+    color: string;
+  }[];
+}) {
+  if (bars.length === 0) {
+    return null;
+  }
+  const maxValue = Math.max(...bars.map((bar) => bar.value));
+  let barLengths: number[] = [];
+  if (maxValue !== 0) {
+    barLengths = bars.map((bar) => (bar.value / maxValue) * 100);
+  } else {
+    barLengths = bars.map(() => 0);
+  }
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        width: 100%;
+      `}
+    >
+      {bars.map((bar, index) => (
+        <div
+          key={index}
+          css={css`
+            background-color: ${bar.color};
+            height: 0.3rem;
+            border-radius: 2px;
+            width: ${barLengths[index]}%;
+          `}
+        />
+      ))}
+    </div>
   );
 }
