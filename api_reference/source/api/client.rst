@@ -16,14 +16,8 @@ phoenix.client.Client
 
 phoenix.Client
 --------------
-.. automodule:: session.client
+.. autoclass:: session.client.Client
    :members:
-   :special-members: __init__
    :inherited-members:
+   :special-members: __init__
    :exclude-members: DatasetUploadError
-
-.. automethod:: session.client.Client.get_spans_dataframe
-   :noindex:
-
-.. automethod:: session.client.Client.get_trace_dataset
-   :noindex:

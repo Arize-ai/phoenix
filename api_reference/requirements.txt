@@ -3,6 +3,7 @@ sphinx==7.3.7
 pydata-sphinx-theme
 linkify-it-py
 sphinx_design
+sphinxcontrib-autodoc-inherit-overload
 packages/phoenix-evals
 
 -e .
