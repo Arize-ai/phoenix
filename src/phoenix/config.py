@@ -1134,7 +1134,7 @@ def get_env_postgres_connection_str() -> Optional[str]:
     pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
     pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
 
-    if pg_host and _HOST_PORT_REGEX.match(pg_host):  # maintain backwards compatibility
+    if _HOST_PORT_REGEX.match(pg_host):  # maintain backwards compatibility
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
