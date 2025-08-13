@@ -8,7 +8,8 @@ import {
   SearchIcon,
 } from "@phoenix/components";
 
-export interface DebouncedSearchProps extends SearchFieldProps {
+export interface DebouncedSearchProps
+  extends Omit<SearchFieldProps, "value" | "onChange"> {
   onChange: (value: string) => void;
   /**
    * Text to show the user before typing

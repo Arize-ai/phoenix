@@ -52,7 +52,6 @@ export function DatasetsPageContent() {
           <DebouncedSearch
             aria-label="Search datasets by name"
             onChange={setFilter}
-            value={filter}
             placeholder="Search datasets by name"
           />
           <View flex="none">
