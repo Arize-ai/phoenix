@@ -1,4 +1,5 @@
 # type: ignore
+import asyncio
 from contextlib import nullcontext as does_not_raise
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
@@ -461,13 +462,14 @@ class TestEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
-    def test_evaluator_batch_evaluate(self):
-        """Test batch evaluation."""
+    def test_evaluator_manual_batching(self):
+        """Test applying evaluate across a list of inputs (external batching)."""
         evaluator = self.MockEvaluator(
             name="test_evaluator", source="llm", required_fields={"input"}
         )
 
-        results = evaluator.batch_evaluate([{"input": "test1"}, {"input": "test2"}])
+        inputs = [{"input": "test1"}, {"input": "test2"}]
+        results = [evaluator.evaluate(inp) for inp in inputs]
 
         assert len(results) == 2
         assert len(results[0]) == 1
@@ -486,13 +488,14 @@ class TestEvaluator:
         assert result[0].name == "test_evaluator"
 
     @pytest.mark.asyncio
-    async def test_evaluator_abatch_evaluate(self):
-        """Test async batch evaluation."""
+    async def test_evaluator_manual_async_batching(self):
+        """Test applying aevaluate across a list of inputs with gather (external batching)."""
         evaluator = self.MockEvaluator(
             name="test_evaluator", source="llm", required_fields={"input"}
         )
 
-        results = await evaluator.abatch_evaluate([{"input": "test1"}, {"input": "test2"}])
+        inputs = [{"input": "test1"}, {"input": "test2"}]
+        results = await asyncio.gather(*[evaluator.aevaluate(inp) for inp in inputs])
 
         assert len(results) == 2
         assert len(results[0]) == 1
