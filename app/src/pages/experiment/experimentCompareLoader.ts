@@ -52,7 +52,7 @@ export async function experimentCompareLoader(
             datasetId: $datasetId
             hasBaseExperiment: $hasBaseExperiment
           )
-        ...SelectedCompareExperiments_dataset
+        ...ExperimentComparePage_selectedCompareExperiments
           @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
         ...ExperimentCompareMetricsPage_experiments
           @include(if: $includeMetricsView)

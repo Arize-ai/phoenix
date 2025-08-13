@@ -1,4 +1,5 @@
 import { startTransition, useCallback, useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import {
   useLoaderData,
   useNavigate,
@@ -8,7 +9,9 @@ import {
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, View } from "@phoenix/components";
+import { Alert, Flex, Text, View } from "@phoenix/components";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { useExperimentColors } from "@phoenix/components/experiment";
 import {
   ExperimentCompareViewMode,
   ExperimentCompareViewModeToggle,
@@ -17,10 +20,17 @@ import {
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
+import type {
+  ExperimentComparePage_selectedCompareExperiments$data,
+  ExperimentComparePage_selectedCompareExperiments$key,
+} from "./__generated__/ExperimentComparePage_selectedCompareExperiments.graphql";
 import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
 import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
-import { SelectedCompareExperiments } from "./SelectedCompareExperiments";
+
+type Experiment = NonNullable<
+  ExperimentComparePage_selectedCompareExperiments$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
@@ -137,4 +147,79 @@ function ExperimentComparePageContent() {
       </View>
     );
   }
+}
+
+export function SelectedCompareExperiments({
+  dataRef,
+}: {
+  dataRef: ExperimentComparePage_selectedCompareExperiments$key;
+}) {
+  const [searchParams] = useSearchParams();
+  const [, ...compareExperimentIds] = searchParams.getAll("experimentId");
+  const { getExperimentColor } = useExperimentColors();
+  const data =
+    useFragment<ExperimentComparePage_selectedCompareExperiments$key>(
+      graphql`
+        fragment ExperimentComparePage_selectedCompareExperiments on Query
+        @argumentDefinitions(
+          datasetId: { type: "ID!" }
+          experimentIds: { type: "[ID!]!" }
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              experiments(filterIds: $experimentIds) {
+                edges {
+                  experiment: node {
+                    id
+                    sequenceNumber
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      dataRef
+    );
+  const idToExperiment = useMemo(() => {
+    const idToExperiment: Record<string, Experiment> = {};
+    data.dataset.experiments?.edges.forEach((edge) => {
+      idToExperiment[edge.experiment.id] = edge.experiment;
+    });
+    return idToExperiment;
+  }, [data]);
+  if (compareExperimentIds.length === 0) {
+    return null;
+  }
+  const compareExperiments = compareExperimentIds.map(
+    (experimentId) => idToExperiment[experimentId]
+  );
+  return (
+    <Flex direction="row" gap="size-250" alignItems="center">
+      {compareExperiments.map((experiment, experimentIndex) => (
+        <Flex
+          direction="row"
+          gap="size-100"
+          key={experiment.id}
+          alignItems="center"
+        >
+          <ColorSwatch
+            color={getExperimentColor(experimentIndex)}
+            shape="circle"
+          />
+          <Text
+            css={css`
+              white-space: nowrap;
+              max-width: var(--ac-global-dimension-size-2000);
+              overflow: hidden;
+              text-overflow: ellipsis;
+            `}
+          >
+            {experiment.name}
+          </Text>
+        </Flex>
+      ))}
+    </Flex>
+  );
 }
