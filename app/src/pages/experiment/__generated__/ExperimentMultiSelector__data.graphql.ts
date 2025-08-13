@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<62f90a7a199a146567daaa20c702cab3>>
+ * @generated SignedSource<<322e4e683c02e0da64be134eab714bd0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,6 @@ export type ExperimentMultiSelector__data$data = {
   readonly baseExperiment?: {
     readonly id?: string;
     readonly name?: string;
-    readonly sequenceNumber?: number;
   };
   readonly dataset: {
     readonly allExperiments?: {
@@ -50,13 +49,6 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "sequenceNumber",
   "storageKey": null
 };
 return {
@@ -125,7 +117,13 @@ return {
                       "selections": [
                         (v0/*: any*/),
                         (v1/*: any*/),
-                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "sequenceNumber",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -172,7 +170,6 @@ return {
               "kind": "InlineFragment",
               "selections": [
                 (v0/*: any*/),
-                (v2/*: any*/),
                 (v1/*: any*/)
               ],
               "type": "Experiment",
@@ -189,6 +186,6 @@ return {
 };
 })();
 
-(node as any).hash = "6b0a75dfdc4ce4b0cd525a7b1eb6319c";
+(node as any).hash = "d5fa542c1b16d3225eabd1619e55f26b";
 
 export default node;

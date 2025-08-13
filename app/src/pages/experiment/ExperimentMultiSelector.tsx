@@ -77,7 +77,6 @@ export function ExperimentMultiSelector(props: {
           @include(if: $hasBaseExperiment) {
           ... on Experiment {
             id
-            sequenceNumber
             name
           }
         }
@@ -113,9 +112,7 @@ export function ExperimentMultiSelector(props: {
           <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
               <Flex direction="row" gap="size-130" alignItems="center">
-                {data.baseExperiment.sequenceNumber && (
-                  <ColorSwatch color={baseExperimentColor} shape="circle" />
-                )}
+                <ColorSwatch color={baseExperimentColor} shape="circle" />
                 <Text
                   css={css`
                     white-space: nowrap;
