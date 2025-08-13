@@ -490,146 +490,145 @@ export function ExperimentCompareMetricsPage() {
       css={css`
         overflow: auto;
         min-width: 1280px;
+        padding: var(--ac-global-dimension-size-200);
       `}
     >
-      <View padding="size-200">
-        <Flex direction="row" gap="size-250">
-          {annotationMetrics.length > 0 && (
-            <View>
-              <Heading
-                level={2}
+      <Flex direction="row" gap="size-250">
+        {annotationMetrics.length > 0 && (
+          <View>
+            <Heading
+              level={2}
+              css={css`
+                margin-bottom: var(--ac-global-dimension-size-150);
+              `}
+            >
+              Evaluations
+            </Heading>
+            <ul
+              css={css`
+                display: grid;
+                grid-template-columns: repeat(
+                  auto-fill,
+                  minmax(var(--ac-global-dimension-size-3600), 1fr)
+                );
+                gap: var(--ac-global-dimension-size-200);
+              `}
+            >
+              {annotationMetrics.map((metric: MetricCardProps) => (
+                <li
+                  key={metric.title}
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                  `}
+                >
+                  <MetricCard {...metric} />
+                </li>
+              ))}
+            </ul>
+          </View>
+        )}
+        <View>
+          <Heading
+            level={2}
+            css={css`
+              margin-bottom: var(--ac-global-dimension-size-150);
+            `}
+          >
+            Cost
+          </Heading>
+          <ul
+            css={css`
+              display: grid;
+              grid-template-columns: repeat(
+                auto-fill,
+                minmax(var(--ac-global-dimension-size-3600), 1fr)
+              );
+              gap: var(--ac-global-dimension-size-200);
+            `}
+          >
+            {costMetrics.map((metric: MetricCardProps) => (
+              <li
+                key={metric.title}
                 css={css`
-                  margin-bottom: var(--ac-global-dimension-size-150);
+                  display: flex;
+                  flex-direction: column;
+                  height: 100%;
                 `}
               >
-                Evaluations
-              </Heading>
-              <ul
+                <MetricCard {...metric} />
+              </li>
+            ))}
+          </ul>
+        </View>
+        <View>
+          <Heading
+            level={2}
+            css={css`
+              margin-bottom: var(--ac-global-dimension-size-150);
+            `}
+          >
+            Performance
+          </Heading>
+          <ul
+            css={css`
+              display: grid;
+              grid-template-columns: repeat(
+                auto-fill,
+                minmax(var(--ac-global-dimension-size-3600), 1fr)
+              );
+              gap: var(--ac-global-dimension-size-200);
+            `}
+          >
+            {performanceMetrics.map((metric: MetricCardProps) => (
+              <li
+                key={metric.title}
                 css={css`
-                  display: grid;
-                  grid-template-columns: repeat(
-                    auto-fill,
-                    minmax(var(--ac-global-dimension-size-3600), 1fr)
-                  );
-                  gap: var(--ac-global-dimension-size-200);
+                  display: flex;
+                  flex-direction: column;
+                  height: 100%;
                 `}
               >
-                {annotationMetrics.map((metric: MetricCardProps) => (
-                  <li
-                    key={metric.title}
-                    css={css`
-                      display: flex;
-                      flex-direction: column;
-                      height: 100%;
-                    `}
-                  >
-                    <MetricCard {...metric} />
-                  </li>
-                ))}
-              </ul>
-            </View>
-          )}
-          <View>
-            <Heading
-              level={2}
-              css={css`
-                margin-bottom: var(--ac-global-dimension-size-150);
-              `}
-            >
-              Cost
-            </Heading>
-            <ul
-              css={css`
-                display: grid;
-                grid-template-columns: repeat(
-                  auto-fill,
-                  minmax(var(--ac-global-dimension-size-3600), 1fr)
-                );
-                gap: var(--ac-global-dimension-size-200);
-              `}
-            >
-              {costMetrics.map((metric: MetricCardProps) => (
-                <li
-                  key={metric.title}
-                  css={css`
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                  `}
-                >
-                  <MetricCard {...metric} />
-                </li>
-              ))}
-            </ul>
-          </View>
-          <View>
-            <Heading
-              level={2}
-              css={css`
-                margin-bottom: var(--ac-global-dimension-size-150);
-              `}
-            >
-              Performance
-            </Heading>
-            <ul
-              css={css`
-                display: grid;
-                grid-template-columns: repeat(
-                  auto-fill,
-                  minmax(var(--ac-global-dimension-size-3600), 1fr)
-                );
-                gap: var(--ac-global-dimension-size-200);
-              `}
-            >
-              {performanceMetrics.map((metric: MetricCardProps) => (
-                <li
-                  key={metric.title}
-                  css={css`
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                  `}
-                >
-                  <MetricCard {...metric} />
-                </li>
-              ))}
-            </ul>
-          </View>
-          <View>
-            <Heading
-              level={2}
-              css={css`
-                margin-bottom: var(--ac-global-dimension-size-150);
-              `}
-            >
-              Token Counts
-            </Heading>
-            <ul
-              css={css`
-                display: grid;
-                grid-template-columns: repeat(
-                  auto-fill,
-                  minmax(var(--ac-global-dimension-size-3600), 1fr)
-                );
-                gap: var(--ac-global-dimension-size-200);
-              `}
-            >
-              {tokenCountMetrics.map((metric: MetricCardProps) => (
-                <li
-                  key={metric.title}
-                  css={css`
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                  `}
-                >
-                  <MetricCard {...metric} />
-                </li>
-              ))}
-            </ul>
-          </View>
-        </Flex>
-      </View>
+                <MetricCard {...metric} />
+              </li>
+            ))}
+          </ul>
+        </View>
+        <View>
+          <Heading
+            level={2}
+            css={css`
+              margin-bottom: var(--ac-global-dimension-size-150);
+            `}
+          >
+            Token Counts
+          </Heading>
+          <ul
+            css={css`
+              display: grid;
+              grid-template-columns: repeat(
+                auto-fill,
+                minmax(var(--ac-global-dimension-size-3600), 1fr)
+              );
+              gap: var(--ac-global-dimension-size-200);
+            `}
+          >
+            {tokenCountMetrics.map((metric: MetricCardProps) => (
+              <li
+                key={metric.title}
+                css={css`
+                  display: flex;
+                  flex-direction: column;
+                  height: 100%;
+                `}
+              >
+                <MetricCard {...metric} />
+              </li>
+            ))}
+          </ul>
+        </View>
+      </Flex>
     </div>
   );
 }
