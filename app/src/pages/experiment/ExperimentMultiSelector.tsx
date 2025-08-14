@@ -107,7 +107,7 @@ export function ExperimentMultiSelector(props: {
   return (
     <Flex direction="row" gap="size-100">
       <div css={css(fieldBaseCSS, selectCSS)}>
-        <Label>base experiment</Label>
+        <Label>experiment</Label>
         <DialogTrigger>
           <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
@@ -125,7 +125,7 @@ export function ExperimentMultiSelector(props: {
                 </Text>
               </Flex>
             ) : (
-              "No base experiment selected"
+              "No experiment selected"
             )}
           </Button>
           <Popover placement="bottom start">
@@ -195,7 +195,7 @@ export function ExperimentMultiSelector(props: {
       </div>
       {selectedBaseExperimentId && nonBaseExperiments.length > 0 && (
         <div css={css(fieldBaseCSS, selectCSS)}>
-          <Label>compare experiments</Label>
+          <Label>comparisons</Label>
           <DialogTrigger>
             <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
               {compareExperimentsDisplayText}
