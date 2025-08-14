@@ -67,5 +67,9 @@ function ListBox<T extends object>(
   return <AriaListBox css={mergedCSS} ref={ref} {...restProps} />;
 }
 
-const _ListBox = forwardRef(ListBox);
+type ListBoxComponent = <T extends object>(
+  props: ListBoxProps<T> & React.RefAttributes<HTMLDivElement>
+) => React.ReactElement | null;
+
+const _ListBox = forwardRef(ListBox) as ListBoxComponent;
 export { _ListBox as ListBox };

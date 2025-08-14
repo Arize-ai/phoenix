@@ -1,16 +1,23 @@
+import { Suspense, useMemo, useTransition } from "react";
+import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+
 import {
   Button,
+  DebouncedSearch,
   Dialog,
   DialogTrigger,
   Icon,
   Icons,
-  Input,
+  ListBox,
+  ListBoxItem,
+  Loading,
   Popover,
   PopoverArrow,
-  SearchField,
-  SearchIcon,
   View,
 } from "@phoenix/components";
+
+import { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
+import { TransferTracesButtonProjectsQuery } from "./__generated__/TransferTracesButtonProjectsQuery.graphql";
 
 export function TransferTracesButton() {
   return (
@@ -21,20 +28,84 @@ export function TransferTracesButton() {
       <Popover>
         <PopoverArrow />
         <Dialog>
-          <ProjectSelection />
+          <Suspense fallback={<Loading />}>
+            <ProjectSelectionDialogContent />
+          </Suspense>
         </Dialog>
       </Popover>
     </DialogTrigger>
   );
 }
 
-function ProjectSelection() {
+function ProjectSelectionDialogContent() {
+  const query = useLazyLoadQuery<TransferTracesButtonProjectsQuery>(
+    graphql`
+      query TransferTracesButtonQuery {
+        ...TransferTracesButton_projects @arguments(search: "")
+      }
+    `,
+    { search: "" }
+  );
   return (
-    <View minWidth={400} minHeight={500} padding="size-100">
-      <SearchField>
-        <SearchIcon />
-        <Input placeholder="Search Projects" />
-      </SearchField>
+    <Dialog>
+      <ProjectsList query={query} />
+    </Dialog>
+  );
+}
+
+function ProjectsList({ query }: { query: TransferTracesButton_projects$key }) {
+  const [, startTransition] = useTransition();
+  const [data, refetch] = useRefetchableFragment<
+    TransferTracesButtonProjectsQuery,
+    TransferTracesButton_projects$key
+  >(
+    graphql`
+      fragment TransferTracesButton_projects on Query
+      @refetchable(queryName: "TransferTracesButtonProjectsQuery")
+      @argumentDefinitions(search: { type: "String!" }) {
+        projects(filter: { col: name, value: $search }) {
+          edges {
+            node {
+              id
+              name
+            }
+          }
+        }
+      }
+    `,
+    query
+  );
+  const items = useMemo(() => {
+    return data.projects.edges.map((edge) => edge.node);
+  }, [data]);
+
+  const onSearchChange = (search: string) => {
+    startTransition(() => {
+      refetch({
+        search: search,
+      });
+    });
+  };
+  return (
+    <View>
+      <View
+        padding="size-100"
+        borderBottomWidth="thin"
+        borderBottomColor="light"
+      >
+        <DebouncedSearch
+          aria-label="Search projects"
+          placeholder="Search projects..."
+          onChange={onSearchChange}
+        />
+      </View>
+      <ListBox aria-label="projects" items={items} selectionMode="single">
+        {(item) => (
+          <ListBoxItem key={item.id} id={item.id}>
+            {item.name}
+          </ListBoxItem>
+        )}
+      </ListBox>
     </View>
   );
 }
