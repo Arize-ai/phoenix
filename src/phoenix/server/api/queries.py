@@ -593,26 +593,20 @@ class Query:
             .subquery()
             .alias("experiment_trace_costs")
         )
-        compare_experiment_runs = (
-            select(models.ExperimentRun)
-            .where(models.ExperimentRun.experiment_id.in_(compare_experiment_rowids))
-            .subquery()
-            .alias("comp_exp_runs")
-        )
         compare_experiment_run_min_costs = (
             select(
                 models.ExperimentRun.dataset_example_id,
-                func.min(experiment_trace_costs.c.total_tokens).label("total_tokens"),
-                func.min(experiment_trace_costs.c.prompt_tokens).label("prompt_tokens"),
-                func.min(experiment_trace_costs.c.completion_tokens).label("completion_tokens"),
-                func.min(experiment_trace_costs.c.total_cost).label("total_cost"),
-                func.min(experiment_trace_costs.c.prompt_cost).label("prompt_cost"),
-                func.min(experiment_trace_costs.c.completion_cost).label("completion_cost"),
+                func.min(models.SpanCost.total_tokens).label("total_tokens"),
+                func.min(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                func.min(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.min(models.SpanCost.total_cost).label("total_cost"),
+                func.min(models.SpanCost.prompt_cost).label("prompt_cost"),
+                func.min(models.SpanCost.completion_cost).label("completion_cost"),
             )
-            .select_from(experiment_trace_costs)
+            .select_from(models.SpanCost)
             .join(
                 models.Trace,
-                onclause=models.Trace.id == experiment_trace_costs.c.trace_rowid,
+                onclause=models.Trace.id == models.SpanCost.trace_rowid,
             )
             .join(
                 models.ExperimentRun,
@@ -625,39 +619,32 @@ class Query:
         )
         compare_experiment_run_mins = (
             select(
-                compare_experiment_runs.c.dataset_example_id,
+                models.ExperimentRun.dataset_example_id,
                 func.min(
-                    LatencyMs(
-                        compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time
-                    )
+                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
                 ).label("latency_ms"),
                 func.min(compare_experiment_run_min_costs.c.total_tokens).label("total_tokens"),
-                func.min(compare_experiment_run_min_costs.c.prompt_tokens).label(
-                    "prompt_token_count"
-                ),
+                func.min(compare_experiment_run_min_costs.c.prompt_tokens).label("prompt_tokens"),
                 func.min(compare_experiment_run_min_costs.c.completion_tokens).label(
-                    "completion_token_count"
+                    "completion_tokens"
                 ),
-                func.max(compare_experiment_run_min_costs.c.total_cost).label("total_cost"),
+                func.min(compare_experiment_run_min_costs.c.total_cost).label("total_cost"),
                 func.min(compare_experiment_run_min_costs.c.prompt_cost).label("prompt_cost"),
                 func.min(compare_experiment_run_min_costs.c.completion_cost).label(
                     "completion_cost"
                 ),
             )
-            .select_from(compare_experiment_runs)
+            .select_from(models.ExperimentRun)
             .join(
                 compare_experiment_run_min_costs,
-                onclause=compare_experiment_runs.c.dataset_example_id
+                onclause=models.ExperimentRun.dataset_example_id
                 == compare_experiment_run_min_costs.c.dataset_example_id,
                 isouter=True,
             )
             .where(
-                and_(
-                    compare_experiment_runs.c.experiment_id.in_(compare_experiment_rowids),
-                    compare_experiment_runs.c.trace_id.isnot(None),
-                )
+                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
             )
-            .group_by(compare_experiment_runs.c.dataset_example_id)
+            .group_by(models.ExperimentRun.dataset_example_id)
             .subquery()
             .alias("comp_exp_run_mins")
         )
@@ -751,7 +738,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.prompt_token_count
+                                compare_experiment_run_mins.c.prompt_tokens
                                 > experiment_trace_costs.c.prompt_tokens,
                                 1,
                             ),
@@ -764,7 +751,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.prompt_token_count
+                                compare_experiment_run_mins.c.prompt_tokens
                                 < experiment_trace_costs.c.prompt_tokens,
                                 1,
                             ),
@@ -777,7 +764,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.prompt_token_count
+                                compare_experiment_run_mins.c.prompt_tokens
                                 == experiment_trace_costs.c.prompt_tokens,
                                 1,
                             ),
@@ -790,7 +777,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.completion_token_count
+                                compare_experiment_run_mins.c.completion_tokens
                                 > experiment_trace_costs.c.completion_tokens,
                                 1,
                             ),
@@ -803,7 +790,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.completion_token_count
+                                compare_experiment_run_mins.c.completion_tokens
                                 < experiment_trace_costs.c.completion_tokens,
                                 1,
                             ),
@@ -816,7 +803,7 @@ class Query:
                     func.sum(
                         case(
                             (
-                                compare_experiment_run_mins.c.completion_token_count
+                                compare_experiment_run_mins.c.completion_tokens
                                 == experiment_trace_costs.c.completion_tokens,
                                 1,
                             ),
