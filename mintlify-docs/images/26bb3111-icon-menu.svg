@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="75.5" height="75.5" viewBox="0 0 75.5 75.5">
+  <defs>
+    <clipPath id="clip-path">
+      <path id="Path_13099" data-name="Path 13099" d="M.75,22.75a22,22,0,1,0,22-22,22,22,0,0,0-22,22" fill="none"/>
+    </clipPath>
+    <filter id="Ellipse_917" x="0" y="0" width="75.5" height="75.5" filterUnits="userSpaceOnUse">
+      <feOffset input="SourceAlpha"/>
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feFlood flood-opacity="0.161"/>
+      <feComposite operator="in" in2="blur"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="Group_6400" data-name="Group 6400" transform="translate(-304.25 -762.25)">
+    <g transform="matrix(1, 0, 0, 1, 304.25, 762.25)" filter="url(#Ellipse_917)">
+      <circle id="Ellipse_917-2" data-name="Ellipse 917" cx="22" cy="22" r="22" transform="translate(15.75 15.75)" fill="#2581dd" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="1.5"/>
+    </g>
+    <line id="Line_731" data-name="Line 731" x2="16.463" transform="translate(337.312 792.41)" fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/>
+    <path id="Path_12993" data-name="Path 12993" d="M12.881,15.16a1.847,1.847,0,1,1-1.847-1.847,1.847,1.847,0,0,1,1.847,1.847" transform="translate(319.25 777.25)" fill="#fff"/>
+    <line id="Line_732" data-name="Line 732" x2="9.541" transform="translate(337.312 800)" fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/>
+    <path id="Path_12994" data-name="Path 12994" d="M12.881,22.75A1.847,1.847,0,1,1,11.034,20.9a1.847,1.847,0,0,1,1.847,1.847" transform="translate(319.25 777.25)" fill="#fff"/>
+    <line id="Line_733" data-name="Line 733" x2="14.627" transform="translate(337.312 807.59)" fill="none" stroke="#fff" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/>
+    <path id="Path_12995" data-name="Path 12995" d="M12.881,30.34a1.847,1.847,0,1,1-1.847-1.847,1.847,1.847,0,0,1,1.847,1.847" transform="translate(319.25 777.25)" fill="#fff"/>
+    <rect id="Rectangle_6018" data-name="Rectangle 6018" width="45.5" height="45.5" transform="translate(319.25 777.25)" fill="none"/>
+  </g>
+</svg>
