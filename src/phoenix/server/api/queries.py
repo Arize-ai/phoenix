@@ -24,7 +24,6 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import LatencyMs
-from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -146,16 +145,6 @@ class ExperimentRunMetricComparisons:
     total_cost: ExperimentRunMetricComparison
     prompt_cost: ExperimentRunMetricComparison
     completion_cost: ExperimentRunMetricComparison
-
-
-@strawberry.type
-class CompareExperimentRunAnnotationMetricCounts:
-    annotation_name: str
-    compare_experiment_id: GlobalID
-    num_increases: int
-    num_decreases: int
-    num_equal: int
-    optimization_direction: OptimizationDirection
 
 
 @strawberry.type
