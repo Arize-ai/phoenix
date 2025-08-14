@@ -6,6 +6,8 @@ export {
   DialogTrigger,
   Form,
   I18nProvider,
+  Autocomplete,
+  useFilter,
 } from "react-aria-components";
 export type {
   InputProps,
