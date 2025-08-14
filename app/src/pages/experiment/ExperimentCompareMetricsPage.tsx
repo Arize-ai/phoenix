@@ -49,10 +49,10 @@ const metricCardCSS = css`
 
 type MetricValue = number | null | undefined;
 
-type ExperimentComparison = {
-  compareExperimentId: string;
-  compareExperimentValue: MetricValue;
-  compareExperimentColor: string;
+type CompareExperiment = {
+  id: string;
+  value: MetricValue;
+  color: string;
 };
 
 type Experiment = NonNullable<
@@ -172,124 +172,124 @@ export function ExperimentCompareMetricsPage() {
       return experimentIdToExperiment[experimentId];
     });
 
-    const counts = data.experimentRunMetricComparisons;
+    const comparisons = data.experimentRunMetricComparisons;
     const latencyMetric: MetricCardProps = {
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
-      delta: {
-        numImprovements: counts?.latency.numRunsImproved ?? 0,
-        numRegressions: counts?.latency.numRunsRegressed ?? 0,
-        numEqual: counts?.latency.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.latency.numRunsImproved ?? 0,
+        numRegressions: comparisons?.latency.numRunsRegressed ?? 0,
+        numEqual: comparisons?.latency.numRunsEqual ?? 0,
         optimizationDirection: "MAXIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
       formatter: latencyMsFormatter,
     };
     const totalTokensMetric: MetricCardProps = {
       title: "Total Tokens",
       baseExperimentValue: baseExperiment.costSummary.total.tokens,
-      delta: {
-        numImprovements: counts?.totalTokenCount.numRunsImproved ?? 0,
-        numRegressions: counts?.totalTokenCount.numRunsRegressed ?? 0,
-        numEqual: counts?.totalTokenCount.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.totalTokenCount.numRunsImproved ?? 0,
+        numRegressions: comparisons?.totalTokenCount.numRunsRegressed ?? 0,
+        numEqual: comparisons?.totalTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
     };
     const promptTokensMetric: MetricCardProps = {
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
-      delta: {
-        numImprovements: counts?.promptTokenCount.numRunsImproved ?? 0,
-        numRegressions: counts?.promptTokenCount.numRunsRegressed ?? 0,
-        numEqual: counts?.promptTokenCount.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.promptTokenCount.numRunsImproved ?? 0,
+        numRegressions: comparisons?.promptTokenCount.numRunsRegressed ?? 0,
+        numEqual: comparisons?.promptTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
     };
     const completionTokensMetric: MetricCardProps = {
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary.completion.tokens,
-      delta: {
-        numImprovements: counts?.completionTokenCount.numRunsImproved ?? 0,
-        numRegressions: counts?.completionTokenCount.numRunsRegressed ?? 0,
-        numEqual: counts?.completionTokenCount.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.completionTokenCount.numRunsImproved ?? 0,
+        numRegressions: comparisons?.completionTokenCount.numRunsRegressed ?? 0,
+        numEqual: comparisons?.completionTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
     };
     const totalCostMetric: MetricCardProps = {
       title: "Total Cost",
       baseExperimentValue: baseExperiment.costSummary.total.cost,
-      delta: {
-        numImprovements: counts?.totalCost.numRunsImproved ?? 0,
-        numRegressions: counts?.totalCost.numRunsRegressed ?? 0,
-        numEqual: counts?.totalCost.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.totalCost.numRunsImproved ?? 0,
+        numRegressions: comparisons?.totalCost.numRunsRegressed ?? 0,
+        numEqual: comparisons?.totalCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
       formatter: costFormatter,
     };
     const promptCostMetric: MetricCardProps = {
       title: "Prompt Cost",
       baseExperimentValue: baseExperiment.costSummary.prompt.cost,
-      delta: {
-        numImprovements: counts?.promptCost.numRunsImproved ?? 0,
-        numRegressions: counts?.promptCost.numRunsRegressed ?? 0,
-        numEqual: counts?.promptCost.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.promptCost.numRunsImproved ?? 0,
+        numRegressions: comparisons?.promptCost.numRunsRegressed ?? 0,
+        numEqual: comparisons?.promptCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
       formatter: costFormatter,
     };
     const completionCostMetric: MetricCardProps = {
       title: "Completion Cost",
       baseExperimentValue: baseExperiment.costSummary.completion.cost,
-      delta: {
-        numImprovements: counts?.completionCost.numRunsImproved ?? 0,
-        numRegressions: counts?.completionCost.numRunsRegressed ?? 0,
-        numEqual: counts?.completionCost.numRunsEqual ?? 0,
+      comparison: {
+        numImprovements: comparisons?.completionCost.numRunsImproved ?? 0,
+        numRegressions: comparisons?.completionCost.numRunsRegressed ?? 0,
+        numEqual: comparisons?.completionCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
-      comparisons: [],
+      compareExperiments: [],
       formatter: costFormatter,
     };
     compareExperiments.forEach((experiment, experimentIndex) => {
       const experimentColor = getExperimentColor(experimentIndex);
-      latencyMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.averageRunLatencyMs,
-        compareExperimentColor: experimentColor,
+      latencyMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.averageRunLatencyMs,
+        color: experimentColor,
       });
-      promptTokensMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.prompt.tokens,
-        compareExperimentColor: experimentColor,
+      promptTokensMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.prompt.tokens,
+        color: experimentColor,
       });
-      completionTokensMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.completion.tokens,
-        compareExperimentColor: experimentColor,
+      completionTokensMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.completion.tokens,
+        color: experimentColor,
       });
-      totalTokensMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.total.tokens,
-        compareExperimentColor: experimentColor,
+      totalTokensMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.total.tokens,
+        color: experimentColor,
       });
-      totalCostMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.total.cost,
-        compareExperimentColor: experimentColor,
+      totalCostMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.total.cost,
+        color: experimentColor,
       });
-      promptCostMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.prompt.cost,
-        compareExperimentColor: experimentColor,
+      promptCostMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.prompt.cost,
+        color: experimentColor,
       });
-      completionCostMetric.comparisons.push({
-        compareExperimentId: experiment.id,
-        compareExperimentValue: experiment.costSummary.completion.cost,
-        compareExperimentColor: experimentColor,
+      completionCostMetric.compareExperiments.push({
+        id: experiment.id,
+        value: experiment.costSummary.completion.cost,
+        color: experimentColor,
       });
     });
     const performanceMetrics = [latencyMetric];
@@ -339,7 +339,7 @@ export function ExperimentCompareMetricsPage() {
       if (!(annotationName in annotationNameToCompareExperimentIdToMeanScore)) {
         continue;
       }
-      const annotationMetricComparisons: ExperimentComparison[] = [];
+      const annotationMetricComparisons: CompareExperiment[] = [];
       compareExperiments.forEach((experiment, experimentIndex) => {
         const compareExperimentId = experiment.id;
         const compareExperimentColor = getExperimentColor(experimentIndex);
@@ -359,15 +359,15 @@ export function ExperimentCompareMetricsPage() {
             ];
         }
         annotationMetricComparisons.push({
-          compareExperimentId: compareExperimentId,
-          compareExperimentValue: compareExperimentMeanScore,
-          compareExperimentColor,
+          id: compareExperimentId,
+          value: compareExperimentMeanScore,
+          color: compareExperimentColor,
         });
       });
       annotationMetrics.push({
         title: annotationName,
         baseExperimentValue: baseExperimentMeanScore,
-        comparisons: annotationMetricComparisons,
+        compareExperiments: annotationMetricComparisons,
       });
     }
     return {
@@ -448,7 +448,7 @@ function MetricsColumn({
   );
 }
 
-type MetricDelta = {
+type ExperimentRunMetricComparison = {
   numImprovements: number;
   numRegressions: number;
   numEqual: number;
@@ -458,16 +458,16 @@ type MetricDelta = {
 type MetricCardProps = {
   title: string;
   baseExperimentValue: MetricValue;
-  comparisons: ExperimentComparison[];
+  compareExperiments: CompareExperiment[];
   formatter?: (value: MetricValue) => string;
-  delta?: MetricDelta;
+  comparison?: ExperimentRunMetricComparison;
 };
 
 function MetricCard({
   title,
   baseExperimentValue,
-  delta,
-  comparisons,
+  comparison,
+  compareExperiments,
   formatter = numberFormatter,
 }: MetricCardProps) {
   const { baseExperimentColor } = useExperimentColors();
@@ -480,7 +480,7 @@ function MetricCard({
           alignItems="center"
         >
           <Heading level={3}>{title}</Heading>
-          {delta && <ImprovementAndRegressionCounter {...delta} />}
+          {comparison && <ImprovementAndRegressionCounter {...comparison} />}
         </Flex>
         <HorizontalBarChart
           bars={[
@@ -488,9 +488,9 @@ function MetricCard({
               value: baseExperimentValue ?? 0,
               color: baseExperimentColor,
             },
-            ...comparisons.map((comparison) => ({
-              value: comparison.compareExperimentValue ?? 0,
-              color: comparison.compareExperimentColor,
+            ...compareExperiments.map((experiment) => ({
+              value: experiment.value ?? 0,
+              color: experiment.color,
             })),
           ]}
         />
@@ -499,12 +499,12 @@ function MetricCard({
             value={baseExperimentValue}
             formatter={formatter}
           />
-          {comparisons.map((comparison) => (
+          {compareExperiments.map((experiment) => (
             <CompareExperimentMetric
-              key={comparison.compareExperimentId}
-              value={comparison.compareExperimentValue}
+              key={experiment.id}
+              value={experiment.value}
               baseExperimentValue={baseExperimentValue}
-              color={comparison.compareExperimentColor}
+              color={experiment.color}
               formatter={formatter}
             />
           ))}
@@ -579,7 +579,7 @@ function ImprovementAndRegressionCounter({
   numImprovements,
   numRegressions,
   numEqual,
-}: MetricDelta) {
+}: ExperimentRunMetricComparison) {
   const { disableTooltip, tooltipItems } = useMemo(() => {
     const tooltipItems: { key: string; text: string }[] = [];
     if (numImprovements > 0) {
@@ -647,7 +647,7 @@ function ImprovementAndRegressionCounter({
   );
 }
 
-export function HorizontalBarChart({
+function HorizontalBarChart({
   bars,
 }: {
   bars: {
