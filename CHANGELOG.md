@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.22.1...arize-phoenix-v11.23.0) (2025-08-14)
+
+
+### Features
+
+* **projects:** transfer traces ([#9050](https://github.com/Arize-ai/phoenix/issues/9050)) ([cf3f8b9](https://github.com/Arize-ai/phoenix/commit/cf3f8b9cb2e0612460870eb30ac5b16a0b877289))
+
+
+### Bug Fixes
+
+* **experiments:** project name should not be none ([#9077](https://github.com/Arize-ai/phoenix/issues/9077)) ([766fd3f](https://github.com/Arize-ai/phoenix/commit/766fd3f0d44083211bacb15d8f70c22892668009))
+
 ## [11.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.22.0...arize-phoenix-v11.22.1) (2025-08-14)
 
 
