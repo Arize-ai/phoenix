@@ -1,6 +1,6 @@
 # Migrations
 
-## v11.0.0 to v12.0.0 (upcoming)
+## v11.0.0 to v12.0.0
 
 Instrumentation helpers are being moved to `openinference-instrumentation`.
 
@@ -22,6 +22,26 @@ from openinference.instrumentation import dangerously_using_project
 with dangerously_using_project(project_name="change-project"):
     ...
 ```
+
+## v11.x to v12.0.0
+
+### PostgreSQL Connection Environment Variables
+
+**Breaking Change**: Specifying port numbers in `PHOENIX_POSTGRES_HOST` is no longer supported.
+
+**Before**:
+```shell
+export PHOENIX_POSTGRES_HOST=localhost:5432
+```
+
+**After**:
+```shell
+export PHOENIX_POSTGRES_HOST=localhost
+export PHOENIX_POSTGRES_PORT=5432
+```
+
+**Impact**: If you were setting `PHOENIX_POSTGRES_HOST` with a port (e.g., `localhost:5432`), you must now separate the host and port into their respective environment variables.
+
 
 ## v10.0.0 to v11.0.0
 
