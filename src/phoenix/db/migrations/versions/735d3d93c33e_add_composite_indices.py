@@ -46,4 +46,4 @@ def downgrade() -> None:
     op.drop_index("ix_traces_project_rowid_start_time", table_name="traces")
     op.drop_index("ix_project_sessions_project_id_start_time", table_name="project_sessions")
     op.drop_index("ix_spans_trace_rowid_start_time", table_name="spans")
-    op.drop_index("ix_spans_trace_rowid_where_parent_id_is_null", table_name="spans")
+    op.drop_index("ix_spans_trace_rowid_start_time_where_parent_id_is_null", table_name="spans")
