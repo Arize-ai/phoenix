@@ -290,6 +290,7 @@ class RanExperiment(TypedDict):
     task_runs: list[ExperimentRun]
     evaluation_runs: list[ExperimentEvaluationRun]
     experiment_metadata: Mapping[str, Any]
+    project_name: Optional[str]
 
 
 # Type aliases for evaluators
