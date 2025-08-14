@@ -529,6 +529,13 @@ create index ix_latency
 create index ix_cumulative_llm_token_count_total
     on public.spans ((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion));
 
+create index ix_spans_trace_rowid_start_time
+    on public.spans (trace_rowid, start_time);
+
+create index ix_spans_trace_rowid_where_parent_id_is_null
+    on public.spans (trace_rowid, start_time)
+    where (parent_id IS NULL);
+
 create table public.span_annotations
 (
     id             serial

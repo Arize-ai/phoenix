@@ -1,4 +1,4 @@
-"""add composite indices to traces and project_sessions
+"""add composite indices to traces, project_sessions, and partial index to spans
 
 Revision ID: 735d3d93c33e
 Revises: 272b66ff50f8
@@ -31,8 +31,19 @@ def upgrade() -> None:
             "ON project_sessions (project_id, start_time DESC)"
         )
     )
+    op.execute(
+        sa.text("CREATE INDEX ix_spans_trace_rowid_start_time ON spans (trace_rowid, start_time)")
+    )
+    op.execute(
+        sa.text(
+            "CREATE INDEX ix_spans_trace_rowid_start_time_where_parent_id_is_null "
+            "ON spans (trace_rowid, start_time) WHERE parent_id IS NULL"
+        )
+    )
 
 
 def downgrade() -> None:
     op.drop_index("ix_traces_project_rowid_start_time", table_name="traces")
     op.drop_index("ix_project_sessions_project_id_start_time", table_name="project_sessions")
+    op.drop_index("ix_spans_trace_rowid_start_time", table_name="spans")
+    op.drop_index("ix_spans_trace_rowid_where_parent_id_is_null", table_name="spans")
