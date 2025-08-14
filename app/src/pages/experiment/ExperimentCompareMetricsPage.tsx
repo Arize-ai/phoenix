@@ -584,7 +584,7 @@ function CompareExperimentMetric({
         <Text size="M" fontFamily="mono">
           {valueText}
         </Text>
-        <Text color="grey-500" size="S" fontFamily="mono">
+        <Text color="text-500" size="S" fontFamily="mono">
           {percentageDeltaText}
         </Text>
       </Flex>
