@@ -127,13 +127,22 @@ class ExperimentRunMetricComparison:
             "in any compare experiment."
         )
     )
-    num_runs_without_comparison: int = strawberry.field(
+    num_total_runs: strawberry.Private[int]
+
+    @strawberry.field(
         description=(
             "The number of runs in the base experiment that could not be compared, either because "
             "the base experiment run was missing a value or because all compare experiment runs "
             "were missing values."
         )
-    )
+    )  # type: ignore[misc]
+    def num_runs_without_comparison(self) -> int:
+        return (
+            self.num_total_runs
+            - self.num_runs_improved
+            - self.num_runs_regressed
+            - self.num_runs_equal
+        )
 
 
 @strawberry.type
@@ -952,93 +961,48 @@ class Query:
             result = (await session.execute(comparisons_query)).first()
         assert result is not None
 
-        (
-            num_base_experiment_runs,
-            num_latency_improved,
-            num_latency_regressed,
-            num_latency_is_equal,
-            num_total_token_count_improved,
-            num_total_token_count_regressed,
-            num_total_token_count_is_equal,
-            num_prompt_token_count_improved,
-            num_prompt_token_count_regressed,
-            num_prompt_token_count_is_equal,
-            num_completion_token_count_improved,
-            num_completion_token_count_regressed,
-            num_completion_token_count_is_equal,
-            num_total_cost_improved,
-            num_total_cost_regressed,
-            num_total_cost_is_equal,
-            num_prompt_cost_improved,
-            num_prompt_cost_regressed,
-            num_prompt_cost_is_equal,
-            num_completion_cost_improved,
-            num_completion_cost_regressed,
-            num_completion_cost_is_equal,
-        ) = result
         return ExperimentRunMetricComparisons(
             latency=ExperimentRunMetricComparison(
-                num_runs_improved=num_latency_improved,
-                num_runs_regressed=num_latency_regressed,
-                num_runs_equal=num_latency_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_latency_is_equal
-                - num_latency_regressed
-                - num_latency_improved,
+                num_runs_improved=result.num_latency_improved,
+                num_runs_regressed=result.num_latency_regressed,
+                num_runs_equal=result.num_latency_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             total_token_count=ExperimentRunMetricComparison(
-                num_runs_improved=num_total_token_count_improved,
-                num_runs_regressed=num_total_token_count_regressed,
-                num_runs_equal=num_total_token_count_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_total_token_count_is_equal
-                - num_total_token_count_regressed
-                - num_total_token_count_improved,
+                num_runs_improved=result.num_total_token_count_improved,
+                num_runs_regressed=result.num_total_token_count_regressed,
+                num_runs_equal=result.num_total_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             prompt_token_count=ExperimentRunMetricComparison(
-                num_runs_improved=num_prompt_token_count_improved,
-                num_runs_regressed=num_prompt_token_count_regressed,
-                num_runs_equal=num_prompt_token_count_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_prompt_token_count_is_equal
-                - num_prompt_token_count_regressed
-                - num_prompt_token_count_improved,
+                num_runs_improved=result.num_prompt_token_count_improved,
+                num_runs_regressed=result.num_prompt_token_count_regressed,
+                num_runs_equal=result.num_prompt_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             completion_token_count=ExperimentRunMetricComparison(
-                num_runs_improved=num_completion_token_count_improved,
-                num_runs_regressed=num_completion_token_count_regressed,
-                num_runs_equal=num_completion_token_count_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_completion_token_count_is_equal
-                - num_completion_token_count_regressed
-                - num_completion_token_count_improved,
+                num_runs_improved=result.num_completion_token_count_improved,
+                num_runs_regressed=result.num_completion_token_count_regressed,
+                num_runs_equal=result.num_completion_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             total_cost=ExperimentRunMetricComparison(
-                num_runs_improved=num_total_cost_improved,
-                num_runs_regressed=num_total_cost_regressed,
-                num_runs_equal=num_total_cost_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_total_cost_is_equal
-                - num_total_cost_regressed
-                - num_total_cost_improved,
+                num_runs_improved=result.num_total_cost_improved,
+                num_runs_regressed=result.num_total_cost_regressed,
+                num_runs_equal=result.num_total_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             prompt_cost=ExperimentRunMetricComparison(
-                num_runs_improved=num_prompt_cost_improved,
-                num_runs_regressed=num_prompt_cost_regressed,
-                num_runs_equal=num_prompt_cost_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_prompt_cost_is_equal
-                - num_prompt_cost_regressed
-                - num_prompt_cost_improved,
+                num_runs_improved=result.num_prompt_cost_improved,
+                num_runs_regressed=result.num_prompt_cost_regressed,
+                num_runs_equal=result.num_prompt_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
             completion_cost=ExperimentRunMetricComparison(
-                num_runs_improved=num_completion_cost_improved,
-                num_runs_regressed=num_completion_cost_regressed,
-                num_runs_equal=num_completion_cost_is_equal,
-                num_runs_without_comparison=num_base_experiment_runs
-                - num_completion_cost_is_equal
-                - num_completion_cost_regressed
-                - num_completion_cost_improved,
+                num_runs_improved=result.num_completion_cost_improved,
+                num_runs_regressed=result.num_completion_cost_regressed,
+                num_runs_equal=result.num_completion_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
             ),
         )
 
