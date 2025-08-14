@@ -343,24 +343,14 @@ input ClusterInput {
   id: ID
 }
 
-type CompareExperimentRunAnnotationMetricCounts {
-  annotationName: String!
-  compareExperimentId: ID!
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
-  optimizationDirection: OptimizationDirection!
-}
-
 type CompareExperimentRunMetricCounts {
-  compareExperimentId: ID!
-  latency: MetricCounts!
-  totalTokenCount: MetricCounts!
-  promptTokenCount: MetricCounts!
-  completionTokenCount: MetricCounts!
-  totalCost: MetricCounts!
-  promptCost: MetricCounts!
-  completionCost: MetricCounts!
+  latency: ExperimentRunDeltaCounts!
+  totalTokenCount: ExperimentRunDeltaCounts!
+  promptTokenCount: ExperimentRunDeltaCounts!
+  completionTokenCount: ExperimentRunDeltaCounts!
+  totalCost: ExperimentRunDeltaCounts!
+  promptCost: ExperimentRunDeltaCounts!
+  completionCost: ExperimentRunDeltaCounts!
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
@@ -1229,6 +1219,13 @@ type ExperimentRunConnection {
   edges: [ExperimentRunEdge!]!
 }
 
+type ExperimentRunDeltaCounts {
+  numImprovements: Int!
+  numRegressions: Int!
+  numEqual: Int!
+  numWithoutComparison: Int!
+}
+
 """An edge in a connection."""
 type ExperimentRunEdge {
   """A cursor for use in pagination"""
@@ -1480,13 +1477,6 @@ type JSONInvocationParameter implements InvocationParameterBase {
 type LabelFraction {
   label: String!
   fraction: Float!
-}
-
-type MetricCounts {
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
-  optimizationDirection: OptimizationDirection!
 }
 
 enum MimeType {
@@ -2104,8 +2094,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
-  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunMetricCounts!]!
-  compareExperimentRunAnnotationMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunAnnotationMetricCounts!]!
+  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): CompareExperimentRunMetricCounts!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cde9eb49618ed1e3faa2427bd6da98e0>>
+ * @generated SignedSource<<2fe3589eead777a6eb643a43d12ecc7d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,62 +9,52 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
-  readonly compareExperimentRunAnnotationMetricCounts?: ReadonlyArray<{
-    readonly annotationName: string;
-    readonly compareExperimentId: string;
-    readonly numDecreases: number;
-    readonly numEqual: number;
-    readonly numIncreases: number;
-    readonly optimizationDirection: OptimizationDirection;
-  }>;
-  readonly compareExperimentRunMetricCounts?: ReadonlyArray<{
-    readonly compareExperimentId: string;
+  readonly compareExperimentRunMetricCounts?: {
     readonly completionCost: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly completionTokenCount: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly latency: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly promptCost: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly promptTokenCount: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly totalCost: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
     readonly totalTokenCount: {
-      readonly numDecreases: number;
       readonly numEqual: number;
-      readonly numIncreases: number;
-      readonly optimizationDirection: OptimizationDirection;
+      readonly numImprovements: number;
+      readonly numRegressions: number;
+      readonly numWithoutComparison: number;
     };
-  }>;
+  };
   readonly dataset: {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
@@ -117,65 +107,35 @@ var v0 = [
     "storageKey": null
   }
 ],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "annotationName",
-  "storageKey": null
-},
-v2 = [
+v1 = [
   {
-    "kind": "Variable",
-    "name": "baseExperimentId",
-    "variableName": "baseExperimentId"
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numImprovements",
+    "storageKey": null
   },
   {
-    "kind": "Variable",
-    "name": "compareExperimentIds",
-    "variableName": "compareExperimentIds"
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numRegressions",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numEqual",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "numWithoutComparison",
+    "storageKey": null
   }
-],
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "compareExperimentId",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "numIncreases",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "numDecreases",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "numEqual",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "optimizationDirection",
-  "storageKey": null
-},
-v8 = [
-  (v4/*: any*/),
-  (v5/*: any*/),
-  (v6/*: any*/),
-  (v7/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -319,7 +279,13 @@ return {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            (v1/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "annotationName",
+                              "storageKey": null
+                            },
                             {
                               "alias": null,
                               "args": null,
@@ -353,100 +319,93 @@ return {
       "selections": [
         {
           "alias": null,
-          "args": (v2/*: any*/),
+          "args": [
+            {
+              "kind": "Variable",
+              "name": "baseExperimentId",
+              "variableName": "baseExperimentId"
+            },
+            {
+              "kind": "Variable",
+              "name": "compareExperimentIds",
+              "variableName": "compareExperimentIds"
+            }
+          ],
           "concreteType": "CompareExperimentRunMetricCounts",
           "kind": "LinkedField",
           "name": "compareExperimentRunMetricCounts",
-          "plural": true,
+          "plural": false,
           "selections": [
-            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "latency",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "totalTokenCount",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "promptTokenCount",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "completionTokenCount",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "totalCost",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "promptCost",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "concreteType": "MetricCounts",
+              "concreteType": "ExperimentRunDeltaCounts",
               "kind": "LinkedField",
               "name": "completionCost",
               "plural": false,
-              "selections": (v8/*: any*/),
+              "selections": (v1/*: any*/),
               "storageKey": null
             }
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": (v2/*: any*/),
-          "concreteType": "CompareExperimentRunAnnotationMetricCounts",
-          "kind": "LinkedField",
-          "name": "compareExperimentRunAnnotationMetricCounts",
-          "plural": true,
-          "selections": [
-            (v1/*: any*/),
-            (v3/*: any*/),
-            (v4/*: any*/),
-            (v5/*: any*/),
-            (v6/*: any*/),
-            (v7/*: any*/)
           ],
           "storageKey": null
         }
@@ -458,6 +417,6 @@ return {
 };
 })();
 
-(node as any).hash = "b0d15d3c3b04c837ef470c37c2cce729";
+(node as any).hash = "8bb64b9df826bf6359b92198ccd45a34";
 
 export default node;
