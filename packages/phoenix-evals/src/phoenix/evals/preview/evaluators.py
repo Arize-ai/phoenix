@@ -276,26 +276,40 @@ def remap_eval_input(
     mapping = input_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
 
-    for field_name in required_fields:
+    # Process both required fields and any fields explicitly present in mapping.
+    # Optional fields can be populated via mapping, but only required fields are strictly validated.
+    fields_to_process: Set[str] = set(required_fields) | set(mapping.keys())
+
+    for field_name in fields_to_process:
         extractor = mapping.get(field_name, field_name)
-        # Compute value
+
+        # Compute value and whether we successfully found/extracted it
+        found = False
+        value: Any = None
+
         if callable(extractor):
             value = extractor(eval_input)
+            found = True
         elif isinstance(extractor, str):
             path, transforms = _parse_mapping_spec(extractor)
             # If path is empty, try direct key
             if not path:
                 key = field_name
-                if key not in eval_input:
-                    msg = (
-                        f"Missing required field: '{field_name}' (no path). "
-                        f"eval_input keys={list(eval_input.keys())}"
-                    )
-                    raise ValueError(msg)
-                value = eval_input[key]
+                if key in eval_input:
+                    value = eval_input[key]
+                    found = True
             else:
-                value = _extract_with_path(eval_input, path)
-            value = _apply_transforms(value, transforms)
+                try:
+                    value = _extract_with_path(eval_input, path)
+                    found = True
+                except ValueError as e:
+                    # Missing/invalid path: for required fields, re-raise; for optional,
+                    # treat as not found
+                    if field_name in required_fields:
+                        raise e
+                    found = False
+            if found:
+                value = _apply_transforms(value, transforms)
         else:
             # Unsupported extractor type
             msg = (
@@ -304,15 +318,46 @@ def remap_eval_input(
             )
             raise TypeError(msg)
 
-        # Minimal presence check; defer strict checks to Pydantic
-        key_repr = (
-            extractor
-            if isinstance(extractor, str)
-            else f"callable:{getattr(extractor, '__name__', 'lambda')}"
-        )
-        _validate_field_value(value, field_name, str(key_repr))
+        is_required = field_name in required_fields
 
-        remapped_eval_input[field_name] = value
+        if is_required:
+            # Minimal presence check; defer strict checks to Pydantic
+            if not found:
+                msg = (
+                    f"Missing required field: '{field_name}'. "
+                    f"eval_input keys={list(eval_input.keys())}"
+                )
+                raise ValueError(msg)
+            key_repr = (
+                extractor
+                if isinstance(extractor, str)
+                else f"callable:{getattr(extractor, '__name__', 'lambda')}"
+            )
+            _validate_field_value(value, field_name, str(key_repr))
+            remapped_eval_input[field_name] = value
+        else:
+            # Optional field: include only if we successfully extracted or present
+            if found:
+                remapped_eval_input[field_name] = value
+
+    # Pass through any top-level keys from eval_input that were not explicitly mapped.
+    # This allows optional schema fields supplied by the caller to be included without mapping.
+    mapped_values = set()
+    for extractor in mapping.values():
+        if isinstance(extractor, str):
+            path, _ = _parse_mapping_spec(extractor)
+            if not path:  # Empty path means direct key mapping
+                mapped_values.add(extractor)
+            else:
+                # For path mappings, extract the first key
+                tokens = _tokenize_path(path)
+                if tokens and isinstance(tokens[0], str):
+                    mapped_values.add(tokens[0])
+
+    for k, v in eval_input.items():
+        # Only pass through keys that weren't explicitly mapped to avoid duplicates
+        if k not in remapped_eval_input and k not in mapped_values:
+            remapped_eval_input[k] = v
 
     return remapped_eval_input
 
@@ -874,7 +919,8 @@ class BoundEvaluator:
         return await self._evaluator.aevaluate(payload, input_mapping=self._mapping)
 
     def mapping_description(self) -> Dict[str, Any]:
-        return {"evaluator": self._evaluator.name, "mapping_keys": list(self._mapping.keys())}
+        keys = list(self._mapping.keys()) if self._mapping is not None else []
+        return {"evaluator": self._evaluator.name, "mapping_keys": keys}
 
     # Introspection passthroughs
     def describe(self) -> Dict[str, Any]:

@@ -843,7 +843,36 @@ class TestRemapEvalInputAdvanced:
     )
     def test_remap_success_cases(self, eval_input, required_fields, input_mapping, expected):
         result = remap_eval_input(eval_input, required_fields, input_mapping)
-        assert result == expected
+        # Expect at least the expected key/values; result may include pass-through optional fields
+        for k, v in expected.items():
+            assert result.get(k) == v
+
+    def test_optional_fields_pass_through_when_present(self):
+        eval_input = {"a": "x", "b": "y", "extra": 1}
+        required_fields = {"a"}
+        out = remap_eval_input(eval_input, required_fields, None)
+        # Required present
+        assert out["a"] == "x"
+        # Optional provided by caller should be preserved
+        assert out["b"] == "y"
+        # Unrelated keys are preserved for downstream validation
+        assert out["extra"] == 1
+
+    def test_optional_fields_can_be_mapped(self):
+        eval_input = {"a": "x", "source_b": "mapped"}
+        required_fields = {"a"}
+        input_mapping = {"b": "source_b"}
+        out = remap_eval_input(eval_input, required_fields, input_mapping)
+        assert out["a"] == "x"
+        assert out["b"] == "mapped"
+
+    def test_optional_mapped_field_missing_is_ignored(self):
+        eval_input = {"a": "x"}
+        required_fields = {"a"}
+        input_mapping = {"b": "missing.path"}
+        out = remap_eval_input(eval_input, required_fields, input_mapping)
+        assert out["a"] == "x"
+        assert "b" not in out
 
     @pytest.mark.parametrize(
         "eval_input,required_fields,input_mapping,expected_error",
