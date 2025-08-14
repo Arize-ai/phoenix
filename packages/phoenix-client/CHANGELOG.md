@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.1...arize-phoenix-client-v1.15.2) (2025-08-14)
+
+
+### Bug Fixes
+
+* **experiments:** ran experiment should contain project name ([#9076](https://github.com/Arize-ai/phoenix/issues/9076)) ([03dd8de](https://github.com/Arize-ai/phoenix/commit/03dd8deeee5fc26991df5b39f6f0adf29676557e))
+* **experiments:** span name should be short for experiment tasks ([#9079](https://github.com/Arize-ai/phoenix/issues/9079)) ([589e96d](https://github.com/Arize-ai/phoenix/commit/589e96d040d571c28b03cf393ed20d405dd895bb))
+
 ## [1.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.0...arize-phoenix-client-v1.15.1) (2025-08-13)
 
 
