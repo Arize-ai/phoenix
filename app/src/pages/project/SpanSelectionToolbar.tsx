@@ -1,6 +1,7 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Button,
@@ -27,6 +28,7 @@ import {
 } from "@phoenix/components/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
@@ -43,6 +45,9 @@ type SpanSelectionToolbarProps = {
 };
 
 export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
+  const { projectId } = useParams();
+  const { setFetchKey } = useStreamState();
+  invariant(projectId, "projectId is required for the SpanSelectionToolbar");
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -51,6 +56,11 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const [isDeletingTracesDialogOpen, setIsDeletingTracesDialogOpen] =
     useState(false);
   const { selectedSpans, onClearSelection } = props;
+
+  const traceIds = useMemo(
+    () => [...new Set(selectedSpans.map((span) => span.traceId))],
+    [selectedSpans]
+  );
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
     mutation SpanSelectionToolbarAddSpansToDatasetMutation(
       $input: AddSpansToDatasetInput!
@@ -114,7 +124,6 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     ]
   );
   const onDeleteTraces = useCallback(() => {
-    const traceIds = [...new Set(selectedSpans.map((span) => span.traceId))];
     commitDeleteTraces({
       variables: {
         traceIds,
@@ -136,7 +145,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     });
   }, [
     commitDeleteTraces,
-    selectedSpans,
+    traceIds,
     notifySuccess,
     onClearSelection,
     notifyError,
@@ -194,7 +203,24 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Suspense>
             </Popover>
           </DialogTrigger>
-          <TransferTracesButton />
+          <TransferTracesButton
+            traceIds={traceIds}
+            currentProjectId={projectId}
+            onSuccess={({ projectName }) => {
+              notifySuccess({
+                title: "Transfer Success",
+                message: `The traces have been moved to project: ${projectName}`,
+              });
+              onClearSelection();
+              setFetchKey(`trace-transfer-${Date.now()}`);
+            }}
+            onError={(error) => {
+              notifyError({
+                title: "Transfer Failed",
+                message: `Failed to transfer due to error: ${error.message}`,
+              });
+            }}
+          />
           {/* Add dataset dialog */}
           <DialogTrigger
             isOpen={isCreatingDataset}

@@ -1,5 +1,11 @@
 import { Suspense, useMemo, useTransition } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRefetchableFragment,
+} from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Autocomplete,
@@ -7,6 +13,7 @@ import {
   DebouncedSearch,
   Dialog,
   DialogTrigger,
+  Heading,
   Icon,
   Icons,
   ListBox,
@@ -17,18 +24,62 @@ import {
   useFilter,
   View,
 } from "@phoenix/components";
+import { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
 
 import { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
 import { TransferTracesButtonProjectsQuery } from "./__generated__/TransferTracesButtonProjectsQuery.graphql";
 
-export function TransferTracesButton() {
-  const onProjectSelect = (projectName: string) => {
-    alert(projectName);
+export function TransferTracesButton({
+  traceIds,
+  currentProjectId,
+  onSuccess,
+  onError,
+}: {
+  traceIds: string[];
+  currentProjectId: string;
+  onSuccess: (project: { projectName: string; projectId: string }) => void;
+  onError: (error: Error) => void;
+}) {
+  const [transferTraces, isTransferring] =
+    useMutation<TransferTracesButtonTransferMutation>(graphql`
+      mutation TransferTracesButtonTransferMutation(
+        $projectId: ID!
+        $traceIds: [ID!]!
+      ) {
+        transferTracesToProject(traceIds: $traceIds, projectId: $projectId) {
+          project: node(id: $projectId) {
+            id
+            ... on Project {
+              name
+            }
+          }
+        }
+      }
+    `);
+
+  const onProjectSelect = (projectId: string) => {
+    transferTraces({
+      variables: { traceIds, projectId },
+      onCompleted: (response) => {
+        const destinationProjectName =
+          response.transferTracesToProject.project?.name || "unknown";
+        onSuccess({
+          projectName: destinationProjectName,
+          projectId,
+        });
+      },
+      onError: (error) => {
+        onError(error);
+      },
+    });
   };
   return (
     <DialogTrigger>
-      <Button leadingVisual={<Icon svg={<Icons.CornerUpRightOutline />} />}>
-        Transfer Project
+      <Button
+        leadingVisual={<Icon svg={<Icons.CornerUpRightOutline />} />}
+        isDisabled={isTransferring}
+      >
+        {isTransferring ? "Transferring" : "Transfer"}
       </Button>
       <Popover>
         <PopoverArrow />
@@ -40,6 +91,7 @@ export function TransferTracesButton() {
                   onProjectSelect(projectId);
                   close();
                 }}
+                currentProjectId={currentProjectId}
               />
             </Suspense>
           )}
@@ -51,8 +103,10 @@ export function TransferTracesButton() {
 
 function ProjectSelectionDialogContent({
   onProjectSelect,
+  currentProjectId,
 }: {
   onProjectSelect: (projectId: string) => void;
+  currentProjectId: string;
 }) {
   const query = useLazyLoadQuery<TransferTracesButtonProjectsQuery>(
     graphql`
@@ -64,7 +118,11 @@ function ProjectSelectionDialogContent({
   );
   return (
     <Dialog>
-      <ProjectsList query={query} onProjectSelect={onProjectSelect} />
+      <ProjectsList
+        query={query}
+        onProjectSelect={onProjectSelect}
+        currentProjectId={currentProjectId}
+      />
     </Dialog>
   );
 }
@@ -72,9 +130,11 @@ function ProjectSelectionDialogContent({
 function ProjectsList({
   query,
   onProjectSelect,
+  currentProjectId,
 }: {
   query: TransferTracesButton_projects$key;
   onProjectSelect: (projectId: string) => void;
+  currentProjectId: string;
 }) {
   const [, startTransition] = useTransition();
   const { contains } = useFilter({ sensitivity: "base" });
@@ -115,7 +175,17 @@ function ProjectsList({
         padding="size-100"
         borderBottomWidth="thin"
         borderBottomColor="light"
+        minWidth={300}
       >
+        <Heading
+          level={4}
+          weight="heavy"
+          css={css`
+            padding-bottom: var(--ac-global-dimension-size-100);
+          `}
+        >
+          Transfer Traces to Project
+        </Heading>
         <DebouncedSearch
           autoFocus
           aria-label="Search projects"
@@ -127,6 +197,9 @@ function ProjectsList({
         aria-label="projects"
         items={items}
         selectionMode="single"
+        css={css`
+          height: 300px;
+        `}
         onSelectionChange={(selection) => {
           if (selection === "all") {
             return;
@@ -138,7 +211,11 @@ function ProjectsList({
         }}
       >
         {(item) => (
-          <ListBoxItem key={item.id} id={item.id}>
+          <ListBoxItem
+            key={item.id}
+            id={item.id}
+            isDisabled={item.id === currentProjectId}
+          >
             {item.name}
           </ListBoxItem>
         )}
