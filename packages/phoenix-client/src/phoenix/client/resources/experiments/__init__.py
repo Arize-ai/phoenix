@@ -497,7 +497,7 @@ class Experiments:
             )
             experiment_response.raise_for_status()
             exp_json = experiment_response.json()["data"]
-            project_name = exp_json["project_name"]
+            project_name = exp_json.get("project_name")
             experiment: Experiment = {
                 "id": exp_json["id"],
                 "dataset_id": dataset.id,
@@ -515,7 +515,7 @@ class Experiments:
                 "dataset_version_id": dataset.version_id,
                 "repetitions": repetitions,
                 "metadata": {},
-                "project_name": "",
+                "project_name": None,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -626,6 +626,7 @@ class Experiments:
             "task_runs": task_runs_list,
             "evaluation_runs": [],
             "experiment_metadata": experiment.get("metadata", {}),
+            "project_name": experiment.get("project_name"),
         }
 
         if evaluators is not None:
@@ -767,6 +768,7 @@ class Experiments:
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
+            "project_name": experiment_data.get("project_name"),
         }
 
         return ran_experiment
@@ -824,7 +826,7 @@ class Experiments:
             dry_run = True
 
         if dry_run:
-            project_name = ""
+            project_name = None
         else:
             try:
                 experiment_response = self._client.get(
@@ -832,7 +834,7 @@ class Experiments:
                 )
                 experiment_response.raise_for_status()
                 experiment_data = experiment_response.json()["data"]
-                project_name = experiment_data.get("project_name", "")
+                project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
                     raise ValueError(f"Experiment not found: {experiment_id}")
@@ -886,7 +888,6 @@ class Experiments:
             dry_run,
             timeout,
             rate_limit_errors,
-            project_name,
             dataset,
         )
 
@@ -900,6 +901,7 @@ class Experiments:
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
+            "project_name": project_name,
         }
 
         if print_summary:
@@ -1055,7 +1057,6 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
-        project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         # Create evaluation input with example data
@@ -1085,7 +1086,7 @@ class Experiments:
         ) -> Optional[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return self._run_single_evaluation_sync(
-                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -1113,7 +1114,6 @@ class Experiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -1524,6 +1524,7 @@ class AsyncExperiments:
             "task_runs": task_runs_list,
             "evaluation_runs": [],
             "experiment_metadata": experiment.get("metadata", {}),
+            "project_name": experiment.get("project_name"),
         }
 
         if evaluators is not None:
@@ -1665,6 +1666,7 @@ class AsyncExperiments:
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
+            "project_name": experiment_data.get("project_name"),
         }
 
         return ran_experiment
@@ -1723,7 +1725,7 @@ class AsyncExperiments:
             dry_run = True
 
         if dry_run:
-            project_name = ""
+            project_name = None
         else:
             try:
                 experiment_response = await self._client.get(
@@ -1731,7 +1733,7 @@ class AsyncExperiments:
                 )
                 experiment_response.raise_for_status()
                 experiment_data = experiment_response.json()["data"]
-                project_name = experiment_data.get("project_name", "")
+                project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
                     raise ValueError(f"Experiment not found: {experiment_id}")
@@ -1786,7 +1788,6 @@ class AsyncExperiments:
             timeout,
             rate_limit_errors,
             concurrency,
-            project_name,
             dataset,
         )
 
@@ -1800,6 +1801,7 @@ class AsyncExperiments:
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
+            "project_name": project_name,
         }
 
         if print_summary:
@@ -1952,7 +1954,6 @@ class AsyncExperiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
-        project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         # Create evaluation input with example data
@@ -1982,7 +1983,7 @@ class AsyncExperiments:
         ) -> Optional[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return await self._run_single_evaluation_async(
-                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -2011,7 +2012,6 @@ class AsyncExperiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
