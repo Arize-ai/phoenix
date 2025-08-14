@@ -5,15 +5,15 @@ repos:
       - id: ruff-format
       - id: ruff
         args: [ --fix ]
-  - repo: local
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.6.1
     hooks:
-      - id: clean-notebooks
+      - id: nbstripout
         name: clean-notebooks
         files: \.ipynb$
         exclude: ^tutorials/evals/.*\.ipynb$
         stages: [ pre-commit ]
-        language: system
-        entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
+        args: [ "--extra-keys", "metadata.kernelspec", "metadata.language_info", "metadata.vscode" ]
   - repo: local
     hooks:
       - id: format-notebooks
