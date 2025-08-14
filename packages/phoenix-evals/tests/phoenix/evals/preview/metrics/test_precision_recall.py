@@ -114,7 +114,7 @@ def test_precision_recall_fscore_success(
             dict(),
             "cat",
             ["cat"],
-            False,
+            True,
             id="error-single-string",
         ),
         pytest.param(
@@ -122,7 +122,7 @@ def test_precision_recall_fscore_success(
             dict(),
             [[1], [0]],
             [[1], [1]],
-            False,
+            True,
             id="error-unhashable-label",
         ),
         pytest.param(
@@ -130,7 +130,7 @@ def test_precision_recall_fscore_success(
             dict(),
             [1, 0, 1],
             [1, 0],
-            False,
+            True,
             id="error-length-mismatch",
         ),
         pytest.param(
@@ -146,7 +146,7 @@ def test_precision_recall_fscore_success(
             dict(positive_label="pos"),
             ["a", "a"],
             ["a", "a"],
-            False,
+            True,
             id="error-positive-not-present",
         ),
     ],
@@ -159,13 +159,6 @@ def test_precision_recall_fscore_errors(
     expects_exception: bool,
 ) -> None:
     evaluator = PrecisionRecallFScore(**kwargs)
-    if expects_exception:
-        with pytest.raises(ValueError):
-            _ = evaluator({"expected": expected, "output": output})
-    else:
-        scores = evaluator({"expected": expected, "output": output})
-        # Evaluators return an ERROR score instead of raising
-        assert len(scores) == 1
-        err = scores[0]
-        assert err.name == "ERROR"
-        assert isinstance(err.explanation, str) and err.explanation
+    # Evaluators now raise exceptions instead of returning an ERROR score
+    with pytest.raises(ValueError):
+        _ = evaluator({"expected": expected, "output": output})

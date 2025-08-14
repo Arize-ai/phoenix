@@ -1,6 +1,5 @@
 from . import llm, metrics, templating
 from .evaluators import (
-    ERROR_SCORE,
     ClassificationEvaluator,
     EvalInput,
     Evaluator,
@@ -24,7 +23,6 @@ __all__ = [
     "create_classifier",
     "list_evaluators",
     "create_evaluator",
-    "ERROR_SCORE",
     "metrics",
     "templating",
     "llm",
