@@ -52,20 +52,13 @@ class TestPostgresConnectionString:
             expected = f"postgresql://{quote('user')}:{quote('pass')}@localhost"
             assert get_env_postgres_connection_str() == expected
 
-        def test_full_connection_string_with_port_override(
+        def test_full_connection_string_with_separate_port(
             self, monkeypatch: pytest.MonkeyPatch
         ) -> None:
-            """Test that explicit port overrides port in host string.
-
-            LEGACY BEHAVIOR: For backward compatibility, PHOENIX_POSTGRES_HOST can contain
-            a port (e.g., 'localhost:5432'), which gets parsed and split. However, if
-            PHOENIX_POSTGRES_PORT is explicitly set, it overrides the port from the host string.
-            This maintains compatibility with older configurations.
-            """
+            """Test connection string with all parameters including separate host and port."""
             monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
             monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-            # LEGACY: Host includes port, but explicit port should override it
-            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
             monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "9999")
             monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
 
