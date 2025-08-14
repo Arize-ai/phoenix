@@ -23,8 +23,6 @@ with dangerously_using_project(project_name="change-project"):
     ...
 ```
 
-## v11.x to v12.0.0
-
 ### PostgreSQL Connection Environment Variables
 
 **Breaking Change**: Specifying port numbers in `PHOENIX_POSTGRES_HOST` is no longer supported.
