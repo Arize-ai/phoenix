@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.22.0...arize-phoenix-v11.22.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* avoid loader issues with relay ([#9048](https://github.com/Arize-ai/phoenix/issues/9048)) ([9a1e4e6](https://github.com/Arize-ai/phoenix/commit/9a1e4e630a1f004d00172865dd6aa5bb652e1436))
+* split `ENV_PHOENIX_POSTGRES_HOST` by colon only if it matches (legacy) pattern ([#9071](https://github.com/Arize-ai/phoenix/issues/9071)) ([7bfbe77](https://github.com/Arize-ai/phoenix/commit/7bfbe77c946476d24f5c41fb1612319d1e5aa3fa))
+
 ## [11.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.21.1...arize-phoenix-v11.22.0) (2025-08-12)
 
 
