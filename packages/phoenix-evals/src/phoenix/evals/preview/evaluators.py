@@ -392,9 +392,7 @@ class Evaluator(ABC):
         per-call `input_mapping` maps evaluator-required field names to keys/paths in `eval_input`.
 
         Returns:
-            A list of Score objects. If evaluation fails, returns a single Score with name
-            "ERROR", score 0.0, the exception message in `explanation`, and metadata including
-            the exception type.
+            A list of Score objects.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
@@ -417,9 +415,7 @@ class Evaluator(ABC):
         Async variant of `evaluate`. Validates and remaps input as described in `evaluate`.
 
         Returns:
-            A list of Score objects. If evaluation fails, returns a single Score with name
-            "ERROR", score 0.0, the exception message in `explanation`, and metadata including
-            the exception type.
+            A list of Score objects.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
