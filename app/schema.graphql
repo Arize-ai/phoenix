@@ -1220,22 +1220,22 @@ type ExperimentRunEdge {
 
 type ExperimentRunMetricComparison {
   """
-  The number of runs in the base experiment that improved when compared against the corresponding runs (i.e., those run on the same dataset example) in all compare experiments.
+  The number of runs in which the base experiment improved on the best run in any compare experiment.
   """
   numRunsImproved: Int!
 
   """
-  The number of runs in the base experiment that regressed when compared against the corresponding runs (i.e., those run on the same dataset example) in any compare experiments.
+  The number of runs in which the base experiment regressed on the best run in any compare experiment.
   """
   numRunsRegressed: Int!
 
   """
-  The number of runs in the base experiment that are equal to the corresponding runs (i.e., those run on the same dataset example) in every compare experiments.
+  The number of runs in which the base experiment is equal to the best run in any compare experiment.
   """
   numRunsEqual: Int!
 
   """
-  The number of runs in the base experiment that were run on dataset examples not run in any compare experiments.
+  The number of runs in the base experiment that could not be compared, either because the base experiment run was missing a value or because all compare experiment runs were missing values.
   """
   numRunsWithoutComparison: Int!
 }
