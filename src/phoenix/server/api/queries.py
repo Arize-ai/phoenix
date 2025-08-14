@@ -109,22 +109,44 @@ class DbTableStats:
 
 
 @strawberry.type
-class ExperimentRunDeltaCounts:
-    num_improvements: int
-    num_regressions: int
-    num_equal: int
-    num_without_comparison: int
+class ExperimentRunMetricComparison:
+    num_runs_improved: int = strawberry.field(
+        description=(
+            "The number of runs in the base experiment that improved "
+            "when compared against the corresponding runs "
+            "(i.e., those run on the same dataset example) in all compare experiments."
+        )
+    )
+    num_runs_regressed: int = strawberry.field(
+        description=(
+            "The number of runs in the base experiment that regressed "
+            "when compared against the corresponding runs "
+            "(i.e., those run on the same dataset example) in any compare experiments."
+        )
+    )
+    num_runs_equal: int = strawberry.field(
+        description=(
+            "The number of runs in the base experiment that are equal to the corresponding runs "
+            "(i.e., those run on the same dataset example) in every compare experiments."
+        )
+    )
+    num_runs_without_comparison: int = strawberry.field(
+        description=(
+            "The number of runs in the base experiment "
+            "that were run on dataset examples not run in any compare experiments."
+        )
+    )
 
 
 @strawberry.type
-class CompareExperimentRunMetricCounts:
-    latency: ExperimentRunDeltaCounts
-    total_token_count: ExperimentRunDeltaCounts
-    prompt_token_count: ExperimentRunDeltaCounts
-    completion_token_count: ExperimentRunDeltaCounts
-    total_cost: ExperimentRunDeltaCounts
-    prompt_cost: ExperimentRunDeltaCounts
-    completion_cost: ExperimentRunDeltaCounts
+class ExperimentRunMetricComparisons:
+    latency: ExperimentRunMetricComparison
+    total_token_count: ExperimentRunMetricComparison
+    prompt_token_count: ExperimentRunMetricComparison
+    completion_token_count: ExperimentRunMetricComparison
+    total_cost: ExperimentRunMetricComparison
+    prompt_cost: ExperimentRunMetricComparison
+    completion_cost: ExperimentRunMetricComparison
 
 
 @strawberry.type
@@ -525,12 +547,12 @@ class Query:
         )
 
     @strawberry.field
-    async def compare_experiment_run_metric_counts(
+    async def experiment_run_metric_comparisons(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
         compare_experiment_ids: list[GlobalID],
-    ) -> CompareExperimentRunMetricCounts:
+    ) -> ExperimentRunMetricComparisons:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if not compare_experiment_ids:
@@ -636,6 +658,15 @@ class Query:
             select(
                 base_experiment_runs.c.dataset_example_id,
                 func.coalesce(
+                    func.min(
+                        case(
+                            (compare_experiment_run_latency > base_experiment_run_latency, 1),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("latency_improved"),
+                func.coalesce(
                     func.max(
                         case(
                             (compare_experiment_run_latency < base_experiment_run_latency, 1),
@@ -647,21 +678,25 @@ class Query:
                 func.coalesce(
                     func.min(
                         case(
-                            (compare_experiment_run_latency > base_experiment_run_latency, 1),
+                            (compare_experiment_run_latency == base_experiment_run_latency, 1),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("latency_improved"),
+                ).label("latency_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
-                            (compare_experiment_run_latency != base_experiment_run_latency, 0),
-                            else_=1,
+                            (
+                                compare_experiment_run_total_token_count
+                                > base_experiment_run_total_token_count,
+                                1,
+                            ),
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("latency_is_equal"),
+                ).label("total_token_count_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -680,27 +715,27 @@ class Query:
                         case(
                             (
                                 compare_experiment_run_total_token_count
-                                > base_experiment_run_total_token_count,
+                                == base_experiment_run_total_token_count,
                                 1,
                             ),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("total_token_count_improved"),
+                ).label("total_token_count_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
                             (
-                                compare_experiment_run_total_token_count
-                                != base_experiment_run_total_token_count,
-                                0,
+                                compare_experiment_run_prompt_token_count
+                                > base_experiment_run_prompt_token_count,
+                                1,
                             ),
-                            else_=1,
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("total_token_count_is_equal"),
+                ).label("prompt_token_count_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -719,27 +754,27 @@ class Query:
                         case(
                             (
                                 compare_experiment_run_prompt_token_count
-                                > base_experiment_run_prompt_token_count,
+                                == base_experiment_run_prompt_token_count,
                                 1,
                             ),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("prompt_token_count_improved"),
+                ).label("prompt_token_count_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
                             (
-                                compare_experiment_run_prompt_token_count
-                                != base_experiment_run_prompt_token_count,
-                                0,
+                                compare_experiment_run_completion_token_count
+                                > base_experiment_run_completion_token_count,
+                                1,
                             ),
-                            else_=1,
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("prompt_token_count_is_equal"),
+                ).label("completion_token_count_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -758,27 +793,23 @@ class Query:
                         case(
                             (
                                 compare_experiment_run_completion_token_count
-                                > base_experiment_run_completion_token_count,
+                                == base_experiment_run_completion_token_count,
                                 1,
                             ),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("completion_token_count_improved"),
+                ).label("completion_token_count_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
-                            (
-                                compare_experiment_run_completion_token_count
-                                != base_experiment_run_completion_token_count,
-                                0,
-                            ),
-                            else_=1,
+                            (compare_experiment_run_total_cost > base_experiment_run_total_cost, 1),
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("completion_token_count_is_equal"),
+                ).label("total_cost_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -791,24 +822,28 @@ class Query:
                 func.coalesce(
                     func.min(
                         case(
-                            (compare_experiment_run_total_cost > base_experiment_run_total_cost, 1),
+                            (
+                                compare_experiment_run_total_cost == base_experiment_run_total_cost,
+                                1,
+                            ),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("total_cost_improved"),
+                ).label("total_cost_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
                             (
-                                compare_experiment_run_total_cost != base_experiment_run_total_cost,
-                                0,
+                                compare_experiment_run_prompt_cost
+                                > base_experiment_run_prompt_cost,
+                                1,
                             ),
-                            else_=1,
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("total_cost_is_equal"),
+                ).label("prompt_cost_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -827,27 +862,27 @@ class Query:
                         case(
                             (
                                 compare_experiment_run_prompt_cost
-                                > base_experiment_run_prompt_cost,
+                                == base_experiment_run_prompt_cost,
                                 1,
                             ),
                             else_=0,
                         )
                     ),
                     0,
-                ).label("prompt_cost_improved"),
+                ).label("prompt_cost_is_equal"),
                 func.coalesce(
                     func.min(
                         case(
                             (
-                                compare_experiment_run_prompt_cost
-                                != base_experiment_run_prompt_cost,
-                                0,
+                                compare_experiment_run_completion_cost
+                                > base_experiment_run_completion_cost,
+                                1,
                             ),
-                            else_=1,
+                            else_=0,
                         )
                     ),
                     0,
-                ).label("prompt_cost_is_equal"),
+                ).label("completion_cost_improved"),
                 func.coalesce(
                     func.max(
                         case(
@@ -866,23 +901,10 @@ class Query:
                         case(
                             (
                                 compare_experiment_run_completion_cost
-                                > base_experiment_run_completion_cost,
+                                == base_experiment_run_completion_cost,
                                 1,
                             ),
                             else_=0,
-                        )
-                    ),
-                    0,
-                ).label("completion_cost_improved"),
-                func.coalesce(
-                    func.min(
-                        case(
-                            (
-                                compare_experiment_run_completion_cost
-                                != base_experiment_run_completion_cost,
-                                0,
-                            ),
-                            else_=1,
                         )
                     ),
                     0,
@@ -1014,8 +1036,8 @@ class Query:
 
         (
             num_base_experiment_runs,
-            num_latency_improvements,
-            num_latency_regressions,
+            num_latency_improved,
+            num_latency_regressed,
             num_latency_is_equal,
             num_total_token_count_improved,
             num_total_token_count_regressed,
@@ -1036,66 +1058,66 @@ class Query:
             num_completion_cost_regressed,
             num_completion_cost_is_equal,
         ) = result
-        return CompareExperimentRunMetricCounts(
-            latency=ExperimentRunDeltaCounts(
-                num_regressions=num_latency_regressions,
-                num_improvements=num_latency_improvements,
-                num_equal=num_latency_is_equal,
-                num_without_comparison=num_base_experiment_runs
+        return ExperimentRunMetricComparisons(
+            latency=ExperimentRunMetricComparison(
+                num_runs_improved=num_latency_improved,
+                num_runs_regressed=num_latency_regressed,
+                num_runs_equal=num_latency_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_latency_is_equal
-                - num_latency_regressions
-                - num_latency_improvements,
+                - num_latency_regressed
+                - num_latency_improved,
             ),
-            total_token_count=ExperimentRunDeltaCounts(
-                num_regressions=num_total_token_count_regressed,
-                num_improvements=num_total_token_count_improved,
-                num_equal=num_total_token_count_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            total_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=num_total_token_count_improved,
+                num_runs_regressed=num_total_token_count_regressed,
+                num_runs_equal=num_total_token_count_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_total_token_count_is_equal
                 - num_total_token_count_regressed
                 - num_total_token_count_improved,
             ),
-            prompt_token_count=ExperimentRunDeltaCounts(
-                num_regressions=num_prompt_token_count_regressed,
-                num_improvements=num_prompt_token_count_improved,
-                num_equal=num_prompt_token_count_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            prompt_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=num_prompt_token_count_improved,
+                num_runs_regressed=num_prompt_token_count_regressed,
+                num_runs_equal=num_prompt_token_count_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_prompt_token_count_is_equal
                 - num_prompt_token_count_regressed
                 - num_prompt_token_count_improved,
             ),
-            completion_token_count=ExperimentRunDeltaCounts(
-                num_regressions=num_completion_token_count_regressed,
-                num_improvements=num_completion_token_count_improved,
-                num_equal=num_completion_token_count_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            completion_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=num_completion_token_count_improved,
+                num_runs_regressed=num_completion_token_count_regressed,
+                num_runs_equal=num_completion_token_count_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_completion_token_count_is_equal
                 - num_completion_token_count_regressed
                 - num_completion_token_count_improved,
             ),
-            total_cost=ExperimentRunDeltaCounts(
-                num_regressions=num_total_cost_regressed,
-                num_improvements=num_total_cost_improved,
-                num_equal=num_total_cost_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            total_cost=ExperimentRunMetricComparison(
+                num_runs_improved=num_total_cost_improved,
+                num_runs_regressed=num_total_cost_regressed,
+                num_runs_equal=num_total_cost_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_total_cost_is_equal
                 - num_total_cost_regressed
                 - num_total_cost_improved,
             ),
-            prompt_cost=ExperimentRunDeltaCounts(
-                num_regressions=num_prompt_cost_regressed,
-                num_improvements=num_prompt_cost_improved,
-                num_equal=num_prompt_cost_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            prompt_cost=ExperimentRunMetricComparison(
+                num_runs_improved=num_prompt_cost_improved,
+                num_runs_regressed=num_prompt_cost_regressed,
+                num_runs_equal=num_prompt_cost_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_prompt_cost_is_equal
                 - num_prompt_cost_regressed
                 - num_prompt_cost_improved,
             ),
-            completion_cost=ExperimentRunDeltaCounts(
-                num_regressions=num_completion_cost_regressed,
-                num_improvements=num_completion_cost_improved,
-                num_equal=num_completion_cost_is_equal,
-                num_without_comparison=num_base_experiment_runs
+            completion_cost=ExperimentRunMetricComparison(
+                num_runs_improved=num_completion_cost_improved,
+                num_runs_regressed=num_completion_cost_regressed,
+                num_runs_equal=num_completion_cost_is_equal,
+                num_runs_without_comparison=num_base_experiment_runs
                 - num_completion_cost_is_equal
                 - num_completion_cost_regressed
                 - num_completion_cost_improved,

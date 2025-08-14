@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2fe3589eead777a6eb643a43d12ecc7d>>
+ * @generated SignedSource<<191fbf7f7fa3c856d0d092121aee2a06>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,50 +11,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareMetricsPage_experiments$data = {
-  readonly compareExperimentRunMetricCounts?: {
-    readonly completionCost: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly completionTokenCount: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly latency: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly promptCost: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly promptTokenCount: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly totalCost: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-    readonly totalTokenCount: {
-      readonly numEqual: number;
-      readonly numImprovements: number;
-      readonly numRegressions: number;
-      readonly numWithoutComparison: number;
-    };
-  };
   readonly dataset: {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
@@ -81,6 +37,43 @@ export type ExperimentCompareMetricsPage_experiments$data = {
           readonly id: string;
         };
       }>;
+    };
+  };
+  readonly experimentRunMetricComparisons?: {
+    readonly completionCost: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly completionTokenCount: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly latency: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly promptCost: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly promptTokenCount: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly totalCost: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
+    };
+    readonly totalTokenCount: {
+      readonly numRunsEqual: number;
+      readonly numRunsImproved: number;
+      readonly numRunsRegressed: number;
     };
   };
   readonly " $fragmentType": "ExperimentCompareMetricsPage_experiments";
@@ -112,28 +105,21 @@ v1 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "numImprovements",
+    "name": "numRunsImproved",
     "storageKey": null
   },
   {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "numRegressions",
+    "name": "numRunsRegressed",
     "storageKey": null
   },
   {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "numEqual",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numWithoutComparison",
+    "name": "numRunsEqual",
     "storageKey": null
   }
 ];
@@ -331,15 +317,15 @@ return {
               "variableName": "compareExperimentIds"
             }
           ],
-          "concreteType": "CompareExperimentRunMetricCounts",
+          "concreteType": "ExperimentRunMetricComparisons",
           "kind": "LinkedField",
-          "name": "compareExperimentRunMetricCounts",
+          "name": "experimentRunMetricComparisons",
           "plural": false,
           "selections": [
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "latency",
               "plural": false,
@@ -349,7 +335,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "totalTokenCount",
               "plural": false,
@@ -359,7 +345,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "promptTokenCount",
               "plural": false,
@@ -369,7 +355,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "completionTokenCount",
               "plural": false,
@@ -379,7 +365,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "totalCost",
               "plural": false,
@@ -389,7 +375,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "promptCost",
               "plural": false,
@@ -399,7 +385,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentRunDeltaCounts",
+              "concreteType": "ExperimentRunMetricComparison",
               "kind": "LinkedField",
               "name": "completionCost",
               "plural": false,
@@ -417,6 +403,6 @@ return {
 };
 })();
 
-(node as any).hash = "8bb64b9df826bf6359b92198ccd45a34";
+(node as any).hash = "96673053ee2ac1663eb158f8054baac3";
 
 export default node;

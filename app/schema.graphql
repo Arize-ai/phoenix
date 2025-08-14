@@ -343,16 +343,6 @@ input ClusterInput {
   id: ID
 }
 
-type CompareExperimentRunMetricCounts {
-  latency: ExperimentRunDeltaCounts!
-  totalTokenCount: ExperimentRunDeltaCounts!
-  promptTokenCount: ExperimentRunDeltaCounts!
-  completionTokenCount: ExperimentRunDeltaCounts!
-  totalCost: ExperimentRunDeltaCounts!
-  promptCost: ExperimentRunDeltaCounts!
-  completionCost: ExperimentRunDeltaCounts!
-}
-
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -1219,13 +1209,6 @@ type ExperimentRunConnection {
   edges: [ExperimentRunEdge!]!
 }
 
-type ExperimentRunDeltaCounts {
-  numImprovements: Int!
-  numRegressions: Int!
-  numEqual: Int!
-  numWithoutComparison: Int!
-}
-
 """An edge in a connection."""
 type ExperimentRunEdge {
   """A cursor for use in pagination"""
@@ -1233,6 +1216,38 @@ type ExperimentRunEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRun!
+}
+
+type ExperimentRunMetricComparison {
+  """
+  The number of runs in the base experiment that improved when compared against the corresponding runs (i.e., those run on the same dataset example) in all compare experiments.
+  """
+  numRunsImproved: Int!
+
+  """
+  The number of runs in the base experiment that regressed when compared against the corresponding runs (i.e., those run on the same dataset example) in any compare experiments.
+  """
+  numRunsRegressed: Int!
+
+  """
+  The number of runs in the base experiment that are equal to the corresponding runs (i.e., those run on the same dataset example) in every compare experiments.
+  """
+  numRunsEqual: Int!
+
+  """
+  The number of runs in the base experiment that were run on dataset examples not run in any compare experiments.
+  """
+  numRunsWithoutComparison: Int!
+}
+
+type ExperimentRunMetricComparisons {
+  latency: ExperimentRunMetricComparison!
+  totalTokenCount: ExperimentRunMetricComparison!
+  promptTokenCount: ExperimentRunMetricComparison!
+  completionTokenCount: ExperimentRunMetricComparison!
+  totalCost: ExperimentRunMetricComparison!
+  promptCost: ExperimentRunMetricComparison!
+  completionCost: ExperimentRunMetricComparison!
 }
 
 type ExportedFile {
@@ -2094,7 +2109,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
-  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): CompareExperimentRunMetricCounts!
+  experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!

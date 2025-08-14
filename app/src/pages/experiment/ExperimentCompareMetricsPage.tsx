@@ -108,51 +108,44 @@ export function ExperimentCompareMetricsPage() {
             }
           }
         }
-        compareExperimentRunMetricCounts(
+        experimentRunMetricComparisons(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
         ) @include(if: $hasCompareExperiments) {
           latency {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           totalTokenCount {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           promptTokenCount {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           completionTokenCount {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           totalCost {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           promptCost {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
           completionCost {
-            numImprovements
-            numRegressions
-            numEqual
-            numWithoutComparison
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
           }
         }
       }
@@ -179,15 +172,14 @@ export function ExperimentCompareMetricsPage() {
       return experimentIdToExperiment[experimentId];
     });
 
-    const counts = data.compareExperimentRunMetricCounts;
+    const counts = data.experimentRunMetricComparisons;
     const latencyMetric: MetricCardProps = {
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
       delta: {
-        numImprovements: counts?.latency.numImprovements ?? 0,
-        numRegressions: counts?.latency.numRegressions ?? 0,
-        numEqual: counts?.latency.numEqual ?? 0,
-        numWithoutComparison: counts?.latency.numWithoutComparison ?? 0,
+        numImprovements: counts?.latency.numRunsImproved ?? 0,
+        numRegressions: counts?.latency.numRunsRegressed ?? 0,
+        numEqual: counts?.latency.numRunsEqual ?? 0,
         optimizationDirection: "MAXIMIZE",
       },
       comparisons: [],
@@ -197,10 +189,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Total Tokens",
       baseExperimentValue: baseExperiment.costSummary.total.tokens,
       delta: {
-        numImprovements: counts?.totalTokenCount.numImprovements ?? 0,
-        numRegressions: counts?.totalTokenCount.numRegressions ?? 0,
-        numEqual: counts?.totalTokenCount.numEqual ?? 0,
-        numWithoutComparison: counts?.totalTokenCount.numWithoutComparison ?? 0,
+        numImprovements: counts?.totalTokenCount.numRunsImproved ?? 0,
+        numRegressions: counts?.totalTokenCount.numRunsRegressed ?? 0,
+        numEqual: counts?.totalTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -209,11 +200,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
       delta: {
-        numImprovements: counts?.promptTokenCount.numImprovements ?? 0,
-        numRegressions: counts?.promptTokenCount.numRegressions ?? 0,
-        numEqual: counts?.promptTokenCount.numEqual ?? 0,
-        numWithoutComparison:
-          counts?.promptTokenCount.numWithoutComparison ?? 0,
+        numImprovements: counts?.promptTokenCount.numRunsImproved ?? 0,
+        numRegressions: counts?.promptTokenCount.numRunsRegressed ?? 0,
+        numEqual: counts?.promptTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -222,11 +211,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary.completion.tokens,
       delta: {
-        numImprovements: counts?.completionTokenCount.numImprovements ?? 0,
-        numRegressions: counts?.completionTokenCount.numRegressions ?? 0,
-        numEqual: counts?.completionTokenCount.numEqual ?? 0,
-        numWithoutComparison:
-          counts?.completionTokenCount.numWithoutComparison ?? 0,
+        numImprovements: counts?.completionTokenCount.numRunsImproved ?? 0,
+        numRegressions: counts?.completionTokenCount.numRunsRegressed ?? 0,
+        numEqual: counts?.completionTokenCount.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -235,10 +222,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Total Cost",
       baseExperimentValue: baseExperiment.costSummary.total.cost,
       delta: {
-        numImprovements: counts?.totalCost.numImprovements ?? 0,
-        numRegressions: counts?.totalCost.numRegressions ?? 0,
-        numEqual: counts?.totalCost.numEqual ?? 0,
-        numWithoutComparison: counts?.totalCost.numWithoutComparison ?? 0,
+        numImprovements: counts?.totalCost.numRunsImproved ?? 0,
+        numRegressions: counts?.totalCost.numRunsRegressed ?? 0,
+        numEqual: counts?.totalCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -248,10 +234,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Prompt Cost",
       baseExperimentValue: baseExperiment.costSummary.prompt.cost,
       delta: {
-        numImprovements: counts?.promptCost.numImprovements ?? 0,
-        numRegressions: counts?.promptCost.numRegressions ?? 0,
-        numEqual: counts?.promptCost.numEqual ?? 0,
-        numWithoutComparison: counts?.promptCost.numWithoutComparison ?? 0,
+        numImprovements: counts?.promptCost.numRunsImproved ?? 0,
+        numRegressions: counts?.promptCost.numRunsRegressed ?? 0,
+        numEqual: counts?.promptCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -261,10 +246,9 @@ export function ExperimentCompareMetricsPage() {
       title: "Completion Cost",
       baseExperimentValue: baseExperiment.costSummary.completion.cost,
       delta: {
-        numImprovements: counts?.completionCost.numImprovements ?? 0,
-        numRegressions: counts?.completionCost.numRegressions ?? 0,
-        numEqual: counts?.completionCost.numEqual ?? 0,
-        numWithoutComparison: counts?.completionCost.numWithoutComparison ?? 0,
+        numImprovements: counts?.completionCost.numRunsImproved ?? 0,
+        numRegressions: counts?.completionCost.numRunsRegressed ?? 0,
+        numEqual: counts?.completionCost.numRunsEqual ?? 0,
         optimizationDirection: "MINIMIZE",
       },
       comparisons: [],
@@ -468,7 +452,6 @@ type MetricDelta = {
   numImprovements: number;
   numRegressions: number;
   numEqual: number;
-  numWithoutComparison: number;
   optimizationDirection: OptimizationDirection;
 };
 
@@ -596,7 +579,6 @@ function ImprovementAndRegressionCounter({
   numImprovements,
   numRegressions,
   numEqual,
-  numWithoutComparison,
 }: MetricDelta) {
   const { disableTooltip, tooltipItems } = useMemo(() => {
     const tooltipItems: { key: string; text: string }[] = [];
@@ -618,14 +600,8 @@ function ImprovementAndRegressionCounter({
         text: `${numEqual} run${numEqual > 1 ? "s" : ""} stayed the same`,
       });
     }
-    if (numWithoutComparison > 0) {
-      tooltipItems.push({
-        key: "withoutComparison",
-        text: `${numWithoutComparison} run${numWithoutComparison > 1 ? "s weren't" : " wasn't"} in other experiments`,
-      });
-    }
     return { disableTooltip: tooltipItems.length === 0, tooltipItems };
-  }, [numEqual, numImprovements, numRegressions, numWithoutComparison]);
+  }, [numEqual, numImprovements, numRegressions]);
   return (
     <TooltipTrigger isDisabled={disableTooltip} delay={200}>
       <TriggerWrap>
