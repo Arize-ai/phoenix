@@ -187,6 +187,11 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
 
 def get_func_name(func: Callable[..., Any]) -> str:
     """Get the name of a function."""
+    if isinstance(func, functools.partial):
+        return get_func_name(func.func)
+    is_not_lambda = hasattr(func, "__qualname__") and not func.__qualname__.endswith("<lambda>")
+    if is_not_lambda:
+        return func.__qualname__.split(".<locals>.")[-1]
     return getattr(func, "__name__", str(func))
 
 
