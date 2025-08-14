@@ -1,13 +1,19 @@
+<<<<<<< HEAD
 import { Suspense, useMemo, useTransition } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 
 import {
   Button,
   DebouncedSearch,
+=======
+import {
+  Button,
+>>>>>>> b0a2dcfe9f7a86bed06c6c9999e585c18ae9800e
   Dialog,
   DialogTrigger,
   Icon,
   Icons,
+<<<<<<< HEAD
   ListBox,
   ListBoxItem,
   Loading,
@@ -19,6 +25,16 @@ import {
 import { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
 import { TransferTracesButtonProjectsQuery } from "./__generated__/TransferTracesButtonProjectsQuery.graphql";
 
+=======
+  Input,
+  Popover,
+  PopoverArrow,
+  SearchField,
+  SearchIcon,
+  View,
+} from "@phoenix/components";
+
+>>>>>>> b0a2dcfe9f7a86bed06c6c9999e585c18ae9800e
 export function TransferTracesButton() {
   return (
     <DialogTrigger>
@@ -28,15 +44,20 @@ export function TransferTracesButton() {
       <Popover>
         <PopoverArrow />
         <Dialog>
+<<<<<<< HEAD
           <Suspense fallback={<Loading />}>
             <ProjectSelectionDialogContent />
           </Suspense>
+=======
+          <ProjectSelection />
+>>>>>>> b0a2dcfe9f7a86bed06c6c9999e585c18ae9800e
         </Dialog>
       </Popover>
     </DialogTrigger>
   );
 }
 
+<<<<<<< HEAD
 function ProjectSelectionDialogContent() {
   const query = useLazyLoadQuery<TransferTracesButtonProjectsQuery>(
     graphql`
@@ -106,6 +127,15 @@ function ProjectsList({ query }: { query: TransferTracesButton_projects$key }) {
           </ListBoxItem>
         )}
       </ListBox>
+=======
+function ProjectSelection() {
+  return (
+    <View minWidth={400} minHeight={500} padding="size-100">
+      <SearchField>
+        <SearchIcon />
+        <Input placeholder="Search Projects" />
+      </SearchField>
+>>>>>>> b0a2dcfe9f7a86bed06c6c9999e585c18ae9800e
     </View>
   );
 }
