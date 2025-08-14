@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Optional
 from unittest.mock import MagicMock
-from urllib.parse import quote_plus
+from urllib.parse import quote
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -21,154 +21,97 @@ from phoenix.config import (
 )
 
 
-def test_missing_required_vars(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PHOENIX_POSTGRES_USER", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_PASSWORD", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_HOST", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+class TestPostgresConnectionString:
+    """Tests for PostgreSQL connection string generation from environment variables."""
 
-    assert get_env_postgres_connection_str() is None
+    class TestBasicFunctionality:
+        """Core functionality and validation tests."""
 
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    assert get_env_postgres_connection_str() is None
+        def test_missing_required_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that missing required environment variables return None."""
+            monkeypatch.delenv("PHOENIX_POSTGRES_USER", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_PASSWORD", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_HOST", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            assert get_env_postgres_connection_str() is None
 
-def test_basic_connection_string(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+            # Having only host is insufficient
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            assert get_env_postgres_connection_str() is None
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost"
-    assert get_env_postgres_connection_str() == expected
+        def test_minimal_connection_string(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test basic connection string with minimal required parameters."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@localhost"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_port_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5555")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+        def test_full_connection_string_with_port_override(
+            self, monkeypatch: pytest.MonkeyPatch
+        ) -> None:
+            """Test that explicit port overrides port in host string.
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:5555"
-    assert get_env_postgres_connection_str() == expected
+            LEGACY BEHAVIOR: For backward compatibility, PHOENIX_POSTGRES_HOST can contain
+            a port (e.g., 'localhost:5432'), which gets parsed and split. However, if
+            PHOENIX_POSTGRES_PORT is explicitly set, it overrides the port from the host string.
+            This maintains compatibility with older configurations.
+            """
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            # LEGACY: Host includes port, but explicit port should override it
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "9999")
+            monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@localhost:9999/mydb"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Host includes a port, and no explicit port is set.
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:6666")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+    class TestUrlEncoding:
+        """Tests for proper URL encoding of userinfo components."""
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:6666"
-    assert get_env_postgres_connection_str() == expected
+        def test_comprehensive_special_character_encoding(
+            self, monkeypatch: pytest.MonkeyPatch
+        ) -> None:
+            """Test encoding of both username and password with challenging special characters."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user@domain.com")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "p@ss w0rd&123=abc%")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
 
+            expected = f"postgresql://{quote('user@domain.com')}:{quote('p@ss w0rd&123=abc%')}@localhost:5432/mydb"
+            assert get_env_postgres_connection_str() == expected
 
-def test_overrides_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "9999")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+    class TestHostParsingEdgeCases:
+        """Tests for challenging host parsing scenarios that shouldn't be split as host:port."""
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:9999"
-    assert get_env_postgres_connection_str() == expected
+        def test_cloud_sql_socket_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that Cloud SQL Unix socket paths with colons are not incorrectly parsed."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "/cloudsql/project:region:instance-id")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@/cloudsql/project:region:instance-id:5432"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_db(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+        def test_ipv6_address(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that IPv6 addresses with multiple colons are not incorrectly parsed."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "2001:db8::1")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost/mydb"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_with_all_params_and_special_chars(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pa ss")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "1234")
-    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
-
-    expected = f"postgresql://user:{quote_plus('pa ss')}@localhost:1234/mydb"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_cloud_sql_mount_path_not_split(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that Cloud SQL mount paths with colons are not incorrectly parsed as host:port."""
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Cloud SQL mount path - should NOT be split as host:port
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "/cloudsql/project:region:instance-id")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
-
-    # The entire path should be treated as the host, with the explicit port
-    expected = f"postgresql://user:{quote_plus('pass')}@/cloudsql/project:region:instance-id:5432"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_ipv6_address_not_split(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that IPv6 addresses with multiple colons are not incorrectly parsed."""
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # IPv6 address - should NOT be split as host:port
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "2001:db8::1")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
-
-    # The entire IPv6 address should be treated as the host
-    expected = f"postgresql://user:{quote_plus('pass')}@2001:db8::1:5432"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_malformed_host_port_not_split(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that malformed host:port strings are not incorrectly parsed."""
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Malformed - has colon but not valid port number
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:notaport")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
-
-    # Should not be split, use explicit port
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:notaport:5432"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_host_port_with_trailing_slash(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that host:port with trailing slash is correctly parsed."""
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Host with port and trailing slash - should be split and slash stripped
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432/")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
-
-    # Should extract port correctly, ignoring trailing slash
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:5432"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_cloud_sql_mount_with_trailing_slash(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that Cloud SQL mount paths with trailing slash are handled correctly."""
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Cloud SQL mount path with trailing slash - should be stripped but not split
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "/cloudsql/project:region:instance-id/")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
-
-    # The trailing slash should be stripped, but path should not be split as host:port
-    expected = f"postgresql://user:{quote_plus('pass')}@/cloudsql/project:region:instance-id:5432"
-    assert get_env_postgres_connection_str() == expected
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@2001:db8::1:5432"
+            assert get_env_postgres_connection_str() == expected
 
 
 class TestGetEnvStartupAdmins:

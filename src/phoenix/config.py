@@ -10,7 +10,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
@@ -1146,8 +1146,9 @@ def get_env_postgres_connection_str() -> Optional[str]:
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
-    encoded_password = quote_plus(pg_password)
-    connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+    encoded_user = quote(pg_user)
+    encoded_password = quote(pg_password)
+    connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
     if pg_port:
         connection_str = f"{connection_str}:{pg_port}"
     if pg_db:
