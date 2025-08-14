@@ -1,4 +1,4 @@
-npm# Migrations
+# Migrations
 
 ## v10.0.0 to v11.0.0
 
