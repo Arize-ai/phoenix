@@ -109,7 +109,7 @@ export function ExperimentMultiSelector(props: {
       <div css={css(fieldBaseCSS, selectCSS)}>
         <Label>experiment</Label>
         <DialogTrigger>
-          <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
+          <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
               <Flex direction="row" gap="size-100" alignItems="center">
                 <ColorSwatch color={baseExperimentColor} shape="circle" />
@@ -197,7 +197,7 @@ export function ExperimentMultiSelector(props: {
         <div css={css(fieldBaseCSS, selectCSS)}>
           <Label>comparisons</Label>
           <DialogTrigger>
-            <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
+            <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
               {compareExperimentsDisplayText}
             </Button>
             <Popover placement="bottom start">

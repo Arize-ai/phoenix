@@ -1,5 +1,8 @@
 import { useCategoryChartColors } from "@phoenix/components/chart";
 
+/**
+ * A hook that maps categorical colors to experiment indexes
+ */
 export function useExperimentColors() {
   const colors = useCategoryChartColors();
   const colorValues = Object.values(colors);

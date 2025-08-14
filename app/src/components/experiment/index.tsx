@@ -1,4 +1,4 @@
-export * from "./colors";
+export * from "./useExperimentColors";
 export * from "./SequenceNumberToken";
 export * from "./ExperimentRunTokenCount";
 export * from "./ExperimentRunTokenCountDetails";

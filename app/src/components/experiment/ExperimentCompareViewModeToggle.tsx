@@ -47,7 +47,7 @@ export function ExperimentCompareViewModeToggle({
           onViewModeChange("grid");
         }
       }}
-      size="M"
+      size="S"
     >
       <ToggleButton id="grid" leadingVisual={<Icon svg={<Icons.Grid />} />}>
         Grid

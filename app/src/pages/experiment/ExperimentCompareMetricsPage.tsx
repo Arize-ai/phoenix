@@ -29,8 +29,6 @@ import type {
 } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
-type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
-
 const thumbIconCSS = css`
   font-size: var(--ac-global-text-font-size-l);
 `;

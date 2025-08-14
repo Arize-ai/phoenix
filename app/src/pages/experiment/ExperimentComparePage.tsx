@@ -9,16 +9,15 @@ import {
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, Text, View } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { Alert, Flex, View } from "@phoenix/components";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import {
   ExperimentCompareViewMode,
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 
 import type {
   ExperimentComparePage_selectedCompareExperiments$data,
@@ -34,7 +33,6 @@ type Experiment = NonNullable<
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  const showViewModeSelect = useFeatureFlag("experimentEnhancements");
   invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
   const { datasetId } = useParams();
@@ -69,7 +67,9 @@ export function ExperimentComparePage() {
       `}
     >
       <View
-        padding="size-200"
+        paddingX="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-200"
         borderBottomColor="dark"
         borderBottomWidth="thin"
         flex="none"
@@ -102,20 +102,15 @@ export function ExperimentComparePage() {
               });
             }}
           />
-          <View
-            flex="1"
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingBottom="size-115"
-          >
+          <View flex="1" paddingBottom={5}>
             <SelectedCompareExperiments dataRef={loaderData} />
           </View>
-          {showViewModeSelect && (
+          {
             <ExperimentCompareViewModeToggle
               viewMode={viewMode}
               onViewModeChange={onViewModeChange}
             />
-          )}
+          }
         </Flex>
       </View>
       {baseExperimentId == null ? (
@@ -196,29 +191,13 @@ export function SelectedCompareExperiments({
     (experimentId) => idToExperiment[experimentId]
   );
   return (
-    <Flex direction="row" gap="size-250" alignItems="center">
+    <Flex direction="row" gap="size-10" alignItems="center">
       {compareExperiments.map((experiment, experimentIndex) => (
-        <Flex
-          direction="row"
-          gap="size-100"
+        <ExperimentNameWithColorSwatch
           key={experiment.id}
-          alignItems="center"
-        >
-          <ColorSwatch
-            color={getExperimentColor(experimentIndex)}
-            shape="circle"
-          />
-          <Text
-            css={css`
-              white-space: nowrap;
-              max-width: var(--ac-global-dimension-size-2000);
-              overflow: hidden;
-              text-overflow: ellipsis;
-            `}
-          >
-            {experiment.name}
-          </Text>
-        </Flex>
+          color={getExperimentColor(experimentIndex)}
+          name={experiment.name}
+        />
       ))}
     </Flex>
   );

@@ -45,7 +45,6 @@ import {
   ModalOverlay,
   Popover,
   Text,
-  Token,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
@@ -55,7 +54,6 @@ import {
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import {
   DialogContent,
   DialogHeader,
@@ -84,6 +82,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
+import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -370,9 +369,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       (experimentId, experimentIndex) => ({
         header: () => {
           const experiment = experimentInfoById[experimentId];
-          const name = experiment?.name;
+          const name = experiment?.name || "unknown-experiment";
           const metadata = experiment?.metadata;
-          const isBaseExperiment = experimentId === baseExperimentId;
           const projectId = experiment?.project?.id;
           const experimentColor =
             experimentIndex === 0
@@ -387,19 +385,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               justifyContent="space-between"
             >
               <Flex direction="column" gap="size-50">
-                <Flex direction="row" gap="size-100" wrap alignItems="center">
-                  <ColorSwatch color={experimentColor} shape="circle" />
-                  <Text
-                    css={css`
-                      max-width: var(--ac-global-dimension-size-2000);
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                    `}
-                  >
-                    {name}
-                  </Text>
-                  {isBaseExperiment && <Token size="S">base</Token>}
-                </Flex>
+                <ExperimentNameWithColorSwatch
+                  name={name}
+                  color={experimentColor}
+                />
                 <div>
                   {experiment && <ExperimentMetadata experiment={experiment} />}
                 </div>
