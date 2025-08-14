@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.1...arize-phoenix-otel-v0.13.0) (2025-08-14)
+
+
+### Features
+
+* **license:** switch otel to apache 2 ([#9075](https://github.com/Arize-ai/phoenix/issues/9075)) ([8f99827](https://github.com/Arize-ai/phoenix/commit/8f998275fbd7efb9a05da228dc2d848dbda2efb5))
+
+
+### Bug Fixes
+
+* update openinference-instrumentation dependency version lower bound ([#8947](https://github.com/Arize-ai/phoenix/issues/8947)) ([d6f32d8](https://github.com/Arize-ai/phoenix/commit/d6f32d8b6e210cdd07bf3833206166d11c4f035f))
+* Update tests to be more reliable in CI ([#8642](https://github.com/Arize-ai/phoenix/issues/8642)) ([3358ac1](https://github.com/Arize-ai/phoenix/commit/3358ac1154f261f75684946c514e8066e8e25430))
+
 ## [0.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.0...arize-phoenix-otel-v0.12.1) (2025-06-24)
 
 
