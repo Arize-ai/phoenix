@@ -763,7 +763,7 @@ class Experiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": experiment_data["dataset_id"],
-            "dataset_version_id": experiment_data.get("dataset_version_id"),
+            "dataset_version_id": experiment_data["dataset_version_id"],
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
@@ -817,7 +817,7 @@ class Experiments:
         experiment_id = experiment["experiment_id"]
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
-        dataset_version_id = experiment.get("dataset_version_id")
+        dataset_version_id = experiment["dataset_version_id"]
         experiment_metadata = experiment["experiment_metadata"]
 
         if experiment_id == DRY_RUN:
@@ -838,9 +838,7 @@ class Experiments:
                     raise ValueError(f"Experiment not found: {experiment_id}")
                 raise
 
-        version_params = (
-            {"version_id": str(dataset_version_id)} if dataset_version_id is not None else {}
-        )
+        version_params = {"version_id": dataset_version_id}
 
         try:
             dataset_info_response = self._client.get(
@@ -896,7 +894,7 @@ class Experiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
-            "dataset_version_id": experiment.get("dataset_version_id"),
+            "dataset_version_id": dataset_version_id,
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
@@ -1661,7 +1659,7 @@ class AsyncExperiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": experiment_data["dataset_id"],
-            "dataset_version_id": experiment_data.get("dataset_version_id"),
+            "dataset_version_id": experiment_data["dataset_version_id"],
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
@@ -1716,7 +1714,7 @@ class AsyncExperiments:
         experiment_id = experiment["experiment_id"]
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
-        dataset_version_id = experiment.get("dataset_version_id")
+        dataset_version_id = experiment["dataset_version_id"]
         experiment_metadata = experiment["experiment_metadata"]
 
         if experiment_id == DRY_RUN:
@@ -1737,9 +1735,7 @@ class AsyncExperiments:
                     raise ValueError(f"Experiment not found: {experiment_id}")
                 raise
 
-        version_params = (
-            {"version_id": str(dataset_version_id)} if dataset_version_id is not None else {}
-        )
+        version_params = {"version_id": dataset_version_id}
 
         try:
             dataset_info_response = await self._client.get(
@@ -1796,7 +1792,7 @@ class AsyncExperiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
-            "dataset_version_id": experiment.get("dataset_version_id"),
+            "dataset_version_id": dataset_version_id,
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
