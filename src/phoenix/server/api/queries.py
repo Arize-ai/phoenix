@@ -1,13 +1,13 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Literal, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import String, and_, case, cast, func, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
 from sqlalchemy.orm import joinedload, load_only
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -646,278 +646,131 @@ class Query:
         comparisons_query = (
             select(
                 func.count().label("num_base_experiment_runs"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_latency_ms
-                                > base_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_latency_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_latency_ms
-                                < base_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_latency_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_latency_ms
-                                == base_experiment_run_latency,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_latency_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_tokens
-                                > base_experiment_runs.c.total_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_total_token_count_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_tokens
-                                < base_experiment_runs.c.total_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_total_token_count_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_tokens
-                                == base_experiment_runs.c.total_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_total_token_count_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_tokens
-                                > base_experiment_runs.c.prompt_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_prompt_token_count_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_tokens
-                                < base_experiment_runs.c.prompt_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_prompt_token_count_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_tokens
-                                == base_experiment_runs.c.prompt_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_prompt_token_count_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_tokens
-                                > base_experiment_runs.c.completion_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_completion_token_count_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_tokens
-                                < base_experiment_runs.c.completion_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_completion_token_count_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_tokens
-                                == base_experiment_runs.c.completion_tokens,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_completion_token_count_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_cost
-                                > base_experiment_runs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_total_cost_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_cost
-                                < base_experiment_runs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_total_cost_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_total_cost
-                                == base_experiment_runs.c.total_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_total_cost_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_cost
-                                > base_experiment_runs.c.prompt_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_prompt_cost_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_cost
-                                < base_experiment_runs.c.prompt_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_prompt_cost_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_prompt_cost
-                                == base_experiment_runs.c.prompt_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_prompt_cost_is_equal"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_cost
-                                > base_experiment_runs.c.completion_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
                 ).label("num_completion_cost_improved"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_cost
-                                < base_experiment_runs.c.completion_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
                 ).label("num_completion_cost_regressed"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (
-                                compare_experiment_runs.c.min_completion_cost
-                                == base_experiment_runs.c.completion_cost,
-                                1,
-                            ),
-                            else_=0,
-                        )
-                    ),
-                    0,
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
                 ).label("num_completion_cost_is_equal"),
             )
             .select_from(base_experiment_runs)
@@ -1603,3 +1456,40 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
         if s.startswith(prefix) and len(prefix) > len(longest):
             longest = prefix
     return longest
+
+
+def _comparison_count_expression(
+    *,
+    base_column: ColumnElement[Any],
+    compare_column: ColumnElement[Any],
+    optimization_direction: Literal["maximize", "minimize"],
+    comparison_type: Literal["improvement", "regression", "equality"],
+) -> ColumnElement[int]:
+    """
+    Given a base and compare column, returns an expression counting the number of
+    improvements, regressions, or equalities given the optimization direction.
+    """
+    if optimization_direction == "maximize":
+        raise NotImplementedError
+
+    if comparison_type == "improvement":
+        condition = compare_column > base_column
+    elif comparison_type == "regression":
+        condition = compare_column < base_column
+    elif comparison_type == "equality":
+        condition = compare_column == base_column
+    else:
+        assert_never(comparison_type)
+
+    return func.coalesce(
+        func.sum(
+            case(
+                (
+                    condition,
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+        0,
+    )
