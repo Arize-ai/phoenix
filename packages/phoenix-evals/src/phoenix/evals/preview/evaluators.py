@@ -207,45 +207,23 @@ class Evaluator(ABC):
         )
 
     # --- Introspection helpers ---
+
     def describe(self) -> Dict[str, Any]:
         """
         Return a JSON-serializable description of the evaluator, including
         its name, source, direction, and input fields derived from the
         Pydantic input schema when available.
         """
-        fields: Dict[str, Any] = {}
+        # TODO add other serializable properties from subclasses
         if self.input_schema is not None:
-            for field_name, field in self.input_schema.model_fields.items():
-                # Best-effort human-readable type
-                annotation = getattr(field, "annotation", Any)
-                type_repr = getattr(annotation, "__name__", str(annotation))
-                fields[field_name] = {
-                    "type": type_repr,
-                    "required": field.is_required(),
-                }
+            schema = self.input_schema.model_json_schema()
         else:
-            # Fallback minimal description when no schema is provided
-            fields = {"unspecified": {"type": "any", "required": False}}
-
+            schema = {"unspecified": {"type": "any", "required": False}}
         return {
             "name": self.name,
             "source": self.source,
             "direction": self.direction,
-            "input_fields": fields,
-        }
-
-    def describe_schema(self) -> Dict[str, Any]:
-        """
-        Return the JSON Schema of the evaluator's input, if available.
-        If no schema is available, returns a minimal placeholder.
-        """
-        if self.input_schema is not None:
-            return self.input_schema.model_json_schema()
-        return {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": f"{self.name}Input",
-            "type": "object",
-            "additionalProperties": True,
+            "input_schema": schema,
         }
 
 
@@ -636,9 +614,6 @@ class BoundEvaluator:
     # Introspection passthroughs
     def describe(self) -> Dict[str, Any]:
         return self._evaluator.describe()
-
-    def describe_schema(self) -> Dict[str, Any]:
-        return self._evaluator.describe_schema()
 
 
 def bind_evaluator(

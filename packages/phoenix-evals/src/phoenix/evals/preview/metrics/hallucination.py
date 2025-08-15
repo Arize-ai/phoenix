@@ -1,3 +1,4 @@
+# ruff: noqa: W291
 """
 Description:
 A specialized evaluator for detecting hallucinations in grounded LLM responses.
@@ -13,7 +14,7 @@ Usage:
 >>> eval_input = {
 ...     "input": "What is the capital of France?",
 ...     "output": "Paris is the capital of France.",
-...     "reference": "Paris is the capital and largest city of France."
+...     "context": "Paris is the capital and largest city of France."
 ... }
 >>> scores = hallucination_eval(eval_input)
 >>> print(scores)
@@ -23,6 +24,8 @@ source="llm", direction="maximize")]
 """
 
 from typing import Union
+
+from pydantic import BaseModel, Field
 
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM, AsyncLLM
@@ -34,34 +37,39 @@ class HallucinationEvaluator(ClassificationEvaluator):
     NAME = "hallucination"
     PROMPT = Template(
         template="""
-        In this task, you will be presented with a query, a reference text and an answer. The answer
-        is generated to the question based on the reference text. The answer may contain false
-        information. You must use the reference text to determine if the answer to the question
-        contains false information, if the answer is a hallucination of facts. Your objective is to
-        determine whether the answer text contains factual information and is not a hallucination. A
-        'hallucination' refers to an answer that is not based on the reference text or assumes
-        information that is not available in the reference text. Your response should be a single
+        In this task, you will be presented with a query, some context and a response. The response
+        is generated to the question based on the context. The response may contain false
+        information. You must use the context to determine if the response to the question
+        contains false information, if the response is a hallucination of facts. Your objective is 
+        to determine whether the response text contains factual information and is not a 
+        hallucination. A 'hallucination' refers to a response that is not based on the context or 
+        assumes information that is not available in the context. Your response should be a single
         word: either 'factual' or 'hallucinated', and it should not include any other text or
-        characters. 'hallucinated' indicates that the answer provides factually inaccurate
-        information to the query based on the reference text. 'factual' indicates that the answer to
-        the question is correct relative to the reference text, and does not contain made up
-        information. Please read the query and reference text carefully before determining your
+        characters. 'hallucinated' indicates that the response provides factually inaccurate
+        information to the query based on the context. 'factual' indicates that the response to
+        the question is correct relative to the context, and does not contain made up
+        information. Please read the query and context carefully before determining your
         response.
 
         [BEGIN DATA]
         ************
         [Query]: {input}
         ************
-        [Reference text]: {reference}
+        [Context]: {context}
         ************
-        [Answer]: {output}
+        [Response]: {output}
         ************
         [END DATA]
 
-        Is the answer above factual or hallucinated based on the query and reference text?
+        Is the response above factual or hallucinated based on the query and context?
     """
     )
     CHOICES = {"hallucinated": 0.0, "factual": 1.0}
+
+    class HallucinationInputSchema(BaseModel):
+        input: str = Field(description="The input query.")
+        output: str = Field(description="The response to the query.")
+        context: str = Field(description="The context or reference text.")
 
     def __init__(
         self,
@@ -73,4 +81,5 @@ class HallucinationEvaluator(ClassificationEvaluator):
             prompt_template=self.PROMPT,
             choices=self.CHOICES,
             direction="maximize",
+            input_schema=self.HallucinationInputSchema,
         )

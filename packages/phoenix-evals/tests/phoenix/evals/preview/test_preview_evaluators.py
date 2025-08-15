@@ -611,42 +611,29 @@ class TestFactoryFunctions:
 
 
 class TestIntrospectionAndSchema:
-    """Tests for describe() and describe_schema() based on input_schema inference."""
+    """Tests for describe() based on input_schema inference."""
 
     def test_describe_for_simple_decorator(self):
         @create_evaluator("simple_eval")
         def simple_eval(output: str, expected: str) -> Score:
             return Score(score=1.0)
 
-        desc = simple_eval.describe()
-        assert desc["name"] == "simple_eval"
-        assert desc["source"] == "heuristic"
-        assert set(desc["input_fields"].keys()) == {"output", "expected"}
-        assert desc["input_fields"]["output"]["required"] is True
-        assert desc["input_fields"]["expected"]["required"] is True
-
-        schema = simple_eval.describe_schema()
-        assert schema["type"] == "object"
-        assert set(schema["required"]) == {"output", "expected"}
-        assert schema["properties"]["output"]["type"] == "string"
-        assert schema["properties"]["expected"]["type"] == "string"
+        schema = simple_eval.describe()
+        assert schema["input_schema"]["type"] == "object"
+        assert set(schema["input_schema"]["required"]) == {"output", "expected"}
+        assert schema["input_schema"]["properties"]["output"]["type"] == "string"
+        assert schema["input_schema"]["properties"]["expected"]["type"] == "string"
 
     def test_describe_optional_and_defaults(self):
         @create_evaluator("opt_eval")
         def opt_eval(a: str, b: str or None = None, k: int = 1) -> Score:
             return Score(score=1.0)
 
-        desc = opt_eval.describe()
-        fields = desc["input_fields"]
-        assert fields["a"]["required"] is True
-        assert fields["b"]["required"] is False
-        assert fields["k"]["required"] is False
-
-        schema = opt_eval.describe_schema()
-        assert set(schema["properties"].keys()) == {"a", "b", "k"}
+        schema = opt_eval.describe()
+        assert set(schema["input_schema"]["properties"].keys()) == {"a", "b", "k"}
         # Only 'a' should be required
-        assert set(schema["required"]) == {"a"}
-        assert schema["properties"]["k"]["type"] in {"integer", "number"}
+        assert set(schema["input_schema"]["required"]) == {"a"}
+        assert schema["input_schema"]["properties"]["k"]["type"] in {"integer", "number"}
 
 
 class TestEvaluatorRequiredFieldsAndBinding:
