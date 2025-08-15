@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.2...arize-phoenix-v11.24.0) (2025-08-15)
+
+
+### Features
+
+* **experiments:** enhance experiment compare page ([#8924](https://github.com/Arize-ai/phoenix/issues/8924)) ([d03cc28](https://github.com/Arize-ai/phoenix/commit/d03cc2839203389945ab1f4bbc1fd3f1d43cf7fb))
+
 ## [11.23.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.1...arize-phoenix-v11.23.2) (2025-08-15)
 
 
