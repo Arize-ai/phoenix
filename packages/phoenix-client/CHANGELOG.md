@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.2...arize-phoenix-client-v1.15.3) (2025-08-15)
+
+
+### Bug Fixes
+
+* **experiments:** dataset version id should not be optional ([#9074](https://github.com/Arize-ai/phoenix/issues/9074)) ([ec83174](https://github.com/Arize-ai/phoenix/commit/ec831742aa2cc22453922a7acf61775e4bbe5b29))
+* **experiments:** result should be nullable when there's error in experiment run evaluation ([#9065](https://github.com/Arize-ai/phoenix/issues/9065)) ([fc5c303](https://github.com/Arize-ai/phoenix/commit/fc5c30310b804157f5472a2e2599ca34e0a03a46))
+
 ## [1.15.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.1...arize-phoenix-client-v1.15.2) (2025-08-14)
 
 
