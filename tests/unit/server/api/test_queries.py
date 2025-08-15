@@ -592,6 +592,17 @@ async def test_experiment_run_metric_comparisons(
 async def experiment_run_metric_comparison_experiments(
     db: DbSessionFactory,
 ) -> tuple[models.Experiment, tuple[models.Experiment, ...]]:
+    """
+    Creates experiments with the following metric values for each example:
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          1                  2                       2
+    2          3                  2                       1
+    3          2                  2                       missing
+    4          1                  2                       2
+    5          3                  missing                 missing
+    """
     async with db() as session:
         dataset = models.Dataset(
             name="experiment-run-metric-comparison-dataset",
@@ -664,7 +675,6 @@ async def experiment_run_metric_comparison_experiments(
 
         await session.flush()
 
-        # Create a project for the trace
         project = models.Project(
             name="test-project",
             description="Test project for experiment runs",
