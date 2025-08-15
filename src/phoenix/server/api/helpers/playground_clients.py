@@ -1489,7 +1489,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=1.0,
+                default_value=None,
                 min_value=0.0,
                 max_value=1.0,
             ),
