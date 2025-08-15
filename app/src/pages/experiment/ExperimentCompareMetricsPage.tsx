@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
@@ -16,6 +16,8 @@ import {
 } from "@phoenix/components";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { useTheme } from "@phoenix/contexts";
+import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -154,6 +156,7 @@ export function ExperimentCompareMetricsPage() {
     throw new Error("Empty state not implemented");
   }
 
+  const { theme } = useTheme();
   const {
     annotationMetrics,
     costMetrics,
@@ -172,6 +175,7 @@ export function ExperimentCompareMetricsPage() {
 
     const comparisons = data.experimentRunMetricComparisons;
     const latencyMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.ClockOutline />} />,
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
       comparison: {
@@ -184,6 +188,7 @@ export function ExperimentCompareMetricsPage() {
       formatter: latencyMsFormatter,
     };
     const totalTokensMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.TokensOutline />} />,
       title: "Total Tokens",
       baseExperimentValue: baseExperiment.costSummary.total.tokens,
       comparison: {
@@ -195,6 +200,7 @@ export function ExperimentCompareMetricsPage() {
       compareExperiments: [],
     };
     const promptTokensMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.TokensOutline />} />,
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
       comparison: {
@@ -206,6 +212,7 @@ export function ExperimentCompareMetricsPage() {
       compareExperiments: [],
     };
     const completionTokensMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.TokensOutline />} />,
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary.completion.tokens,
       comparison: {
@@ -217,6 +224,7 @@ export function ExperimentCompareMetricsPage() {
       compareExperiments: [],
     };
     const totalCostMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
       title: "Total Cost",
       baseExperimentValue: baseExperiment.costSummary.total.cost,
       comparison: {
@@ -229,6 +237,7 @@ export function ExperimentCompareMetricsPage() {
       formatter: costFormatter,
     };
     const promptCostMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
       title: "Prompt Cost",
       baseExperimentValue: baseExperiment.costSummary.prompt.cost,
       comparison: {
@@ -241,6 +250,7 @@ export function ExperimentCompareMetricsPage() {
       formatter: costFormatter,
     };
     const completionCostMetric: MetricCardProps = {
+      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
       title: "Completion Cost",
       baseExperimentValue: baseExperiment.costSummary.completion.cost,
       comparison: {
@@ -363,6 +373,9 @@ export function ExperimentCompareMetricsPage() {
         });
       });
       annotationMetrics.push({
+        icon: (
+          <ColorSwatch color={getWordColor({ word: annotationName, theme })} />
+        ),
         title: annotationName,
         baseExperimentValue: baseExperimentMeanScore,
         compareExperiments: annotationMetricComparisons,
@@ -374,7 +387,7 @@ export function ExperimentCompareMetricsPage() {
       performanceMetrics,
       tokenCountMetrics,
     };
-  }, [baseExperimentId, compareExperimentIds, data, getExperimentColor]);
+  }, [baseExperimentId, compareExperimentIds, data, getExperimentColor, theme]);
 
   return (
     <div
@@ -421,12 +434,10 @@ function MetricsColumn({
       </Heading>
       <ul
         css={css`
-          display: grid;
-          grid-template-columns: repeat(
-            auto-fill,
-            minmax(var(--ac-global-dimension-size-3600), 1fr)
-          );
+          display: flex;
+          flex-direction: column;
           gap: var(--ac-global-dimension-size-200);
+          min-width: 300px;
         `}
       >
         {metrics.map((metric: MetricCardProps) => (
@@ -454,6 +465,7 @@ type ExperimentRunMetricComparison = {
 };
 
 type MetricCardProps = {
+  icon: ReactNode;
   title: string;
   baseExperimentValue: MetricValue;
   compareExperiments: CompareExperiment[];
@@ -462,6 +474,7 @@ type MetricCardProps = {
 };
 
 function MetricCard({
+  icon,
   title,
   baseExperimentValue,
   comparison,
@@ -477,7 +490,10 @@ function MetricCard({
           justifyContent="space-between"
           alignItems="center"
         >
-          <Heading level={3}>{title}</Heading>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            {icon}
+            <Heading level={3}>{title}</Heading>
+          </Flex>
           {comparison && <ImprovementAndRegressionCounter {...comparison} />}
         </Flex>
         <HorizontalBarChart
@@ -644,7 +660,9 @@ function ImprovementAndRegressionCounter({
     </TooltipTrigger>
   );
 }
-
+/**
+ * A small horizontal bar chart that shows the relative values of a metric
+ */
 function HorizontalBarChart({
   bars,
 }: {

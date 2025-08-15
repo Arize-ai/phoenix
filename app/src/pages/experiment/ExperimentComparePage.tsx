@@ -191,7 +191,7 @@ export function SelectedCompareExperiments({
     (experimentId) => idToExperiment[experimentId]
   );
   return (
-    <Flex direction="row" gap="size-10" alignItems="center">
+    <Flex direction="row" gap="size-100" alignItems="center">
       {compareExperiments.map((experiment, experimentIndex) => (
         <ExperimentNameWithColorSwatch
           key={experiment.id}

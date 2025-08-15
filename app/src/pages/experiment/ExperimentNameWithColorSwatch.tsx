@@ -19,6 +19,7 @@ export function ExperimentNameWithColorSwatch({
           text-overflow: ellipsis;
         `}
         title={name}
+        size="S"
       >
         {name}
       </Text>
