@@ -195,13 +195,11 @@ class Precursors(ABC):
         def as_insertable(
             self,
             trace_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.TraceAnnotation:
             return Insertables.TraceAnnotation(
                 trace_id=self.trace_id,
                 obj=self.obj,
                 trace_rowid=trace_rowid,
-                id_=id_,
             )
 
     @dataclass(frozen=True)
@@ -213,14 +211,12 @@ class Precursors(ABC):
         def as_insertable(
             self,
             span_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.DocumentAnnotation:
             return Insertables.DocumentAnnotation(
                 span_id=self.span_id,
                 document_position=self.document_position,
                 obj=self.obj,
                 span_rowid=span_rowid,
-                id_=id_,
             )
 
 
