@@ -573,9 +573,42 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(revision)
 
+        base_experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="base-experiment",
+            description="Base experiment for comparison",
+            repetitions=1,
+            metadata_={"experiment-type": "base"},
+            project_name="test-project",
+        )
+        session.add(base_experiment)
+
+        compare_experiment_1 = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="compare-experiment-1",
+            description="First comparison experiment",
+            repetitions=1,
+            metadata_={"experiment-type": "comparison", "version": "1"},
+            project_name="test-project",
+        )
+        session.add(compare_experiment_1)
+
+        compare_experiment_2 = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="compare-experiment-2",
+            description="Second comparison experiment",
+            repetitions=1,
+            metadata_={"experiment-type": "comparison", "version": "2"},
+            project_name="test-project",
+        )
+        session.add(compare_experiment_2)
+
         await session.commit()
 
-        return None, ()
+        return base_experiment, (compare_experiment_1, compare_experiment_2)
 
 
 @pytest.fixture
