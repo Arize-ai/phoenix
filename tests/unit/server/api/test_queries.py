@@ -714,20 +714,20 @@ async def experiment_run_metric_comparison_experiments(
         await session.flush()
 
         base_time = datetime(2024, 1, 1, 12, 0, 0)
-        base_experiment_run_metric_values = [
+        base_experiment_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
             ExperimentRunMetricValues(1, None),
             ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
             ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
         ]
-        compare_experiment_1_run_metric_values = [
+        compare_experiment_1_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             None,
         ]
-        compare_experiment_2_run_metric_values = [
+        compare_experiment_2_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
             None,
