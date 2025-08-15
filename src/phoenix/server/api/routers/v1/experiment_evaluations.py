@@ -3,10 +3,11 @@ from typing import Any, Literal, Optional
 
 from dateutil.parser import isoparse
 from fastapi import APIRouter, HTTPException
-from pydantic import Field
+from pydantic import Field, model_validator
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
+from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -36,14 +37,24 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     )
     start_time: datetime = Field(description="The start time of the evaluation in ISO format")
     end_time: datetime = Field(description="The end time of the evaluation in ISO format")
-    result: ExperimentEvaluationResult = Field(description="The result of the evaluation")
+    result: Optional[ExperimentEvaluationResult] = Field(
+        None, description="The result of the evaluation. Either result or error must be provided."
+    )
     error: Optional[str] = Field(
-        None, description="Optional error message if the evaluation encountered an error"
+        None,
+        description="Error message if the evaluation encountered an error. "
+        "Either result or error must be provided.",
     )
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the evaluation"
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
+
+    @model_validator(mode="after")
+    def validate_result_or_error(self) -> Self:
+        if self.result is None and self.error is None:
+            raise ValueError("Either 'result' or 'error' must be provided")
+        return self
 
 
 class UpsertExperimentEvaluationResponseBodyData(V1RoutesBaseModel):
