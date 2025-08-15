@@ -712,7 +712,7 @@ class Query:
                     0,
                 ).label("num_total_token_count_regressed"),
                 func.coalesce(
-                    func.min(
+                    func.sum(
                         case(
                             (
                                 compare_experiment_runs.c.min_total_tokens

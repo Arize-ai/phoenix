@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -490,6 +491,42 @@ async def test_experiment_run_metric_comparisons(
             numRunsEqual
             numRunsWithoutComparison
           }
+          totalTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          totalCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
         }
       }
     """
@@ -506,6 +543,42 @@ async def test_experiment_run_metric_comparisons(
     assert response.data == {
         "experimentRunMetricComparisons": {
             "latency": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "totalTokenCount": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "promptTokenCount": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "completionTokenCount": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "totalCost": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "promptCost": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "completionCost": {
                 "numRunsImproved": 2,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
@@ -591,16 +664,54 @@ async def experiment_run_metric_comparison_experiments(
 
         await session.flush()
 
-        base_time = datetime(2024, 1, 1, 12, 0, 0)
+        # Create a project for the trace
+        project = models.Project(
+            name="test-project",
+            description="Test project for experiment runs",
+        )
+        session.add(project)
+        await session.flush()
 
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
         base_experiment_run_metric_values = [1, 3, 2, 1, 3]
         compare_experiment_1_run_metric_values = [2, 2, 2, 2, None]
         compare_experiment_2_run_metric_values = [2, 1, None, 2, None]
 
-        for i, example in enumerate(examples):
-            metric_value = base_experiment_run_metric_values[i]
+        for i, (example, metric_value) in enumerate(
+            zip(examples, base_experiment_run_metric_values)
+        ):
+            if metric_value is None:
+                continue
             start_time = base_time + timedelta(seconds=i * 10)
             end_time = start_time + timedelta(seconds=metric_value)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-{i}",
+                name=f"experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
             experiment_run = models.ExperimentRun(
                 experiment_id=base_experiment.id,
                 dataset_example_id=example.id,
@@ -608,8 +719,22 @@ async def experiment_run_metric_comparison_experiments(
                 output={"result": f"example-{i}-output"},
                 start_time=start_time,
                 end_time=end_time,
+                trace_id=trace.trace_id,
             )
             session.add(experiment_run)
+
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=start_time,
+                total_tokens=metric_value,
+                prompt_tokens=metric_value,
+                completion_tokens=metric_value,
+                total_cost=metric_value,
+                prompt_cost=metric_value,
+                completion_cost=metric_value,
+            )
+            session.add(span_cost)
 
         for i, (example, metric_value) in enumerate(
             zip(examples, compare_experiment_1_run_metric_values)
@@ -618,6 +743,34 @@ async def experiment_run_metric_comparison_experiments(
                 continue
             start_time = base_time + timedelta(seconds=i * 10)
             end_time = start_time + timedelta(seconds=metric_value)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-compare1-{i}",
+                name=f"compare1-experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
             experiment_run = models.ExperimentRun(
                 experiment_id=compare_experiment_1.id,
                 dataset_example_id=example.id,
@@ -625,8 +778,22 @@ async def experiment_run_metric_comparison_experiments(
                 output={"result": f"example-{i}-output"},
                 start_time=start_time,
                 end_time=end_time,
+                trace_id=trace.trace_id,
             )
             session.add(experiment_run)
+
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=start_time,
+                total_tokens=metric_value,
+                prompt_tokens=metric_value,
+                completion_tokens=metric_value,
+                total_cost=metric_value,
+                prompt_cost=metric_value,
+                completion_cost=metric_value,
+            )
+            session.add(span_cost)
 
         for i, (example, metric_value) in enumerate(
             zip(examples, compare_experiment_2_run_metric_values)
@@ -635,6 +802,34 @@ async def experiment_run_metric_comparison_experiments(
                 continue
             start_time = base_time + timedelta(seconds=i * 10)
             end_time = start_time + timedelta(seconds=metric_value)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-compare2-{i}",
+                name=f"compare2-experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
             experiment_run = models.ExperimentRun(
                 experiment_id=compare_experiment_2.id,
                 dataset_example_id=example.id,
@@ -642,8 +837,22 @@ async def experiment_run_metric_comparison_experiments(
                 output={"result": f"example-{i}-output"},
                 start_time=start_time,
                 end_time=end_time,
+                trace_id=trace.trace_id,
             )
             session.add(experiment_run)
+
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=start_time,
+                total_tokens=metric_value,
+                prompt_tokens=metric_value,
+                completion_tokens=metric_value,
+                total_cost=metric_value,
+                prompt_cost=metric_value,
+                completion_cost=metric_value,
+            )
+            session.add(span_cost)
 
         await session.commit()
 
