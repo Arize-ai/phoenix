@@ -29,7 +29,7 @@ class Score:
     explanation: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     source: Optional[SourceType] = None
-    direction: Optional[DirectionType] = "maximize"
+    direction: DirectionType = "maximize"
 
     def to_dict(self) -> Dict[str, Any]:
         """
