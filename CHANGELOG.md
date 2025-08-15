@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.24.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.1...arize-phoenix-v11.24.2) (2025-08-15)
+
+
+### Bug Fixes
+
+* **annotations:** remove redundant id field in annotation object during bulk insert ([#9108](https://github.com/Arize-ai/phoenix/issues/9108)) ([76502d8](https://github.com/Arize-ai/phoenix/commit/76502d854cbad58f2853d303f3dd07919cf26066))
+* **playground:** [#8940](https://github.com/Arize-ai/phoenix/issues/8940) allow bounded slider fields to be unset ([#9111](https://github.com/Arize-ai/phoenix/issues/9111)) ([9cecc6f](https://github.com/Arize-ai/phoenix/commit/9cecc6f8cb8f53ed75b06f9adcb6f1faf14bf560))
+
 ## [11.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.0...arize-phoenix-v11.24.1) (2025-08-15)
 
 
