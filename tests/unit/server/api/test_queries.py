@@ -593,16 +593,14 @@ async def experiment_run_metric_comparison_experiments(
 
         base_time = datetime(2024, 1, 1, 12, 0, 0)
 
-        base_experiment_run_latency_seconds = [1, 3, 2, 1, 3]
-        compare_experiment_1_run_latency_seconds = [2, 2, 2, 2, 2]
-        compare_experiment_1_run_is_missing = [False, False, False, False, True]
-        compare_experiment_2_run_latency_seconds = [2, 1, None, 2, None]
-        compare_experiment_3_run_is_missing = [False, False, True, False, True]
+        base_experiment_run_metric_values = [1, 3, 2, 1, 3]
+        compare_experiment_1_run_metric_values = [2, 2, 2, 2, None]
+        compare_experiment_2_run_metric_values = [2, 1, None, 2, None]
 
         for i, example in enumerate(examples):
-            run_latency = base_experiment_run_latency_seconds[i]
+            metric_value = base_experiment_run_metric_values[i]
             start_time = base_time + timedelta(seconds=i * 10)
-            end_time = start_time + timedelta(seconds=run_latency)
+            end_time = start_time + timedelta(seconds=metric_value)
             experiment_run = models.ExperimentRun(
                 experiment_id=base_experiment.id,
                 dataset_example_id=example.id,
@@ -613,14 +611,13 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(experiment_run)
 
-        for i, (example, run_is_missing) in enumerate(
-            zip(examples, compare_experiment_1_run_is_missing)
+        for i, (example, metric_value) in enumerate(
+            zip(examples, compare_experiment_1_run_metric_values)
         ):
-            if run_is_missing:
+            if metric_value is None:
                 continue
-            run_latency = compare_experiment_1_run_latency_seconds[i]
             start_time = base_time + timedelta(seconds=i * 10)
-            end_time = start_time + timedelta(seconds=run_latency)
+            end_time = start_time + timedelta(seconds=metric_value)
             experiment_run = models.ExperimentRun(
                 experiment_id=compare_experiment_1.id,
                 dataset_example_id=example.id,
@@ -631,14 +628,13 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(experiment_run)
 
-        for i, (example, run_is_missing) in enumerate(
-            zip(examples, compare_experiment_3_run_is_missing)
+        for i, (example, metric_value) in enumerate(
+            zip(examples, compare_experiment_2_run_metric_values)
         ):
-            if run_is_missing:
+            if metric_value is None:
                 continue
-            run_latency = compare_experiment_2_run_latency_seconds[i]
             start_time = base_time + timedelta(seconds=i * 10)
-            end_time = start_time + timedelta(seconds=run_latency)
+            end_time = start_time + timedelta(seconds=metric_value)
             experiment_run = models.ExperimentRun(
                 experiment_id=compare_experiment_2.id,
                 dataset_example_id=example.id,
