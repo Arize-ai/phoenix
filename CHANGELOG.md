@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.23.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.1...arize-phoenix-v11.23.2) (2025-08-15)
+
+
+### Bug Fixes
+
+* **ui:** add AWS to provider dropdown for model edit ([#9098](https://github.com/Arize-ai/phoenix/issues/9098)) ([2336b08](https://github.com/Arize-ai/phoenix/commit/2336b089d1a6afdb949586370b26df28df977f90))
+* **ui:** show custom provider in models table ([#9097](https://github.com/Arize-ai/phoenix/issues/9097)) ([57a59cb](https://github.com/Arize-ai/phoenix/commit/57a59cb8e06822510fc756732b7634185c156fab))
+
 ## [11.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.0...arize-phoenix-v11.23.1) (2025-08-15)
 
 
