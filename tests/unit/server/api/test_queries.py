@@ -550,40 +550,40 @@ async def test_experiment_run_metric_comparisons(
                 "numRunsWithoutComparison": 1,
             },
             "totalTokenCount": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
             "promptTokenCount": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
             "completionTokenCount": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
             "totalCost": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
             "promptCost": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
             "completionCost": {
-                "numRunsImproved": 2,
+                "numRunsImproved": 1,
                 "numRunsRegressed": 1,
                 "numRunsEqual": 1,
-                "numRunsWithoutComparison": 1,
+                "numRunsWithoutComparison": 2,
             },
         },
     }
@@ -610,7 +610,7 @@ async def experiment_run_metric_comparison_experiments(
     db: DbSessionFactory,
 ) -> tuple[models.Experiment, tuple[models.Experiment, ...]]:
     """
-    Creates experiments with the following metric values for each example:
+    Creates experiments with the following latency values for each example:
 
     Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
     -------    ---------------    --------------------    -------------------
@@ -619,6 +619,20 @@ async def experiment_run_metric_comparison_experiments(
     3          2                  2                       missing
     4          1                  2                       2
     5          3                  missing                 missing
+
+    And the following token and cost values:
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          missing            2                       2
+    2          3                  2                       1
+    3          2                  2                       missing
+    4          1                  2                       2
+    5          3                  missing                 missing
+
+    Note these tables are the same, except we test the case of a missing span cost
+    for the base experiment. This is because latency is required for any base experiment
+    run, but span costs can be missing.
     """
     async with db() as session:
         dataset = models.Dataset(
@@ -701,7 +715,7 @@ async def experiment_run_metric_comparison_experiments(
 
         base_time = datetime(2024, 1, 1, 12, 0, 0)
         base_experiment_run_metric_values = [
-            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
+            ExperimentRunMetricValues(1, None),
             ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
             ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),

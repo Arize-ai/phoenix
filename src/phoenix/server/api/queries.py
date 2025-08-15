@@ -580,16 +580,12 @@ class Query:
                 models.ExperimentRun.dataset_example_id,
                 func.min(models.ExperimentRun.start_time).label("start_time"),
                 func.min(models.ExperimentRun.end_time).label("end_time"),
-                func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
-                func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
-                    "completion_tokens"
-                ),
-                func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-                func.coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-                func.coalesce(func.sum(models.SpanCost.completion_cost), 0).label(
-                    "completion_cost"
-                ),
+                func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.sum(models.SpanCost.total_cost).label("total_cost"),
+                func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                func.sum(models.SpanCost.completion_cost).label("completion_cost"),
             )
             .select_from(models.ExperimentRun)
             .join(
