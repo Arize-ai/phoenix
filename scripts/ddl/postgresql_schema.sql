@@ -532,7 +532,7 @@ create index ix_cumulative_llm_token_count_total
 create index ix_spans_trace_rowid_start_time
     on public.spans (trace_rowid, start_time);
 
-create index ix_spans_trace_rowid_where_parent_id_is_null
+create index ix_spans_trace_rowid_start_time_where_parent_id_is_null
     on public.spans (trace_rowid, start_time)
     where (parent_id IS NULL);
 
