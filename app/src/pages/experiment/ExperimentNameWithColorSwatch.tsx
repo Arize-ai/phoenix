@@ -14,6 +14,7 @@ export function ExperimentNameWithColorSwatch({
       <ColorSwatch color={color} shape="circle" />
       <Text
         css={css`
+          white-space: nowrap;
           max-width: var(--ac-global-dimension-size-2000);
           overflow: hidden;
           text-overflow: ellipsis;
