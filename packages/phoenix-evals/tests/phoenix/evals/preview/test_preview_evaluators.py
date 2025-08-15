@@ -793,28 +793,35 @@ class TestRemapEvalInputAdvanced:
             pytest.param(
                 {"output": {"response": " Yes "}, "expected": "yes"},
                 {"output", "expected"},
-                {"output": "output.response | strip | lower", "expected": "expected"},
+                {
+                    "output": lambda row: row["output"]["response"].strip().lower(),
+                    "expected": "expected",
+                },
                 {"output": "yes", "expected": "yes"},
                 id="nested_path_with_strip_lower",
             ),
             pytest.param(
                 {"docs": [" A ", "B"]},
                 {"first"},
-                {"first": "docs | first | strip"},
+                {"first": lambda row: row["docs"][0].strip()},
                 {"first": "A"},
                 id="first_transform_on_list_then_strip",
             ),
             pytest.param(
                 {"x": 5},
                 {"x_str"},
-                {"x_str": "x | as_str"},
+                {"x_str": lambda row: str(row["x"])},
                 {"x_str": "5"},
                 id="as_str_transform",
             ),
             pytest.param(
                 {"x": "7", "y": "3.14", "z": "1"},
                 {"xi", "yf", "zb"},
-                {"xi": "x | coerce:int", "yf": "y | coerce:float", "zb": "z | coerce:bool"},
+                {
+                    "xi": lambda row: int(row["x"]),
+                    "yf": lambda row: float(row["y"]),
+                    "zb": lambda row: bool(row["z"]),
+                },
                 {"xi": 7, "yf": 3.14, "zb": True},
                 id="coercion_transforms_int_float_bool",
             ),
@@ -904,13 +911,27 @@ class TestRemapEvalInputAdvanced:
         with pytest.raises(ValueError, match=expected_error):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-    def test_unknown_transform_emits_warning(self):
+    def test_unknown_transform_raises_error(self):
         eval_input = {"x": " A "}
         required_fields = {"y"}
         input_mapping = {"y": "x | unknown_transform | strip"}
-        with pytest.warns(RuntimeWarning, match="Unknown transform"):
-            out = remap_eval_input(eval_input, required_fields, input_mapping)
-        assert out["y"] == "A"
+        # Invalid path syntax should raise an error from _tokenize_path
+        with pytest.raises(ValueError):
+            remap_eval_input(eval_input, required_fields, input_mapping)
+
+    def test_invalid_path_patterns_raise_error(self):
+        eval_input = {"x": "value"}
+        required_fields = {"y"}
+
+        # Test malformed bracket syntax
+        input_mapping = {"y": "x["}
+        with pytest.raises(ValueError, match="Malformed bracket syntax"):
+            remap_eval_input(eval_input, required_fields, input_mapping)
+
+        # Test invalid index (non-integer)
+        input_mapping = {"y": "x[abc]"}
+        with pytest.raises(ValueError, match="Invalid index"):
+            remap_eval_input(eval_input, required_fields, input_mapping)
 
     def test_invalid_mapping_type_raises(self):
         eval_input = {"x": 1}
@@ -929,7 +950,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
     def test_required_fields_from_mapping_when_no_schema(self):
         e = self.MinimalEvaluator(name="min", source="heuristic")
         payload = {"in": {"msg": "hi"}}
-        mapping = {"text": "in.msg | upper"}
+        mapping = {"text": lambda row: row["in"]["msg"].upper()}
 
         # Without mapping and without schema -> error
         with pytest.raises(ValueError, match="Cannot determine input fields"):
@@ -944,7 +965,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
         def emph(text: str) -> Score:
             return Score(score=float(len(text) > 0))
 
-        mapping = {"text": "raw.value | strip"}
+        mapping = {"text": lambda row: row["raw"]["value"].strip()}
         payload = {"raw": {"value": " hello "}}
 
         from phoenix.evals.preview.evaluators import bind_evaluator

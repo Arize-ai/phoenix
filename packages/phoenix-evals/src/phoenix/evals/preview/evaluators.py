@@ -1,7 +1,6 @@
 import asyncio
 import inspect
 import json
-import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
@@ -74,13 +73,11 @@ def _tokenize_path(path: str) -> List[Union[str, int]]:
       - dict traversal via dots: input.query
       - list index via brackets: items[0]
 
-    This is intentionally simple; quoted keys and complex expressions are not supported yet.
-
     Returns:
         A list of tokens.
 
     Raises:
-        ValueError: If the path is invalid.
+        ValueError: If the path is invalid (malformed brackets, non-integer indexes, etc.).
     """
     tokens: List[Union[str, int]] = []
     # Split on '.' first
@@ -101,76 +98,19 @@ def _tokenize_path(path: str) -> List[Union[str, int]]:
                 break
             j = part.find("]", i + 1)
             if j == -1:
-                # malformed; treat the rest literally
-                break
+                # malformed bracket - missing closing bracket
+                raise ValueError(f"Malformed bracket syntax in path '{path}': missing closing ']'")
             index_str = part[i + 1 : j]
             try:
                 idx = int(index_str)
                 tokens.append(idx)
             except ValueError:
-                # non-integer indexes not supported in this minimal version
-                tokens.append(index_str)
+                # non-integer indexes not supported
+                raise ValueError(
+                    f"Invalid index '{index_str}' in path '{path}': must be an integer"
+                )
             i = j + 1
     return tokens
-
-
-TransformFunc = Callable[[Any], Any]
-
-
-def _get_builtin_transform(name: str) -> Optional[TransformFunc]:
-    """
-    Get a built-in transform function by name.
-
-    Supported transforms for input mapping pipes (used after a path with `|`):
-
-    - first: Return the first element of a list/tuple; None if the sequence is empty or if
-      the value is not a sequence.
-    - strip: Trim leading and trailing whitespace on strings; pass through non-strings unchanged.
-    - lower: Convert strings to lowercase; pass through non-strings unchanged.
-    - upper: Convert strings to uppercase; pass through non-strings unchanged.
-    - as_str, coerce:str: Convert non-None values to str.
-    - coerce:int: Convert non-None values to int.
-    - coerce:float: Convert non-None values to float.
-    - coerce:bool: Convert non-None values to bool.
-
-    Notes:
-    - Unknown transform names are ignored with a warning.
-    - Transforms are applied left-to-right.
-    - String-specific transforms (strip/lower/upper) pass through non-string values unchanged.
-
-    Examples:
-    - "input.docs[0] | strip | lower"
-    - "response.score | coerce:float"
-    - "metadata.tags | first | as_str"
-    """
-    simple = name.strip().lower()
-    if simple == "first":
-        return lambda v: (v[0] if isinstance(v, (list, tuple)) and v else None)
-    if simple == "strip":
-        return lambda v: (v.strip() if isinstance(v, str) else v)
-    if simple == "lower":
-        return lambda v: (v.lower() if isinstance(v, str) else v)
-    if simple == "upper":
-        return lambda v: (v.upper() if isinstance(v, str) else v)
-    if simple in {"as_str", "coerce:str"}:
-        return lambda v: (str(v) if v is not None else v)
-    if simple == "coerce:int":
-        return lambda v: (int(v) if v is not None else v)
-    if simple == "coerce:float":
-        return lambda v: (float(v) if v is not None else v)
-    if simple == "coerce:bool":
-        return lambda v: (bool(v) if v is not None else v)
-    return None
-
-
-def _apply_transforms(value: Any, transforms: List[TransformFunc]) -> Any:
-    """
-    Apply a list of transforms to a value.
-    """
-    result = value
-    for transform in transforms:
-        result = transform(result)
-    return result
 
 
 def _validate_field_value(value: Any, field_name: str, key: str) -> None:
@@ -203,7 +143,6 @@ def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
     - dict traversal via dots: input.query
     - list index via brackets: items[0]
     - combination of both: input.docs[0]
-    - can be combined with transforms: input.docs[0] | strip | lower
 
     Returns:
         The extracted value.
@@ -227,25 +166,6 @@ def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
                 raise ValueError(msg)
             current = current[tok]
     return current
-
-
-def _parse_mapping_spec(spec: str) -> Tuple[str, List[TransformFunc]]:
-    """
-    Parse a mapping spec like "input.docs[0] | strip | lower" into (path, transforms).
-    Unknown transforms are ignored with a warning.
-    """
-    parts = [p.strip() for p in spec.split("|")]
-    path = parts[0] if parts else ""
-    transforms: List[TransformFunc] = []
-    for p in parts[1:]:
-        tf = _get_builtin_transform(p)
-        if tf is not None:
-            transforms.append(tf)
-        else:
-            # warn on unknown transform names to surface typos early
-            if p:
-                warnings.warn(f"Unknown transform '{p}' in mapping spec: '{spec}'", RuntimeWarning)
-    return path, transforms
 
 
 def _required_fields_from_model(model: Optional[type[BaseModel]]) -> Set[str]:
@@ -291,7 +211,7 @@ def remap_eval_input(
             value = extractor(eval_input)
             found = True
         elif isinstance(extractor, str):
-            path, transforms = _parse_mapping_spec(extractor)
+            path = extractor
             # If path is empty, try direct key
             if not path:
                 key = field_name
@@ -308,8 +228,6 @@ def remap_eval_input(
                     if field_name in required_fields:
                         raise e
                     found = False
-            if found:
-                value = _apply_transforms(value, transforms)
         else:
             # Unsupported extractor type
             msg = (
@@ -345,7 +263,7 @@ def remap_eval_input(
     mapped_values = set()
     for extractor in mapping.values():
         if isinstance(extractor, str):
-            path, _ = _parse_mapping_spec(extractor)
+            path = extractor
             if not path:  # Empty path means direct key mapping
                 mapped_values.add(extractor)
             else:
