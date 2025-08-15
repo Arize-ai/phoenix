@@ -499,6 +499,7 @@ def create_evaluator(
                     source=source,
                     direction=direction,
                     # infer input schema from function signature
+                    # TODO make it work with *args, **kwargs
                     input_schema=create_model(
                         f"{name.capitalize()}Input",
                         **cast(
