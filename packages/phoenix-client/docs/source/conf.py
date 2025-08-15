@@ -9,7 +9,11 @@ import sys
 
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add phoenix-client source
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
+# Add main phoenix source for compatibility methods
+MAIN_PHOENIX_DIR = os.path.dirname(os.path.dirname(BASE_DIR))
+sys.path.insert(0, os.path.join(MAIN_PHOENIX_DIR, "src"))
 
 # -- Project information -----------------------------------------------------
 
