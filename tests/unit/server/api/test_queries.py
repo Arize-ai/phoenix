@@ -472,6 +472,112 @@ async def projects_with_and_without_experiments(
         )
 
 
+async def test_experiment_run_metric_comparisons(
+    gql_client: AsyncGraphQLClient,
+    experiment_run_metric_comparison_experiments: tuple[
+        models.Experiment, tuple[models.Experiment, ...]
+    ],
+) -> None:
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          latency {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          totalTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          totalCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+        }
+      }
+    """
+    pass
+
+
+@pytest.fixture
+async def experiment_run_metric_comparison_experiments(
+    db: DbSessionFactory,
+) -> tuple[models.Experiment, tuple[models.Experiment, ...]]:
+    async with db() as session:
+        dataset = models.Dataset(
+            name="experiment-run-metric-comparison-dataset",
+            description="Dataset for experiment run metric comparison tests",
+            metadata_={"test-purpose": "experiment-run-metric-comparison"},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        dataset_version = models.DatasetVersion(
+            dataset_id=dataset.id,
+            description="version-1-description",
+            metadata_={"version-metadata-key": "version-metadata-value"},
+        )
+        session.add(dataset_version)
+        await session.flush()
+
+        examples = []
+        for i in range(5):
+            example = models.DatasetExample(
+                dataset_id=dataset.id,
+            )
+            session.add(example)
+            examples.append(example)
+        await session.flush()
+
+        for i, example in enumerate(examples):
+            revision = models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=dataset_version.id,
+                input={f"example-{i}-input-key": f"example-{i}-input-value"},
+                output={f"example-{i}-output-key": f"example-{i}-output-value"},
+                metadata_={f"example-{i}-metadata-key": f"example-{i}-metadata-value"},
+                revision_kind="CREATE",
+            )
+            session.add(revision)
+
+        await session.commit()
+
+        return None, ()
+
+
 @pytest.fixture
 async def comparison_experiments(db: DbSessionFactory) -> None:
     """
