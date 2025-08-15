@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.0...arize-phoenix-v11.24.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* **experiments:** result should be nullable when there's error in experiment run evaluation ([#9065](https://github.com/Arize-ai/phoenix/issues/9065)) ([fc5c303](https://github.com/Arize-ai/phoenix/commit/fc5c30310b804157f5472a2e2599ca34e0a03a46))
+
 ## [11.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.2...arize-phoenix-v11.24.0) (2025-08-15)
 
 
