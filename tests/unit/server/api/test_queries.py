@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -490,46 +490,29 @@ async def test_experiment_run_metric_comparisons(
             numRunsEqual
             numRunsWithoutComparison
           }
-          totalTokenCount {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
-          promptTokenCount {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
-          completionTokenCount {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
-          totalCost {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
-          promptCost {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
-          completionCost {
-            numRunsImproved
-            numRunsRegressed
-            numRunsEqual
-            numRunsWithoutComparison
-          }
         }
       }
     """
-    pass
+    base_experiment, compare_experiments = experiment_run_metric_comparison_experiments
+    variables = {
+        "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+        "compareExperimentIds": [
+            str(GlobalID("Experiment", str(experiment.id))) for experiment in compare_experiments
+        ],
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert response.data is not None
+    assert response.data == {
+        "experimentRunMetricComparisons": {
+            "latency": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+        },
+    }
 
 
 @pytest.fixture
@@ -605,6 +588,66 @@ async def experiment_run_metric_comparison_experiments(
             project_name="test-project",
         )
         session.add(compare_experiment_2)
+
+        await session.flush()
+
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        base_experiment_run_latency_seconds = [1, 3, 2, 1, 3]
+        compare_experiment_1_run_latency_seconds = [2, 2, 2, 2, 2]
+        compare_experiment_1_run_is_missing = [False, False, False, False, True]
+        compare_experiment_2_run_latency_seconds = [2, 1, None, 2, None]
+        compare_experiment_3_run_is_missing = [False, False, True, False, True]
+
+        for i, example in enumerate(examples):
+            run_latency = base_experiment_run_latency_seconds[i]
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=run_latency)
+            experiment_run = models.ExperimentRun(
+                experiment_id=base_experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+            )
+            session.add(experiment_run)
+
+        for i, (example, run_is_missing) in enumerate(
+            zip(examples, compare_experiment_1_run_is_missing)
+        ):
+            if run_is_missing:
+                continue
+            run_latency = compare_experiment_1_run_latency_seconds[i]
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=run_latency)
+            experiment_run = models.ExperimentRun(
+                experiment_id=compare_experiment_1.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+            )
+            session.add(experiment_run)
+
+        for i, (example, run_is_missing) in enumerate(
+            zip(examples, compare_experiment_3_run_is_missing)
+        ):
+            if run_is_missing:
+                continue
+            run_latency = compare_experiment_2_run_latency_seconds[i]
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=run_latency)
+            experiment_run = models.ExperimentRun(
+                experiment_id=compare_experiment_2.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+            )
+            session.add(experiment_run)
 
         await session.commit()
 
