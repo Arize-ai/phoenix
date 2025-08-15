@@ -590,14 +590,19 @@ async def test_experiment_run_metric_comparisons(
 
 
 @dataclass
-class ExperimentRunMetricValues:
-    latency_ms: float
+class SpanCost:
     total_tokens: Optional[int]
     prompt_tokens: Optional[int]
     completion_tokens: Optional[int]
     total_cost: Optional[float]
     prompt_cost: Optional[float]
     completion_cost: Optional[float]
+
+
+@dataclass
+class ExperimentRunMetricValues:
+    latency_ms: float
+    span_cost: Optional[SpanCost]
 
 
 @pytest.fixture
@@ -696,24 +701,23 @@ async def experiment_run_metric_comparison_experiments(
 
         base_time = datetime(2024, 1, 1, 12, 0, 0)
         base_experiment_run_metric_values = [
-            ExperimentRunMetricValues(1, 1, 1, 1, 1, 1, 1),
-            ExperimentRunMetricValues(3, 3, 3, 3, 3, 3, 3),
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
-            ExperimentRunMetricValues(1, 1, 1, 1, 1, 1, 1),
-            ExperimentRunMetricValues(3, 3, 3, 3, 3, 3, 3),
+            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
+            ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
+            ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
         ]
         compare_experiment_1_run_metric_values = [
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             None,
         ]
         compare_experiment_2_run_metric_values = [
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
-            ExperimentRunMetricValues(1, 1, 1, 1, 1, 1, 1),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
             None,
-            ExperimentRunMetricValues(2, 2, 2, 2, 2, 2, 2),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
             None,
         ]
 
@@ -763,18 +767,19 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(experiment_run)
 
-            span_cost = models.SpanCost(
-                span_rowid=span.id,
-                trace_rowid=trace.id,
-                span_start_time=start_time,
-                total_tokens=metric_values.total_tokens,
-                prompt_tokens=metric_values.prompt_tokens,
-                completion_tokens=metric_values.completion_tokens,
-                total_cost=metric_values.total_cost,
-                prompt_cost=metric_values.prompt_cost,
-                completion_cost=metric_values.completion_cost,
-            )
-            session.add(span_cost)
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
 
         for i, (example, metric_values) in enumerate(
             zip(examples, compare_experiment_1_run_metric_values)
@@ -822,18 +827,19 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(experiment_run)
 
-            span_cost = models.SpanCost(
-                span_rowid=span.id,
-                trace_rowid=trace.id,
-                span_start_time=start_time,
-                total_tokens=metric_values.total_tokens,
-                prompt_tokens=metric_values.prompt_tokens,
-                completion_tokens=metric_values.completion_tokens,
-                total_cost=metric_values.total_cost,
-                prompt_cost=metric_values.prompt_cost,
-                completion_cost=metric_values.completion_cost,
-            )
-            session.add(span_cost)
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
 
         for i, (example, metric_values) in enumerate(
             zip(examples, compare_experiment_2_run_metric_values)
@@ -881,18 +887,19 @@ async def experiment_run_metric_comparison_experiments(
             )
             session.add(experiment_run)
 
-            span_cost = models.SpanCost(
-                span_rowid=span.id,
-                trace_rowid=trace.id,
-                span_start_time=start_time,
-                total_tokens=metric_values.total_tokens,
-                prompt_tokens=metric_values.prompt_tokens,
-                completion_tokens=metric_values.completion_tokens,
-                total_cost=metric_values.total_cost,
-                prompt_cost=metric_values.prompt_cost,
-                completion_cost=metric_values.completion_cost,
-            )
-            session.add(span_cost)
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
 
         await session.commit()
 
