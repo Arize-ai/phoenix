@@ -1,5 +1,7 @@
-from datetime import datetime
-from typing import Any
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Optional
 
 import pytest
 import pytz
@@ -470,6 +472,452 @@ async def projects_with_and_without_experiments(
                 project_name="experiment-project-name",
             )
         )
+
+
+async def test_experiment_run_metric_comparisons(
+    gql_client: AsyncGraphQLClient,
+    experiment_run_metric_comparison_experiments: tuple[
+        models.Experiment, tuple[models.Experiment, ...]
+    ],
+) -> None:
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          latency {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          totalTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionTokenCount {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          totalCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          promptCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+          completionCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+            numRunsWithoutComparison
+          }
+        }
+      }
+    """
+    base_experiment, compare_experiments = experiment_run_metric_comparison_experiments
+    variables = {
+        "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+        "compareExperimentIds": [
+            str(GlobalID("Experiment", str(experiment.id))) for experiment in compare_experiments
+        ],
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert response.data is not None
+    assert response.data == {
+        "experimentRunMetricComparisons": {
+            "latency": {
+                "numRunsImproved": 2,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 1,
+            },
+            "totalTokenCount": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+            "promptTokenCount": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+            "completionTokenCount": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+            "totalCost": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+            "promptCost": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+            "completionCost": {
+                "numRunsImproved": 1,
+                "numRunsRegressed": 1,
+                "numRunsEqual": 1,
+                "numRunsWithoutComparison": 2,
+            },
+        },
+    }
+
+
+@dataclass
+class SpanCost:
+    total_tokens: Optional[int]
+    prompt_tokens: Optional[int]
+    completion_tokens: Optional[int]
+    total_cost: Optional[float]
+    prompt_cost: Optional[float]
+    completion_cost: Optional[float]
+
+
+@dataclass
+class ExperimentRunMetricValues:
+    latency_ms: float
+    span_cost: Optional[SpanCost]
+
+
+@pytest.fixture
+async def experiment_run_metric_comparison_experiments(
+    db: DbSessionFactory,
+) -> tuple[models.Experiment, tuple[models.Experiment, ...]]:
+    """
+    Creates experiments with the following latency values for each example:
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          1                  2                       2
+    2          3                  2                       1
+    3          2                  2                       missing
+    4          1                  2                       2
+    5          3                  missing                 missing
+
+    And the following token and cost values:
+
+    Example    Base Experiment    Compare Experiment 1    Compare Experiment 2
+    -------    ---------------    --------------------    -------------------
+    1          missing            2                       2
+    2          3                  2                       1
+    3          2                  2                       missing
+    4          1                  2                       2
+    5          3                  missing                 missing
+
+    Note these tables are the same, except we test the case of a missing span cost
+    for the base experiment. This is because latency is required for any base experiment
+    run, but span costs can be missing.
+    """
+    async with db() as session:
+        dataset = models.Dataset(
+            name="experiment-run-metric-comparison-dataset",
+            description="Dataset for experiment run metric comparison tests",
+            metadata_={"test-purpose": "experiment-run-metric-comparison"},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        dataset_version = models.DatasetVersion(
+            dataset_id=dataset.id,
+            description="version-1-description",
+            metadata_={"version-metadata-key": "version-metadata-value"},
+        )
+        session.add(dataset_version)
+        await session.flush()
+
+        examples = []
+        for i in range(5):
+            example = models.DatasetExample(
+                dataset_id=dataset.id,
+            )
+            session.add(example)
+            examples.append(example)
+        await session.flush()
+
+        for i, example in enumerate(examples):
+            revision = models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=dataset_version.id,
+                input={f"example-{i}-input-key": f"example-{i}-input-value"},
+                output={f"example-{i}-output-key": f"example-{i}-output-value"},
+                metadata_={f"example-{i}-metadata-key": f"example-{i}-metadata-value"},
+                revision_kind="CREATE",
+            )
+            session.add(revision)
+
+        base_experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="base-experiment",
+            description="Base experiment for comparison",
+            repetitions=1,
+            metadata_={"experiment-type": "base"},
+            project_name="test-project",
+        )
+        session.add(base_experiment)
+
+        compare_experiment_1 = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="compare-experiment-1",
+            description="First comparison experiment",
+            repetitions=1,
+            metadata_={"experiment-type": "comparison", "version": "1"},
+            project_name="test-project",
+        )
+        session.add(compare_experiment_1)
+
+        compare_experiment_2 = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="compare-experiment-2",
+            description="Second comparison experiment",
+            repetitions=1,
+            metadata_={"experiment-type": "comparison", "version": "2"},
+            project_name="test-project",
+        )
+        session.add(compare_experiment_2)
+
+        await session.flush()
+
+        project = models.Project(
+            name="test-project",
+            description="Test project for experiment runs",
+        )
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+        base_experiment_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
+            ExperimentRunMetricValues(1, None),
+            ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
+            ExperimentRunMetricValues(3, SpanCost(3, 3, 3, 3, 3, 3)),
+        ]
+        compare_experiment_1_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            None,
+        ]
+        compare_experiment_2_run_metric_values: list[Optional[ExperimentRunMetricValues]] = [
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            ExperimentRunMetricValues(1, SpanCost(1, 1, 1, 1, 1, 1)),
+            None,
+            ExperimentRunMetricValues(2, SpanCost(2, 2, 2, 2, 2, 2)),
+            None,
+        ]
+
+        for i, (example, metric_values) in enumerate(
+            zip(examples, base_experiment_run_metric_values)
+        ):
+            if metric_values is None:
+                continue
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=metric_values.latency_ms)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-{i}",
+                name=f"experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
+            experiment_run = models.ExperimentRun(
+                experiment_id=base_experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+                trace_id=trace.trace_id,
+            )
+            session.add(experiment_run)
+
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
+
+        for i, (example, metric_values) in enumerate(
+            zip(examples, compare_experiment_1_run_metric_values)
+        ):
+            if metric_values is None:
+                continue
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=metric_values.latency_ms)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-compare1-{i}",
+                name=f"compare1-experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
+            experiment_run = models.ExperimentRun(
+                experiment_id=compare_experiment_1.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+                trace_id=trace.trace_id,
+            )
+            session.add(experiment_run)
+
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
+
+        for i, (example, metric_values) in enumerate(
+            zip(examples, compare_experiment_2_run_metric_values)
+        ):
+            if metric_values is None:
+                continue
+            start_time = base_time + timedelta(seconds=i * 10)
+            end_time = start_time + timedelta(seconds=metric_values.latency_ms)
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=str(uuid.uuid4()),
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=50),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-compare2-{i}",
+                name=f"compare2-experiment-run-{i}",
+                span_kind="chain",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
+            experiment_run = models.ExperimentRun(
+                experiment_id=compare_experiment_2.id,
+                dataset_example_id=example.id,
+                repetition_number=1,
+                output={"result": f"example-{i}-output"},
+                start_time=start_time,
+                end_time=end_time,
+                trace_id=trace.trace_id,
+            )
+            session.add(experiment_run)
+
+            if metric_values.span_cost is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_tokens=metric_values.span_cost.total_tokens,
+                    prompt_tokens=metric_values.span_cost.prompt_tokens,
+                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    total_cost=metric_values.span_cost.total_cost,
+                    prompt_cost=metric_values.span_cost.prompt_cost,
+                    completion_cost=metric_values.span_cost.completion_cost,
+                )
+                session.add(span_cost)
+
+        await session.commit()
+
+        return base_experiment, (compare_experiment_1, compare_experiment_2)
 
 
 @pytest.fixture

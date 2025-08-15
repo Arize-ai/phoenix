@@ -8,13 +8,7 @@ import { experimentCompareLoader } from "./experimentCompareLoader";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
-export type ExperimentCompareGridPageProps = {
-  displayFullText: boolean;
-};
-
-export function ExperimentCompareGridPage({
-  displayFullText,
-}: ExperimentCompareGridPageProps) {
+export function ExperimentCompareGridPage() {
   const [searchParams] = useSearchParams();
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required");
@@ -30,7 +24,6 @@ export function ExperimentCompareGridPage({
           datasetId={datasetId}
           baseExperimentId={baseExperimentId}
           compareExperimentIds={compareExperimentIds}
-          displayFullText={displayFullText}
         />
       </Suspense>
     </ExperimentRunFilterConditionProvider>

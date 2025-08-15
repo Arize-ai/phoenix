@@ -36,6 +36,7 @@ export async function experimentCompareLoader(
         $compareExperimentIds: [ID!]!
         $experimentIds: [ID!]!
         $hasBaseExperiment: Boolean!
+        $hasCompareExperiments: Boolean!
         $includeGridView: Boolean!
         $includeMetricsView: Boolean!
       ) {
@@ -52,6 +53,8 @@ export async function experimentCompareLoader(
             datasetId: $datasetId
             hasBaseExperiment: $hasBaseExperiment
           )
+        ...ExperimentComparePage_selectedCompareExperiments
+          @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
         ...ExperimentCompareMetricsPage_experiments
           @include(if: $includeMetricsView)
           @arguments(
@@ -59,6 +62,7 @@ export async function experimentCompareLoader(
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
             experimentIds: $experimentIds
+            hasCompareExperiments: $hasCompareExperiments
           )
       }
     `,
@@ -73,6 +77,7 @@ export async function experimentCompareLoader(
       hasBaseExperiment: baseExperimentId != null,
       includeGridView: view === "grid" && baseExperimentId != null,
       includeMetricsView: view === "metrics" && baseExperimentId != null,
+      hasCompareExperiments: compareExperimentIds.length > 0,
     }
   ).toPromise();
 }

@@ -1,14 +1,14 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Optional, Union
+from typing import Any, Iterable, Iterator, Literal, Optional, Union
 from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import aliased, joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -108,29 +108,52 @@ class DbTableStats:
 
 
 @strawberry.type
-class MetricCounts:
-    num_increases: int
-    num_decreases: int
-    num_equal: int
+class ExperimentRunMetricComparison:
+    num_runs_improved: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment improved "
+            "on the best run in any compare experiment."
+        )
+    )
+    num_runs_regressed: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment regressed "
+            "on the best run in any compare experiment."
+        )
+    )
+    num_runs_equal: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment is equal to the best run "
+            "in any compare experiment."
+        )
+    )
+    num_total_runs: strawberry.Private[int]
+
+    @strawberry.field(
+        description=(
+            "The number of runs in the base experiment that could not be compared, either because "
+            "the base experiment run was missing a value or because all compare experiment runs "
+            "were missing values."
+        )
+    )  # type: ignore[misc]
+    def num_runs_without_comparison(self) -> int:
+        return (
+            self.num_total_runs
+            - self.num_runs_improved
+            - self.num_runs_regressed
+            - self.num_runs_equal
+        )
 
 
 @strawberry.type
-class CompareExperimentRunMetricCounts:
-    compare_experiment_id: GlobalID
-    latency: MetricCounts
-    prompt_token_count: MetricCounts
-    completion_token_count: MetricCounts
-    total_token_count: MetricCounts
-    total_cost: MetricCounts
-
-
-@strawberry.type
-class CompareExperimentRunAnnotationMetricCounts:
-    annotation_name: str
-    compare_experiment_id: GlobalID
-    num_increases: int
-    num_decreases: int
-    num_equal: int
+class ExperimentRunMetricComparisons:
+    latency: ExperimentRunMetricComparison
+    total_token_count: ExperimentRunMetricComparison
+    prompt_token_count: ExperimentRunMetricComparison
+    completion_token_count: ExperimentRunMetricComparison
+    total_cost: ExperimentRunMetricComparison
+    prompt_cost: ExperimentRunMetricComparison
+    completion_cost: ExperimentRunMetricComparison
 
 
 @strawberry.type
@@ -521,12 +544,12 @@ class Query:
         )
 
     @strawberry.field
-    async def compare_experiment_run_metric_counts(
+    async def experiment_run_metric_comparisons(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
         compare_experiment_ids: list[GlobalID],
-    ) -> list[CompareExperimentRunMetricCounts]:
+    ) -> ExperimentRunMetricComparisons:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if not compare_experiment_ids:
@@ -553,375 +576,256 @@ class Query:
                 raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
 
         base_experiment_runs = (
-            select(models.ExperimentRun)
+            select(
+                models.ExperimentRun.dataset_example_id,
+                func.min(models.ExperimentRun.start_time).label("start_time"),
+                func.min(models.ExperimentRun.end_time).label("end_time"),
+                func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.sum(models.SpanCost.total_cost).label("total_cost"),
+                func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+            )
+            .select_from(models.ExperimentRun)
+            .join(
+                models.Trace,
+                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
+                isouter=True,
+            )
+            .join(
+                models.SpanCost,
+                onclause=models.Trace.id == models.SpanCost.trace_rowid,
+                isouter=True,
+            )
             .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
+            .group_by(models.ExperimentRun.dataset_example_id)
             .subquery()
             .alias("base_experiment_runs")
         )
-        base_experiment_traces = aliased(models.Trace, name="base_experiment_traces")
-        base_experiment_span_costs = (
+        compare_experiment_runs = (
             select(
-                models.SpanCost.trace_rowid,
-                func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
-                func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
-                    "completion_tokens"
-                ),
-                func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+                models.ExperimentRun.dataset_example_id,
+                func.min(
+                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
+                ).label("min_latency_ms"),
+                func.min(models.SpanCost.total_tokens).label("min_total_tokens"),
+                func.min(models.SpanCost.prompt_tokens).label("min_prompt_tokens"),
+                func.min(models.SpanCost.completion_tokens).label("min_completion_tokens"),
+                func.min(models.SpanCost.total_cost).label("min_total_cost"),
+                func.min(models.SpanCost.prompt_cost).label("min_prompt_cost"),
+                func.min(models.SpanCost.completion_cost).label("min_completion_cost"),
             )
-            .select_from(models.SpanCost)
-            .group_by(
-                models.SpanCost.trace_rowid,
+            .select_from(models.ExperimentRun)
+            .join(
+                models.Trace,
+                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
+                isouter=True,
             )
+            .join(
+                models.SpanCost,
+                onclause=models.Trace.id == models.SpanCost.trace_rowid,
+                isouter=True,
+            )
+            .where(
+                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
+            )
+            .group_by(models.ExperimentRun.dataset_example_id)
             .subquery()
-            .alias("base_experiment_span_costs")
-        )
-
-        query = (
-            select()  # add selected columns below
-            .select_from(base_experiment_runs)
-            .join(
-                base_experiment_traces,
-                onclause=base_experiment_runs.c.trace_id == base_experiment_traces.trace_id,
-                isouter=True,
-            )
-            .join(
-                base_experiment_span_costs,
-                onclause=base_experiment_traces.id == base_experiment_span_costs.c.trace_rowid,
-                isouter=True,
-            )
+            .alias("comp_exp_run_mins")
         )
 
         base_experiment_run_latency = LatencyMs(
             base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
         ).label("base_experiment_run_latency_ms")
-        base_experiment_run_prompt_token_count = base_experiment_span_costs.c.prompt_tokens
-        base_experiment_run_completion_token_count = base_experiment_span_costs.c.completion_tokens
-        base_experiment_run_total_token_count = base_experiment_span_costs.c.total_tokens
-        base_experiment_run_total_cost = base_experiment_span_costs.c.total_cost
 
-        for compare_experiment_index, compare_experiment_rowid in enumerate(
-            compare_experiment_rowids
-        ):
-            compare_experiment_runs = (
-                select(models.ExperimentRun)
-                .where(models.ExperimentRun.experiment_id == compare_experiment_rowid)
-                .subquery()
-                .alias(f"comp_exp_{compare_experiment_index}_runs")
+        comparisons_query = (
+            select(
+                func.count().label("num_base_experiment_runs"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_latency_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_latency_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_latency_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_total_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_total_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_total_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_prompt_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_prompt_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_prompt_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_completion_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_completion_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_completion_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_total_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_total_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_total_cost_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_prompt_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_prompt_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_prompt_cost_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_completion_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_completion_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_completion_cost_is_equal"),
             )
-            compare_experiment_traces = aliased(
-                models.Trace, name=f"comp_exp_{compare_experiment_index}_traces"
-            )
-            compare_experiment_span_costs = (
-                select(
-                    models.SpanCost.trace_rowid,
-                    func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
-                    func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label(
-                        "prompt_tokens"
-                    ),
-                    func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
-                        "completion_tokens"
-                    ),
-                    func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-                )
-                .select_from(models.SpanCost)
-                .group_by(models.SpanCost.trace_rowid)
-                .subquery()
-                .alias(f"comp_exp_{compare_experiment_index}_span_costs")
-            )
-            compare_experiment_run_latency = LatencyMs(
-                compare_experiment_runs.c.start_time, compare_experiment_runs.c.end_time
-            ).label(f"comp_exp_{compare_experiment_index}_run_latency_ms")
-            compare_experiment_run_prompt_token_count = (
-                compare_experiment_span_costs.c.prompt_tokens
-            )
-            compare_experiment_run_completion_token_count = (
-                compare_experiment_span_costs.c.completion_tokens
-            )
-            compare_experiment_run_total_token_count = compare_experiment_span_costs.c.total_tokens
-            compare_experiment_run_total_cost = compare_experiment_span_costs.c.total_cost
-
-            query = (
-                query.add_columns(
-                    _count_rows(
-                        base_experiment_run_latency < compare_experiment_run_latency,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_latency"),
-                    _count_rows(
-                        base_experiment_run_latency > compare_experiment_run_latency,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_latency"),
-                    _count_rows(
-                        base_experiment_run_latency == compare_experiment_run_latency,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_latency"),
-                    _count_rows(
-                        base_experiment_run_prompt_token_count
-                        < compare_experiment_run_prompt_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_increased_prompt_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_prompt_token_count
-                        > compare_experiment_run_prompt_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_prompt_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_prompt_token_count
-                        == compare_experiment_run_prompt_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_equal_prompt_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_completion_token_count
-                        < compare_experiment_run_completion_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_increased_completion_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_completion_token_count
-                        > compare_experiment_run_completion_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_completion_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_completion_token_count
-                        == compare_experiment_run_completion_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_equal_completion_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_total_token_count
-                        < compare_experiment_run_total_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_increased_total_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_total_token_count
-                        > compare_experiment_run_total_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_total_token_count
-                        == compare_experiment_run_total_token_count,
-                    ).label(
-                        f"comp_exp_{compare_experiment_index}_num_runs_equal_total_token_count"
-                    ),
-                    _count_rows(
-                        base_experiment_run_total_cost < compare_experiment_run_total_cost,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_total_cost"),
-                    _count_rows(
-                        base_experiment_run_total_cost > compare_experiment_run_total_cost,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_total_cost"),
-                    _count_rows(
-                        base_experiment_run_total_cost == compare_experiment_run_total_cost,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_total_cost"),
-                )
-                .join(
-                    compare_experiment_runs,
-                    onclause=base_experiment_runs.c.dataset_example_id
-                    == compare_experiment_runs.c.dataset_example_id,
-                    isouter=True,
-                )
-                .join(
-                    compare_experiment_traces,
-                    onclause=compare_experiment_runs.c.trace_id
-                    == compare_experiment_traces.trace_id,
-                    isouter=True,
-                )
-                .join(
-                    compare_experiment_span_costs,
-                    onclause=compare_experiment_traces.id
-                    == compare_experiment_span_costs.c.trace_rowid,
-                    isouter=True,
-                )
-            )
-
-        async with info.context.db() as session:
-            result = (await session.execute(query)).first()
-        assert result is not None
-
-        num_columns_per_compare_experiment = len(query.columns) // len(compare_experiment_ids)
-        counts = []
-        for compare_experiment_index, compare_experiment_id in enumerate(compare_experiment_ids):
-            start_index = compare_experiment_index * num_columns_per_compare_experiment
-            end_index = start_index + num_columns_per_compare_experiment
-            (
-                num_runs_with_increased_latency,
-                num_runs_with_decreased_latency,
-                num_runs_with_equal_latency,
-                num_runs_with_increased_prompt_token_count,
-                num_runs_with_decreased_prompt_token_count,
-                num_runs_with_equal_prompt_token_count,
-                num_runs_with_increased_completion_token_count,
-                num_runs_with_decreased_completion_token_count,
-                num_runs_with_equal_completion_token_count,
-                num_runs_with_increased_total_token_count,
-                num_runs_with_decreased_total_token_count,
-                num_runs_with_equal_total_token_count,
-                num_runs_with_increased_total_cost,
-                num_runs_with_decreased_total_cost,
-                num_runs_with_equal_total_cost,
-            ) = result[start_index:end_index]
-            counts.append(
-                CompareExperimentRunMetricCounts(
-                    compare_experiment_id=compare_experiment_id,
-                    latency=MetricCounts(
-                        num_increases=num_runs_with_increased_latency,
-                        num_decreases=num_runs_with_decreased_latency,
-                        num_equal=num_runs_with_equal_latency,
-                    ),
-                    prompt_token_count=MetricCounts(
-                        num_increases=num_runs_with_increased_prompt_token_count,
-                        num_decreases=num_runs_with_decreased_prompt_token_count,
-                        num_equal=num_runs_with_equal_prompt_token_count,
-                    ),
-                    completion_token_count=MetricCounts(
-                        num_increases=num_runs_with_increased_completion_token_count,
-                        num_decreases=num_runs_with_decreased_completion_token_count,
-                        num_equal=num_runs_with_equal_completion_token_count,
-                    ),
-                    total_token_count=MetricCounts(
-                        num_increases=num_runs_with_increased_total_token_count,
-                        num_decreases=num_runs_with_decreased_total_token_count,
-                        num_equal=num_runs_with_equal_total_token_count,
-                    ),
-                    total_cost=MetricCounts(
-                        num_increases=num_runs_with_increased_total_cost,
-                        num_decreases=num_runs_with_decreased_total_cost,
-                        num_equal=num_runs_with_equal_total_cost,
-                    ),
-                )
-            )
-        return counts
-
-    @strawberry.field
-    async def compare_experiment_run_annotation_metric_counts(
-        self,
-        info: Info[Context, None],
-        base_experiment_id: GlobalID,
-        compare_experiment_ids: list[GlobalID],
-    ) -> list[CompareExperimentRunAnnotationMetricCounts]:
-        if base_experiment_id in compare_experiment_ids:
-            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
-        if not compare_experiment_ids:
-            raise BadRequest("At least one compare experiment ID must be provided")
-        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
-            raise BadRequest("Compare experiment IDs must be unique")
-
-        try:
-            base_experiment_rowid = from_global_id_with_expected_type(
-                base_experiment_id, models.Experiment.__name__
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
-
-        compare_experiment_rowids = []
-        for compare_experiment_id in compare_experiment_ids:
-            try:
-                compare_experiment_rowids.append(
-                    from_global_id_with_expected_type(
-                        compare_experiment_id, models.Experiment.__name__
-                    )
-                )
-            except ValueError:
-                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
-
-        base_experiment_runs = (
-            select(models.ExperimentRun)
-            .where(
-                models.ExperimentRun.experiment_id == base_experiment_rowid,
-            )
-            .subquery()
-            .alias("base_experiment_runs")
-        )
-        base_experiment_run_annotations = aliased(
-            models.ExperimentRunAnnotation, name="base_experiment_run_annotations"
-        )
-        query = (
-            select(base_experiment_run_annotations.name)
             .select_from(base_experiment_runs)
             .join(
-                base_experiment_run_annotations,
-                onclause=base_experiment_runs.c.id
-                == base_experiment_run_annotations.experiment_run_id,
+                compare_experiment_runs,
+                onclause=base_experiment_runs.c.dataset_example_id
+                == compare_experiment_runs.c.dataset_example_id,
                 isouter=True,
             )
-            .group_by(base_experiment_run_annotations.name)
-            .order_by(base_experiment_run_annotations.name)
         )
-        for compare_experiment_index, compare_experiment_rowid in enumerate(
-            compare_experiment_rowids
-        ):
-            compare_experiment_runs = (
-                select(models.ExperimentRun)
-                .where(
-                    models.ExperimentRun.experiment_id == compare_experiment_rowid,
-                )
-                .subquery()
-                .alias(f"comp_exp_{compare_experiment_index}_runs")
-            )
-            compare_experiment_run_annotations = aliased(
-                models.ExperimentRunAnnotation,
-                name=f"comp_exp_{compare_experiment_index}_run_annotations",
-            )
-            query = (
-                query.add_columns(
-                    _count_rows(
-                        base_experiment_run_annotations.score
-                        < compare_experiment_run_annotations.score,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_increased_score"),
-                    _count_rows(
-                        base_experiment_run_annotations.score
-                        > compare_experiment_run_annotations.score,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_decreased_score"),
-                    _count_rows(
-                        base_experiment_run_annotations.score
-                        == compare_experiment_run_annotations.score,
-                    ).label(f"comp_exp_{compare_experiment_index}_num_runs_equal_score"),
-                )
-                .join(
-                    compare_experiment_runs,
-                    onclause=base_experiment_runs.c.dataset_example_id
-                    == compare_experiment_runs.c.dataset_example_id,
-                    isouter=True,
-                )
-                .join(
-                    compare_experiment_run_annotations,
-                    onclause=compare_experiment_runs.c.id
-                    == compare_experiment_run_annotations.experiment_run_id,
-                    isouter=True,
-                )
-                .where(
-                    base_experiment_run_annotations.name == compare_experiment_run_annotations.name
-                )
-            )
+
         async with info.context.db() as session:
-            result = (await session.execute(query)).all()
+            result = (await session.execute(comparisons_query)).first()
         assert result is not None
-        num_columns_per_compare_experiment = (len(query.columns) - 1) // len(compare_experiment_ids)
-        metric_counts = []
-        for record in result:
-            annotation_name, *counts = record
-            for compare_experiment_index, compare_experiment_id in enumerate(
-                compare_experiment_ids
-            ):
-                start_index = compare_experiment_index * num_columns_per_compare_experiment
-                end_index = start_index + num_columns_per_compare_experiment
-                (
-                    num_runs_with_increased_score,
-                    num_runs_with_decreased_score,
-                    num_runs_with_equal_score,
-                ) = counts[start_index:end_index]
-                metric_counts.append(
-                    CompareExperimentRunAnnotationMetricCounts(
-                        annotation_name=annotation_name,
-                        compare_experiment_id=compare_experiment_id,
-                        num_increases=num_runs_with_increased_score,
-                        num_decreases=num_runs_with_decreased_score,
-                        num_equal=num_runs_with_equal_score,
-                    )
-                )
-        return metric_counts
+
+        return ExperimentRunMetricComparisons(
+            latency=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_latency_improved,
+                num_runs_regressed=result.num_latency_regressed,
+                num_runs_equal=result.num_latency_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            total_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_total_token_count_improved,
+                num_runs_regressed=result.num_total_token_count_regressed,
+                num_runs_equal=result.num_total_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            prompt_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_prompt_token_count_improved,
+                num_runs_regressed=result.num_prompt_token_count_regressed,
+                num_runs_equal=result.num_prompt_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            completion_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_completion_token_count_improved,
+                num_runs_regressed=result.num_completion_token_count_regressed,
+                num_runs_equal=result.num_completion_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            total_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_total_cost_improved,
+                num_runs_regressed=result.num_total_cost_regressed,
+                num_runs_equal=result.num_total_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            prompt_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_prompt_cost_improved,
+                num_runs_regressed=result.num_prompt_cost_regressed,
+                num_runs_equal=result.num_prompt_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            completion_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_completion_cost_improved,
+                num_runs_regressed=result.num_completion_cost_regressed,
+                num_runs_equal=result.num_completion_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+        )
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(
@@ -1550,16 +1454,36 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
     return longest
 
 
-def _count_rows(
-    condition: ColumnElement[Any],
-) -> ColumnElement[Any]:
+def _comparison_count_expression(
+    *,
+    base_column: ColumnElement[Any],
+    compare_column: ColumnElement[Any],
+    optimization_direction: Literal["maximize", "minimize"],
+    comparison_type: Literal["improvement", "regression", "equality"],
+) -> ColumnElement[int]:
     """
-    Returns an expression that counts the number of rows satisfying the condition.
+    Given a base and compare column, returns an expression counting the number of
+    improvements, regressions, or equalities given the optimization direction.
     """
+    if optimization_direction == "maximize":
+        raise NotImplementedError
+
+    if comparison_type == "improvement":
+        condition = compare_column > base_column
+    elif comparison_type == "regression":
+        condition = compare_column < base_column
+    elif comparison_type == "equality":
+        condition = compare_column == base_column
+    else:
+        assert_never(comparison_type)
+
     return func.coalesce(
         func.sum(
             case(
-                (condition, 1),
+                (
+                    condition,
+                    1,
+                ),
                 else_=0,
             )
         ),
