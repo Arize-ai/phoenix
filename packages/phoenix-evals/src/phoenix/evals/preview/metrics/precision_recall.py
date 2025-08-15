@@ -55,6 +55,8 @@ from typing import (
     Tuple,
 )
 
+from pydantic import BaseModel, Field
+
 from ..evaluators import Evaluator, Score
 
 AverageType = Literal["macro", "micro", "weighted"]
@@ -104,6 +106,10 @@ class PrecisionRecallFScore(Evaluator):
       single string (e.g., 'cat') is not supported; pass a sequence instead (e.g., ['cat']).
     """
 
+    class InputSchema(BaseModel):
+        expected: List[Hashable] = Field(..., description="List of expected values.")
+        output: List[Hashable] = Field(..., description="List of output values.")
+
     def __init__(
         self,
         *,
@@ -115,7 +121,7 @@ class PrecisionRecallFScore(Evaluator):
         super().__init__(
             name="precision_recall_fscore",
             source="heuristic",
-            required_fields={"expected", "output"},
+            input_schema=self.InputSchema,
             direction="maximize",
         )
         if beta <= 0:
