@@ -215,7 +215,8 @@ export function ModelsTable({
         accessorKey: "namePattern",
         cell: ({ row }) => {
           const namePattern = row.original.namePattern;
-          const provider = row.original.providerKey;
+          const provider = row.original.provider;
+          const providerKey = row.original.providerKey;
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
               <span>
@@ -231,18 +232,24 @@ export function ModelsTable({
                       color="var(--ac-global-color-grey-300)"
                     >
                       <Flex direction="row" gap="size-100" alignItems="center">
-                        <GenerativeProviderIcon
-                          provider={provider}
-                          height={18}
-                        />
-                        <span>{getProviderName(provider)}</span>
+                        {providerKey ? (
+                          <>
+                            <GenerativeProviderIcon
+                              provider={providerKey}
+                              height={18}
+                            />
+                            <span>{getProviderName(providerKey)}</span>
+                          </>
+                        ) : (
+                          <span>{provider}</span>
+                        )}
                       </Flex>
                     </Token>
                   </Focusable>
                   <Tooltip>
                     <TooltipArrow />
                     The preceding name pattern match will only be applied on
-                    incoming traces with {getProviderName(provider)} set as the
+                    incoming traces with &quot;{provider}&quot; set as the
                     provider.
                   </Tooltip>
                 </TooltipTrigger>
