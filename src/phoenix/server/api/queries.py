@@ -578,8 +578,8 @@ class Query:
         base_experiment_runs = (
             select(
                 models.ExperimentRun.dataset_example_id,
-                models.ExperimentRun.start_time,
-                models.ExperimentRun.end_time,
+                func.min(models.ExperimentRun.start_time).label("start_time"),
+                func.min(models.ExperimentRun.end_time).label("end_time"),
                 func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
                 func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
                 func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
