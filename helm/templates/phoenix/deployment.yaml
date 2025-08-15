@@ -130,7 +130,8 @@ spec:
         - name: home-volume
           emptyDir: {}
         {{- end }}
-        {{- if .Values.persistence.enabled | toString | eq "true" }}
+        {{- $isMemoryDatabase := eq .Values.database.url "sqlite:///:memory:" }}
+        {{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
