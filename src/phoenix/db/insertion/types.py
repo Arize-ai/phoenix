@@ -180,13 +180,11 @@ class Precursors(ABC):
         def as_insertable(
             self,
             span_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.SpanAnnotation:
             return Insertables.SpanAnnotation(
                 span_id=self.span_id,
                 obj=self.obj,
                 span_rowid=span_rowid,
-                id_=id_,
             )
 
     @dataclass(frozen=True)
@@ -197,13 +195,11 @@ class Precursors(ABC):
         def as_insertable(
             self,
             trace_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.TraceAnnotation:
             return Insertables.TraceAnnotation(
                 trace_id=self.trace_id,
                 obj=self.obj,
                 trace_rowid=trace_rowid,
-                id_=id_,
             )
 
     @dataclass(frozen=True)
@@ -215,14 +211,12 @@ class Precursors(ABC):
         def as_insertable(
             self,
             span_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.DocumentAnnotation:
             return Insertables.DocumentAnnotation(
                 span_id=self.span_id,
                 document_position=self.document_position,
                 obj=self.obj,
                 span_rowid=span_rowid,
-                id_=id_,
             )
 
 
@@ -231,40 +225,31 @@ class Insertables(ABC):
     class SpanAnnotation(Precursors.SpanAnnotation):
         span_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.SpanAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
             return obj
 
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
         trace_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.TraceAnnotation:
             obj = copy(self.obj)
             obj.trace_rowid = self.trace_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
             return obj
 
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
         span_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.DocumentAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
             return obj
