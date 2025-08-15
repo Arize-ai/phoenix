@@ -65,6 +65,7 @@ def run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         dataset: The dataset on which to run the experiment.
@@ -235,6 +236,7 @@ async def async_run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         base_url: The base URL for the API endpoint. If not provided, it will be read from the
@@ -498,6 +500,7 @@ def evaluate_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment` or `get_experiment`.
@@ -594,6 +597,7 @@ async def async_evaluate_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         experiment: The experiment to evaluate, returned from `run_experiment`.
