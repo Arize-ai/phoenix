@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.0...arize-phoenix-v11.23.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* unrecognized provider string should not crash graphql for generative models page ([#9094](https://github.com/Arize-ai/phoenix/issues/9094)) ([b91d2be](https://github.com/Arize-ai/phoenix/commit/b91d2bef11aff9233322bda67e121e8003f1bfaf))
+
 ## [11.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.22.1...arize-phoenix-v11.23.0) (2025-08-14)
 
 
