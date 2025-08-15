@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
@@ -187,9 +187,12 @@ def _semconv_provider_to_gql_generative_provider_key(
     if semconv_provider == OpenInferenceLLMProviderValues.XAI:
         return GenerativeProviderKey.XAI
     if semconv_provider == OpenInferenceLLMProviderValues.AWS:
-        raise NotImplementedError("AWS models are not yet supported")
+        return GenerativeProviderKey.AWS
     if semconv_provider == OpenInferenceLLMProviderValues.COHERE:
-        raise NotImplementedError("Cohere models are not yet supported")
+        return None  # TODO
     if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
-        raise NotImplementedError("Mistral AI models are not yet supported")
-    assert_never(semconv_provider)
+        return None  # TODO
+    if TYPE_CHECKING:
+        assert_never(semconv_provider)
+    else:
+        return None
