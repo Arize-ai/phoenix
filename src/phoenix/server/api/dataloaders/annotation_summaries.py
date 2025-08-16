@@ -13,6 +13,7 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.session_filters import apply_session_io_filter
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -20,14 +21,25 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
-SessionFilter: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 AnnotationName: TypeAlias = str
 
-Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, FilterCondition, SessionFilter]
+Segment: TypeAlias = tuple[
+    Kind,
+    ProjectRowId,
+    TimeInterval,
+    FilterCondition,
+    SessionFilterCondition,
+]
 Param: TypeAlias = AnnotationName
 
 Key: TypeAlias = tuple[
-    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter, AnnotationName
+    Kind,
+    ProjectRowId,
+    Optional[TimeRange],
+    FilterCondition,
+    SessionFilterCondition,
+    AnnotationName,
 ]
 Result: TypeAlias = Optional[AnnotationSummary]
 ResultPosition: TypeAlias = int
@@ -35,15 +47,15 @@ DEFAULT_VALUE: Result = None
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, session_filter, eval_name = key
+    kind, project_rowid, time_range, filter_condition, session_filter_condition, eval_name = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, project_rowid, interval, filter_condition, session_filter), eval_name
+    return (kind, project_rowid, interval, filter_condition, session_filter_condition), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class AnnotationSummaryCache(
@@ -64,10 +76,21 @@ class AnnotationSummaryCache(
                 del self._cache[section]
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, project_rowid, interval, filter_condition, session_filter), annotation_name = (
-            _cache_key_fn(key)
+        (
+            (
+                kind,
+                project_rowid,
+                interval,
+                filter_condition,
+                session_filter_condition,
+            ),
+            annotation_name,
+        ) = _cache_key_fn(key)
+        return (project_rowid, annotation_name, kind), (
+            interval,
+            filter_condition,
+            session_filter_condition,
         )
-        return (project_rowid, annotation_name, kind), (interval, filter_condition, session_filter)
 
 
 class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
@@ -107,7 +130,9 @@ def _get_stmt(
     segment: Segment,
     *annotation_names: Param,
 ) -> Select[Any]:
-    kind, project_rowid, (start_time, end_time), filter_condition, session_filter = segment
+    kind, project_rowid, (start_time, end_time), filter_condition, session_filter_condition = (
+        segment
+    )
 
     annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
     entity_model: Union[Type[models.Span], Type[models.Trace]]
@@ -144,22 +169,18 @@ def _get_stmt(
             cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
         )
         entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
-        if session_filter:
-            from phoenix.server.api.types.Project import apply_session_io_filter
-
+        if session_filter_condition:
             entity_count_query = apply_session_io_filter(
-                entity_count_query, session_filter, project_rowid, start_time, end_time
+                entity_count_query, session_filter_condition, project_rowid, start_time, end_time
             )
     elif kind == "trace":
         entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
         entity_count_query = entity_count_query.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
-        if session_filter:
-            from phoenix.server.api.types.Project import apply_session_io_filter
-
+        if session_filter_condition:
             entity_count_query = apply_session_io_filter(
-                entity_count_query, session_filter, project_rowid, start_time, end_time
+                entity_count_query, session_filter_condition, project_rowid, start_time, end_time
             )
 
     entity_count_query = entity_count_query.where(
@@ -195,22 +216,18 @@ def _get_stmt(
         if filter_condition:
             sf = SpanFilter(filter_condition)
             base_stmt = sf(base_stmt)
-        if session_filter:
-            from phoenix.server.api.types.Project import apply_session_io_filter
-
+        if session_filter_condition:
             base_stmt = apply_session_io_filter(
-                base_stmt, session_filter, project_rowid, start_time, end_time
+                base_stmt, session_filter_condition, project_rowid, start_time, end_time
             )
     elif kind == "trace":
         base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
         base_stmt = base_stmt.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
-        if session_filter:
-            from phoenix.server.api.types.Project import apply_session_io_filter
-
+        if session_filter_condition:
             base_stmt = apply_session_io_filter(
-                base_stmt, session_filter, project_rowid, start_time, end_time
+                base_stmt, session_filter_condition, project_rowid, start_time, end_time
             )
     else:
         assert_never(kind)

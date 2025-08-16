@@ -20,6 +20,7 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
+from phoenix.server.session_filters import apply_session_io_filter
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -4130,8 +4131,6 @@ async def test_session_filter_with_uuid_format(
 
     from sqlalchemy import select
 
-    from phoenix.server.api.types.Project import apply_session_io_filter
-
     async with db() as session:
         project = await _add_project(session, name="uuid-filter-test")
         # Generate a proper UUID for the session
@@ -4158,8 +4157,6 @@ async def test_session_filter_with_substring_format(
 ) -> None:
     """Test _apply_session_io_filter with substring format session filter"""
     from sqlalchemy import select
-
-    from phoenix.server.api.types.Project import apply_session_io_filter
 
     async with db() as session:
         project = await _add_project(session, name="substring-filter-test")

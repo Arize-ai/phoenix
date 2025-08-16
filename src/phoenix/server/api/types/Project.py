@@ -50,72 +50,13 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
-
-
-def _build_session_io_filter_subquery(
-    session_filter: str,
-    project_rowid: int,
-    start_time: Optional[Any] = None,
-    end_time: Optional[Any] = None,
-) -> Any:
-    """Build session I/O filter subquery with optional time filtering
-
-    Returns a subquery that finds session IDs containing the session_filter
-    string in their input/output attributes, optionally filtered by time range.
-    """
-    from openinference.semconv.trace import SpanAttributes
-
-    # Constants defined at bottom of file
-    INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
-    OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
-
-    # Build session filter subquery
-    filter_stmt = (
-        select(distinct(models.Trace.project_session_rowid).label("id"))
-        .filter_by(project_rowid=project_rowid)
-        .join_from(models.Trace, models.Span)
-        .where(models.Span.parent_id.is_(None))
-        .where(
-            or_(
-                models.CaseInsensitiveContains(
-                    models.Span.attributes[INPUT_VALUE].as_string(),
-                    session_filter,
-                ),
-                models.CaseInsensitiveContains(
-                    models.Span.attributes[OUTPUT_VALUE].as_string(),
-                    session_filter,
-                ),
-            )
-        )
-    )
-
-    # Apply time filtering within the session filter subquery
-    if start_time:
-        filter_stmt = filter_stmt.where(start_time <= models.Trace.start_time)
-    if end_time:
-        filter_stmt = filter_stmt.where(models.Trace.start_time < end_time)
-
-    return filter_stmt.subquery()
-
-
-def apply_session_io_filter(
-    stmt: Any,
-    session_filter: str,
-    project_rowid: int,
-    start_time: Optional[Any] = None,
-    end_time: Optional[Any] = None,
-) -> Any:
-    """Apply session I/O filter logic with optional time filtering using WHERE IN"""
-    filter_subq = _build_session_io_filter_subquery(
-        session_filter, project_rowid, start_time, end_time
-    )
-    return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
 
 
 @strawberry.type
@@ -466,7 +407,7 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            filter_subq = _build_session_io_filter_subquery(
+            filter_subq = get_filtered_session_rowids_subquery(
                 filter_io_substring,
                 self.project_rowid,
                 time_range.start if time_range else None,

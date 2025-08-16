@@ -12,18 +12,24 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.session_filters import apply_session_io_filter
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
-SessionFilter: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 
-Segment: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]]
+Segment: TypeAlias = tuple[
+    TimeInterval,
+    FilterCondition,
+    SessionFilterCondition,
+    Optional[ProjectRowId],
+]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
+Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilterCondition]
 Result: TypeAlias = SpanCostSummary
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = SpanCostSummary()
@@ -41,7 +47,7 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class SpanCostSummaryCache(
@@ -131,8 +137,6 @@ def _get_stmt(
 
     # Apply session filters if present
     if session_filter:
-        from phoenix.server.api.types.Project import apply_session_io_filter
-
         if not params:
             return select(
                 literal(0).label("project_rowid"),

@@ -10,6 +10,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.session_filters import apply_session_io_filter
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -17,33 +18,41 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
-SessionFilter: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 SpanCount: TypeAlias = int
 
 Segment: TypeAlias = tuple[
-    Kind, TimeInterval, FilterCondition, SessionFilter, Optional[ProjectRowId]
+    Kind, TimeInterval, FilterCondition, SessionFilterCondition, Optional[ProjectRowId]
 ]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilter]
+Key: TypeAlias = tuple[
+    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilterCondition
+]
 Result: TypeAlias = SpanCount
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = 0
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, session_filter = key
+    kind, project_rowid, time_range, filter_condition, session_filter_condition = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
     # Include project_rowid in segment when session_filter is present to prevent
     # cross-project batching
-    segment_project_id = project_rowid if session_filter else None
-    return (kind, interval, filter_condition, session_filter, segment_project_id), project_rowid
+    segment_project_id = project_rowid if session_filter_condition else None
+    return (
+        kind,
+        interval,
+        filter_condition,
+        session_filter_condition,
+        segment_project_id,
+    ), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilter, Kind]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition, Kind]
 
 
 class RecordCountCache(
@@ -127,9 +136,6 @@ def _get_stmt(
         stmt = stmt.add_columns(func.count().label("count"))
     stmt = stmt.where(pid.in_(project_rowids))
     if session_filter:
-        from phoenix.server.api.types.Project import apply_session_io_filter
-
-        # Apply session filter to stmt - use segment_project_id for correct project scoping
         if not project_rowids:
             return select(pid, literal(0).label("count")).where(literal(False))
         # When session_filter is present, segment_project_id contains the correct project ID
