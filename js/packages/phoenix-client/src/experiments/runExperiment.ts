@@ -94,6 +94,11 @@ export type RunExperimentParams = ClientFn & {
    * @default true
    */
   setGlobalTracerProvider?: boolean;
+  /**
+   * Number of times to repeat each dataset example
+   * @default 1
+   */
+  repetitions?: number;
 };
 
 /**
@@ -141,6 +146,7 @@ export async function runExperiment({
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
+  repetitions = 1,
 }: RunExperimentParams): Promise<RanExperiment> {
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
@@ -179,6 +185,7 @@ export async function runExperiment({
           description: experimentDescription,
           metadata: experimentMetadata,
           project_name: projectName,
+          repetitions,
         },
       })
       .then((res) => res.data?.data);
@@ -255,6 +262,7 @@ export async function runExperiment({
     isDryRun,
     nExamples,
     tracer: taskTracer,
+    repetitions,
   });
   logger.info(`✅ Task runs completed`);
 
@@ -307,6 +315,7 @@ function runTaskWithExamples({
   isDryRun,
   nExamples,
   tracer,
+  repetitions = 1,
 }: {
   /** The client to use */
   client: PhoenixClient;
@@ -328,9 +337,17 @@ function runTaskWithExamples({
   nExamples: number;
   /** TraceProvider instance that will be used to create spans from task calls */
   tracer: Tracer;
+  /** Number of repetitions per example */
+  repetitions?: number;
 }): Promise<void> {
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
-  const run = async (example: ExampleWithId) => {
+  const run = async ({
+    example,
+    repetitionNumber,
+  }: {
+    example: ExampleWithId;
+    repetitionNumber: number;
+  }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
       logger.info(
         `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
@@ -366,7 +383,7 @@ function runTaskWithExamples({
           body: {
             dataset_example_id: example.id,
             output: thisRun.output,
-            repetition_number: 0,
+            repetition_number: repetitionNumber,
             start_time: thisRun.startTime.toISOString(),
             end_time: thisRun.endTime.toISOString(),
             trace_id: thisRun.traceId,
@@ -396,15 +413,23 @@ function runTaskWithExamples({
   };
   const q = queue(run, concurrency);
   const examplesToUse = dataset.examples.slice(0, nExamples);
-  examplesToUse.forEach((example) =>
-    q.push(example, (err) => {
-      if (err) {
-        logger.error(
-          `Error running task "${task.name}" on example "${example.id}": ${err}`
-        );
-      }
-    })
-  );
+
+  examplesToUse
+    .flatMap((example) =>
+      Array.from({ length: repetitions }, (_, index) => ({
+        example,
+        repetitionNumber: index + 1,
+      }))
+    )
+    .forEach((exampleWithRepetition) =>
+      q.push(exampleWithRepetition, (err) => {
+        if (err) {
+          logger.error(
+            `Error running task "${task.name}" on example "${exampleWithRepetition.example.id}" repetition ${exampleWithRepetition.repetitionNumber}: ${err}`
+          );
+        }
+      })
+    );
   return q.drain();
 }
 
