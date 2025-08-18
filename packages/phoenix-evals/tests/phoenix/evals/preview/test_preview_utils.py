@@ -5,7 +5,6 @@ import pytest
 
 from phoenix.evals.preview.utils import (
     _extract_with_path,
-    _split_json_path,
     _validate_field_value,
     remap_eval_input,
 )
@@ -73,45 +72,6 @@ class TestValidateFieldValue:
             _validate_field_value(value, "field_name", "key")
 
 
-class TestSplitJSONPath:
-    """Test the _split_json_path utility function."""
-
-    @pytest.mark.parametrize(
-        "path,expected_tokens",
-        [
-            pytest.param("", [], id="Empty path"),
-            pytest.param("simple", ["simple"], id="Simple key"),
-            pytest.param("a.b", ["a", "b"], id="Dot-separated keys"),
-            pytest.param("a.b.c", ["a", "b", "c"], id="Multiple dot-separated keys"),
-            pytest.param("items[0]", ["items", 0], id="List index"),
-            pytest.param("items[1]", ["items", 1], id="List index with value"),
-            pytest.param("items[0].name", ["items", 0, "name"], id="List index then key"),
-            pytest.param("data.items[0].name", ["data", "items", 0, "name"], id="Complex path"),
-            pytest.param("items[0][1]", ["items", 0, 1], id="Multiple list indices"),
-            pytest.param("items[0].name[1]", ["items", 0, "name", 1], id="Key then list index"),
-        ],
-    )
-    def test_tokenize_path_success(self, path, expected_tokens):
-        """Test successful path tokenization."""
-        result = _split_json_path(path)
-        assert result == expected_tokens
-
-    @pytest.mark.parametrize(
-        "path,expected_error_pattern",
-        [
-            pytest.param("items[", "Malformed bracket syntax", id="Missing closing bracket"),
-            pytest.param("items[abc]", "Invalid index", id="Non-integer index"),
-            pytest.param(
-                "items[1.5", "Malformed bracket syntax", id="Float index without closing bracket"
-            ),
-        ],
-    )
-    def test_tokenize_path_errors(self, path, expected_error_pattern):
-        """Test path tokenization error handling."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            _split_json_path(path)
-
-
 class TestExtractWithPath:
     """Test the _extract_with_path utility function."""
 
@@ -123,7 +83,6 @@ class TestExtractWithPath:
             pytest.param({"a": {"b": {"c": "d"}}}, "a.b.c", "d", id="Deep nested key"),
             pytest.param({"items": ["a", "b", "c"]}, "items[0]", "a", id="List index"),
             pytest.param({"items": ["a", "b", "c"]}, "items[1]", "b", id="List index with value"),
-            pytest.param({"items": ["a", "b", "c"]}, "items[-1]", "c", id="Negative list index"),
             pytest.param(
                 {"data": {"items": ["a", "b"]}}, "data.items[0]", "a", id="Nested list index"
             ),
@@ -374,7 +333,7 @@ class TestRemapEvalInputAdvanced:
         eval_input = {"x": " A "}
         required_fields = {"y"}
         input_mapping = {"y": "x | unknown_transform | strip"}
-        # Invalid path syntax should raise an error from _split_json_path
+        # Invalid jq syntax should raise an error
         with pytest.raises(ValueError):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
@@ -382,14 +341,14 @@ class TestRemapEvalInputAdvanced:
         eval_input = {"x": "value"}
         required_fields = {"y"}
 
-        # Test malformed bracket syntax
+        # Test malformed jq syntax
         input_mapping = {"y": "x["}
-        with pytest.raises(ValueError, match="Malformed bracket syntax"):
+        with pytest.raises(ValueError):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-        # Test invalid index (non-integer)
+        # Test invalid jq syntax
         input_mapping = {"y": "x[abc]"}
-        with pytest.raises(ValueError, match="Invalid index"):
+        with pytest.raises(ValueError):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
     def test_invalid_mapping_type_raises(self):

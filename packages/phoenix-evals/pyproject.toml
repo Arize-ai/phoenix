@@ -29,6 +29,7 @@ dependencies = [
   "typing-extensions>=4.5, <5",
   "pystache",
   "pydantic>=2.0.0",
+  "jq",
 ]
 
 [project.optional-dependencies]

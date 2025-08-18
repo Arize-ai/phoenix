@@ -1,4 +1,6 @@
-from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
+
+import jq
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -48,6 +50,8 @@ def remap_eval_input(
                 if key in eval_input:
                     value = eval_input[key]
                     found = True
+                else:
+                    found = False
             else:
                 try:
                     value = _extract_with_path(eval_input, path)
@@ -88,19 +92,20 @@ def remap_eval_input(
             if found:
                 remapped_eval_input[field_name] = value
 
-    # Pass through any top-level keys from eval_input that were not explicitly mapped.
+    # Pass through any top-level keys from eval_input that weren't explicitly mapped.
     # This allows optional schema fields supplied by the caller to be included without mapping.
     mapped_values = set()
-    for extractor in mapping.values():
+    for field_name, extractor in mapping.items():
         if isinstance(extractor, str):
             path = extractor
             if not path:  # Empty path means direct key mapping
-                mapped_values.add(extractor)
+                mapped_values.add(field_name)
             else:
                 # For path mappings, extract the first key
-                tokens = _split_json_path(path)
-                if tokens and isinstance(tokens[0], str):
-                    mapped_values.add(tokens[0])
+                # Find the first key (before any dots or brackets)
+                first_key = path.split(".")[0].split("[")[0]
+                if first_key:
+                    mapped_values.add(first_key)
 
     for k, v in eval_input.items():
         # Only pass through keys that weren't explicitly mapped to avoid duplicates
@@ -108,53 +113,6 @@ def remap_eval_input(
             remapped_eval_input[k] = v
 
     return remapped_eval_input
-
-
-def _split_json_path(path: str) -> List[Union[str, int]]:
-    """
-    Convert a dotted/bracket path into tokens.
-    Supports:
-      - dict traversal via dots: input.query
-      - list index via brackets: items[0]
-
-    Returns:
-        A list of tokens.
-
-    Raises:
-        ValueError: If the path is invalid (malformed brackets, non-integer indexes, etc.).
-    """
-    tokens: List[Union[str, int]] = []
-    # Split on '.' first
-    parts = path.split(".") if path else []
-    for part in parts:
-        # Handle zero or more [index] suffixes
-        buf = ""
-        i = 0
-        # accumulate leading identifier
-        while i < len(part) and part[i] != "[":
-            buf += part[i]
-            i += 1
-        if buf:
-            tokens.append(buf)
-        # parse any bracket segments
-        while i < len(part):
-            if part[i] != "[":
-                break
-            j = part.find("]", i + 1)
-            if j == -1:
-                # malformed bracket - missing closing bracket
-                raise ValueError(f"Malformed bracket syntax in path '{path}': missing closing ']'")
-            index_str = part[i + 1 : j]
-            try:
-                idx = int(index_str)
-                tokens.append(idx)
-            except ValueError:
-                # non-integer indexes not supported
-                raise ValueError(
-                    f"Invalid index '{index_str}' in path '{path}': must be an integer"
-                )
-            i = j + 1
-    return tokens
 
 
 def _validate_field_value(value: Any, field_name: str, key: str) -> None:
@@ -181,7 +139,7 @@ def _validate_field_value(value: Any, field_name: str, key: str) -> None:
 
 def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
     """
-    Extract a value from a nested JSON structure using a path.
+    Extract a value from a nested JSON structure using jq.
 
     The path is a string with the following format:
     - dict traversal via dots: input.query
@@ -196,17 +154,36 @@ def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
     """
     if not path:
         return None
-    tokens = _split_json_path(path)
-    current: Any = payload
-    for tok in tokens:
-        if isinstance(tok, int):
-            if not isinstance(current, (list, tuple)) or tok >= len(current):
-                msg = f"Index out of range at '{tok}' for path '{path}'"
-                raise ValueError(msg)
-            current = current[tok]
+
+    try:
+        # Convert to jq syntax: ensure path starts with a dot
+        jq_path = "." + path if not path.startswith(".") else path
+        result = jq.first(jq_path, payload)
+
+        # jq.first returns None when the path doesn't exist, but we want to raise an error
+        if result is None:
+            # Check if the path is valid by trying to compile it
+            jq.compile(jq_path)
+            # If compilation succeeds but result is None, the path doesn't exist
+            # We need to distinguish between missing keys and index out of bounds
+            if "[" in path:
+                # This is likely an index out of bounds error
+                raise ValueError(f"Index out of range for path '{path}'")
+            else:
+                # Check if this is a simple key that exists in the payload
+                if path in payload:
+                    # The key exists but has a None value, which is valid
+                    return payload[path]
+                else:
+                    # This is a missing key error
+                    raise ValueError(f"Missing key while resolving path '{path}'")
+
+        return result
+    except Exception as e:
+        # Convert jq errors to more user-friendly messages
+        if "Cannot index string with number" in str(e):
+            raise ValueError(f"Index out of range for path '{path}'") from e
+        elif "Cannot index" in str(e):
+            raise ValueError(f"Missing key while resolving path '{path}'") from e
         else:
-            if not isinstance(current, Mapping) or tok not in current:
-                msg = f"Missing key '{tok}' while resolving path '{path}'"
-                raise ValueError(msg)
-            current = current[tok]
-    return current
+            raise ValueError(f"Invalid path '{path}': {str(e)}") from e
