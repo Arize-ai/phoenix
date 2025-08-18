@@ -522,28 +522,28 @@ def create_evaluator(
 
         # Handle tuples by processing each element
         if isinstance(result, tuple):
-            score_data: Dict[str, Any] = {}
+            tuple_score_data: Dict[str, Any] = {}
             for item in result:
                 if isinstance(item, (int, float, bool)):
-                    score_data["score"] = float(item) if isinstance(item, bool) else item
+                    tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
                 elif isinstance(item, str):
                     if item.count(" ") <= 2:  # ≤3 words
-                        score_data["label"] = item
+                        tuple_score_data["label"] = item
                     else:  # ≥4 words
-                        score_data["explanation"] = item
+                        tuple_score_data["explanation"] = item
                 elif isinstance(item, dict):
                     for key, value in item.items():
                         if key in ["score", "label", "explanation"]:
-                            score_data[key] = value
-            return Score(name=name, source=source, direction=direction, **score_data)
+                            tuple_score_data[key] = value
+            return Score(name=name, source=source, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
         if isinstance(result, dict):
-            score_data: Dict[str, Any] = {}
+            dict_score_data: Dict[str, Any] = {}
             for key, value in result.items():
                 if key in ["score", "label", "explanation"]:
-                    score_data[key] = value
-            return Score(name=name, source=source, direction=direction, **score_data)
+                    dict_score_data[key] = value
+            return Score(name=name, source=source, direction=direction, **dict_score_data)
 
         # Handle numbers and booleans
         if isinstance(result, (int, float, bool)):
