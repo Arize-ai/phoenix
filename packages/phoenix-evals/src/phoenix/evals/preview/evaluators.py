@@ -497,7 +497,7 @@ def create_evaluator(
     - A tuple of values (handled based on individual element types)
 
     An input_schema is automatically created from the function signature, capturing the required
-    input fields,their types, and any defaults. For best results, do not use *args or **kwargs.
+    input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
 
     The decorator automatically handles conversion to a valid Score object.
     Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
