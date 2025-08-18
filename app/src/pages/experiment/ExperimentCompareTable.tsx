@@ -483,13 +483,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <CellTop extra={runControls}>
                 <ExperimentRunMetadata {...run} />
               </CellTop>
-              <PaddedCell>
-                <ExperimentRunOutput
-                  {...run}
-                  displayFullText={displayFullText}
-                  setDialog={setDialog}
-                />
-              </PaddedCell>
+              <ExperimentRunOutput
+                {...run}
+                displayFullText={displayFullText}
+                setDialog={setDialog}
+              />
             </>
           ) : (
             <PaddedCell>
