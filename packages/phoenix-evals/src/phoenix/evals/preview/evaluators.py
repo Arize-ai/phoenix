@@ -522,7 +522,7 @@ def create_evaluator(
 
         # Handle tuples by processing each element
         if isinstance(result, tuple):
-            score_data = {}
+            score_data: Dict[str, Any] = {}
             for item in result:
                 if isinstance(item, (int, float, bool)):
                     score_data["score"] = float(item) if isinstance(item, bool) else item
@@ -539,7 +539,7 @@ def create_evaluator(
 
         # Handle dictionaries
         if isinstance(result, dict):
-            score_data = {}
+            score_data: Dict[str, Any] = {}
             for key, value in result.items():
                 if key in ["score", "label", "explanation"]:
                     score_data[key] = value
