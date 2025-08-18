@@ -111,6 +111,9 @@ export function ProjectMetricsPage() {
   const isOpenTimeRange =
     contextTimeRange.start === null || contextTimeRange.end === null;
 
+  // Create a stable "now" timestamp to avoid infinite re-renders
+  const stableNow = useMemo(() => new Date(), []);
+
   const timeRange = useMemo<TimeRange>(() => {
     const start = contextTimeRange.start;
     const end = contextTimeRange.end;
@@ -120,15 +123,18 @@ export function ProjectMetricsPage() {
     } else if (!start && end) {
       return { start: new Date(end.getTime() - ONE_MONTH_MS), end };
     } else if (start && !end) {
-      return { start, end: new Date() };
+      return { start, end: stableNow };
     } else if (!start && !end) {
-      return { start: new Date(Date.now() - ONE_MONTH_MS), end: new Date() };
+      return {
+        start: new Date(stableNow.getTime() - ONE_MONTH_MS),
+        end: stableNow,
+      };
     } else {
       throw new Error(
         `Invalid time range: ${JSON.stringify(contextTimeRange)}`
       );
     }
-  }, [contextTimeRange]);
+  }, [contextTimeRange, stableNow]);
   return (
     <main
       css={css`
