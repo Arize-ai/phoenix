@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
-import jq
+import jq  # type: ignore
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
