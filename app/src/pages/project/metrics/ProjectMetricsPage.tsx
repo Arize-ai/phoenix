@@ -120,7 +120,7 @@ export function ProjectMetricsPage() {
     } else if (!start && end) {
       return { start: new Date(end.getTime() - ONE_MONTH_MS), end };
     } else if (start && !end) {
-      return { start, end: new Date(start.getTime() + ONE_MONTH_MS) };
+      return { start, end: new Date() };
     } else if (!start && !end) {
       return { start: new Date(Date.now() - ONE_MONTH_MS), end: new Date() };
     } else {
