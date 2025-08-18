@@ -98,7 +98,7 @@ def remap_eval_input(
                 mapped_values.add(extractor)
             else:
                 # For path mappings, extract the first key
-                tokens = _tokenize_path(path)
+                tokens = _split_json_path(path)
                 if tokens and isinstance(tokens[0], str):
                     mapped_values.add(tokens[0])
 
@@ -110,7 +110,7 @@ def remap_eval_input(
     return remapped_eval_input
 
 
-def _tokenize_path(path: str) -> List[Union[str, int]]:
+def _split_json_path(path: str) -> List[Union[str, int]]:
     """
     Convert a dotted/bracket path into tokens.
     Supports:
@@ -196,7 +196,7 @@ def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
     """
     if not path:
         return None
-    tokens = _tokenize_path(path)
+    tokens = _split_json_path(path)
     current: Any = payload
     for tok in tokens:
         if isinstance(tok, int):

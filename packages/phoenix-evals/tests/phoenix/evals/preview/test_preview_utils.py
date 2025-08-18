@@ -5,7 +5,7 @@ import pytest
 
 from phoenix.evals.preview.utils import (
     _extract_with_path,
-    _tokenize_path,
+    _split_json_path,
     _validate_field_value,
     remap_eval_input,
 )
@@ -73,8 +73,8 @@ class TestValidateFieldValue:
             _validate_field_value(value, "field_name", "key")
 
 
-class TestTokenizePath:
-    """Test the _tokenize_path utility function."""
+class TestSplitJSONPath:
+    """Test the _split_json_path utility function."""
 
     @pytest.mark.parametrize(
         "path,expected_tokens",
@@ -93,7 +93,7 @@ class TestTokenizePath:
     )
     def test_tokenize_path_success(self, path, expected_tokens):
         """Test successful path tokenization."""
-        result = _tokenize_path(path)
+        result = _split_json_path(path)
         assert result == expected_tokens
 
     @pytest.mark.parametrize(
@@ -109,7 +109,7 @@ class TestTokenizePath:
     def test_tokenize_path_errors(self, path, expected_error_pattern):
         """Test path tokenization error handling."""
         with pytest.raises(ValueError, match=expected_error_pattern):
-            _tokenize_path(path)
+            _split_json_path(path)
 
 
 class TestExtractWithPath:
@@ -374,7 +374,7 @@ class TestRemapEvalInputAdvanced:
         eval_input = {"x": " A "}
         required_fields = {"y"}
         input_mapping = {"y": "x | unknown_transform | strip"}
-        # Invalid path syntax should raise an error from _tokenize_path
+        # Invalid path syntax should raise an error from _split_json_path
         with pytest.raises(ValueError):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
