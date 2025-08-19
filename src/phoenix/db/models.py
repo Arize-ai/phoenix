@@ -188,7 +188,7 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     impl = JSON_
 
     def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
-        return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) else {}
+        return value if isinstance(value, dict) else {}
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) and value else value
@@ -200,7 +200,7 @@ class JsonList(TypeDecorator[list[Any]]):
     impl = JSON_
 
     def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
-        return orjson.loads(orjson.dumps(value)) if isinstance(value, list) else []
+        return value if isinstance(value, list) else []
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
