@@ -24,7 +24,9 @@ async def test_async_executor_executes():
     async def dummy_fn(payload: int) -> int:
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
+    executor = AsyncExecutor(
+        dummy_fn, concurrency=10, max_retries=0, enable_dynamic_concurrency=False
+    )
     inputs = [1, 2, 3, 4, 5]
     outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4]
@@ -34,7 +36,9 @@ async def test_async_executor_executes_many_tasks():
     async def dummy_fn(payload: int) -> int:
         return payload
 
-    executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
+    executor = AsyncExecutor(
+        dummy_fn, concurrency=10, max_retries=0, enable_dynamic_concurrency=False
+    )
     inputs = [x for x in range(100)]
     outputs, _ = await executor.execute(inputs)
     assert outputs == inputs
@@ -44,7 +48,9 @@ def test_async_executor_runs_synchronously():
     async def dummy_fn(payload: int) -> int:
         return payload - 2
 
-    executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
+    executor = AsyncExecutor(
+        dummy_fn, concurrency=10, max_retries=0, enable_dynamic_concurrency=False
+    )
     inputs = [1, 2, 3, 4, 5]
     outputs, _ = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
@@ -57,7 +63,12 @@ async def test_async_executor_execute_exits_early_on_error():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
+        dummy_fn,
+        concurrency=1,
+        max_retries=0,
+        exit_on_error=True,
+        fallback_return_value=52,
+        enable_dynamic_concurrency=False,
     )
     inputs = [1, 2, 3, 4, 5]
     outputs, _ = await executor.execute(inputs)
@@ -71,7 +82,12 @@ def test_async_executor_run_exits_early_on_error():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
+        dummy_fn,
+        concurrency=1,
+        max_retries=0,
+        exit_on_error=True,
+        fallback_return_value=52,
+        enable_dynamic_concurrency=False,
     )
     inputs = [1, 2, 3, 4, 5]
     outputs, statuses = executor.run(inputs)
@@ -102,7 +118,12 @@ async def test_async_executor_can_continue_on_error():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=1, exit_on_error=False, fallback_return_value=52
+        dummy_fn,
+        concurrency=1,
+        max_retries=1,
+        exit_on_error=False,
+        fallback_return_value=52,
+        enable_dynamic_concurrency=False,
     )
     inputs = [1, 2, 3, 4, 5]
     outputs, statuses = await executor.execute(inputs)
@@ -141,7 +162,12 @@ async def test_async_executor_marks_completed_with_retries_status():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=3, exit_on_error=False, fallback_return_value=52
+        dummy_fn,
+        concurrency=1,
+        max_retries=3,
+        exit_on_error=False,
+        fallback_return_value=52,
+        enable_dynamic_concurrency=False,
     )
     inputs = [1, 2, 3, 4, 5]
     outputs, execution_details = await executor.execute(inputs)
@@ -194,6 +220,12 @@ async def test_async_executor_sigint_handling():
         max_retries=0,
         fallback_return_value="test",
         termination_signal=signal.SIGUSR1,
+        enable_dynamic_concurrency=False,
+        dynamic_initial_target=1,
+        dynamic_window_seconds=0.1,
+        dynamic_increase_step=1,
+        dynamic_decrease_ratio=0.5,
+        dynamic_inactive_check_interval=0.01,
     )
     task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
@@ -205,7 +237,7 @@ async def test_async_executor_sigint_handling():
 @pytest.mark.xfail(reason="Flaky test", strict=False)
 async def test_async_executor_retries():
     mock_generate = AsyncMock(side_effect=RuntimeError("Test exception"))
-    executor = AsyncExecutor(mock_generate, max_retries=3)
+    executor = AsyncExecutor(mock_generate, max_retries=3, enable_dynamic_concurrency=False)
 
     await executor.execute([1])  # by default the executor does not raise on generation errors
 
@@ -572,16 +604,20 @@ def test_executor_factory_returns_async_not_in_thread_if_async_context():
 
 class MockController:
     def __init__(self, *, current_target: int, inactive_check_interval: float = 0.01) -> None:
-        self._current_target = current_target
+        self._target_concurrency = current_target
         self._inactive_check_interval = inactive_check_interval
 
     @property
+    def target_concurrency(self) -> int:
+        return max(1, int(self._target_concurrency))
+
+    @property
     def current_target(self) -> int:
-        return self._current_target
+        return self.target_concurrency
 
     @current_target.setter
     def current_target(self, value: int) -> None:  # type: ignore[no-redef]
-        self._current_target = value
+        self._target_concurrency = value
 
     @property
     def inactive_check_interval(self) -> float:

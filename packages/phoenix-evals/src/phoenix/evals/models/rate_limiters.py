@@ -92,7 +92,7 @@ class AdaptiveTokenBucket:
 
         self.rate = original_rate * self.rate_reduction_factor
         printif(
-            verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
+            verbose, f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error"
         )
 
         self.rate = max(self.rate, self.minimum_rate)
@@ -167,7 +167,7 @@ class RateLimiter:
     def __init__(
         self,
         rate_limit_error: Optional[Type[BaseException]] = None,
-        max_rate_limit_retries: int = 2,
+        max_rate_limit_retries: int = 0,
         initial_per_second_request_rate: float = 1.0,
         maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
@@ -215,7 +215,7 @@ class RateLimiter:
                         )
                         continue
             raise RateLimitError(
-                f"Exceeded max ({self._max_rate_limit_retries}) retries",
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
                 current_rate_tokens_per_sec=self._throttler.rate,
                 initial_rate_tokens_per_sec=self._throttler._initial_rate,
                 enforcement_window_seconds=self._throttler.enforcement_window,

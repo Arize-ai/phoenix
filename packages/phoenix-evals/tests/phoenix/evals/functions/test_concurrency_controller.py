@@ -27,7 +27,7 @@ async def test_aimd_increase_on_clean_window() -> None:
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
 
-    assert controller.current_target == 2
+    assert controller.target_concurrency == 2
 
 
 @pytest.mark.asyncio
@@ -49,7 +49,7 @@ async def test_aimd_decrease_on_error_window() -> None:
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
 
-    assert controller.current_target == 2
+    assert controller.target_concurrency == 2
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_aimd_caps_at_max_concurrency() -> None:
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
 
-    assert controller.current_target == 3
+    assert controller.target_concurrency == 3
 
 
 @pytest.mark.asyncio
@@ -87,13 +87,13 @@ async def test_aimd_no_change_before_window_end() -> None:
     controller.record_success(0.01)
     await asyncio.sleep(0.1)
     # Still within the window; target should not change yet
-    assert controller.current_target == 3
+    assert controller.target_concurrency == 3
 
     # Now let the window end and trigger an update
     await asyncio.sleep(0.45)
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
-    assert controller.current_target == 5
+    assert controller.target_concurrency == 5
 
 
 @pytest.mark.asyncio
@@ -113,14 +113,17 @@ async def test_aimd_multiple_error_windows_fractional_then_floor_to_one() -> Non
     await asyncio.sleep(0.06)
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
-    assert controller.current_target == 1.5
+    # Raw target retains fractional value internally
+    assert abs(controller._target_concurrency - 1.5) < 1e-9  # type: ignore[attr-defined]
+    # Applied target used by consumers is floored to 1 and clamped within bounds
+    assert controller.target_concurrency == 1
 
     # Second error window → 1.5 * 0.5 = 0.75 ⇒ clamped to 1.0
     controller.record_error()
     await asyncio.sleep(0.06)
     controller.record_success(0.02)
     await asyncio.sleep(0.02)
-    assert controller.current_target == 1.0
+    assert controller.target_concurrency == 1
 
 
 @pytest.mark.asyncio
@@ -141,4 +144,4 @@ async def test_collapse_on_burst_errors_within_window() -> None:
     controller.record_error()
     controller.record_error()
     # No need to wait for window end; collapse is immediate on threshold
-    assert controller.current_target == 1.0
+    assert controller.target_concurrency == 1

@@ -96,10 +96,10 @@ class ConcurrencyController:
         inactive_check_interval: float = 1.0,
         smoothing_factor: float = 0.2,
         collapse_window_seconds: float = 30.0,
-        collapse_error_threshold: int = 2,
+        collapse_error_threshold: int = 4,
     ) -> None:
         self._max_concurrency = max(1, int(max_concurrency))
-        self._current_target = max(1.0, min(float(self._max_concurrency), float(initial_target)))
+        self._target_concurrency = float(self._max_concurrency)
         self._window_seconds = float(window_seconds)
         self._increase_step = float(increase_step)
         self._decrease_ratio = float(decrease_ratio)
@@ -118,8 +118,9 @@ class ConcurrencyController:
         self.inactive_check_interval = max(0.1, float(inactive_check_interval))
 
     @property
-    def current_target(self) -> float:
-        return self._current_target
+    def target_concurrency(self) -> int:
+        floored = max(1, int(self._target_concurrency))
+        return min(floored, self._max_concurrency)
 
     def _feedback_window_finished(self) -> bool:
         now = time.time()
@@ -129,12 +130,9 @@ class ConcurrencyController:
         now = time.time()
         had_issue = (self._timeout_count + self._error_count) > 0
         if had_issue:
-            new_target = max(1.0, float(self._current_target) * self._decrease_ratio)
-            self._current_target = max(1.0, min(float(self._max_concurrency), new_target))
+            self._target_concurrency *= self._decrease_ratio
         else:
-            self._current_target = min(
-                float(self._max_concurrency), self._current_target + self._increase_step
-            )
+            self._target_concurrency += self._increase_step
         self._window_started_at = now
         self._success_count = 0
         self._timeout_count = 0
@@ -164,7 +162,7 @@ class ConcurrencyController:
             len(self._error_timestamps) >= self._collapse_error_threshold
             and (now - self._error_timestamps[0]) <= self._collapse_window_seconds
         ):
-            self._current_target = 1.0
+            self._target_concurrency = 1.0
         if self._feedback_window_finished():
             self._update_concurrency_target()
 
@@ -208,7 +206,7 @@ class AsyncExecutor(Executor):
         termination_signal: signal.Signals = signal.SIGINT,
         timeout: Optional[int] = None,
         *,
-        enable_dynamic_concurrency: bool = False,
+        enable_dynamic_concurrency: bool = True,
         dynamic_initial_target: Optional[int] = None,
         dynamic_window_seconds: float = 5.0,
         dynamic_increase_step: int = 1,
@@ -272,7 +270,7 @@ class AsyncExecutor(Executor):
             marked_done = False
             # Dynamic gating before dequeue; inactive workers do not touch the queue
             if self._concurrency_controller is not None:
-                if worker_index >= self._concurrency_controller.current_target:
+                if worker_index >= self._concurrency_controller.target_concurrency:
                     # If production is finished and queue is empty, exit instead of sleeping
                     if done_producing.is_set() and queue.empty():
                         break
