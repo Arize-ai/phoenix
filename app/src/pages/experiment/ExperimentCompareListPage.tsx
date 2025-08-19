@@ -21,35 +21,18 @@ type TableRow = {
   input: string;
   referenceOutput: string;
   tokens: {
-    black: number;
-    blue: number;
-    purple: number;
+    baseExperimentValue: number;
+    compareExperimentValues: number[];
   };
   latency: {
-    black: number;
-    blue: number;
-    purple: number;
+    baseExperimentValue: number;
+    compareExperimentValues: number[];
   };
   cost: {
-    black: number;
-    blue: number;
-    purple: number;
+    baseExperimentValue: number;
+    compareExperimentValues: number[];
   };
 };
-
-const tableData: TableRow[] = [
-  {
-    id: "example-1",
-    example: "RGFØYZ...",
-    input:
-      '{"messages" [{"role": "assistant", "content": "To print \\"Hello, World!\\" in JavaScript, you can..."}',
-    referenceOutput:
-      '{"messages" [{"role": "assistant", "content": "To print \\"Hello, World!\\" in JavaScript, you can..."}',
-    tokens: { black: 401, blue: 238, purple: 1314 },
-    latency: { black: 1.33, blue: 1.49, purple: 2.83 },
-    cost: { black: 0.004, blue: 0.032, purple: 0.002 },
-  },
-];
 
 export function ExperimentCompareListPage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
@@ -123,7 +106,53 @@ export function ExperimentCompareListPage() {
     `,
     loaderData
   );
-  console.log({ data });
+
+  const tableData: TableRow[] = useMemo(() => {
+    return (
+      data?.compareExperiments.edges.map((edge) => {
+        const comparison = edge.comparison;
+        const example = comparison.example;
+        const runItems = comparison.runComparisonItems;
+
+        const [baseExperimentRun, ...compareExperimentRuns] = runItems.map(
+          (item) => item.runs[0]
+        );
+        const tableData = {
+          id: example.id,
+          example: example.id,
+          input: example.revision.input,
+          referenceOutput: example.revision.referenceOutput,
+          tokens: {
+            baseExperimentValue:
+              baseExperimentRun.costSummary.total.tokens ?? 0,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run.costSummary.total.tokens ?? 0
+            ),
+          },
+          latency: {
+            baseExperimentValue:
+              (new Date(baseExperimentRun.endTime).getTime() -
+                new Date(baseExperimentRun.startTime).getTime()) /
+              1000,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) =>
+                (new Date(run.endTime).getTime() -
+                  new Date(run.startTime).getTime()) /
+                1000
+            ),
+          },
+          cost: {
+            baseExperimentValue: baseExperimentRun.costSummary.total.cost ?? 0,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run.costSummary.total.cost ?? 0
+            ),
+          },
+        };
+        return tableData;
+      }) ?? []
+    );
+  }, [data]);
+
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
@@ -138,7 +167,7 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <Text size="S" color="text-500">
-              {value}
+              {JSON.stringify(value)}
             </Text>
           );
         },
@@ -150,7 +179,7 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <Text size="S" color="text-500">
-              {value}
+              {JSON.stringify(value)}
             </Text>
           );
         },
@@ -196,16 +225,13 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">{tokens.black}</Text>
+                <Text size="S">{tokens.baseExperimentValue}</Text>
               </li>
-              <li>
-                <Text size="S">{tokens.blue}</Text>
-                <span>↓</span>
-              </li>
-              <li>
-                <Text size="S">{tokens.purple}</Text>
-                <span>↑</span>
-              </li>
+              {tokens.compareExperimentValues.map((value, index) => (
+                <li key={index}>
+                  <Text size="S">{value}</Text>
+                </li>
+              ))}
             </ul>
           );
         },
@@ -251,16 +277,13 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">{latency.black}</Text>
+                <Text size="S">{latency.baseExperimentValue.toFixed(2)}s</Text>
               </li>
-              <li>
-                <Text size="S">{latency.blue}</Text>
-                <span>↑</span>
-              </li>
-              <li>
-                <Text size="S">{latency.purple}</Text>
-                <span>↑</span>
-              </li>
+              {latency.compareExperimentValues.map((value, index) => (
+                <li key={index}>
+                  <Text size="S">{value.toFixed(2)}s</Text>
+                </li>
+              ))}
             </ul>
           );
         },
@@ -306,16 +329,13 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">${cost.black}</Text>
+                <Text size="S">${cost.baseExperimentValue.toFixed(3)}</Text>
               </li>
-              <li>
-                <Text size="S">${cost.blue}</Text>
-                <span>↑</span>
-              </li>
-              <li>
-                <Text size="S">${cost.purple}</Text>
-                <span>↓</span>
-              </li>
+              {cost.compareExperimentValues.map((value, index) => (
+                <li key={index}>
+                  <Text size="S">${value.toFixed(3)}</Text>
+                </li>
+              ))}
             </ul>
           );
         },
