@@ -5,13 +5,13 @@ client
 
 Client
 ------
-.. autoclass:: phoenix.client.Client
+.. autoclass:: client.Client
    :members:
    :show-inheritance:
 
 AsyncClient
 -----------
-.. autoclass:: phoenix.client.AsyncClient
+.. autoclass:: client.AsyncClient
    :members:
    :show-inheritance:
 
@@ -20,40 +20,40 @@ Resources
 
 Projects
 ~~~~~~~~
-.. autoclass:: phoenix.client.resources.projects.Projects
+.. autoclass:: client.resources.projects.Projects
    :members:
    :show-inheritance:
 
 AsyncProjects
 ~~~~~~~~~~~~~
-.. autoclass:: phoenix.client.resources.projects.AsyncProjects
+.. autoclass:: client.resources.projects.AsyncProjects
    :members:
    :show-inheritance:
 
 Prompts
 ~~~~~~~
-.. autoclass:: phoenix.client.resources.prompts.Prompts
+.. autoclass:: client.resources.prompts.Prompts
    :members:
    :show-inheritance:
 
 AsyncPrompts
 ~~~~~~~~~~~~
-.. autoclass:: phoenix.client.resources.prompts.AsyncPrompts
+.. autoclass:: client.resources.prompts.AsyncPrompts
    :members:
    :show-inheritance:
 
 Spans
 ~~~~~
-.. autoclass:: phoenix.client.resources.spans.Spans
+.. autoclass:: client.resources.spans.Spans
    :members:
    :show-inheritance:
 
 .. rubric:: Data extraction
 
-.. automethod:: phoenix.client.resources.spans.Spans.get_spans_dataframe
+.. automethod:: client.resources.spans.Spans.get_spans_dataframe
    :no-index:
 
-.. automethod:: phoenix.client.resources.spans.Spans.get_span_annotations_dataframe
+.. automethod:: client.resources.spans.Spans.get_span_annotations_dataframe
    :no-index:
 
 .. rubric:: Main phoenix compatibility methods
@@ -99,26 +99,50 @@ For compatibility with the main phoenix package API:
 
 AsyncSpans
 ~~~~~~~~~~
-.. autoclass:: phoenix.client.resources.spans.AsyncSpans
+.. autoclass:: client.resources.spans.AsyncSpans
+   :members:
+   :show-inheritance:
+
+Datasets
+~~~~~~~~
+.. autoclass:: client.resources.datasets.Datasets
+   :members:
+   :show-inheritance:
+
+AsyncDatasets
+~~~~~~~~~~~~~
+.. autoclass:: client.resources.datasets.AsyncDatasets
+   :members:
+   :show-inheritance:
+
+Experiments
+~~~~~~~~~~~
+.. autoclass:: client.resources.experiments.Experiments
+   :members:
+   :show-inheritance:
+
+AsyncExperiments
+~~~~~~~~~~~~~~~~
+.. autoclass:: client.resources.experiments.AsyncExperiments
    :members:
    :show-inheritance:
 
 Annotations
 ~~~~~~~~~~~
-.. autoclass:: phoenix.client.resources.annotations.Annotations
+.. autoclass:: client.resources.annotations.Annotations
    :members:
    :show-inheritance:
 
 AsyncAnnotations
 ~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.client.resources.annotations.AsyncAnnotations
+.. autoclass:: client.resources.annotations.AsyncAnnotations
    :members:
    :show-inheritance:
 
 Module Contents
 ---------------
 
-.. automodule:: phoenix.client
+.. automodule:: client
    :members:
    :exclude-members: Client, AsyncClient
    :no-undoc-members: 
