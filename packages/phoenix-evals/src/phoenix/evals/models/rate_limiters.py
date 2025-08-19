@@ -273,7 +273,7 @@ class RateLimiter:
                     finally:
                         self._rate_limit_handling.set()  # allow new requests to start
             raise RateLimitError(
-                f"Exceeded max ({self._max_rate_limit_retries}) retries",
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
                 current_rate_tokens_per_sec=self._throttler.rate,
                 initial_rate_tokens_per_sec=self._throttler._initial_rate,
                 enforcement_window_seconds=self._throttler.enforcement_window,
