@@ -221,7 +221,7 @@ class AsyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.base_priority = 0
         self.termination_signal = termination_signal
-        self.timeout: int = timeout or 120
+        self.timeout: int = timeout or 60
 
         # Dynamic concurrency controller (AIMD)
         self._concurrency_controller: Optional[ConcurrencyController] = None
