@@ -6,7 +6,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
-import { Annotation } from "./types";
+import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = css`
   display: flex;
@@ -19,8 +19,6 @@ const textCSS = css`
     text-overflow: ellipsis;
   }
 `;
-
-type AnnotationDisplayPreference = "label" | "score" | "none";
 
 const getAnnotationDisplayValue = ({
   annotation,
@@ -86,9 +84,7 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <Text size={size} fontFamily="mono">
-            {labelValue}
-          </Text>
+          <Text fontFamily="mono">{labelValue}</Text>
         </div>
       )}
     </Flex>
