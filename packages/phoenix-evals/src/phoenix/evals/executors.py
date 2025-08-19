@@ -89,7 +89,7 @@ class ConcurrencyController:
         self,
         *,
         max_concurrency: int,
-        initial_target: int,
+        initial_target: float,
         window_seconds: float = 5,
         increase_step: float = 0.5,
         decrease_ratio: float = 0.5,
@@ -99,7 +99,7 @@ class ConcurrencyController:
         collapse_error_threshold: int = 4,
     ) -> None:
         self._max_concurrency = max(1, int(max_concurrency))
-        self._target_concurrency = float(self._max_concurrency)
+        self._target_concurrency = float(initial_target)
         self._window_seconds = float(window_seconds)
         self._increase_step = float(increase_step)
         self._decrease_ratio = float(decrease_ratio)
