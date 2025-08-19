@@ -290,9 +290,9 @@ class TestEvaluator:
                 id="Missing required field raises ValueError",
             ),
             pytest.param(
-                {"input": ""},
+                {"input": None},
                 {"input"},
-                pytest.raises(ValueError, match="cannot be empty"),
+                pytest.raises(ValueError, match="Input validation failed"),
                 id="Empty required field raises ValueError",
             ),
         ],

@@ -78,12 +78,6 @@ def remap_eval_input(
                     f"eval_input keys={list(eval_input.keys())}"
                 )
                 raise ValueError(msg)
-            key_repr = (
-                extractor
-                if isinstance(extractor, str)
-                else f"callable:{getattr(extractor, '__name__', 'lambda')}"
-            )
-            _validate_field_value(value, field_name, str(key_repr))
             remapped_eval_input[field_name] = value
         else:
             # Optional field: include only if we successfully extracted or present
@@ -111,28 +105,6 @@ def remap_eval_input(
             remapped_eval_input[k] = v
 
     return remapped_eval_input
-
-
-def _validate_field_value(value: Any, field_name: str, key: str) -> None:
-    """
-    Validate that a required field value is present and not empty.
-
-    Raises ValueError if:
-      - value is None
-      - value is an empty or whitespace-only string
-      - value is an empty list/tuple/dict
-    """
-    if value is None:
-        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be None")
-    if isinstance(value, str):
-        if value.strip() == "":
-            raise ValueError(
-                f"Required field '{field_name}' (from '{key}') cannot be empty or whitespace-only"
-            )
-    elif isinstance(value, (list, tuple)) and len(value) == 0:
-        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be empty")
-    elif isinstance(value, dict) and len(value) == 0:
-        raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be empty")
 
 
 def _extract_with_jq(payload: Mapping[str, Any], path: str) -> Any:

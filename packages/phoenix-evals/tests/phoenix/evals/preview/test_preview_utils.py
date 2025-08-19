@@ -1,79 +1,15 @@
 # type: ignore
-from contextlib import nullcontext as does_not_raise
 
 import pytest
 
 from phoenix.evals.preview.utils import (
-    _extract_with_path,
-    _validate_field_value,
+    _extract_with_jq,
     remap_eval_input,
 )
 
 
-class TestValidateFieldValue:
-    """Test the _validate_field_value utility function."""
-
-    @pytest.mark.parametrize(
-        "value,field_name,key,expected_raises",
-        [
-            pytest.param(
-                "valid string", "field_name", "key", does_not_raise(), id="Valid string value"
-            ),
-            pytest.param(123, "field_name", "key", does_not_raise(), id="Valid integer value"),
-            pytest.param([1, 2, 3], "field_name", "key", does_not_raise(), id="Valid list value"),
-            pytest.param(
-                {"key": "value"}, "field_name", "key", does_not_raise(), id="Valid dict value"
-            ),
-            pytest.param(
-                None, "field_name", "key", pytest.raises(ValueError), id="None value raises error"
-            ),
-            pytest.param(
-                "", "field_name", "key", pytest.raises(ValueError), id="Empty string raises error"
-            ),
-            pytest.param(
-                "   ",
-                "field_name",
-                "key",
-                pytest.raises(ValueError),
-                id="Whitespace-only string raises error",
-            ),
-            pytest.param(
-                [], "field_name", "key", pytest.raises(ValueError), id="Empty list raises error"
-            ),
-            pytest.param(
-                (), "field_name", "key", pytest.raises(ValueError), id="Empty tuple raises error"
-            ),
-            pytest.param(
-                {}, "field_name", "key", pytest.raises(ValueError), id="Empty dict raises error"
-            ),
-        ],
-    )
-    def test_validate_field_value(self, value, field_name, key, expected_raises):
-        """Test _validate_field_value with various inputs."""
-        with expected_raises:
-            _validate_field_value(value, field_name, key)
-
-    @pytest.mark.parametrize(
-        "value,expected_error_pattern",
-        [
-            pytest.param(None, "cannot be None", id="None value error message"),
-            pytest.param("", "cannot be empty or whitespace-only", id="Empty string error message"),
-            pytest.param(
-                "   ", "cannot be empty or whitespace-only", id="Whitespace-only error message"
-            ),
-            pytest.param([], "cannot be empty", id="Empty list error message"),
-            pytest.param((), "cannot be empty", id="Empty tuple error message"),
-            pytest.param({}, "cannot be empty", id="Empty dict error message"),
-        ],
-    )
-    def test_validate_field_value_error_messages(self, value, expected_error_pattern):
-        """Test that _validate_field_value raises appropriate error messages."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            _validate_field_value(value, "field_name", "key")
-
-
-class TestExtractWithPath:
-    """Test the _extract_with_path utility function."""
+class TestExtractWithJQ:
+    """Test the _extract_with_jq utility function."""
 
     @pytest.mark.parametrize(
         "payload,path,expected_value",
@@ -105,7 +41,7 @@ class TestExtractWithPath:
     )
     def test_extract_with_path_success(self, payload, path, expected_value):
         """Test successful value extraction from nested structure."""
-        result = _extract_with_path(payload, path)
+        result = _extract_with_jq(payload, path)
         assert result == expected_value
 
     @pytest.mark.parametrize(
@@ -123,12 +59,12 @@ class TestExtractWithPath:
     def test_extract_with_path_errors(self, payload, path, expected_error_pattern):
         """Test value extraction error handling."""
         with pytest.raises(ValueError, match=expected_error_pattern):
-            _extract_with_path(payload, path)
+            _extract_with_jq(payload, path)
 
     def test_extract_with_path_empty_path(self):
         """Test that empty path returns None."""
         payload = {"key": "value"}
-        result = _extract_with_path(payload, "")
+        result = _extract_with_jq(payload, "")
         assert result is None
 
 
@@ -177,20 +113,6 @@ class TestRemapEvalInput:
                 None,
                 r"(Missing required field|Missing key)",
                 id="Missing required field raises error",
-            ),
-            pytest.param(
-                {"input": ""},
-                {"input"},
-                None,
-                "cannot be empty",
-                id="Empty field value raises error",
-            ),
-            pytest.param(
-                {"input": None},
-                {"input"},
-                None,
-                "cannot be None",
-                id="None field value raises error",
             ),
         ],
     )
@@ -315,13 +237,6 @@ class TestRemapEvalInputAdvanced:
                 {"v": "root.missing"},
                 "Missing key",
                 id="missing_key",
-            ),
-            pytest.param(
-                {"a": None},
-                {"a"},
-                None,
-                "cannot be None",
-                id="required_field_resolves_to_none",
             ),
         ],
     )
