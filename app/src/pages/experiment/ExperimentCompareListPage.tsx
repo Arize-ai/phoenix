@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useLoaderData } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -8,6 +10,10 @@ import {
 import { css } from "@emotion/react";
 
 import { Text, View } from "@phoenix/components";
+
+import type { ExperimentCompareListPage_comparisons$key } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
+import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
+import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 type TableRow = {
   id: string;
@@ -46,6 +52,78 @@ const tableData: TableRow[] = [
 ];
 
 export function ExperimentCompareListPage() {
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const { data } = usePaginationFragment<
+    ExperimentCompareListPageQuery,
+    ExperimentCompareListPage_comparisons$key
+  >(
+    graphql`
+      fragment ExperimentCompareListPage_comparisons on Query
+      @refetchable(queryName: "ExperimentCompareListPageQuery")
+      @argumentDefinitions(
+        first: { type: "Int", defaultValue: 50 }
+        after: { type: "String", defaultValue: null }
+        baseExperimentId: { type: "ID!" }
+      ) {
+        compareExperiments(
+          first: $first
+          after: $after
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) @connection(key: "ExperimentCompareListPage_compareExperiments") {
+          edges {
+            comparison: node {
+              example {
+                id
+                revision {
+                  input
+                  referenceOutput: output
+                }
+              }
+              runComparisonItems {
+                experimentId
+                runs {
+                  id
+                  output
+                  error
+                  startTime
+                  endTime
+                  trace {
+                    traceId
+                    projectId
+                  }
+                  costSummary {
+                    total {
+                      tokens
+                      cost
+                    }
+                  }
+                  annotations {
+                    edges {
+                      annotation: node {
+                        id
+                        name
+                        score
+                        label
+                        annotatorKind
+                        explanation
+                        trace {
+                          traceId
+                          projectId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    loaderData
+  );
+  console.log({ data });
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
