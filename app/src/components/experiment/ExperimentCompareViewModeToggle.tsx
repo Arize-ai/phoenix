@@ -6,7 +6,7 @@ import {
 } from "@phoenix/components";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-export type ExperimentCompareViewMode = "grid" | "metrics";
+export type ExperimentCompareViewMode = "grid" | "list" | "metrics";
 
 /**
  * TypeGuard for the experiment compare view mode
@@ -16,6 +16,7 @@ export function isExperimentCompareViewMode(
 ): maybeViewMode is ExperimentCompareViewMode {
   const experimentCompareViewModes: ExperimentCompareViewMode[] = [
     "grid",
+    "list",
     "metrics",
   ];
   return (

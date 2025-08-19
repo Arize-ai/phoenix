@@ -24,6 +24,7 @@ import type {
   ExperimentComparePage_selectedCompareExperiments$key,
 } from "./__generated__/ExperimentComparePage_selectedCompareExperiments.graphql";
 import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
+import { ExperimentCompareListPage } from "./ExperimentCompareListPage";
 import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
@@ -133,7 +134,10 @@ function ExperimentComparePageContent() {
     return <ExperimentCompareGridPage />;
   } else if (viewMode === "metrics") {
     return <ExperimentCompareMetricsPage />;
-  } else {
+  } else if (viewMode === "list") {
+    return <ExperimentCompareListPage />;
+  }
+  {
     return (
       <View padding="size-200">
         <Alert variant="info" title={`Invalid View Mode Requested`}>
