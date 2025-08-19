@@ -52,6 +52,7 @@ import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
@@ -1280,10 +1281,6 @@ export function ExperimentRunCellAnnotationsList(
         gap: var(--ac-global-dimension-static-size-100);
         flex: none;
         padding: var(--ac-global-dimension-static-size-100);
-        li:hover {
-          background-color: var(--ac-global-color-grey-100);
-          cursor: pointer;
-        }
       `}
     >
       {annotations.map((annotation) => {
@@ -1302,33 +1299,44 @@ export function ExperimentRunCellAnnotationsList(
             `}
           >
             <AnnotationTooltip annotation={annotation}>
-              <AnnotationLabel annotation={annotation} />
+              <button
+                className="button--reset"
+                css={css`
+                  background-color: lightblue;
+                  padding: var(--ac-global-dimension-size-50);
+                  flex: 1 1 auto;
+                  width: 100%;
+                  &:hover {
+                    background-color: var(--ac-global-color-grey-200);
+                  }
+                `}
+              >
+                <AnnotationNameAndValue
+                  annotation={annotation}
+                  displayPreference={"score"}
+                />
+              </button>
             </AnnotationTooltip>
-            <Flex direction="row" gap="size-100">
-              <IconButton size="S">
-                <Icon svg={<Icons.InfoOutline />} />
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                onPress={() => {
+                  if (hasTrace) {
+                    onTraceClick({
+                      annotationName: annotation.name,
+                      traceId,
+                      projectId,
+                    });
+                  }
+                }}
+              >
+                <Icon svg={<Icons.Trace />} />
               </IconButton>
-              <TooltipTrigger>
-                <IconButton
-                  size="S"
-                  onPress={() => {
-                    if (hasTrace) {
-                      onTraceClick({
-                        annotationName: annotation.name,
-                        traceId,
-                        projectId,
-                      });
-                    }
-                  }}
-                >
-                  <Icon svg={<Icons.Trace />} />
-                </IconButton>
-                <Tooltip>
-                  <TooltipArrow />
-                  View evaluation trace
-                </Tooltip>
-              </TooltipTrigger>
-            </Flex>
+              <Tooltip>
+                <TooltipArrow />
+                View evaluation trace
+              </Tooltip>
+            </TooltipTrigger>
           </li>
         );
       })}
