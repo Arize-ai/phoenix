@@ -88,6 +88,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
+    ExperimentAnnotationNamesDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentRunAnnotations,
@@ -682,6 +683,7 @@ def create_graphql_router(
                         cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None
                     ),
                 ),
+                experiment_annotation_names=ExperimentAnnotationNamesDataLoader(db),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
                 experiment_run_annotations=ExperimentRunAnnotations(db),

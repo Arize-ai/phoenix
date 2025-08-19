@@ -15,6 +15,7 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
+from .experiment_annotation_names import ExperimentAnnotationNamesDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
@@ -71,6 +72,7 @@ __all__ = [
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
+    "ExperimentAnnotationNamesDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunAnnotations",
