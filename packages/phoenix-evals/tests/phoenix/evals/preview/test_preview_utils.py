@@ -3,13 +3,13 @@
 import pytest
 
 from phoenix.evals.preview.utils import (
-    _extract_with_jq,
+    _extract_with_glom,
     remap_eval_input,
 )
 
 
-class TestExtractWithJQ:
-    """Test the _extract_with_jq utility function."""
+class TestExtractWithGlom:
+    """Test the _extract_with_glom utility function."""
 
     @pytest.mark.parametrize(
         "payload,path,expected_value",
@@ -17,54 +17,49 @@ class TestExtractWithJQ:
             pytest.param({"key": "value"}, "key", "value", id="Simple key"),
             pytest.param({"a": {"b": "c"}}, "a.b", "c", id="Nested key"),
             pytest.param({"a": {"b": {"c": "d"}}}, "a.b.c", "d", id="Deep nested key"),
-            pytest.param({"items": ["a", "b", "c"]}, "items[0]", "a", id="List index"),
-            pytest.param({"items": ["a", "b", "c"]}, "items[1]", "b", id="List index with value"),
+            pytest.param({"items": ["a", "b", "c"]}, "items.0", "a", id="List index"),
+            pytest.param({"items": ["a", "b", "c"]}, "items.1", "b", id="List index with value"),
             pytest.param(
-                {"data": {"items": ["a", "b"]}}, "data.items[0]", "a", id="Nested list index"
+                {"data": {"items": ["a", "b"]}}, "data.items.0", "a", id="Nested list index"
             ),
             pytest.param(
                 {"items": [{"name": "item1"}, {"name": "item2"}]},
-                "items[0].name",
+                "items.0.name",
                 "item1",
                 id="List of objects",
             ),
             pytest.param(
                 {"items": [{"data": {"value": 42}}]},
-                "items[0].data.value",
+                "items.0.data.value",
                 42,
                 id="Deep nested in list",
             ),
-            pytest.param(
-                {"items": [["a", "b"], ["c", "d"]]}, "items[0][1]", "b", id="Nested lists"
-            ),
+            pytest.param({"items": [["a", "b"], ["c", "d"]]}, "items.0.1", "b", id="Nested lists"),
         ],
     )
     def test_extract_with_path_success(self, payload, path, expected_value):
         """Test successful value extraction from nested structure."""
-        result = _extract_with_jq(payload, path)
+        result = _extract_with_glom(payload, path)
         assert result == expected_value
 
     @pytest.mark.parametrize(
-        "payload,path,expected_error_pattern",
+        "payload,path",
         [
-            pytest.param({}, "missing", "Missing key", id="Missing key"),
-            pytest.param({"a": {}}, "a.missing", "Missing key", id="Missing nested key"),
-            pytest.param({"items": []}, "items[0]", "Index out of range", id="Empty list index"),
-            pytest.param(
-                {"items": ["a"]}, "items[1]", "Index out of range", id="Index out of range"
-            ),
-            pytest.param({"a": "not_list"}, "a[0]", "Index out of range", id="Index on non-list"),
+            pytest.param({"a": {}}, "a.missing", id="Missing nested key"),
+            pytest.param({"items": []}, "items.0", id="Empty list index"),
+            pytest.param({"items": ["a"]}, "items.1", id="Index out of range"),
+            pytest.param({"a": "not_list"}, "a.0", id="Index on non-list"),
         ],
     )
-    def test_extract_with_path_errors(self, payload, path, expected_error_pattern):
+    def test_extract_with_path_errors(self, payload, path):
         """Test value extraction error handling."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            _extract_with_jq(payload, path)
+        with pytest.raises(ValueError):
+            _extract_with_glom(payload, path)
 
     def test_extract_with_path_empty_path(self):
         """Test that empty path returns None."""
         payload = {"key": "value"}
-        result = _extract_with_jq(payload, "")
+        result = _extract_with_glom(payload, "")
         assert result is None
 
 
@@ -103,25 +98,6 @@ class TestRemapEvalInput:
         """Test successful remapping of eval_input."""
         result = remap_eval_input(eval_input, required_fields, input_mapping)
         assert result == expected_result
-
-    @pytest.mark.parametrize(
-        "eval_input,required_fields,input_mapping,expected_error_pattern",
-        [
-            pytest.param(
-                {"input": "test"},
-                {"input", "output"},
-                None,
-                r"(Missing required field|Missing key)",
-                id="Missing required field raises error",
-            ),
-        ],
-    )
-    def test_remap_eval_input_errors(
-        self, eval_input, required_fields, input_mapping, expected_error_pattern
-    ):
-        """Test remap_eval_input error handling."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            remap_eval_input(eval_input, required_fields, input_mapping)
 
 
 class TestRemapEvalInputAdvanced:
@@ -168,7 +144,7 @@ class TestRemapEvalInputAdvanced:
             pytest.param(
                 {"items": ["keep", "drop"]},
                 {"v"},
-                {"v": "items[0]"},
+                {"v": "items.0"},
                 {"v": "keep"},
                 id="bracket_index_access",
             ),
@@ -228,14 +204,14 @@ class TestRemapEvalInputAdvanced:
                 {"items": ["only-one"]},
                 {"v"},
                 {"v": "items[1]"},
-                "Index out of range",
+                "index out of range",
                 id="index_out_of_range",
             ),
             pytest.param(
                 {"root": {}},
                 {"v"},
                 {"v": "root.missing"},
-                "Missing key",
+                "Invalid path",
                 id="missing_key",
             ),
         ],

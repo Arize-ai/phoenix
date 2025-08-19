@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
-import jq  # type: ignore
+from glom import GlomError, PathAccessError, glom
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -52,7 +52,7 @@ def remap_eval_input(
                     found = True
             else:
                 try:
-                    value = _extract_with_jq(eval_input, path)
+                    value = _extract_with_glom(eval_input, path)
                     found = True
                 except ValueError as e:
                     # Missing/invalid path: for required fields, re-raise; for optional,
@@ -107,53 +107,27 @@ def remap_eval_input(
     return remapped_eval_input
 
 
-def _extract_with_jq(payload: Mapping[str, Any], path: str) -> Any:
+def _extract_with_glom(payload: Mapping[str, Any], path: str) -> Any:
     """
-    Extract a value from a nested JSON structure using jq.
+    Extract a value from a nested JSON structure using glom.
 
-    The path is a string with the following format:
-    - dict traversal via dots: input.query
-    - list index via brackets: items[0]
-    - combination of both: input.docs[0]
+    The path is a dot-separated string with optional list indexing:
+        - Dicts: "input.query"
+        - Lists: "items.0"
+        - Mixed: "input.docs.0.title"
 
     Returns:
-        The extracted value.
+        The extracted value (can be None).
 
     Raises:
-        ValueError: If the path is invalid or the value is not found.
+        ValueError: If the path is invalid (missing key, index out of bounds, etc).
     """
     if not path:
         return None
 
     try:
-        # Convert to jq syntax: ensure path starts with a dot
-        jq_path = "." + path if not path.startswith(".") else path
-        result = jq.first(jq_path, payload)
-
-        # jq.first returns None when the path doesn't exist, but we want to raise an error
-        if result is None:
-            # Check if the path is valid by trying to compile it
-            jq.compile(jq_path)
-            # If compilation succeeds but result is None, the path doesn't exist
-            # We need to distinguish between missing keys and index out of bounds
-            if "[" in path:
-                # This is likely an index out of bounds error
-                raise ValueError(f"Index out of range for path '{path}'")
-            else:
-                # Check if this is a simple key that exists in the payload
-                if path in payload:
-                    # The key exists but has a None value, which is valid
-                    return payload[path]
-                else:
-                    # This is a missing key error
-                    raise ValueError(f"Missing key while resolving path '{path}'")
-
-        return result
-    except Exception as e:
-        # Convert jq errors to more user-friendly messages
-        if "Cannot index string with number" in str(e):
-            raise ValueError(f"Index out of range for path '{path}'") from e
-        elif "Cannot index" in str(e):
-            raise ValueError(f"Missing key while resolving path '{path}'") from e
-        else:
-            raise ValueError(f"Invalid path '{path}': {str(e)}") from e
+        return glom(payload, path)
+    except PathAccessError:
+        raise ValueError(f"Invalid path or index out of range: '{path}'")
+    except GlomError as e:
+        raise ValueError(f"Error resolving path '{path}': {e}") from e
