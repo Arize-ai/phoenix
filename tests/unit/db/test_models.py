@@ -5,6 +5,7 @@ from typing import Any, Sequence
 
 import pytest
 import sqlalchemy as sa
+from deepdiff.diff import DeepDiff
 from sqlalchemy import select
 
 from phoenix.db import models
@@ -481,22 +482,164 @@ class TestJsonSerialization:
                 await session.scalars(select(models.Experiment.metadata_))
             ).first() == expected_converted
 
-        # === SQLITE-SPECIFIC NaN/Inf EDGE CASE TESTING ===
-        # Test that ORM still sanitizes raw NaN/Inf values in SQLite storage
+        # === COMPREHENSIVE SQLite NaN/Inf EDGE CASE TESTING ===
+        # SQLite allows raw NaN/Inf in JSON TEXT storage, but ORM should sanitize on read
+        # This tests the critical edge case where raw NaN/Inf bypasses our type adapters
         if db.dialect is SupportedSQLDialect.SQLITE:
-            # Insert raw NaN/Inf values directly into database
-            raw_nan_attrs = {"test_nan": float("nan"), "test_inf": float("inf")}
+            # Create NaN/Inf-only payload for raw JSON insertion (json.dumps can handle NaN/Inf)
+            raw_attrs_with_nan = {
+                "a": float("nan"),
+                "b": [1, float("nan"), {"c": float("nan"), "ci": float("inf")}, [float("-inf")]],
+                "d": {
+                    "e": float("nan"),
+                    "f": [float("nan"), {"g": float("nan"), "gi": float("inf")}],
+                },
+                "h": None,
+                "i": True,
+                "j": "NaN",
+                "k": float("inf"),
+                "l": float("-inf"),
+                "x": {
+                    "y": [
+                        float("nan"),
+                        {"z": float("nan"), "zi": float("inf")},
+                        [float("inf"), float("-inf"), float("nan")],
+                    ]
+                },
+            }
+            # Expected sanitized version
+            sanitized_nan_attrs = {
+                "a": None,
+                "b": [1, None, {"c": None, "ci": None}, [None]],
+                "d": {"e": None, "f": [None, {"g": None, "gi": None}]},
+                "h": None,
+                "i": True,
+                "j": "NaN",
+                "k": None,
+                "l": None,
+                "x": {"y": [None, {"z": None, "zi": None}, [None, None, None]]},
+            }
+            # Simple NaN/Inf event for edge case testing
+            raw_event_with_nan = {
+                "name": "NaN Test Event",
+                "timestamp": EVENT_TS,
+                "attributes": raw_attrs_with_nan,
+            }
+            sanitized_event = {**raw_event_with_nan, "attributes": sanitized_nan_attrs}
+
+            # Force raw NaN/Inf JSON directly into database (bypassing type adapters)
             async with db() as session:
+                # Update all JSON columns with raw NaN/Inf values
                 await session.execute(
                     sa.text("UPDATE spans SET attributes = :attrs").bindparams(
-                        attrs=json.dumps(raw_nan_attrs)
+                        attrs=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE spans SET events = :events").bindparams(
+                        events=json.dumps([raw_event_with_nan])
+                    )
+                )
+                # Update all metadata tables
+                await session.execute(
+                    sa.text("UPDATE span_annotations SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE trace_annotations SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE document_annotations SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE datasets SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE dataset_versions SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
+                    )
+                )
+                await session.execute(
+                    sa.text("UPDATE experiments SET metadata = :m").bindparams(
+                        m=json.dumps(raw_attrs_with_nan)
                     )
                 )
 
-            # Verify ORM still sanitizes on read
+            # Verify raw storage: SQLite should contain unsanitized NaN/Inf values
+            # Use DeepDiff because NaN != NaN in direct equality comparisons
             async with db() as session:
-                stored_attrs = (await session.scalars(select(models.Span.attributes))).first()
-                assert stored_attrs == {"test_nan": None, "test_inf": None}
+                # Check span attributes
+                raw_attrs_result = (
+                    await session.scalars(sa.text("SELECT attributes FROM spans"))
+                ).first()
+                raw_attrs_result = _decode_if_sqlite([raw_attrs_result], db.dialect)[0]
+                assert not DeepDiff(
+                    [raw_attrs_result], [raw_attrs_with_nan], ignore_nan_inequality=True
+                )
+
+                # Check span events
+                raw_events_result = (
+                    await session.scalars(sa.text("SELECT events FROM spans"))
+                ).first()
+                raw_events_result = _decode_if_sqlite([raw_events_result], db.dialect)[0]
+                assert not DeepDiff(
+                    [raw_events_result], [[raw_event_with_nan]], ignore_nan_inequality=True
+                )
+
+                # Check all metadata tables have raw NaN/Inf
+                metadata_tables = [
+                    "span_annotations",
+                    "trace_annotations",
+                    "document_annotations",
+                    "datasets",
+                    "dataset_versions",
+                    "experiments",
+                ]
+                for table in metadata_tables:
+                    raw_metadata = (
+                        await session.scalars(sa.text(f"SELECT metadata FROM {table}"))
+                    ).first()
+                    raw_metadata = _decode_if_sqlite([raw_metadata], db.dialect)[0]
+                    assert not DeepDiff(
+                        [raw_metadata], [raw_attrs_with_nan], ignore_nan_inequality=True
+                    )
+
+            # CRITICAL TEST: Even with raw NaN/Inf in DB storage, ORM reads must return sanitized values
+            async with db() as session:
+                # Span attributes & events should be sanitized by ORM
+                assert (
+                    await session.scalars(select(models.Span.attributes))
+                ).first() == sanitized_nan_attrs
+                assert (await session.scalars(select(models.Span.events))).first() == [
+                    sanitized_event
+                ]
+
+                # All metadata fields should be sanitized by ORM
+                assert (
+                    await session.scalars(select(models.SpanAnnotation.metadata_))
+                ).first() == sanitized_nan_attrs
+                assert (
+                    await session.scalars(select(models.TraceAnnotation.metadata_))
+                ).first() == sanitized_nan_attrs
+                assert (
+                    await session.scalars(select(models.DocumentAnnotation.metadata_))
+                ).first() == sanitized_nan_attrs
+                assert (
+                    await session.scalars(select(models.Dataset.metadata_))
+                ).first() == sanitized_nan_attrs
+                assert (
+                    await session.scalars(select(models.DatasetVersion.metadata_))
+                ).first() == sanitized_nan_attrs
+                assert (
+                    await session.scalars(select(models.Experiment.metadata_))
+                ).first() == sanitized_nan_attrs
 
 
 def _decode_if_sqlite(values: Sequence[Any], dialect: SupportedSQLDialect) -> list[Any]:
