@@ -675,31 +675,6 @@ class TestRegistryAndDecorator:
             _registry.clear()
             _registry.update(original_registry)
 
-    def test_create_evaluator_decorator(self):
-        """Test create_evaluator decorator."""
-
-        @create_evaluator("test_evaluator", "heuristic", "maximize")
-        def test_func(input_text: str) -> Score:
-            return Score(score=0.8, explanation="test")
-
-        # Test the decorated function
-        result = test_func({"input_text": "test"})
-
-        assert len(result) == 1
-        assert result[0].name == "test_evaluator"
-
-    def test_create_evaluator_with_mapping(self):
-        """Test create_evaluator with input mapping."""
-
-        @create_evaluator("test_evaluator", "heuristic")
-        def test_func(input_text: str) -> Score:
-            return Score(score=0.8)
-
-        result = test_func({"user_input": "test"}, input_mapping={"input_text": "user_input"})
-
-        assert len(result) == 1
-        assert result[0].name == "test_evaluator"
-
     def test_create_evaluator_registration(self):
         """Test that create_evaluator registers the function."""
 
@@ -710,6 +685,243 @@ class TestRegistryAndDecorator:
         # Check if it's registered
         evaluators = list_evaluators()
         assert "registered_evaluator" in evaluators
+
+
+class TestCreateEvaluatorDecorator:
+    """Test the enhanced create_evaluator decorator with various return types."""
+
+    def test_create_evaluator_with_score_object(self):
+        """Test create_evaluator with Score object return."""
+
+        @create_evaluator("test_evaluator", "heuristic", "maximize")
+        def test_func(input_text: str) -> Score:
+            return Score(score=0.8, label="good", explanation="test explanation")
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "test_evaluator"
+        assert score.score == 0.8
+        assert score.label == "good"
+        assert score.explanation == "test explanation"
+        assert score.source == "heuristic"
+        assert score.direction == "maximize"
+
+    def test_create_evaluator_with_number_return(self):
+        """Test create_evaluator with number return."""
+
+        @create_evaluator("number_evaluator", "heuristic")
+        def test_func(input_text: str) -> float:
+            return 0.75
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "number_evaluator"
+        assert score.score == 0.75
+        assert score.label is None
+        assert score.explanation is None
+
+    def test_create_evaluator_with_boolean_return(self):
+        """Test create_evaluator with boolean return."""
+
+        @create_evaluator("boolean_evaluator", "heuristic")
+        def test_func(input_text: str) -> bool:
+            return True
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "boolean_evaluator"
+        assert score.score == 1.0  # True converted to 1.0
+        assert score.label == "True"
+        assert score.explanation is None
+
+    def test_create_evaluator_with_short_string_return(self):
+        """Test create_evaluator with short string return (≤3 words)."""
+
+        @create_evaluator("short_string_evaluator", "heuristic")
+        def test_func(input_text: str) -> str:
+            return "good"
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "short_string_evaluator"
+        assert score.score is None
+        assert score.label == "good"
+        assert score.explanation is None
+
+    def test_create_evaluator_with_long_string_return(self):
+        """Test create_evaluator with long string return (≥4 words)."""
+
+        @create_evaluator("long_string_evaluator", "heuristic")
+        def test_func(input_text: str) -> str:
+            return "This is a much longer explanation that should go into the explanation field"
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "long_string_evaluator"
+        assert score.score is None
+        assert score.label is None
+        assert (
+            score.explanation
+            == "This is a much longer explanation that should go into the explanation field"
+        )
+
+    def test_create_evaluator_with_dictionary_return(self):
+        """Test create_evaluator with dictionary return."""
+
+        @create_evaluator("dict_evaluator", "heuristic")
+        def test_func(input_text: str) -> dict:
+            return {
+                "score": 0.9,
+                "label": "excellent",
+                "explanation": "This is a detailed explanation",
+            }
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "dict_evaluator"
+        assert score.score == 0.9
+        assert score.label == "excellent"
+        assert score.explanation == "This is a detailed explanation"
+
+    def test_create_evaluator_with_tuple_return(self):
+        """Test create_evaluator with tuple return."""
+
+        @create_evaluator("tuple_evaluator", "heuristic")
+        def test_func(input_text: str) -> tuple:
+            return (0.85, "very good", "This is a comprehensive evaluation")
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "tuple_evaluator"
+        assert score.score == 0.85
+        assert score.label == "very good"
+        assert score.explanation == "This is a comprehensive evaluation"
+
+    def test_create_evaluator_with_mixed_tuple_return(self):
+        """Test create_evaluator with mixed tuple including nested dict."""
+
+        @create_evaluator("mixed_tuple_evaluator", "heuristic")
+        def test_func(input_text: str) -> tuple:
+            return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
+
+        with pytest.raises(ValueError):
+            test_func({"input_text": "test"})
+
+    def test_create_evaluator_with_unsupported_type_raises_error(self):
+        """Test create_evaluator raises error for unsupported return types."""
+
+        @create_evaluator("unsupported_evaluator", "heuristic")
+        def test_func(input_text: str) -> list:
+            return [1, 2, 3]
+
+        with pytest.raises(ValueError):
+            test_func({"input_text": "test"})
+
+    def test_create_evaluator_with_unsupported_type_error_message(self):
+        """Test create_evaluator provides informative error message for unsupported types."""
+
+        @create_evaluator("error_test_evaluator", "heuristic")
+        def test_func(input_text: str) -> set:
+            return {1, 2, 3}
+
+        with pytest.raises(ValueError) as exc_info:
+            test_func({"input_text": "test"})
+
+        error_message = str(exc_info.value)
+        assert "Unsupported return type 'set' for evaluator 'error_test_evaluator'" in error_message
+        assert "{1, 2, 3}" in error_message  # Shows the actual value that caused the error
+
+    def test_create_evaluator_with_input_mapping(self):
+        """Test create_evaluator with input mapping."""
+
+        @create_evaluator("mapping_evaluator", "heuristic")
+        def test_func(input_text: str) -> float:
+            return 0.8
+
+        result = test_func({"user_input": "test"}, input_mapping={"input_text": "user_input"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "mapping_evaluator"
+        assert score.score == 0.8
+
+    @pytest.mark.parametrize(
+        "return_value,expected_score,expected_label,expected_explanation",
+        [
+            pytest.param(0.5, 0.5, None, None, id="Float number"),
+            pytest.param(42, 42, None, None, id="Integer number"),
+            pytest.param(False, 0.0, "False", None, id="Boolean False"),
+            pytest.param(True, 1.0, "True", None, id="Boolean True"),
+            pytest.param("good", None, "good", None, id="Short string"),
+            pytest.param("very good", None, "very good", None, id="Two word string"),
+            pytest.param("This is a test", None, None, "This is a test", id="Three word string"),
+            pytest.param(
+                "This is a longer test", None, None, "This is a longer test", id="Four word string"
+            ),
+        ],
+    )
+    def test_create_evaluator_various_return_types(
+        self, return_value, expected_score, expected_label, expected_explanation
+    ):
+        """Test create_evaluator with various return types using parametrization."""
+
+        @create_evaluator("param_test_evaluator", "heuristic")
+        def test_func(input_text: str):
+            return return_value
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "param_test_evaluator"
+        assert score.score == expected_score
+        assert score.label == expected_label
+        assert score.explanation == expected_explanation
+
+    def test_create_evaluator_preserves_metadata(self):
+        """Test that create_evaluator preserves metadata when Score object is returned."""
+
+        @create_evaluator("metadata_evaluator", "heuristic")
+        def test_func(input_text: str) -> Score:
+            return Score(
+                score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
+            )
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.metadata == {"custom_key": "custom_value"}
+
+    def test_create_evaluator_with_custom_source_and_direction(self):
+        """Test create_evaluator with custom source and direction."""
+
+        @create_evaluator("custom_evaluator", "llm", "minimize")
+        def test_func(input_text: str) -> float:
+            return 0.3
+
+        result = test_func({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "custom_evaluator"
+        assert score.source == "llm"
+        assert score.direction == "minimize"
+        assert score.score == 0.3
 
 
 class TestFactoryFunctions:

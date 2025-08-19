@@ -470,13 +470,13 @@ def list_evaluators() -> List[str]:
 
 def create_evaluator(
     name: str, source: SourceType = "heuristic", direction: DirectionType = "maximize"
-) -> Callable[[Callable[..., Score]], Evaluator]:
+) -> Callable[[Callable[..., Any]], Evaluator]:
     """
     Decorator that turns a simple function into an Evaluator instance.
 
     The decorated function should accept keyword args matching its required fields and return a
-    single Score. The returned object is an Evaluator with full support for evaluate/aevaluate
-    and direct callability.
+    value that can be converted to a Score. The returned object is an Evaluator with full support
+    for evaluate/aevaluate and direct callability.
 
     Args:
         name: The name of this evaluator, used for identification and Score naming.
@@ -488,12 +488,102 @@ def create_evaluator(
         An Evaluator instance.
 
     Notes:
-    The decorated function should return Score objects. The name parameter is optional
-        since the decorator will set it automatically.
+    The decorated function can return:
+    - A Score object (no conversion needed)
+    - A number (converted to Score.score)
+    - A boolean (converted to integer Score.score and string Score.label)
+    - A short string (≤3 words, converted to Score.label)
+    - A long string (≥4 words, converted to Score.explanation)
+    - A dictionary with keys "score", "label", or "explanation"
+    - A tuple of values (only bool, number, str types allowed)
+
+    An input_schema is automatically created from the function signature, capturing the required
+    input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
+
+    The decorator automatically handles conversion to a valid Score object.
     Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
     """
 
-    def deco(fn: Callable[..., Score]) -> Evaluator:
+    def _convert_to_score(
+        result: Any, name: str, source: SourceType, direction: DirectionType
+    ) -> Score:
+        """Convert various return types to a Score object."""
+        LABEL_WORD_COUNT_THRESHOLD = 3  # ≤3 words = label, ≥4 words = explanation
+        ERROR_MESSAGE = (
+            f"Unsupported return type '{type(result).__name__}' for evaluator '{name}'. "
+            f"Supported return types are: Score, numbers, booleans, strings, dictionaries, and "
+            f"tuples of numbers, booleans, and strings. "
+            f"Got: {repr(result)}"
+        )
+        # If already a Score object, ensure name, source, and direction are set correctly
+        if isinstance(result, Score):
+            # Create a new Score with the correct name, source, and direction
+            return Score(
+                score=result.score,
+                name=name,
+                label=result.label,
+                explanation=result.explanation,
+                metadata=result.metadata,
+                source=source,
+                direction=direction,
+            )
+
+        # Handle tuples by processing each element
+        if isinstance(result, tuple):
+            tuple_score_data: Dict[str, Any] = {}
+            for item in result:
+                if isinstance(item, (int, float, bool)):
+                    tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
+                    if "label" not in tuple_score_data and isinstance(item, bool):
+                        tuple_score_data["label"] = str(item)  # may get overwritten
+                elif isinstance(item, str):
+                    if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
+                        tuple_score_data["label"] = item
+                    else:  # longer strings = explanations
+                        tuple_score_data["explanation"] = item
+                else:
+                    raise ValueError(ERROR_MESSAGE)
+            return Score(name=name, source=source, direction=direction, **tuple_score_data)
+
+        # Handle dictionaries
+        if isinstance(result, dict):
+            dict_score_data: Dict[str, Any] = {}
+            for key, value in result.items():
+                if key in ["score", "label", "explanation"]:
+                    dict_score_data[key] = value
+            return Score(name=name, source=source, direction=direction, **dict_score_data)
+
+        # Handle numbers and booleans
+        if isinstance(result, (int, float, bool)):
+            return Score(
+                score=float(result) if isinstance(result, bool) else result,
+                label=str(result) if isinstance(result, bool) else None,
+                name=name,
+                source=source,
+                direction=direction,
+            )
+
+        # Handle strings
+        if isinstance(result, str):
+            if result.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
+                return Score(
+                    label=result,
+                    name=name,
+                    source=source,
+                    direction=direction,
+                )
+            else:
+                return Score(
+                    explanation=result,
+                    name=name,
+                    source=source,
+                    direction=direction,
+                )
+
+        # Raise informative error for unsupported types
+        raise ValueError(ERROR_MESSAGE)
+
+    def deco(fn: Callable[..., Any]) -> Evaluator:
         sig = inspect.signature(fn)
         required: Set[str] = set(sig.parameters.keys())
 
@@ -509,17 +599,8 @@ def create_evaluator(
 
             def _evaluate(self, eval_input: EvalInput) -> List[Score]:
                 # eval_input is already remapped by Evaluator.evaluate(...)
-                score = self._fn(**eval_input)
-                if score.name != name or score.source != source or score.direction != direction:
-                    score = Score(
-                        score=score.score,
-                        name=name,
-                        label=score.label,
-                        explanation=score.explanation,
-                        metadata=score.metadata,
-                        source=source,
-                        direction=direction,
-                    )
+                result = self._fn(**eval_input)
+                score = _convert_to_score(result, name, source, direction)
                 return [score]
 
         evaluator_instance = _FunctionEvaluator()
