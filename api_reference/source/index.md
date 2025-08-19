@@ -59,8 +59,6 @@ Want to become a member of Phoenix's community? Check out our [Slack](https://ar
 :maxdepth: 2
 
 api/client
-api/session
 api/experiments
-api/inferences_schema
 ```
 
