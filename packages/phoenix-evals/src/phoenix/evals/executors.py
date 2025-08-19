@@ -95,8 +95,8 @@ class ConcurrencyController:
         decrease_ratio: float = 0.5,
         inactive_check_interval: float = 1.0,
         smoothing_factor: float = 0.2,
-        collapse_window_seconds: float = 30.0,
-        collapse_error_threshold: int = 4,
+        collapse_window_seconds: float = 15.0,
+        collapse_error_threshold: int = 2,
     ) -> None:
         self._max_concurrency = max(1, int(max_concurrency))
         self._target_concurrency = float(initial_target)
@@ -325,6 +325,13 @@ class AsyncExecutor(Executor):
                     continue
                 else:
                     tqdm.write("Worker timeout, requeuing")
+                    # Best-effort cancel the timed-out task without blocking the loop
+                    if not generate_task.done():
+                        generate_task.cancel()
+                        try:
+                            await asyncio.wait_for(generate_task, timeout=1)
+                        except (asyncio.TimeoutError, asyncio.CancelledError):
+                            pass
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
