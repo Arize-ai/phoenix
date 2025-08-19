@@ -490,11 +490,12 @@ def create_evaluator(
     Notes:
     The decorated function can return:
     - A Score object (no conversion needed)
-    - A number or boolean (converted to Score.score)
+    - A number (converted to Score.score)
+    - A boolean (converted to integer Score.score and string Score.label)
     - A short string (≤3 words, converted to Score.label)
     - A long string (≥4 words, converted to Score.explanation)
     - A dictionary with keys "score", "label", or "explanation"
-    - A tuple of values (handled based on individual element types)
+    - A tuple of values (only bool, number, str types allowed)
 
     An input_schema is automatically created from the function signature, capturing the required
     input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
