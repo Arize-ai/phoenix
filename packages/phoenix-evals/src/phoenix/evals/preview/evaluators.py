@@ -507,6 +507,13 @@ def create_evaluator(
         result: Any, name: str, source: SourceType, direction: DirectionType
     ) -> Score:
         """Convert various return types to a Score object."""
+        LABEL_WORD_COUNT_THRESHOLD = 3  # ≤3 words = label, ≥4 words = explanation
+        ERROR_MESSAGE = (
+            f"Unsupported return type '{type(result).__name__}' for evaluator '{name}'. "
+            f"Supported return types are: Score, numbers, booleans, strings, dictionaries, and "
+            f"tuples of numbers, booleans, and strings. "
+            f"Got: {repr(result)}"
+        )
         # If already a Score object, ensure name, source, and direction are set correctly
         if isinstance(result, Score):
             # Create a new Score with the correct name, source, and direction
@@ -526,15 +533,15 @@ def create_evaluator(
             for item in result:
                 if isinstance(item, (int, float, bool)):
                     tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
+                    if "label" not in tuple_score_data and isinstance(item, bool):
+                        tuple_score_data["label"] = str(item)  # may get overwritten
                 elif isinstance(item, str):
-                    if item.count(" ") <= 2:  # ≤3 words
+                    if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
                         tuple_score_data["label"] = item
-                    else:  # ≥4 words
+                    else:  # longer strings = explanations
                         tuple_score_data["explanation"] = item
-                elif isinstance(item, dict):
-                    for key, value in item.items():
-                        if key in ["score", "label", "explanation"]:
-                            tuple_score_data[key] = value
+                else:
+                    raise ValueError(ERROR_MESSAGE)
             return Score(name=name, source=source, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
@@ -549,6 +556,7 @@ def create_evaluator(
         if isinstance(result, (int, float, bool)):
             return Score(
                 score=float(result) if isinstance(result, bool) else result,
+                label=str(result) if isinstance(result, bool) else None,
                 name=name,
                 source=source,
                 direction=direction,
@@ -556,14 +564,14 @@ def create_evaluator(
 
         # Handle strings
         if isinstance(result, str):
-            if result.count(" ") <= 2:  # ≤3 words
+            if result.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
                 return Score(
                     label=result,
                     name=name,
                     source=source,
                     direction=direction,
                 )
-            else:  # ≥4 words
+            else:
                 return Score(
                     explanation=result,
                     name=name,
@@ -572,12 +580,7 @@ def create_evaluator(
                 )
 
         # Raise informative error for unsupported types
-        raise ValueError(
-            f"Unsupported return type '{type(result).__name__}' for evaluator '{name}'. "
-            f"Supported return types are: Score, numbers, booleans, strings, dictionaries, and "
-            f"tuples. "
-            f"Got: {repr(result)}"
-        )
+        raise ValueError(ERROR_MESSAGE)
 
     def deco(fn: Callable[..., Any]) -> Evaluator:
         sig = inspect.signature(fn)

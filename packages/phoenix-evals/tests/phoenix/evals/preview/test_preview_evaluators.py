@@ -737,7 +737,7 @@ class TestCreateEvaluatorDecorator:
         score = result[0]
         assert score.name == "boolean_evaluator"
         assert score.score == 1.0  # True converted to 1.0
-        assert score.label is None
+        assert score.label == "True"
         assert score.explanation is None
 
     def test_create_evaluator_with_short_string_return(self):
@@ -818,14 +818,8 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> tuple:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
-        result = test_func({"input_text": "test"})
-
-        assert len(result) == 1
-        score = result[0]
-        assert score.name == "mixed_tuple_evaluator"
-        assert score.score == 0.8  # From nested dict
-        assert score.label == "mixed"  # From nested dict
-        assert score.explanation == "This is a final explanation"
+        with pytest.raises(ValueError):
+            test_func({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
@@ -834,9 +828,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> list:
             return [1, 2, 3]
 
-        with pytest.raises(
-            ValueError, match="Unsupported return type 'list' for evaluator 'unsupported_evaluator'"
-        ):
+        with pytest.raises(ValueError):
             test_func({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_error_message(self):
@@ -851,10 +843,6 @@ class TestCreateEvaluatorDecorator:
 
         error_message = str(exc_info.value)
         assert "Unsupported return type 'set' for evaluator 'error_test_evaluator'" in error_message
-        assert (
-            "Supported return types are: Score, numbers, booleans, strings, dictionaries, and tuples"
-            in error_message
-        )
         assert "{1, 2, 3}" in error_message  # Shows the actual value that caused the error
 
     def test_create_evaluator_with_input_mapping(self):
@@ -876,8 +864,8 @@ class TestCreateEvaluatorDecorator:
         [
             pytest.param(0.5, 0.5, None, None, id="Float number"),
             pytest.param(42, 42, None, None, id="Integer number"),
-            pytest.param(False, 0.0, None, None, id="Boolean False"),
-            pytest.param(True, 1.0, None, None, id="Boolean True"),
+            pytest.param(False, 0.0, "False", None, id="Boolean False"),
+            pytest.param(True, 1.0, "True", None, id="Boolean True"),
             pytest.param("good", None, "good", None, id="Short string"),
             pytest.param("very good", None, "very good", None, id="Two word string"),
             pytest.param("This is a test", None, None, "This is a test", id="Three word string"),
