@@ -17,6 +17,8 @@ import {
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { useExperimentColors } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { selectCSS } from "@phoenix/components/select/styles";
@@ -45,6 +47,7 @@ export function ExperimentMultiSelector(props: {
     onChange,
     dataRef,
   } = props;
+  const { baseExperimentColor } = useExperimentColors();
 
   const data = useFragment(
     graphql`
@@ -93,10 +96,6 @@ export function ExperimentMultiSelector(props: {
     });
     return { allExperiments, nonBaseExperiments };
   }, [data.dataset.allExperiments, selectedBaseExperimentId]);
-  const baseExperimentDisplayText = useMemo(
-    () => data.baseExperiment?.name ?? "No base experiment selected",
-    [data.baseExperiment]
-  );
   const compareExperimentsDisplayText = useMemo(() => {
     const numExperiments = selectedCompareExperimentIds.length;
     return numExperiments > 0
@@ -108,10 +107,26 @@ export function ExperimentMultiSelector(props: {
   return (
     <Flex direction="row" gap="size-100">
       <div css={css(fieldBaseCSS, selectCSS)}>
-        <Label>base experiment</Label>
+        <Label>experiment</Label>
         <DialogTrigger>
-          <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
-            {baseExperimentDisplayText}
+          <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
+            {data.baseExperiment != null ? (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <ColorSwatch color={baseExperimentColor} shape="circle" />
+                <Text
+                  css={css`
+                    white-space: nowrap;
+                    max-width: var(--ac-global-dimension-size-2000);
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                  `}
+                >
+                  {data.baseExperiment.name}
+                </Text>
+              </Flex>
+            ) : (
+              "No experiment selected"
+            )}
           </Button>
           <Popover placement="bottom start">
             <Dialog>
@@ -153,7 +168,16 @@ export function ExperimentMultiSelector(props: {
                             <SequenceNumberToken
                               sequenceNumber={experiment.sequenceNumber}
                             />
-                            <Text>{experiment.name}</Text>
+                            <Text
+                              css={css`
+                                white-space: nowrap;
+                                max-width: var(--ac-global-dimension-size-2000);
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                              `}
+                            >
+                              {experiment.name}
+                            </Text>
                           </Flex>
                           <Text size="XS" color="text-700">
                             {new Date(experiment.createdAt).toLocaleString()}
@@ -171,9 +195,9 @@ export function ExperimentMultiSelector(props: {
       </div>
       {selectedBaseExperimentId && nonBaseExperiments.length > 0 && (
         <div css={css(fieldBaseCSS, selectCSS)}>
-          <Label>compare experiments</Label>
+          <Label>comparisons</Label>
           <DialogTrigger>
-            <Button size="M" trailingVisual={<SelectChevronUpDownIcon />}>
+            <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
               {compareExperimentsDisplayText}
             </Button>
             <Popover placement="bottom start">
@@ -201,7 +225,18 @@ export function ExperimentMultiSelector(props: {
                               <SequenceNumberToken
                                 sequenceNumber={experiment.sequenceNumber}
                               />
-                              <Text>{experiment.name}</Text>
+                              <Text
+                                css={css`
+                                  white-space: nowrap;
+                                  max-width: var(
+                                    --ac-global-dimension-size-2000
+                                  );
+                                  overflow: hidden;
+                                  text-overflow: ellipsis;
+                                `}
+                              >
+                                {experiment.name}
+                              </Text>
                             </Flex>
                             <Text size="XS" color="text-700">
                               {new Date(experiment.createdAt).toLocaleString()}

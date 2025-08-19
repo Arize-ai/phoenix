@@ -343,23 +343,6 @@ input ClusterInput {
   id: ID
 }
 
-type CompareExperimentRunAnnotationMetricCounts {
-  annotationName: String!
-  compareExperimentId: ID!
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
-}
-
-type CompareExperimentRunMetricCounts {
-  compareExperimentId: ID!
-  latency: MetricCounts!
-  promptTokenCount: MetricCounts!
-  completionTokenCount: MetricCounts!
-  totalTokenCount: MetricCounts!
-  totalCost: MetricCounts!
-}
-
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -1235,6 +1218,38 @@ type ExperimentRunEdge {
   node: ExperimentRun!
 }
 
+type ExperimentRunMetricComparison {
+  """
+  The number of runs in which the base experiment improved on the best run in any compare experiment.
+  """
+  numRunsImproved: Int!
+
+  """
+  The number of runs in which the base experiment regressed on the best run in any compare experiment.
+  """
+  numRunsRegressed: Int!
+
+  """
+  The number of runs in which the base experiment is equal to the best run in any compare experiment.
+  """
+  numRunsEqual: Int!
+
+  """
+  The number of runs in the base experiment that could not be compared, either because the base experiment run was missing a value or because all compare experiment runs were missing values.
+  """
+  numRunsWithoutComparison: Int!
+}
+
+type ExperimentRunMetricComparisons {
+  latency: ExperimentRunMetricComparison!
+  totalTokenCount: ExperimentRunMetricComparison!
+  promptTokenCount: ExperimentRunMetricComparison!
+  completionTokenCount: ExperimentRunMetricComparison!
+  totalCost: ExperimentRunMetricComparison!
+  promptCost: ExperimentRunMetricComparison!
+  completionCost: ExperimentRunMetricComparison!
+}
+
 type ExportedFile {
   """File name without the file extension."""
   fileName: String!
@@ -1477,12 +1492,6 @@ type JSONInvocationParameter implements InvocationParameterBase {
 type LabelFraction {
   label: String!
   fraction: Float!
-}
-
-type MetricCounts {
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
 }
 
 enum MimeType {
@@ -2100,8 +2109,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
-  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunMetricCounts!]!
-  compareExperimentRunAnnotationMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunAnnotationMetricCounts!]!
+  experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!

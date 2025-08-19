@@ -99,7 +99,6 @@ class TraceAnnotationQueueInserter(
                             received_at=p.received_at,
                             item=p.item.as_insertable(
                                 trace_rowid=anno.trace_rowid,
-                                id_=anno.id_,
                             ),
                         )
                     )

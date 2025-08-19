@@ -1,5 +1,34 @@
 # Changelog
 
+## [11.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.0...arize-phoenix-v11.24.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* **experiments:** result should be nullable when there's error in experiment run evaluation ([#9065](https://github.com/Arize-ai/phoenix/issues/9065)) ([fc5c303](https://github.com/Arize-ai/phoenix/commit/fc5c30310b804157f5472a2e2599ca34e0a03a46))
+
+## [11.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.2...arize-phoenix-v11.24.0) (2025-08-15)
+
+
+### Features
+
+* **experiments:** enhance experiment compare page ([#8924](https://github.com/Arize-ai/phoenix/issues/8924)) ([d03cc28](https://github.com/Arize-ai/phoenix/commit/d03cc2839203389945ab1f4bbc1fd3f1d43cf7fb))
+
+## [11.23.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.1...arize-phoenix-v11.23.2) (2025-08-15)
+
+
+### Bug Fixes
+
+* **ui:** add AWS to provider dropdown for model edit ([#9098](https://github.com/Arize-ai/phoenix/issues/9098)) ([2336b08](https://github.com/Arize-ai/phoenix/commit/2336b089d1a6afdb949586370b26df28df977f90))
+* **ui:** show custom provider in models table ([#9097](https://github.com/Arize-ai/phoenix/issues/9097)) ([57a59cb](https://github.com/Arize-ai/phoenix/commit/57a59cb8e06822510fc756732b7634185c156fab))
+
+## [11.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.23.0...arize-phoenix-v11.23.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* unrecognized provider string should not crash graphql for generative models page ([#9094](https://github.com/Arize-ai/phoenix/issues/9094)) ([b91d2be](https://github.com/Arize-ai/phoenix/commit/b91d2bef11aff9233322bda67e121e8003f1bfaf))
+
 ## [11.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.22.1...arize-phoenix-v11.23.0) (2025-08-14)
 
 

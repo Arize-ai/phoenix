@@ -232,19 +232,26 @@ export const Slider = forwardRef(_Slider) as <T extends number | number[]>(
 ) => ReturnType<typeof _Slider>;
 
 export function SliderNumberField({
-  value: _value,
   onChange: _onChange,
   ...props
 }: NumberFieldProps) {
+  const sliderState = useContext(SliderStateContext)!;
   const { step, getThumbMinValue, getThumbMaxValue, values, setThumbValue } =
-    useContext(SliderStateContext)!;
-  const value = _value ?? values[0].toString() ?? "";
+    sliderState;
+
+  // In the case that the defaultValue is set (e.x. undefined)
+  // The slider will show the min value. However this is not what we want to inherit
+  const isDefaultValueSet = "defaultValue" in props;
+  const firstValueIsMin = values[0] === getThumbMinValue(0);
+  const useDefaultValue = isDefaultValueSet && firstValueIsMin;
+
+  const value = useDefaultValue ? props.defaultValue : values[0];
   const labelProps = useSlottedContext(LabelContext)!;
   return (
     <NumberField
       className="ac-slider-number-field"
       aria-labelledby={labelProps.id}
-      value={Number(value)}
+      value={value}
       onChange={(v) => {
         if (_onChange) {
           _onChange(v);

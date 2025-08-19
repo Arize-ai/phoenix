@@ -2,17 +2,28 @@ import { css } from "@emotion/react";
 
 import { SizingProps } from "@phoenix/components/types";
 
+type ColorSwatchShape = "square" | "circle";
+
 export function ColorSwatch({
   color,
   size = "M",
-}: { color: string } & SizingProps) {
+  shape = "square",
+}: { color: string; shape?: ColorSwatchShape } & SizingProps) {
   return (
     <span
+      data-shape={shape}
       data-size={size}
       css={css`
         background-color: ${color};
         display: inline-block;
-        border-radius: 2px;
+
+        &[data-shape="square"] {
+          border-radius: 2px;
+        }
+
+        &[data-shape="circle"] {
+          border-radius: 50%;
+        }
 
         &[data-size="S"] {
           width: 0.4rem;

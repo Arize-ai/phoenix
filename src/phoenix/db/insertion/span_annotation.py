@@ -100,7 +100,6 @@ class SpanAnnotationQueueInserter(
                             received_at=p.received_at,
                             item=p.item.as_insertable(
                                 span_rowid=anno.span_rowid,
-                                id_=anno.id_,
                             ),
                         )
                     )
