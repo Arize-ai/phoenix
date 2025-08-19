@@ -127,6 +127,8 @@ class PrecisionRecallFScore(Evaluator):
         )
         if beta <= 0:
             raise ValueError("beta must be > 0")
+        if average not in ("macro", "micro", "weighted"):
+            raise ValueError("average must be one of {'macro','micro','weighted'}")
         self.beta = float(beta)
         self.average = average
         self.zero_division = float(zero_division)
