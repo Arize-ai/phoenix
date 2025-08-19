@@ -92,7 +92,8 @@ class AdaptiveTokenBucket:
 
         self.rate = original_rate * self.rate_reduction_factor
         printif(
-            verbose, f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error"
+            verbose,
+            f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error",
         )
 
         self.rate = max(self.rate, self.minimum_rate)
