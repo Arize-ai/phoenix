@@ -202,4 +202,4 @@ def _default(obj: Any) -> Any:
         return obj.item()
     if isinstance(obj, Enum):
         return obj.value
-    raise ValueError()
+    raise TypeError(f"Object of type {type(obj).__name__} is not serializable")
