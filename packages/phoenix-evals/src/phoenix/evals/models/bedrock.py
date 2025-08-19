@@ -109,7 +109,6 @@ class BedrockModel(BaseModel):
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
             rate_limit_error=self.client.exceptions.ThrottlingException,
-            max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
