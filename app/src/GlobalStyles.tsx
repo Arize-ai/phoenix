@@ -1053,6 +1053,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     // Style for cards
     --ac-global-card-header-height: 46px;
 
+    // Style for popovers
+    --ac-global-popover-background-color: var(--ac-global-color-grey-50);
+
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);

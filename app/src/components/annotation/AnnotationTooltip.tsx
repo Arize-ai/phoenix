@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 
 import { RichTooltip, TooltipTrigger, TriggerWrap } from "@phoenix/components";
 
-import { AnnotationTooltipContent } from "./AnnotationDetailsContent";
+import { AnnotationDetailsContent } from "./AnnotationDetailsContent";
 import { Annotation } from "./types";
 
 /**
@@ -21,7 +21,7 @@ export function AnnotationTooltip({
     <TooltipTrigger delay={500}>
       <TriggerWrap>{children}</TriggerWrap>
       <RichTooltip offset={3}>
-        <AnnotationTooltipContent annotation={annotation} />
+        <AnnotationDetailsContent annotation={annotation} />
       </RichTooltip>
     </TooltipTrigger>
   );

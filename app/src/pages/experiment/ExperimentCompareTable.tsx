@@ -51,7 +51,7 @@ import {
   ViewSummaryAside,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
-import { AnnotationTooltipContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
+import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
@@ -295,7 +295,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         enableSorting: false,
         cell: ({ row }) => {
           return (
-            <>
+            <Flex
+              direction="column"
+              height="100%"
+              css={css`
+                overflow: hidden;
+              `}
+            >
               <CellTop
                 extra={
                   <TooltipTrigger>
@@ -333,7 +339,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   />
                 </LargeTextWrap>
               </PaddedCell>
-            </>
+            </Flex>
           );
         },
       },
@@ -480,7 +486,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           );
 
           return run ? (
-            <>
+            <Flex direction="column" height="100%">
               <CellTop extra={runControls}>
                 <ExperimentRunMetadata {...run} />
               </CellTop>
@@ -489,7 +495,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 displayFullText={displayFullText}
                 setDialog={setDialog}
               />
-            </>
+            </Flex>
           ) : (
             <PaddedCell>
               <NotRunText />
@@ -1321,11 +1327,11 @@ export function ExperimentRunCellAnnotationsList(
                   />
                 </button>
               </Pressable>
-              <Popover placement="top left">
+              <Popover placement="top">
                 <PopoverArrow />
                 <Dialog style={{ width: 400 }}>
                   <View padding="size-200">
-                    <AnnotationTooltipContent annotation={annotation} />
+                    <AnnotationDetailsContent annotation={annotation} />
                   </View>
                 </Dialog>
               </Popover>

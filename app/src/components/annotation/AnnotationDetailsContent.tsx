@@ -1,4 +1,5 @@
 import { Flex, Text, View } from "@phoenix/components";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -20,9 +21,12 @@ export function AnnotationDetailsContent({
       justifyContent="space-between"
     >
       <View>
-        <Text weight="heavy" color="inherit" size="L" elementType="h3">
-          {annotation.name}
-        </Text>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AnnotationColorSwatch annotationName={annotation.name} />
+          <Text weight="heavy" color="inherit" size="L" elementType="h3">
+            {annotation.name}
+          </Text>
+        </Flex>
         <View paddingTop="size-100" minWidth="150px">
           <Flex direction="row" justifyContent="space-between">
             <Text weight="heavy" color="inherit">
