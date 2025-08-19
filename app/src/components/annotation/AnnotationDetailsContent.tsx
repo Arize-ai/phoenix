@@ -4,7 +4,10 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { Annotation } from "./types";
 
-export function AnnotationTooltipContent({
+/**
+ * A component that displays the details of a particular annotatio
+ */
+export function AnnotationDetailsContent({
   annotation,
 }: {
   annotation: Annotation;
@@ -33,7 +36,9 @@ export function AnnotationTooltipContent({
             <Text weight="heavy" color="inherit">
               score
             </Text>
-            <Text color="inherit">{floatFormatter(annotation.score)}</Text>
+            <Text color="inherit" fontFamily="mono">
+              {floatFormatter(annotation.score)}
+            </Text>
           </Flex>
           {annotation.annotatorKind ? (
             <Flex direction="row" justifyContent="space-between">

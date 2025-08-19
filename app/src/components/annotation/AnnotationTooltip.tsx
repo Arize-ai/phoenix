@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 
 import { RichTooltip, TooltipTrigger, TriggerWrap } from "@phoenix/components";
 
-import { AnnotationTooltipContent } from "./AnnotationTooltipContent";
+import { AnnotationTooltipContent } from "./AnnotationDetailsContent";
 import { Annotation } from "./types";
 
 /**

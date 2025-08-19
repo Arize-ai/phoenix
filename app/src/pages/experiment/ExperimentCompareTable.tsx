@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Pressable } from "react-aria-components";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useSearchParams } from "react-router";
@@ -44,14 +45,13 @@ import {
   Modal,
   ModalOverlay,
   Popover,
+  PopoverArrow,
   Text,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationTooltipContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
@@ -1278,9 +1278,10 @@ export function ExperimentRunCellAnnotationsList(
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-static-size-100);
         flex: none;
-        padding: var(--ac-global-dimension-static-size-100);
+        padding: 0 var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100);
       `}
     >
       {annotations.map((annotation) => {
@@ -1298,25 +1299,37 @@ export function ExperimentRunCellAnnotationsList(
               gap: var(--ac-global-dimension-static-size-50);
             `}
           >
-            <AnnotationTooltip annotation={annotation}>
-              <button
-                className="button--reset"
-                css={css`
-                  background-color: lightblue;
-                  padding: var(--ac-global-dimension-size-50);
-                  flex: 1 1 auto;
-                  width: 100%;
-                  &:hover {
-                    background-color: var(--ac-global-color-grey-200);
-                  }
-                `}
-              >
-                <AnnotationNameAndValue
-                  annotation={annotation}
-                  displayPreference={"score"}
-                />
-              </button>
-            </AnnotationTooltip>
+            <DialogTrigger>
+              <Pressable>
+                <button
+                  className="button--reset"
+                  css={css`
+                    cursor: pointer;
+                    padding: var(--ac-global-dimension-size-50)
+                      var(--ac-global-dimension-size-100);
+                    flex: 1 1 auto;
+                    border-radius: var(--ac-global-rounding-small);
+                    width: 100%;
+                    &:hover {
+                      background-color: var(--ac-global-color-grey-200);
+                    }
+                  `}
+                >
+                  <AnnotationNameAndValue
+                    annotation={annotation}
+                    displayPreference="score"
+                  />
+                </button>
+              </Pressable>
+              <Popover placement="top left">
+                <PopoverArrow />
+                <Dialog style={{ width: 400 }}>
+                  <View padding="size-200">
+                    <AnnotationTooltipContent annotation={annotation} />
+                  </View>
+                </Dialog>
+              </Popover>
+            </DialogTrigger>
             <TooltipTrigger>
               <IconButton
                 size="S"
