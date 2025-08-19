@@ -53,6 +53,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 
 from pydantic import BaseModel, Field
@@ -107,8 +108,8 @@ class PrecisionRecallFScore(Evaluator):
     """
 
     class InputSchema(BaseModel):
-        expected: List[Hashable] = Field(..., description="List of expected values.")
-        output: List[Hashable] = Field(..., description="List of output values.")
+        expected: List[Union[str, int]] = Field(..., description="List of expected values.")
+        output: List[Union[str, int]] = Field(..., description="List of output values.")
 
     def __init__(
         self,
@@ -116,7 +117,7 @@ class PrecisionRecallFScore(Evaluator):
         beta: float = 1.0,
         average: AverageType = "macro",
         zero_division: float = 0.0,
-        positive_label: Optional[Hashable] = None,
+        positive_label: Optional[Union[str, int]] = None,
     ) -> None:
         super().__init__(
             name="precision_recall_fscore",
@@ -126,8 +127,6 @@ class PrecisionRecallFScore(Evaluator):
         )
         if beta <= 0:
             raise ValueError("beta must be > 0")
-        if average not in ("macro", "micro", "weighted"):
-            raise ValueError("average must be one of {'macro','micro','weighted'}")
         self.beta = float(beta)
         self.average = average
         self.zero_division = float(zero_division)
@@ -146,10 +145,6 @@ class PrecisionRecallFScore(Evaluator):
 
         expected = list(expected_raw)
         output = list(output_raw)
-
-        # Ensure labels are hashable so they can be used as dict/set keys
-        self._assert_hashable_labels(expected, "expected")
-        self._assert_hashable_labels(output, "output")
 
         if len(expected) != len(output):
             raise ValueError(
@@ -337,13 +332,3 @@ class PrecisionRecallFScore(Evaluator):
         if unique.issubset({0, 1}) and len(unique) == 2:
             return 1
         return None
-
-    def _assert_hashable_labels(self, labels: Sequence[Any], name: str) -> None:
-        for idx, value in enumerate(labels):
-            try:
-                hash(value)
-            except TypeError as e:
-                raise ValueError(
-                    f"All labels in {name} must be hashable. "
-                    f"Found unhashable value at index {idx}: {value!r}"
-                ) from e
