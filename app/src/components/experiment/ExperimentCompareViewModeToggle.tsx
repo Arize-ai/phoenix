@@ -53,6 +53,12 @@ export function ExperimentCompareViewModeToggle({
         Grid
       </ToggleButton>
       <ToggleButton
+        id="list"
+        leadingVisual={<Icon svg={<Icons.ListOutline />} />}
+      >
+        List
+      </ToggleButton>
+      <ToggleButton
         id="metrics"
         leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
       >
