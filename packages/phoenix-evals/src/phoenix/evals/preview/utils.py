@@ -25,15 +25,15 @@ def remap_eval_input(
     Raises:
         ValueError: If a required field is missing in eval_input or has a null/empty value.
     """
-    mapping = input_mapping or {}
+    input_mapping = input_mapping or {}
     remapped_eval_input: Dict[str, Any] = {}
 
     # Process both required fields and any fields explicitly present in mapping.
     # Optional fields can be populated via mapping, but only required fields are strictly validated.
-    fields_to_process: Set[str] = set(required_fields) | set(mapping.keys())
+    fields_to_process: Set[str] = set(required_fields) | set(input_mapping.keys())
 
     for field_name in fields_to_process:
-        extractor = mapping.get(field_name, field_name)
+        extractor = input_mapping.get(field_name, field_name)
 
         # Compute value and whether we successfully found/extracted it
         found = False
@@ -50,11 +50,9 @@ def remap_eval_input(
                 if key in eval_input:
                     value = eval_input[key]
                     found = True
-                else:
-                    found = False
             else:
                 try:
-                    value = _extract_with_path(eval_input, path)
+                    value = _extract_with_jq(eval_input, path)
                     found = True
                 except ValueError as e:
                     # Missing/invalid path: for required fields, re-raise; for optional,
@@ -95,7 +93,7 @@ def remap_eval_input(
     # Pass through any top-level keys from eval_input that weren't explicitly mapped.
     # This allows optional schema fields supplied by the caller to be included without mapping.
     mapped_values = set()
-    for field_name, extractor in mapping.items():
+    for field_name, extractor in input_mapping.items():
         if isinstance(extractor, str):
             path = extractor
             if not path:  # Empty path means direct key mapping
@@ -137,7 +135,7 @@ def _validate_field_value(value: Any, field_name: str, key: str) -> None:
         raise ValueError(f"Required field '{field_name}' (from '{key}') cannot be empty")
 
 
-def _extract_with_path(payload: Mapping[str, Any], path: str) -> Any:
+def _extract_with_jq(payload: Mapping[str, Any], path: str) -> Any:
     """
     Extract a value from a nested JSON structure using jq.
 
