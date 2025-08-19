@@ -20,6 +20,10 @@ type TableRow = {
   example: string;
   input: string;
   referenceOutput: string;
+  outputs: {
+    baseExperimentValue: string;
+    compareExperimentValues: string[];
+  };
   tokens: {
     baseExperimentValue: number;
     compareExperimentValues: number[];
@@ -122,6 +126,12 @@ export function ExperimentCompareListPage() {
           example: example.id,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
+          outputs: {
+            baseExperimentValue: baseExperimentRun.output,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run.output
+            ),
+          },
           tokens: {
             baseExperimentValue:
               baseExperimentRun.costSummary.total.tokens ?? 0,
@@ -152,6 +162,7 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
+  console.log({ tableData });
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
@@ -181,6 +192,41 @@ export function ExperimentCompareListPage() {
             <Text size="S" color="text-500">
               {JSON.stringify(value)}
             </Text>
+          );
+        },
+      },
+      {
+        header: "Output",
+        accessorKey: "outputs",
+        cell: ({ getValue }) => {
+          const value = getValue() as TableRow["outputs"];
+          return (
+            <ul
+              css={css`
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                li::before {
+                  content: "—";
+                  margin-right: var(--ac-global-dimension-size-100);
+                }
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              `}
+            >
+              <li>
+                <Text size="S">
+                  {JSON.stringify(value.baseExperimentValue)}
+                </Text>
+              </li>
+              {value.compareExperimentValues.map((value, index) => (
+                <li key={index}>
+                  <Text size="S">{JSON.stringify(value)}</Text>
+                </li>
+              ))}
+            </ul>
           );
         },
       },
