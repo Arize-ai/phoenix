@@ -1,14 +1,14 @@
-# Core Abstractions
+# Evaluators
 
-This section covers the core abstractions for writing and running evaluations.
+At the core, an Evaluator is anything that returns a Score. 
 
-Abstractions
+### Abstractions
 - Score: immutable result container
 - Evaluator: base class for sync/async evaluation with input validation and mapping
 - LLMEvaluator: base class that integrates with an LLM and a prompt template
 - ClassificationEvaluator: LLM-powered single-criteria classification
-- create_evaluator decorator: register simple evaluation functions
 - create_classifier: factory for ClassificationEvaluator
+- create_evaluator decorator: register simple evaluation functions
 
 ### Score
 - `name: str | None`: The human-readable name of the score/evaluator.
@@ -31,7 +31,7 @@ Abstractions
   - `describe() -> dict`: Returns evaluator metadata and input schema
   - Subclasses implement `_evaluate(eval_input) -> list[Score]` and optionally `_aevaluate(eval_input)`.
 
-Input mapping and validation
+### Input mapping and validation
 - Evaluators use Pydantic schemas for input validation and type safety
 - Required fields are enforced. Missing or empty values raise `ValueError`.
 - Use `input_mapping` to map evaluator-required field names to your input keys or paths.
@@ -53,7 +53,7 @@ Input mapping and validation
 - `list_evaluators() -> list[str]` returns registered evaluator names.
 - `create_classifier(...) -> ClassificationEvaluator` shortcut to build a `ClassificationEvaluator`.
 
-Utilities
+### Utilities
 - `remap_eval_input(eval_input: Mapping[str, Any], required_fields: Set[str], input_mapping: InputMappingType | None = None) -> dict`
   - Returns a dict keyed by evaluator's required fields.
 - `to_thread(fn)`
@@ -87,7 +87,7 @@ input_mapping = {
     "last_doc": "input.documents.-1"
 }
 
-# Complex nested access
+# Combined nesting and list indexing
 input_mapping = {
     "user_query": "data.user.messages.0.content",
     "model_response": "data.assistant.messages.0.content"
@@ -99,6 +99,7 @@ input_mapping = {
 For complex transformations, use callable functions that accept an `eval_input` payload:
 
 ```python
+# Callable example
 def extract_context(eval_input):
     docs = eval_input.get("input", {}).get("documents", [])
     return " ".join(docs[:3])  # Join first 3 documents
@@ -107,6 +108,12 @@ input_mapping = {
     "query": "input.query",
     "context": extract_context,
     "response": "output.answer"
+}
+
+# Lambda example
+input_mapping = {
+    "user_query": lambda x: x["input"]["query"].lower(),
+    "context": lambda x: " ".join(x["documents"][:3])
 }
 ```
 
@@ -146,7 +153,7 @@ evaluator = LLMEvaluator(
 or decorated function signatures:
 
 ```python
-@create_evaluator(name="exact_match", source="heuristic")
+@create_evaluator(name="exact_match")
 def exact_match(output: str, expected: str) -> Score:
   ...
 # creates input_schema with required str fields: output, expected

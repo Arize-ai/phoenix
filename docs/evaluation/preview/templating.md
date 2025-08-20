@@ -1,25 +1,25 @@
-### Prompt templating
+# Prompt Templates
 
 Lightweight utilities to render prompts and infer required fields.
 
-Abstractions
+### Abstractions
 - TemplateFormat: `"mustache" | "f-string"`
 - TemplateFormatter: strategy interface implemented by Mustache and f-string formatters
 - Template: detects format, extracts variables, and renders prompts
 - detect_template_format(template: str) -> TemplateFormat
 - FormatterFactory: create formatter explicitly or via auto-detect
 
-Template
+### Template
 - Constructor: `Template(template: str, template_format: TemplateFormat | None = None)`
 - Properties: `template_format`, `variables: list[str]`
 - Methods: `render(variables: dict) -> str`
 - Auto-detects format using heuristics that handle escaped JSON in f-strings (e.g., `{{"k":1}}`).
 
-Formatters
+### Formatters
 - MustacheFormatter: `{{var}}` placeholders via pystache
 - FStringFormatter: `{var}` placeholders via Python `string.Formatter`
 
-Examples
+## Examples
 1) Mustache basics
 ```python
 from phoenix.evals.preview.templating import Template, TemplateFormat

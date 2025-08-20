@@ -1,12 +1,12 @@
-### LLM wrapper and adapters
+# LLM wrapper and adapters
 
 The preview LLM wrapper unifies text, structured output, and classification across providers by delegating to installed SDKs via adapters.
 
-Public API
+### Public API
 - Classes: `LLM`, `AsyncLLM`
 - Helpers: `show_provider_availability()`, `generate_classification_schema(labels, include_explanation=True, description=None)`
 
-LLM
+### LLM
 - Constructor: `LLM(provider: str, model: str, client: str | None = None)`
 - Methods:
   - `generate_text(prompt: str | MultimodalPrompt, **kwargs) -> str`
@@ -15,16 +15,16 @@ LLM
 
 AsyncLLM mirrors the same methods with async variants.
 
-Providers and clients
+### Providers and clients
 - OpenAI: client="openai" (requires `openai`)
 - LiteLLM: client="litellm" (requires `litellm`) for OpenAI/Anthropic style models
 - LangChain: client="langchain" (requires `langchain` + provider packages)
 - Run `show_provider_availability()` to see what’s enabled in your environment.
 
-Object generation methods
+### Object generation methods
 - Adapters may use structured output (response_format/json_schema), tool calling, or fallback automatically. You usually don’t need to select a method; the adapter chooses based on capabilities.
 
-Examples
+## Examples
 1) Text generation
 ```python
 from phoenix.evals.preview.llm import LLM, show_provider_availability

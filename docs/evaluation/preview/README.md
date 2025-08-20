@@ -1,13 +1,13 @@
 # phoenix-evals preview module
 
-The preview module provides lightweight, composable building blocks for writing, running, and composing LLM and heuristic evaluations. It focuses on simple primitives with strong defaults and clear ergonomics.
+The preview module provides lightweight, composable building blocks for writing, running, and composing automatic evaluations.
 
 - Imports live under `phoenix.evals.preview`.
 - Works with your preferred model SDKs via adapters (OpenAI, LiteLLM, LangChain).
 - Includes templating utilities and pre-built metrics/evaluators.
 - Features powerful input mapping and binding for complex data structures.
 
-Sections
+## Sections
 - Core evaluators and scoring: see `evaluators.md`
 - Prompt templating: see `templating.md`
 - LLM wrapper and adapters: see `llm.md`
