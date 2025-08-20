@@ -546,7 +546,6 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url or "https://api.deepseek.com",
-            timeout=30,
         )
         super().__init__(client=client, model=model, credentials=credentials)
         # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
@@ -585,7 +584,10 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
                 raise BadRequest("An API key is required for xAI models")
             api_key = "sk-fake-api-key"
 
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.x.ai/v1")
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url or "https://api.x.ai/v1",
+        )
         super().__init__(client=client, model=model, credentials=credentials)
         # xAI uses OpenAI-compatible API but we'll track it as a separate provider
         # Adding a custom "xai" provider value to make it distinguishable in traces
@@ -1138,7 +1140,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
 
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=30)
         super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
