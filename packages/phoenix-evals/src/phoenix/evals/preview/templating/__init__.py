@@ -8,9 +8,8 @@ from textwrap import dedent
 from typing import Any, Dict, List, Optional, cast
 
 import pystache  # type: ignore
-from opentelemetry.trace import Tracer
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry
+from opentelemetry.trace import Tracer
 
 from phoenix.evals.preview.tracing import trace
 
