@@ -13,7 +13,7 @@ Sections
 - LLM wrapper and adapters: see `llm.md`
 - Built-in metrics and LLM evaluators: see `metrics.md`
 
-Quick start
+## Quick start
 ```python
 from phoenix.evals.preview import create_classifier
 from phoenix.evals.preview.llm import LLM
