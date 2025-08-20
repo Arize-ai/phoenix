@@ -39,7 +39,7 @@ scores = evaluator(
 scores[0].pretty_print()
 ```
 
-Installation notes
+## Installation notes
 - Install `openai`, `litellm`, or `langchain` only if you use those adapters. The library detects availability automatically.
 - Set your provider's API keys in the environment as usual for the chosen SDK.
 
