@@ -160,7 +160,8 @@ class LLM(LLMBase):
         Returns:
             The generated object.
         """
-        return self._adapter.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = self._adapter.generate_object(prompt, schema, **kwargs)
+        return result
 
     def generate_classification(
         self,
@@ -202,8 +203,8 @@ class LLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-
-        return self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
+        return result
 
 
 class AsyncLLM(LLMBase):
@@ -311,7 +312,8 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        return await self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = await self.generate_object(prompt, schema, **kwargs)
+        return result
 
 
 def show_provider_availability() -> None:

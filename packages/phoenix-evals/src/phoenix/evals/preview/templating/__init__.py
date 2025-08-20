@@ -5,7 +5,7 @@ from enum import Enum
 from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import pystache  # type: ignore
 from openinference.semconv.trace import SpanAttributes
@@ -14,11 +14,12 @@ from phoenix.evals.preview.tracing import trace
 
 
 def _get_template(bound: BoundArguments) -> str:
-    return bound.arguments["self"].template
+    return cast(str, bound.arguments["self"].template)
 
 
 def _get_variables(bound: BoundArguments) -> str:
-    return json.dumps(bound.arguments["variables"])
+    variables = bound.arguments["variables"]
+    return json.dumps(variables)
 
 
 def _get_output(result: str) -> str:
