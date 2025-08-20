@@ -91,6 +91,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
             flex: 1 1 auto;
             padding: var(--ac-global-dimension-size-200);
             height: 190px;
+            overflow: auto;
           `}
         >
           <ErrorBoundary>
