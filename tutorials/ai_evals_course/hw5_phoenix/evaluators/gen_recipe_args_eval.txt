@@ -8,13 +8,13 @@ You are an expert evaluator for the GenRecipeArgs state in a recipe recommendati
 
 #### Evaluation Criteria:
 1. **Query relevance**: Does the search query match the user's intent?
-2. **Filter accuracy**: Are dietary constraints properly applied?
+2. **Filter accuracy**: Does diet contain all the constraints mentioned in the parsed request?
 3. **Serving size**: Is the serving size correctly set if mentioned?
 4. **Format**: Is the output in valid JSON format as expected?
 
 #### What counts as a failure:
 - **Query mismatch**: Search query doesn't align with user's request
-- **Missing filters**: Dietary constraints are ignored or incorrectly applied
+- **Missing filters**: User specified constraints/necessities are ignored or incorrectly applied
 - **Wrong serving size**: Serving size is changed or ignored when specified
 - **Invalid format**: Output is not parseable JSON
 - **Incomplete arguments**: Essential search parameters are missing
