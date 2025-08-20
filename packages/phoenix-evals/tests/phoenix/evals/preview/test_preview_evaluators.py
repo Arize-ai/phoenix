@@ -1,5 +1,4 @@
 # type: ignore
-from contextlib import nullcontext as does_not_raise
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -10,11 +9,9 @@ from phoenix.evals.preview.evaluators import (
     Evaluator,
     LLMEvaluator,
     Score,
-    _validate_field_value,
     create_classifier,
     create_evaluator,
     list_evaluators,
-    remap_eval_input,
     to_thread,
 )
 from phoenix.evals.preview.llm import LLM, AsyncLLM
@@ -146,145 +143,6 @@ class TestScore:
         assert "score" in args[0]
 
 
-class TestValidateFieldValue:
-    """Test the _validate_field_value utility function."""
-
-    @pytest.mark.parametrize(
-        "value,field_name,key,expected_raises",
-        [
-            pytest.param(
-                "valid string", "field_name", "key", does_not_raise(), id="Valid string value"
-            ),
-            pytest.param(123, "field_name", "key", does_not_raise(), id="Valid integer value"),
-            pytest.param([1, 2, 3], "field_name", "key", does_not_raise(), id="Valid list value"),
-            pytest.param(
-                {"key": "value"}, "field_name", "key", does_not_raise(), id="Valid dict value"
-            ),
-            pytest.param(
-                None, "field_name", "key", pytest.raises(ValueError), id="None value raises error"
-            ),
-            pytest.param(
-                "", "field_name", "key", pytest.raises(ValueError), id="Empty string raises error"
-            ),
-            pytest.param(
-                "   ",
-                "field_name",
-                "key",
-                pytest.raises(ValueError),
-                id="Whitespace-only string raises error",
-            ),
-            pytest.param(
-                [], "field_name", "key", pytest.raises(ValueError), id="Empty list raises error"
-            ),
-            pytest.param(
-                (), "field_name", "key", pytest.raises(ValueError), id="Empty tuple raises error"
-            ),
-            pytest.param(
-                {}, "field_name", "key", pytest.raises(ValueError), id="Empty dict raises error"
-            ),
-        ],
-    )
-    def test_validate_field_value(self, value, field_name, key, expected_raises):
-        """Test _validate_field_value with various inputs."""
-        with expected_raises:
-            _validate_field_value(value, field_name, key)
-
-    @pytest.mark.parametrize(
-        "value,expected_error_pattern",
-        [
-            pytest.param(None, "cannot be None", id="None value error message"),
-            pytest.param("", "cannot be empty or whitespace-only", id="Empty string error message"),
-            pytest.param(
-                "   ", "cannot be empty or whitespace-only", id="Whitespace-only error message"
-            ),
-            pytest.param([], "cannot be empty", id="Empty list error message"),
-            pytest.param((), "cannot be empty", id="Empty tuple error message"),
-            pytest.param({}, "cannot be empty", id="Empty dict error message"),
-        ],
-    )
-    def test_validate_field_value_error_messages(self, value, expected_error_pattern):
-        """Test that _validate_field_value raises appropriate error messages."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            _validate_field_value(value, "field_name", "key")
-
-
-class TestRemapEvalInput:
-    """Test the remap_eval_input utility function."""
-
-    @pytest.mark.parametrize(
-        "eval_input,required_fields,input_mapping,expected_result",
-        [
-            pytest.param(
-                {"input": "test", "output": "result"},
-                {"input", "output"},
-                None,
-                {"input": "test", "output": "result"},
-                id="Basic remapping without input_mapping",
-            ),
-            pytest.param(
-                {"user_input": "test", "model_output": "result"},
-                {"input", "output"},
-                {"input": "user_input", "output": "model_output"},
-                {"input": "test", "output": "result"},
-                id="Remapping with input_mapping",
-            ),
-            pytest.param(
-                {"input": "test", "output": "result"},
-                ["input", "output"],
-                None,
-                {"input": "test", "output": "result"},
-                id="Remapping with list required_fields",
-            ),
-            pytest.param(
-                {"input": "test"},
-                None,
-                None,
-                {},
-                id="Remapping with None required_fields returns empty dict",
-            ),
-        ],
-    )
-    def test_remap_eval_input_success(
-        self, eval_input, required_fields, input_mapping, expected_result
-    ):
-        """Test successful remapping of eval_input."""
-        result = remap_eval_input(eval_input, required_fields, input_mapping)
-        assert result == expected_result
-
-    @pytest.mark.parametrize(
-        "eval_input,required_fields,input_mapping,expected_error_pattern",
-        [
-            pytest.param(
-                {"input": "test"},
-                {"input", "output"},
-                None,
-                "Missing required field",
-                id="Missing required field raises error",
-            ),
-            pytest.param(
-                {"input": ""},
-                {"input"},
-                None,
-                "cannot be empty",
-                id="Empty field value raises error",
-            ),
-            pytest.param(
-                {"input": None},
-                {"input"},
-                None,
-                "cannot be None",
-                id="None field value raises error",
-            ),
-        ],
-    )
-    def test_remap_eval_input_errors(
-        self, eval_input, required_fields, input_mapping, expected_error_pattern
-    ):
-        """Test remap_eval_input error handling."""
-        with pytest.raises(ValueError, match=expected_error_pattern):
-            remap_eval_input(eval_input, required_fields, input_mapping)
-
-
 class TestToThread:
     """Test the to_thread utility function."""
 
@@ -330,37 +188,34 @@ class TestEvaluator:
             return [Score(name=self.name, score=0.8, source=self.source)]
 
     @pytest.mark.parametrize(
-        "name,source,required_fields,direction,expected_name,expected_source,expected_direction",
+        "name,source,direction,expected_name,expected_source,expected_direction",
         [
             pytest.param(
                 "test_evaluator",
                 "llm",
-                {"input", "output"},
                 "minimize",
                 "test_evaluator",
                 "llm",
                 "minimize",
-                id="Evaluator with set required_fields and minimize direction",
+                id="Evaluator initialization with minimize direction",
             ),
             pytest.param(
                 "test_evaluator",
                 "heuristic",
-                ["input", "output"],
                 "maximize",
                 "test_evaluator",
                 "heuristic",
                 "maximize",
-                id="Evaluator with list required_fields and maximize direction",
+                id="Evaluator initialization with maximize direction",
             ),
             pytest.param(
                 "test_evaluator",
                 "human",
-                None,
                 "maximize",
                 "test_evaluator",
                 "human",
                 "maximize",
-                id="Evaluator with None required_fields",
+                id="Evaluator initialization defaults",
             ),
         ],
     )
@@ -368,44 +223,44 @@ class TestEvaluator:
         self,
         name,
         source,
-        required_fields,
         direction,
         expected_name,
         expected_source,
         expected_direction,
     ):
         """Test evaluator initialization with various parameters."""
-        evaluator = self.MockEvaluator(
-            name=name, source=source, required_fields=required_fields, direction=direction
-        )
+        evaluator = self.MockEvaluator(name=name, source=source, direction=direction)
 
         assert evaluator.name == expected_name
         assert evaluator.source == expected_source
         assert evaluator.direction == expected_direction
 
     @pytest.mark.parametrize(
-        "required_fields,expected_required_fields",
-        [
-            pytest.param(
-                {"input", "output"}, {"input", "output"}, id="Set required_fields unchanged"
-            ),
-            pytest.param(
-                ["input", "output"], {"input", "output"}, id="List required_fields converted to set"
-            ),
-            pytest.param(None, set(), id="None required_fields converted to empty set"),
-        ],
+        "dummy",
+        [pytest.param("x", id="inferred")],
     )
-    def test_evaluator_required_fields_conversion(self, required_fields, expected_required_fields):
-        """Test that required_fields are properly converted to a set."""
-        evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields=required_fields
-        )
-        assert evaluator.required_fields == expected_required_fields
+    def test_evaluator_required_fields_inferred(self, dummy):
+        """Required fields inferred from schema or mapping."""
+        from pydantic import create_model
+
+        InputModel = create_model("InputModel", input=(str, ...), output=(str, ...))
+        evaluator = self.MockEvaluator(name="test_evaluator", source="llm", input_schema=InputModel)
+        assert evaluator._get_required_fields(None) == {"input", "output"}
+
+        # From mapping when schema absent
+        evaluator2 = self.MockEvaluator(name="test_evaluator", source="llm")
+        mapping = {"input": "user_input", "output": "model_output"}
+        assert evaluator2._get_required_fields(mapping) == {"input", "output"}
 
     def test_evaluator_evaluate_success(self):
         """Test successful evaluation."""
+        from pydantic import create_model
+
+        InputModel = create_model("InputModel", input=(str, ...))
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
+            name="test_evaluator",
+            source="llm",
+            input_schema=InputModel,
         )
 
         result = evaluator.evaluate({"input": "test"})
@@ -416,7 +271,8 @@ class TestEvaluator:
     def test_evaluator_evaluate_with_mapping(self):
         """Test evaluation with input mapping."""
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
+            name="test_evaluator",
+            source="llm",
         )
 
         result = evaluator.evaluate({"user_input": "test"}, input_mapping={"input": "user_input"})
@@ -430,21 +286,27 @@ class TestEvaluator:
             pytest.param(
                 {"input": "test"},
                 {"input", "output"},
-                pytest.raises(ValueError, match="Missing required field"),
+                pytest.raises(ValueError, match=r"Invalid path"),
                 id="Missing required field raises ValueError",
             ),
             pytest.param(
-                {"input": ""},
+                {"input": None},
                 {"input"},
-                pytest.raises(ValueError, match="cannot be empty"),
+                pytest.raises(ValueError, match="Input validation failed"),
                 id="Empty required field raises ValueError",
             ),
         ],
     )
     def test_evaluator_evaluate_error_handling(self, eval_input, required_fields, expected_raises):
         """Test that evaluation errors raise ValueError for validation issues."""
+        from pydantic import create_model
+
+        fields = {name: (str, ...) for name in required_fields}
+        InputModel = create_model("InputModel", **fields)
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields=required_fields
+            name="test_evaluator",
+            source="llm",
+            input_schema=InputModel,
         )
 
         with expected_raises:
@@ -452,8 +314,13 @@ class TestEvaluator:
 
     def test_evaluator_callable(self):
         """Test that evaluator is callable."""
+        from pydantic import create_model
+
+        InputModel = create_model("InputModel", input=(str, ...))
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
+            name="test_evaluator",
+            source="llm",
+            input_schema=InputModel,
         )
 
         result = evaluator({"input": "test"})
@@ -464,8 +331,13 @@ class TestEvaluator:
     @pytest.mark.asyncio
     async def test_evaluator_aevaluate_success(self):
         """Test successful async evaluation."""
+        from pydantic import create_model
+
+        InputModel = create_model("InputModel", input=(str, ...))
         evaluator = self.MockEvaluator(
-            name="test_evaluator", source="llm", required_fields={"input"}
+            name="test_evaluator",
+            source="llm",
+            input_schema=InputModel,
         )
 
         result = await evaluator.aevaluate({"input": "test"})
@@ -502,7 +374,7 @@ class TestLLMEvaluator:
         assert evaluator.source == "llm"
         assert evaluator.llm == llm
         assert isinstance(evaluator.prompt_template, Template)
-        assert evaluator.required_fields == expected_required_fields
+        assert evaluator._get_required_fields(None) == expected_required_fields
 
     def test_llm_evaluator_initialization_with_template_object(self):
         """Test LLMEvaluator initialization with Template object."""
@@ -512,21 +384,22 @@ class TestLLMEvaluator:
         evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
 
         assert evaluator.prompt_template == template
-        assert evaluator.required_fields == {"input"}
+        assert evaluator._get_required_fields(None) == {"input"}
 
     def test_llm_evaluator_initialization_with_explicit_required_fields(self):
         """Test LLMEvaluator initialization with explicit required_fields."""
         llm = MockLLM()
         template = "Test template with {input}"
+        from pydantic import create_model
 
+        InputModel = create_model("InputModel", input=(str, ...))
         evaluator = LLMEvaluator(
             name="test_evaluator",
             llm=llm,
             prompt_template=template,
-            required_fields={"custom_field"},
+            input_schema=InputModel,
         )
-
-        assert evaluator.required_fields == {"custom_field"}
+        assert evaluator._get_required_fields(None) == {"input"}
 
     def test_llm_evaluator_sync_evaluate_with_async_llm(self):
         """Test that sync evaluate raises error with AsyncLLM."""
@@ -947,3 +820,68 @@ class TestFactoryFunctions:
         assert evaluator.name == "test_classifier"
         assert evaluator.labels == expected_labels
         assert evaluator.llm == llm
+
+
+class TestIntrospectionAndSchema:
+    """Tests for describe() based on input_schema inference."""
+
+    def test_describe_for_simple_decorator(self):
+        @create_evaluator("simple_eval")
+        def simple_eval(output: str, expected: str) -> Score:
+            return Score(score=1.0)
+
+        schema = simple_eval.describe()
+        assert schema["input_schema"]["type"] == "object"
+        assert set(schema["input_schema"]["required"]) == {"output", "expected"}
+        assert schema["input_schema"]["properties"]["output"]["type"] == "string"
+        assert schema["input_schema"]["properties"]["expected"]["type"] == "string"
+
+    def test_describe_optional_and_defaults(self):
+        @create_evaluator("opt_eval")
+        def opt_eval(a: str, b: str or None = None, k: int = 1) -> Score:
+            return Score(score=1.0)
+
+        schema = opt_eval.describe()
+        assert set(schema["input_schema"]["properties"].keys()) == {"a", "b", "k"}
+        # Only 'a' should be required
+        assert set(schema["input_schema"]["required"]) == {"a"}
+        assert schema["input_schema"]["properties"]["k"]["type"] in {"integer", "number"}
+
+
+class TestEvaluatorRequiredFieldsAndBinding:
+    """Covers required field inference and binding behavior."""
+
+    class MinimalEvaluator(Evaluator):
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=1.0, source=self.source)]
+
+    def test_required_fields_from_mapping_when_no_schema(self):
+        e = self.MinimalEvaluator(name="min", source="heuristic")
+        payload = {"in": {"msg": "hi"}}
+        mapping = {"text": lambda row: row["in"]["msg"].upper()}
+
+        # Without mapping and without schema -> error
+        with pytest.raises(ValueError, match="Cannot determine input fields"):
+            e.evaluate(payload)
+
+        # With mapping keys -> accepted
+        scores = e.evaluate(payload, input_mapping=mapping)
+        assert len(scores) == 1 and scores[0].score == 1.0
+
+    def test_bound_evaluator_evaluate_and_describe(self):
+        @create_evaluator("emph")
+        def emph(text: str) -> Score:
+            return Score(score=float(len(text) > 0))
+
+        mapping = {"text": lambda row: row["raw"]["value"].strip()}
+        payload = {"raw": {"value": " hello "}}
+
+        from phoenix.evals.preview.evaluators import bind_evaluator
+
+        be = bind_evaluator(emph, mapping)
+        # Evaluate through bound mapping
+        scores = be.evaluate(payload)
+        assert len(scores) == 1 and scores[0].score == 1.0
+        # Introspection passthrough
+        assert be.describe()["name"] == "emph"
+        assert set(be.mapping_description()["mapping_keys"]) == {"text"}
