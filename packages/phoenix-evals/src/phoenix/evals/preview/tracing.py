@@ -118,32 +118,57 @@ def trace(
                     tracer_from_args = maybe_tracer
 
             _tracer = get_tracer(tracer_from_args or tracer)
-
-            with _tracer.start_as_current_span(_span_name) as span:
-                if span_kind is not None:
-                    span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value)
-                if process_input is not None and bound is not None:
-                    for attr_key, input_mapper_fn in process_input.items():
+            function_raised: bool = False
+            function_executed: bool = False
+            result: Any = None
+            try:
+                with _tracer.start_as_current_span(_span_name) as span:
+                    if span_kind is not None:
                         try:
-                            value = input_mapper_fn(bound)
-                            span.set_attribute(attr_key, _otel_attribute_value(value))
+                            span.set_attribute(
+                                SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value
+                            )
                         except Exception:
-                            continue
-                try:
-                    result = func(*args, **kwargs)
-                except Exception as exc:
-                    span.record_exception(exc)
-                    span.set_status(Status(StatusCode.ERROR))
+                            pass
+                    if process_input is not None and bound is not None:
+                        for attr_key, input_mapper_fn in process_input.items():
+                            try:
+                                value = input_mapper_fn(bound)
+                                span.set_attribute(attr_key, _otel_attribute_value(value))
+                            except Exception:
+                                continue
+                    try:
+                        result = func(*args, **kwargs)
+                        function_executed = True
+                    except Exception as exc:
+                        try:
+                            span.record_exception(exc)
+                            span.set_status(Status(StatusCode.ERROR))
+                        except Exception:
+                            pass
+                        function_raised = True
+                        raise
+
+                    if process_output is not None:
+                        for attr_key, output_mapper_fn in process_output.items():
+                            try:
+                                value = output_mapper_fn(result)
+                                span.set_attribute(attr_key, _otel_attribute_value(value))
+                            except Exception:
+                                continue
+                    return cast(ReturnValue, result)
+            except Exception:
+                if function_raised:
+                    # Propagate the original function exception unchanged
                     raise
-
-                if process_output is not None:
-                    for attr_key, output_mapper_fn in process_output.items():
-                        try:
-                            value = output_mapper_fn(result)
-                            span.set_attribute(attr_key, _otel_attribute_value(value))
-                        except Exception:
-                            continue
-                return cast(ReturnValue, result)
+                if function_executed:
+                    # If function ran successfully but tracing teardown failed, return its result
+                    return cast(ReturnValue, result)
+                try:
+                    # Tracing failures should not affect business logic; run without tracing
+                    return cast(ReturnValue, func(*args, **kwargs))
+                except Exception:
+                    raise
 
         @wraps(func)
         async def _wrapper_async(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
@@ -172,32 +197,57 @@ def trace(
                     tracer_from_args = maybe_tracer
 
             _tracer = get_tracer(tracer_from_args or tracer)
-
-            with _tracer.start_as_current_span(_span_name) as span:
-                if span_kind is not None:
-                    span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value)
-                if process_input is not None and bound is not None:
-                    for attr_key, input_mapper_fn in process_input.items():
+            function_raised: bool = False
+            function_executed: bool = False
+            result: Any = None
+            try:
+                with _tracer.start_as_current_span(_span_name) as span:
+                    if span_kind is not None:
                         try:
-                            value = input_mapper_fn(bound)
-                            span.set_attribute(attr_key, _otel_attribute_value(value))
+                            span.set_attribute(
+                                SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value
+                            )
                         except Exception:
-                            continue
-                try:
-                    result = await func(*args, **kwargs)
-                except Exception as exc:
-                    span.record_exception(exc)
-                    span.set_status(Status(StatusCode.ERROR))
+                            pass
+                    if process_input is not None and bound is not None:
+                        for attr_key, input_mapper_fn in process_input.items():
+                            try:
+                                value = input_mapper_fn(bound)
+                                span.set_attribute(attr_key, _otel_attribute_value(value))
+                            except Exception:
+                                continue
+                    try:
+                        result = await func(*args, **kwargs)
+                        function_executed = True
+                    except Exception as exc:
+                        try:
+                            span.record_exception(exc)
+                            span.set_status(Status(StatusCode.ERROR))
+                        except Exception:
+                            pass
+                        function_raised = True
+                        raise
+
+                    if process_output is not None:
+                        for attr_key, output_mapper_fn in process_output.items():
+                            try:
+                                value = output_mapper_fn(result)
+                                span.set_attribute(attr_key, _otel_attribute_value(value))
+                            except Exception:
+                                continue
+                    return cast(ReturnValue, result)
+            except Exception:
+                if function_raised:
+                    # Propagate the original function exception unchanged
                     raise
-
-                if process_output is not None:
-                    for attr_key, output_mapper_fn in process_output.items():
-                        try:
-                            value = output_mapper_fn(result)
-                            span.set_attribute(attr_key, _otel_attribute_value(value))
-                        except Exception:
-                            continue
-                return cast(ReturnValue, result)
+                if function_executed:
+                    # If function ran successfully but tracing teardown failed, return its result
+                    return cast(ReturnValue, result)
+                try:
+                    # Tracing failures should not affect business logic; run without tracing
+                    return cast(ReturnValue, await cast(Callable[..., Any], func)(*args, **kwargs))
+                except Exception:
+                    raise
 
         if iscoroutinefunction(func):
             return cast(Callable[FnParams, Any], _wrapper_async)
