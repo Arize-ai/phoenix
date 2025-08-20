@@ -55,18 +55,21 @@ def _get_common_annotation_columns() -> set[str]:
         - user_id: Foreign key to users table (nullable)
         - identifier: Additional identifier for grouping
         - source: Source of annotation (API, APP)
+        - trace_id: Trace identifier (nullable)
         - created_at: Timestamp when created
         - updated_at: Timestamp when last updated
     """
     return {
         "annotator_kind",  # ENUM: HUMAN, LLM, CODE
         "created_at",  # TIMESTAMP WITH TIME ZONE
+        "error",  # VARCHAR (nullable)
         "explanation",  # VARCHAR (nullable)
         "id",  # SERIAL PRIMARY KEY
         "label",  # VARCHAR (nullable)
         "metadata",  # JSONB
         "name",  # VARCHAR (required)
         "score",  # DOUBLE PRECISION (nullable)
+        "trace_id",  # VARCHAR (nullable)
         "updated_at",  # TIMESTAMP WITH TIME ZONE
         "user_id",  # INTEGER FK to users (nullable)
         "identifier",  # VARCHAR (for grouping/batching)
@@ -83,14 +86,18 @@ def _get_common_nullable_columns() -> set[str]:
     Returns:
         Set of nullable column names:
         - score: Numeric score (nullable)
+        - error: Error message (nullable)
         - explanation: Textual explanation (nullable)
         - label: Human-readable label (nullable)
         - user_id: Foreign key to users table (nullable)
+        - trace_id: Trace identifier (nullable)
     """
     return {
+        "error",  # VARCHAR (nullable)
         "explanation",  # VARCHAR (nullable)
         "label",  # VARCHAR (nullable)
         "score",  # DOUBLE PRECISION (nullable)
+        "trace_id",  # VARCHAR (nullable)
         "user_id",  # INTEGER FK to users (nullable)
     }
 
