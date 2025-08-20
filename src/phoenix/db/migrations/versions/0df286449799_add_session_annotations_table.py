@@ -51,6 +51,7 @@ _Integer = sa.Integer().with_variant(
 
 
 def upgrade() -> None:
+    # Create project_session_annotations table
     op.create_table(
         "project_session_annotations",
         sa.Column("id", _Integer, primary_key=True),
@@ -87,6 +88,8 @@ def upgrade() -> None:
             sa.CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
             nullable=False,
         ),
+        sa.Column("trace_id", sa.String),
+        sa.Column("error", sa.String),
         sa.Column(
             "created_at", sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
         ),
@@ -100,6 +103,27 @@ def upgrade() -> None:
         sa.UniqueConstraint("name", "project_session_id", "identifier"),
     )
 
+    # Add trace_id column to existing annotation tables
+    op.add_column("span_annotations", sa.Column("trace_id", sa.String))
+    op.add_column("trace_annotations", sa.Column("trace_id", sa.String))
+    op.add_column("document_annotations", sa.Column("trace_id", sa.String))
+
+    # Add error column to existing annotation tables
+    op.add_column("span_annotations", sa.Column("error", sa.String))
+    op.add_column("trace_annotations", sa.Column("error", sa.String))
+    op.add_column("document_annotations", sa.Column("error", sa.String))
+
 
 def downgrade() -> None:
+    # Remove trace_id columns from existing annotation tables
+    op.drop_column("document_annotations", "trace_id")
+    op.drop_column("trace_annotations", "trace_id")
+    op.drop_column("span_annotations", "trace_id")
+
+    # Remove error columns from existing annotation tables
+    op.drop_column("document_annotations", "error")
+    op.drop_column("trace_annotations", "error")
+    op.drop_column("span_annotations", "error")
+
+    # Drop the project_session_annotations table
     op.drop_table("project_session_annotations")
