@@ -484,7 +484,7 @@ def create_evaluator(
         An `Evaluator` instance.
 
     Notes:
-    
+
     The decorated function can return:
     - A Score object (no conversion needed)
     - A number (converted to Score.score)
