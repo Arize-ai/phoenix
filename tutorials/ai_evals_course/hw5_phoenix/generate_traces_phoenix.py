@@ -20,15 +20,13 @@ Each span follows OpenInference semantic conventions for proper attribute naming
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List
-import os
-
-from tavily import TavilyClient
 
 import litellm
 from dotenv import load_dotenv
@@ -38,6 +36,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     SpanAttributes,
 )
+from tavily import TavilyClient
 from tqdm import tqdm
 
 # Phoenix instrumentation
@@ -292,10 +291,10 @@ def gen_web_args(recipes: str, failure: int) -> str:
 @tracer.tool(name="GetWebInfo", description="Search the web for recipe information and tips")
 def get_web_info(search_query: str, failure: int) -> str:
     """GetWebInfo state - Executes Tavily web search for recipe information."""
-    
+
     # Initialize Tavily client
     tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-    
+
     if failure != 6:
         # Normal search for recipe information
         response = tavily_client.search(search_query)
