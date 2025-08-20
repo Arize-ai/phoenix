@@ -30,6 +30,8 @@ dependencies = [
   "pystache",
   "pydantic>=2.0.0",
   "glom",
+  "openinference-semantic-conventions>=0.1.19",
+  "opentelemetry-api",
 ]
 
 [project.optional-dependencies]

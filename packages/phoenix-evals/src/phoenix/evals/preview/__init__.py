@@ -1,4 +1,4 @@
-from . import llm, metrics, templating
+from . import llm, metrics, templating, tracing
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -28,4 +28,5 @@ __all__ = [
     "templating",
     "llm",
     "bind_evaluator",
+    "tracing",
 ]
