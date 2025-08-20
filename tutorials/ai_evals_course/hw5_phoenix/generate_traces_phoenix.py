@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E501
 """Phoenix Instrumented Trace Generator for HW5
 
 This script generates synthetic conversation traces with detailed Phoenix spans
@@ -26,7 +27,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import litellm
 from dotenv import load_dotenv
@@ -73,8 +74,13 @@ tracer_provider = register(
 )
 tracer = tracer_provider.get_tracer(__name__)
 
+
 def chat_completion(
-    messages: List[Dict[str, str]], *, max_tokens: int = 256, temperature: float = 0.7, **kwargs: dict[str, Any]
+    messages: List[Dict[str, str]],
+    *,
+    max_tokens: int = 256,
+    temperature: float = 0.7,
+    **kwargs: dict[str, Any],
 ) -> str:
     """Wrapper around litellm.completion returning content string."""
     resp = litellm.completion(
@@ -85,9 +91,11 @@ def chat_completion(
     )
     return str(resp.choices[0].message.content.strip())
 
+
 # -----------------------------------------------------------------------------
 # Pipeline state implementations
 # -----------------------------------------------------------------------------
+
 
 def parse_request(user_query: str, failure: int) -> str:
     """Simulate ParseRequest state - LLM interprets user message."""
@@ -167,6 +175,7 @@ def plan_tool_calls(parsed_request: str, failure: int) -> str:
         span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
     return response
 
+
 def gen_recipe_args(parsed_request: str, failure: int) -> str:
     """Simulate GenRecipeArgs state - LLM constructs arguments for recipe DB."""
     if failure != 3:
@@ -209,14 +218,14 @@ def gen_recipe_args(parsed_request: str, failure: int) -> str:
 def get_recipes(args: str, failure: int) -> str:
     """Simulate GetRecipes state - Executes recipe-search retriever."""
     with tracer.start_as_current_span(
-            "GetRecipes",
-            openinference_span_kind="retriever",
-        ) as span:
-            # Add realistic delay for retrieval operations (300-1200ms)
-            time.sleep(random.uniform(0.3, 1.2))
+        "GetRecipes",
+        openinference_span_kind="retriever",
+    ) as span:
+        # Add realistic delay for retrieval operations (300-1200ms)
+        time.sleep(random.uniform(0.3, 1.2))
 
-            if failure != 4:
-                prompt = f"""
+        if failure != 4:
+            prompt = f"""
                 Simulate recipe search results for these arguments.
 
                 Arguments: {args}
@@ -229,13 +238,13 @@ def get_recipes(args: str, failure: int) -> str:
                     "recipe_instructions": list
                 }}
                 """
-            else:
-                prompt = f"""
+        else:
+            prompt = f"""
                 Simulate recipe search results for these arguments, introducing a retrieval defect for testing.
 
                 Arguments: {args}
 
-                Include a recipe that clearly does not match the args given to you above. 
+                Include a recipe that clearly does not match the args given to you above.
 
                 Return JSON list of 2–3 documents, each with the following fields:
                 {{
@@ -246,13 +255,13 @@ def get_recipes(args: str, failure: int) -> str:
                 }}
                 """
 
-            response = chat_completion([{"role": "user", "content": prompt}])
+        response = chat_completion([{"role": "user", "content": prompt}])
 
-            # Set input/output attributes
-            span.set_attribute(SpanAttributes.INPUT_VALUE, args)
-            span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value)
-            span.set_attribute(SpanAttributes.OUTPUT_VALUE, response)
-            span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        # Set input/output attributes
+        span.set_attribute(SpanAttributes.INPUT_VALUE, args)
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value)
+        span.set_attribute(SpanAttributes.OUTPUT_VALUE, response)
+        span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
 
     return response
 
@@ -265,7 +274,7 @@ def gen_web_args(recipes: str, failure: int) -> str:
 
         Recipes: {recipes}
 
-        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc. 
+        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc.
         """
     else:
         prompt = f"""
@@ -276,7 +285,7 @@ def gen_web_args(recipes: str, failure: int) -> str:
         Do the following defects:
         Off topic query, unrelated to the recipes
 
-        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc. 
+        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc.
         """
 
     with tracer.start_as_current_span("GenWebArgs", openinference_span_kind="llm") as span:
@@ -287,6 +296,7 @@ def gen_web_args(recipes: str, failure: int) -> str:
         span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
 
     return response
+
 
 @tracer.tool(name="GetWebInfo", description="Search the web for recipe information and tips")
 def get_web_info(search_query: str, failure: int) -> str:
@@ -331,7 +341,7 @@ def compose_response(recipes: str, web_info: str, failure: int) -> str:
         Choose one defect:
         Contradictory steps (e.g., bake then say "do not use heat")
         Big/nonsensical unit mismatches
-        Final answer is not helpful, does not match/contradicts recipes at all 
+        Final answer is not helpful, does not match/contradicts recipes at all
         Final answer is not helpful, does not match web/contradicts info at all
         Simply nonsensical answer
         """
@@ -376,10 +386,10 @@ def generate_single_trace_with_spans(failure: int) -> None:
         recipe_args = gen_recipe_args(parsed_request, failure)
         messages.append(
             {
-                    "role": "assistant",
-                    "content": f"Generating recipe args: {recipe_args}",
-                }
-            )
+                "role": "assistant",
+                "content": f"Generating recipe args: {recipe_args}",
+            }
+        )
 
         # 4. GetRecipes
         recipes_str = get_recipes(recipe_args, failure)
@@ -391,13 +401,11 @@ def generate_single_trace_with_spans(failure: int) -> None:
         search_query = gen_web_args(recipes_str, failure)
         messages.append(
             {"role": "assistant", "content": f"Generated web search query: {search_query}"}
-            )
+        )
 
         # 6. GetWebInfo
         web_info = get_web_info(search_query, failure)
-        messages.append(
-            {"role": "assistant", "content": f"Found web resources: {web_info}"}
-            )
+        messages.append({"role": "assistant", "content": f"Found web resources: {web_info}"})
 
         time.sleep(0.1)
 
@@ -422,9 +430,8 @@ def generate_traces_phoenix(
 
     def make_trace(_: int) -> None:
         """Generate a single trace with retry logic."""
-        failure = random.randint(1,10)
+        failure = random.randint(1, 10)
         generate_single_trace_with_spans(failure)
-
 
     # Generate traces in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
