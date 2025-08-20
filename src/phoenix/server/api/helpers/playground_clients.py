@@ -543,7 +543,11 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
                 raise BadRequest("An API key is required for DeepSeek models")
             api_key = "sk-fake-api-key"
 
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com")
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url or "https://api.deepseek.com",
+            timeout=30,
+        )
         super().__init__(client=client, model=model, credentials=credentials)
         # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
         # Adding a custom "deepseek" provider value to make it distinguishable in traces
