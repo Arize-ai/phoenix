@@ -25,8 +25,13 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
 def _is_valid_dataset_example(obj: Any) -> bool:
-    """
-    Check if an object is a valid DatasetExample using the TypedDict's annotations.
+    """Check if an object is a valid DatasetExample using the TypedDict's annotations.
+
+    Args:
+        obj (Any): The object to validate.
+
+    Returns:
+        bool: True if the object is a valid DatasetExample, False otherwise.
     """
     if not isinstance(obj, dict):
         return False
@@ -39,19 +44,18 @@ def _is_valid_dataset_example(obj: Any) -> bool:
 
 
 class Dataset:
-    """
-    A dataset with its examples and version information.
+    """A dataset with its examples and version information.
 
     Attributes:
-        id: The dataset ID
-        name: The dataset name
-        description: The dataset description
-        version_id: The current version ID
-        examples: List of examples in this version
-        metadata: Additional dataset metadata
-        created_at: When the dataset was created
-        updated_at: When the dataset was last updated
-        example_count: Number of examples in this version
+        id (str): The dataset ID.
+        name (str): The dataset name.
+        description (Optional[str]): The dataset description.
+        version_id (str): The current version ID.
+        examples (list[v1.DatasetExample]): List of examples in this version.
+        metadata (dict[str, Any]): Additional dataset metadata.
+        created_at (datetime): When the dataset was created.
+        updated_at (datetime): When the dataset was last updated.
+        example_count (int): Number of examples in this version.
     """
 
     def __init__(
