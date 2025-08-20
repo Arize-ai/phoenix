@@ -1,11 +1,28 @@
+import json
 import re
 from abc import ABC, abstractmethod
 from enum import Enum
+from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
 from typing import Any, Dict, List, Optional
 
 import pystache  # type: ignore
+from openinference.semconv.trace import SpanAttributes
+
+from phoenix.evals.preview.tracing import trace
+
+
+def _get_template(bound: BoundArguments) -> str:
+    return bound.arguments["self"].template
+
+
+def _get_variables(bound: BoundArguments) -> str:
+    return json.dumps(bound.arguments["variables"])
+
+
+def _get_output(result: str) -> str:
+    return result
 
 
 class TemplateFormat(str, Enum):
@@ -184,6 +201,16 @@ class Template:
     def variables(self) -> List[str]:
         return self._variables
 
+    @trace(
+        process_input={
+            SpanAttributes.LLM_PROMPT_TEMPLATE: _get_template,
+            SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES: _get_variables,
+            SpanAttributes.INPUT_VALUE: _get_variables,
+        },
+        process_output={
+            SpanAttributes.OUTPUT_VALUE: _get_output,
+        },
+    )
     def render(self, variables: Dict[str, Any]) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
