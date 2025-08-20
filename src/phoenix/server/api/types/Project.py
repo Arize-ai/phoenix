@@ -1287,6 +1287,8 @@ class Project(Node):
                 name,
                 average_score,
             ) in await session.stream(stmt):
+                if average_score is None:
+                    continue
                 timestamp = _as_datetime(t)
                 if timestamp not in scores:
                     scores[timestamp] = {}
