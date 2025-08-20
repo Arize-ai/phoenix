@@ -31,51 +31,51 @@ class Spans:
     Examples:
         Non-DataFrame methods::
 
-            >>> from phoenix.client import Client
-            >>> client = Client()
+            from phoenix.client import Client
+            client = Client()
 
             # Get spans as list
-            >>> spans = client.spans.get_spans(
-            ...     project_identifier="my-project",
-            ...     limit=100
-            ... )
+            spans = client.spans.get_spans(
+                project_identifier="my-project",
+                limit=100
+            )
 
             # Get span annotations as list
-            >>> annotations = client.spans.get_span_annotations(
-            ...     span_ids=["span1", "span2"],
-            ...     project_identifier="my-project"
-            ... )
+            annotations = client.spans.get_span_annotations(
+                span_ids=["span1", "span2"],
+                project_identifier="my-project"
+            )
 
             # Log spans
-            >>> spans = [
-            ...     {
-            ...         "id": "1",
-            ...         "name": "test",
-            ...         "context": {"trace_id": "123", "span_id": "456"},
-            ...     }
-            ... ]
-            >>> result = client.spans.log_spans(
-            ...     project_identifier="my-project",
-            ...     spans=spans
-            ... )
-            >>> print(f"Queued {result['total_queued']} spans")
+            spans = [
+                {
+                    "id": "1",
+                    "name": "test",
+                    "context": {"trace_id": "123", "span_id": "456"},
+                }
+            ]
+            result = client.spans.log_spans(
+                project_identifier="my-project",
+                spans=spans
+            )
+            print(f"Queued {result['total_queued']} spans")
 
         DataFrame methods::
 
-            >>> from phoenix.client.types.spans import SpanQuery
+            from phoenix.client.types.spans import SpanQuery
 
             # Get spans as DataFrame
-            >>> query = SpanQuery().select(annotations["relevance"])
-            >>> df = client.spans.get_spans_dataframe(query=query)
+            query = SpanQuery().select(annotations["relevance"])
+            df = client.spans.get_spans_dataframe(query=query)
 
             # Get span annotations as DataFrame
-            >>> annotations_df = client.spans.get_span_annotations_dataframe(
-            ...     span_ids=["span1", "span2"],
-            ...     project_identifier="my-project"
-            ... )
+            annotations_df = client.spans.get_span_annotations_dataframe(
+                span_ids=["span1", "span2"],
+                project_identifier="my-project"
+            )
 
             # Delete a span
-            >>> client.spans.delete(span_identifier="abc123def456")
+            client.spans.delete(span_identifier="abc123def456")
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -553,15 +553,16 @@ class Spans:
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
             httpx.TimeoutException: If the request times out.
 
-        Example:
-            >>> from phoenix.client import Client
-            >>> client = Client()
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
 
             # Delete by OpenTelemetry span_id
-            >>> client.spans.delete_span(span_identifier="051581bf3cb55c13")
+            client.spans.delete_span(span_identifier="051581bf3cb55c13")
 
             # Delete by Phoenix Global ID
-            >>> client.spans.delete(span_identifier="U3BhbjoxMjM=")
+            client.spans.delete(span_identifier="U3BhbjoxMjM=")
         """
         response = self._client.delete(
             url=f"v1/spans/{span_identifier}",
@@ -579,51 +580,51 @@ class AsyncSpans:
     Examples:
         Non-DataFrame methods::
 
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
 
             # Get spans as list
-            >>> spans = await client.spans.get_spans(
-            ...     project_identifier="my-project",
-            ...     limit=100
-            ... )
+            spans = await client.spans.get_spans(
+                project_identifier="my-project",
+                limit=100
+            )
 
             # Get span annotations as list
-            >>> annotations = await client.spans.get_span_annotations(
-            ...     span_ids=["span1", "span2"],
-            ...     project_identifier="my-project"
-            ... )
+            annotations = await client.spans.get_span_annotations(
+                span_ids=["span1", "span2"],
+                project_identifier="my-project"
+            )
 
             # Log spans
-            >>> spans = [
-            ...     {
-            ...         "id": "1",
-            ...         "name": "test",
-            ...         "context": {"trace_id": "123", "span_id": "456"},
-            ...     }
-            ... ]
-            >>> result = await client.spans.log_spans(
-            ...     project_identifier="my-project",
-            ...     spans=spans
-            ... )
-            >>> print(f"Queued {result['total_queued']} spans")
+            spans = [
+                {
+                    "id": "1",
+                    "name": "test",
+                    "context": {"trace_id": "123", "span_id": "456"},
+                }
+            ]
+            result = await client.spans.log_spans(
+                project_identifier="my-project",
+                spans=spans
+            )
+            print(f"Queued {result['total_queued']} spans")
 
         DataFrame methods::
 
-            >>> from phoenix.client.types.spans import SpanQuery
+            from phoenix.client.types.spans import SpanQuery
 
             # Get spans as DataFrame
-            >>> query = SpanQuery().select(annotations["relevance"])
-            >>> df = await client.spans.get_spans_dataframe(query=query)
+            query = SpanQuery().select(annotations["relevance"])
+            df = await client.spans.get_spans_dataframe(query=query)
 
             # Get span annotations as DataFrame
-            >>> annotations_df = await client.spans.get_span_annotations_dataframe(
-            ...     span_ids=["span1", "span2"],
-            ...     project_identifier="my-project"
-            ... )
+            annotations_df = await client.spans.get_span_annotations_dataframe(
+                span_ids=["span1", "span2"],
+                project_identifier="my-project"
+            )
 
             # Delete a span
-            >>> await client.spans.delete(span_identifier="abc123def456")
+            await client.spans.delete(span_identifier="abc123def456")
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -1104,15 +1105,16 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
             httpx.TimeoutException: If the request times out.
 
-        Example:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
+        Examples::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
 
             # Delete by OpenTelemetry span_id
-            >>> await client.spans.delete(span_identifier="abc123def456")
+            await client.spans.delete(span_identifier="abc123def456")
 
             # Delete by Phoenix Global ID
-            >>> await client.spans.delete(span_identifier="U3BhbjoxMjM=")
+            await client.spans.delete(span_identifier="U3BhbjoxMjM=")
         """
         response = await self._client.delete(
             url=f"v1/spans/{span_identifier}",
