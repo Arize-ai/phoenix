@@ -23,11 +23,14 @@ _MAX_SPAN_IDS_PER_REQUEST = 100
 
 
 class Spans:
-    """
-    Provides methods for interacting with span resources.
+    """Provides methods for interacting with span resources.
 
-    Example:
-        Non-DataFrame methods:
+    This class offers both regular and DataFrame-based methods for retrieving,
+    logging, and managing spans and their annotations.
+
+    Examples:
+        Non-DataFrame methods::
+
             >>> from phoenix.client import Client
             >>> client = Client()
 
@@ -57,7 +60,8 @@ class Spans:
             ... )
             >>> print(f"Queued {result['total_queued']} spans")
 
-        DataFrame methods:
+        DataFrame methods::
+
             >>> from phoenix.client.types.spans import SpanQuery
 
             # Get spans as DataFrame
@@ -72,7 +76,6 @@ class Spans:
 
             # Delete a span
             >>> client.spans.delete(span_identifier="abc123def456")
-
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -90,25 +93,25 @@ class Spans:
         project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
-        """
-        Retrieves spans based on the provided filter conditions.
+        """Retrieves spans based on the provided filter conditions.
 
         Args:
-            query: A SpanQuery object defining the query criteria.
-            start_time: Optional start time for filtering.
-            end_time: Optional end time for filtering.
-            limit: Maximum number of spans to return.
-            root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by. Deprecated, use `project_identifier`
-                to also specify by the project id.
-            project_identifier: Optional project identifier (name or id) to filter by.
-            timeout: Optional request timeout in seconds.
+            query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.
+            start_time (Optional[datetime]): Optional start time for filtering.
+            end_time (Optional[datetime]): Optional end time for filtering.
+            limit (int): Maximum number of spans to return. Defaults to 1000.
+            root_spans_only (Optional[bool]): Whether to return only root spans.
+            project_name (Optional[str]): Optional project name to filter by. Deprecated,
+                use `project_identifier` to also specify by the project id.
+            project_identifier (Optional[str]): Optional project identifier (name or id)
+                to filter by.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            pandas DataFrame
+            pd.DataFrame: A pandas DataFrame containing the retrieved spans.
 
         Raises:
-            ImportError: If pandas is not installed
+            ImportError: If pandas is not installed.
         """
         project_name = project_name
         query = query if query else SpanQuery()
@@ -169,31 +172,35 @@ class Spans:
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
-        """
-        Fetches span annotations and returns them as a pandas DataFrame.
+        """Fetches span annotations and returns them as a pandas DataFrame.
 
         Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
-            spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
-                `context.span_id` or `span_id` column.
-            span_ids: An iterable of span IDs.
-            spans: A list of Span objects (typically returned by `get_spans`).
-            project_identifier: The project identifier (name or ID) used in the API path.
-            include_annotation_names: Optional list of annotation names to include. If provided,
-                only annotations with these names will be returned.
-            exclude_annotation_names: Optional list of annotation names to exclude from results.
-                Defaults to ["note"] to exclude note annotations, which are reserved for notes
-                added via the UI.
-            limit: Maximum number of annotations returned per request page.
-            timeout: Optional request timeout in seconds.
+            spans_dataframe (Optional[pd.DataFrame]): A DataFrame (typically returned by
+                `get_spans_dataframe`) with a `context.span_id` or `span_id` column.
+            span_ids (Optional[Iterable[str]]): An iterable of span IDs.
+            spans (Optional[Iterable[v1.Span]]): A list of Span objects (typically
+                returned by `get_spans`).
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path. Defaults to "default".
+            include_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to include. If provided, only annotations with these
+                names will be returned.
+            exclude_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to exclude from results. Defaults to ["note"] to
+                exclude note annotations, which are reserved for notes added via the UI.
+            limit (int): Maximum number of annotations returned per request page.
+                Defaults to 1000.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A DataFrame where each row corresponds to a single span annotation.
+            pd.DataFrame: A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
-                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans*
+                is provided, or if the `context.span_id` or `span_id` column is missing
+                from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -289,25 +296,28 @@ class Spans:
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
-        """
-        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+        """Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
         Exactly one of *span_ids* or *spans* should be provided.
 
         Args:
-            span_ids: An iterable of span IDs.
-            spans: A list of Span objects (typically returned by `get_spans`).
-            project_identifier: The project identifier (name or ID) used in the API path.
-            include_annotation_names: Optional list of annotation names to include. If provided,
-                only annotations with these names will be returned.
-            exclude_annotation_names: Optional list of annotation names to exclude from results.
-                Defaults to ["note"] to exclude note annotations, which are reserved for notes
-                added via the UI.
-            limit: Maximum number of annotations returned per request page.
-            timeout: Optional request timeout in seconds.
+            span_ids (Optional[Iterable[str]]): An iterable of span IDs.
+            spans (Optional[Iterable[v1.Span]]): A list of Span objects (typically
+                returned by `get_spans`).
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            include_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to include. If provided, only annotations with these
+                names will be returned.
+            exclude_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to exclude from results. Defaults to ["note"] to
+                exclude note annotations, which are reserved for notes added via the UI.
+            limit (int): Maximum number of annotations returned per request page.
+                Defaults to 1000.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A list of SpanAnnotation objects.
+            list[v1.SpanAnnotation]: A list of SpanAnnotation objects.
 
         Raises:
             ValueError: If not exactly one of *span_ids* or *spans* is provided.
@@ -384,18 +394,20 @@ class Spans:
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
-        """
-        Retrieves spans with simple filtering options.
+        """Retrieves spans with simple filtering options.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            start_time: Optional start time for filtering (inclusive lower bound).
-            end_time: Optional end time for filtering (exclusive upper bound).
-            limit: Maximum number of spans to return (default: 100).
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            start_time (Optional[datetime]): Optional start time for filtering
+                (inclusive lower bound).
+            end_time (Optional[datetime]): Optional end time for filtering
+                (exclusive upper bound).
+            limit (int): Maximum number of spans to return. Defaults to 100.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A list of Span objects.
+            list[v1.Span]: A list of Span objects.
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
@@ -445,20 +457,20 @@ class Spans:
         spans: Sequence[v1.Span],
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
-        """
-        Logs spans to a project.
+        """Logs spans to a project.
 
         If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            spans: A sequence of Span objects to log.
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            spans (Sequence[v1.Span]): A sequence of Span objects to log.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A CreateSpansResponseBody with statistics about the operation. When successful,
-            total_queued will equal total_received.
+            v1.CreateSpansResponseBody: A CreateSpansResponseBody with statistics about
+                the operation. When successful, total_queued will equal total_received.
 
         Raises:
             SpanCreationError: If any spans failed validation (invalid or duplicates).
@@ -487,16 +499,26 @@ class Spans:
         spans_dataframe: "pd.DataFrame",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
-        """
-        Logs spans to a project from a pandas DataFrame.
+        """Logs spans to a project from a pandas DataFrame.
 
         If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            spans_dataframe (pd.DataFrame): A pandas DataFrame with a `context.span_id`
+                or `span_id` column.
+            timeout (Optional[int]): Optional request timeout in seconds.
+
+        Returns:
+            v1.CreateSpansResponseBody: A CreateSpansResponseBody with statistics about
+                the operation. When successful, total_queued will equal total_received.
+
+        Raises:
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
+            httpx.TimeoutException: If the request times out.
         """
         spans = _dataframe_to_spans(spans_dataframe)
         return self.log_spans(project_identifier=project_identifier, spans=spans, timeout=timeout)
@@ -507,24 +529,25 @@ class Spans:
         span_identifier: str,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> None:
-        """
-        Deletes a single span by identifier.
+        """Deletes a single span by identifier.
 
         **Important**: This operation deletes ONLY the specified span itself and does NOT
         delete its descendants/children. All child spans will remain in the trace and
         become orphaned (their parent_id will point to a non-existent span).
 
         Behavior:
-        - Deletes only the target span (preserves all descendant spans)
-        - If this was the last span in the trace, the trace record is also deleted
-        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
-          are subtracted from all ancestor spans in the chain
+            - Deletes only the target span (preserves all descendant spans)
+            - If this was the last span in the trace, the trace record is also deleted
+            - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+              are subtracted from all ancestor spans in the chain
 
-        **Note**: This operation is irreversible and may create orphaned spans.
+        Note:
+            This operation is irreversible and may create orphaned spans.
 
         Args:
-            span_identifier: The span identifier: either a relay GlobalID or OpenTelemetry span_id.
-            timeout: Optional request timeout in seconds.
+            span_identifier (str): The span identifier: either a relay GlobalID or
+                OpenTelemetry span_id.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Raises:
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
@@ -548,11 +571,14 @@ class Spans:
 
 
 class AsyncSpans:
-    """
-    Provides async methods for interacting with span resources.
+    """Provides async methods for interacting with span resources.
 
-    Example:
-        Non-DataFrame methods:
+    This class offers both regular and DataFrame-based async methods for retrieving,
+    logging, and managing spans and their annotations.
+
+    Examples:
+        Non-DataFrame methods::
+
             >>> from phoenix.client import AsyncClient
             >>> client = AsyncClient()
 
@@ -582,7 +608,8 @@ class AsyncSpans:
             ... )
             >>> print(f"Queued {result['total_queued']} spans")
 
-        DataFrame methods:
+        DataFrame methods::
+
             >>> from phoenix.client.types.spans import SpanQuery
 
             # Get spans as DataFrame
@@ -597,7 +624,6 @@ class AsyncSpans:
 
             # Delete a span
             >>> await client.spans.delete(span_identifier="abc123def456")
-
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -615,25 +641,25 @@ class AsyncSpans:
         project_identifier: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
-        """
-        Retrieves spans based on the provided filter conditions.
+        """Retrieves spans based on the provided filter conditions.
 
         Args:
-            query: A SpanQuery object defining the query criteria.
-            start_time: Optional start time for filtering.
-            end_time: Optional end time for filtering.
-            limit: Maximum number of spans to return.
-            root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by. Deprecated, use `project_identifier`
-                to also specify by the project id.
-            project_identifier: Optional project identifier (name or id) to filter by.
-            timeout: Optional request timeout in seconds.
+            query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.
+            start_time (Optional[datetime]): Optional start time for filtering.
+            end_time (Optional[datetime]): Optional end time for filtering.
+            limit (int): Maximum number of spans to return. Defaults to 1000.
+            root_spans_only (Optional[bool]): Whether to return only root spans.
+            project_name (Optional[str]): Optional project name to filter by. Deprecated,
+                use `project_identifier` to also specify by the project id.
+            project_identifier (Optional[str]): Optional project identifier (name or id)
+                to filter by.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            pandas DataFrame
+            pd.DataFrame: A pandas DataFrame containing the retrieved spans.
 
         Raises:
-            ImportError: If pandas is not installed
+            ImportError: If pandas is not installed.
         """
         project_name = project_name
         query = query if query else SpanQuery()
@@ -695,31 +721,35 @@ class AsyncSpans:
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
-        """
-        Fetches span annotations and returns them as a pandas DataFrame.
+        """Fetches span annotations and returns them as a pandas DataFrame.
 
         Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
-            spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
-                `context.span_id` or `span_id` column.
-            span_ids: An iterable of span IDs.
-            spans: A list of Span objects (typically returned by `get_spans`).
-            project_identifier: The project identifier (name or ID) used in the API path.
-            include_annotation_names: Optional list of annotation names to include. If provided,
-                only annotations with these names will be returned.
-            exclude_annotation_names: Optional list of annotation names to exclude from results.
-                Defaults to ["note"] to exclude note annotations, which are reserved for notes
-                added via the UI.
-            limit: Maximum number of annotations returned per request page.
-            timeout: Optional request timeout in seconds.
+            spans_dataframe (Optional[pd.DataFrame]): A DataFrame (typically returned by
+                `get_spans_dataframe`) with a `context.span_id` or `span_id` column.
+            span_ids (Optional[Iterable[str]]): An iterable of span IDs.
+            spans (Optional[Iterable[v1.Span]]): A list of Span objects (typically
+                returned by `get_spans`).
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            include_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to include. If provided, only annotations with these
+                names will be returned.
+            exclude_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to exclude from results. Defaults to ["note"] to
+                exclude note annotations, which are reserved for notes added via the UI.
+            limit (int): Maximum number of annotations returned per request page.
+                Defaults to 1000.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A DataFrame where each row corresponds to a single span annotation.
+            pd.DataFrame: A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
-                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans*
+                is provided, or if the `context.span_id` or `span_id` column is missing
+                from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -815,25 +845,28 @@ class AsyncSpans:
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
-        """
-        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+        """Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
         Exactly one of *span_ids* or *spans* should be provided.
 
         Args:
-            span_ids: An iterable of span IDs.
-            spans: A list of Span objects (typically returned by `get_spans`).
-            project_identifier: The project identifier (name or ID) used in the API path.
-            include_annotation_names: Optional list of annotation names to include. If provided,
-                only annotations with these names will be returned.
-            exclude_annotation_names: Optional list of annotation names to exclude from results.
-                Defaults to ["note"] to exclude note annotations, which are reserved for notes
-                added via the UI.
-            limit: Maximum number of annotations returned per request page.
-            timeout: Optional request timeout in seconds.
+            span_ids (Optional[Iterable[str]]): An iterable of span IDs.
+            spans (Optional[Iterable[v1.Span]]): A list of Span objects (typically
+                returned by `get_spans`).
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            include_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to include. If provided, only annotations with these
+                names will be returned.
+            exclude_annotation_names (Optional[Sequence[str]]): Optional list of
+                annotation names to exclude from results. Defaults to ["note"] to
+                exclude note annotations, which are reserved for notes added via the UI.
+            limit (int): Maximum number of annotations returned per request page.
+                Defaults to 1000.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A list of SpanAnnotation objects.
+            list[v1.SpanAnnotation]: A list of SpanAnnotation objects.
 
         Raises:
             ValueError: If not exactly one of *span_ids* or *spans* is provided.
@@ -910,18 +943,20 @@ class AsyncSpans:
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
-        """
-        Retrieves spans with simple filtering options.
+        """Retrieves spans with simple filtering options.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            start_time: Optional start time for filtering (inclusive lower bound).
-            end_time: Optional end time for filtering (exclusive upper bound).
-            limit: Maximum number of spans to return (default: 100).
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            start_time (Optional[datetime]): Optional start time for filtering
+                (inclusive lower bound).
+            end_time (Optional[datetime]): Optional end time for filtering
+                (exclusive upper bound).
+            limit (int): Maximum number of spans to return. Defaults to 100.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A list of Span objects.
+            list[v1.Span]: A list of Span objects.
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
@@ -971,20 +1006,20 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
-        """
-        Logs spans to a project.
+        """Logs spans to a project.
 
         If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            spans: A sequence of Span objects to log.
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            spans (Sequence[v1.Span]): A sequence of Span objects to log.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A CreateSpansResponseBody with statistics about the operation. When successful,
-            total_queued will equal total_received.
+            v1.CreateSpansResponseBody: A CreateSpansResponseBody with statistics about
+                the operation. When successful, total_queued will equal total_received.
 
         Raises:
             SpanCreationError: If any spans failed validation (invalid or duplicates).
@@ -1012,20 +1047,26 @@ class AsyncSpans:
         spans_dataframe: "pd.DataFrame",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
-        """
-        Logs spans to a project from a pandas DataFrame.
+        """Logs spans to a project from a pandas DataFrame.
 
         If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
-            project_identifier: The project identifier (name or ID) used in the API path.
-            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
-            timeout: Optional request timeout in seconds.
+            project_identifier (str): The project identifier (name or ID) used in the
+                API path.
+            spans_dataframe (pd.DataFrame): A pandas DataFrame with a `context.span_id`
+                or `span_id` column.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            A CreateSpansResponseBody with statistics about the operation. When successful,
-            total_queued will equal total_received.
+            v1.CreateSpansResponseBody: A CreateSpansResponseBody with statistics about
+                the operation. When successful, total_queued will equal total_received.
+
+        Raises:
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
+            httpx.TimeoutException: If the request times out.
         """
 
         spans = _dataframe_to_spans(spans_dataframe)
@@ -1039,24 +1080,25 @@ class AsyncSpans:
         span_identifier: str,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> None:
-        """
-        Deletes a single span by identifier.
+        """Deletes a single span by identifier.
 
         **Important**: This operation deletes ONLY the specified span itself and does NOT
         delete its descendants/children. All child spans will remain in the trace and
         become orphaned (their parent_id will point to a non-existent span).
 
         Behavior:
-        - Deletes only the target span (preserves all descendant spans)
-        - If this was the last span in the trace, the trace record is also deleted
-        - If the deleted span had a parent, its cumulative metrics (error count, token counts)
-          are subtracted from all ancestor spans in the chain
+            - Deletes only the target span (preserves all descendant spans)
+            - If this was the last span in the trace, the trace record is also deleted
+            - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+              are subtracted from all ancestor spans in the chain
 
-        **Note**: This operation is irreversible and may create orphaned spans.
+        Note:
+            This operation is irreversible and may create orphaned spans.
 
         Args:
-            span_identifier: The span identifier: either a relay GlobalID or OpenTelemetry span_id.
-            timeout: Optional request timeout in seconds.
+            span_identifier (str): The span identifier: either a relay GlobalID or
+                OpenTelemetry span_id.
+            timeout (Optional[int]): Optional request timeout in seconds.
 
         Raises:
             httpx.HTTPStatusError: If the span is not found (404) or other API errors.
@@ -1080,10 +1122,26 @@ class AsyncSpans:
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
+    """Convert a datetime to ISO format string.
+
+    Args:
+        value (Optional[datetime]): The datetime value to convert.
+
+    Returns:
+        Optional[str]: ISO format string if value is provided, None otherwise.
+    """
     return value.isoformat() if value else None
 
 
 def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
+    """Decode a JSON string into a pandas DataFrame using table schema.
+
+    Args:
+        obj (str): JSON string containing DataFrame data in table schema format.
+
+    Returns:
+        pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
+    """
     import pandas as pd
     from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
@@ -1096,9 +1154,18 @@ def _normalize_datetime(
     dt: Optional[datetime],
     tz: Optional[tzinfo] = None,
 ) -> Optional[datetime]:
-    """
+    """Normalize a datetime to UTC timezone.
+
     If the input datetime is timezone-naive, it is localized as local timezone
     unless tzinfo is specified.
+
+    Args:
+        dt (Optional[datetime]): The datetime to normalize.
+        tz (Optional[tzinfo]): Optional timezone to use for naive datetimes.
+            Defaults to local timezone if not provided.
+
+    Returns:
+        Optional[datetime]: The normalized datetime in UTC, or None if input is None.
     """
     if not isinstance(dt, datetime):
         return None
@@ -1108,7 +1175,17 @@ def _normalize_datetime(
 
 
 def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
-    """Processes the httpx response to extract a pandas DataFrame, handling multipart responses."""
+    """Processes the httpx response to extract a pandas DataFrame, handling multipart responses.
+
+    Args:
+        response (httpx.Response): The HTTP response containing DataFrame data.
+
+    Returns:
+        pd.DataFrame: The extracted pandas DataFrame, or empty DataFrame if no data.
+
+    Raises:
+        ValueError: If boundary not found in Content-Type header for multipart response.
+    """
     import pandas as pd
 
     content_type = response.headers.get("Content-Type")
@@ -1139,6 +1216,15 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
+    """Flatten a nested dictionary column in a DataFrame.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the nested column.
+        column_name (str): The name of the column to flatten.
+
+    Returns:
+        pd.DataFrame: DataFrame with the nested column flattened and prefixed.
+    """
     import pandas as pd
 
     if column_name in df.columns:
@@ -1158,6 +1244,17 @@ def _format_log_spans_error_message(
     invalid_spans: Sequence[InvalidSpanInfo],
     duplicate_spans: Sequence[DuplicateSpanInfo],
 ) -> str:
+    """Format error message for span logging failures.
+
+    Args:
+        total_invalid (int): Total number of invalid spans.
+        total_duplicates (int): Total number of duplicate spans.
+        invalid_spans (Sequence[InvalidSpanInfo]): List of invalid span information.
+        duplicate_spans (Sequence[DuplicateSpanInfo]): List of duplicate span information.
+
+    Returns:
+        str: Formatted error message describing the failures.
+    """
     MAX_ERRORS_TO_SHOW = 5
     error_parts: list[str] = []
 
@@ -1191,7 +1288,18 @@ def _parse_log_spans_response(
     response: httpx.Response,
     spans: Sequence[v1.Span],
 ) -> v1.CreateSpansResponseBody:
-    """Parse the response from log spans request."""
+    """Parse the response from log spans request.
+
+    Args:
+        response (httpx.Response): The HTTP response from the log spans request.
+        spans (Sequence[v1.Span]): The original spans that were sent in the request.
+
+    Returns:
+        v1.CreateSpansResponseBody: Parsed response body with span creation statistics.
+
+    Raises:
+        SpanCreationError: If the response indicates validation errors or duplicates.
+    """
     response_data = response.json()
 
     if response.status_code == 422 and "detail" in response_data:
@@ -1215,7 +1323,15 @@ def _parse_log_spans_validation_error(
     response_data: dict[str, Any],
     spans: Sequence[v1.Span],
 ) -> v1.CreateSpansResponseBody:
-    """Convert FastAPI validation errors to our expected format."""
+    """Convert FastAPI validation errors to our expected format.
+
+    Args:
+        response_data (dict[str, Any]): The response data containing validation errors.
+        spans (Sequence[v1.Span]): The original spans that were sent in the request.
+
+    Returns:
+        v1.CreateSpansResponseBody: Formatted response body with invalid span information.
+    """
     invalid_spans: list[InvalidSpanInfo] = []
 
     for error in response_data.get("detail", []):
@@ -1240,7 +1356,15 @@ def _extract_invalid_span_from_log_spans_error(
     error: dict[str, Any],
     spans: Sequence[v1.Span],
 ) -> Optional[InvalidSpanInfo]:
-    """Extract invalid span info from a validation error."""
+    """Extract invalid span info from a validation error.
+
+    Args:
+        error (dict[str, Any]): The validation error dictionary.
+        spans (Sequence[v1.Span]): The original spans that were sent in the request.
+
+    Returns:
+        Optional[InvalidSpanInfo]: Invalid span information if extractable, None otherwise.
+    """
     loc_raw = error.get("loc", [])
     if not isinstance(loc_raw, list):
         return None
@@ -1265,7 +1389,15 @@ def _extract_invalid_span_from_log_spans_error(
 def _raise_log_spans_error(
     error_data: Union[dict[str, Any], v1.CreateSpansResponseBody],
 ) -> None:
-    """Raise SpanCreationError from error response data."""
+    """Raise SpanCreationError from error response data.
+
+    Args:
+        error_data (Union[dict[str, Any], v1.CreateSpansResponseBody]): Error data
+            from the API response.
+
+    Raises:
+        SpanCreationError: Always raised with details about the span creation failures.
+    """
     total_received = error_data.get("total_received", 0)
     total_queued = error_data.get("total_queued", 0)
     total_invalid = cast(int, error_data.get("total_invalid", 0))
