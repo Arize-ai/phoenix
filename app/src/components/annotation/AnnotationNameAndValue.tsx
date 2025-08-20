@@ -70,7 +70,7 @@ export function AnnotationNameAndValue({
       className="annotation-name-and-value"
     >
       <AnnotationColorSwatch annotationName={annotation.name} />
-      <div css={textCSS}>
+      <div css={css(textCSS, { minWidth: "5rem" })}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}
         </Text>

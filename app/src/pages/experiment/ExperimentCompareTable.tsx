@@ -941,12 +941,7 @@ function ExperimentRunOutput(
     : [];
 
   return (
-    <Flex
-      direction="column"
-      gap="size-100"
-      height="100%"
-      justifyContent="space-between"
-    >
+    <Flex direction="column" height="100%" justifyContent="space-between">
       <View padding="size-200" flex="1 1 auto">
         <LargeTextWrap>
           <JSONText
