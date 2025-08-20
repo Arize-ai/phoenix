@@ -251,7 +251,7 @@
                 "pages": [
                   "phoenix/inferences/phoenix-inferences",
                   {
-                    "group": "Import Your Data",
+                    "group": "How-to: Inferences",
                     "pages": [
                       "phoenix/inferences/how-to-inferences",
                       {
@@ -690,24 +690,28 @@
                 "pages": [
                   "phoenix/cookbook",
                   "phoenix/cookbook/agent-cookbooks",
-                  "phoenix/cookbook/agent-demos"
+                  "phoenix/cookbook/agent-demos",
+                  {
+                    "group": "Agent Workflow Patterns",
+                    "pages": [
+                      "phoenix/cookbook/agent-workflow-patterns/autogen",
+                      "phoenix/cookbook/agent-workflow-patterns/crewai",
+                      "phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
+                      "phoenix/cookbook/agent-workflow-patterns/openai-agents",
+                      "phoenix/cookbook/agent-workflow-patterns/langgraph",
+                      "phoenix/cookbook/agent-workflow-patterns/smolagents"
+                    ]
+                  }
                 ]
               },
               {
                 "group": "Tracing & Annotations",
                 "icon": "swap",
                 "pages": [
-                  "phoenix/cookbook/tracing-and-annotations/cookbooks",
                   "phoenix/cookbook/tracing-and-annotations/using-human-annotations-for-eval-driven-development",
                   "phoenix/cookbook/tracing-and-annotations/structured-data-extraction",
-                  "phoenix/cookbook/tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph"
-                ]
-              },
-              {
-                "group": "Annotations",
-                "icon": "lightbulb",
-                "pages": [
-                  "phoenix/cookbook/annotations/using-human-annotations-for-eval-driven-development"
+                  "phoenix/cookbook/tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph",
+                  "phoenix/cookbook/tracing-and-annotations/cookbooks"
                 ]
               },
               {
@@ -722,37 +726,37 @@
                 ]
               },
               {
-                "group": "Datasets & Experiments",
-                "icon": "flask",
-                "pages": [
-                  "phoenix/cookbook/datasets-and-experiments/cookbooks",
-                  "phoenix/cookbook/datasets-and-experiments/summarization",
-                  "phoenix/cookbook/datasets-and-experiments/text2sql",
-                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
-                  "phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
-                  "phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service"
-                ]
-              },
-              {
                 "group": "Evaluation",
                 "icon": "clipboard-check",
                 "pages": [
-                  "phoenix/cookbook/evaluation/cookbooks",
                   "phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
                   "phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
                   "phoenix/cookbook/evaluation/evaluate-an-agent",
                   "phoenix/cookbook/evaluation/evaluate-rag",
                   "phoenix/cookbook/evaluation/code-readability-evaluation",
                   "phoenix/cookbook/evaluation/relevance-classification-evaluation",
-                  "phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent"
+                  "phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
+                  "phoenix/cookbook/evaluation/cookbooks"
+                ]
+              },
+              {
+                "group": "Datasets & Experiments",
+                "icon": "flask",
+                "pages": [
+                  "phoenix/cookbook/datasets-and-experiments/summarization",
+                  "phoenix/cookbook/datasets-and-experiments/text2sql",
+                  "phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
+                  "phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
+                  "phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
+                  "phoenix/cookbook/datasets-and-experiments/cookbooks"
                 ]
               },
               {
                 "group": "Retrieval & Inferences",
                 "icon": "magnifying-glass",
                 "pages": [
-                  "phoenix/cookbook/retrieval-and-inferences/cookbooks",
-                  "phoenix/cookbook/retrieval-and-inferences/embeddings-analysis"
+                  "phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
+                  "phoenix/cookbook/retrieval-and-inferences/cookbooks"
                 ]
               }
             ]
@@ -765,19 +769,7 @@
                 "group": "Agents",
                 "icon": "robot",
                 "pages": [
-                  {
-                    "group": "Agent Workflow Patterns",
-                    "pages": [
-                      "phoenix/learn",
-                      "phoenix/learn/agents/readme/autogen",
-                      "phoenix/learn/agents/readme/crewai",
-                      "phoenix/learn/agents/readme/google-genai-sdk",
-                      "phoenix/learn/agents/readme/openai-agents",
-                      "phoenix/learn/agents/readme/langgraph",
-                      "phoenix/learn/agents/readme/smolagents"
-                    ]
-                  },
-                  "phoenix/learn/evaluating-multi-agent-systems"
+                  "phoenix/learn"
                 ]
               },
               {

@@ -2,11 +2,11 @@
   max-height: 197px !important;
 }
 
-.card-group.sm\:grid-cols-2 .card img {
+.card-group[class$="-2"] .card img {
   height: 160px !important;
 }
 
-.card-group.sm\:grid-cols-3 .card img {
+.card-group[class$="-3"] .card img {
   height: 150px !important;
 }
 
