@@ -5,19 +5,17 @@ Your cooking-assistant agent sometimes drops the spatula. In this assignment, yo
 
 ---
 ## Pipeline State Taxonomy
-The agent's internal pipeline is abstracted to **9 canonical states**:
+The agent's internal pipeline is abstracted to **7 canonical states**:
 
 | # | State | Description |
 |---|--------------------|-------------------------------------------|
 | 1 | `ParseRequest`     | LLM interprets and analyzes the user's query |
 | 2 | `PlanToolCalls`    | LLM decides which tools to invoke and in what order |
-| 3 | `GenCustomerArgs`  | LLM constructs JSON arguments for customer profile DB |
-| 4 | `GetCustomerProfile` | Executes the customer-profile tool to retrieve user preferences |
-| 5 | `GenRecipeArgs`    | LLM constructs JSON arguments for recipe database search |
-| 6 | `GetRecipes`       | Executes the recipe-search tool to find relevant recipes |
-| 7 | `GenWebArgs`       | LLM constructs JSON arguments for web search |
-| 8 | `GetWebInfo`       | Executes the web-search tool to retrieve supplementary info |
-| 9 | `ComposeResponse`  | LLM drafts the final answer combining recipes and web info |
+| 3 | `GenRecipeArgs`    | LLM constructs JSON arguments for recipe database search |
+| 4 | `GetRecipes`       | Executes the recipe-search tool to find relevant recipes |
+| 5 | `GenWebArgs`       | LLM constructs JSON arguments for web search |
+| 6 | `GetWebInfo`       | Executes the web-search tool to retrieve supplementary info |
+| 7 | `ComposeResponse`  | LLM drafts the final answer combining recipes and web info |
 
 Each trace contains one intentional failure at a randomly selected pipeline state.
 
@@ -32,127 +30,51 @@ Each trace contains one intentional failure at a randomly selected pipeline stat
 3. Open Phoenix dashboard at http://localhost:6006
 
 **Generate Synthetic Traces:**
-The provided `generate_traces_phoenix.py` script creates synthetic conversation traces with intentional failures:
+The provided `generate_traces_phoenix.py` script creates synthetic conversation traces with intentional failures. You should:
 
-```python
-# Run the trace generation script
-%run generate_traces_phoenix.py
-```
-
-This script:
-- Generates 100 synthetic conversation traces
-- Intentionally introduces failures at random pipeline states
-- Creates detailed Phoenix spans for each pipeline step
-- Uses realistic timing and proper OpenTelemetry instrumentation
+- Run the trace generation script to create 100 synthetic conversation traces
+- Verify that the script generates traces with intentional failures at random pipeline states
+- Confirm that detailed Phoenix spans are created for each pipeline step
+- Check that the traces use realistic timing and proper OpenTelemetry instrumentation
 
 ### Step 2: Load Traces from Phoenix
 
-Load the generated traces from Phoenix for analysis:
+Load the generated traces from Phoenix for analysis. You should:
 
-```python
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
-
-def load_traces() -> pd.DataFrame:
-    query = SpanQuery().where("span_kind == 'AGENT'")
-    traces_df = px.Client().query_spans(query, project_name='recipe-agent-hw5')
-    return traces_df
-
-# Load traces from Phoenix
-traces_df = load_traces()
-```
+- Write code to connect to Phoenix and query the generated traces
+- Filter for agent spans to get the main conversation traces
+- Load the traces into a pandas DataFrame for analysis
+- Verify that you can access the trace data with proper span attributes
 
 ### Step 3: Apply LLM-Based Failure Analysis
 
-Use Phoenix's evaluation framework to automatically detect failures:
+Use Phoenix's evaluation framework to automatically detect failures. You should:
 
-```python
-from phoenix.evals import llm_generate, OpenAIModel
-from phoenix.trace import SpanEvaluations
-
-# Load evaluation prompt
-with open("eval.txt", "r") as f:
-    eval_prompt = f.read()
-
-# Set up evaluation model
-eval_model = OpenAIModel(
-    model="gpt-4o",
-    model_kwargs={
-        "response_format": {"type": "json_object"},
-        "temperature": 0
-    }
-)
-
-# Generate evaluations
-failure_analysis = llm_generate(
-    dataframe=traces_df,
-    template=eval_prompt,
-    model=eval_model,
-    output_parser=parser,
-    concurrency=10,
-)
-
-# Log evaluations to Phoenix
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Failure State with Explanation", dataframe=failure_analysis)
-)
-```
+- Load the evaluation prompt from the provided `eval.txt` file
+- Set up an LLM evaluation model (e.g., GPT-4) with appropriate parameters
+- Write a parser function to extract failure state and explanation from LLM responses
+- Use Phoenix's `llm_generate` function to evaluate all traces
+- Log the evaluation results back to Phoenix for visualization
 
 ### Step 4: Analyze Failure Patterns
 
-Visualize the distribution of failures across pipeline states:
+Visualize the distribution of failures across pipeline states. You should:
 
-```python
-import matplotlib.pyplot as plt
-
-# Count failures by state
-counts = failure_analysis["label"].value_counts()
-
-plt.figure(figsize=(8, 6))
-counts.plot(kind="bar")
-plt.title("Failure Distribution by Pipeline State")
-plt.xlabel("Pipeline State")
-plt.ylabel("Number of Failures")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
-```
+- Create a bar chart showing the count of failures for each pipeline state
+- Use matplotlib or another plotting library to visualize the failure distribution
+- Include proper labels and title for the visualization
+- Analyze which pipeline states have the most failures
 
 ### Step 5: Generate Detailed Failure Analysis
 
-Use LLM to analyze failure patterns and propose fixes:
+Use LLM to analyze failure patterns and propose fixes. You should:
 
-```python
-from openai import OpenAI
-
-PER_CLASS_PROMPT = """You are auditing failures for the state: {label}.
-
-You will receive many short "explanations" describing material defects detected by an evaluator. Your tasks:
-1) Synthesize recurring failure patterns without changing their meaning.
-2) Propose concrete, testable fixes that reduce these failures at the source state.
-3) Write validator rules the pipeline can enforce before leaving this state.
-4) Provide 3–5 minimal unit tests that should fail now and pass after the fixes.
-
-- Upstream context: {trace}
-- Explanations (one per line):
-{joined_explanations}
-"""
-
-client = OpenAI()
-results = {}
-
-for label, group in failure_analysis.groupby("label"):
-    exps = group["explanation"].astype(str).tolist()
-    joined = "\n".join(f"- {e}" for e in exps)
-    prompt = PER_CLASS_PROMPT.replace("{label}", label)
-    prompt = prompt.replace("{trace}", group["trace"].astype(str).to_string())
-    prompt = prompt.replace("{joined_explanations}", joined)
-    response = client.responses.create(
-        model="gpt-4o",
-        input=prompt,
-    )
-    results[label] = response.output_text
-```
+- Create a prompt template for analyzing failures by pipeline state
+- For each failure state, collect all the failure explanations
+- Use an LLM to synthesize recurring failure patterns
+- Generate concrete, testable fixes for each failure state
+- Write validator rules that the pipeline can enforce
+- Create 3-5 minimal unit tests for each failure state
 
 ### Step 6: Deliverables
 
@@ -184,7 +106,7 @@ The `generate_traces_phoenix.py` script is provided code that generates syntheti
 ### What the script does:
 
 1. **Creates synthetic conversations**: Generates realistic user queries about recipes
-2. **Simulates pipeline states**: Implements all 9 pipeline states with realistic LLM calls
+2. **Simulates pipeline states**: Implements all 7 pipeline states with realistic LLM calls
 3. **Introduces intentional failures**: Randomly fails at different pipeline states for testing
 4. **Instruments with Phoenix**: Creates detailed spans with proper OpenTelemetry attributes
 5. **Uses realistic timing**: Adds appropriate delays to simulate real-world performance
@@ -200,9 +122,7 @@ The `generate_traces_phoenix.py` script is provided code that generates syntheti
 
 - **ParseRequest**: LLM interprets user queries (can misinterpret dietary constraints)
 - **PlanToolCalls**: LLM decides tool execution order (can choose wrong tools)
-- **GenCustomerArgs**: LLM constructs customer DB arguments (can use wrong preferences)
-- **GetCustomerProfile**: Executes customer profile tool (can return inconsistent data)
-- **GenRecipeArgs**: LLM constructs recipe search arguments (most failure-prone state)
+- **GenRecipeArgs**: LLM constructs recipe search arguments (can use wrong search parameters)
 - **GetRecipes**: Executes recipe search (can return irrelevant results)
 - **GenWebArgs**: LLM constructs web search arguments (can generate off-topic queries)
 - **GetWebInfo**: Executes web search (can return irrelevant information)
