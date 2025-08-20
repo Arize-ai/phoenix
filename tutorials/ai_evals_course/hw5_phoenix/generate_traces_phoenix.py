@@ -244,7 +244,7 @@ def get_recipes(args: str, failure: int) -> str:
 
                 Arguments: {args}
 
-                Include a recipe that clearly does not match the args given to you above. 
+                Include a recipe that clearly does not match the args given to you above.
 
                 Return JSON list of 2–3 documents, each with the following fields:
                 {{
@@ -274,7 +274,7 @@ def gen_web_args(recipes: str, failure: int) -> str:
 
         Recipes: {recipes}
 
-        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc. 
+        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc.
         """
     else:
         prompt = f"""
@@ -285,7 +285,7 @@ def gen_web_args(recipes: str, failure: int) -> str:
         Do the following defects:
         Off topic query, unrelated to the recipes
 
-        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc. 
+        Return just the query, which is a string containing a web search query for additional information, cooking tips, special ingredients, etc.
         """
 
     with tracer.start_as_current_span("GenWebArgs", openinference_span_kind="llm") as span:
@@ -341,7 +341,7 @@ def compose_response(recipes: str, web_info: str, failure: int) -> str:
         Choose one defect:
         Contradictory steps (e.g., bake then say "do not use heat")
         Big/nonsensical unit mismatches
-        Final answer is not helpful, does not match/contradicts recipes at all 
+        Final answer is not helpful, does not match/contradicts recipes at all
         Final answer is not helpful, does not match web/contradicts info at all
         Simply nonsensical answer
         """
