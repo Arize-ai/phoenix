@@ -8,10 +8,7 @@ from textwrap import dedent
 from typing import Any, Dict, List, Optional, cast
 
 import pystache  # type: ignore
-from openinference.semconv.trace import SpanAttributes
 from opentelemetry.trace import Tracer
-
-from phoenix.evals.preview.tracing import trace
 
 
 def _get_template(bound: BoundArguments) -> str:
@@ -203,16 +200,6 @@ class Template:
     def variables(self) -> List[str]:
         return self._variables
 
-    @trace(
-        process_input={
-            SpanAttributes.LLM_PROMPT_TEMPLATE: _get_template,
-            SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES: _get_variables,
-            SpanAttributes.INPUT_VALUE: _get_variables,
-        },
-        process_output={
-            SpanAttributes.OUTPUT_VALUE: _get_output,
-        },
-    )
     def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
