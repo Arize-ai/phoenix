@@ -52,6 +52,7 @@ add_module_names = False
 
 # Napoleon
 napoleon_google_docstring = True
+napoleon_numpy_docstring = True
 
 # Autosummary
 autosummary_generate = True
