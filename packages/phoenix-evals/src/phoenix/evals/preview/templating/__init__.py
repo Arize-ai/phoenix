@@ -8,7 +8,9 @@ from textwrap import dedent
 from typing import Any, Dict, List, Optional, cast
 
 import pystache  # type: ignore
+from opentelemetry.trace import Tracer
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry
 
 from phoenix.evals.preview.tracing import trace
 
@@ -212,7 +214,7 @@ class Template:
             SpanAttributes.OUTPUT_VALUE: _get_output,
         },
     )
-    def render(self, variables: Dict[str, Any]) -> str:
+    def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
         return dedent(self._formatter.render(self.template, variables))

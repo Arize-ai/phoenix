@@ -3,8 +3,8 @@ from inspect import BoundArguments
 from typing import Any, Dict, List, Optional, Union
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.trace import Tracer
 
-from phoenix.evals.preview.tracing import trace
 from phoenix.evals.templates import MultimodalPrompt
 
 from .adapters import register_adapters
@@ -125,7 +125,9 @@ class LLM(LLMBase):
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
     )
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    ) -> str:
         """
         Generate text given a prompt.
 
@@ -147,7 +149,11 @@ class LLM(LLMBase):
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
     def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Generate an object given a prompt and a schema.
@@ -250,7 +256,9 @@ class AsyncLLM(LLMBase):
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
     )
-    async def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    ) -> str:
         """
         Asynchronously generate text given a prompt.
 
@@ -272,7 +280,11 @@ class AsyncLLM(LLMBase):
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
     async def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Asynchronously generate an object given a prompt and a schema.
