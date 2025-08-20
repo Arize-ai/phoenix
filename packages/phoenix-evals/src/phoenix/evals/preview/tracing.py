@@ -49,6 +49,7 @@ def trace(
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
 ) -> Callable[[Callable[FnParams, ReturnValue]], Callable[FnParams, ReturnValue]]: ...
 
+
 @overload
 def trace(
     *,
@@ -57,7 +58,10 @@ def trace(
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
-) -> Callable[[Callable[FnParams, Awaitable[ReturnValue]]], Callable[FnParams, Awaitable[ReturnValue]]]: ...
+) -> Callable[
+    [Callable[FnParams, Awaitable[ReturnValue]]], Callable[FnParams, Awaitable[ReturnValue]]
+]: ...
+
 
 def trace(
     *,
