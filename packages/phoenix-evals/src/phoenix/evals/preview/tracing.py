@@ -1,8 +1,9 @@
 import logging
 from functools import wraps
-from inspect import BoundArguments, signature
-from typing import Any, Callable, Mapping, Optional, Sequence, TypeVar, cast
+from inspect import BoundArguments, iscoroutinefunction, signature
+from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVar, cast, overload
 
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.util.types import AttributeValue
@@ -38,13 +39,34 @@ FnParams = ParamSpec("FnParams")
 ReturnValue = TypeVar("ReturnValue")
 
 
+@overload
 def trace(
     *,
     span_name: Optional[str] = None,
+    span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
-) -> Callable[[Callable[FnParams, ReturnValue]], Callable[FnParams, ReturnValue]]:
+) -> Callable[[Callable[FnParams, ReturnValue]], Callable[FnParams, ReturnValue]]: ...
+
+@overload
+def trace(
+    *,
+    span_name: Optional[str] = None,
+    span_kind: Optional[OpenInferenceSpanKindValues] = None,
+    tracer: Optional[Tracer] = None,
+    process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
+    process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
+) -> Callable[[Callable[FnParams, Awaitable[ReturnValue]]], Callable[FnParams, Awaitable[ReturnValue]]]: ...
+
+def trace(
+    *,
+    span_name: Optional[str] = None,
+    span_kind: Optional[OpenInferenceSpanKindValues] = None,
+    tracer: Optional[Tracer] = None,
+    process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
+    process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
+) -> Callable[[Callable[FnParams, Any]], Callable[FnParams, Any]]:
     """
     Traces the decorated function.
 
@@ -63,10 +85,10 @@ def trace(
     """
 
     def _decorator(
-        func: Callable[FnParams, ReturnValue],
-    ) -> Callable[FnParams, ReturnValue]:
+        func: Callable[FnParams, Any],
+    ) -> Callable[FnParams, Any]:
         @wraps(func)
-        def _wrapper(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
+        def _wrapper_sync(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
             span_label = (
                 span_name
                 if span_name is not None
@@ -94,6 +116,8 @@ def trace(
             _tracer = get_tracer(tracer_from_args or tracer)
 
             with _tracer.start_as_current_span(_span_name) as span:
+                if span_kind is not None:
+                    span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value)
                 if process_input is not None and bound is not None:
                     for attr_key, input_mapper_fn in process_input.items():
                         try:
@@ -115,9 +139,65 @@ def trace(
                             span.set_attribute(attr_key, _otel_attribute_value(value))
                         except Exception:
                             continue
-                return result
+                return cast(ReturnValue, result)
 
-        return cast(Callable[FnParams, ReturnValue], _wrapper)
+        @wraps(func)
+        async def _wrapper_async(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
+            span_label = (
+                span_name
+                if span_name is not None
+                else cast(str, getattr(func, "__qualname__", func.__name__))
+            )
+            _span_name: str = span_label
+
+            bound: Optional[BoundArguments]
+            try:
+                sig = signature(func)
+                bound = sig.bind_partial(*args, **kwargs)
+                try:
+                    bound.apply_defaults()
+                except Exception:
+                    pass
+            except Exception:
+                bound = None
+
+            tracer_from_args: Optional[Tracer] = None
+            if bound is not None:
+                maybe_tracer = bound.arguments.get("tracer")
+                if isinstance(maybe_tracer, Tracer):
+                    tracer_from_args = maybe_tracer
+
+            _tracer = get_tracer(tracer_from_args or tracer)
+
+            with _tracer.start_as_current_span(_span_name) as span:
+                if span_kind is not None:
+                    span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind.value)
+                if process_input is not None and bound is not None:
+                    for attr_key, input_mapper_fn in process_input.items():
+                        try:
+                            value = input_mapper_fn(bound)
+                            span.set_attribute(attr_key, _otel_attribute_value(value))
+                        except Exception:
+                            continue
+                try:
+                    result = await func(*args, **kwargs)
+                except Exception as exc:
+                    span.record_exception(exc)
+                    span.set_status(Status(StatusCode.ERROR))
+                    raise
+
+                if process_output is not None:
+                    for attr_key, output_mapper_fn in process_output.items():
+                        try:
+                            value = output_mapper_fn(result)
+                            span.set_attribute(attr_key, _otel_attribute_value(value))
+                        except Exception:
+                            continue
+                return cast(ReturnValue, result)
+
+        if iscoroutinefunction(func):
+            return cast(Callable[FnParams, Any], _wrapper_async)
+        return cast(Callable[FnParams, Any], _wrapper_sync)
 
     return _decorator
 
