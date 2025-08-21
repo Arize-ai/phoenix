@@ -137,8 +137,6 @@ class SpanQuery:
     _rename: Optional[dict[str, str]] = dataclass_field(default=None)
     _index: Optional[Projection] = dataclass_field(default=None)
     _index_has_been_set: bool = dataclass_field(default=False)
-    _order_by: Optional[str] = dataclass_field(default=None)
-    _direction: Optional[str] = dataclass_field(default=None)
 
     def select(self, *fields: str) -> "SpanQuery":
         select_dict: dict[str, Projection] = {}
@@ -153,8 +151,6 @@ class SpanQuery:
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
-            _order_by=self._order_by,
-            _direction=self._direction,
         )
 
     def where(self, condition: str) -> "SpanQuery":
@@ -167,8 +163,6 @@ class SpanQuery:
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
-            _order_by=self._order_by,
-            _direction=self._direction,
         )
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
@@ -190,8 +184,6 @@ class SpanQuery:
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
-            _order_by=self._order_by,
-            _direction=self._direction,
         )
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
@@ -210,8 +202,6 @@ class SpanQuery:
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
-            _order_by=self._order_by,
-            _direction=self._direction,
         )
 
     def rename(self, **kwargs: str) -> "SpanQuery":
@@ -228,8 +218,6 @@ class SpanQuery:
             _rename=rename_dict,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
-            _order_by=self._order_by,
-            _direction=self._direction,
         )
 
     def with_index(self, key: str) -> "SpanQuery":
@@ -253,23 +241,6 @@ class SpanQuery:
             # For the index projection, we follow the normalization as before.
             _index=Projection(key=_normalize_field(key)),
             _index_has_been_set=True,
-            _order_by=self._order_by,
-            _direction=self._direction,
-        )
-
-    def order_by_time(self, *, by: str = "start_time", direction: str = "desc") -> "SpanQuery":
-        by_norm = by if by in ("start_time", "end_time") else "start_time"
-        dir_norm = direction.lower() if direction.lower() in ("asc", "desc") else "desc"
-        return SpanQuery(
-            _select=self._select,
-            _filter=self._filter,
-            _explode=self._explode,
-            _concat=self._concat,
-            _rename=self._rename,
-            _index=self._index,
-            _index_has_been_set=self._index_has_been_set,
-            _order_by=by_norm,
-            _direction=dir_norm,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -296,5 +267,4 @@ class SpanQuery:
             ]
         ):
             result["index"] = Projection(key="context.span_id").to_dict()
-        # Intentionally exclude client-side sort hints from payload to avoid API surface change
         return result
