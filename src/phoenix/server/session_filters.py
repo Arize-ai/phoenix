@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import distinct, or_, select
@@ -43,19 +43,6 @@ def get_filtered_session_rowids_subquery(
     if end_time:
         filtered_session_rowids = filtered_session_rowids.where(models.Trace.start_time < end_time)
     return filtered_session_rowids.subquery()
-
-
-def apply_session_io_filter(
-    stmt: Any,
-    session_filter: str,
-    project_rowid: int,
-    start_time: Optional[Any] = None,
-    end_time: Optional[Any] = None,
-) -> Any:
-    filter_subq = get_filtered_session_rowids_subquery(
-        session_filter, project_rowid, start_time, end_time
-    )
-    return stmt.where(models.Trace.project_session_rowid.in_(select(filter_subq.c.id)))
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

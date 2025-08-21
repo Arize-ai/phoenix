@@ -9,7 +9,7 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import insert, select
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -20,7 +20,6 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
-from phoenix.server.session_filters import apply_session_io_filter
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -4136,25 +4135,6 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
     assert not response_chain_session_filter.errors
     assert response_chain_session_filter.data is not None
     assert response_chain_session_filter.data["project"]["latencyMsQuantile"] == 500.0
-
-
-async def test_session_filter_with_substring_format(
-    db: DbSessionFactory,
-) -> None:
-    """Test _apply_session_io_filter with substring format session filter"""
-
-    async with db() as session:
-        project = await _add_project(session, name="substring-filter-test")
-
-        # Create base statement
-        stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
-
-        # Apply substring session filter
-        filtered_stmt = apply_session_io_filter(stmt, "test_substring", project.id)
-
-        # Verify the statement was modified to use I/O filtering
-        sql_str = str(filtered_stmt.compile())
-        assert "text_contains" in sql_str.lower() or "attributes" in sql_str.lower()
 
 
 async def test_session_filter_edge_cases(
