@@ -150,7 +150,6 @@ class Spans:
 
             # Map client sort preference to server query params
             params: dict[str, str] = {
-                "order_by": "start_time",
                 "direction": "asc" if sort_order == "oldest" else "desc",
             }
             if project_name:
@@ -708,7 +707,6 @@ class AsyncSpans:
                     project_name = project_identifier
 
             params: dict[str, str] = {
-                "order_by": "start_time",
                 "direction": "asc" if sort_order == "oldest" else "desc",
             }
             if project_name:

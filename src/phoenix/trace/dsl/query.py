@@ -431,7 +431,6 @@ class SpanQuery(_HasTmpSuffix):
     _rename: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     _index: Projection = field(default_factory=lambda: Projection("context.span_id"))
     _concat_separator: str = field(default="\n\n", repr=False)
-    _order_by: Optional[str] = field(default=None, repr=False)
     _direction: Optional[str] = field(default=None, repr=False)
     _pk_tmp_col_label: str = field(init=False, repr=False)
     """We use `_pk_tmp_col_label` as a temporary column for storing
@@ -493,18 +492,12 @@ class SpanQuery(_HasTmpSuffix):
         _concat = self._concat.with_separator(separator)
         return replace(self, _concat=_concat)
 
-    def order_by_time(self, *, by: str = "start_time", direction: str = "desc") -> "SpanQuery":
-        """Specify ordering for time-based sorting before SQL limiting.
-
-        Args:
-            by: "start_time" (default) or "end_time"
-            direction: "asc" or "desc" (default)
-        """
-        by_normalized = by if by in ("start_time", "end_time") else "start_time"
+    def order_by_time(self, *, direction: str = "desc") -> "SpanQuery":
+        """Specify ordering for time-based sorting before SQL limiting (by start_time)."""
         dir_normalized = direction.lower()
         if dir_normalized not in ("asc", "desc"):
             dir_normalized = "desc"
-        return replace(self, _order_by=by_normalized, _direction=dir_normalized)
+        return replace(self, _direction=dir_normalized)
 
     def with_explode_primary_index_key(self, _: str) -> "SpanQuery":
         print(
@@ -577,7 +570,6 @@ class SpanQuery(_HasTmpSuffix):
                 limit=limit,
                 root_spans_only=root_spans_only,
                 orphan_span_as_root_span=orphan_span_as_root_span,
-                order_by=self._order_by,
                 direction=self._direction,
             )
         assert session.bind is not None
@@ -751,7 +743,6 @@ def _get_spans_dataframe(
     limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
     orphan_span_as_root_span: bool = True,
-    order_by: Optional[str] = None,
     direction: Optional[str] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
@@ -846,11 +837,10 @@ def _get_spans_dataframe(
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
 
-    if order_by is not None or direction is not None:
-        _by = (order_by or "start_time").lower()
+    if direction is not None:
         _dir = (direction or "desc").lower()
         _desc = _dir != "asc"
-        _col = models.Span.start_time if _by == "start_time" else models.Span.end_time
+        _col = models.Span.start_time
         stmt = stmt.order_by(
             _col.desc() if _desc else _col.asc(),
             models.Span.id.desc() if _desc else models.Span.id.asc(),
