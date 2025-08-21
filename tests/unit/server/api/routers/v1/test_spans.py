@@ -895,10 +895,10 @@ async def test_span_search_sort_direction(
     spans_desc = [Span.model_validate(s) for s in resp_desc.json()["data"]]
     assert len(spans_desc) == 3
 
+
 async def test_dsl_query_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
-    import io
     import pandas as pd
 
     resp_desc = await httpx_client.post(
@@ -915,6 +915,7 @@ async def test_dsl_query_sort_direction(
     part = parts[0]
     json_str = part.split("\r\n\r\n", 1)[1].strip()
     from phoenix.utilities.json import decode_df_from_json_string
+
     df_desc = decode_df_from_json_string(json_str)
     if not df_desc.empty:
         times_desc = pd.to_datetime(df_desc["start_time"], utc=True, errors="coerce").tolist()
@@ -934,6 +935,7 @@ async def test_dsl_query_sort_direction(
     part = parts[0]
     json_str = part.split("\r\n\r\n", 1)[1].strip()
     from phoenix.utilities.json import decode_df_from_json_string
+
     df_asc = decode_df_from_json_string(json_str)
     if not df_asc.empty:
         times_asc = pd.to_datetime(df_asc["start_time"], utc=True, errors="coerce").tolist()
