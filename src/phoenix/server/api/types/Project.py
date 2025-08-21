@@ -136,9 +136,21 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> int:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.record_counts.load(
-            ("span", self.project_rowid, time_range, filter_condition, None),
+            (
+                "span",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            ),
         )
 
     @strawberry.field
@@ -147,10 +159,21 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-        session_filter: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> int:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.record_counts.load(
-            ("trace", self.project_rowid, time_range, filter_condition, session_filter),
+            (
+                "trace",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            ),
         )
 
     @strawberry.field
@@ -192,11 +215,20 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-        session_filter: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> SpanCostSummary:
-        loader = info.context.data_loaders.span_cost_summary_by_project
-        summary = await loader.load(
-            (self.project_rowid, time_range, filter_condition, session_filter)
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
+        summary = await info.context.data_loaders.span_cost_summary_by_project.load(
+            (
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            )
         )
         return SpanCostSummary(
             prompt=CostBreakdown(
@@ -220,15 +252,20 @@ class Project(Node):
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-        session_filter: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "trace",
                 self.project_rowid,
-                time_range,
-                filter_condition,
-                session_filter,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
                 probability,
             ),
         )
@@ -240,14 +277,20 @@ class Project(Node):
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "span",
                 self.project_rowid,
-                time_range,
-                filter_condition,
-                None,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
                 probability,
             ),
         )
@@ -568,10 +611,24 @@ class Project(Node):
         self,
         info: Info[Context, None],
         annotation_name: str,
+        filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[AnnotationSummary]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.annotation_summaries.load(
-            ("trace", self.project_rowid, time_range, None, None, annotation_name),
+            (
+                "trace",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+                annotation_name,
+            ),
         )
 
     @strawberry.field
@@ -581,15 +638,20 @@ class Project(Node):
         annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-        session_filter: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.annotation_summaries.load(
             (
                 "span",
                 self.project_rowid,
-                time_range,
-                filter_condition,
-                session_filter,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
                 annotation_name,
             ),
         )
