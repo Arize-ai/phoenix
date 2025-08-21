@@ -243,8 +243,8 @@ class Dataset(Node):
             )
             query = query.where(search_filter)
 
-        filter_rowids = []
         if filter_ids:
+            filter_rowids = []
             for filter_id in filter_ids:
                 try:
                     filter_rowids.append(
@@ -265,9 +265,6 @@ class Dataset(Node):
                     await session.stream(query),
                 )
             ]
-            # return experiments in the order of the filter_ids
-            if filter_rowids:
-                experiments = sorted(experiments, key=lambda x: filter_rowids.index(x.id_attr))
         return connection_from_list(data=experiments, args=args)
 
     @strawberry.field

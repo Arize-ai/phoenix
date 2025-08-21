@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -11,13 +11,20 @@ import {
 import { css } from "@emotion/react";
 
 import { Text, View } from "@phoenix/components";
-import { ExperimentCompareListPage_aggregateData$key } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPage_aggregateData.graphql";
+import {
+  ExperimentCompareListPage_aggregateData$data,
+  ExperimentCompareListPage_aggregateData$key,
+} from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPage_aggregateData.graphql";
 
 import type { ExperimentCompareListPage_comparisons$key } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
 import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 const PAGE_SIZE = 50;
+
+type Experiment = NonNullable<
+  ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
 
 type TableRow = {
   id: string;
@@ -47,6 +54,9 @@ type TableRow = {
 };
 
 export function ExperimentCompareListPage() {
+  const [searchParams] = useSearchParams();
+  const experimentIds = searchParams.getAll("experimentId");
+
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
 
@@ -154,6 +164,17 @@ export function ExperimentCompareListPage() {
     `,
     loaderData
   );
+
+  const experiments = useMemo(() => {
+    const experimentsById: Record<string, Experiment> = {};
+    aggregateData?.dataset.experiments?.edges.forEach((edge) => {
+      experimentsById[edge.experiment.id] = edge.experiment;
+    });
+    const orderedExperiments = experimentIds.map(
+      (experimentId) => experimentsById[experimentId]
+    );
+    return orderedExperiments;
+  }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
 
   const annotationSummaries = useMemo(() => {
     const baseExperiment =
@@ -329,13 +350,13 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              {aggregateData?.dataset.experiments?.edges.map((edge) => (
-                <li key={edge.experiment.id}>
-                  <Text size="S">
-                    {edge.experiment.costSummary.total.tokens}
-                  </Text>
-                </li>
-              ))}
+              {experiments.map((experiment) => {
+                return (
+                  <li key={experiment.id}>
+                    <Text size="S">{experiment.costSummary.total.tokens}</Text>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ),
@@ -385,13 +406,10 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              {aggregateData?.dataset.experiments?.edges.map((edge) => (
-                <li key={edge.experiment.id}>
+              {experiments.map((experiment) => (
+                <li key={experiment.id}>
                   <Text size="S">
-                    {(
-                      (edge.experiment.averageRunLatencyMs ?? 0) / 1000
-                    ).toFixed(2)}
-                    s
+                    {((experiment.averageRunLatencyMs ?? 0) / 1000).toFixed(2)}s
                   </Text>
                 </li>
               ))}
@@ -444,10 +462,10 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              {aggregateData?.dataset.experiments?.edges.map((edge) => (
-                <li key={edge.experiment.id}>
+              {experiments.map((experiment) => (
+                <li key={experiment.id}>
                   <Text size="S">
-                    ${edge.experiment.costSummary.total.cost?.toFixed(3)}
+                    ${experiment.costSummary.total.cost?.toFixed(3)}
                   </Text>
                 </li>
               ))}
@@ -500,10 +518,10 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              {aggregateData?.dataset.experiments?.edges.map((edge) => (
-                <li key={edge.experiment.id}>
+              {experiments.map((experiment) => (
+                <li key={experiment.id}>
                   <Text size="S">
-                    {edge.experiment.annotationSummaries
+                    {experiment.annotationSummaries
                       ?.find(
                         (summary) =>
                           summary.annotationName ===
@@ -561,7 +579,7 @@ export function ExperimentCompareListPage() {
         },
       })) ?? []),
     ],
-    [aggregateData?.dataset.experiments?.edges, annotationSummaries]
+    [annotationSummaries, experiments]
   );
 
   const table = useReactTable({
