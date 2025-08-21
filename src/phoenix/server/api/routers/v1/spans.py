@@ -450,7 +450,6 @@ async def query_spans_handler(
     project_name: Optional[str] = Query(
         default=None, description="The project name to get evaluations from"
     ),
-    direction: Optional[str] = Query(default=None, description="'asc' or 'desc' (default desc)"),
 ) -> Response:
     queries = request_body.queries
     project_name = (
@@ -471,14 +470,15 @@ async def query_spans_handler(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
-    def _sort_spans_dataframe(df: pd.DataFrame, direction_param: Optional[str]) -> pd.DataFrame:
+    def _sort_spans_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         """
         Sort the spans dataframe in case the query scrambled the initial sort order.
         """
 
         if getattr(df, "empty", True):
             return df
-        ascending = True if (direction_param or "desc").lower() == "asc" else False
+        # Default to newest first (descending)
+        ascending = False
         for col in ("start_time", "end_time"):
             if col in df.columns:
                 try:
@@ -501,9 +501,8 @@ async def query_spans_handler(
     async with request.app.state.db() as session:
         results: list[pd.DataFrame] = []
         for query in span_queries:
-            sq = query.order_by_time(direction=(direction or "desc"))
             df = await session.run_sync(
-                sq,
+                query,
                 project_name=project_name,
                 start_time=normalize_datetime(
                     request_body.start_time,
@@ -517,7 +516,7 @@ async def query_spans_handler(
                 root_spans_only=request_body.root_spans_only,
                 orphan_span_as_root_span=request_body.orphan_span_as_root_span,
             )
-            results.append(_sort_spans_dataframe(df, direction))
+            results.append(_sort_spans_dataframe(df))
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 

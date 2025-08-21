@@ -11,7 +11,7 @@ from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -431,7 +431,6 @@ class SpanQuery(_HasTmpSuffix):
     _rename: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     _index: Projection = field(default_factory=lambda: Projection("context.span_id"))
     _concat_separator: str = field(default="\n\n", repr=False)
-    _direction: Optional[str] = field(default=None, repr=False)
     _pk_tmp_col_label: str = field(init=False, repr=False)
     """We use `_pk_tmp_col_label` as a temporary column for storing
     the row id, i.e. the primary key, of the spans table. This will help
@@ -491,13 +490,6 @@ class SpanQuery(_HasTmpSuffix):
             return replace(self, _concat_separator=separator)
         _concat = self._concat.with_separator(separator)
         return replace(self, _concat=_concat)
-
-    def order_by_time(self, *, direction: str = "desc") -> "SpanQuery":
-        """Specify ordering for time-based sorting before SQL limiting (by start_time)."""
-        dir_normalized = direction.lower()
-        if dir_normalized not in ("asc", "desc"):
-            dir_normalized = "desc"
-        return replace(self, _direction=dir_normalized)
 
     def with_explode_primary_index_key(self, _: str) -> "SpanQuery":
         print(
@@ -570,7 +562,6 @@ class SpanQuery(_HasTmpSuffix):
                 limit=limit,
                 root_spans_only=root_spans_only,
                 orphan_span_as_root_span=orphan_span_as_root_span,
-                direction=self._direction,
             )
         assert session.bind is not None
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -587,14 +578,6 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(start_time <= models.Span.start_time)
         if end_time:
             stmt = stmt.where(models.Span.start_time < end_time)
-        if self._direction is not None:
-            _dir = (self._direction or "desc").lower()
-            _desc = _dir != "asc"
-            _col = models.Span.start_time
-            stmt = stmt.order_by(
-                _col.desc() if _desc else _col.asc(),
-                models.Span.id.desc() if _desc else models.Span.id.asc(),
-            )
         if limit is not None:
             stmt = stmt.limit(limit)
         if root_spans_only:
@@ -750,7 +733,6 @@ def _get_spans_dataframe(
     limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
     orphan_span_as_root_span: bool = True,
-    direction: Optional[str] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
 ) -> pd.DataFrame:
@@ -829,29 +811,16 @@ def _get_spans_dataframe(
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
-            # Include both types of root spans
             parent_spans = select(models.Span.span_id).alias("parent_spans")
-            candidate_spans = stmt.cte("candidate_spans")
-            stmt = select(candidate_spans).where(
-                or_(
-                    candidate_spans.c.parent_id.is_(None),
-                    ~select(1)
-                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
-                    .exists(),
-                ),
+            stmt = stmt.where(
+                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists()
             )
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
 
-    if direction is not None:
-        _dir = (direction or "desc").lower()
-        _desc = _dir != "asc"
-        _col = models.Span.start_time
-        stmt = stmt.order_by(
-            _col.desc() if _desc else _col.asc(),
-            models.Span.id.desc() if _desc else models.Span.id.asc(),
-        )
+    # Default newest-first ordering by start_time, with id as a stable tiebreaker
+    stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
     if limit is not None:
         stmt = stmt.limit(limit)
     conn = session.connection()
