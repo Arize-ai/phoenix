@@ -37,9 +37,7 @@ SessionFilterCondition: TypeAlias = Optional[str]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = tuple[
-    Kind, TimeInterval, FilterCondition, SessionFilterCondition, ProjectRowId
-]
+Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, SessionFilterCondition]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
 Key: TypeAlias = tuple[
@@ -57,7 +55,7 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition, session_filter_condition, project_rowid), (
+    return (kind, interval, filter_condition, session_filter_condition), (
         project_rowid,
         probability,
     )
@@ -81,7 +79,7 @@ class LatencyMsQuantileCache(
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (
-            (kind, interval, filter_condition, session_filter_condition, _),
+            (kind, interval, filter_condition, session_filter_condition),
             (project_rowid, probability),
         ) = _cache_key_fn(key)
         return project_rowid, (
@@ -131,9 +129,7 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition, session_filter_condition, project_rowid = (
-        segment
-    )
+    kind, (start_time, end_time), filter_condition, session_filter_condition = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
         latency_column = cast(FloatCol, models.Trace.latency_ms)
