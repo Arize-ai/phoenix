@@ -555,15 +555,12 @@ def _from_tool_choice(
     v1.PromptToolChoiceOneOrMore,
     v1.PromptToolChoiceSpecificFunctionTool,
 ]:
-    # Handle string choices and unexpected strings first
-    if isinstance(obj, str):
-        if obj == "none":
-            return v1.PromptToolChoiceNone(type="none")
-        if obj == "auto":
-            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
-        if obj == "required":
-            return v1.PromptToolChoiceOneOrMore(type="one_or_more")
-        assert Never(obj)
+    if obj == "none":
+        return v1.PromptToolChoiceNone(type="none")
+    if obj == "auto":
+        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
+    if obj == "required":
+        return v1.PromptToolChoiceOneOrMore(type="one_or_more")
     if obj["type"] == "function":
         function: Function = obj["function"]
         choice_function_tool = v1.PromptToolChoiceSpecificFunctionTool(
