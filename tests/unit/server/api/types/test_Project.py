@@ -1,6 +1,5 @@
 import base64
 import re
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
@@ -3913,8 +3912,6 @@ async def test_cost_summary_with_session_filter_returns_filtered_data(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test cost_summary with session filter returns cost from filtered sessions only"""
-    # Create test data similar to _cost_data fixture but with session-specific costs
     async with db() as session:
         project = await _add_project(session, name="session-cost-test")
 
@@ -4121,40 +4118,10 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
     assert response_chain.data["node"]["latencyMsQuantile"] == 500.0
 
 
-# Session Filter Unit Tests
-
-
-async def test_session_filter_with_uuid_format(
-    db: DbSessionFactory,
-) -> None:
-    """Test apply_session_io_filter with UUID format session filter uses I/O filtering"""
-
-    async with db() as session:
-        project = await _add_project(session, name="uuid-filter-test")
-        # Generate a proper UUID for the session
-        session_uuid = str(uuid.uuid4())
-        session_obj = await _add_project_session(session, project, session_id=session_uuid)
-
-        # Create base statement
-        stmt = select(models.Trace.id).where(models.Trace.project_rowid == project.id)
-
-        # Apply UUID session filter - should use I/O filtering, not direct session_id lookup
-        uuid_filter = str(session_obj.session_id)  # This should be a valid UUID
-        filtered_stmt = apply_session_io_filter(stmt, uuid_filter, project.id)
-
-        # Verify the statement uses I/O filtering (not direct session_id lookup)
-        sql_str = str(filtered_stmt.compile())
-        assert "project_session_rowid" in sql_str.lower()
-        assert "spans.attributes" in sql_str.lower()  # Should search in span attributes
-        # Should NOT directly query session_id (old behavior was removed)
-        assert "session_id" not in sql_str.lower()
-
-
 async def test_session_filter_with_substring_format(
     db: DbSessionFactory,
 ) -> None:
     """Test _apply_session_io_filter with substring format session filter"""
-    from sqlalchemy import select
 
     async with db() as session:
         project = await _add_project(session, name="substring-filter-test")
@@ -4294,20 +4261,15 @@ async def test_session_filter_prevents_cross_project_access(
     assert response_correct.data["node"]["traceCount"] == 1
 
 
-async def test_session_filter_with_annotation_summaries(
+async def test_span_annotation_summary_with_session_filter_returns_expected_results(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test session filter works with spanAnnotationSummary field"""
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-
-        # Session with span that has input containing "priority"
         session1 = await _add_project_session(session, project)
         trace1 = await _add_trace(session, project, session1)
         span1 = await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
-
-        # Add annotation to the span
         annotation = models.SpanAnnotation(
             span_rowid=span1.id,
             name="test-annotation",
@@ -4320,12 +4282,9 @@ async def test_session_filter_with_annotation_summaries(
         )
         session.add(annotation)
 
-        # Session with span that doesn't have "priority" in input
         session2 = await _add_project_session(session, project)
         trace2 = await _add_trace(session, project, session2)
         span2 = await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
-
-        # Add annotation to this span too
         annotation2 = models.SpanAnnotation(
             span_rowid=span2.id,
             name="test-annotation",
@@ -4354,7 +4313,6 @@ async def test_session_filter_with_annotation_summaries(
     """
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
-    # Filter for sessions with "priority" should only return annotations from span1
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "sessionFilterCondition": "priority"}
     )
@@ -4364,7 +4322,77 @@ async def test_session_filter_with_annotation_summaries(
     summary = response.data["node"]["spanAnnotationSummary"]
     assert summary is not None
 
-    # Should only have the "important" label from the filtered session
+    label_fractions = summary["labelFractions"]
+    assert len(label_fractions) == 1
+    assert label_fractions[0]["label"] == "important"
+    assert label_fractions[0]["fraction"] == 1.0
+
+
+async def test_trace_annotation_summary_with_session_filter_returns_expected_results(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session, name="annotation-session-test")
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
+        annotation = models.TraceAnnotation(
+            trace_rowid=trace1.id,
+            name="test-annotation",
+            label="important",
+            score=1.0,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation)
+
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
+        annotation2 = models.TraceAnnotation(
+            trace_rowid=trace2.id,
+            name="test-annotation",
+            label="normal",
+            score=0.5,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation2)
+
+    query = """
+        query ($projectId: ID!, $sessionFilterCondition: String) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceAnnotationSummary(annotationName: "test-annotation", sessionFilterCondition: $sessionFilterCondition) {
+                        labelFractions {
+                            label
+                            fraction
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "priority",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    summary = response.data["node"]["traceAnnotationSummary"]
+    assert summary is not None
+
     label_fractions = summary["labelFractions"]
     assert len(label_fractions) == 1
     assert label_fractions[0]["label"] == "important"

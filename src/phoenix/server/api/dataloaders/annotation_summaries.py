@@ -13,7 +13,7 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
-from phoenix.server.session_filters import apply_session_io_filter
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -169,19 +169,21 @@ def _get_stmt(
             cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
         )
         entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
-        if session_filter_condition:
-            entity_count_query = apply_session_io_filter(
-                entity_count_query, session_filter_condition, project_rowid, start_time, end_time
-            )
     elif kind == "trace":
         entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
         entity_count_query = entity_count_query.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
-        if session_filter_condition:
-            entity_count_query = apply_session_io_filter(
-                entity_count_query, session_filter_condition, project_rowid, start_time, end_time
-            )
+    else:
+        assert_never(kind)
+
+    if session_filter_condition:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition, project_rowid, start_time, end_time
+        )
+        entity_count_query = entity_count_query.where(
+            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
+        )
 
     entity_count_query = entity_count_query.where(
         or_(score_column.is_not(None), label_column.is_not(None))
@@ -216,21 +218,21 @@ def _get_stmt(
         if filter_condition:
             sf = SpanFilter(filter_condition)
             base_stmt = sf(base_stmt)
-        if session_filter_condition:
-            base_stmt = apply_session_io_filter(
-                base_stmt, session_filter_condition, project_rowid, start_time, end_time
-            )
     elif kind == "trace":
         base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
         base_stmt = base_stmt.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
-        if session_filter_condition:
-            base_stmt = apply_session_io_filter(
-                base_stmt, session_filter_condition, project_rowid, start_time, end_time
-            )
     else:
         assert_never(kind)
+
+    if session_filter_condition:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition, project_rowid, start_time, end_time
+        )
+        base_stmt = base_stmt.where(
+            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
+        )
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))
