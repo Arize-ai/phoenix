@@ -156,11 +156,9 @@ export function ExperimentCompareListPage() {
   );
 
   const annotationSummaries = useMemo(() => {
-    // only using annotations from the first (baseline) experiment
-    return (
-      aggregateData?.dataset.experiments?.edges[0]?.experiment
-        ?.annotationSummaries ?? []
-    );
+    const baseExperiment =
+      aggregateData?.dataset.experiments?.edges[0]?.experiment;
+    return baseExperiment?.annotationSummaries ?? [];
   }, [aggregateData?.dataset.experiments?.edges]);
 
   const tableData: TableRow[] = useMemo(() => {
