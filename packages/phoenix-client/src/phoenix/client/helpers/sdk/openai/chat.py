@@ -15,9 +15,10 @@ from typing import (
     TypedDict,
     Union,
     overload,
+    cast,
 )
 
-from typing_extensions import Required, TypeAlias, assert_never
+from typing_extensions import Required, TypeAlias, assert_never, Never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
         ChatCompletionToolChoiceOptionParam,
         ChatCompletionToolMessageParam,
         ChatCompletionToolParam,
+        ChatCompletionToolUnionParam,
         ChatCompletionUserMessageParam,
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
@@ -64,7 +66,7 @@ if TYPE_CHECKING:
 class _ToolKwargs(TypedDict, total=False):
     parallel_tool_calls: bool
     tool_choice: ChatCompletionToolChoiceOptionParam
-    tools: list[ChatCompletionToolParam]
+    tools: Sequence[ChatCompletionToolUnionParam]
 
 
 class _InvocationParameters(TypedDict, total=False):
@@ -570,7 +572,31 @@ def _from_tool_choice(
             function_name=function["name"],
         )
         return choice_function_tool
-    assert_never(obj["type"])
+    if obj.get("type") == "allowed_tools":
+        raw_values: Any = obj.get("values")
+        if isinstance(raw_values, (list, tuple)):
+            names: list[str] = []
+            seq = cast(Sequence[Mapping[str, Any]], raw_values)
+            for value in seq:
+                if value.get("type") == "function":
+                    fn_any: Any = value.get("function")
+                    if isinstance(fn_any, Mapping):
+                        fn = cast(Mapping[str, Any], fn_any)
+                        name_any: Any = fn.get("name")
+                        if isinstance(name_any, str):
+                            names.append(name_any)
+            unique = list(dict.fromkeys(names))
+            if len(unique) == 1:
+                # Return the specific function tool if there is only one function
+                return v1.PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function",
+                    function_name=unique[0],
+                )
+        # Otherwise, degrade to zero_or_more
+        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
+    if obj.get("type") == "custom":
+        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
+    assert_never(cast(Never, obj["type"]))
 
 
 class _FunctionToolConversion:
@@ -857,7 +883,13 @@ class _AssistantMessageConversion:
         if "content" in obj and obj["content"] is not None:
             content.extend(_ContentPartsConversion.from_openai(obj["content"]))
         if "tool_calls" in obj and (tool_calls := obj["tool_calls"]):
-            content.extend(map(_ToolCallContentPartConversion.from_openai, tool_calls))
+            for tool_call in tool_calls:
+                if tool_call["type"] == "function":
+                    content.append(
+                        _ToolCallContentPartConversion.from_openai(
+                            tool_call
+                        )
+                    )
         if len(content) == 1 and content[0]["type"] == "text":
             return v1.PromptMessage(role=role, content=content[0]["text"])
         return v1.PromptMessage(role=role, content=content)
