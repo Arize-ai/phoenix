@@ -298,7 +298,8 @@ async def test_limit(
     sq = SpanQuery()
     async with db() as session:
         actual = await session.run_sync(sq, project_name="abc", limit=2)
-    assert actual.index.tolist() == ["234", "345"]
+    # Newest-first ordering
+    assert actual.index.tolist() == ["567", "456"]
 
 
 async def test_limit_with_select_statement(

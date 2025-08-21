@@ -656,6 +656,7 @@ class AsyncSpans:
                 to filter by.
             timeout (Optional[int]): Optional request timeout in seconds.
 
+
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
 
@@ -1371,7 +1372,7 @@ def _extract_invalid_span_from_log_spans_error(
     if not isinstance(loc_raw, list):
         return None
 
-    loc: list[Any] = loc_raw  # Type annotation to help pyright
+    loc: list[Any] = loc_raw
     if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
         return None
 
