@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -92,6 +92,7 @@ class Spans:
         project_identifier: Optional[str] = None,
         project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        sort_order: Literal["newest", "oldest"] = "newest",
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
 
@@ -106,6 +107,7 @@ class Spans:
             project_identifier (Optional[str]): Optional project identifier (name or id)
                 to filter by.
             timeout (Optional[int]): Optional request timeout in seconds.
+            sort_order (Literal["newest", "oldest"]): Sort by time, default newest first.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -146,10 +148,18 @@ class Spans:
                 else:
                     project_name = project_identifier
 
+            # Map client sort preference to server query params
+            params: dict[str, str] = {
+                "order_by": "start_time",
+                "direction": "asc" if sort_order == "oldest" else "desc",
+            }
+            if project_name:
+                params["project_name"] = project_name
+
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params={"project_name": project_name} if project_name else None,
+                params=params,
                 json=request_body,
                 timeout=timeout,
             )
@@ -641,6 +651,7 @@ class AsyncSpans:
         project_name: Optional[str] = None,
         project_identifier: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        sort_order: Literal["newest", "oldest"] = "newest",
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
 
@@ -655,6 +666,7 @@ class AsyncSpans:
             project_identifier (Optional[str]): Optional project identifier (name or id)
                 to filter by.
             timeout (Optional[int]): Optional request timeout in seconds.
+            sort_order (Literal["newest", "oldest"]): Sort by span start time, default newest first.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -695,10 +707,17 @@ class AsyncSpans:
                 else:
                     project_name = project_identifier
 
+            params: dict[str, str] = {
+                "order_by": "start_time",
+                "direction": "asc" if sort_order == "oldest" else "desc",
+            }
+            if project_name:
+                params["project_name"] = project_name
+
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params={"project_name": project_name} if project_name else None,
+                params=params,
                 json=request_body,
                 timeout=timeout,
             )
@@ -1371,7 +1390,7 @@ def _extract_invalid_span_from_log_spans_error(
     if not isinstance(loc_raw, list):
         return None
 
-    loc: list[Any] = loc_raw  # Type annotation to help pyright
+    loc = cast(list[Any], loc_raw)
     if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
         return None
 

@@ -450,6 +450,12 @@ async def query_spans_handler(
     project_name: Optional[str] = Query(
         default=None, description="The project name to get evaluations from"
     ),
+    order_by: Optional[str] = Query(
+        default=None, description="Order by 'start_time' or 'end_time' (default start_time)"
+    ),
+    direction: Optional[str] = Query(
+        default=None, description="Sort direction 'asc' or 'desc' (default desc)"
+    ),
 ) -> Response:
     queries = request_body.queries
     project_name = (
@@ -469,26 +475,56 @@ async def query_spans_handler(
             detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
+    def _sort_spans_dataframe(
+        df: pd.DataFrame, order_by_param: Optional[str], direction_param: Optional[str]
+    ) -> pd.DataFrame:
+        """
+        Sort the spans dataframe in case the query scrambled the initial sort order.
+        """
+
+        if getattr(df, "empty", True):
+            return df
+        by = order_by_param if order_by_param in ("start_time", "end_time") else "start_time"
+        ascending = True if (direction_param or "desc").lower() == "asc" else False
+        for col in (by, "end_time" if by == "start_time" else "start_time"):
+            if col in df.columns:
+                try:
+                    sort_series = pd.to_datetime(df[col], utc=True, errors="coerce")
+                    df = df.assign(_phoenix_sort_time=sort_series)
+                    df = df.sort_values(
+                        by="_phoenix_sort_time", ascending=ascending, kind="mergesort"
+                    )
+                    df = df.drop(columns=["_phoenix_sort_time"])
+                except Exception:
+                    try:
+                        df = df.sort_values(by=col, ascending=ascending, kind="mergesort")
+                    except Exception:
+                        pass
+                finally:
+                    return df
+        return df
+
     async with request.app.state.db() as session:
-        results = []
+        results: list[pd.DataFrame] = []
         for query in span_queries:
-            results.append(
-                await session.run_sync(
-                    query,
-                    project_name=project_name,
-                    start_time=normalize_datetime(
-                        request_body.start_time,
-                        timezone.utc,
-                    ),
-                    end_time=normalize_datetime(
-                        end_time,
-                        timezone.utc,
-                    ),
-                    limit=request_body.limit,
-                    root_spans_only=request_body.root_spans_only,
-                    orphan_span_as_root_span=request_body.orphan_span_as_root_span,
-                )
+            sq = query.order_by_time(by=(order_by or "start_time"), direction=(direction or "desc"))
+            df = await session.run_sync(
+                sq,
+                project_name=project_name,
+                start_time=normalize_datetime(
+                    request_body.start_time,
+                    timezone.utc,
+                ),
+                end_time=normalize_datetime(
+                    end_time,
+                    timezone.utc,
+                ),
+                limit=request_body.limit,
+                root_spans_only=request_body.root_spans_only,
+                orphan_span_as_root_span=request_body.orphan_span_as_root_span,
             )
+            results.append(_sort_spans_dataframe(df, order_by, direction))
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
