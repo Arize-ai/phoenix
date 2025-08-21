@@ -812,8 +812,14 @@ def _get_spans_dataframe(
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
             parent_spans = select(models.Span.span_id).alias("parent_spans")
-            stmt = stmt.where(
-                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists()
+            candidate_spans = stmt.cte("candidate_spans")
+            stmt = select(candidate_spans).where(
+                or_(
+                    candidate_spans.c.parent_id.is_(None),
+                    ~select(1)
+                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                    .exists(),
+                ),
             )
         else:
             # Only include explicit root spans (spans with parent_id = NULL)

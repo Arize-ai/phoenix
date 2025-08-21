@@ -470,34 +470,6 @@ async def query_spans_handler(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
-    def _sort_spans_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Sort the spans dataframe in case the query scrambled the initial sort order.
-        """
-
-        if getattr(df, "empty", True):
-            return df
-        # Default to newest first (descending)
-        ascending = False
-        for col in ("start_time", "end_time"):
-            if col in df.columns:
-                try:
-                    sort_series = pd.to_datetime(df[col], utc=True, errors="coerce")
-                    df = df.assign(_phoenix_sort_time=sort_series)
-                    df = df.sort_values(
-                        by="_phoenix_sort_time", ascending=ascending, kind="mergesort"
-                    )
-                    df = df.drop(columns=["_phoenix_sort_time"])
-                    return df
-                except Exception:
-                    try:
-                        df = df.sort_values(by=col, ascending=ascending, kind="mergesort")
-                        return df
-                    except Exception:
-                        # If sorting by this column fails, try the next fallback column
-                        continue
-        return df
-
     async with request.app.state.db() as session:
         results: list[pd.DataFrame] = []
         for query in span_queries:
@@ -516,7 +488,7 @@ async def query_spans_handler(
                 root_spans_only=request_body.root_spans_only,
                 orphan_span_as_root_span=request_body.orphan_span_as_root_span,
             )
-            results.append(_sort_spans_dataframe(df))
+            results.append(df)
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
