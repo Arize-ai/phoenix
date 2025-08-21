@@ -15,6 +15,12 @@ deployment:
       maxUnavailable: "25%"
       maxSurge: "25%"
 
+  # -- Tolerations, nodeSelector and affinity
+  # For Pod scheduling strategy on the nodes
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+
 # ADDONS
 # - Ingress
 # - Postgres
