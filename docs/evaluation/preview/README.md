@@ -1,11 +1,12 @@
 # phoenix-evals preview module
 
-The preview module provides lightweight, composable building blocks for writing, running, and composing automatic evaluations.
+The new Phoenix evals library provides lightweight, composable building blocks for writing and running automatic evaluations.
 
-- Imports live under `phoenix.evals.preview`.
 - Works with your preferred model SDKs via adapters (OpenAI, LiteLLM, LangChain).
-- Includes templating utilities and pre-built metrics/evaluators.
-- Features powerful input mapping and binding for complex data structures.
+- Features powerful input mapping and binding for working with complex data structures.
+- Includes several pre-built metrics for common evaluation tasks.
+- Evaluators are instrumented for Open Telemetry tracing. 
+- Plus, tons of convenience features to improve the developor experience! 
 
 ## Sections
 - Core evaluators and scoring: see `evaluators.md`
@@ -18,7 +19,7 @@ The preview module provides lightweight, composable building blocks for writing,
 from phoenix.evals.preview import create_classifier
 from phoenix.evals.preview.llm import LLM
 
-llm = LLM(provider="openai", model="gpt-4o", client="openai")
+llm = LLM(provider="openai", model="gpt-4o")
 
 evaluator = create_classifier(
     name="helpfulness",
@@ -41,5 +42,5 @@ scores[0].pretty_print()
 
 ## Installation notes
 - Install `openai`, `litellm`, or `langchain` only if you use those adapters. The library detects availability automatically.
-- Set your provider's API keys in the environment as usual for the chosen SDK.
+- Set your provider's API keys in the environment as usual for the chosen model provider.
 

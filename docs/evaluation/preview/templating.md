@@ -1,6 +1,6 @@
 # Prompt Templates
 
-Lightweight utilities to render prompts and infer required fields.
+Lightweight utilities to render prompts and infer required fields. We plan to support multimodal prompts, but right now templates only work with text.  
 
 ### Abstractions
 - TemplateFormat: `"mustache" | "f-string"`
