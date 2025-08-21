@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import operator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, cast
@@ -451,10 +449,10 @@ class Project(Node):
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
             filter_subq = get_filtered_session_rowids_subquery(
-                filter_io_substring,
-                self.project_rowid,
-                time_range.start if time_range else None,
-                time_range.end if time_range else None,
+                session_filter_condition=filter_io_substring,
+                project_rowids=[self.project_rowid],
+                start_time=time_range.start if time_range else None,
+                end_time=time_range.end if time_range else None,
             )
             stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
         if sort:
@@ -742,7 +740,7 @@ class Project(Node):
     async def trace_retention_policy(
         self,
         info: Info[Context, None],
-    ) -> Annotated[ProjectTraceRetentionPolicy, lazy(".ProjectTraceRetentionPolicy")]:
+    ) -> Annotated["ProjectTraceRetentionPolicy", lazy(".ProjectTraceRetentionPolicy")]:
         from .ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
         id_ = await info.context.data_loaders.trace_retention_policy_id_by_project_id.load(
@@ -783,7 +781,7 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> SpanCountTimeSeries:
+    ) -> "SpanCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -868,7 +866,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceCountTimeSeries:
+    ) -> "TraceCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -931,7 +929,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceCountByStatusTimeSeries:
+    ) -> "TraceCountByStatusTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1024,7 +1022,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceLatencyPercentileTimeSeries:
+    ) -> "TraceLatencyPercentileTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1128,7 +1126,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceTokenCountTimeSeries:
+    ) -> "TraceTokenCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1211,7 +1209,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceTokenCostTimeSeries:
+    ) -> "TraceTokenCostTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1294,7 +1292,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> SpanAnnotationScoreTimeSeries:
+    ) -> "SpanAnnotationScoreTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 

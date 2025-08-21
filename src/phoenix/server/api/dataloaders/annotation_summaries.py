@@ -179,7 +179,10 @@ def _get_stmt(
 
     if session_filter_condition:
         filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition, project_rowid, start_time, end_time
+            session_filter_condition=session_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
         )
         entity_count_query = entity_count_query.where(
             models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
@@ -228,7 +231,10 @@ def _get_stmt(
 
     if session_filter_condition:
         filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition, project_rowid, start_time, end_time
+            session_filter_condition=session_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
         )
         base_stmt = base_stmt.where(
             models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))

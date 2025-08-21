@@ -151,8 +151,12 @@ async def _get_results(
     else:
         assert_never(kind)
     if session_filter_condition and params:
+        project_rowids = [project_rowid for project_rowid, _ in params.keys()]
         filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition, project_rowid, start_time, end_time
+            session_filter_condition=session_filter_condition,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
         )
         stmt = stmt.where(
             models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))

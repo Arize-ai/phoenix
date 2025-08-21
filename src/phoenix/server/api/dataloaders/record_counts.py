@@ -107,9 +107,7 @@ def _get_stmt(
     segment: Segment,
     *project_rowids: Param,
 ) -> Select[Any]:
-    kind, (start_time, end_time), filter_condition, session_filter_condition, project_rowid = (
-        segment
-    )
+    kind, (start_time, end_time), filter_condition, session_filter_condition, _ = segment
     pid = models.Trace.project_rowid
     stmt = select(pid)
     if kind == "span":
@@ -131,7 +129,10 @@ def _get_stmt(
 
     if session_filter_condition:
         filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition, project_rowid, start_time, end_time
+            session_filter_condition=session_filter_condition,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
         )
         stmt = stmt.where(
             models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
