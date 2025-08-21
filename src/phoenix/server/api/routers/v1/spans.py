@@ -488,13 +488,14 @@ async def query_spans_handler(
                         by="_phoenix_sort_time", ascending=ascending, kind="mergesort"
                     )
                     df = df.drop(columns=["_phoenix_sort_time"])
+                    return df
                 except Exception:
                     try:
                         df = df.sort_values(by=col, ascending=ascending, kind="mergesort")
+                        return df
                     except Exception:
-                        pass
-                finally:
-                    return df
+                        # If sorting by this column fails, try the next fallback column
+                        continue
         return df
 
     async with request.app.state.db() as session:
