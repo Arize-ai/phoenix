@@ -118,5 +118,11 @@ Validate database URL format when provided
 {{- if and (hasPrefix "sqlite://" $url) (not $persistenceEnabled) (not $isMemoryDatabase) }}
 {{- fail "ERROR: SQLite database URL provided without persistent storage!\n\nWhen using SQLite with database.url, you must enable persistent storage to prevent data loss.\n\nTo fix this:\n  - Set persistence.enabled=true\n  - Ensure the SQLite file path in database.url points to the persistent volume\n\nAlternatively, for SQLite with persistence, it's recommended to:\n  - Set persistence.enabled=true\n  - Set database.url to empty string (Phoenix will auto-configure SQLite)" }}
 {{- end }}
+{{- if and ($persistenceEnabled) ($isMemoryDatabase) }}
+{{- fail "ERROR: cannot use in-memory and persistance at the same time" }}
+{{- end }}
+{{- if and (not (hasPrefix "sqlite://:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
+{{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite://:memory:` prefix." }}
+{{- end }}
 {{- end }}
 {{- end }}
