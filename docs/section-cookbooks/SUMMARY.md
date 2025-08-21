@@ -15,6 +15,7 @@
 
 * [Agentic RAG Tracing](tracing-and-annotations/agentic-rag-tracing.md)
 * [Using Human Annotations for Eval-Driven Development](tracing-and-annotations/using-human-annotations-for-eval-driven-development.md)
+* [Generating Synthetic Datasets using LLMs](tracing-and-annotations/generating-synthetic-datasets-using-llms.md)
 * [Structured Data Extraction](tracing-and-annotations/structured-data-extraction.md)
 * [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph.md)
 * [More Cookbooks](tracing-and-annotations/cookbooks.md)
