@@ -885,11 +885,7 @@ class _AssistantMessageConversion:
         if "tool_calls" in obj and (tool_calls := obj["tool_calls"]):
             for tool_call in tool_calls:
                 if tool_call["type"] == "function":
-                    content.append(
-                        _ToolCallContentPartConversion.from_openai(
-                            tool_call
-                        )
-                    )
+                    content.append(_ToolCallContentPartConversion.from_openai(tool_call))
         if len(content) == 1 and content[0]["type"] == "text":
             return v1.PromptMessage(role=role, content=content[0]["text"])
         return v1.PromptMessage(role=role, content=content)
