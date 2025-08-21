@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData } from "react-router";
 import {
@@ -15,6 +15,8 @@ import { ExperimentCompareListPage_aggregateData$key } from "@phoenix/pages/expe
 import type { ExperimentCompareListPage_comparisons$key } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
 import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
+
+const PAGE_SIZE = 50;
 
 type TableRow = {
   id: string;
@@ -40,6 +42,7 @@ type TableRow = {
 };
 
 export function ExperimentCompareListPage() {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
 
   const aggregateData =
@@ -76,7 +79,7 @@ export function ExperimentCompareListPage() {
       `,
       loaderData
     );
-  const { data } = usePaginationFragment<
+  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExperimentCompareListPageQuery,
     ExperimentCompareListPage_comparisons$key
   >(
@@ -84,7 +87,7 @@ export function ExperimentCompareListPage() {
       fragment ExperimentCompareListPage_comparisons on Query
       @refetchable(queryName: "ExperimentCompareListPageQuery")
       @argumentDefinitions(
-        first: { type: "Int", defaultValue: 50 }
+        first: { type: "Int", defaultValue: PAGE_SIZE }
         after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
       ) {
@@ -198,7 +201,23 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
-  console.log({ aggregateData, tableData, loaderData });
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
@@ -452,35 +471,45 @@ export function ExperimentCompareListPage() {
       <Text size="L" weight="heavy" marginBottom="size-200">
         Experiment Comparison Table
       </Text>
-      <table>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+          height: 100%;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
+      >
+        <table>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </View>
   );
 }
