@@ -587,7 +587,14 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(start_time <= models.Span.start_time)
         if end_time:
             stmt = stmt.where(models.Span.start_time < end_time)
-        # Apply requested ordering only if provided by caller (route). Otherwise, do not force an order here.
+        if self._direction is not None:
+            _dir = (self._direction or "desc").lower()
+            _desc = _dir != "asc"
+            _col = models.Span.start_time
+            stmt = stmt.order_by(
+                _col.desc() if _desc else _col.asc(),
+                models.Span.id.desc() if _desc else models.Span.id.asc(),
+            )
         if limit is not None:
             stmt = stmt.limit(limit)
         if root_spans_only:
