@@ -92,7 +92,7 @@ export function ExperimentCompareListPage() {
       fragment ExperimentCompareListPage_comparisons on Query
       @refetchable(queryName: "ExperimentCompareListPageQuery")
       @argumentDefinitions(
-        first: { type: "Int", defaultValue: PAGE_SIZE }
+        first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
       ) {
@@ -228,8 +228,6 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
-
-  console.log({ tableData, aggregateData, loaderData });
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

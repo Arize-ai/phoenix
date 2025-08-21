@@ -54,7 +54,7 @@ export async function experimentCompareLoader(
           )
         ...ExperimentCompareListPage_comparisons
           @include(if: $includeListView)
-          @arguments(first: 50, baseExperimentId: $baseExperimentId)
+          @arguments(baseExperimentId: $baseExperimentId)
         ...ExperimentCompareListPage_aggregateData
           @include(if: $includeListView)
           @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
