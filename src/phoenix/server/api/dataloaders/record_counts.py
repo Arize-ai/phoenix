@@ -21,9 +21,7 @@ FilterCondition: TypeAlias = Optional[str]
 SessionFilterCondition: TypeAlias = Optional[str]
 SpanCount: TypeAlias = int
 
-Segment: TypeAlias = tuple[
-    Kind, TimeInterval, FilterCondition, SessionFilterCondition, ProjectRowId
-]
+Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, SessionFilterCondition]
 Param: TypeAlias = ProjectRowId
 
 Key: TypeAlias = tuple[
@@ -44,7 +42,6 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         interval,
         filter_condition,
         session_filter_condition,
-        project_rowid,
     ), project_rowid
 
 
@@ -65,8 +62,8 @@ class RecordCountCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition, session_filter_condition, _), project_rowid = (
-            _cache_key_fn(key)
+        (kind, interval, filter_condition, session_filter_condition), project_rowid = _cache_key_fn(
+            key
         )
         return project_rowid, (interval, filter_condition, session_filter_condition, kind)
 
@@ -107,7 +104,7 @@ def _get_stmt(
     segment: Segment,
     *project_rowids: Param,
 ) -> Select[Any]:
-    kind, (start_time, end_time), filter_condition, session_filter_condition, _ = segment
+    kind, (start_time, end_time), filter_condition, session_filter_condition = segment
     pid = models.Trace.project_rowid
     stmt = select(pid)
     if kind == "span":
