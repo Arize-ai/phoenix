@@ -67,7 +67,7 @@ Validate persistence configuration to prevent data storage conflicts
 {{- $persistenceEnabled := .Values.persistence.enabled | toString | eq "true" }}
 {{- $postgresqlEnabled := .Values.postgresql.enabled | toString | eq "true" }}
 {{- $databaseUrlConfigured := and .Values.database.url (ne .Values.database.url "") }}
-{{- $isMemoryDatabase := eq .Values.database.url "sqlite:///:memory:" }}
+{{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }}
 {{- if and $isMemoryDatabase $postgresqlEnabled }}
 {{- fail "ERROR: In-memory database configuration conflict!\n\nWhen using SQLite In-memory (database.url=\"sqlite:///:memory:\"), PostgreSQL must be disabled.\n\nTo fix this:\n  - Set database.url=\"sqlite:///:memory:\"\n  - Set postgresql.enabled=false\n\nNote: In-memory mode is for demos/testing only. All data will be lost when the pod restarts." }}
 {{- end }}
@@ -109,7 +109,7 @@ Validate database URL format when provided
 {{- define "phoenix.validateDatabaseUrl" -}}
 {{- $databaseUrlConfigured := and .Values.database.url (ne .Values.database.url "") }}
 {{- $persistenceEnabled := .Values.persistence.enabled | toString | eq "true" }}
-{{- $isMemoryDatabase := eq .Values.database.url "sqlite:///:memory:" }}
+{{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }}
 {{- if $databaseUrlConfigured }}
 {{- $url := .Values.database.url }}
 {{- if not (or (hasPrefix "postgresql://" $url) (hasPrefix "sqlite://" $url)) }}

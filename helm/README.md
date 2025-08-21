@@ -83,6 +83,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | persistence.accessModes | list | `["ReadWriteOnce"]` | Access modes for the persistent volume |
 | persistence.annotations | object | `{}` | Annotations to add to the PVC |
 | persistence.enabled | bool | `false` | Enable persistent storage for Phoenix home directory |
+| persistence.inMemory | bool | `false` | Enable in-memory configuration of sqlite strategy | 
 | persistence.labels | object | `{}` | Labels to add to the PVC |
 | persistence.size | string | `"20Gi"` | Size of the persistent volume for Phoenix home directory |
 | persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
