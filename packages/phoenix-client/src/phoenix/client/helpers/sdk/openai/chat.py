@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Required, TypeAlias, assert_never
+from typing_extensions import Never, Required, TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         ChatCompletionToolChoiceOptionParam,
         ChatCompletionToolMessageParam,
         ChatCompletionToolParam,
+        ChatCompletionToolUnionParam,
         ChatCompletionUserMessageParam,
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
 class _ToolKwargs(TypedDict, total=False):
     parallel_tool_calls: bool
     tool_choice: ChatCompletionToolChoiceOptionParam
-    tools: list[ChatCompletionToolParam]
+    tools: Sequence[ChatCompletionToolUnionParam]
 
 
 class _InvocationParameters(TypedDict, total=False):
@@ -555,14 +556,11 @@ def _from_tool_choice(
     v1.PromptToolChoiceSpecificFunctionTool,
 ]:
     if obj == "none":
-        choice_none = v1.PromptToolChoiceNone(type="none")
-        return choice_none
+        return v1.PromptToolChoiceNone(type="none")
     if obj == "auto":
-        choice_zero_or_more = v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
-        return choice_zero_or_more
+        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
     if obj == "required":
-        choice_one_or_more = v1.PromptToolChoiceOneOrMore(type="one_or_more")
-        return choice_one_or_more
+        return v1.PromptToolChoiceOneOrMore(type="one_or_more")
     if obj["type"] == "function":
         function: Function = obj["function"]
         choice_function_tool = v1.PromptToolChoiceSpecificFunctionTool(
@@ -570,6 +568,10 @@ def _from_tool_choice(
             function_name=function["name"],
         )
         return choice_function_tool
+    if obj["type"] == "allowed_tools":
+        raise NotImplementedError
+    if obj["type"] == "custom":
+        raise NotImplementedError
     assert_never(obj["type"])
 
 
@@ -857,7 +859,9 @@ class _AssistantMessageConversion:
         if "content" in obj and obj["content"] is not None:
             content.extend(_ContentPartsConversion.from_openai(obj["content"]))
         if "tool_calls" in obj and (tool_calls := obj["tool_calls"]):
-            content.extend(map(_ToolCallContentPartConversion.from_openai, tool_calls))
+            for tool_call in tool_calls:
+                if tool_call["type"] == "function":
+                    content.append(_ToolCallContentPartConversion.from_openai(tool_call))
         if len(content) == 1 and content[0]["type"] == "text":
             return v1.PromptMessage(role=role, content=content[0]["text"])
         return v1.PromptMessage(role=role, content=content)
@@ -1124,7 +1128,7 @@ def _tool_msg(
     }
 
 
-class _RoleConversion:
+class _RoleConversion:  # pyright: ignore[reportUnusedClass]
     @staticmethod
     def to_openai(
         obj: v1.PromptMessage,
