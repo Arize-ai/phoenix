@@ -4051,20 +4051,17 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test latency quantiles with filters return percentiles of filtered data only"""
     async with db() as session:
         project = await _add_project(session, name="latency-filter-test")
-
-        # Create traces with different latencies and span types
-        latencies_llm = [100, 200, 300]  # P50 = 200ms for LLM spans
-        latencies_chain = [400, 500, 600]  # P50 = 500ms for CHAIN spans
-
-        for latency in latencies_llm:
+        llm_span_session = await _add_project_session(session, project)
+        llm_span_latencies_ms = [100, 200, 300]
+        for latency_ms in llm_span_latencies_ms:
             trace = await _add_trace(
                 session,
                 project,
+                project_session=llm_span_session,
                 start_time=datetime.now(timezone.utc),
-                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency),
+                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency_ms),
             )
             await _add_span(
                 session,
@@ -4072,14 +4069,18 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
                 span_kind="LLM",
                 start_time=trace.start_time,
                 end_time=trace.end_time,
+                attributes={"input": {"value": "llm span input"}},
             )
 
-        for latency in latencies_chain:
+        chain_span_session = await _add_project_session(session, project)
+        chain_span_latencies_ms = [400, 500, 600]
+        for latency_ms in chain_span_latencies_ms:
             trace = await _add_trace(
                 session,
                 project,
+                project_session=chain_span_session,
                 start_time=datetime.now(timezone.utc),
-                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency),
+                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency_ms),
             )
             await _add_span(
                 session,
@@ -4087,35 +4088,54 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
                 span_kind="CHAIN",
                 start_time=trace.start_time,
                 end_time=trace.end_time,
+                attributes={"input": {"value": "chain span input"}},
             )
 
     query = """
-        query ($projectId: ID!, $filter: String!) {
-            node(id: $projectId) {
-                ... on Project {
-                    latencyMsQuantile(probability: 0.5, filterCondition: $filter)
-                }
-            }
+      query ($projectId: ID!, $filterCondition: String, $sessionFilterCondition: String) {
+        project: node(id: $projectId) {
+          ... on Project {
+            latencyMsQuantile(
+              probability: 0.5
+              filterCondition: $filterCondition
+              sessionFilterCondition: $sessionFilterCondition
+            )
+          }
         }
+      }
     """
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
 
-    # Filter for LLM spans should return P50 = 200ms
-    response_llm = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filter": "span_kind == 'LLM'"}
+    response_llm_span_filter = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filterCondition": "span_kind == 'LLM'"}
     )
-    assert not response_llm.errors
-    assert response_llm.data is not None
-    assert response_llm.data["node"]["latencyMsQuantile"] == 200.0
+    assert not response_llm_span_filter.errors
+    assert response_llm_span_filter.data is not None
+    assert response_llm_span_filter.data["project"]["latencyMsQuantile"] == 200.0
 
-    # Filter for CHAIN spans should return P50 = 500ms
-    response_chain = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filter": "span_kind == 'CHAIN'"}
+    response_chain_span_filter = await gql_client.execute(
+        query=query, variables={"projectId": project_gid, "filterCondition": "span_kind == 'CHAIN'"}
     )
-    assert not response_chain.errors
-    assert response_chain.data is not None
-    assert response_chain.data["node"]["latencyMsQuantile"] == 500.0
+    assert not response_chain_span_filter.errors
+    assert response_chain_span_filter.data is not None
+    assert response_chain_span_filter.data["project"]["latencyMsQuantile"] == 500.0
+
+    response_llm_session_filter = await gql_client.execute(
+        query=query,
+        variables={"projectId": project_gid, "sessionFilterCondition": "llm span input"},
+    )
+    assert not response_llm_session_filter.errors
+    assert response_llm_session_filter.data is not None
+    assert response_llm_session_filter.data["project"]["latencyMsQuantile"] == 200.0
+
+    response_chain_session_filter = await gql_client.execute(
+        query=query,
+        variables={"projectId": project_gid, "sessionFilterCondition": "chain span input"},
+    )
+    assert not response_chain_session_filter.errors
+    assert response_chain_session_filter.data is not None
+    assert response_chain_session_filter.data["project"]["latencyMsQuantile"] == 500.0
 
 
 async def test_session_filter_with_substring_format(

@@ -25,7 +25,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.session_filters import apply_session_io_filter
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -38,7 +38,7 @@ Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
 Segment: TypeAlias = tuple[
-    Kind, TimeInterval, FilterCondition, SessionFilterCondition, Optional[ProjectRowId]
+    Kind, TimeInterval, FilterCondition, SessionFilterCondition, ProjectRowId
 ]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
@@ -57,10 +57,7 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    # Include project_rowid in segment when session_filter is present to prevent
-    # cross-project batching
-    segment_project_id = project_rowid if session_filter_condition else None
-    return (kind, interval, filter_condition, session_filter_condition, segment_project_id), (
+    return (kind, interval, filter_condition, session_filter_condition, project_rowid), (
         project_rowid,
         probability,
     )
@@ -134,7 +131,7 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition, session_filter_condition, segment_project_id = (
+    kind, (start_time, end_time), filter_condition, session_filter_condition, project_rowid = (
         segment
     )
     stmt = select(models.Trace.project_rowid)
@@ -142,7 +139,6 @@ async def _get_results(
         latency_column = cast(FloatCol, models.Trace.latency_ms)
         time_column = models.Trace.start_time
         if filter_condition:
-            # For trace latency with span filter: include traces containing spans matching filter
             sf = SpanFilter(filter_condition)
             stmt = sf(stmt.join(models.Span)).distinct()
     elif kind == "span":
@@ -155,13 +151,11 @@ async def _get_results(
     else:
         assert_never(kind)
     if session_filter_condition and params:
-        # Apply session filter to stmt - use segment_project_id for correct project scoping
-        # When session_filter is present, segment_project_id contains the correct project ID
-        project_id_for_session = (
-            segment_project_id if segment_project_id is not None else next(iter(params.keys()))[0]
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition, project_rowid, start_time, end_time
         )
-        stmt = apply_session_io_filter(
-            stmt, session_filter_condition, project_id_for_session, start_time, end_time
+        stmt = stmt.where(
+            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
         )
     if start_time:
         stmt = stmt.where(start_time <= time_column)
