@@ -1388,7 +1388,7 @@ def _extract_invalid_span_from_log_spans_error(
     if not isinstance(loc_raw, list):
         return None
 
-    loc = cast(list[Any], loc_raw)
+    loc: list[Any] = loc_raw
     if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
         return None
 
