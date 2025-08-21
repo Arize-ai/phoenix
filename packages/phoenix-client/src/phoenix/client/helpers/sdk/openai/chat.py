@@ -556,15 +556,15 @@ def _from_tool_choice(
     v1.PromptToolChoiceOneOrMore,
     v1.PromptToolChoiceSpecificFunctionTool,
 ]:
-    if obj == "none":
-        choice_none = v1.PromptToolChoiceNone(type="none")
-        return choice_none
-    if obj == "auto":
-        choice_zero_or_more = v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
-        return choice_zero_or_more
-    if obj == "required":
-        choice_one_or_more = v1.PromptToolChoiceOneOrMore(type="one_or_more")
-        return choice_one_or_more
+    # Handle string choices and unexpected strings first
+    if isinstance(obj, str):
+        if obj == "none":
+            return v1.PromptToolChoiceNone(type="none")
+        if obj == "auto":
+            return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
+        if obj == "required":
+            return v1.PromptToolChoiceOneOrMore(type="one_or_more")
+        assert Never(obj)
     if obj["type"] == "function":
         function: Function = obj["function"]
         choice_function_tool = v1.PromptToolChoiceSpecificFunctionTool(
@@ -572,31 +572,11 @@ def _from_tool_choice(
             function_name=function["name"],
         )
         return choice_function_tool
-    if obj.get("type") == "allowed_tools":
-        raw_values: Any = obj.get("values")
-        if isinstance(raw_values, (list, tuple)):
-            names: list[str] = []
-            seq = cast(Sequence[Mapping[str, Any]], raw_values)
-            for value in seq:
-                if value.get("type") == "function":
-                    fn_any: Any = value.get("function")
-                    if isinstance(fn_any, Mapping):
-                        fn = cast(Mapping[str, Any], fn_any)
-                        name_any: Any = fn.get("name")
-                        if isinstance(name_any, str):
-                            names.append(name_any)
-            unique = list(dict.fromkeys(names))
-            if len(unique) == 1:
-                # Return the specific function tool if there is only one function
-                return v1.PromptToolChoiceSpecificFunctionTool(
-                    type="specific_function",
-                    function_name=unique[0],
-                )
-        # Otherwise, degrade to zero_or_more
-        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
-    if obj.get("type") == "custom":
-        return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
-    assert_never(cast(Never, obj["type"]))
+    if obj["type"] == "allowed_tools":
+        raise NotImplementedError
+    if obj["type"] == "custom":
+        raise NotImplementedError
+    assert_never(obj["type"])
 
 
 class _FunctionToolConversion:
@@ -1152,7 +1132,7 @@ def _tool_msg(
     }
 
 
-class _RoleConversion:
+class _RoleConversion:  # pyright: ignore[reportUnusedClass]
     @staticmethod
     def to_openai(
         obj: v1.PromptMessage,
