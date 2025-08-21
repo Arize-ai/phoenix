@@ -32,7 +32,7 @@ export function ExperimentRunAnnotationFiltersList({
         },
         {
           text: `${name} is less than ${formatFloat(score)}`,
-          condition: `evals['${name}'].score > ${score}`,
+          condition: `evals['${name}'].score < ${score}`,
         },
       ];
     }
