@@ -886,6 +886,16 @@ async def test_span_search_time_slice(
         assert isinstance(span.status_code, str)
 
 
+async def test_span_search_sort_direction(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp_desc = await httpx_client.get("v1/projects/search-test/spans")
+
+    assert resp_desc.is_success
+    spans_desc = [Span.model_validate(s) for s in resp_desc.json()["data"]]
+    assert len(spans_desc) == 3
+
+
 async def test_span_search_pagination(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
