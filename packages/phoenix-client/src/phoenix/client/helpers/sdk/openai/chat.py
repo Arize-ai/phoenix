@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Never, Required, TypeAlias, assert_never
+from typing_extensions import Required, TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
