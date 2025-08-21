@@ -37,15 +37,15 @@ type TableRow = {
   };
   tokens: {
     baseExperimentValue: number;
-    compareExperimentValues: number[];
+    compareExperimentValues: (number | null | undefined)[];
   };
   latency: {
     baseExperimentValue: number;
-    compareExperimentValues: number[];
+    compareExperimentValues: (number | null | undefined)[];
   };
   cost: {
     baseExperimentValue: number;
-    compareExperimentValues: number[];
+    compareExperimentValues: (number | null | undefined)[];
   };
   annotations: {
     baseExperimentValue: { name: string; score: number | null }[];
@@ -189,9 +189,11 @@ export function ExperimentCompareListPage() {
         const example = comparison.example;
         const runItems = comparison.runComparisonItems;
 
-        const [baseExperimentRun, ...compareExperimentRuns] = runItems.map(
-          (item) => item.runs[0]
-        );
+        const baseExperimentRun = runItems[0].runs[0];
+        const compareExperimentRuns = runItems.slice(1).map((item) => {
+          const run = item.runs.length > 0 ? item.runs[0] : null;
+          return run;
+        });
         const tableData = {
           id: example.id,
           example: example.id,
@@ -199,15 +201,15 @@ export function ExperimentCompareListPage() {
           referenceOutput: example.revision.referenceOutput,
           outputs: {
             baseExperimentValue: baseExperimentRun.output,
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) => run.output
+            compareExperimentValues: compareExperimentRuns.map((run) =>
+              run ? run.output : "not run"
             ),
           },
           tokens: {
             baseExperimentValue:
               baseExperimentRun.costSummary.total.tokens ?? 0,
             compareExperimentValues: compareExperimentRuns.map(
-              (run) => run.costSummary.total.tokens ?? 0
+              (run) => run?.costSummary.total.tokens ?? 0
             ),
           },
           latency: {
@@ -215,17 +217,18 @@ export function ExperimentCompareListPage() {
               (new Date(baseExperimentRun.endTime).getTime() -
                 new Date(baseExperimentRun.startTime).getTime()) /
               1000,
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) =>
-                (new Date(run.endTime).getTime() -
-                  new Date(run.startTime).getTime()) /
-                1000
+            compareExperimentValues: compareExperimentRuns.map((run) =>
+              run
+                ? (new Date(run.endTime).getTime() -
+                    new Date(run.startTime).getTime()) /
+                  1000
+                : undefined
             ),
           },
           cost: {
             baseExperimentValue: baseExperimentRun.costSummary.total.cost ?? 0,
             compareExperimentValues: compareExperimentRuns.map(
-              (run) => run.costSummary.total.cost ?? 0
+              (run) => run?.costSummary.total.cost
             ),
           },
           annotations: {
@@ -235,11 +238,12 @@ export function ExperimentCompareListPage() {
                 score: edge.annotation.score,
               })
             ),
-            compareExperimentValues: compareExperimentRuns.map((run) =>
-              run.annotations.edges.map((edge) => ({
-                name: edge.annotation.name,
-                score: edge.annotation.score,
-              }))
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) =>
+                run?.annotations.edges.map((edge) => ({
+                  name: edge.annotation.name,
+                  score: edge.annotation.score,
+                })) ?? []
             ),
           },
         };
@@ -436,7 +440,7 @@ export function ExperimentCompareListPage() {
               </li>
               {latency.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{value.toFixed(2)}s</Text>
+                  <Text size="S">{value?.toFixed(2) ?? "--"}s</Text>
                 </li>
               ))}
             </ul>
@@ -492,7 +496,7 @@ export function ExperimentCompareListPage() {
               </li>
               {cost.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">${value.toFixed(3)}</Text>
+                  <Text size="S">${value?.toFixed(3) ?? "--"}</Text>
                 </li>
               ))}
             </ul>
