@@ -46,6 +46,7 @@ import {
   ModalOverlay,
   Popover,
   PopoverArrow,
+  Separator,
   Text,
   View,
   ViewSummaryAside,
@@ -84,6 +85,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
+import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -1326,7 +1328,18 @@ export function ExperimentRunCellAnnotationsList(
                 <PopoverArrow />
                 <Dialog style={{ width: 400 }}>
                   <View padding="size-200">
-                    <AnnotationDetailsContent annotation={annotation} />
+                    <Flex direction="column" gap="size-50">
+                      <AnnotationDetailsContent annotation={annotation} />
+                      <Separator />
+                      <section>
+                        <Heading level={4} weight="heavy">
+                          Filters
+                        </Heading>
+                        <ExperimentRunAnnotationFiltersList
+                          annotation={annotation}
+                        />
+                      </section>
+                    </Flex>
                   </View>
                 </Dialog>
               </Popover>
