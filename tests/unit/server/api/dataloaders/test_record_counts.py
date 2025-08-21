@@ -43,13 +43,14 @@ async def test_record_counts(
         )
     expected = trace_df.loc[:, "count"].to_list() + span_df.loc[:, "count"].to_list()
     kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    session_filter_condition = None
     keys: list[Key] = [
         (
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
-            None,  # session_filter
+            session_filter_condition,
         )
         for kind in kinds
         for id_ in range(10)

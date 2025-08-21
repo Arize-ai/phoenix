@@ -56,13 +56,14 @@ async def test_evaluation_summaries(
         )
     expected = trace_df.loc[:, "mean_score"].to_list() + span_df.loc[:, "mean_score"].to_list()
     kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    session_filter_condition = None
     keys: list[Key] = [
         (
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
-            None,  # session_filter
+            session_filter_condition,
             eval_name,
         )
         for kind in kinds
@@ -101,13 +102,15 @@ async def test_multiple_annotations_score_weighting(
         assert isinstance(project_id, int)
 
     loader = AnnotationSummaryDataLoader(db)
+    filter_condition = None
+    session_filter_condition = None
     result = await loader.load(
         (
             "span",
             project_id,
             TimeRange(start=start_time, end=end_time),
-            None,
-            None,  # session_filter
+            filter_condition,
+            session_filter_condition,
             "quality",
         )
     )
@@ -144,13 +147,15 @@ async def test_missing_label_aggregation(
             select(models.Project.id).where(models.Project.name == "simple_missing")
         )
         assert isinstance(project_id, int)
+    filter_condition = None
+    session_filter_condition = None
     result = await loader.load(
         (
             "span",
             project_id,
             TimeRange(start=start_time, end=end_time),
-            None,
-            None,  # session_filter
+            filter_condition,
+            session_filter_condition,
             "distribution",
         )
     )
@@ -189,13 +194,15 @@ async def test_null_label_handling(
         assert isinstance(project_id, int)
 
     loader = AnnotationSummaryDataLoader(db)
+    filter_condition = None
+    session_filter_condition = None
     result = await loader.load(
         (
             "span",
             project_id,
             TimeRange(start=start_time, end=end_time),
-            None,
-            None,  # session_filter
+            filter_condition,
+            session_filter_condition,
             "unlabeled",
         )
     )

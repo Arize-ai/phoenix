@@ -50,13 +50,14 @@ async def test_latency_ms_quantiles_p25_p50_p75(
         .to_list()
     )
     kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    session_filter_condition = None
     keys: list[Key] = [
         (
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
-            None,  # session_filter
+            session_filter_condition,
             probability,
         )
         for kind in kinds
