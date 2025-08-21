@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<106d79cfc7d513d6032b7c77076438c1>>
+ * @generated SignedSource<<5ea05755035530da584ca171c114d521>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,7 +22,7 @@ export type experimentCompareLoaderQuery$variables = {
   includeMetricsView: boolean;
 };
 export type experimentCompareLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ExperimentCompareListPage_comparisons" | "ExperimentCompareMetricsPage_experiments" | "ExperimentComparePage_selectedCompareExperiments" | "ExperimentCompareTable_comparisons" | "ExperimentMultiSelector__data">;
+  readonly " $fragmentSpreads": FragmentRefs<"ExperimentCompareListPage_aggregateData" | "ExperimentCompareListPage_comparisons" | "ExperimentCompareMetricsPage_experiments" | "ExperimentComparePage_selectedCompareExperiments" | "ExperimentCompareTable_comparisons" | "ExperimentMultiSelector__data">;
 };
 export type experimentCompareLoaderQuery = {
   response: experimentCompareLoaderQuery$data;
@@ -85,69 +85,73 @@ v10 = {
   "name": "experimentIds",
   "variableName": "experimentIds"
 },
-v11 = {
+v11 = [
+  (v9/*: any*/),
+  (v10/*: any*/)
+],
+v12 = {
   "kind": "Variable",
   "name": "baseExperimentId",
   "variableName": "baseExperimentId"
 },
-v12 = {
+v13 = {
   "kind": "Variable",
   "name": "compareExperimentIds",
   "variableName": "compareExperimentIds"
 },
-v13 = {
+v14 = {
   "kind": "Literal",
   "name": "first",
   "value": 50
 },
-v14 = [
+v15 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "sequenceNumber",
   "storageKey": null
 },
-v19 = [
+v20 = [
   {
     "kind": "Variable",
     "name": "filterIds",
     "variableName": "experimentIds"
   }
 ],
-v20 = [
-  (v11/*: any*/),
+v21 = [
   (v12/*: any*/),
-  (v13/*: any*/)
+  (v13/*: any*/),
+  (v14/*: any*/)
 ],
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -169,41 +173,53 @@ v21 = {
       "name": "projectId",
       "storageKey": null
     },
-    (v16/*: any*/)
+    (v17/*: any*/)
   ],
-  "storageKey": null
-},
-v22 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokens",
   "storageKey": null
 },
 v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
+v24 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "cost",
   "storageKey": null
 },
-v24 = [
-  (v22/*: any*/),
-  (v23/*: any*/)
+v25 = [
+  (v23/*: any*/),
+  (v24/*: any*/)
 ],
-v25 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": "CostBreakdown",
   "kind": "LinkedField",
   "name": "total",
   "plural": false,
-  "selections": (v24/*: any*/),
+  "selections": (v25/*: any*/),
   "storageKey": null
 },
-v26 = {
+v27 = {
   "alias": null,
-  "args": (v20/*: any*/),
+  "args": null,
+  "concreteType": "SpanCostSummary",
+  "kind": "LinkedField",
+  "name": "costSummary",
+  "plural": false,
+  "selections": [
+    (v26/*: any*/)
+  ],
+  "storageKey": null
+},
+v28 = {
+  "alias": null,
+  "args": (v21/*: any*/),
   "concreteType": "ExperimentComparisonConnection",
   "kind": "LinkedField",
   "name": "compareExperiments",
@@ -233,7 +249,7 @@ v26 = {
               "name": "example",
               "plural": false,
               "selections": [
-                (v16/*: any*/),
+                (v17/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -285,7 +301,7 @@ v26 = {
                   "name": "runs",
                   "plural": true,
                   "selections": [
-                    (v16/*: any*/),
+                    (v17/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -314,19 +330,8 @@ v26 = {
                       "name": "endTime",
                       "storageKey": null
                     },
-                    (v21/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanCostSummary",
-                      "kind": "LinkedField",
-                      "name": "costSummary",
-                      "plural": false,
-                      "selections": [
-                        (v25/*: any*/)
-                      ],
-                      "storageKey": null
-                    },
+                    (v22/*: any*/),
+                    (v27/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -351,8 +356,8 @@ v26 = {
                               "name": "node",
                               "plural": false,
                               "selections": [
-                                (v16/*: any*/),
                                 (v17/*: any*/),
+                                (v18/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -381,7 +386,7 @@ v26 = {
                                   "name": "explanation",
                                   "storageKey": null
                                 },
-                                (v21/*: any*/)
+                                (v22/*: any*/)
                               ],
                               "storageKey": null
                             }
@@ -397,7 +402,7 @@ v26 = {
               ],
               "storageKey": null
             },
-            (v16/*: any*/)
+            (v17/*: any*/)
           ],
           "storageKey": null
         },
@@ -416,8 +421,8 @@ v26 = {
           "name": "node",
           "plural": false,
           "selections": [
-            (v15/*: any*/),
-            (v16/*: any*/)
+            (v16/*: any*/),
+            (v17/*: any*/)
           ],
           "storageKey": null
         }
@@ -452,14 +457,39 @@ v26 = {
   ],
   "storageKey": null
 },
-v27 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "averageRunLatencyMs",
   "storageKey": null
 },
-v28 = [
+v30 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "ExperimentAnnotationSummary",
+  "kind": "LinkedField",
+  "name": "annotationSummaries",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "meanScore",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v31 = [
   {
     "alias": null,
     "args": null,
@@ -512,10 +542,7 @@ return {
         "name": "ExperimentMultiSelector__data"
       },
       {
-        "args": [
-          (v9/*: any*/),
-          (v10/*: any*/)
-        ],
+        "args": (v11/*: any*/),
         "kind": "FragmentSpread",
         "name": "ExperimentComparePage_selectedCompareExperiments"
       },
@@ -526,8 +553,8 @@ return {
         "selections": [
           {
             "args": [
-              (v11/*: any*/),
               (v12/*: any*/),
+              (v13/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/)
             ],
@@ -543,11 +570,16 @@ return {
         "selections": [
           {
             "args": [
-              (v11/*: any*/),
-              (v13/*: any*/)
+              (v12/*: any*/),
+              (v14/*: any*/)
             ],
             "kind": "FragmentSpread",
             "name": "ExperimentCompareListPage_comparisons"
+          },
+          {
+            "args": (v11/*: any*/),
+            "kind": "FragmentSpread",
+            "name": "ExperimentCompareListPage_aggregateData"
           }
         ]
       },
@@ -558,8 +590,8 @@ return {
         "selections": [
           {
             "args": [
-              (v11/*: any*/),
               (v12/*: any*/),
+              (v13/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/),
               {
@@ -595,18 +627,18 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v14/*: any*/),
+        "args": (v15/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v15/*: any*/),
           (v16/*: any*/),
+          (v17/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v17/*: any*/),
+              (v18/*: any*/),
               {
                 "alias": "allExperiments",
                 "args": null,
@@ -631,9 +663,9 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v16/*: any*/),
                           (v17/*: any*/),
                           (v18/*: any*/),
+                          (v19/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -652,7 +684,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v19/*: any*/),
+                "args": (v20/*: any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -674,9 +706,9 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v16/*: any*/),
-                          (v18/*: any*/),
-                          (v17/*: any*/)
+                          (v17/*: any*/),
+                          (v19/*: any*/),
+                          (v18/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -712,12 +744,12 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v15/*: any*/),
               (v16/*: any*/),
+              (v17/*: any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v17/*: any*/)
+                  (v18/*: any*/)
                 ],
                 "type": "Experiment",
                 "abstractKey": null
@@ -732,10 +764,10 @@ return {
         "kind": "Condition",
         "passingValue": true,
         "selections": [
-          (v26/*: any*/),
+          (v28/*: any*/),
           {
             "alias": null,
-            "args": (v20/*: any*/),
+            "args": (v21/*: any*/),
             "filters": [
               "baseExperimentId",
               "compareExperimentIds",
@@ -748,7 +780,7 @@ return {
           },
           {
             "alias": "dataset",
-            "args": (v14/*: any*/),
+            "args": (v15/*: any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -759,7 +791,7 @@ return {
                 "selections": [
                   {
                     "alias": null,
-                    "args": (v19/*: any*/),
+                    "args": (v20/*: any*/),
                     "concreteType": "ExperimentConnection",
                     "kind": "LinkedField",
                     "name": "experiments",
@@ -796,7 +828,7 @@ return {
                                 "name": "project",
                                 "plural": false,
                                 "selections": [
-                                  (v16/*: any*/)
+                                  (v17/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -816,15 +848,15 @@ return {
                                     "name": "total",
                                     "plural": false,
                                     "selections": [
-                                      (v23/*: any*/),
-                                      (v22/*: any*/)
+                                      (v24/*: any*/),
+                                      (v23/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
                                 ],
                                 "storageKey": null
                               },
-                              (v27/*: any*/),
+                              (v29/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -855,10 +887,10 @@ return {
         "kind": "Condition",
         "passingValue": true,
         "selections": [
-          (v26/*: any*/),
+          (v28/*: any*/),
           {
             "alias": null,
-            "args": (v20/*: any*/),
+            "args": (v21/*: any*/),
             "filters": [
               "baseExperimentId",
               "compareExperimentIds"
@@ -867,17 +899,10 @@ return {
             "key": "ExperimentCompareListPage_compareExperiments",
             "kind": "LinkedHandle",
             "name": "compareExperiments"
-          }
-        ]
-      },
-      {
-        "condition": "includeMetricsView",
-        "kind": "Condition",
-        "passingValue": true,
-        "selections": [
+          },
           {
             "alias": "dataset",
-            "args": (v14/*: any*/),
+            "args": (v15/*: any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -888,7 +913,7 @@ return {
                 "selections": [
                   {
                     "alias": null,
-                    "args": (v19/*: any*/),
+                    "args": (v20/*: any*/),
                     "concreteType": "ExperimentConnection",
                     "kind": "LinkedField",
                     "name": "experiments",
@@ -910,7 +935,68 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
+                              (v29/*: any*/),
                               (v27/*: any*/),
+                              (v30/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "type": "Dataset",
+                "abstractKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ]
+      },
+      {
+        "condition": "includeMetricsView",
+        "kind": "Condition",
+        "passingValue": true,
+        "selections": [
+          {
+            "alias": "dataset",
+            "args": (v15/*: any*/),
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "node",
+            "plural": false,
+            "selections": [
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": (v20/*: any*/),
+                    "concreteType": "ExperimentConnection",
+                    "kind": "LinkedField",
+                    "name": "experiments",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "ExperimentEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": "experiment",
+                            "args": null,
+                            "concreteType": "Experiment",
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": [
+                              (v29/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -919,7 +1005,7 @@ return {
                                 "name": "costSummary",
                                 "plural": false,
                                 "selections": [
-                                  (v25/*: any*/),
+                                  (v26/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -927,7 +1013,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": (v24/*: any*/),
+                                    "selections": (v25/*: any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -937,37 +1023,13 @@ return {
                                     "kind": "LinkedField",
                                     "name": "completion",
                                     "plural": false,
-                                    "selections": (v24/*: any*/),
+                                    "selections": (v25/*: any*/),
                                     "storageKey": null
                                   }
                                 ],
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "ExperimentAnnotationSummary",
-                                "kind": "LinkedField",
-                                "name": "annotationSummaries",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "annotationName",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "meanScore",
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
+                              (v30/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -992,8 +1054,8 @@ return {
               {
                 "alias": null,
                 "args": [
-                  (v11/*: any*/),
-                  (v12/*: any*/)
+                  (v12/*: any*/),
+                  (v13/*: any*/)
                 ],
                 "concreteType": "ExperimentRunMetricComparisons",
                 "kind": "LinkedField",
@@ -1007,7 +1069,7 @@ return {
                     "kind": "LinkedField",
                     "name": "latency",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1017,7 +1079,7 @@ return {
                     "kind": "LinkedField",
                     "name": "totalTokenCount",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1027,7 +1089,7 @@ return {
                     "kind": "LinkedField",
                     "name": "promptTokenCount",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1037,7 +1099,7 @@ return {
                     "kind": "LinkedField",
                     "name": "completionTokenCount",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1047,7 +1109,7 @@ return {
                     "kind": "LinkedField",
                     "name": "totalCost",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1057,7 +1119,7 @@ return {
                     "kind": "LinkedField",
                     "name": "promptCost",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -1067,7 +1129,7 @@ return {
                     "kind": "LinkedField",
                     "name": "completionCost",
                     "plural": false,
-                    "selections": (v28/*: any*/),
+                    "selections": (v31/*: any*/),
                     "storageKey": null
                   }
                 ],
@@ -1080,16 +1142,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5c801d6b6c85b05656400fc147ad210b",
+    "cacheID": "89d7ff69b46f38007aee88c3c055d9ec",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $datasetId: ID!\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $experimentIds: [ID!]!\n  $hasBaseExperiment: Boolean!\n  $hasCompareExperiments: Boolean!\n  $includeGridView: Boolean!\n  $includeListView: Boolean!\n  $includeMetricsView: Boolean!\n) {\n  ...ExperimentMultiSelector__data_4t6es6\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n  ...ExperimentCompareTable_comparisons_4mFQqw @include(if: $includeGridView)\n  ...ExperimentCompareListPage_comparisons_1gt9yM @include(if: $includeListView)\n  ...ExperimentCompareMetricsPage_experiments_4DSN89 @include(if: $includeMetricsView)\n}\n\nfragment ExperimentCompareListPage_comparisons_1gt9yM on Query {\n  compareExperiments(first: 50, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment ExperimentCompareMetricsPage_experiments_4DSN89 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            averageRunLatencyMs\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  experimentRunMetricComparisons(baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) @include(if: $hasCompareExperiments) {\n    latency {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n  }\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_4mFQqw on Query {\n  compareExperiments(first: 50, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__data_4t6es6 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      allExperiments: experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      name\n    }\n    id\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $datasetId: ID!\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $experimentIds: [ID!]!\n  $hasBaseExperiment: Boolean!\n  $hasCompareExperiments: Boolean!\n  $includeGridView: Boolean!\n  $includeListView: Boolean!\n  $includeMetricsView: Boolean!\n) {\n  ...ExperimentMultiSelector__data_4t6es6\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n  ...ExperimentCompareTable_comparisons_4mFQqw @include(if: $includeGridView)\n  ...ExperimentCompareListPage_comparisons_1gt9yM @include(if: $includeListView)\n  ...ExperimentCompareListPage_aggregateData_3xL6z4 @include(if: $includeListView)\n  ...ExperimentCompareMetricsPage_experiments_4DSN89 @include(if: $includeMetricsView)\n}\n\nfragment ExperimentCompareListPage_aggregateData_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            averageRunLatencyMs\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentCompareListPage_comparisons_1gt9yM on Query {\n  compareExperiments(first: 50, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment ExperimentCompareMetricsPage_experiments_4DSN89 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            averageRunLatencyMs\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  experimentRunMetricComparisons(baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) @include(if: $hasCompareExperiments) {\n    latency {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n  }\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_4mFQqw on Query {\n  compareExperiments(first: 50, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__data_4t6es6 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      allExperiments: experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e3200f766c59d0ba4eaa272bf7ea1888";
+(node as any).hash = "ceaa41da2ba031daa698f1800c45bac6";
 
 export default node;

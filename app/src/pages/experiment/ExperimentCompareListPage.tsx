@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData } from "react-router";
 import {
   ColumnDef,
@@ -10,6 +10,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Text, View } from "@phoenix/components";
+import { ExperimentCompareListPage_aggregateData$key } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPage_aggregateData.graphql";
 
 import type { ExperimentCompareListPage_comparisons$key } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
 import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
@@ -40,6 +41,41 @@ type TableRow = {
 
 export function ExperimentCompareListPage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
+
+  const aggregateData =
+    useFragment<ExperimentCompareListPage_aggregateData$key>(
+      graphql`
+        fragment ExperimentCompareListPage_aggregateData on Query
+        @argumentDefinitions(
+          datasetId: { type: "ID!" }
+          experimentIds: { type: "[ID!]!" }
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              experiments(filterIds: $experimentIds) {
+                edges {
+                  experiment: node {
+                    id
+                    averageRunLatencyMs
+                    costSummary {
+                      total {
+                        tokens
+                        cost
+                      }
+                    }
+                    annotationSummaries {
+                      annotationName
+                      meanScore
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      loaderData
+    );
   const { data } = usePaginationFragment<
     ExperimentCompareListPageQuery,
     ExperimentCompareListPage_comparisons$key
@@ -162,7 +198,7 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
-  console.log({ tableData });
+  console.log({ aggregateData, tableData, loaderData });
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
@@ -249,9 +285,13 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              <li>AVG 401</li>
-              <li>AVG 238 ↓</li>
-              <li>AVG 1314 ↑</li>
+              {aggregateData?.dataset.experiments?.edges.map((edge) => (
+                <li key={edge.experiment.id}>
+                  <Text size="S">
+                    {edge.experiment.costSummary.total.tokens}
+                  </Text>
+                </li>
+              ))}
             </ul>
           </div>
         ),
@@ -301,9 +341,16 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              <li>AVG 1.33s</li>
-              <li>AVG 1.49s ↑</li>
-              <li>AVG 2.83s ↑</li>
+              {aggregateData?.dataset.experiments?.edges.map((edge) => (
+                <li key={edge.experiment.id}>
+                  <Text size="S">
+                    {(
+                      (edge.experiment.averageRunLatencyMs ?? 0) / 1000
+                    ).toFixed(2)}
+                    s
+                  </Text>
+                </li>
+              ))}
             </ul>
           </div>
         ),
@@ -353,9 +400,13 @@ export function ExperimentCompareListPage() {
                 }
               `}
             >
-              <li>AVG $0.004</li>
-              <li>AVG $0.032 ↑</li>
-              <li>AVG $0.002 ↓</li>
+              {aggregateData?.dataset.experiments?.edges.map((edge) => (
+                <li key={edge.experiment.id}>
+                  <Text size="S">
+                    ${edge.experiment.costSummary.total.cost?.toFixed(3)}
+                  </Text>
+                </li>
+              ))}
             </ul>
           </div>
         ),
@@ -387,7 +438,7 @@ export function ExperimentCompareListPage() {
         },
       },
     ],
-    []
+    [aggregateData?.dataset.experiments?.edges]
   );
 
   const table = useReactTable({
