@@ -8,6 +8,7 @@ export interface ISpanItem {
   statusCode: SpanStatusCodeType;
   latencyMs: number | null;
   startTime: string;
+  endTime: string | null;
   parentId: string | null;
   spanId: string;
   tokenCountTotal?: number | null;
