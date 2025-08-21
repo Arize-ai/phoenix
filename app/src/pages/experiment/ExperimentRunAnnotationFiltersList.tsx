@@ -43,7 +43,7 @@ export function ExperimentRunAnnotationFiltersList({
           condition: `evals['${name}'].label == '${label}'`,
         },
         {
-          text: `${name} does't equal ${label}`,
+          text: `${name} doesn't equal ${label}`,
           condition: `evals['${name}'].label != '${label}'`,
         },
       ];
