@@ -107,7 +107,6 @@ class Spans:
                 to filter by.
             timeout (Optional[int]): Optional request timeout in seconds.
 
-
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
 
@@ -147,14 +146,10 @@ class Spans:
                 else:
                     project_name = project_identifier
 
-            params: dict[str, str] = {}
-            if project_name:
-                params["project_name"] = project_name
-
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params=params if params else None,
+                params={"project_name": project_name} if project_name else None,
                 json=request_body,
                 timeout=timeout,
             )
@@ -701,14 +696,10 @@ class AsyncSpans:
                 else:
                     project_name = project_identifier
 
-            params: dict[str, str] = {}
-            if project_name:
-                params["project_name"] = project_name
-
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params=params if params else None,
+                params={"project_name": project_name} if project_name else None,
                 json=request_body,
                 timeout=timeout,
             )
