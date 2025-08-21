@@ -14,6 +14,10 @@ def get_filtered_session_rowids_subquery(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> Subquery:
+    """
+    Returns a subquery that contains the project session rowids that match the session filter.
+    """
+
     filtered_session_rowids = (
         select(distinct(models.Trace.project_session_rowid).label("id"))
         .filter_by(project_rowid=project_rowid)

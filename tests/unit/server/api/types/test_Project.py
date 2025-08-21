@@ -4397,3 +4397,175 @@ async def test_trace_annotation_summary_with_session_filter_returns_expected_res
     assert len(label_fractions) == 1
     assert label_fractions[0]["label"] == "important"
     assert label_fractions[0]["fraction"] == 1.0
+
+
+async def test_record_count_returns_expected_count(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session, name="annotation-session-test")
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
+        annotation = models.TraceAnnotation(
+            trace_rowid=trace1.id,
+            name="test-annotation",
+            label="important",
+            score=1.0,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation)
+
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
+        annotation2 = models.TraceAnnotation(
+            trace_rowid=trace2.id,
+            name="test-annotation",
+            label="normal",
+            score=0.5,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation2)
+
+    query = """
+      query ($projectId: ID!, $filterCondition: String, $sessionFilterCondition: String) {
+        project: node(id: $projectId) {
+          ... on Project {
+            recordCount(
+              filterCondition: $filterCondition
+              sessionFilterCondition: $sessionFilterCondition
+            )
+          }
+        }
+      }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["recordCount"] == 2
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "priority",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["recordCount"] == 1
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterCondition": "input.value == 'normal task'",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["recordCount"] == 1
+
+
+async def test_trace_count_returns_expected_count(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session, name="annotation-session-test")
+        session1 = await _add_project_session(session, project)
+        trace1 = await _add_trace(session, project, session1)
+        await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
+        annotation = models.TraceAnnotation(
+            trace_rowid=trace1.id,
+            name="test-annotation",
+            label="important",
+            score=1.0,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation)
+
+        session2 = await _add_project_session(session, project)
+        trace2 = await _add_trace(session, project, session2)
+        await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
+        annotation2 = models.TraceAnnotation(
+            trace_rowid=trace2.id,
+            name="test-annotation",
+            label="normal",
+            score=0.5,
+            explanation="Test annotation",
+            metadata_={},
+            annotator_kind="HUMAN",
+            source="APP",
+        )
+        session.add(annotation2)
+
+    query = """
+      query ($projectId: ID!, $filterCondition: String, $sessionFilterCondition: String) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceCount(
+              filterCondition: $filterCondition
+              sessionFilterCondition: $sessionFilterCondition
+            )
+          }
+        }
+      }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["traceCount"] == 2
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "priority",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["traceCount"] == 1
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterCondition": "input.value == 'normal task'",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["traceCount"] == 1
