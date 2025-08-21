@@ -11,7 +11,7 @@ from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -807,6 +807,8 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
         stmt = stmt.where(models.Span.start_time < end_time)
+    # Default newest-first ordering by start_time, with id as a stable tiebreaker
+    stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
@@ -825,9 +827,6 @@ def _get_spans_dataframe(
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
-
-    # Default newest-first ordering by start_time, with id as a stable tiebreaker
-    stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
     if limit is not None:
         stmt = stmt.limit(limit)
     conn = session.connection()
