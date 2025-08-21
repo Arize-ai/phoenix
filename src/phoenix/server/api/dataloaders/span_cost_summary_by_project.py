@@ -25,7 +25,6 @@ Segment: TypeAlias = tuple[
     TimeInterval,
     FilterCondition,
     SessionFilterCondition,
-    ProjectRowId,
 ]
 Param: TypeAlias = ProjectRowId
 
@@ -40,7 +39,7 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (interval, filter_condition, session_filter_condition, project_rowid), project_rowid
+    return (interval, filter_condition, session_filter_condition), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
@@ -60,9 +59,7 @@ class SpanCostSummaryCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (interval, filter_condition, session_filter_condition, _), project_rowid = _cache_key_fn(
-            key
-        )
+        (interval, filter_condition, session_filter_condition), project_rowid = _cache_key_fn(key)
         return project_rowid, (interval, filter_condition, session_filter_condition)
 
 
@@ -116,7 +113,7 @@ def _get_stmt(
     *params: Param,
 ) -> Select[Any]:
     project_rowids = params
-    (start_time, end_time), filter_condition, session_filter_condition, project_rowid = segment
+    (start_time, end_time), filter_condition, session_filter_condition = segment
 
     stmt: Select[Any] = (
         select(
