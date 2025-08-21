@@ -4,7 +4,7 @@ description: >-
   used to run experiments and test evaluators
 ---
 
-# Generating Synthetic Datasets using LLMs
+# Generating Synthetic Datasets for LLM Evaluators & Agents
 
 {% embed url="https://youtu.be/fOkkmbwdS7Y" %}
 
@@ -77,6 +77,8 @@ df = client.upload_dataset(
 )
 ```
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/synthetic-dataset-1.png" %}
+
 ### Test LLM Judge Effectiveness
 
 Now let's test how well an LLM-as-a-Judge performs on our synthetic dataset:
@@ -121,6 +123,8 @@ initial_experiment = run_experiment(
 )
 ```
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/synthetic-dataset-2.png" %}
+
 ## Strategy 2: Using Few-Shot Examples for Dataset Generation
 
 **Goal:** Guide the LLM to generate synthetic examples that reflect different types of queries and scenarios while maintaining consistent labeling and structure.
@@ -131,30 +135,37 @@ Few-shot prompting allows you to guide an LLM by showing a handful of examples, 
 
 ```python
 few_shot_prompt = """
+Generate synthetic customer support classification examples.
+Ensure good coverage across intents (refund, order_status, product_info),
+and include both correct and incorrect classifications.
 Here are some examples of synthetic customer queries and labels:
 
 Example 1:
 {
   "user_query": "Ughhh I bought sneakers that squeak louder than a rubber duck... how do I return these?",
   "intent": "refund",
-  "response": "Oh no, squeaky shoes aren't fun! Let's get that return started. Could you share your order number?"
+  "response": "Oh no, squeaky shoes aren’t fun! Let’s get that return started. Could you share your order number?",
+  "classification": "correct"
 }
 
 Example 2:
 {
   "user_query": "My package has been saying 'out for delivery' since last Tuesday… did it decide to take a vacation? Is it actually going to show up?",
-  "intent": "order_status",
-  "response": "Looks like your package is taking its sweet time. Let me check where it's stuck — can you give me the tracking number?"
+  "intent": "refund",
+  "response": "Looks like your package is taking its sweet time. Let me check where it’s stuck — can you give me the tracking number?",
+  "classification: "incorrect"
 }
+
 
 Example 3:
 {
   "user_query": "Thinking about upgrading my blender… does your new model actually crush ice?",
   "intent": "product_info",
-  "response": "Haha our blender keeps its promises! It can definitely crush ice. Would you like more details on the specs?"
+  "response": "Haha our blender keeps its promises! It can definitely crush ice. Would you like more details on the specs?",
+  "classification": "correct"
 }
 
-Now generate 25 new examples in the same format, keeping the responses friendly.
+Now generate 25 new examples in the same format, keeping the reesponses friendly.
 Respond ONLY with valid JSON array, no code fences, no extra text.
 """
 
@@ -175,9 +186,56 @@ df = client.upload_dataset(
     dataframe=few_shot_df,
     dataset_name="customer_support_queries_few_shot",
     input_keys=["user_query"],
-    output_keys=["intent", "response"],
+    output_keys=["intent", "response", "classification"],
 )
 ```
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/synthetic-dataset-3.png" %}
+
+### Test LLM Judge Effectiveness
+
+```python
+llm_judge_template = """
+You are an evaluator judging whether a model's classification of a customer support query is correct.
+The possible classifications are: refund, order_status, product_info
+
+Query: {query}
+Model Prediction: {intent}
+
+Decide if the model's prediction is correct or incorrect.
+Respond ONLY with one of: "correct" or "incorrect".
+"""
+
+from phoenix.evals import llm_classify, OpenAIModel
+
+def task_function(input, reference):
+    response_classification = llm_classify(
+        data=pd.DataFrame([{"query": input["user_query"], "intent": reference["intent"]}]),
+        template=llm_judge_template,
+        model=OpenAIModel(model="gpt-4.1"),
+        rails=["correct", "incorrect"],
+        provide_explanation=True,
+    )
+    label = response_classification.iloc[0]["label"]
+    return label
+
+
+def evaluate_response(output, reference):
+    expected_label = reference["classification"]
+    predicted_label = output
+    return 1 if expected_label == predicted_label else 0
+```
+
+```python
+from phoenix.experiments import run_experiment
+
+
+initial_experiment = run_experiment(
+    df, task=task_function, evaluators=[evaluate_response], experiment_name="evaluator performance"
+)
+```
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/synthetic-dataset-4.png" %}
 
 ## Strategy 3: Creating Synthetic Datasets for Agents
 
@@ -244,6 +302,8 @@ df = client.upload_dataset(
     output_keys=["expected_action", "expected_outcome"],
 )
 ```
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/synthetic-dataset-5.png" %}
 
 ## Best Practices for Synthetic Dataset Generation
 
