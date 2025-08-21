@@ -888,6 +888,77 @@ class TestClientForSpansRetrieval:
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_get_spans_dataframe_sort_direction(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+
+        base_time = datetime.now(timezone.utc)
+        trace_id = f"trace_sort_{token_hex(8)}"
+        spans = [
+            cast(
+                v1.Span,
+                {
+                    "name": f"s{i}",
+                    "context": {"trace_id": trace_id, "span_id": f"s_{token_hex(6)}_{i}"},
+                    "span_kind": "CHAIN",
+                    "start_time": (base_time + timedelta(seconds=i)).isoformat(),
+                    "end_time": (base_time + timedelta(seconds=i + 1)).isoformat(),
+                    "status_code": "OK",
+                },
+            )
+            for i in range(3)
+        ]
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=spans,
+            )
+        )
+        assert create_result["total_queued"] == 3
+
+        await _until_spans_exist(_app, [s["context"]["span_id"] for s in spans])
+
+        df_desc = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                limit=3,
+                sort_order="newest",
+            )
+        )
+        assert isinstance(df_desc, pd.DataFrame)
+        df_desc = df_desc[df_desc["context.trace_id"] == trace_id]
+        if not df_desc.empty:
+            ts = pd.to_datetime(df_desc["start_time"], utc=True, errors="coerce").tolist()
+            assert ts == sorted(ts, reverse=True)
+
+        df_asc = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                limit=3,
+                sort_order="oldest",
+            )
+        )
+        assert isinstance(df_asc, pd.DataFrame)
+        df_asc = df_asc[df_asc["context.trace_id"] == trace_id]
+        if not df_asc.empty:
+            ts = pd.to_datetime(df_asc["start_time"], utc=True, errors="coerce").tolist()
+            assert ts == sorted(ts)
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_client_get_spans(
         self,
         is_async: bool,
