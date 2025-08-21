@@ -5,6 +5,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Getter,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -38,6 +39,10 @@ type TableRow = {
   cost: {
     baseExperimentValue: number;
     compareExperimentValues: number[];
+  };
+  annotations: {
+    baseExperimentValue: { name: string; score: number | null }[];
+    compareExperimentValues: { name: string; score: number | null }[][];
   };
 };
 
@@ -150,6 +155,14 @@ export function ExperimentCompareListPage() {
     loaderData
   );
 
+  const annotationSummaries = useMemo(() => {
+    // only using annotations from the first (baseline) experiment
+    return (
+      aggregateData?.dataset.experiments?.edges[0]?.experiment
+        ?.annotationSummaries ?? []
+    );
+  }, [aggregateData?.dataset.experiments?.edges]);
+
   const tableData: TableRow[] = useMemo(() => {
     return (
       data?.compareExperiments.edges.map((edge) => {
@@ -196,11 +209,27 @@ export function ExperimentCompareListPage() {
               (run) => run.costSummary.total.cost ?? 0
             ),
           },
+          annotations: {
+            baseExperimentValue: baseExperimentRun.annotations.edges.map(
+              (edge) => ({
+                name: edge.annotation.name,
+                score: edge.annotation.score,
+              })
+            ),
+            compareExperimentValues: compareExperimentRuns.map((run) =>
+              run.annotations.edges.map((edge) => ({
+                name: edge.annotation.name,
+                score: edge.annotation.score,
+              }))
+            ),
+          },
         };
         return tableData;
       }) ?? []
     );
   }, [data]);
+
+  console.log({ tableData, aggregateData, loaderData });
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -456,8 +485,87 @@ export function ExperimentCompareListPage() {
           );
         },
       },
+      ...(annotationSummaries.map((annotationSummary) => ({
+        header: () => (
+          <div>
+            <Text size="S" weight="heavy">
+              {annotationSummary.annotationName}
+            </Text>
+            <ul
+              css={css`
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                font-size: 12px;
+                color: var(--ac-global-text-color-600);
+                li::before {
+                  content: "—";
+                  margin-right: var(--ac-global-dimension-size-100);
+                }
+              `}
+            >
+              {aggregateData?.dataset.experiments?.edges.map((edge) => (
+                <li key={edge.experiment.id}>
+                  <Text size="S">
+                    {edge.experiment.annotationSummaries
+                      ?.find(
+                        (summary) =>
+                          summary.annotationName ===
+                          annotationSummary.annotationName
+                      )
+                      ?.meanScore?.toFixed(3) ?? "N/A"}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+        accessorKey: "annotations",
+        cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
+          const annotations = getValue();
+
+          return (
+            <ul
+              css={css`
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                li::before {
+                  content: "—";
+                  margin-right: var(--ac-global-dimension-size-100);
+                }
+              `}
+            >
+              <li>
+                <Text size="S">
+                  {(() => {
+                    const score = annotations.baseExperimentValue.find(
+                      (annotation) =>
+                        annotation.name === annotationSummary.annotationName
+                    )?.score;
+                    return score?.toFixed(3) ?? "N/A";
+                  })()}
+                </Text>
+              </li>
+              {annotations.compareExperimentValues.map((values, index) => (
+                <li key={index}>
+                  <Text size="S">
+                    {(() => {
+                      const score = values.find(
+                        (annotation) =>
+                          annotation.name === annotationSummary.annotationName
+                      )?.score;
+                      return score?.toFixed(3) ?? "N/A";
+                    })()}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      })) ?? []),
     ],
-    [aggregateData?.dataset.experiments?.edges]
+    [aggregateData?.dataset.experiments?.edges, annotationSummaries]
   );
 
   const table = useReactTable({
