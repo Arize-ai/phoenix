@@ -136,7 +136,11 @@ async def _get_results(
         time_column = models.Trace.start_time
         if filter_condition:
             sf = SpanFilter(filter_condition)
-            stmt = sf(stmt.join(models.Span)).distinct()
+            stmt = stmt.where(
+                models.Trace.id.in_(
+                    sf(select(models.Span.trace_rowid).distinct()).scalar_subquery()
+                )
+            )
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)
         time_column = models.Span.start_time
