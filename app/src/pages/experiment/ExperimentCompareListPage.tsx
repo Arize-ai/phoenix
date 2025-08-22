@@ -10,8 +10,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { ColorSwatch, Flex, Text, View } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   costFormatter,
@@ -62,7 +63,7 @@ type TableRow = {
     compareExperimentValues: string[];
   };
   tokens: {
-    baseExperimentValue: number;
+    baseExperimentValue: number | null;
     compareExperimentValues: (number | null | undefined)[];
   };
   latencyMs: {
@@ -70,7 +71,7 @@ type TableRow = {
     compareExperimentValues: (number | null | undefined)[];
   };
   cost: {
-    baseExperimentValue: number;
+    baseExperimentValue: number | null;
     compareExperimentValues: (number | null | undefined)[];
   };
   annotations: {
@@ -82,6 +83,8 @@ type TableRow = {
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
+
+  const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
@@ -217,8 +220,7 @@ export function ExperimentCompareListPage() {
             ),
           },
           tokens: {
-            baseExperimentValue:
-              baseExperimentRun.costSummary.total.tokens ?? 0,
+            baseExperimentValue: baseExperimentRun.costSummary.total.tokens,
             compareExperimentValues: compareExperimentRuns.map(
               (run) => run?.costSummary.total.tokens
             ),
@@ -235,7 +237,7 @@ export function ExperimentCompareListPage() {
             ),
           },
           cost: {
-            baseExperimentValue: baseExperimentRun.costSummary.total.cost ?? 0,
+            baseExperimentValue: baseExperimentRun.costSummary.total.cost,
             compareExperimentValues: compareExperimentRuns.map(
               (run) => run?.costSummary.total.cost
             ),
@@ -317,29 +319,44 @@ export function ExperimentCompareListPage() {
           return (
             <ul
               css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
                 max-width: 200px;
                 overflow: hidden;
-                text-overflow: ellipsis;
                 white-space: nowrap;
               `}
             >
               <li>
-                <Text size="S">
-                  <JSONText json={value.baseExperimentValue} />
-                </Text>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                  <Text
+                    size="S"
+                    css={css`
+                      flex: 1;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                    `}
+                  >
+                    <JSONText json={value.baseExperimentValue} />
+                  </Text>
+                </Flex>
               </li>
               {value.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">
-                    <JSONText json={value} />
-                  </Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                    <Text
+                      size="S"
+                      css={css`
+                        flex: 1;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      `}
+                    >
+                      <JSONText json={value} />
+                    </Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -352,25 +369,23 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               Tokens
             </Text>
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                font-size: 12px;
-                color: var(--ac-global-text-color-600);
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
-              {experiments.map((experiment) => {
+            <ul>
+              {experiments.map((experiment, index) => {
                 return (
                   <li key={experiment.id}>
-                    <Text size="S">
-                      {intFormatter(experiment.costSummary.total.tokens)}
-                    </Text>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <ColorSwatch
+                        color={
+                          index === 0
+                            ? baseExperimentColor
+                            : getExperimentColor(index - 1)
+                        }
+                        shape="circle"
+                      />
+                      <Text size="S">
+                        {intFormatter(experiment.costSummary.total.tokens)}
+                      </Text>
+                    </Flex>
                   </li>
                 );
               })}
@@ -381,23 +396,24 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const tokens = getValue() as TableRow["tokens"];
           return (
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
+            <ul>
               <li>
-                <Text size="S">{intFormatter(tokens.baseExperimentValue)}</Text>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                  <Text size="S">
+                    {intFormatter(tokens.baseExperimentValue)}
+                  </Text>
+                </Flex>
               </li>
               {tokens.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{intFormatter(value)}</Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                    <Text size="S">{intFormatter(value)}</Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -410,24 +426,22 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               Latency
             </Text>
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                font-size: 12px;
-                color: var(--ac-global-text-color-600);
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
-              {experiments.map((experiment) => (
+            <ul>
+              {experiments.map((experiment, index) => (
                 <li key={experiment.id}>
-                  <Text size="S">
-                    {latencyMsFormatter(experiment.averageRunLatencyMs)}
-                  </Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={
+                        index === 0
+                          ? baseExperimentColor
+                          : getExperimentColor(index - 1)
+                      }
+                      shape="circle"
+                    />
+                    <Text size="S">
+                      {latencyMsFormatter(experiment.averageRunLatencyMs)}
+                    </Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -437,25 +451,24 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
+            <ul>
               <li>
-                <Text size="S">
-                  {latencyMsFormatter(latencyMs.baseExperimentValue)}
-                </Text>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                  <Text size="S">
+                    {latencyMsFormatter(latencyMs.baseExperimentValue)}
+                  </Text>
+                </Flex>
               </li>
               {latencyMs.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{latencyMsFormatter(value)}</Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                    <Text size="S">{latencyMsFormatter(value)}</Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -468,24 +481,22 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               Cost
             </Text>
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                font-size: 12px;
-                color: var(--ac-global-text-color-600);
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
-              {experiments.map((experiment) => (
+            <ul>
+              {experiments.map((experiment, index) => (
                 <li key={experiment.id}>
-                  <Text size="S">
-                    {costFormatter(experiment.costSummary.total.cost)}
-                  </Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={
+                        index === 0
+                          ? baseExperimentColor
+                          : getExperimentColor(index - 1)
+                      }
+                      shape="circle"
+                    />
+                    <Text size="S">
+                      {costFormatter(experiment.costSummary.total.cost)}
+                    </Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -495,23 +506,24 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const cost = getValue() as TableRow["cost"];
           return (
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
+            <ul>
               <li>
-                <Text size="S">{costFormatter(cost.baseExperimentValue)}</Text>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                  <Text size="S">
+                    {costFormatter(cost.baseExperimentValue)}
+                  </Text>
+                </Flex>
               </li>
               {cost.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{costFormatter(value)}</Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                    <Text size="S">{costFormatter(value)}</Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -524,30 +536,28 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               {annotationSummary.annotationName}
             </Text>
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                font-size: 12px;
-                color: var(--ac-global-text-color-600);
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
-              {experiments.map((experiment) => (
+            <ul>
+              {experiments.map((experiment, index) => (
                 <li key={experiment.id}>
-                  <Text size="S">
-                    {numberFormatter(
-                      experiment.annotationSummaries?.find(
-                        (summary) =>
-                          summary.annotationName ===
-                          annotationSummary.annotationName
-                      )?.meanScore
-                    )}
-                  </Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={
+                        index === 0
+                          ? baseExperimentColor
+                          : getExperimentColor(index - 1)
+                      }
+                      shape="circle"
+                    />
+                    <Text size="S">
+                      {numberFormatter(
+                        experiment.annotationSummaries?.find(
+                          (summary) =>
+                            summary.annotationName ===
+                            annotationSummary.annotationName
+                        )?.meanScore
+                      )}
+                    </Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -558,30 +568,29 @@ export function ExperimentCompareListPage() {
           const annotations = getValue();
 
           return (
-            <ul
-              css={css`
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                li::before {
-                  content: "—";
-                  margin-right: var(--ac-global-dimension-size-100);
-                }
-              `}
-            >
+            <ul>
               <li>
-                <Text size="S">
-                  {getFormattedAnnotationScore(
-                    annotations.baseExperimentValue,
-                    annotationSummary
-                  )}
-                </Text>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                  <Text size="S">
+                    {getFormattedAnnotationScore(
+                      annotations.baseExperimentValue,
+                      annotationSummary
+                    )}
+                  </Text>
+                </Flex>
               </li>
               {annotations.compareExperimentValues.map((values, index) => (
                 <li key={index}>
-                  <Text size="S">
-                    {getFormattedAnnotationScore(values, annotationSummary)}
-                  </Text>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                    <Text size="S">
+                      {getFormattedAnnotationScore(values, annotationSummary)}
+                    </Text>
+                  </Flex>
                 </li>
               ))}
             </ul>
@@ -589,7 +598,7 @@ export function ExperimentCompareListPage() {
         },
       })) ?? []),
     ],
-    [annotationSummaries, experiments]
+    [annotationSummaries, experiments, getExperimentColor, baseExperimentColor]
   );
 
   const table = useReactTable({
