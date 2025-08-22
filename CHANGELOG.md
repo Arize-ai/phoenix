@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.25.0...arize-phoenix-v11.26.0) (2025-08-22)
+
+
+### Features
+
+* **tracing:** timeline view ([#9186](https://github.com/Arize-ai/phoenix/issues/9186)) ([d019a0b](https://github.com/Arize-ai/phoenix/commit/d019a0b795f8f25e99dcf74ca7a5f6bf1d1068f7))
+
 ## [11.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.1...arize-phoenix-v11.25.0) (2025-08-22)
 
 
