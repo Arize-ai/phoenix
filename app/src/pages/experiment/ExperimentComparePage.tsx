@@ -137,15 +137,13 @@ function ExperimentComparePageContent() {
   } else if (viewMode === "list") {
     return <ExperimentCompareListPage />;
   }
-  {
-    return (
-      <View padding="size-200">
-        <Alert variant="info" title={`Invalid View Mode Requested`}>
-          {`Please enter a valid view ("grid" or "metrics") in the URL query parameters.`}
-        </Alert>
-      </View>
-    );
-  }
+  return (
+    <View padding="size-200">
+      <Alert variant="info" title={`Invalid View Mode Requested`}>
+        {`Please enter a valid view ("grid" or "metrics") in the URL query parameters.`}
+      </Alert>
+    </View>
+  );
 }
 
 export function SelectedCompareExperiments({
