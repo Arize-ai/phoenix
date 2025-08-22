@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, Iterator, Mapping, Optional
 
@@ -59,23 +60,26 @@ class TestLaunchApp:
         project_name = _fake.unique.pystr()
         span_names: set[str] = set()
         spans = []
+        start_time = int(datetime.now(timezone.utc).timestamp() * 1e9)
         for i in range(2):
             with _server(_AppInfo(_env)) as app:
                 for j, exporter in enumerate([_http_span_exporter, _grpc_span_exporter]):
                     span_name = f"{i}_{j}_{token_hex(8)}"
                     span_names.add(span_name)
+                    start_time += 10_000_000
                     spans.append(
                         _start_span(
                             project_name=project_name,
                             span_name=span_name,
                             exporter=exporter(app),
+                            start_time=start_time,
                             attributes={
                                 "j": j if j % 2 else f"{j}",
                                 "metadata": json.dumps({"j": j if j % 2 else {f"{j}": [j]}}),
                             },
                         )
                     )
-                    spans[-1].end()
+                    spans[-1].end(start_time + 10_000_000)
 
                 def query_fn() -> Optional[list[dict[str, Any]]]:
                     ans = _get_gql_spans(app, None, "name").get(project_name)
