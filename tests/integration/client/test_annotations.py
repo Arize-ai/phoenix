@@ -1042,7 +1042,9 @@ class TestSendingAnnotationsBeforeSpan:
                     ),
                 ),
             )
-            await sleep(1)
+            # Sleep for a non-trivial amount of time to test that deferred annotations
+            # are processed correctly after being deferred in the server
+            await sleep(0.5)
 
         # Send the span and wait
         headers = {"authorization": f"Bearer {_app.admin_secret}"}
