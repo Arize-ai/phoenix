@@ -226,49 +226,45 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             isOpen={isCreatingDataset}
             onOpenChange={setIsCreatingDataset}
           >
-            <Popover>
-              <ModalOverlay>
-                <Modal>
-                  <Dialog>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>New Dataset</DialogTitle>
-                        <DialogTitleExtra>
-                          <Button
-                            variant="default"
-                            size="S"
-                            onPress={() => {
-                              setIsCreatingDataset(false);
-                            }}
-                            leadingVisual={
-                              <Icon svg={<Icons.CloseOutline />} />
-                            }
-                          ></Button>
-                        </DialogTitleExtra>
-                      </DialogHeader>
-                      <CreateDatasetForm
-                        onDatasetCreateError={(error) => {
-                          const formattedError =
-                            getErrorMessagesFromRelayMutationError(error);
-                          notifyError({
-                            title: "Dataset creation failed",
-                            message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
-                          });
-                        }}
-                        onDatasetCreated={(dataset) => {
-                          setIsCreatingDataset(false);
-                          notifySuccess({
-                            title: "Dataset created",
-                            message: `${dataset.name} has been successfully created.`,
-                          });
-                          setIsDatasetPopoverOpen(true);
-                        }}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                </Modal>
-              </ModalOverlay>
-            </Popover>
+            <ModalOverlay>
+              <Modal>
+                <Dialog>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New Dataset</DialogTitle>
+                      <DialogTitleExtra>
+                        <Button
+                          variant="default"
+                          size="S"
+                          onPress={() => {
+                            setIsCreatingDataset(false);
+                          }}
+                          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+                        ></Button>
+                      </DialogTitleExtra>
+                    </DialogHeader>
+                    <CreateDatasetForm
+                      onDatasetCreateError={(error) => {
+                        const formattedError =
+                          getErrorMessagesFromRelayMutationError(error);
+                        notifyError({
+                          title: "Dataset creation failed",
+                          message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
+                        });
+                      }}
+                      onDatasetCreated={(dataset) => {
+                        setIsCreatingDataset(false);
+                        notifySuccess({
+                          title: "Dataset created",
+                          message: `${dataset.name} has been successfully created.`,
+                        });
+                        setIsDatasetPopoverOpen(true);
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
           <Button
             size="M"

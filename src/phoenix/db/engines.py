@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Callable
-from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
 from typing import Any
 
 import aiosqlite
 import numpy as np
+import orjson
 import sqlalchemy
 import sqlean
 from sqlalchemy import URL, StaticPool, event, make_url
@@ -193,19 +192,14 @@ def aio_postgresql_engine(
 
 
 def _dumps(obj: Any) -> str:
-    return json.dumps(obj, cls=_Encoder)
+    return orjson.dumps(obj, default=_default).decode()
 
 
-class _Encoder(json.JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        elif isinstance(obj, Enum):
-            return obj.value
-        elif isinstance(obj, np.ndarray):
-            return list(obj)
-        elif isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        return super().default(obj)
+def _default(obj: Any) -> Any:
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.integer, np.floating, np.bool_)):
+        return obj.item()
+    if isinstance(obj, Enum):
+        return obj.value
+    raise TypeError(f"Object of type {type(obj).__name__} is not serializable")

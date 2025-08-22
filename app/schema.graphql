@@ -1722,14 +1722,14 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount(timeRange: TimeRange, filterCondition: String): Int!
-  traceCount(timeRange: TimeRange): Int!
+  recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+  traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
-  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
-  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
-  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
+  costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
@@ -1746,8 +1746,8 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
-  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
+  traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!

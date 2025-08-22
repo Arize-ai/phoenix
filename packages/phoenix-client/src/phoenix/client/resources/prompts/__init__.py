@@ -13,15 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class Prompts:
-    """
-    Provides methods for interacting with prompt resources.
+    """Provides methods for interacting with prompt resources.
 
     This class allows you to retrieve and create prompt versions.
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> Client().prompts.get(prompt_identifier="my-prompt")
+    Example::
+
+        from phoenix.client import Client
+        Client().prompts.get(prompt_identifier="my-prompt")
     """
 
     def __init__(self, client: httpx.Client) -> None:

@@ -1,11 +1,27 @@
+import json
 import re
 from abc import ABC, abstractmethod
 from enum import Enum
+from inspect import BoundArguments
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import pystache  # type: ignore
+from opentelemetry.trace import Tracer
+
+
+def _get_template(bound: BoundArguments) -> str:
+    return cast(str, bound.arguments["self"].template)
+
+
+def _get_variables(bound: BoundArguments) -> str:
+    variables = bound.arguments["variables"]
+    return json.dumps(variables)
+
+
+def _get_output(result: str) -> str:
+    return result
 
 
 class TemplateFormat(str, Enum):
@@ -184,7 +200,7 @@ class Template:
     def variables(self) -> List[str]:
         return self._variables
 
-    def render(self, variables: Dict[str, Any]) -> str:
+    def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> str:
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
         return dedent(self._formatter.render(self.template, variables))

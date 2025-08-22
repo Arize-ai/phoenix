@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.0...arize-phoenix-evals-v0.28.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* **evals:** make evaluator input schema more explicit and discoverable  ([#9109](https://github.com/Arize-ai/phoenix/issues/9109)) ([b5c7170](https://github.com/Arize-ai/phoenix/commit/b5c71702a1e634c8ac6df130f2b5ea0355e9e7e2))
+* **evals:** update `create_evaluator` decorator handle casting function outputs to valid Scores ([#9143](https://github.com/Arize-ai/phoenix/issues/9143)) ([b51b677](https://github.com/Arize-ai/phoenix/commit/b51b677c90e6379f427db3120604113b2813f4b8))
+
+## [0.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.27.0...arize-phoenix-evals-v0.28.0) (2025-08-19)
+
+
+### Features
+
+* Dynamic concurrency ([#8992](https://github.com/Arize-ai/phoenix/issues/8992)) ([3e48611](https://github.com/Arize-ai/phoenix/commit/3e48611896011e820c628b73f592aaa2f5c53889))
+
+
+### Bug Fixes
+
+* [evals] drop batch evaluation methods ([#9052](https://github.com/Arize-ai/phoenix/issues/9052)) ([38df753](https://github.com/Arize-ai/phoenix/commit/38df753a1916ca970c6288cd81e00efa25beb2e1))
+* [evals] raise exceptions as-is ([#9066](https://github.com/Arize-ai/phoenix/issues/9066)) ([f8703b5](https://github.com/Arize-ai/phoenix/commit/f8703b511b41feb47eb1f43b08a06d0b8158286e))
+
 ## [0.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.1...arize-phoenix-evals-v0.27.0) (2025-08-13)
 
 

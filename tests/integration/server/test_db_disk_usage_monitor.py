@@ -167,6 +167,10 @@ class TestDbDiskUsageMonitor:
                 assert _smtpd.messages
                 message = _smtpd.messages[-1]
                 assert message["To"] == _admin_email
+                assert message["Cc"] == _support_email
+                assert (
+                    message["Subject"] == "[Phoenix] Database Disk Space Usage Threshold Exceeded"
+                )
                 assert (soup := _extract_html(message))
                 assert soup.title
                 assert soup.title.string == "Database Usage Notification"

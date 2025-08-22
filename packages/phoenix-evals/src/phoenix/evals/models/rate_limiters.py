@@ -92,7 +92,8 @@ class AdaptiveTokenBucket:
 
         self.rate = original_rate * self.rate_reduction_factor
         printif(
-            verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
+            verbose,
+            f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error",
         )
 
         self.rate = max(self.rate, self.minimum_rate)
@@ -148,14 +149,26 @@ class AdaptiveTokenBucket:
                 continue
 
 
-class RateLimitError(PhoenixException): ...
+class RateLimitError(PhoenixException):
+    def __init__(
+        self,
+        message: str = "Exceeded rate limit retries",
+        *,
+        current_rate_tokens_per_sec: Optional[float] = None,
+        initial_rate_tokens_per_sec: Optional[float] = None,
+        enforcement_window_seconds: Optional[float] = None,
+    ) -> None:
+        super().__init__(message)
+        self.current_rate_tokens_per_sec = current_rate_tokens_per_sec
+        self.initial_rate_tokens_per_sec = initial_rate_tokens_per_sec
+        self.enforcement_window_seconds = enforcement_window_seconds
 
 
 class RateLimiter:
     def __init__(
         self,
         rate_limit_error: Optional[Type[BaseException]] = None,
-        max_rate_limit_retries: int = 3,
+        max_rate_limit_retries: int = 0,
         initial_per_second_request_rate: float = 1.0,
         maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
@@ -202,7 +215,12 @@ class RateLimiter:
                             request_start_time, verbose=self._verbose
                         )
                         continue
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+            raise RateLimitError(
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
+                current_rate_tokens_per_sec=self._throttler.rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                enforcement_window_seconds=self._throttler.enforcement_window,
+            )
 
         return wrapper
 
@@ -255,6 +273,11 @@ class RateLimiter:
                                 continue
                     finally:
                         self._rate_limit_handling.set()  # allow new requests to start
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+            raise RateLimitError(
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
+                current_rate_tokens_per_sec=self._throttler.rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                enforcement_window_seconds=self._throttler.enforcement_window,
+            )
 
         return wrapper

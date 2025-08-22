@@ -53,7 +53,10 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
+
+from pydantic import BaseModel, Field
 
 from ..evaluators import Evaluator, Score
 
@@ -104,18 +107,22 @@ class PrecisionRecallFScore(Evaluator):
       single string (e.g., 'cat') is not supported; pass a sequence instead (e.g., ['cat']).
     """
 
+    class InputSchema(BaseModel):
+        expected: List[Union[str, int]] = Field(..., description="List of expected values.")
+        output: List[Union[str, int]] = Field(..., description="List of output values.")
+
     def __init__(
         self,
         *,
         beta: float = 1.0,
         average: AverageType = "macro",
         zero_division: float = 0.0,
-        positive_label: Optional[Hashable] = None,
+        positive_label: Optional[Union[str, int]] = None,
     ) -> None:
         super().__init__(
             name="precision_recall_fscore",
             source="heuristic",
-            required_fields={"expected", "output"},
+            input_schema=self.InputSchema,
             direction="maximize",
         )
         if beta <= 0:
@@ -140,10 +147,6 @@ class PrecisionRecallFScore(Evaluator):
 
         expected = list(expected_raw)
         output = list(output_raw)
-
-        # Ensure labels are hashable so they can be used as dict/set keys
-        self._assert_hashable_labels(expected, "expected")
-        self._assert_hashable_labels(output, "output")
 
         if len(expected) != len(output):
             raise ValueError(
@@ -331,13 +334,3 @@ class PrecisionRecallFScore(Evaluator):
         if unique.issubset({0, 1}) and len(unique) == 2:
             return 1
         return None
-
-    def _assert_hashable_labels(self, labels: Sequence[Any], name: str) -> None:
-        for idx, value in enumerate(labels):
-            try:
-                hash(value)
-            except TypeError as e:
-                raise ValueError(
-                    f"All labels in {name} must be hashable. "
-                    f"Found unhashable value at index {idx}: {value!r}"
-                ) from e

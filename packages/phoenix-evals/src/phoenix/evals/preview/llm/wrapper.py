@@ -1,11 +1,33 @@
+import json
+from inspect import BoundArguments
 from typing import Any, Dict, List, Optional, Union
 
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.trace import Tracer
+
+from phoenix.evals.preview.tracing import trace
 from phoenix.evals.templates import MultimodalPrompt
 
 from .adapters import register_adapters
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
 
 register_adapters()
+
+
+def _get_llm_model_name(bound: BoundArguments) -> str:
+    return bound.arguments["self"].model or ""
+
+
+def _get_prompt(bound: BoundArguments) -> str:
+    return bound.arguments.get("prompt", "") or ""
+
+
+def _get_output(result: Any) -> Any:
+    return result
+
+
+def _jsonify_output(result: Any) -> str:
+    return json.dumps(result)
 
 
 class LLMBase:
@@ -96,7 +118,17 @@ class LLM(LLMBase):
         self._is_async = False
         super().__init__(*args, **kwargs)
 
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
+    )
+    def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    ) -> str:
         """
         Generate text given a prompt.
 
@@ -109,8 +141,20 @@ class LLM(LLMBase):
         """
         return self._adapter.generate_text(prompt, **kwargs)
 
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
     def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Generate an object given a prompt and a schema.
@@ -123,7 +167,8 @@ class LLM(LLMBase):
         Returns:
             The generated object.
         """
-        return self._adapter.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = self._adapter.generate_object(prompt, schema, **kwargs)
+        return result
 
     def generate_classification(
         self,
@@ -165,8 +210,8 @@ class LLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-
-        return self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
+        return result
 
 
 class AsyncLLM(LLMBase):
@@ -204,7 +249,17 @@ class AsyncLLM(LLMBase):
         self._is_async = True
         super().__init__(*args, **kwargs)
 
-    async def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
+    )
+    async def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    ) -> str:
         """
         Asynchronously generate text given a prompt.
 
@@ -217,8 +272,20 @@ class AsyncLLM(LLMBase):
         """
         return await self._adapter.agenerate_text(prompt, **kwargs)
 
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
     async def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Asynchronously generate an object given a prompt and a schema.
@@ -258,7 +325,8 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        return await self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = await self.generate_object(prompt, schema, **kwargs)
+        return result
 
 
 def show_provider_availability() -> None:

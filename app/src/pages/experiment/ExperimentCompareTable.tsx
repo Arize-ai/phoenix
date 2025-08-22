@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Pressable } from "react-aria-components";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useSearchParams } from "react-router";
@@ -44,14 +45,15 @@ import {
   Modal,
   ModalOverlay,
   Popover,
+  PopoverArrow,
+  Separator,
   Text,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
@@ -83,6 +85,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
+import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -138,14 +141,6 @@ const tableWrapCSS = css`
       vertical-align: top;
     }
   }
-`;
-
-const annotationTooltipExtraCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  color: var(--ac-global-color-primary);
-  gap: var(--ac-global-dimension-size-50);
 `;
 
 const PAGE_SIZE = 50;
@@ -302,7 +297,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         enableSorting: false,
         cell: ({ row }) => {
           return (
-            <>
+            <Flex
+              direction="column"
+              height="100%"
+              css={css`
+                overflow: hidden;
+              `}
+            >
               <CellTop
                 extra={
                   <TooltipTrigger>
@@ -340,7 +341,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   />
                 </LargeTextWrap>
               </PaddedCell>
-            </>
+            </Flex>
           );
         },
       },
@@ -487,18 +488,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           );
 
           return run ? (
-            <>
+            <Flex direction="column" height="100%">
               <CellTop extra={runControls}>
                 <ExperimentRunMetadata {...run} />
               </CellTop>
-              <PaddedCell>
-                <ExperimentRunOutput
-                  {...run}
-                  displayFullText={displayFullText}
-                  setDialog={setDialog}
-                />
-              </PaddedCell>
-            </>
+              <ExperimentRunOutput
+                {...run}
+                displayFullText={displayFullText}
+                setDialog={setDialog}
+              />
+            </Flex>
           ) : (
             <PaddedCell>
               <NotRunText />
@@ -944,64 +943,28 @@ function ExperimentRunOutput(
     : [];
 
   return (
-    <Flex
-      direction="column"
-      gap="size-100"
-      height="100%"
-      justifyContent="space-between"
-    >
-      <LargeTextWrap>
-        <JSONText json={output} disableTitle space={displayFullText ? 2 : 0} />
-      </LargeTextWrap>
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: row;
-          gap: var(--ac-global-dimension-static-size-100);
-          align-items: center;
-          flex-wrap: wrap;
-        `}
-      >
-        {annotationsList.map((annotation) => {
-          const traceId = annotation.trace?.traceId;
-          const projectId = annotation.trace?.projectId;
-          const clickable = traceId != null && projectId != null;
-
-          return (
-            <li key={annotation.id}>
-              <AnnotationTooltip
-                annotation={annotation}
-                extra={
-                  clickable && (
-                    <View paddingTop="size-100">
-                      <div css={annotationTooltipExtraCSS}>
-                        <Icon svg={<Icons.InfoOutline />} />
-                        <span>Click to view evaluator trace</span>
-                      </div>
-                    </View>
-                  )
-                }
-              >
-                <AnnotationLabel
-                  annotation={annotation}
-                  clickable={clickable}
-                  onClick={() => {
-                    if (clickable) {
-                      setDialog(
-                        <TraceDetailsDialog
-                          title={`Evaluator Trace: ${annotation.name}`}
-                          traceId={traceId}
-                          projectId={projectId}
-                        />
-                      );
-                    }
-                  }}
-                />
-              </AnnotationTooltip>
-            </li>
+    <Flex direction="column" height="100%" justifyContent="space-between">
+      <View padding="size-200" flex="1 1 auto">
+        <LargeTextWrap>
+          <JSONText
+            json={output}
+            disableTitle
+            space={displayFullText ? 2 : 0}
+          />
+        </LargeTextWrap>
+      </View>
+      <ExperimentRunCellAnnotationsList
+        annotations={annotationsList}
+        onTraceClick={({ traceId, projectId, annotationName }) => {
+          setDialog(
+            <TraceDetailsDialog
+              title={`Evaluator Trace: ${annotationName}`}
+              traceId={traceId}
+              projectId={projectId}
+            />
           );
-        })}
-      </ul>
+        }}
+      />
     </Flex>
   );
 }
@@ -1060,6 +1023,7 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
       css={css`
         max-height: 300px;
         overflow-y: auto;
+        flex: 1 1 auto;
       `}
     >
       {children}
@@ -1290,5 +1254,119 @@ function PaddedCell({ children }: { children: ReactNode }) {
     <View paddingX="size-200" paddingY="size-100">
       {children}
     </View>
+  );
+}
+
+type ExperimentRunAnnotation =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number]["annotations"]["edges"][number]["annotation"];
+export type ExperimentRunCellAnnotationsListProps = {
+  annotations: ExperimentRunAnnotation[];
+  onTraceClick: ({
+    annotationName,
+    traceId,
+    projectId,
+  }: {
+    annotationName: string;
+    traceId: string;
+    projectId: string;
+  }) => void;
+};
+
+export function ExperimentRunCellAnnotationsList(
+  props: ExperimentRunCellAnnotationsListProps
+) {
+  const { annotations, onTraceClick } = props;
+  return (
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        flex: none;
+        padding: 0 var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100);
+      `}
+    >
+      {annotations.map((annotation) => {
+        const traceId = annotation.trace?.traceId;
+        const projectId = annotation.trace?.projectId;
+        const hasTrace = traceId != null && projectId != null;
+        return (
+          <li
+            key={annotation.id}
+            css={css`
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              justify-content: space-between;
+              gap: var(--ac-global-dimension-static-size-50);
+            `}
+          >
+            <DialogTrigger>
+              <Pressable>
+                <button
+                  className="button--reset"
+                  css={css`
+                    cursor: pointer;
+                    padding: var(--ac-global-dimension-size-50)
+                      var(--ac-global-dimension-size-100);
+                    flex: 1 1 auto;
+                    border-radius: var(--ac-global-rounding-small);
+                    width: 100%;
+                    &:hover {
+                      background-color: var(--ac-global-color-grey-200);
+                    }
+                  `}
+                >
+                  <AnnotationNameAndValue
+                    annotation={annotation}
+                    displayPreference="score"
+                  />
+                </button>
+              </Pressable>
+              <Popover placement="top">
+                <PopoverArrow />
+                <Dialog style={{ width: 400 }}>
+                  <View padding="size-200">
+                    <Flex direction="column" gap="size-50">
+                      <AnnotationDetailsContent annotation={annotation} />
+                      <Separator />
+                      <section>
+                        <Heading level={4} weight="heavy">
+                          Filters
+                        </Heading>
+                        <ExperimentRunAnnotationFiltersList
+                          annotation={annotation}
+                        />
+                      </section>
+                    </Flex>
+                  </View>
+                </Dialog>
+              </Popover>
+            </DialogTrigger>
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                onPress={() => {
+                  if (hasTrace) {
+                    onTraceClick({
+                      annotationName: annotation.name,
+                      traceId,
+                      projectId,
+                    });
+                  }
+                }}
+              >
+                <Icon svg={<Icons.Trace />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                View evaluation trace
+              </Tooltip>
+            </TooltipTrigger>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
