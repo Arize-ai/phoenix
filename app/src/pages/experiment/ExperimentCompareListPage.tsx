@@ -10,7 +10,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 
 import type {
   ExperimentCompareListPage_aggregateData$data,
@@ -24,6 +25,18 @@ import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentC
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 const PAGE_SIZE = 50;
+
+const tableWrapCSS = css`
+  flex: 1 1 auto;
+  overflow: auto;
+  // Make sure the table fills up the remaining space
+  table {
+    min-width: 100%;
+    td {
+      vertical-align: top;
+    }
+  }
+`;
 
 type ExperimentRun =
   ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
@@ -584,49 +597,54 @@ export function ExperimentCompareListPage() {
   });
 
   return (
-    <View padding="size-200">
-      <Text size="L" weight="heavy" marginBottom="size-200">
-        Experiment Comparison Table
-      </Text>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-          height: 100%;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <View overflow="auto">
+      <Flex direction="column" height="100%">
+        <div
+          css={tableWrapCSS}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          ref={tableContainerRef}
+        >
+          <table
+            css={css(tableCSS, borderedTableCSS)}
+            style={{
+              // ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Flex>
     </View>
   );
 }
