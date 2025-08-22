@@ -11,7 +11,14 @@ import {
 import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import {
+  costFormatter,
+  intFormatter,
+  latencyMsFormatter,
+  numberFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import type {
   ExperimentCompareListPage_aggregateData$data,
@@ -58,7 +65,7 @@ type TableRow = {
     baseExperimentValue: number;
     compareExperimentValues: (number | null | undefined)[];
   };
-  latency: {
+  latencyMs: {
     baseExperimentValue: number;
     compareExperimentValues: (number | null | undefined)[];
   };
@@ -213,19 +220,17 @@ export function ExperimentCompareListPage() {
             baseExperimentValue:
               baseExperimentRun.costSummary.total.tokens ?? 0,
             compareExperimentValues: compareExperimentRuns.map(
-              (run) => run?.costSummary.total.tokens ?? 0
+              (run) => run?.costSummary.total.tokens
             ),
           },
-          latency: {
+          latencyMs: {
             baseExperimentValue:
-              (new Date(baseExperimentRun.endTime).getTime() -
-                new Date(baseExperimentRun.startTime).getTime()) /
-              1000,
+              new Date(baseExperimentRun.endTime).getTime() -
+              new Date(baseExperimentRun.startTime).getTime(),
             compareExperimentValues: compareExperimentRuns.map((run) =>
               run
-                ? (new Date(run.endTime).getTime() -
-                    new Date(run.startTime).getTime()) /
-                  1000
+                ? new Date(run.endTime).getTime() -
+                  new Date(run.startTime).getTime()
                 : undefined
             ),
           },
@@ -287,7 +292,7 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <Text size="S" color="text-500">
-              {JSON.stringify(value)}
+              <JSONText json={value} />
             </Text>
           );
         },
@@ -299,7 +304,7 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <Text size="S" color="text-500">
-              {JSON.stringify(value)}
+              <JSONText json={value} />
             </Text>
           );
         },
@@ -327,12 +332,14 @@ export function ExperimentCompareListPage() {
             >
               <li>
                 <Text size="S">
-                  {JSON.stringify(value.baseExperimentValue)}
+                  <JSONText json={value.baseExperimentValue} />
                 </Text>
               </li>
               {value.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{JSON.stringify(value)}</Text>
+                  <Text size="S">
+                    <JSONText json={value} />
+                  </Text>
                 </li>
               ))}
             </ul>
@@ -361,7 +368,9 @@ export function ExperimentCompareListPage() {
               {experiments.map((experiment) => {
                 return (
                   <li key={experiment.id}>
-                    <Text size="S">{experiment.costSummary.total.tokens}</Text>
+                    <Text size="S">
+                      {intFormatter(experiment.costSummary.total.tokens)}
+                    </Text>
                   </li>
                 );
               })}
@@ -384,11 +393,11 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">{tokens.baseExperimentValue}</Text>
+                <Text size="S">{intFormatter(tokens.baseExperimentValue)}</Text>
               </li>
               {tokens.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{value}</Text>
+                  <Text size="S">{intFormatter(value)}</Text>
                 </li>
               ))}
             </ul>
@@ -417,16 +426,16 @@ export function ExperimentCompareListPage() {
               {experiments.map((experiment) => (
                 <li key={experiment.id}>
                   <Text size="S">
-                    {((experiment.averageRunLatencyMs ?? 0) / 1000).toFixed(2)}s
+                    {latencyMsFormatter(experiment.averageRunLatencyMs)}
                   </Text>
                 </li>
               ))}
             </ul>
           </div>
         ),
-        accessorKey: "latency",
+        accessorKey: "latencyMs",
         cell: ({ getValue }) => {
-          const latency = getValue() as TableRow["latency"];
+          const latencyMs = getValue() as TableRow["latencyMs"];
           return (
             <ul
               css={css`
@@ -440,11 +449,13 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">{latency.baseExperimentValue.toFixed(2)}s</Text>
+                <Text size="S">
+                  {latencyMsFormatter(latencyMs.baseExperimentValue)}
+                </Text>
               </li>
-              {latency.compareExperimentValues.map((value, index) => (
+              {latencyMs.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">{value?.toFixed(2) ?? "--"}s</Text>
+                  <Text size="S">{latencyMsFormatter(value)}</Text>
                 </li>
               ))}
             </ul>
@@ -473,7 +484,7 @@ export function ExperimentCompareListPage() {
               {experiments.map((experiment) => (
                 <li key={experiment.id}>
                   <Text size="S">
-                    ${experiment.costSummary.total.cost?.toFixed(3)}
+                    {costFormatter(experiment.costSummary.total.cost)}
                   </Text>
                 </li>
               ))}
@@ -496,11 +507,11 @@ export function ExperimentCompareListPage() {
               `}
             >
               <li>
-                <Text size="S">${cost.baseExperimentValue.toFixed(3)}</Text>
+                <Text size="S">{costFormatter(cost.baseExperimentValue)}</Text>
               </li>
               {cost.compareExperimentValues.map((value, index) => (
                 <li key={index}>
-                  <Text size="S">${value?.toFixed(3) ?? "--"}</Text>
+                  <Text size="S">{costFormatter(value)}</Text>
                 </li>
               ))}
             </ul>
@@ -529,13 +540,13 @@ export function ExperimentCompareListPage() {
               {experiments.map((experiment) => (
                 <li key={experiment.id}>
                   <Text size="S">
-                    {experiment.annotationSummaries
-                      ?.find(
+                    {numberFormatter(
+                      experiment.annotationSummaries?.find(
                         (summary) =>
                           summary.annotationName ===
                           annotationSummary.annotationName
-                      )
-                      ?.meanScore?.toFixed(3) ?? "N/A"}
+                      )?.meanScore
+                    )}
                   </Text>
                 </li>
               ))}
@@ -560,25 +571,16 @@ export function ExperimentCompareListPage() {
             >
               <li>
                 <Text size="S">
-                  {(() => {
-                    const score = annotations.baseExperimentValue.find(
-                      (annotation) =>
-                        annotation.name === annotationSummary.annotationName
-                    )?.score;
-                    return score?.toFixed(3) ?? "N/A";
-                  })()}
+                  {getFormattedAnnotationScore(
+                    annotations.baseExperimentValue,
+                    annotationSummary
+                  )}
                 </Text>
               </li>
               {annotations.compareExperimentValues.map((values, index) => (
                 <li key={index}>
                   <Text size="S">
-                    {(() => {
-                      const score = values.find(
-                        (annotation) =>
-                          annotation.name === annotationSummary.annotationName
-                      )?.score;
-                      return score?.toFixed(3) ?? "N/A";
-                    })()}
+                    {getFormattedAnnotationScore(values, annotationSummary)}
                   </Text>
                 </li>
               ))}
@@ -648,3 +650,13 @@ export function ExperimentCompareListPage() {
     </View>
   );
 }
+
+const getFormattedAnnotationScore = (
+  values: { name: string; score: number | null }[],
+  annotationSummary: { annotationName: string }
+) => {
+  const score = values.find(
+    (annotation) => annotation.name === annotationSummary.annotationName
+  )?.score;
+  return numberFormatter(score);
+};
