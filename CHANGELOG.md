@@ -1,5 +1,28 @@
 # Changelog
 
+## [11.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.1...arize-phoenix-v11.25.0) (2025-08-22)
+
+
+### Features
+
+* `get_spans_dataframe` sorts by newst/oldest spans ([#9173](https://github.com/Arize-ai/phoenix/issues/9173)) ([2bf5819](https://github.com/Arize-ai/phoenix/commit/2bf58194ae6be3e63d08c64ccf71a96b1e20dfdf))
+* cc support email in disk usage notification ([#9151](https://github.com/Arize-ai/phoenix/issues/9151)) ([8a5a612](https://github.com/Arize-ai/phoenix/commit/8a5a6129ec8d007c476abbd5197c7259d2e871d2))
+* **experiments:** eval / annotation quick filters ([#9182](https://github.com/Arize-ai/phoenix/issues/9182)) ([e8c3a29](https://github.com/Arize-ai/phoenix/commit/e8c3a29884a8dc4b4fe8c85efcc75a2e6c9d7d71))
+* **experiments:** hydrate data in experiment compare list page ([#9148](https://github.com/Arize-ai/phoenix/issues/9148)) ([2920a91](https://github.com/Arize-ai/phoenix/commit/2920a916959149306c10f1f71cc78166a39c67a2))
+* special case sqlite:///:memory: in helm ([#9056](https://github.com/Arize-ai/phoenix/issues/9056)) ([a1dfde5](https://github.com/Arize-ai/phoenix/commit/a1dfde5e33c9e670b13a0b33d529de1429f1d9d7))
+
+
+### Bug Fixes
+
+* Add OpenAI timeout to playground client ([#9158](https://github.com/Arize-ai/phoenix/issues/9158)) ([dcd333a](https://github.com/Arize-ai/phoenix/commit/dcd333a013d3df29dbd749fb2c11aeaceff50844))
+* **annotations:** remove redundant id field in annotation object during bulk insert ([#9108](https://github.com/Arize-ai/phoenix/issues/9108)) ([76502d8](https://github.com/Arize-ai/phoenix/commit/76502d854cbad58f2853d303f3dd07919cf26066))
+* default sqlite usage when postgresql.enabled false ([#9176](https://github.com/Arize-ai/phoenix/issues/9176)) ([de79bd1](https://github.com/Arize-ai/phoenix/commit/de79bd15f5e47eac2162ddab32f4b035d1d6eb04))
+* **metrics:** handle null score ([#9169](https://github.com/Arize-ai/phoenix/issues/9169)) ([8a3d8c4](https://github.com/Arize-ai/phoenix/commit/8a3d8c417e22aafc9a1b32161fd384aa5e39aead))
+* **metrics:** make query errors scrollable ([#9122](https://github.com/Arize-ai/phoenix/issues/9122)) ([a38b6a8](https://github.com/Arize-ai/phoenix/commit/a38b6a814182c522c3e6600b620dcea93e2a06c6))
+* **playground:** [#8940](https://github.com/Arize-ai/phoenix/issues/8940) allow bounded slider fields to be unset ([#9111](https://github.com/Arize-ai/phoenix/issues/9111)) ([9cecc6f](https://github.com/Arize-ai/phoenix/commit/9cecc6f8cb8f53ed75b06f9adcb6f1faf14bf560))
+* restore numpy array handling for orjson serialization ([#9154](https://github.com/Arize-ai/phoenix/issues/9154)) ([1fb6b71](https://github.com/Arize-ai/phoenix/commit/1fb6b716d53ffc2ebdd5bc4f82a1341b8e4bb99b))
+* update legacy `phoenix.trace.openai` comment ([#9167](https://github.com/Arize-ai/phoenix/issues/9167)) ([b499243](https://github.com/Arize-ai/phoenix/commit/b49924317004e532bf38cf4b43fcb43820f94897))
+
 ## [11.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.0...arize-phoenix-v11.24.1) (2025-08-15)
 
 
