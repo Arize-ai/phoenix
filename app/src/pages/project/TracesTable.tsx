@@ -223,6 +223,7 @@ export function TracesTable(props: TracesTableProps) {
                 metadata
                 statusCode
                 startTime
+                endTime
                 latencyMs
                 cumulativeTokenCountTotal
                 parentId
@@ -274,6 +275,7 @@ export function TracesTable(props: TracesTableProps) {
                       name
                       statusCode: propagatedStatusCode
                       startTime
+                      endTime
                       latencyMs
                       parentId
                       cumulativeTokenCountTotal: tokenCountTotal
