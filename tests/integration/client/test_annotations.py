@@ -1042,10 +1042,7 @@ class TestSendingAnnotationsBeforeSpan:
                     ),
                 ),
             )
-            # Sleep to ensure each iteration gets a distinct updated_at timestamp.
-            # Without this, rapid updates within the same second could be out of order,
-            # causing the test to fail when looking for the last iteration's values.
-            await sleep(1.01)
+            await sleep(1)
 
         # Send the span and wait
         headers = {"authorization": f"Bearer {_app.admin_secret}"}
