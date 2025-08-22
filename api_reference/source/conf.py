@@ -71,7 +71,7 @@ def setup(app):
 # -- Project information -----------------------------------------------------
 
 project = "Phoenix Python Reference"
-copyright = "2024, Arize AI"
+copyright = "2025, Arize AI"
 author = "Arize AI"
 
 # -- General configuration ---------------------------------------------------
@@ -181,6 +181,9 @@ html_theme_options = {
         },
     ],
     "external_links": [
+        {"name": "Phoenix Otel", "url": "https://phoenix-otel.readthedocs.io/"},
+        {"name": "Phoenix Client", "url": "https://phoenix-client.readthedocs.io/"},
+        {"name": "Phoenix Evals", "url": "https://phoenix-evals.readthedocs.io/"},
         {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
     ],
     "navbar_align": "content",
