@@ -1048,9 +1048,8 @@ class Datasets:
         example_ids: Union[str, List[str]],
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
-        return_dataset: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Dataset]:
+    ) -> Dataset:
         """
         Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
 
