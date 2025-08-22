@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, distinct, func, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -113,15 +113,18 @@ def _get_stmt(
         if filter_condition:
             sf = SpanFilter(filter_condition)
             stmt = sf(stmt)
+        stmt = stmt.add_columns(func.count().label("count"))
     elif kind == "trace":
         time_column = models.Trace.start_time
         if filter_condition:
             stmt = stmt.join(models.Span, models.Trace.id == models.Span.trace_rowid)
+            stmt = stmt.add_columns(func.count(distinct(models.Trace.id)).label("count"))
             sf = SpanFilter(filter_condition)
             stmt = sf(stmt)
+        else:
+            stmt = stmt.add_columns(func.count().label("count"))
     else:
         assert_never(kind)
-    stmt = stmt.add_columns(func.count().label("count"))
     stmt = stmt.where(pid.in_(project_rowids))
 
     if session_filter_condition:

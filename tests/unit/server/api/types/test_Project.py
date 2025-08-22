@@ -4257,6 +4257,7 @@ async def test_trace_count_returns_expected_count(
         session2 = await _add_project_session(session, project)
         trace2 = await _add_trace(session, project, session2)
         await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
+        await _add_span(session, trace2, attributes={"input": {"value": "normal task"}})
         annotation2 = models.TraceAnnotation(
             trace_rowid=trace2.id,
             name="test-annotation",
