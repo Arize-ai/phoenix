@@ -146,8 +146,8 @@ async def _get_results(
             stmt = sf(stmt)
     else:
         assert_never(kind)
-    if session_filter_condition and params:
-        project_rowids = [project_rowid for project_rowid, _ in params.keys()]
+    if session_filter_condition:
+        project_rowids = [project_rowid for project_rowid, _ in params]
         filtered_session_rowids = get_filtered_session_rowids_subquery(
             session_filter_condition=session_filter_condition,
             project_rowids=project_rowids,
