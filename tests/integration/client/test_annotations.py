@@ -1042,8 +1042,8 @@ class TestSendingAnnotationsBeforeSpan:
                     ),
                 ),
             )
-            # Sleep for a non-trivial amount of time to test that deferred annotations
-            # are processed correctly after being deferred in the server
+            # Use a significant sleep duration to verify that annotations sent before
+            # span ingestion are properly processed in chronological order
             await sleep(0.5)
 
         # Send the span and wait
