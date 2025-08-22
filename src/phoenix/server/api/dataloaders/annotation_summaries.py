@@ -185,7 +185,7 @@ def _get_stmt(
             end_time=end_time,
         )
         entity_count_query = entity_count_query.where(
-            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
+            models.Trace.project_session_rowid.in_(filtered_session_rowids)
         )
 
     entity_count_query = entity_count_query.where(
@@ -236,9 +236,7 @@ def _get_stmt(
             start_time=start_time,
             end_time=end_time,
         )
-        base_stmt = base_stmt.where(
-            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
-        )
+        base_stmt = base_stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))

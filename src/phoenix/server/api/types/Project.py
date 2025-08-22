@@ -448,13 +448,13 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            filter_subq = get_filtered_session_rowids_subquery(
+            filtered_session_rowids = get_filtered_session_rowids_subquery(
                 session_filter_condition=filter_io_substring,
                 project_rowids=[self.project_rowid],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
             )
-            stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
+            stmt = stmt.where(table.id.in_(filtered_session_rowids))
         if sort:
             key: ColumnElement[Any]
             if sort.col is ProjectSessionColumn.startTime:

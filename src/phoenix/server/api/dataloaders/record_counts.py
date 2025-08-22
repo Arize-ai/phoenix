@@ -134,9 +134,7 @@ def _get_stmt(
             start_time=start_time,
             end_time=end_time,
         )
-        stmt = stmt.where(
-            models.Trace.project_session_rowid.in_(select(filtered_session_rowids.c.id))
-        )
+        stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     stmt = stmt.group_by(pid)
     if start_time:
         stmt = stmt.where(start_time <= time_column)

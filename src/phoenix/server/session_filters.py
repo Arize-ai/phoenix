@@ -3,7 +3,7 @@ from typing import Optional, Sequence
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import distinct, or_, select
-from sqlalchemy.sql import Subquery
+from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
 
@@ -13,7 +13,7 @@ def get_filtered_session_rowids_subquery(
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-) -> Subquery:
+) -> ScalarSelect[int]:
     """
     Returns a subquery that contains the project session rowids that match the session filter.
     """
@@ -42,7 +42,7 @@ def get_filtered_session_rowids_subquery(
         )
     if end_time:
         filtered_session_rowids = filtered_session_rowids.where(models.Trace.start_time < end_time)
-    return filtered_session_rowids.subquery()
+    return filtered_session_rowids.scalar_subquery()
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
