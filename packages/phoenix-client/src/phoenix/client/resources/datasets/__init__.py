@@ -1048,8 +1048,9 @@ class Datasets:
         example_ids: Union[str, List[str]],
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
+        return_dataset: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Dataset:
+    ) -> Optional[Dataset]:
         """
         Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
 
@@ -1071,14 +1072,14 @@ class Datasets:
             >>> from phoenix.client import Client
             >>> client = Client()
             >>>
-            >>> # Delete a single example
-            >>> updated_dataset = client.datasets.delete_example_from_dataset(
-            ...     example_ids="example-123"
-            ... )
+            >>> # Delete a single example (fast, no return value)
+            >>> client.datasets.delete_example_from_dataset(example_ids="example-123")
             >>>
-            >>> # Delete multiple examples
+            >>> # Delete multiple examples and get updated dataset
             >>> updated_dataset = client.datasets.delete_example_from_dataset(
-            ...     example_ids=["example-123", "example-456", "example-789"]
+            ...     example_ids=["ex1", "ex2", "ex3"],
+            ...     version_description="Removed outdated examples",
+            ...     return_dataset=True
             ... )
         """
         # Normalize example_ids to a list
@@ -1133,8 +1134,10 @@ class Datasets:
         dataset_info = response_data["data"]["deleteDatasetExamples"]["dataset"]
         dataset_id = dataset_info["id"]
 
-        # Return the updated dataset
-        return self.get_dataset(dataset=dataset_id, timeout=timeout)
+        # Optionally return the updated dataset
+        if return_dataset:
+            return self.get_dataset(dataset=dataset_id, timeout=timeout)
+        return None
 
 
 class AsyncDatasets:
@@ -1820,8 +1823,9 @@ class AsyncDatasets:
         example_ids: Union[str, List[str]],
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
+        return_dataset: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Dataset:
+    ) -> Optional[Dataset]:
         """
         Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
 
@@ -1843,14 +1847,14 @@ class AsyncDatasets:
             >>> from phoenix.client import AsyncClient
             >>> client = AsyncClient()
             >>>
-            >>> # Delete a single example
-            >>> updated_dataset = await client.datasets.delete_example_from_dataset(
-            ...     example_ids="example-123"
-            ... )
+            >>> # Delete a single example (fast, no return value)
+            >>> await client.datasets.delete_example_from_dataset(example_ids="example-123")
             >>>
-            >>> # Delete multiple examples
+            >>> # Delete multiple examples and get updated dataset
             >>> updated_dataset = await client.datasets.delete_example_from_dataset(
-            ...     example_ids=["example-123", "example-456", "example-789"]
+            ...     example_ids=["ex1", "ex2", "ex3"],
+            ...     version_description="Removed outdated examples",
+            ...     return_dataset=True
             ... )
         """
         # Normalize example_ids to a list
@@ -1905,8 +1909,9 @@ class AsyncDatasets:
         dataset_info = response_data["data"]["deleteDatasetExamples"]["dataset"]
         dataset_id = dataset_info["id"]
 
-        # Return the updated dataset
-        return await self.get_dataset(dataset=dataset_id, timeout=timeout)
+        if return_dataset:
+            return await self.get_dataset(dataset=dataset_id, timeout=timeout)
+        return None
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
