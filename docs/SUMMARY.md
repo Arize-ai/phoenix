@@ -45,6 +45,11 @@
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
     * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
+* [Concepts: Tracing](tracing/concepts-tracing/README.md)
+  * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
+  * [How Tracing Works](tracing/concepts-tracing/how-tracing-works.md)
+  * [Annotations Concepts](tracing/concepts-tracing/annotations-concepts.md)
+  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
 
 ## Prompt Engineering
 
@@ -64,6 +69,9 @@
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
+* [Concepts: Prompts](prompt-engineering/concepts-prompts/README.md)
+  * [Prompts Concepts](prompt-engineering/concepts-prompts/prompts-concepts.md)
+  * [Context Engineering Basics](prompt-engineering/concepts-prompts/context-engineering-basics.md)
 
 ## Datasets & Experiments
 
@@ -75,6 +83,7 @@
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 
 ## Evaluation
 
@@ -103,11 +112,22 @@
   * [Build a Multimodal Eval](evaluation/how-to-evals/multimodal-evals.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evals API Reference](evaluation/how-to-evals/evals-reference.md)
+* [Concepts: Evals](evaluation/concepts-evals/README.md)
+  * [Evaluators](evaluation/concepts-evals/evaluation.md)
+  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
+  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
+  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
+  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
+  * [Evaluating Multi-Agent Systems](evaluation/concepts-evals/evaluating-multi-agent-systems.md)
 
 ## Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
+* [Concepts: Retrieval](retrieval/concepts-retrieval/README.md)
+  * [Retrieval with Embeddings](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
+  * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
+  * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
 ## Inferences
 
@@ -122,6 +142,7 @@
   * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
   * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
 * [API: Inferences](inferences/inference-and-schema.md)
+* [Concepts: Inferences](inferences/concepts-inferences.md)
 
 ## Settings
 
@@ -129,3 +150,27 @@
 * [API Keys](settings/api-keys.md)
 * [Data Retention](settings/data-retention.md)
 * [Phoenix to Arize AX Migration](settings/phoenix-to-arize-ax-migration.md)
+
+## Resources
+
+* [Frequently Asked Questions](resources/frequently-asked-questions/README.md)
+  * [What is the difference between Phoenix and Arize?](resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize.md)
+  * [What is my Phoenix Endpoint?](resources/frequently-asked-questions/what-is-my-phoenix-endpoint.md)
+  * [What is LlamaTrace vs Phoenix Cloud?](resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud.md)
+  * [Phoenix Cloud Migration Guide: Legacy to New Version](resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version.md)
+  * [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison.md)
+  * [Langfuse alternative? Arize Phoenix vs Langfuse: key differences](resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences.md)
+  * [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith.md)
+  * [Will Phoenix Cloud be on the latest version of Phoenix?](resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix.md)
+  * [Can I add other users to my Phoenix Instance?](resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance.md)
+  * [Can I use Azure OpenAI?](resources/frequently-asked-questions/can-i-use-azure-openai.md)
+  * [Can I use Phoenix locally from a remote Jupyter instance?](resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance.md)
+  * [How can I configure the backend to send the data to the phoenix UI in another container?](resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container.md)
+  * [Can I run Phoenix on Sagemaker?](resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker.md)
+  * [Can I persist data in a notebook?](resources/frequently-asked-questions/can-i-persist-data-in-a-notebook.md)
+  * [What is the difference between GRPC and HTTP?](resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http.md)
+  * [Can I use gRPC for trace collection?](resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection.md)
+  * [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable.md)
+* [Contribute to Phoenix](resources/contribute-to-phoenix.md)
+* [Github](https://github.com/Arize-ai/phoenix)
+* [OpenInference](https://github.com/Arize-ai/openinference)
