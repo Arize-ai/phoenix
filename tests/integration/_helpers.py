@@ -566,6 +566,7 @@ def _start_span(
     project_name: Optional[str] = None,
     span_name: Optional[str] = None,
     attributes: Optional[Mapping[str, AttributeValue]] = None,
+    start_time: Optional[int] = None,
 ) -> Span:
     return _get_tracer(
         project_name=project_name or token_hex(16),
@@ -573,6 +574,7 @@ def _start_span(
     ).start_span(
         name=span_name or token_hex(16),
         attributes=attributes,
+        start_time=start_time,
     )
 
 
