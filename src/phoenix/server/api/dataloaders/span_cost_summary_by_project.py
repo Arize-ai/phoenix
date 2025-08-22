@@ -141,7 +141,6 @@ def _get_stmt(
         stmt = sf(stmt.join_from(models.SpanCost, models.Span))
 
     if session_filter_condition:
-        project_rowids = params
         filtered_session_rowids = get_filtered_session_rowids_subquery(
             session_filter_condition=session_filter_condition,
             project_rowids=project_rowids,
