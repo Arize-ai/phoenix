@@ -86,6 +86,7 @@ describe("createSpanTree", () => {
                 {
                   "children": [],
                   "span": {
+                    "endTime": "2023-08-16T22:27:15.327439",
                     "id": "5",
                     "latencyMs": 118,
                     "name": "embedding",
@@ -101,6 +102,7 @@ describe("createSpanTree", () => {
                 },
               ],
               "span": {
+                "endTime": "2023-08-16T22:27:15.327415",
                 "id": "4",
                 "latencyMs": 352,
                 "name": "retrieve",
@@ -120,6 +122,7 @@ describe("createSpanTree", () => {
                 {
                   "children": [],
                   "span": {
+                    "endTime": "2023-08-16T22:27:15.681497",
                     "id": "3",
                     "latencyMs": 1921,
                     "name": "llm",
@@ -136,6 +139,7 @@ describe("createSpanTree", () => {
                 },
               ],
               "span": {
+                "endTime": "2023-08-16T22:27:15.327378",
                 "id": "2",
                 "latencyMs": 1923,
                 "name": "synthesize",
@@ -151,6 +155,7 @@ describe("createSpanTree", () => {
             },
           ],
           "span": {
+            "endTime": "2023-08-16T22:27:15.327378",
             "id": "1",
             "latencyMs": 2275,
             "name": "query",
