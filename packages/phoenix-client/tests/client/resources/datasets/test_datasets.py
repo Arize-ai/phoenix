@@ -419,3 +419,148 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
+
+
+class TestDatasetDeleting:
+    """Test delete_example_from_dataset method."""
+
+    @pytest.fixture
+    def mock_datasets_client(self) -> Any:
+        """Create a mock Datasets client with a mock httpx client."""
+        from phoenix.client.resources.datasets import Datasets
+
+        mock_client = Mock()
+        datasets_client = Datasets(mock_client)
+        return datasets_client
+
+    @pytest.fixture
+    def mock_dataset_response(self) -> Any:
+        """Mock response from get_dataset."""
+        from phoenix.client.__generated__ import v1
+        from phoenix.client.resources.datasets import Dataset
+
+        dataset_info = v1.DatasetWithExampleCount(
+            id="dataset123",
+            name="Test Dataset",
+            description="A test dataset",
+            metadata={"key": "value"},
+            created_at="2024-01-15T10:00:00",
+            updated_at="2024-01-15T11:00:00",
+            example_count=1,
+        )
+
+        examples_data = v1.ListDatasetExamplesData(
+            dataset_id="dataset123",
+            version_id="version456",
+            examples=[
+                v1.DatasetExample(
+                    id="ex1",
+                    input={"text": "updated hello"},
+                    output={"response": "updated hi"},
+                    metadata={"source": "updated test"},
+                    updated_at="2024-01-15T12:00:00",
+                ),
+            ],
+        )
+
+        return Dataset(dataset_info, examples_data)
+
+    def test_delete_example_from_dataset_single_id(
+        self, mock_datasets_client: Any, mock_dataset_response: Any
+    ) -> None:
+        """Test deleting a single example from dataset."""
+        # Mock successful GraphQL response
+        graphql_response = Mock()
+        graphql_response.raise_for_status.return_value = None
+        graphql_response.json.return_value = {
+            "data": {
+                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
+            }
+        }
+
+        mock_datasets_client._client.post.return_value = graphql_response
+        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+
+        result = mock_datasets_client.delete_example_from_dataset(example_ids="ex1")
+
+        # Verify GraphQL mutation was called correctly
+        mock_datasets_client._client.post.assert_called_once()
+        call_args = mock_datasets_client._client.post.call_args
+        assert call_args[1]["url"] == "graphql"
+        assert "deleteDatasetExamples" in call_args[1]["json"]["query"]
+
+        # Verify payload structure
+        payload = call_args[1]["json"]
+        assert payload["variables"]["input"]["exampleIds"] == ["ex1"]
+
+        # Verify get_dataset was called to return updated dataset
+        mock_datasets_client.get_dataset.assert_called_once_with(dataset="dataset123", timeout=5)
+        assert result == mock_dataset_response
+
+    def test_delete_example_from_dataset_multiple_ids(
+        self, mock_datasets_client: Any, mock_dataset_response: Any
+    ) -> None:
+        """Test deleting multiple examples from dataset."""
+        # Mock successful GraphQL response
+        graphql_response = Mock()
+        graphql_response.raise_for_status.return_value = None
+        graphql_response.json.return_value = {
+            "data": {
+                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
+            }
+        }
+
+        mock_datasets_client._client.post.return_value = graphql_response
+        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+
+        mock_datasets_client.delete_example_from_dataset(example_ids=["ex1", "ex2", "ex3"])
+
+        # Verify payload structure
+        call_args = mock_datasets_client._client.post.call_args
+        payload = call_args[1]["json"]
+        assert payload["variables"]["input"]["exampleIds"] == ["ex1", "ex2", "ex3"]
+
+    def test_delete_example_from_dataset_empty_ids_error(self, mock_datasets_client: Any) -> None:
+        """Test that deleting with empty example_ids raises ValueError."""
+        with pytest.raises(ValueError, match="example_ids cannot be empty"):
+            mock_datasets_client.delete_example_from_dataset(example_ids=[])
+
+    def test_delete_example_from_dataset_graphql_error(self, mock_datasets_client: Any) -> None:
+        """Test handling of GraphQL errors in delete operation."""
+        # Mock GraphQL error response
+        graphql_response = Mock()
+        graphql_response.raise_for_status.return_value = None
+        graphql_response.json.return_value = {"errors": [{"message": "Examples not found"}]}
+
+        mock_datasets_client._client.post.return_value = graphql_response
+
+        with pytest.raises(ValueError, match="GraphQL errors: Examples not found"):
+            mock_datasets_client.delete_example_from_dataset(example_ids=["nonexistent"])
+
+    def test_delete_example_from_dataset_with_version_info(
+        self, mock_datasets_client: Any, mock_dataset_response: Any
+    ) -> None:
+        """Test deleting with version description and metadata."""
+        # Mock successful GraphQL response
+        graphql_response = Mock()
+        graphql_response.raise_for_status.return_value = None
+        graphql_response.json.return_value = {
+            "data": {
+                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
+            }
+        }
+
+        mock_datasets_client._client.post.return_value = graphql_response
+        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+
+        mock_datasets_client.delete_example_from_dataset(
+            example_ids=["ex1"],
+            version_description="Removed example",
+            version_metadata={"operation": "delete"},
+        )
+
+        # Verify version fields were included
+        call_args = mock_datasets_client._client.post.call_args
+        payload = call_args[1]["json"]
+        assert payload["variables"]["input"]["datasetVersionDescription"] == "Removed example"
+        assert payload["variables"]["input"]["datasetVersionMetadata"] == {"operation": "delete"}
