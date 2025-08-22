@@ -79,7 +79,7 @@ class TestLaunchApp:
                             },
                         )
                     )
-                    spans[-1].end()
+                    spans[-1].end(start_time + 10_000_000)
 
                 def query_fn() -> Optional[list[dict[str, Any]]]:
                     ans = _get_gql_spans(app, None, "name").get(project_name)
