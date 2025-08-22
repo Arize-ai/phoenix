@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import operator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, cast
@@ -50,6 +48,7 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -135,9 +134,21 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> int:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.record_counts.load(
-            ("span", self.project_rowid, time_range, filter_condition),
+            (
+                "span",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            ),
         )
 
     @strawberry.field
@@ -145,9 +156,22 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> int:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.record_counts.load(
-            ("trace", self.project_rowid, time_range, None),
+            (
+                "trace",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            ),
         )
 
     @strawberry.field
@@ -189,9 +213,21 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> SpanCostSummary:
-        loader = info.context.data_loaders.span_cost_summary_by_project
-        summary = await loader.load((self.project_rowid, time_range, filter_condition))
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
+        summary = await info.context.data_loaders.span_cost_summary_by_project.load(
+            (
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+            )
+        )
         return SpanCostSummary(
             prompt=CostBreakdown(
                 tokens=summary.prompt.tokens,
@@ -213,13 +249,21 @@ class Project(Node):
         info: Info[Context, None],
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "trace",
                 self.project_rowid,
-                time_range,
-                None,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
                 probability,
             ),
         )
@@ -231,13 +275,20 @@ class Project(Node):
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "span",
                 self.project_rowid,
-                time_range,
-                filter_condition,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
                 probability,
             ),
         )
@@ -397,31 +448,13 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            filter_stmt = (
-                select(distinct(models.Trace.project_session_rowid).label("id"))
-                .filter_by(project_rowid=self.project_rowid)
-                .join_from(models.Trace, models.Span)
-                .where(models.Span.parent_id.is_(None))
-                .where(
-                    or_(
-                        models.CaseInsensitiveContains(
-                            models.Span.attributes[INPUT_VALUE].as_string(),
-                            filter_io_substring,
-                        ),
-                        models.CaseInsensitiveContains(
-                            models.Span.attributes[OUTPUT_VALUE].as_string(),
-                            filter_io_substring,
-                        ),
-                    )
-                )
+            filtered_session_rowids = get_filtered_session_rowids_subquery(
+                session_filter_condition=filter_io_substring,
+                project_rowids=[self.project_rowid],
+                start_time=time_range.start if time_range else None,
+                end_time=time_range.end if time_range else None,
             )
-            if time_range:
-                if time_range.start:
-                    filter_stmt = filter_stmt.where(time_range.start <= models.Trace.start_time)
-                if time_range.end:
-                    filter_stmt = filter_stmt.where(models.Trace.start_time < time_range.end)
-            filter_subq = filter_stmt.subquery()
-            stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
+            stmt = stmt.where(table.id.in_(filtered_session_rowids))
         if sort:
             key: ColumnElement[Any]
             if sort.col is ProjectSessionColumn.startTime:
@@ -576,10 +609,24 @@ class Project(Node):
         self,
         info: Info[Context, None],
         annotation_name: str,
+        filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[AnnotationSummary]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.annotation_summaries.load(
-            ("trace", self.project_rowid, time_range, None, annotation_name),
+            (
+                "trace",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+                annotation_name,
+            ),
         )
 
     @strawberry.field
@@ -589,9 +636,22 @@ class Project(Node):
         annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
+        if filter_condition and session_filter_condition:
+            raise BadRequest(
+                "Both a filter condition and session filter condition "
+                "cannot be applied at the same time"
+            )
         return await info.context.data_loaders.annotation_summaries.load(
-            ("span", self.project_rowid, time_range, filter_condition, annotation_name),
+            (
+                "span",
+                self.project_rowid,
+                time_range or None,
+                filter_condition or None,
+                session_filter_condition or None,
+                annotation_name,
+            ),
         )
 
     @strawberry.field
@@ -680,7 +740,7 @@ class Project(Node):
     async def trace_retention_policy(
         self,
         info: Info[Context, None],
-    ) -> Annotated[ProjectTraceRetentionPolicy, lazy(".ProjectTraceRetentionPolicy")]:
+    ) -> Annotated["ProjectTraceRetentionPolicy", lazy(".ProjectTraceRetentionPolicy")]:
         from .ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
         id_ = await info.context.data_loaders.trace_retention_policy_id_by_project_id.load(
@@ -721,7 +781,7 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> SpanCountTimeSeries:
+    ) -> "SpanCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -806,7 +866,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceCountTimeSeries:
+    ) -> "TraceCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -869,7 +929,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceCountByStatusTimeSeries:
+    ) -> "TraceCountByStatusTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -962,7 +1022,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceLatencyPercentileTimeSeries:
+    ) -> "TraceLatencyPercentileTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1066,7 +1126,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceTokenCountTimeSeries:
+    ) -> "TraceTokenCountTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1149,7 +1209,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> TraceTokenCostTimeSeries:
+    ) -> "TraceTokenCostTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
@@ -1232,7 +1292,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> SpanAnnotationScoreTimeSeries:
+    ) -> "SpanAnnotationScoreTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
