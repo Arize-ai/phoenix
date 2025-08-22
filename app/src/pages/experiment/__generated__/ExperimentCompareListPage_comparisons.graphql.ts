@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2500890527e8b13fbd22ee49bf5376cb>>
+ * @generated SignedSource<<0a91c76ecb2c27c673d34a95666d8bba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareListPage_comparisons$data = {
   readonly compareExperiments: {
@@ -28,16 +27,8 @@ export type ExperimentCompareListPage_comparisons$data = {
             readonly annotations: {
               readonly edges: ReadonlyArray<{
                 readonly annotation: {
-                  readonly annotatorKind: ExperimentRunAnnotatorKind;
-                  readonly explanation: string | null;
-                  readonly id: string;
-                  readonly label: string | null;
                   readonly name: string;
                   readonly score: number | null;
-                  readonly trace: {
-                    readonly projectId: string;
-                    readonly traceId: string;
-                  } | null;
                 };
               }>;
             };
@@ -48,14 +39,8 @@ export type ExperimentCompareListPage_comparisons$data = {
               };
             };
             readonly endTime: string;
-            readonly error: string | null;
-            readonly id: string;
             readonly output: any | null;
             readonly startTime: string;
-            readonly trace: {
-              readonly projectId: string;
-              readonly traceId: string;
-            } | null;
           }>;
         }>;
       };
@@ -73,39 +58,7 @@ import ExperimentCompareListPageQuery_graphql from './ExperimentCompareListPageQ
 const node: ReaderFragment = (function(){
 var v0 = [
   "compareExperiments"
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "traceId",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "projectId",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -196,7 +149,13 @@ return {
                   "name": "example",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "id",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -248,19 +207,11 @@ return {
                       "name": "runs",
                       "plural": true,
                       "selections": [
-                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
                           "name": "output",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "error",
                           "storageKey": null
                         },
                         {
@@ -277,7 +228,6 @@ return {
                           "name": "endTime",
                           "storageKey": null
                         },
-                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -338,7 +288,6 @@ return {
                                   "name": "node",
                                   "plural": false,
                                   "selections": [
-                                    (v1/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -352,29 +301,7 @@ return {
                                       "kind": "ScalarField",
                                       "name": "score",
                                       "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "label",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "annotatorKind",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "explanation",
-                                      "storageKey": null
-                                    },
-                                    (v2/*: any*/)
+                                    }
                                   ],
                                   "storageKey": null
                                 }
@@ -455,6 +382,6 @@ return {
 };
 })();
 
-(node as any).hash = "3cb56806703575997ee43d105c6f2ba2";
+(node as any).hash = "cf13cff08fc63c5db0426e51c42585fd";
 
 export default node;

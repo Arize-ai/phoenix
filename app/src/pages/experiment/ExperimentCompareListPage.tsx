@@ -130,15 +130,9 @@ export function ExperimentCompareListPage() {
               runComparisonItems {
                 experimentId
                 runs {
-                  id
                   output
-                  error
                   startTime
                   endTime
-                  trace {
-                    traceId
-                    projectId
-                  }
                   costSummary {
                     total {
                       tokens
@@ -148,16 +142,8 @@ export function ExperimentCompareListPage() {
                   annotations {
                     edges {
                       annotation: node {
-                        id
                         name
                         score
-                        label
-                        annotatorKind
-                        explanation
-                        trace {
-                          traceId
-                          projectId
-                        }
                       }
                     }
                   }
