@@ -11,16 +11,22 @@ import {
 import { css } from "@emotion/react";
 
 import { Text, View } from "@phoenix/components";
-import {
+
+import type {
   ExperimentCompareListPage_aggregateData$data,
   ExperimentCompareListPage_aggregateData$key,
-} from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPage_aggregateData.graphql";
-
-import type { ExperimentCompareListPage_comparisons$key } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
+} from "./__generated__/ExperimentCompareListPage_aggregateData.graphql";
+import type {
+  ExperimentCompareListPage_comparisons$data,
+  ExperimentCompareListPage_comparisons$key,
+} from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
 import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 
 const PAGE_SIZE = 50;
+
+type ExperimentRun =
+  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -189,11 +195,10 @@ export function ExperimentCompareListPage() {
         const example = comparison.example;
         const runItems = comparison.runComparisonItems;
 
-        const baseExperimentRun = runItems[0].runs[0];
-        const compareExperimentRuns = runItems.slice(1).map((item) => {
-          const run = item.runs.length > 0 ? item.runs[0] : null;
-          return run;
-        });
+        const baseExperimentRun: ExperimentRun = runItems[0].runs[0];
+        const compareExperimentRuns: (ExperimentRun | undefined)[] = runItems
+          .slice(1)
+          .map((item) => item.runs[0]);
         const tableData = {
           id: example.id,
           example: example.id,
