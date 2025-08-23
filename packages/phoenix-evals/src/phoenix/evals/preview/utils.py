@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
-from glom import GlomError, PathAccessError, glom  # type: ignore
-from jsonpath_ng import JsonPathParserError, parse  # type: ignore
+from jsonpath_ng import parse  # type: ignore
+from jsonpath_ng.exceptions import JsonPathParserError
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -53,9 +53,9 @@ def remap_eval_input(
                     found = True
             else:
                 try:
-                    value = _extract_with_glom(eval_input, path)
+                    value = extract_with_jsonpath(eval_input, path)
                     found = True
-                except ValueError as e:
+                except (JsonPathParserError, ValueError) as e:
                     # Missing/invalid path: for required fields, re-raise; for optional,
                     # treat as not found
                     if field_name in required_fields:
@@ -108,32 +108,6 @@ def remap_eval_input(
     return remapped_eval_input
 
 
-def _extract_with_glom(payload: Mapping[str, Any], path: str) -> Any:
-    """
-    Extract a value from a nested JSON structure using glom.
-
-    The path is a dot-separated string with optional list indexing:
-        - Dicts: "input.query"
-        - Lists: "items.0"
-        - Mixed: "input.docs.0.title"
-
-    Returns:
-        The extracted value (can be None).
-
-    Raises:
-        ValueError: If the path is invalid (missing key, index out of bounds, etc).
-    """
-    if not path:
-        return None
-
-    try:
-        return glom(payload, path)
-    except PathAccessError:
-        raise ValueError(f"Invalid path or index out of range: '{path}'")
-    except GlomError as e:
-        raise ValueError(f"Error resolving path '{path}': {e}") from e
-
-
 def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = False) -> Any:
     """
     Extract a value from a nested JSON structure using jsonpath-ng.
@@ -150,12 +124,8 @@ def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = 
         JsonPathParserError: If the path is not parseable (invalid syntax).
         ValueError: If the path is invalid or not found (missing key, index out of bounds, etc).
     """
-    try:
-        expr = parse(path)
-    except JsonPathParserError as e:
-        raise ValueError(f"Invalid path syntax: {e}") from e
-
+    expr = parse(path)
     matches = expr.find(data)
     if not matches:
-        raise ValueError(f"Invalid path: {path}")
+        raise ValueError(f"Path not found: {path}")
     return [m.value for m in matches] if match_all else matches[0].value
