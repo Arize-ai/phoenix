@@ -15,8 +15,7 @@ export interface WithPrompt {
    */
   prompt?: string;
   /**
-   * A list of model messages. You can either use `prompt` or `messages` but not both.
-   * Uses ModelMessage format for compatibility with AI SDK v5.
+   * Disable the messages for now. Must add as a discriminated union
    */
-  messages?: Array<ModelMessage>;
+  messages: never;
 }
