@@ -278,8 +278,6 @@ class Dataset(Node):
                 func.min(models.ExperimentRunAnnotation.score),
                 func.max(models.ExperimentRunAnnotation.score),
                 func.avg(models.ExperimentRunAnnotation.score),
-                func.count(),
-                func.count(models.ExperimentRunAnnotation.error),
             )
             .join(
                 models.ExperimentRun,
@@ -300,16 +298,12 @@ class Dataset(Node):
                     min_score=min_score,
                     max_score=max_score,
                     mean_score=mean_score,
-                    count=count_,
-                    error_count=error_count,
                 )
                 async for (
                     annotation_name,
                     min_score,
                     max_score,
                     mean_score,
-                    count_,
-                    error_count,
                 ) in await session.stream(query)
             ]
 
