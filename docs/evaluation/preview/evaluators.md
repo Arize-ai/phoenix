@@ -68,7 +68,7 @@ The preview evals library provides powerful input mapping capabilities that allo
 The `input_mapping` parameter accepts several types of mappings:
 
 1. **Simple key mapping**: `{"field": "key"}` - maps evaluator field to input key
-2. **Path mapping**: `{"field": "nested.path"}` - uses spec syntax from [glom](https://glom.readthedocs.io/en/latest/tutorial.html#access-granted)
+2. **Path mapping**: `{"field": "nested.path"}` - uses JSON path syntax from [jsonpath-ng](https://pypi.org/project/jsonpath-ng/)
 3. **Callable mapping**: `{"field": lambda x: x["key"]}` - custom extraction logic
 
 ### Path Mapping Examples
@@ -83,14 +83,13 @@ input_mapping = {
 
 # Array indexing
 input_mapping = {
-    "first_doc": "input.documents.0",
-    "last_doc": "input.documents.-1"
+    "first_doc": "input.documents[0]",
+    "last_doc": "input.documents[-1]"
 }
 
 # Combined nesting and list indexing
 input_mapping = {
-    "user_query": "data.user.messages.0.content",
-    "model_response": "data.assistant.messages.0.content"
+    "user_query": "data.user.messages[0].content",
 }
 ```
 
