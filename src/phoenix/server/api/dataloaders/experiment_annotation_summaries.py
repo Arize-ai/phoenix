@@ -13,11 +13,9 @@ from phoenix.server.types import DbSessionFactory
 @dataclass
 class ExperimentAnnotationSummary:
     annotation_name: str
+    mean_score: float
     min_score: float
     max_score: float
-    mean_score: float
-    count: int
-    error_count: int
 
 
 ExperimentID: TypeAlias = int
@@ -44,8 +42,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 min_score,
                 max_score,
                 mean_score,
-                count,
-                error_count,
             ) in await session.stream(
                 select(
                     models.ExperimentRun.experiment_id,
@@ -53,8 +49,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     func.min(models.ExperimentRunAnnotation.score),
                     func.max(models.ExperimentRunAnnotation.score),
                     func.avg(models.ExperimentRunAnnotation.score),
-                    func.count(),
-                    func.count(models.ExperimentRunAnnotation.error),
                 )
                 .join(
                     models.ExperimentRun,
@@ -69,8 +63,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         min_score=min_score,
                         max_score=max_score,
                         mean_score=mean_score,
-                        count=count,
-                        error_count=error_count,
                     )
                 )
         return [
