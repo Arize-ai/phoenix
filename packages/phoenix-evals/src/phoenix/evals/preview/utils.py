@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
 from jsonpath_ng import parse  # type: ignore
-from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
