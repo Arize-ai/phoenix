@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -27,13 +27,8 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
             select(
                 models.ExperimentRun.id,
                 func.min(models.ExperimentRun.experiment_id).label("experiment_id"),
-                case(
-                    (
-                        func.count(models.ExperimentRun.id) != 0,
-                        func.count(models.ExperimentRun.error)
-                        / func.count(models.ExperimentRun.id),
-                    ),
-                    else_=None,
+                (
+                    func.count(models.ExperimentRun.error) / func.count(models.ExperimentRun.id)
                 ).label("average_repetition_error_rate"),
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
