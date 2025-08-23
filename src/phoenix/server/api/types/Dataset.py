@@ -272,13 +272,15 @@ class Dataset(Node):
         self, info: Info[Context, None]
     ) -> list[ExperimentAnnotationSummary]:
         dataset_id = self.id_attr
-        query = (
+        repetition_scores_subquery = (
             select(
-                models.ExperimentRunAnnotation.name,
-                func.min(models.ExperimentRunAnnotation.score),
-                func.max(models.ExperimentRunAnnotation.score),
-                func.avg(models.ExperimentRunAnnotation.score),
+                models.ExperimentRunAnnotation.experiment_run_id.label("experiment_run_id"),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_repetition_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_repetition_score"),
+                func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
             )
+            .select_from(models.ExperimentRunAnnotation)
             .join(
                 models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
@@ -288,23 +290,34 @@ class Dataset(Node):
                 models.ExperimentRun.experiment_id == models.Experiment.id,
             )
             .where(models.Experiment.dataset_id == dataset_id)
-            .group_by(models.ExperimentRunAnnotation.name)
-            .order_by(models.ExperimentRunAnnotation.name)
+            .group_by(
+                models.ExperimentRunAnnotation.experiment_run_id,
+                models.ExperimentRunAnnotation.name,
+            )
+            .subquery()
+            .alias("repetition_scores")
+        )
+        run_scores_query = (
+            select(
+                repetition_scores_subquery.c.annotation_name,
+                func.min(repetition_scores_subquery.c.min_repetition_score).label("min_run_score"),
+                func.max(repetition_scores_subquery.c.max_repetition_score).label("max_run_score"),
+                func.avg(repetition_scores_subquery.c.mean_repetition_score).label(
+                    "mean_run_score"
+                ),
+            )
+            .group_by(repetition_scores_subquery.c.annotation_name)
+            .order_by(repetition_scores_subquery.c.annotation_name)
         )
         async with info.context.db() as session:
             return [
                 ExperimentAnnotationSummary(
-                    annotation_name=annotation_name,
-                    min_score=min_score,
-                    max_score=max_score,
-                    mean_score=mean_score,
+                    annotation_name=scores_tuple.annotation_name,
+                    min_score=scores_tuple.min_run_score,
+                    max_score=scores_tuple.max_run_score,
+                    mean_score=scores_tuple.mean_run_score,
                 )
-                async for (
-                    annotation_name,
-                    min_score,
-                    max_score,
-                    mean_score,
-                ) in await session.stream(query)
+                async for scores_tuple in await session.stream(run_scores_query)
             ]
 
     @strawberry.field
