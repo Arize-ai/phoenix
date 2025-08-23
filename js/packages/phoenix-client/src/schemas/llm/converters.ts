@@ -38,7 +38,7 @@ export const safelyConvertMessageToProvider = <
     );
     // convert the OpenAI format to the target provider format
     return fromOpenAIMessage({ message: openAIMessage, targetProvider });
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -64,7 +64,7 @@ export const safelyConvertToolCallToProvider = <
       toolCall: openAIToolCall,
       targetProvider,
     });
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -90,7 +90,7 @@ export const safelyConvertToolDefinitionToProvider = <
       toolDefinition: openAIToolDefinition,
       targetProvider,
     });
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -116,7 +116,7 @@ export const safelyConvertToolChoiceToProvider = <
       toolChoice: openAIToolChoice,
       targetProvider,
     });
-  } catch (e) {
+  } catch {
     return null;
   }
 };

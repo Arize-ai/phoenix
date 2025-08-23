@@ -15,7 +15,7 @@ export interface WithLLM {
   model: LanguageModel;
 }
 
-export interface LLMEvaluationArgs extends WithLLM {}
+export type LLMEvaluationArgs = WithLLM;
 
 /**
  * The result of an evaluation

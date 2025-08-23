@@ -11,7 +11,7 @@
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",
     "type:check": "pnpm run -r type:check",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint",
     "build": "pnpm run -r build",
     "ci:version": "pnpm changeset version",
     "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
@@ -28,15 +28,17 @@
   "license": "ELv2",
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "eslint": "^8.57.1",
+    "@eslint/js": "^9.34.0",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
     "pkg-pr-new": "^0.0.39",
     "prettier": "^3.5.2",
     "rimraf": "^5.0.10",
     "tsc-alias": "^1.8.11",
     "typedoc": "^0.27.9",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.40.0",
     "vitest": "^2.1.9"
   },
   "engines": {
@@ -56,8 +58,6 @@
       "@babel/runtime@<7.26.10": ">=7.26.10",
       "vite@>=5.0.0 <=5.4.18": ">=5.4.19",
       "vite@>=5.0.0 <5.4.17": ">=5.4.17",
-      "brace-expansion@>=1.0.0 <=1.1.11": ">=1.1.12",
-      "brace-expansion@>=2.0.0 <=2.0.1": ">=2.0.2",
       "form-data@>=4.0.0 <4.0.4": ">=4.0.4"
     }
   }
