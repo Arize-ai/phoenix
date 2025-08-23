@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.2.0
+
+### Minor Changes
+
+- f92dab7: add name, optimization direction, etc.
+
 ## 0.1.0
 
 ### Minor Changes
