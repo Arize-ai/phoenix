@@ -1,6 +1,8 @@
 from graphql.error import GraphQLError
 from strawberry.extensions import MaskErrors
 
+from phoenix.config import get_env_mask_internal_server_errors
+
 
 class CustomGraphQLError(Exception):
     """
@@ -51,4 +53,6 @@ def _should_mask_error(error: GraphQLError) -> bool:
     """
     Masks unexpected errors raised from GraphQL resolvers.
     """
-    return not isinstance(error.original_error, CustomGraphQLError)
+    return get_env_mask_internal_server_errors() and not isinstance(
+        error.original_error, CustomGraphQLError
+    )
