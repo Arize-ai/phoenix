@@ -1,0 +1,77 @@
+site_name: Phoenix
+site_url: https://your.docs.url
+repo_url: https://github.com/Arize-ai/phoenix
+docs_dir: api_docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.instant
+    - toc.integrate
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+extra_css:
+  - styles/overrides.css
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist
+
+plugins:
+  - search
+  - section-index
+  - literate-nav
+  - gen-files:
+      scripts:
+        - api_docs/generate.py
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            members: true
+            inherited_members: true
+            show_signature: false
+            separate_signature: false
+            show_signature_annotations: false
+            show_if_no_docstring: false
+            filters:
+              - '!^_[^_]'
+            selection:
+              members:
+                - classes
+                - functions
+                - methods
+            merge_init_into_class: true
+            line_length: 100
+
+nav:
+  - Overview: index.md
+  - Guides:
+      - guides/index.md
+  - API Reference:
+      - api/index.md
+      - Phoenix:
+          - api/phoenix/index.md
+      - Phoenix Evals:
+          - api/phoenix-evals/index.md
+      - Phoenix Client:
+          - api/phoenix-client/index.md
+      - Phoenix OTEL:
+          - api/phoenix-otel/index.md
