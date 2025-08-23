@@ -17,6 +17,7 @@ export default defineConfig([
         { argsIgnorePattern: "^_" },
       ],
       "no-duplicate-imports": "error",
+      eqeqeq: ["error", "smart"],
     },
   },
   tseslint.configs.recommended,
