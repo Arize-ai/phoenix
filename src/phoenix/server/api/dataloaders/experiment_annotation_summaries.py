@@ -35,37 +35,48 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
+        repetition_scores_subquery = (
+            select(
+                models.ExperimentRunAnnotation.experiment_run_id.label("experiment_run_id"),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_repetition_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_repetition_score"),
+                func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
+                func.min(models.ExperimentRun.experiment_id).label("experiment_id"),
+            )
+            .select_from(models.ExperimentRunAnnotation)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .group_by(
+                models.ExperimentRunAnnotation.experiment_run_id,
+                models.ExperimentRunAnnotation.name,
+            )
+            .subquery()
+            .alias("repetition_scores")
+        )
+        run_scores_query = select(
+            repetition_scores_subquery.c.experiment_id,
+            repetition_scores_subquery.c.annotation_name,
+            func.min(repetition_scores_subquery.c.min_repetition_score).label("min_run_score"),
+            func.max(repetition_scores_subquery.c.max_repetition_score).label("max_run_score"),
+            func.avg(repetition_scores_subquery.c.mean_repetition_score).label("mean_run_score"),
+        ).group_by(
+            repetition_scores_subquery.c.experiment_id, repetition_scores_subquery.c.annotation_name
+        )
         async with self._db() as session:
-            async for (
-                experiment_id,
-                annotation_name,
-                min_score,
-                max_score,
-                mean_score,
-            ) in await session.stream(
-                select(
-                    models.ExperimentRun.experiment_id,
-                    models.ExperimentRunAnnotation.name,
-                    func.min(models.ExperimentRunAnnotation.score),
-                    func.max(models.ExperimentRunAnnotation.score),
-                    func.avg(models.ExperimentRunAnnotation.score),
-                )
-                .join(
-                    models.ExperimentRun,
-                    models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
-                )
-                .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-                .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
-            ):
-                summaries[experiment_id].append(
+            async for scores_tuple in await session.stream(run_scores_query):
+                summaries[scores_tuple.experiment_id].append(
                     ExperimentAnnotationSummary(
-                        annotation_name=annotation_name,
-                        min_score=min_score,
-                        max_score=max_score,
-                        mean_score=mean_score,
+                        annotation_name=scores_tuple.annotation_name,
+                        min_score=scores_tuple.min_run_score,
+                        max_score=scores_tuple.max_run_score,
+                        mean_score=scores_tuple.mean_run_score,
                     )
                 )
         return [
             sorted(summaries[experiment_id], key=lambda summary: summary.annotation_name)
-            for experiment_id in keys
+            for experiment_id in experiment_ids
         ]
