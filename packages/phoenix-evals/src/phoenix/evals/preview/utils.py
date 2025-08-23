@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
 from glom import GlomError, PathAccessError, glom  # type: ignore
+from jsonpath_ng import JsonPathParserError, parse  # type: ignore
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -131,3 +132,30 @@ def _extract_with_glom(payload: Mapping[str, Any], path: str) -> Any:
         raise ValueError(f"Invalid path or index out of range: '{path}'")
     except GlomError as e:
         raise ValueError(f"Error resolving path '{path}': {e}") from e
+
+
+def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = False) -> Any:
+    """
+    Extract a value from a nested JSON structure using jsonpath-ng.
+
+    Args:
+        data: The input dictionary to be extracted from.
+        path: The jsonpath to extract from the data.
+        match_all: If True, return a list of all matches. By default, return only the first match.
+
+    Returns:
+        The extracted value (can be None).
+
+    Raises:
+        JsonPathParserError: If the path is not parseable (invalid syntax).
+        ValueError: If the path is invalid or not found (missing key, index out of bounds, etc).
+    """
+    try:
+        expr = parse(path)
+    except JsonPathParserError as e:
+        raise ValueError(f"Invalid path syntax: {e}") from e
+
+    matches = expr.find(data)
+    if not matches:
+        raise ValueError(f"Invalid path: {path}")
+    return [m.value for m in matches] if match_all else matches[0].value
