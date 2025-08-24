@@ -8,15 +8,19 @@ from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRuns import ExperimentRuns, parse_experiment_runs_node_id
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
+    connection_from_cursors_and_nodes,
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
@@ -78,6 +82,68 @@ class Experiment(Node):
                 )
             ).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+    @strawberry.field
+    async def runs_with_repetitions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[ExperimentRuns]:
+        experiment_id = self.id_attr
+        dataset_example_ids_subquery = (
+            select(models.ExperimentRun.dataset_example_id)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .order_by(models.ExperimentRun.dataset_example_id.asc())
+            .limit(first + 1)
+            .scalar_subquery()
+        )
+        if after:
+            after_experiment_id, after_dataset_example_id = parse_experiment_runs_node_id(after)
+            if after_experiment_id != experiment_id:
+                raise BadRequest(f"Invalid after node ID: {after}")
+            dataset_example_ids_subquery = dataset_example_ids_subquery.where(
+                models.ExperimentRun.dataset_example_id > after_dataset_example_id
+            )
+        query = (
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .where(models.ExperimentRun.dataset_example_id.in_(dataset_example_ids_subquery))
+            .order_by(models.ExperimentRun.dataset_example_id.asc())
+        )
+
+        DatasetExampleId: TypeAlias = int
+        async with info.context.db() as session:
+            runs_by_example_id: dict[DatasetExampleId, list[models.ExperimentRun]] = {}
+            for run in await session.scalars(query):
+                example_id = run.dataset_example_id
+                if example_id not in runs_by_example_id:
+                    runs_by_example_id[example_id] = []
+                runs_by_example_id[example_id].append(run)
+
+        has_next_page = False
+        if first and len(runs_by_example_id) > first:
+            has_next_page = True
+            runs_by_example_id.popitem()
+
+        cursors_and_nodes: list[tuple[str, ExperimentRuns]] = []
+        for example_id, runs in runs_by_example_id.items():
+            cursor = ""  # todo
+            runs_node = ExperimentRuns(
+                experiment_id=experiment_id,
+                dataset_example_id=example_id,
+                runs=[
+                    to_gql_experiment_run(run)
+                    for run in sorted(runs, key=lambda run: run.repetition_number)
+                ],
+            )
+            cursors_and_nodes.append((cursor, runs_node))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def run_count(self, info: Info[Context, None]) -> int:
