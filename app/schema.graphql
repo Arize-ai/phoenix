@@ -1079,6 +1079,7 @@ type Experiment implements Node {
   sequenceNumber: Int!
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
   runCount: Int!
+  annotationNames: [String!]!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
   averageRunLatencyMs: Float

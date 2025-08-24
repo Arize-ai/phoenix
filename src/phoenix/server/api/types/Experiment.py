@@ -86,6 +86,11 @@ class Experiment(Node):
         return await info.context.data_loaders.experiment_run_counts.load(experiment_id)
 
     @strawberry.field
+    async def annotation_names(self, info: Info[Context, None]) -> list[str]:
+        experiment_id = self.id_attr
+        return await info.context.data_loaders.experiment_annotation_names.load(experiment_id)
+
+    @strawberry.field
     async def annotation_summaries(
         self, info: Info[Context, None]
     ) -> list[ExperimentAnnotationSummary]:
