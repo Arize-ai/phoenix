@@ -79,10 +79,10 @@ export type Evaluator = {
 };
 
 export type EvaluationResult = {
-  score: number | null;
-  label: string | null;
-  metadata: Record<string, unknown>;
-  explanation: string | null;
+  score?: number | null;
+  label?: string | null;
+  metadata?: Record<string, unknown>;
+  explanation?: string | null;
 };
 
 export interface ExperimentEvaluationRun extends Node {

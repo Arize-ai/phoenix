@@ -59,14 +59,14 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 // Create the classifier
-const evaluator = await createClassifier({
+const evaluator = await createClassificationEvaluator({
+  name: "hallucination",
   model,
   choices: { factual: 1, hallucinated: 0 },
   promptTemplate: promptTemplate,
 });
 
-// Use the classifier
-const result = await evaluator({
+const result = await evaluator.evaluate({
   output: "Arize is not open source.",
   input: "Is Arize Phoenix Open Source?",
   reference:
@@ -94,7 +94,7 @@ const hallucinationEvaluator = createHallucinationEvaluator({
 });
 
 // Use the evaluators
-const result = await hallucinationEvaluator({
+const result = await hallucinationEvaluator.evaluate({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
@@ -157,7 +157,7 @@ const hallucinationCheck = asEvaluator({
   kind: "LLM",
   evaluate: async ({ input, output }) => {
     // Use the hallucination evaluator from phoenix-evals
-    const result = await hallucinationEvaluator({
+    const result = await hallucinationEvaluator.evaluate({
       input: input.question,
       context: input.context, // Note: uses 'context' not 'reference'
       output: output,
