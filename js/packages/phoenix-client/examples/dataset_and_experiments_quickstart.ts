@@ -8,8 +8,9 @@ import {
 } from "../src/experiments";
 import { AnnotatorKind } from "../src/types/annotations";
 import { Example } from "../src/types/datasets";
-import { createDataset } from "../src/datasets/createDataset";
-
+import { createDataset } from "../src/datasets";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -18,7 +19,7 @@ if (!OPENAI_API_KEY) {
   process.exit(1);
 }
 
-const openai = new OpenAI({
+const openaiClient = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
@@ -79,7 +80,7 @@ async function main() {
       (example.input.question as string) || "No question provided";
     const messageContent = taskPromptTemplate.replace("{question}", question);
 
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: messageContent }],
     });
@@ -111,32 +112,26 @@ async function main() {
     },
   });
 
+  const concisenessEvaluator = createClassificationEvaluator<{ text: string }>({
+    model: openai("gpt-4o"),
+    name: "conciseness",
+    choices: { concise: 1.0, verbose: 0.0 },
+    promptTemplate: `Determine if the text provided is concise or verbose. A concise answer is 1-2 sentences, a verbose answer is longer and repetitive. Explain your rationale on your judgement.
+    TEXT: {{text}}
+    `,
+  });
+
   // 2. LLM-based evaluator for conciseness
   const conciseness = asEvaluator({
     name: "conciseness",
     kind: "LLM" as AnnotatorKind,
     evaluate: async ({ output }) => {
-      const prompt = `
-        Rate the following text on a scale of 0.0 to 1.0 for conciseness (where 1.0 is perfectly concise).
-        
-        TEXT: ${output}
-        
-        Return only a number between 0.0 and 1.0.
-      `;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+      const evalResult = await concisenessEvaluator.evaluate({
+        text: String(output),
       });
-
-      const scoreText = response.choices[0]?.message?.content?.trim() || "0";
-      const score = parseFloat(scoreText);
-
       return {
-        score: isNaN(score) ? 0.5 : score,
-        label: score > 0.7 ? "concise" : "verbose",
+        ...evalResult,
         metadata: {},
-        explanation: `Conciseness score: ${score}`,
       };
     },
   });
@@ -184,13 +179,13 @@ async function main() {
       const evalPromptTemplate = `
         Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
         Output only a single word (accurate or inaccurate).
-        
+
         QUESTION: {question}
-        
+
         REFERENCE_ANSWER: {reference_answer}
-        
+
         ANSWER: {answer}
-        
+
         ACCURACY (accurate / inaccurate):
       `;
 
@@ -199,7 +194,7 @@ async function main() {
         .replace("{reference_answer}", referenceAnswer)
         .replace("{answer}", String(output));
 
-      const response = await openai.chat.completions.create({
+      const response = await openaiClient.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: messageContent }],
       });
