@@ -1,5 +1,6 @@
 import gzip
 import zlib
+from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
@@ -134,6 +135,7 @@ class TraceAnnotation(V1RoutesBaseModel):
 
     def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.TraceAnnotation:
         return Precursors.TraceAnnotation(
+            datetime.now(timezone.utc),
             self.trace_id,
             models.TraceAnnotation(
                 name=self.name,

@@ -1,5 +1,6 @@
 import gzip
 from collections.abc import Callable
+from datetime import datetime, timezone
 from itertools import chain
 from typing import Any, Iterator, Optional, Union, cast
 
@@ -269,6 +270,7 @@ def _document_annotation_factory(
     Callable[..., Precursors.DocumentAnnotation],
 ]:
     return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
+        datetime.now(timezone.utc),
         span_id=str(index[span_id_idx]),
         document_position=int(index[document_position_idx]),
         obj=models.DocumentAnnotation(
@@ -280,6 +282,7 @@ def _document_annotation_factory(
 
 def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnotation]:
     return lambda **kwargs: Precursors.SpanAnnotation(
+        datetime.now(timezone.utc),
         span_id=str(span_id),
         obj=models.SpanAnnotation(**kwargs),
     )
@@ -287,6 +290,7 @@ def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnot
 
 def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
     return lambda **kwargs: Precursors.TraceAnnotation(
+        datetime.now(timezone.utc),
         trace_id=str(trace_id),
         obj=models.TraceAnnotation(**kwargs),
     )

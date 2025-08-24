@@ -174,6 +174,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
 class Precursors(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation:
+        updated_at: datetime
         span_id: str
         obj: models.SpanAnnotation
 
@@ -182,6 +183,7 @@ class Precursors(ABC):
             span_rowid: int,
         ) -> Insertables.SpanAnnotation:
             return Insertables.SpanAnnotation(
+                updated_at=self.updated_at,
                 span_id=self.span_id,
                 obj=self.obj,
                 span_rowid=span_rowid,
@@ -189,6 +191,7 @@ class Precursors(ABC):
 
     @dataclass(frozen=True)
     class TraceAnnotation:
+        updated_at: datetime
         trace_id: str
         obj: models.TraceAnnotation
 
@@ -197,6 +200,7 @@ class Precursors(ABC):
             trace_rowid: int,
         ) -> Insertables.TraceAnnotation:
             return Insertables.TraceAnnotation(
+                updated_at=self.updated_at,
                 trace_id=self.trace_id,
                 obj=self.obj,
                 trace_rowid=trace_rowid,
@@ -204,6 +208,7 @@ class Precursors(ABC):
 
     @dataclass(frozen=True)
     class DocumentAnnotation:
+        updated_at: datetime
         span_id: str
         document_position: int
         obj: models.DocumentAnnotation
@@ -213,6 +218,7 @@ class Precursors(ABC):
             span_rowid: int,
         ) -> Insertables.DocumentAnnotation:
             return Insertables.DocumentAnnotation(
+                updated_at=self.updated_at,
                 span_id=self.span_id,
                 document_position=self.document_position,
                 obj=self.obj,
@@ -223,6 +229,7 @@ class Precursors(ABC):
 class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):
+        updated_at: datetime
         span_rowid: int
         identifier: str = ""
 
@@ -230,10 +237,12 @@ class Insertables(ABC):
         def row(self) -> models.SpanAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
+            obj.updated_at = self.updated_at
             return obj
 
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
+        updated_at: datetime
         trace_rowid: int
         identifier: str = ""
 
@@ -241,10 +250,12 @@ class Insertables(ABC):
         def row(self) -> models.TraceAnnotation:
             obj = copy(self.obj)
             obj.trace_rowid = self.trace_rowid
+            obj.updated_at = self.updated_at
             return obj
 
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
+        updated_at: datetime
         span_rowid: int
         identifier: str = ""
 
@@ -252,4 +263,5 @@ class Insertables(ABC):
         def row(self) -> models.DocumentAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
+            obj.updated_at = self.updated_at
             return obj
