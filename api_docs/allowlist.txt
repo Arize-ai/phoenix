@@ -1,0 +1,13 @@
+phoenix.otel
+phoenix.client
+phoenix.client.resources.annotations
+phoenix.client.resources.datasets
+phoenix.client.resources.experiments
+phoenix.client.resources.projects
+phoenix.client.resources.prompts
+phoenix.client.resources.spans
+phoenix.client.experiments
+phoenix.client.helpers.sdk.*
+phoenix.client.helpers.spans
+phoenix.evals
+phoenix.evals.preview
