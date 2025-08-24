@@ -4,20 +4,22 @@ import type { WithPrompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { tracer } from "../telemetry";
-export interface ClassifyArgs extends WithLLM, WithPrompt, WithTelemetry {
-  /**
-   * The labels to classify the example into. E.x. ["correct", "incorrect"]
-   */
-  labels: [string, ...string[]];
-  /**
-   * The name of the schema for generating the label and explanation.
-   */
-  schemaName?: string;
-  /**
-   * The description of the schema for generating the label and explanation.
-   */
-  schemaDescription?: string;
-}
+export type ClassifyArgs = WithLLM &
+  WithTelemetry &
+  WithPrompt & {
+    /**
+     * The labels to classify the example into. E.x. ["correct", "incorrect"]
+     */
+    labels: [string, ...string[]];
+    /**
+     * The name of the schema for generating the label and explanation.
+     */
+    schemaName?: string;
+    /**
+     * The description of the schema for generating the label and explanation.
+     */
+    schemaDescription?: string;
+  };
 /**
  * A function that leverages an llm to perform a classification
  */

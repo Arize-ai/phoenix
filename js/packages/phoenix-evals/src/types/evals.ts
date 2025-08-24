@@ -15,6 +15,7 @@ export interface WithLLM {
   model: LanguageModel;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface LLMEvaluationArgs extends WithLLM {}
 
 /**
