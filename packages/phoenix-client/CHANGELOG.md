@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.3...arize-phoenix-client-v1.16.0) (2025-08-25)
+
+
+### Features
+
+* `get_spans_dataframe` sorts by newst/oldest spans ([#9173](https://github.com/Arize-ai/phoenix/issues/9173)) ([2bf5819](https://github.com/Arize-ai/phoenix/commit/2bf58194ae6be3e63d08c64ccf71a96b1e20dfdf))
+* Handle new OpenAI tool types ([#9175](https://github.com/Arize-ai/phoenix/issues/9175)) ([d6c2559](https://github.com/Arize-ai/phoenix/commit/d6c25590d11668cb2529a2173d8e3ea1df67a14e))
+
+
+### Documentation
+
+* Add explicit documentation for missing phoenix.Client methods in API reference ([#8976](https://github.com/Arize-ai/phoenix/issues/8976)) ([6cd0b1f](https://github.com/Arize-ai/phoenix/commit/6cd0b1f84f8aacd1fa2a88c31c61638c0b391818))
+* fix client python docs ([#9160](https://github.com/Arize-ai/phoenix/issues/9160)) ([bbe1300](https://github.com/Arize-ai/phoenix/commit/bbe130056dd531128a04db53a2e635df41284d7a))
+
 ## [1.15.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.2...arize-phoenix-client-v1.15.3) (2025-08-15)
 
 
