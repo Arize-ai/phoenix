@@ -193,8 +193,13 @@ failure_analysis = llm_generate(
 )
 
 # Log evaluations
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Failure State with Explanation", dataframe=failure_analysis)
+from phoenix.client import AsyncClient
+
+px_client = AsyncClient()
+await px_client.annotations.log_span_annotations_dataframe(
+    dataframe=failure_analysis,
+    annotation_name="Failure State with Explanation",
+    annotator_kind="LLM",
 )
 ```
 

@@ -118,10 +118,13 @@ def generate_phoenix_labels(
 
     test_results.set_index(sampled_df.index)
 
-    from phoenix.trace import SpanEvaluations
+    from phoenix.client import Client
 
-    px.Client().log_evaluations(
-        SpanEvaluations(eval_name="Ground Truth Labels", dataframe=test_results)
+    px_client = Client()
+    px_client.annotations.log_span_annotations_dataframe(
+        dataframe=test_results,
+        annotation_name="Ground Truth Labels",
+        annotator_kind="LLM",
     )
 
     test_results.rename(

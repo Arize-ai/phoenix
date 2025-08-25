@@ -19,7 +19,6 @@ from rich.console import Console
 
 import phoenix as px
 from phoenix.evals import OpenAIModel, llm_generate
-from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 
 load_dotenv()
@@ -101,8 +100,13 @@ def run_judge_on_traces(
 
     predictions.set_index(traces_df.index)
 
-    px.Client().log_evaluations(
-        SpanEvaluations(eval_name="LLM-as-Judge Evaluation", dataframe=predictions)
+    from phoenix.client import Client
+
+    px_client = Client()
+    px_client.annotations.log_span_annotations_dataframe(
+        dataframe=predictions,
+        annotation_name="LLM-as-Judge Evaluation",
+        annotator_kind="LLM",
     )
 
     predictions.rename(
