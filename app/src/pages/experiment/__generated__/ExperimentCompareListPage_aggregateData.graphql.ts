@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08706f2237df633b0d96058d999db88f>>
+ * @generated SignedSource<<a3d490b1ead0ec8b99fd98e3f4269d7a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,9 @@ export type ExperimentCompareListPage_aggregateData$data = {
         readonly experiment: {
           readonly annotationSummaries: ReadonlyArray<{
             readonly annotationName: string;
+            readonly maxScore: number | null;
             readonly meanScore: number | null;
+            readonly minScore: number | null;
           }>;
           readonly averageRunLatencyMs: number | null;
           readonly costSummary: {
@@ -173,6 +175,20 @@ const node: ReaderFragment = {
                               "kind": "ScalarField",
                               "name": "meanScore",
                               "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "minScore",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "maxScore",
+                              "storageKey": null
                             }
                           ],
                           "storageKey": null
@@ -198,6 +214,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "8c5eca85978d91d67f7eb76fdaa97278";
+(node as any).hash = "7a8c55e3d36ab84dee3d8f583dff635b";
 
 export default node;
