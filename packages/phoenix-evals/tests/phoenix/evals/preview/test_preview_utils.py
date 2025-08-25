@@ -1,66 +1,12 @@
 # type: ignore
 
 import pytest
+from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.preview.utils import (
-    _extract_with_glom,
+    extract_with_jsonpath,
     remap_eval_input,
 )
-
-
-class TestExtractWithGlom:
-    """Test the _extract_with_glom utility function."""
-
-    @pytest.mark.parametrize(
-        "payload,path,expected_value",
-        [
-            pytest.param({"key": "value"}, "key", "value", id="Simple key"),
-            pytest.param({"a": {"b": "c"}}, "a.b", "c", id="Nested key"),
-            pytest.param({"a": {"b": {"c": "d"}}}, "a.b.c", "d", id="Deep nested key"),
-            pytest.param({"items": ["a", "b", "c"]}, "items.0", "a", id="List index"),
-            pytest.param({"items": ["a", "b", "c"]}, "items.1", "b", id="List index with value"),
-            pytest.param(
-                {"data": {"items": ["a", "b"]}}, "data.items.0", "a", id="Nested list index"
-            ),
-            pytest.param(
-                {"items": [{"name": "item1"}, {"name": "item2"}]},
-                "items.0.name",
-                "item1",
-                id="List of objects",
-            ),
-            pytest.param(
-                {"items": [{"data": {"value": 42}}]},
-                "items.0.data.value",
-                42,
-                id="Deep nested in list",
-            ),
-            pytest.param({"items": [["a", "b"], ["c", "d"]]}, "items.0.1", "b", id="Nested lists"),
-        ],
-    )
-    def test_extract_with_path_success(self, payload, path, expected_value):
-        """Test successful value extraction from nested structure."""
-        result = _extract_with_glom(payload, path)
-        assert result == expected_value
-
-    @pytest.mark.parametrize(
-        "payload,path",
-        [
-            pytest.param({"a": {}}, "a.missing", id="Missing nested key"),
-            pytest.param({"items": []}, "items.0", id="Empty list index"),
-            pytest.param({"items": ["a"]}, "items.1", id="Index out of range"),
-            pytest.param({"a": "not_list"}, "a.0", id="Index on non-list"),
-        ],
-    )
-    def test_extract_with_path_errors(self, payload, path):
-        """Test value extraction error handling."""
-        with pytest.raises(ValueError):
-            _extract_with_glom(payload, path)
-
-    def test_extract_with_path_empty_path(self):
-        """Test that empty path returns None."""
-        payload = {"key": "value"}
-        result = _extract_with_glom(payload, "")
-        assert result is None
 
 
 class TestRemapEvalInput:
@@ -144,7 +90,7 @@ class TestRemapEvalInputAdvanced:
             pytest.param(
                 {"items": ["keep", "drop"]},
                 {"v"},
-                {"v": "items.0"},
+                {"v": "items[0]"},
                 {"v": "keep"},
                 id="bracket_index_access",
             ),
@@ -204,14 +150,14 @@ class TestRemapEvalInputAdvanced:
                 {"items": ["only-one"]},
                 {"v"},
                 {"v": "items[1]"},
-                "index out of range",
+                "not found",
                 id="index_out_of_range",
             ),
             pytest.param(
                 {"root": {}},
                 {"v"},
                 {"v": "root.missing"},
-                "Invalid path",
+                "not found",
                 id="missing_key",
             ),
         ],
@@ -220,24 +166,16 @@ class TestRemapEvalInputAdvanced:
         with pytest.raises(ValueError, match=expected_error):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-    def test_unknown_transform_raises_error(self):
-        eval_input = {"x": " A "}
-        required_fields = {"y"}
-        input_mapping = {"y": "x | unknown_transform | strip"}
-        # Invalid jq syntax should raise an error
-        with pytest.raises(ValueError):
-            remap_eval_input(eval_input, required_fields, input_mapping)
-
     def test_invalid_path_patterns_raise_error(self):
         eval_input = {"x": "value"}
         required_fields = {"y"}
 
-        # Test malformed jq syntax
+        # Test malformed syntax
         input_mapping = {"y": "x["}
-        with pytest.raises(ValueError):
+        with pytest.raises(JsonPathParserError):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-        # Test invalid jq syntax
+        # Test invalid syntax
         input_mapping = {"y": "x[abc]"}
         with pytest.raises(ValueError):
             remap_eval_input(eval_input, required_fields, input_mapping)
@@ -247,3 +185,116 @@ class TestRemapEvalInputAdvanced:
         required_fields = {"y"}
         with pytest.raises(TypeError, match="Invalid mapping"):
             remap_eval_input(eval_input, required_fields, {"y": 123})
+
+
+class TestExtractWithJsonPath:
+    """Test the extract_with_jsonpath utility function."""
+
+    @pytest.mark.parametrize(
+        "payload,path,match_all,expected_value",
+        [
+            pytest.param({"key": "value"}, "key", False, "value", id="Simple key"),
+            pytest.param({"a": {"b": "c"}}, "a.b", False, "c", id="Nested key"),
+            pytest.param({"a": {"b": {"c": "d"}}}, "a.b.c", False, "d", id="Deep nested key"),
+            pytest.param({"items": ["a", "b", "c"]}, "items[0]", False, "a", id="List index"),
+            pytest.param(
+                {"items": ["a", "b", "c"]}, "items[1]", False, "b", id="List index with value"
+            ),
+            pytest.param(
+                {"data": {"items": ["a", "b"]}},
+                "data.items[0]",
+                False,
+                "a",
+                id="Nested list index",
+            ),
+            pytest.param(
+                {"items": [{"name": "item1"}, {"name": "item2"}]},
+                "items[0].name",
+                False,
+                "item1",
+                id="List of objects",
+            ),
+            pytest.param(
+                {"items": [{"data": {"value": 42}}]},
+                "items[0].data.value",
+                False,
+                42,
+                id="Deep nested in list",
+            ),
+            pytest.param(
+                {"items": [["a", "b"], ["c", "d"]]}, "items[0][1]", False, "b", id="Nested lists"
+            ),
+            # Test case for path pointing to None value
+            pytest.param({"key": None}, "key", False, None, id="Path to None value"),
+            # Test case for match_all=True with nested object matches
+            pytest.param(
+                {"store": {"books": [{"title": "Book A"}, {"title": "Book B"}]}},
+                "store.books[*].title",
+                True,
+                ["Book A", "Book B"],
+                id="Match all nested values",
+            ),
+            # Test case for match_all=False with nested object matches
+            pytest.param(
+                {"store": {"books": [{"title": "Book A"}, {"title": "Book B"}]}},
+                "store.books[*].title",
+                False,
+                "Book A",
+                id="Match first nested value",
+            ),
+            # Test case for array return without wildcards
+            pytest.param(
+                {"store": {"books": [{"title": "Book A"}, {"title": "Book B"}]}},
+                "store.books",
+                False,
+                [{"title": "Book A"}, {"title": "Book B"}],
+                id="Return full array without wildcards",
+            ),
+            # Test case where top match is a list
+            pytest.param(
+                {"items": [1, 2, 3]},
+                "items",
+                False,
+                [1, 2, 3],
+                id="Top match is list",
+            ),
+        ],
+    )
+    def test_extract_with_path_success(self, payload, path, match_all, expected_value):
+        """Test successful value extraction from nested structure."""
+        result = extract_with_jsonpath(payload, path, match_all)
+        assert result == expected_value
+
+    @pytest.mark.parametrize(
+        "payload,path,error_type,error_match",
+        [
+            # Test case for unparseable path
+            pytest.param(
+                {"key": "value"},
+                "[invalid",
+                JsonPathParserError,
+                "Parse error",
+                id="Unparseable path",
+            ),
+            # Test case for path not found
+            pytest.param(
+                {"a": {}},
+                "a.missing",
+                ValueError,
+                "Path not found",
+                id="Missing path",
+            ),
+            # Test case for list index out of range
+            pytest.param(
+                {"items": ["a"]},
+                "items[1]",
+                ValueError,
+                "Path not found",
+                id="Index out of range",
+            ),
+        ],
+    )
+    def test_extract_with_path_errors(self, payload, path, error_type, error_match):
+        """Test error handling for various error cases."""
+        with pytest.raises(error_type, match=error_match):
+            extract_with_jsonpath(payload, path)
