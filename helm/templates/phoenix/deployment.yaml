@@ -118,6 +118,9 @@ spec:
             {{- end }}
             - name: data
               mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
 
       volumes:
         {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
@@ -138,6 +141,9 @@ spec:
         {{- else }}
         - name: data
           emptyDir: {}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
 
       {{- if .Values.serviceAccount.imagePullSecrets }}

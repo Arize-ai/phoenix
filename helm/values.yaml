@@ -508,6 +508,24 @@ securityContext:
       type: RuntimeDefault
     windowsOptions: {}
 
+# -- Extra Volumes configuration
+extraVolumes: []
+# -- example
+#- name: config-volume
+#  configMap:
+#    name: my-app-config
+#- name: cache-volume
+#  emptyDir: {}
+
+# -- Extra Volume Mounts
+extraVolumeMounts: []
+# -- example
+#- name: config-volume
+#  mountPath: /etc/config
+#  readOnly: true
+#- name: cache-volume
+#  mountPath: /app/cache
+
 # -- ServiceAccount configuration
 serviceAccount:
   # -- Create a ServiceAccount for Phoenix
