@@ -26,7 +26,7 @@ We'll provide ~2000 starter Recipe Bot traces and detailed criteria for this fai
 - **Spans**: Individual units of work (e.g., a single Recipe Bot query-response)
 - **SpanQuery**: Query language to filter and retrieve specific traces
 - **Phoenix Evals**: Framework for running LLM evaluations at scale
-- **SpanEvaluations**: Logging evaluation results back to Phoenix
+- **Client Annotations**: Logging evaluation results back to Phoenix using the new client API
 
 > **📚 Phoenix Methods Guide**: For detailed examples and usage patterns, see [phoenix_methods_guide.md](phoenix_methods_guide.md)
 
@@ -91,7 +91,7 @@ Choose the option that best fits your learning goals and available time!
   - Uses a more powerful model (e.g., GPT-4) for higher accuracy
   - Creates a detailed labeling prompt with clear Pass/Fail criteria
   - Implements robust output parsing to extract labels and explanations
-  - Logs ground truth labels back to Phoenix using SpanEvaluations
+  - Logs ground truth labels back to Phoenix using the new client API
 - **Note**: While automated labeling is faster, it introduces potential bias since you're using an LLM to create ground truth. Manual labeling is preferred for the most reliable evaluation.
 - Consider sampling a subset (150-200 traces) for labeling to manage costs
 
@@ -213,7 +213,7 @@ This repository contains a complete reference implementation showing one approac
 - Use `phoenix.otel` for automatic instrumentation of your Recipe Bot
 - Use `SpanQuery().where("span_kind == 'CHAIN'")` to retrieve traces
 - Use `llm_generate` from `phoenix.evals` for scalable evaluation
-- Use `SpanEvaluations` to log evaluation results back to Phoenix
+- Use the new client API to log evaluation results back to Phoenix
 
 > **📚 Complete Guide**: For detailed Phoenix API usage, examples, and best practices, see [phoenix_methods_guide.md](phoenix_methods_guide.md)
 
