@@ -6,6 +6,110 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
+
+**Available in Phoenix 11.26+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/timeline_view.mp4" %}
+
+Easily spot timing bottlenecks with the new trace timeline visualization.
+
+***
+
+## [08.20.2025: New Experiment and Annotation Quick Filters 🏎️](08.2025/08.20.2025-new-experiment-and-annotation-quick-filters.md)
+
+**Available in Phoenix 11.25+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/experiment_quick_filters.mp4" %}
+
+Quick filters in experiment views let you drill down by eval scores and labels to quickly spot regressions and outliers.
+
+***
+
+## [08.15.2025: Enhance Experiment Comparison Views 🧪](08.2025/08.15.2025-enhance-experiment-comparison-views.md)
+
+**Available in Phoenix 11.24+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/enhance_experiment_compare_page.png" %}
+
+***
+
+## [08.14.2025: Trace Transfer for Long-Term Storage 📦](08.2025/08.14.2025-trace-transfer-for-long-term-storage.md)
+
+**Available in Phoenix 11.23+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/transfer%20(1).mp4" %}
+
+&#x20;Transfer traces across projects for long-term storage while preserving annotations, dataset links, and full context.
+
+***
+
+## [08.12.2025: UI Design Overhauls 🎨](08.2025/08.12.2025-ui-design-overhauls.md)
+
+**Available in Phoenix 11.22+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/new_nav.mp4" %}
+
+The platform now features refreshed design elements including expandable navigation, an “Action” bar, and dynamic color contrast for clearer and more intuitive workflows.
+
+***
+
+## [08.09.2025: Day 0 Playground Support for GPT-5 🚀](08.2025/08.09.2025-playground-support-for-gpt-5.md)
+
+**Available in Phoenix 11.21+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gpt-5-release-notes.png" %}
+
+***
+
+## [08.07.2025: Improved Error Handling in Prompt Playground ⚠️](08.2025/08.07.2025-improved-error-handling-in-prompt-playground.md)
+
+**Available in Phoenix 11.20+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_error_handling.png" %}
+
+Prompt Playground experiments now provide clearer error messages, listing valid options when an input is invalid.
+
+***
+
+## [08.06.2025: Expanded Search Capabilities 🔍](08.2025/08.06.2025-expanded-search-capabilities.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/search.mp4" %}
+
+Search functionality has been enhanced across the platform. Users can now search projects, prompts, and datasets, making it easier to quickly find and access the resources they need.
+
+***
+
+## [08.05.2025: Claude Opus 4-1 Support 🤖](08.2025/08.05.2025-claude-opus-4-1-support.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/opus-4-1.mp4" %}
+
+Support for Claude Opus 4-1 is now available, enabling teams to begin experimenting and evaluating with the new model from day 0.
+
+***
+
+## [08.04.2025: Manual Project Creation & Trace Duplication 📂](08.2025/08.04.2025-manual-project-creation-and-trace-duplication.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/manual_projects.mp4" %}
+
+You can now create projects manually in the UI and duplicate traces into other projects via the SDK, making it easier to organize evaluation data and streamline workflows.
+
+***
+
+## [08.03.2025: Delete Spans via REST API 🧹](08.2025/08.03.2025-delete-spans-via-rest-api.md)
+
+**Available in Phoenix 11.18+**
+
+You can now delete spans using the REST API, enabling efficient data redaction and giving teams greater control over trace data.
+
+***
+
 ## [07.29.2025: Google GenAI Evals](07.2025/07.29.2025-google-genai-evals.md) 🌐
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png" %}
