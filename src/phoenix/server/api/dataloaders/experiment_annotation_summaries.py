@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
@@ -35,45 +35,87 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
-        repetition_scores_subquery = (
+        repetition_mean_scores_by_example_subquery = (
             select(
-                models.ExperimentRunAnnotation.experiment_run_id.label("experiment_run_id"),
+                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
-                func.min(models.ExperimentRunAnnotation.score).label("min_repetition_score"),
-                func.max(models.ExperimentRunAnnotation.score).label("max_repetition_score"),
                 func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
-                func.min(models.ExperimentRun.experiment_id).label("experiment_id"),
             )
-            .select_from(models.ExperimentRunAnnotation)
+            .select_from(models.ExperimentRun)
             .join(
-                models.ExperimentRun,
+                models.ExperimentRunAnnotation,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
             .group_by(
-                models.ExperimentRunAnnotation.experiment_run_id,
+                models.ExperimentRun.dataset_example_id,
+                models.ExperimentRun.experiment_id,
                 models.ExperimentRunAnnotation.name,
             )
             .subquery()
-            .alias("repetition_scores")
+            .alias("repetition_scores_by_example")
         )
-        run_scores_query = select(
-            repetition_scores_subquery.c.experiment_id,
-            repetition_scores_subquery.c.annotation_name,
-            func.min(repetition_scores_subquery.c.min_repetition_score).label("min_run_score"),
-            func.max(repetition_scores_subquery.c.max_repetition_score).label("max_run_score"),
-            func.avg(repetition_scores_subquery.c.mean_repetition_score).label("mean_run_score"),
-        ).group_by(
-            repetition_scores_subquery.c.experiment_id, repetition_scores_subquery.c.annotation_name
+        repetition_mean_scores_subquery = (
+            select(
+                repetition_mean_scores_by_example_subquery.c.experiment_id.label("experiment_id"),
+                repetition_mean_scores_by_example_subquery.c.annotation_name.label(
+                    "annotation_name"
+                ),
+                func.avg(repetition_mean_scores_by_example_subquery.c.mean_repetition_score).label(
+                    "mean_score"
+                ),
+            )
+            .group_by(
+                repetition_mean_scores_by_example_subquery.c.experiment_id,
+                repetition_mean_scores_by_example_subquery.c.annotation_name,
+            )
+            .subquery()
+            .alias("repetition_mean_scores")
+        )
+        repetition_min_max_scores_subquery = (
+            select(
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_score"),
+            )
+            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
+            .subquery()
+        )
+        run_scores_query = (
+            select(
+                repetition_mean_scores_subquery.c.experiment_id.label("experiment_id"),
+                repetition_mean_scores_subquery.c.annotation_name.label("annotation_name"),
+                repetition_mean_scores_subquery.c.mean_score.label("mean_score"),
+                repetition_min_max_scores_subquery.c.min_score.label("min_score"),
+                repetition_min_max_scores_subquery.c.max_score.label("max_score"),
+            )
+            .select_from(repetition_mean_scores_subquery)
+            .join(
+                repetition_mean_scores_by_example_subquery,
+                and_(
+                    repetition_mean_scores_by_example_subquery.c.experiment_id
+                    == repetition_mean_scores_by_example_subquery.c.experiment_id,
+                    repetition_mean_scores_by_example_subquery.c.annotation_name
+                    == repetition_mean_scores_subquery.c.annotation_name,
+                ),
+            )
+            .group_by(
+                repetition_mean_scores_by_example_subquery.c.experiment_id,
+                repetition_mean_scores_by_example_subquery.c.annotation_name,
+            )
+            .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
         async with self._db() as session:
             async for scores_tuple in await session.stream(run_scores_query):
                 summaries[scores_tuple.experiment_id].append(
                     ExperimentAnnotationSummary(
                         annotation_name=scores_tuple.annotation_name,
-                        min_score=scores_tuple.min_run_score,
-                        max_score=scores_tuple.max_run_score,
-                        mean_score=scores_tuple.mean_run_score,
+                        min_score=scores_tuple.min_score,
+                        max_score=scores_tuple.max_score,
+                        mean_score=scores_tuple.mean_score,
                     )
                 )
         return [
