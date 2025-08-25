@@ -119,4 +119,60 @@ describe("runExperiment (dryRun)", () => {
       expect(experiment.evaluationRuns.length).toBe(1);
     }
   });
+
+  it("runs experiments with repetitions", async () => {
+    const task = (example: Example) => `Hi, ${example.input.name}`;
+    const evaluator = asEvaluator({
+      name: "dummy",
+      kind: "CODE",
+      evaluate: async () => ({
+        label: "ok",
+        score: 1,
+        explanation: "",
+        metadata: {},
+      }),
+    });
+
+    const experiment = await runExperiment({
+      dataset: { datasetId: mockDataset.id },
+      task,
+      evaluators: [evaluator],
+      dryRun: true,
+      repetitions: 3,
+    });
+
+    // Should have 2 examples * 3 repetitions = 6 runs
+    expect(Object.keys(experiment.runs)).toHaveLength(6);
+    if (experiment.evaluationRuns) {
+      // Should have 6 runs * 1 evaluator = 6 evaluation runs
+      expect(experiment.evaluationRuns.length).toBe(6);
+    }
+  });
+
+  it("defaults to 1 repetition when not specified", async () => {
+    const task = (example: Example) => `Hi, ${example.input.name}`;
+    const evaluator = asEvaluator({
+      name: "dummy",
+      kind: "CODE",
+      evaluate: async () => ({
+        label: "ok",
+        score: 1,
+        explanation: "",
+        metadata: {},
+      }),
+    });
+
+    const experiment = await runExperiment({
+      dataset: { datasetId: mockDataset.id },
+      task,
+      evaluators: [evaluator],
+      dryRun: true,
+    });
+
+    // Should have 2 examples * 1 repetition = 2 runs
+    expect(Object.keys(experiment.runs)).toHaveLength(2);
+    if (experiment.evaluationRuns) {
+      expect(experiment.evaluationRuns.length).toBe(2);
+    }
+  });
 });
