@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -356,7 +357,10 @@ export function ExperimentCompareListPage() {
                       text-overflow: ellipsis;
                     `}
                   >
-                    <JSONText json={value.baseExperimentValue} />
+                    <JSONText
+                      json={value.baseExperimentValue}
+                      maxLength={100}
+                    />
                   </Text>
                 </Flex>
               </li>
@@ -380,7 +384,7 @@ export function ExperimentCompareListPage() {
                         text-overflow: ellipsis;
                       `}
                     >
-                      <JSONText json={value} />
+                      <JSONText json={value} maxLength={100} />
                     </Text>
                   </Flex>
                 </li>
@@ -391,7 +395,7 @@ export function ExperimentCompareListPage() {
       },
       {
         header: () => (
-          <div>
+          <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
               Tokens
             </Text>
@@ -421,7 +425,7 @@ export function ExperimentCompareListPage() {
                 );
               })}
             </ul>
-          </div>
+          </Flex>
         ),
         accessorKey: "tokens",
         cell: ({ getValue }) => {
@@ -462,7 +466,7 @@ export function ExperimentCompareListPage() {
       },
       {
         header: () => (
-          <div>
+          <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
               Latency
             </Text>
@@ -490,7 +494,7 @@ export function ExperimentCompareListPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Flex>
         ),
         accessorKey: "latencyMs",
         cell: ({ getValue }) => {
@@ -531,7 +535,7 @@ export function ExperimentCompareListPage() {
       },
       {
         header: () => (
-          <div>
+          <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
               Cost
             </Text>
@@ -559,7 +563,7 @@ export function ExperimentCompareListPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Flex>
         ),
         accessorKey: "cost",
         cell: ({ getValue }) => {
@@ -600,10 +604,15 @@ export function ExperimentCompareListPage() {
       },
       ...(annotationSummaries?.map((annotationSummary) => ({
         header: () => (
-          <div>
-            <Text size="S" weight="heavy">
-              {annotationSummary.annotationName}
-            </Text>
+          <Flex direction="column" gap="size-100">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <AnnotationColorSwatch
+                annotationName={annotationSummary.annotationName}
+              />
+              <Text size="S" weight="heavy">
+                {annotationSummary.annotationName}
+              </Text>
+            </Flex>
             <ul>
               {experiments.map((experiment, index) => {
                 const experimentAnnotationSummary =
@@ -647,7 +656,7 @@ export function ExperimentCompareListPage() {
                 );
               })}
             </ul>
-          </div>
+          </Flex>
         ),
         accessorKey: "annotations",
         cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
