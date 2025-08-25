@@ -6,38 +6,377 @@ alwaysApply: false
 
 ## Client Migration
 
-The `arize-phoenix` package consists of a sub-package named `arize-phoenix-client` which has the full functionality to communicate to the phoenix server. There is a legacy client exported at the top level of the `arize-phoenix` package that is being deprecated. Here are some common patterns that are legacy.
+The `arize-phoenix` package consists of a sub-package named `arize-phoenix-client` which has the full functionality to communicate to the phoenix server. There is a legacy client exported at the top level of the `arize-phoenix` package that is being deprecated. Here are common migration patterns.
 
-## Legacy Patterns
+## Quick Reference for LLMs
 
+**Automatic Migration Rules:**
+
+1. **Replace**: `import phoenix as px` → `from phoenix.client import Client` (or `AsyncClient`)
+2. **Replace**: `px.Client()` → `Client()` (variable name: `px_client`)
+3. **Replace**: `client.query_spans(...)` → `client.spans.get_spans_dataframe(...)`
+4. **Replace**: `client.get_spans_dataframe()` → `client.spans.get_spans_dataframe()`
+5. **Replace**: `client.upload_dataset(...)` → `client.datasets.create_dataset(...)`
+6. **Replace**: `client.get_dataset(...)` → `client.datasets.get_dataset(...)`
+7. **Replace**: `px.Client().log_evaluations(SpanEvaluations(...))` → `px_client.annotations.log_span_annotations_dataframe(...)`
+8. **Replace**: `from phoenix.experiments import` → `from phoenix.client.experiments import`
+9. **Parameter**: `project_name=` → `project_identifier=`
+10. **Parameter**: `dataset_name=` → `name=`
+11. **Parameter**: `eval_name=` → `annotation_name=`
+
+**DO NOT MIGRATE:** `DocumentEvaluations` - keep with legacy `px.Client().log_evaluations()`
+
+## Pattern Matching for LLMs
+
+**Identify Legacy Patterns (RegEx-like matching):**
+- `import phoenix as px` 
+- `px\.Client\(\)`
+- `\.query_spans\(`
+- `\.get_spans_dataframe\(\)`
+- `\.upload_dataset\(`
+- `\.get_dataset\(`
+- `\.log_evaluations\(SpanEvaluations\(`
+- `from phoenix\.experiments import`
+- `project_name\s*=`
+- `dataset_name\s*=`
+- `eval_name\s*=`
+
+**Validation Rules After Migration:**
+- ✅ Must have: `from phoenix.client import` at top
+- ✅ Must use: `px_client` as variable name (preferred)
+- ✅ Must add: `annotator_kind="LLM"` for span evaluations
+- ✅ Must await: `AsyncClient` method calls with `await`
+- ❌ No more: `import phoenix as px` (unless used for other purposes)
+- ❌ No more: `SpanEvaluations` import (unless `DocumentEvaluations` also used)
+
+## Decision Tree for LLMs
+
+**Client Type Selection:**
+```
+IF file extension == ".ipynb":
+    USE AsyncClient
+    ADD await before method calls
+ELIF file extension == ".py":
+    USE Client (synchronous)
+    NO await needed
+```
+
+**SpanEvaluations Migration:**
+```
+IF found "log_evaluations(SpanEvaluations(":
+    MIGRATE to "annotations.log_span_annotations_dataframe("
+    ADD "annotator_kind='LLM'," parameter
+    CHANGE "eval_name=" to "annotation_name="
+
+IF found "log_evaluations(DocumentEvaluations(":
+    DO NOT MIGRATE - keep legacy pattern
+```
+
+**Import Consolidation:**
+```
+IF file contains multiple phoenix.client imports:
+    CONSOLIDATE to single line: "from phoenix.client import Client, AsyncClient"
+    
+IF file uses both Client and DocumentEvaluations:
+    KEEP both imports:
+    - "import phoenix as px" (for DocumentEvaluations)
+    - "from phoenix.client import Client" (for new client)
+```
+
+## Common Error Patterns to Avoid
+
+**❌ Wrong Patterns:**
+```python
+# DON'T mix old and new imports incorrectly
+import phoenix as px
+from phoenix.client import Client
+client = px.Client()  # Should use Client()
+
+# DON'T forget await with AsyncClient
+px_client = AsyncClient()
+px_client.spans.get_spans_dataframe()  # Missing await
+
+# DON'T migrate DocumentEvaluations
+px_client.annotations.log_span_annotations_dataframe(  # Wrong!
+    DocumentEvaluations(...)
+)
+
+# DON'T forget required annotator_kind
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=df,
+    annotation_name="test"  # Missing annotator_kind="LLM"
+)
+```
+
+## Basic Client Import Patterns
+
+### Legacy Pattern
+```python
+# Complete context - typical legacy file header
+import phoenix as px
+
+# Legacy client instantiation
+client = px.Client()
+# or
+px_client = px.Client()
+```
+
+### New Patterns
+
+**Synchronous Client (for .py files):**
+```python
+# Complete context - new file header
+from phoenix.client import Client
+
+# New client instantiation
+px_client = Client()
+```
+
+**Asynchronous Client (for .ipynb notebooks):**
+```python
+# Complete context - new notebook cell
+from phoenix.client import AsyncClient
+
+# New async client instantiation  
+px_client = AsyncClient()
+```
+
+### Key Changes
+- Import path: `import phoenix as px` → `from phoenix.client import Client/AsyncClient`
+- Client instantiation: `px.Client()` → `Client()` or `AsyncClient()`
+- Recommended variable name: `px_client` (instead of generic `client`)
+
+## Client Query Patterns
+
+### Legacy Pattern
 ```python
 import phoenix as px
 
-client = px.Client()
+# Querying spans
+spans_df = px.Client().query_spans(query, project_name="my-project")
+
+# Getting spans dataframe  
+spans_df = px.Client().get_spans_dataframe()
 ```
 
-## Correct Pattherns
+### New Patterns
 
+**Synchronous:**
 ```python
 from phoenix.client import Client
+
+px_client = Client()
+spans_df = px_client.spans.get_spans_dataframe(query=query, project_identifier="my-project")
 ```
 
+**Asynchronous:**
 ```python
 from phoenix.client import AsyncClient
+
+px_client = AsyncClient()
+spans_df = await px_client.spans.get_spans_dataframe(query=query, project_identifier="my-project")
 ```
+
+### Key Changes
+- `query_spans()` → `spans.get_spans_dataframe()`
+- `get_spans_dataframe()` → `spans.get_spans_dataframe()`
+- `project_name` → `project_identifier`
+- Resource-based API: methods now accessed via `client.spans.*`
 
 ## Experiments Migration
 
 ### Legacy Pattern
-
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.experiments import run_experiment, evaluate_experiment
 ```
 
-### Correct Pattern
-
+### New Pattern
 ```python
-from phoenix.client.experiments import run_experiment
+from phoenix.client.experiments import run_experiment, evaluate_experiment
 ```
+
+### Key Changes
+- Import path: `phoenix.experiments` → `phoenix.client.experiments`
 
 ## Datasets Migration
+
+### Legacy Pattern
+```python
+import phoenix as px
+
+dataset = px.Client().upload_dataset(
+    dataframe=df,
+    dataset_name="my-dataset", 
+    input_keys=["question"],
+    output_keys=["answer"]
+)
+
+dataset = px.Client().get_dataset(name="my-dataset")
+```
+
+### New Pattern
+```python
+from phoenix.client import Client
+
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
+    dataframe=df,
+    name="my-dataset",
+    input_keys=["question"], 
+    output_keys=["answer"]
+)
+
+dataset = px_client.datasets.get_dataset(dataset="my-dataset")
+```
+
+### Key Changes
+- `upload_dataset()` → `datasets.create_dataset()`
+- `get_dataset()` → `datasets.get_dataset()`
+- `dataset_name` → `name`
+- `name` parameter → `dataset` parameter (for get_dataset)
+
+## Log Evaluation Migration
+
+### Span Evaluations (MIGRATE)
+
+**Legacy Pattern (Complete Example):**
+```python
+# Complete legacy file context
+import phoenix as px
+from phoenix.trace import SpanEvaluations
+import pandas as pd
+
+# Some evaluation dataframe
+relevance_df = pd.DataFrame({"score": [0.8, 0.9], "label": ["good", "excellent"]})
+hallucination_df = pd.DataFrame({"score": [0.1, 0.2], "label": ["low", "low"]})
+
+# Legacy single evaluation
+px.Client().log_evaluations(
+    SpanEvaluations(
+        dataframe=relevance_df,
+        eval_name="Recommendation Relevance",
+    ),
+)
+
+# Legacy multiple evaluations (single call)
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_df),
+    SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_df),
+)
+```
+
+**New Pattern (Synchronous - for .py files):**
+```python
+# Complete new file context
+from phoenix.client import Client
+import pandas as pd
+
+# Same evaluation dataframes
+relevance_df = pd.DataFrame({"score": [0.8, 0.9], "label": ["good", "excellent"]})
+hallucination_df = pd.DataFrame({"score": [0.1, 0.2], "label": ["low", "low"]})
+
+# New single evaluation
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=relevance_df,
+    annotation_name="Recommendation Relevance",
+    annotator_kind="LLM",
+)
+
+# New multiple evaluations (separate calls)
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=hallucination_df,
+    annotation_name="Hallucination", 
+    annotator_kind="LLM",
+)
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=qa_correctness_df,
+    annotation_name="QA Correctness",
+    annotator_kind="LLM", 
+)
+```
+
+**New Pattern (Asynchronous - for .ipynb notebooks):**
+```python
+# Complete new notebook cell context
+from phoenix.client import AsyncClient
+import pandas as pd
+
+# Same evaluation dataframes  
+relevance_df = pd.DataFrame({"score": [0.8, 0.9], "label": ["good", "excellent"]})
+hallucination_df = pd.DataFrame({"score": [0.1, 0.2], "label": ["low", "low"]})
+
+# New async single evaluation
+px_client = AsyncClient()
+await px_client.annotations.log_span_annotations_dataframe(
+    dataframe=relevance_df,
+    annotation_name="Recommendation Relevance",
+    annotator_kind="LLM",
+)
+
+# New async multiple evaluations (separate calls with await)
+await px_client.annotations.log_span_annotations_dataframe(
+    dataframe=hallucination_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+await px_client.annotations.log_span_annotations_dataframe(
+    dataframe=qa_correctness_df,
+    annotation_name="QA Correctness", 
+    annotator_kind="LLM",
+)
+```
+
+### Key Changes
+- `log_evaluations(SpanEvaluations(...))` → `annotations.log_span_annotations_dataframe(...)`
+- `eval_name` → `annotation_name`
+- Added required `annotator_kind` parameter
+- Multiple evaluations require separate function calls
+- Import: Remove `SpanEvaluations` import
+
+### Document Evaluations (DO NOT MIGRATE)
+
+**Keep as-is (Legacy pattern preserved):**
+```python
+import phoenix as px
+from phoenix.trace import DocumentEvaluations
+
+# Document evaluations should stay with legacy client
+px.Client().log_evaluations(
+    DocumentEvaluations(eval_name="Relevance", dataframe=relevance_df),
+)
+```
+
+## Complete Parameter Mapping Table for LLMs
+
+**SpanEvaluations Parameter Changes:**
+
+| Legacy Parameter | New Parameter | Notes |
+|-----------------|---------------|--------|
+| `eval_name` | `annotation_name` | Name of the evaluation |
+| N/A | `annotator_kind` | Required: typically "LLM" |
+| `dataframe` | `dataframe` | Same parameter name |
+
+**Complete API Transformation Table:**
+
+| Legacy Pattern | New Pattern | Key Changes |
+|----------------|-------------|-------------|
+| `px.Client().query_spans(project_name=...)` | `px_client.spans.get_spans_dataframe(project_identifier=...)` | Resource path + parameter name |
+| `px.Client().get_spans_dataframe()` | `px_client.spans.get_spans_dataframe()` | Resource path only |
+| `px.Client().upload_dataset(dataset_name=...)` | `px_client.datasets.create_dataset(name=...)` | Resource path + parameter name |
+| `px.Client().get_dataset(name=...)` | `px_client.datasets.get_dataset(dataset=...)` | Resource path + parameter name |
+| `px.Client().log_evaluations(SpanEvaluations(eval_name=...))` | `px_client.annotations.log_span_annotations_dataframe(annotation_name=..., annotator_kind="LLM")` | Resource path + parameters + required field |
+
+## Import Statement Cleanup
+
+Remove unused imports after migration:
+
+```python
+# Remove these after migration:
+from phoenix.trace import SpanEvaluations  # ❌ Remove
+import phoenix as px  # ❌ Remove if only used for Client()
+
+# Keep these:
+from phoenix.trace import DocumentEvaluations  # ✅ Keep for document evals
+import phoenix as px  # ✅ Keep if used for other functionality
+```
