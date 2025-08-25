@@ -742,6 +742,14 @@ def evaluate_dataframe(
         - "{evaluator.name}_execution_details": Details about any exceptions encountered, execution
             time, and status.
         - "{score.name}_score": JSON-serialized Score objects for each score returned
+
+    Notes:
+    - Score name collisions: If multiple evaluators return scores with the same name,
+      they will write to the same column (e.g., 'same_name_score'). This can lead to
+      data loss as later scores overwrite earlier ones.
+    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
+    - Failed evaluations: If an evaluation fails, the failure details will be recorded
+      in the execution_details column and the score will be None.
     """
     # Create a copy to avoid modifying the original dataframe
     result_df = dataframe.copy()
@@ -768,7 +776,7 @@ def evaluate_dataframe(
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
-    executor_kwargs: Dict[str, Any] = {"generation_fn": _task}
+    executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
     if tqdm_bar_format is not None:
         executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
     if exit_on_error is not None:
@@ -787,17 +795,22 @@ def evaluate_dataframe(
         return json.dumps(result)
 
     for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
-        scores = results[i]
+        # Process and add execution details to dataframe
         details = execution_details[i]
+        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
+        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
+
         # Process scores
+        if results is None:
+            continue
+        scores = results[i]
+        if scores is None:
+            continue
         for score in scores:
             score_col = f"{score.name}_score"
             if score_col not in score_lists:
                 score_lists[score_col] = [None] * len(dataframe)
             score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
-        # Process and add execution details to dataframe
-        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
 
     # Add scores to dataframe
     for score_col, score_list in score_lists.items():
