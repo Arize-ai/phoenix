@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.26.0...arize-phoenix-v11.27.0) (2025-08-25)
+
+
+### Features
+
+* extra volumes/volume mounts in helm ([#9212](https://github.com/Arize-ai/phoenix/issues/9212)) ([12d4f8a](https://github.com/Arize-ai/phoenix/commit/12d4f8addbfab64f14ebf43703b67d31c0d116ce))
+
+
+### Bug Fixes
+
+* **helm:** self-hosted database environment variable templating ([#9220](https://github.com/Arize-ai/phoenix/issues/9220)) ([a0038a0](https://github.com/Arize-ai/phoenix/commit/a0038a0a362abfa7edd8e28e1d1211f998a9d7c4))
+
 ## [11.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.25.0...arize-phoenix-v11.26.0) (2025-08-22)
 
 
