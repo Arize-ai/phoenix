@@ -286,7 +286,7 @@ class TestEvaluator:
             pytest.param(
                 {"input": "test"},
                 {"input", "output"},
-                pytest.raises(ValueError, match=r"Invalid path"),
+                pytest.raises(ValueError, match=r"Path not found"),
                 id="Missing required field raises ValueError",
             ),
             pytest.param(
