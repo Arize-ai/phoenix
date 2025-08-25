@@ -38,6 +38,16 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         experiment_ids = keys
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
         async with self._db() as session:
+            # CTE to get experiment_run_id and experiment_id pairs for the target experiments
+            experiment_runs = (
+                select(
+                    models.ExperimentRun.id,
+                    models.ExperimentRun.experiment_id,
+                )
+                .distinct()
+                .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+                .cte("experiment_runs")
+            )
             async for (
                 experiment_id,
                 annotation_name,
@@ -48,7 +58,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 error_count,
             ) in await session.stream(
                 select(
-                    models.ExperimentRun.experiment_id,
+                    experiment_runs.c.experiment_id,
                     models.ExperimentRunAnnotation.name,
                     func.min(models.ExperimentRunAnnotation.score),
                     func.max(models.ExperimentRunAnnotation.score),
@@ -56,12 +66,12 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     func.count(),
                     func.count(models.ExperimentRunAnnotation.error),
                 )
-                .join(
-                    models.ExperimentRun,
-                    models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+                .join_from(
+                    models.ExperimentRunAnnotation,
+                    experiment_runs,
+                    models.ExperimentRunAnnotation.experiment_run_id == experiment_runs.c.id,
                 )
-                .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-                .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
+                .group_by(experiment_runs.c.experiment_id, models.ExperimentRunAnnotation.name)
             ):
                 summaries[experiment_id].append(
                     ExperimentAnnotationSummary(
