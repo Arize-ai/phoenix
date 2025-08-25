@@ -14,4 +14,4 @@ max_line_length = 100
 indent_size = 2
 
 [*.ipynb]
-indent_size = 1
+indent_size = 4
