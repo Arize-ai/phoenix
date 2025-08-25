@@ -1,0 +1,43 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+## Client Migration
+
+The `arize-phoenix` package consists of a sub-package named `arize-phoenix-client` which has the full functionality to communicate to the phoenix server. There is a legacy client exported at the top level of the `arize-phoenix` package that is being deprecated. Here are some common patterns that are legacy.
+
+## Legacy Patterns
+
+```python
+import phoenix as px
+
+client = px.Client()
+```
+
+## Correct Pattherns
+
+```python
+from phoenix.client import Client
+```
+
+```python
+from phoenix.client import AsyncClient
+```
+
+## Experiments Migration
+
+### Legacy Pattern
+
+```python
+from phoenix.experiments import run_experiment
+```
+
+### Correct Pattern
+
+```python
+from phoenix.client.experiments import run_experiment
+```
+
+## Datasets Migration
