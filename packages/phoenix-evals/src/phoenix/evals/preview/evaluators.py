@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
+import pandas as pd
 from pydantic import BaseModel, ValidationError, create_model
 from typing_extensions import Mapping
 
@@ -705,3 +706,65 @@ def bind_evaluator(
 ) -> BoundEvaluator:
     """Helper to create a `BoundEvaluator` with a fixed input mapping."""
     return BoundEvaluator(evaluator, mapping)
+
+
+def evaluate_dataframe(dataframe: pd.DataFrame, evaluators: List[Evaluator]) -> pd.DataFrame:
+    """
+    Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
+
+    Args:
+        dataframe: The input dataframe to evaluate. Each row will be converted to a dict
+                  and passed to each evaluator.
+        evaluators: List of evaluators to apply to each row. Input mapping should be
+                   already bound via `bind_evaluator` or column names should match
+                   evaluator input fields.
+
+    Returns:
+        A copy of the input dataframe with additional columns for scores and exceptions.
+        For each evaluator, adds:
+        - "{evaluator.name}_exceptions": Details about any exceptions encountered
+        - "{score.name}_score": JSON-serialized Score objects for each score returned
+    """
+    # Create a copy to avoid modifying the original dataframe
+    result_df = dataframe.copy()
+
+    # Process each evaluator
+    for evaluator in evaluators:
+        evaluator_name = evaluator.name
+        exception_col = f"{evaluator_name}_exceptions"
+
+        # Pre-allocate lists for efficient assignment
+        exceptions: List[Optional[str]] = [None] * len(dataframe)
+        score_lists: Dict[str, List[Optional[str]]] = {}
+
+        # Process each row
+        for i, (idx, row) in enumerate(result_df.iterrows()):
+            try:
+                # Convert row to dict for evaluation
+                eval_input = row.to_dict()
+
+                # Evaluate the row
+                scores = evaluator.evaluate(eval_input)
+
+                # Store scores in pre-allocated lists
+                for score in scores:
+                    score_col = f"{score.name}_score"
+                    if score_col not in score_lists:
+                        score_lists[score_col] = [None] * len(dataframe)
+                    score_lists[score_col][i] = json.dumps(score.to_dict())
+
+            except Exception as e:
+                # Store exception details
+                exception_details = {
+                    "type": type(e).__name__,
+                    "message": str(e),
+                    "evaluator": evaluator_name,
+                }
+                exceptions[i] = json.dumps(exception_details)
+
+        # Assign all columns at once for this evaluator
+        result_df[exception_col] = exceptions
+        for score_col, score_list in score_lists.items():
+            result_df[score_col] = score_list
+
+    return result_df
