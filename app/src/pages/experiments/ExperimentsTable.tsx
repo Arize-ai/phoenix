@@ -577,12 +577,12 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
 
   const nonCoverage = 1 - coverage;
 
-  // Calculate the arc path for the non-coverage (missing) percentage
+  // Calculate the arc path for the non-coverage percentage (counter-clockwise)
   const nonCoverageAngle = nonCoverage * 2 * Math.PI;
   const x1 = center + radius * Math.cos(-Math.PI / 2);
   const y1 = center + radius * Math.sin(-Math.PI / 2);
-  const x2 = center + radius * Math.cos(-Math.PI / 2 + nonCoverageAngle);
-  const y2 = center + radius * Math.sin(-Math.PI / 2 + nonCoverageAngle);
+  const x2 = center + radius * Math.cos(-Math.PI / 2 - nonCoverageAngle);
+  const y2 = center + radius * Math.sin(-Math.PI / 2 - nonCoverageAngle);
 
   const largeArc = nonCoverageAngle > Math.PI ? 1 : 0;
 
@@ -594,18 +594,18 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
         flex-shrink: 0;
       `}
     >
-      {/* Background circle (good coverage) */}
+      {/* Background circle */}
       <circle
         cx={center}
         cy={center}
         r={radius}
-        fill="var(--ac-global-color-success)"
-        opacity={0.3}
+        fill="var(--ac-global-color-grey-300)"
+        opacity={0.5}
       />
-      {/* Non-coverage arc (bad - missing data) */}
+      {/* Non-coverage arc (missing data - warning color) */}
       {nonCoverage > 0 && (
         <path
-          d={`M ${center},${center} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},1 ${x2},${y2} Z`}
+          d={`M ${center},${center} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},0 ${x2},${y2} Z`}
           fill="var(--ac-global-color-warning)"
           opacity={0.8}
         />
