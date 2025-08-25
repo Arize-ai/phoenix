@@ -41,3 +41,25 @@ from phoenix.client.experiments import run_experiment
 ```
 
 ## Datasets Migration
+
+
+## Log Evaluation Migration (For Span Evaluations)
+
+### Before
+```python
+client.log_evaluations(
+    SpanEvaluations(
+        dataframe=relevance_df,
+        eval_name="Recommendation Relevance",
+    ),
+)
+```
+
+### After
+```python
+client.annotations.log_span_annotations_dataframe(
+    dataframe=relevance_df,
+    annotation_name="Recommendation Relevance",
+    annotator_kind="LLM",
+)
+```
