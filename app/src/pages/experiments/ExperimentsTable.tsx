@@ -177,6 +177,8 @@ export function ExperimentsTable({
                 annotationSummaries {
                   annotationName
                   meanScore
+                  count
+                  errorCount
                 }
               }
             }
@@ -191,12 +193,25 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            acc[summary.annotationName] = summary;
+            const coverage =
+              edge.experiment.runCount > 0
+                ? (summary.count - summary.errorCount) /
+                  edge.experiment.runCount
+                : 0;
+            acc[summary.annotationName] = {
+              ...summary,
+              coverage,
+            };
             return acc;
           },
           {} as Record<
             string,
-            { annotationName: string; meanScore: number | null } | undefined
+            | {
+                annotationName: string;
+                meanScore: number | null;
+                coverage: number;
+              }
+            | undefined
           >
         );
         return {
@@ -303,6 +318,7 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
+              coverage={annotation.coverage}
             />
           );
         },
@@ -553,16 +569,63 @@ export function ExperimentsTable({
   );
 }
 
+function CoveragePieChart({ coverage }: { coverage: number }) {
+  const size = 16;
+  const strokeWidth = 2;
+  const center = size / 2;
+  const radius = center - strokeWidth / 2;
+
+  const nonCoverage = 1 - coverage;
+
+  // Calculate the arc path for the non-coverage (missing) percentage
+  const nonCoverageAngle = nonCoverage * 2 * Math.PI;
+  const x1 = center + radius * Math.cos(-Math.PI / 2);
+  const y1 = center + radius * Math.sin(-Math.PI / 2);
+  const x2 = center + radius * Math.cos(-Math.PI / 2 + nonCoverageAngle);
+  const y2 = center + radius * Math.sin(-Math.PI / 2 + nonCoverageAngle);
+
+  const largeArc = nonCoverageAngle > Math.PI ? 1 : 0;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      css={css`
+        flex-shrink: 0;
+      `}
+    >
+      {/* Background circle (good coverage) */}
+      <circle
+        cx={center}
+        cy={center}
+        r={radius}
+        fill="var(--ac-global-color-success)"
+        opacity={0.3}
+      />
+      {/* Non-coverage arc (bad - missing data) */}
+      {nonCoverage > 0 && (
+        <path
+          d={`M ${center},${center} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},1 ${x2},${y2} Z`}
+          fill="var(--ac-global-color-warning)"
+          opacity={0.8}
+        />
+      )}
+    </svg>
+  );
+}
+
 function AnnotationAggregationCell({
   annotationName,
   value,
   min,
   max,
+  coverage,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
+  coverage: number;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(() => {
@@ -590,6 +653,7 @@ function AnnotationAggregationCell({
             gap: var(--ac-global-dimension-size-100);
           `}
         >
+          {coverage < 1.0 && <CoveragePieChart coverage={coverage} />}
           {floatFormatter(value)}
           <ProgressBar
             width="40px"
@@ -629,6 +693,24 @@ function AnnotationAggregationCell({
               <Text size="XS">{formatPercent(percentile)}</Text>
             </Flex>
           </Flex>
+          {coverage < 1.0 && (
+            <Flex direction="column" marginTop="size-100">
+              <View
+                borderTopWidth="thin"
+                borderTopColor="default"
+                paddingTop="size-100"
+              >
+                <Flex justifyContent="space-between">
+                  <Text weight="heavy" size="XS" color="warning">
+                    Missing Data
+                  </Text>
+                  <Text size="XS" color="warning">
+                    {formatPercent((1 - coverage) * 100)}
+                  </Text>
+                </Flex>
+              </View>
+            </Flex>
+          )}
         </View>
       </RichTooltip>
     </TooltipTrigger>

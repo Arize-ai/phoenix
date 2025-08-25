@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f917feb73d6e2216ca487b48cd764a30>>
+ * @generated SignedSource<<05d4d5f8462775a4d5150883e5aeeb32>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,8 @@ export type ExperimentsTableFragment$data = {
       readonly experiment: {
         readonly annotationSummaries: ReadonlyArray<{
           readonly annotationName: string;
+          readonly count: number;
+          readonly errorCount: number;
           readonly meanScore: number | null;
         }>;
         readonly averageRunLatencyMs: number | null;
@@ -316,6 +318,20 @@ return {
                       "kind": "ScalarField",
                       "name": "meanScore",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "count",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "errorCount",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -385,6 +401,6 @@ return {
 };
 })();
 
-(node as any).hash = "16ce70643d51625535b16f5cb137c142";
+(node as any).hash = "357028b833d3db5992481041ea2bc922";
 
 export default node;
