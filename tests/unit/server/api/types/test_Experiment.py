@@ -52,13 +52,16 @@ async def test_runs_resolver_returns_runs_for_experiment(
             runs {
               edges {
                 run: node {
-                  id
-                  experimentId
-                  traceId
-                  output
-                  startTime
-                  endTime
-                  error
+                  repetitions {
+                    id
+                    repetitionNumber
+                    experimentId
+                    traceId
+                    output
+                    startTime
+                    endTime
+                    error
+                  }
                 }
               }
             }
@@ -79,35 +82,62 @@ async def test_runs_resolver_returns_runs_for_experiment(
                 "edges": [
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": 12345,
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
+                            "repetitions": [
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(1))
+                                    ),
+                                    "repetitionNumber": 1,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": None,
+                                    "output": "run-1-output-value",
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                }
+                            ]
                         }
                     },
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(2))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": "trace-id",
-                            "output": {"run-2-output-key": "run-2-output-value"},
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
+                            "repetitions": [
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(2))
+                                    ),
+                                    "repetitionNumber": 1,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": "trace-id",
+                                    "output": {"run-2-output-key": "run-2-output-value"},
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                }
+                            ]
                         }
                     },
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": "run-1-output-value",
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
+                            "repetitions": [
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(3))
+                                    ),
+                                    "repetitionNumber": 1,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": None,
+                                    "output": 12345,
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                }
+                            ]
                         }
                     },
                 ]
@@ -469,14 +499,19 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
         )
 
         # insert example
-        example_id = await session.scalar(
-            insert(models.DatasetExample)
-            .values(
-                dataset_id=dataset_id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        example_ids = []
+        for _ in range(3):
+            example_id = await session.scalar(
+                insert(models.DatasetExample)
+                .values(
+                    dataset_id=dataset_id,
+                    created_at=datetime(
+                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                    ),
+                )
+                .returning(models.DatasetExample.id)
             )
-            .returning(models.DatasetExample.id)
-        )
+            example_ids.append(example_id)
 
         # insert version
         version_id = await session.scalar(
@@ -490,18 +525,19 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
         )
 
         # insert revision
-        await session.scalar(
-            insert(models.DatasetExampleRevision)
-            .returning(models.DatasetExampleRevision.id)
-            .values(
-                dataset_example_id=example_id,
-                dataset_version_id=version_id,
-                input={"input": "first-input"},
-                output={"output": "first-output"},
-                metadata_={"metadata": "first-metadata"},
-                revision_kind="CREATE",
+        for example_id in example_ids:
+            await session.scalar(
+                insert(models.DatasetExampleRevision)
+                .returning(models.DatasetExampleRevision.id)
+                .values(
+                    dataset_example_id=example_id,
+                    dataset_version_id=version_id,
+                    input={"input": "first-input"},
+                    output={"output": "first-output"},
+                    metadata_={"metadata": "first-metadata"},
+                    revision_kind="CREATE",
+                )
             )
-        )
 
         # insert experiment
         experiment_id = await session.scalar(
@@ -523,7 +559,7 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             .returning(models.ExperimentRun.id)
             .values(
                 experiment_id=experiment_id,
-                dataset_example_id=example_id,
+                dataset_example_id=example_ids[0],
                 output={"task_output": "run-1-output-value"},
                 repetition_number=1,
                 start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
@@ -537,10 +573,10 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             .returning(models.ExperimentRun.id)
             .values(
                 experiment_id=experiment_id,
-                dataset_example_id=example_id,
+                dataset_example_id=example_ids[1],
                 output={"task_output": {"run-2-output-key": "run-2-output-value"}},
                 trace_id="trace-id",
-                repetition_number=2,
+                repetition_number=1,
                 start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             )
@@ -552,10 +588,10 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             .returning(models.ExperimentRun.id)
             .values(
                 experiment_id=experiment_id,
-                dataset_example_id=example_id,
+                dataset_example_id=example_ids[2],
                 output={"task_output": 12345},
                 trace_id="non-existent-trace-id",
-                repetition_number=3,
+                repetition_number=1,
                 start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             )

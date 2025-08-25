@@ -11,14 +11,14 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
-async def test_annotations_resolver_returns_annotations_for_run(
+async def test_annotations_resolver_returns_annotations_for_repetition(
     gql_client: AsyncGraphQLClient,
     experiment_run_with_annotations: Any,
 ) -> None:
     query = """
-      query ($runId: ID!) {
-        run: node(id: $runId) {
-          ... on ExperimentRun {
+      query ($repetitionId: ID!) {
+        repetition: node(id: $repetitionId) {
+          ... on ExperimentRepetition {
             annotations {
               edges {
                 annotation: node {
@@ -42,12 +42,12 @@ async def test_annotations_resolver_returns_annotations_for_run(
     response = await gql_client.execute(
         query=query,
         variables={
-            "runId": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
+            "repetitionId": str(GlobalID(type_name="ExperimentRepetition", node_id=str(1))),
         },
     )
     assert not response.errors
     assert response.data == {
-        "run": {
+        "repetition": {
             "annotations": {
                 "edges": [
                     {

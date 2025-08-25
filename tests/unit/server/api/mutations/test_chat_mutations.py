@@ -6,7 +6,7 @@ from vcr.request import Request
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentRepetition import ExperimentRepetition
 from phoenix.server.experiments.utils import is_experiment_project_name
 
 from ....graphql import AsyncGraphQLClient
@@ -99,7 +99,7 @@ class TestChatCompletionMutationMixin:
                     GlobalID(type_name=DatasetExample.__name__, node_id=str(i))
                 )
                 assert example["experimentRunId"] == str(
-                    GlobalID(type_name=ExperimentRun.__name__, node_id=str(i))
+                    GlobalID(type_name=ExperimentRepetition.__name__, node_id=str(i))
                 )
                 assert (result := example["result"])
                 if result["__typename"] == "ChatCompletionMutationError":

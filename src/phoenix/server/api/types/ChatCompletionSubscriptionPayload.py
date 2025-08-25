@@ -4,7 +4,7 @@ import strawberry
 from strawberry.relay import GlobalID
 
 from .Experiment import Experiment
-from .ExperimentRun import ExperimentRun
+from .ExperimentRepetition import ExperimentRepetition
 from .Span import Span
 
 
@@ -33,7 +33,7 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 @strawberry.type
 class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
     span: Optional[Span] = None
-    experiment_run: Optional[ExperimentRun] = None
+    experiment_run: Optional[ExperimentRepetition] = None
 
 
 @strawberry.type

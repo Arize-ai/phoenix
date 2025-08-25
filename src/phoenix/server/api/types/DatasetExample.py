@@ -12,7 +12,10 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRepetition import (
+    ExperimentRepetition,
+    to_gql_experiment_repetition,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -65,7 +68,7 @@ class DatasetExample(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-    ) -> Connection[ExperimentRun]:
+    ) -> Connection[ExperimentRepetition]:
         args = ConnectionArgs(
             first=first,
             after=after if isinstance(after, CursorString) else None,
@@ -82,4 +85,4 @@ class DatasetExample(Node):
         )
         async with info.context.db() as session:
             runs = (await session.scalars(query)).all()
-        return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+        return connection_from_list([to_gql_experiment_repetition(run) for run in runs], args)
