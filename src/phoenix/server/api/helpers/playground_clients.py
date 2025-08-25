@@ -23,13 +23,31 @@ from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
-from phoenix.evals.models.rate_limiters import (
-    AsyncCallable,
-    GenericType,
-    ParameterSpec,
-    RateLimiter,
-    RateLimitError,
-)
+# Conditional imports for evals package
+try:
+    from phoenix.evals.models.rate_limiters import (
+        AsyncCallable,
+        GenericType,
+        ParameterSpec,
+        RateLimiter,
+        RateLimitError,
+    )
+    _evals_available = True
+except ImportError:
+    _evals_available = False
+    # Provide dummy implementations for when evals is not available
+    from typing import Any, Callable, TypeVar
+    
+    AsyncCallable = Callable
+    GenericType = TypeVar('GenericType')
+    ParameterSpec = TypeVar('ParameterSpec')
+    
+    class RateLimiter:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            raise ImportError("phoenix.evals package is not available")
+    
+    class RateLimitError(Exception):
+        pass
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
