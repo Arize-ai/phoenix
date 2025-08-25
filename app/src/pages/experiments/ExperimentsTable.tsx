@@ -197,7 +197,7 @@ export function ExperimentsTable({
               edge.experiment.runCount > 0
                 ? (summary.count - summary.errorCount) /
                   edge.experiment.runCount
-                : 0;
+                : null;
             acc[summary.annotationName] = {
               ...summary,
               coverage,
@@ -209,7 +209,7 @@ export function ExperimentsTable({
             | {
                 annotationName: string;
                 meanScore: number | null;
-                coverage: number;
+                coverage: number | null;
               }
             | undefined
           >
@@ -625,7 +625,7 @@ function AnnotationAggregationCell({
   value: number;
   min?: number | null;
   max?: number | null;
-  coverage: number;
+  coverage: number | null;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(() => {
@@ -653,7 +653,9 @@ function AnnotationAggregationCell({
             gap: var(--ac-global-dimension-size-100);
           `}
         >
-          {coverage < 1.0 && <CoveragePieChart coverage={coverage} />}
+          {coverage !== null && coverage < 1.0 && (
+            <CoveragePieChart coverage={coverage} />
+          )}
           {floatFormatter(value)}
           <ProgressBar
             width="40px"
@@ -693,7 +695,7 @@ function AnnotationAggregationCell({
               <Text size="XS">{formatPercent(percentile)}</Text>
             </Flex>
           </Flex>
-          {coverage < 1.0 && (
+          {coverage !== null && coverage < 1.0 && (
             <Flex direction="column" marginTop="size-100">
               <View
                 borderTopWidth="thin"
