@@ -150,13 +150,13 @@ async def test_prompts_without_filter(
     assert "production_prompt" in prompt_names
 
 
-async def test_compare_experiments_returns_expected_comparisons(
+async def test_experiment_run_comparisons_returns_expected_comparisons(
     gql_client: AsyncGraphQLClient,
     comparison_experiments: Any,
 ) -> None:
     query = """
       query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
-        compareExperiments(
+        experimentRunComparisons(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
           first: $first
@@ -172,9 +172,8 @@ async def test_compare_experiments_returns_expected_comparisons(
                   metadata
                 }
               }
-              runComparisonItems {
-                experimentId
-                runs {
+              runs {
+                repetitions {
                   id
                   output
                 }
@@ -198,7 +197,7 @@ async def test_compare_experiments_returns_expected_comparisons(
     )
     assert not response.errors
     assert response.data == {
-        "compareExperiments": {
+        "experimentRunComparisons": {
             "edges": [
                 {
                     "node": {
@@ -212,29 +211,26 @@ async def test_compare_experiments_returns_expected_comparisons(
                                 },
                             },
                         },
-                        "runComparisonItems": [
+                        "runs": [
                             {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
+                                "repetitions": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(4))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(4))),
                                         "output": "",
                                     },
                                 ],
                             },
                             {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [],
+                                "repetitions": [],
                             },
                             {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [
+                                "repetitions": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(7))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(7))),
                                         "output": "run-7-output-value",
                                     },
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(8))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(8))),
                                         "output": 8,
                                     },
                                 ],
@@ -254,34 +250,31 @@ async def test_compare_experiments_returns_expected_comparisons(
                                 },
                             },
                         },
-                        "runComparisonItems": [
+                        "runs": [
                             {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
+                                "repetitions": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(3))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(3))),
                                         "output": 3,
                                     },
                                 ],
                             },
                             {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [
+                                "repetitions": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(1))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(1))),
                                         "output": {"output": "run-1-output-value"},
                                     },
                                 ],
                             },
                             {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [
+                                "repetitions": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(5))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(5))),
                                         "output": None,
                                     },
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(6))),
+                                        "id": str(GlobalID("ExperimentRepetition", str(6))),
                                         "output": {"output": "run-6-output-value"},
                                     },
                                 ],
@@ -332,7 +325,7 @@ async def test_compare_experiments_validation_errors(
 ) -> None:
     query = """
       query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
-        compareExperiments(
+        experimentRunComparisons(
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
           first: $first

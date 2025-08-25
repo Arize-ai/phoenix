@@ -282,7 +282,7 @@ interface ChatCompletionSubscriptionPayload {
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   span: Span
-  experimentRun: ExperimentRun
+  experimentRun: ExperimentRepetition
 }
 
 type ChatCompletionToolCall {
@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRepetitionConnection!
 }
 
 """A connection to a list of items."""
@@ -1083,8 +1083,7 @@ type Experiment implements Node {
 
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
-  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
-  runsWithRepetitions(first: Int = 50, after: String): ExperimentRunsConnection!
+  runs(first: Int = 50, after: String): ExperimentRunConnection!
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
@@ -1102,31 +1101,6 @@ type ExperimentAnnotationSummary {
   meanScore: Float
   count: Int!
   errorCount: Int!
-}
-
-type ExperimentComparison implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  example: DatasetExample!
-  runComparisonItems: [RunComparisonItem!]!
-}
-
-"""A connection to a list of items."""
-type ExperimentComparisonConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExperimentComparisonEdge!]!
-}
-
-"""An edge in a connection."""
-type ExperimentComparisonEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ExperimentComparison!
 }
 
 """A connection to a list of items."""
@@ -1151,7 +1125,7 @@ type ExperimentMutationPayload {
   experiments: [Experiment!]!
 }
 
-type ExperimentRun implements Node {
+type ExperimentRepetition implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
@@ -1166,6 +1140,30 @@ type ExperimentRun implements Node {
   example: DatasetExample!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+}
+
+"""A connection to a list of items."""
+type ExperimentRepetitionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRepetitionEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRepetitionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRepetition!
+}
+
+type ExperimentRun implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  repetitions: [ExperimentRepetition!]!
 }
 
 type ExperimentRunAnnotation implements Node {
@@ -1206,6 +1204,31 @@ enum ExperimentRunAnnotatorKind {
   LLM
   HUMAN
   CODE
+}
+
+type ExperimentRunComparison implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  example: DatasetExample!
+  runs: [ExperimentRun!]!
+}
+
+"""A connection to a list of items."""
+type ExperimentRunComparisonConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRunComparisonEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRunComparisonEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRunComparison!
 }
 
 """A connection to a list of items."""
@@ -1256,30 +1279,6 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
-}
-
-type ExperimentRuns implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  runs: [ExperimentRun!]!
-}
-
-"""A connection to a list of items."""
-type ExperimentRunsConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExperimentRunsEdge!]!
-}
-
-"""An edge in a connection."""
-type ExperimentRunsEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ExperimentRuns!
 }
 
 type ExportedFile {
@@ -2140,7 +2139,7 @@ type Query {
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
+  experimentRunComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentRunComparisonConnection!
   experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
@@ -2213,11 +2212,6 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
-}
-
-type RunComparisonItem {
-  experimentId: ID!
-  runs: [ExperimentRun!]!
 }
 
 enum ScalarDriftMetric {

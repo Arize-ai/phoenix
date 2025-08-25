@@ -15,13 +15,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.ExperimentRuns import ExperimentRuns, parse_experiment_runs_node_id
+from phoenix.server.api.types.ExperimentRepetition import to_gql_experiment_repetition
+from phoenix.server.api.types.ExperimentRun import ExperimentRun, parse_experiment_runs_node_id
 from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
     CursorString,
     connection_from_cursors_and_nodes,
-    connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
@@ -59,37 +57,8 @@ class Experiment(Node):
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
     ) -> Connection[ExperimentRun]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-        experiment_id = self.id_attr
-        async with info.context.db() as session:
-            runs = (
-                await session.scalars(
-                    select(models.ExperimentRun)
-                    .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .order_by(models.ExperimentRun.id.desc())
-                    .options(
-                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                    )
-                )
-            ).all()
-        return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
-
-    @strawberry.field
-    async def runs_with_repetitions(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        after: Optional[CursorString] = UNSET,
-    ) -> Connection[ExperimentRuns]:
         experiment_id = self.id_attr
         dataset_example_ids_subquery = (
             select(models.ExperimentRun.dataset_example_id)
@@ -110,6 +79,7 @@ class Experiment(Node):
             .where(models.ExperimentRun.experiment_id == experiment_id)
             .where(models.ExperimentRun.dataset_example_id.in_(dataset_example_ids_subquery))
             .order_by(models.ExperimentRun.dataset_example_id.asc())
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
         )
 
         DatasetExampleId: TypeAlias = int
@@ -126,14 +96,14 @@ class Experiment(Node):
             has_next_page = True
             runs_by_example_id.popitem()
 
-        cursors_and_nodes: list[tuple[str, ExperimentRuns]] = []
+        cursors_and_nodes: list[tuple[str, ExperimentRun]] = []
         for example_id, runs in runs_by_example_id.items():
             cursor = ""  # todo
-            runs_node = ExperimentRuns(
+            runs_node = ExperimentRun(
                 experiment_id=experiment_id,
                 dataset_example_id=example_id,
-                runs=[
-                    to_gql_experiment_run(run)
+                repetitions=[
+                    to_gql_experiment_repetition(run)
                     for run in sorted(runs, key=lambda run: run.repetition_number)
                 ],
             )

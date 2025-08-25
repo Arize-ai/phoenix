@@ -125,7 +125,7 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
                 "edges": [
                     {
                         "run": {
-                            "id": str(GlobalID("ExperimentRun", str(2))),
+                            "id": str(GlobalID("ExperimentRepetition", str(2))),
                             "traceId": None,
                             "output": {"output": "experiment-2-run-1-output"},
                             "startTime": "2020-01-01T00:00:00+00:00",
@@ -135,7 +135,7 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
                     },
                     {
                         "run": {
-                            "id": str(GlobalID("ExperimentRun", str(1))),
+                            "id": str(GlobalID("ExperimentRepetition", str(1))),
                             "traceId": None,
                             "output": "experiment-1-run-1-output",
                             "startTime": "2020-01-01T00:00:00+00:00",
