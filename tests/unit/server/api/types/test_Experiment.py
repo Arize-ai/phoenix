@@ -734,7 +734,7 @@ async def experiments_with_runs_and_annotations(
                 start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                 end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
             )
-            for run in second_experiment_runs[2:]
+            for run in second_experiment_runs
         ]
         session.add_all(first_experiment_annotation_name_1_annotations)
         session.add_all(first_experiment_annotation_name_2_annotations)
