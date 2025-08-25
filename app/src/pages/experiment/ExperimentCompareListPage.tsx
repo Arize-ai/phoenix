@@ -106,6 +106,11 @@ export function ExperimentCompareListPage() {
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
+              experimentAnnotationSummaries {
+                annotationName
+                minScore
+                maxScore
+              }
               experiments(filterIds: $experimentIds) {
                 edges {
                   experiment: node {
@@ -120,9 +125,6 @@ export function ExperimentCompareListPage() {
                     annotationSummaries {
                       annotationName
                       meanScore
-                      # TODO: may need to update this to make sure we're fetching the min/max across all experiments
-                      minScore
-                      maxScore
                     }
                   }
                 }
@@ -201,11 +203,16 @@ export function ExperimentCompareListPage() {
     return orderedExperiments;
   }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
 
-  const baseExperimentAnnotationSummaries = useMemo(() => {
+  const annotationSummaries = useMemo(() => {
     const baseExperiment =
       aggregateData?.dataset.experiments?.edges[0]?.experiment;
-    return baseExperiment?.annotationSummaries ?? [];
-  }, [aggregateData?.dataset.experiments?.edges]);
+    return aggregateData?.dataset.experimentAnnotationSummaries?.filter(
+      (summary) =>
+        baseExperiment?.annotationSummaries?.some(
+          (annotation) => annotation.annotationName === summary.annotationName
+        )
+    );
+  }, [aggregateData?.dataset]);
 
   const tableData: TableRow[] = useMemo(() => {
     return (
@@ -591,7 +598,7 @@ export function ExperimentCompareListPage() {
           );
         },
       },
-      ...(baseExperimentAnnotationSummaries.map((annotationSummary) => ({
+      ...(annotationSummaries?.map((annotationSummary) => ({
         header: () => (
           <div>
             <Text size="S" weight="heavy">
@@ -718,12 +725,7 @@ export function ExperimentCompareListPage() {
         },
       })) ?? []),
     ],
-    [
-      baseExperimentAnnotationSummaries,
-      experiments,
-      getExperimentColor,
-      baseExperimentColor,
-    ]
+    [annotationSummaries, experiments, getExperimentColor, baseExperimentColor]
   );
 
   const table = useReactTable({
