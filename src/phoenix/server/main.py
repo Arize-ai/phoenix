@@ -255,20 +255,17 @@ def main() -> None:
     serve_parser.add_argument(
         "--with-fixture",
         type=str,
-        default="",
         choices=available_fixtures,
         help="Load sample inference data from fixture"
     )
     serve_parser.add_argument(
         "--with-trace-fixtures",
         type=str,
-        default="",
         help="Load trace data from fixtures (comma-separated)"
     )
     serve_parser.add_argument(
         "--with-projects",
         type=str,
-        default="",
         help="Load all fixtures for specific projects (comma-separated)"
     )
     serve_parser.add_argument(
