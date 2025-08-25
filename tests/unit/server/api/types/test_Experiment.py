@@ -440,126 +440,98 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
     non-existent trace.
     """
     async with db() as session:
-        # insert project
-        project_id = await session.scalar(
-            insert(models.Project).values(name="project-name").returning(models.Project.id)
-        )
+        project = models.Project(name="project-name")
+        session.add(project)
+        await session.flush()
 
-        # insert trace
-        await session.scalar(
-            insert(models.Trace)
-            .values(
-                trace_id="trace-id",
-                project_rowid=project_id,
-                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
-            )
-            .returning(models.Trace.id)
+        trace = models.Trace(
+            trace_id="trace-id",
+            project_rowid=project.id,
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
         )
+        session.add(trace)
+        await session.flush()
 
-        # insert dataset
-        dataset_id = await session.scalar(
-            insert(models.Dataset)
-            .returning(models.Dataset.id)
-            .values(
-                name="dataset-name",
-                description="dataset-description",
-                metadata_={"dataset-metadata-key": "dataset-metadata-value"},
-            )
+        dataset = models.Dataset(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
         )
+        session.add(dataset)
+        await session.flush()
 
-        # insert example
-        example_id = await session.scalar(
-            insert(models.DatasetExample)
-            .values(
-                dataset_id=dataset_id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            )
-            .returning(models.DatasetExample.id)
+        example = models.DatasetExample(
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
+        session.add(example)
+        await session.flush()
 
-        # insert version
-        version_id = await session.scalar(
-            insert(models.DatasetVersion)
-            .returning(models.DatasetVersion.id)
-            .values(
-                dataset_id=dataset_id,
-                description="original-description",
-                metadata_={"metadata": "original-metadata"},
-            )
+        version = models.DatasetVersion(
+            dataset_id=dataset.id,
+            description="original-description",
+            metadata_={"metadata": "original-metadata"},
         )
+        session.add(version)
+        await session.flush()
 
-        # insert revision
-        await session.scalar(
-            insert(models.DatasetExampleRevision)
-            .returning(models.DatasetExampleRevision.id)
-            .values(
-                dataset_example_id=example_id,
-                dataset_version_id=version_id,
-                input={"input": "first-input"},
-                output={"output": "first-output"},
-                metadata_={"metadata": "first-metadata"},
-                revision_kind="CREATE",
-            )
+        revision = models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"input": "first-input"},
+            output={"output": "first-output"},
+            metadata_={"metadata": "first-metadata"},
+            revision_kind="CREATE",
         )
+        session.add(revision)
+        await session.flush()
 
-        # insert experiment
-        experiment_id = await session.scalar(
-            insert(models.Experiment)
-            .returning(models.Experiment.id)
-            .values(
-                dataset_id=dataset_id,
-                dataset_version_id=version_id,
-                name="experiment-name",
-                description="experiment-description",
-                repetitions=3,
-                metadata_={"experiment-metadata-key": "experiment-metadata-value"},
-            )
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="experiment-name",
+            description="experiment-description",
+            repetitions=3,
+            metadata_={"experiment-metadata-key": "experiment-metadata-value"},
         )
+        session.add(experiment)
+        await session.flush()
 
-        # insert experiment run without associated trace
-        await session.scalar(
-            insert(models.ExperimentRun)
-            .returning(models.ExperimentRun.id)
-            .values(
-                experiment_id=experiment_id,
-                dataset_example_id=example_id,
-                output={"task_output": "run-1-output-value"},
-                repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            )
+        experiment_run_without_trace = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": "run-1-output-value"},
+            repetition_number=1,
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
+        session.add(experiment_run_without_trace)
+        await session.flush()
 
-        # insert experiment run with associated trace
-        await session.scalar(
-            insert(models.ExperimentRun)
-            .returning(models.ExperimentRun.id)
-            .values(
-                experiment_id=experiment_id,
-                dataset_example_id=example_id,
-                output={"task_output": {"run-2-output-key": "run-2-output-value"}},
-                trace_id="trace-id",
-                repetition_number=2,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            )
+        experiment_run_with_trace = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": {"run-2-output-key": "run-2-output-value"}},
+            trace_id="trace-id",
+            repetition_number=2,
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
+        session.add(experiment_run_with_trace)
+        await session.flush()
 
-        # insert experiment run with non-existent trace
-        await session.scalar(
-            insert(models.ExperimentRun)
-            .returning(models.ExperimentRun.id)
-            .values(
-                experiment_id=experiment_id,
-                dataset_example_id=example_id,
-                output={"task_output": 12345},
-                trace_id="non-existent-trace-id",
-                repetition_number=3,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            )
+        experiment_run_with_missing_trace = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": 12345},
+            trace_id="non-existent-trace-id",
+            repetition_number=3,
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
+        session.add(experiment_run_with_missing_trace)
+        await session.flush()
 
 
 @pytest.fixture
