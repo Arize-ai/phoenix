@@ -837,7 +837,7 @@ class TestChatCompletionOverDatasetSubscription:
               ...SpanFragment
             }
             experimentRun {
-              ...ExperimentRunFragment
+              ...ExperimentRepetitionFragment
             }
           }
           ... on ChatCompletionSubscriptionError {
@@ -872,7 +872,9 @@ class TestChatCompletionOverDatasetSubscription:
             runs {
               edges {
                 run: node {
-                  ...ExperimentRunFragment
+                  repetitions {
+                    ...ExperimentRepetitionFragment
+                  }
                 }
               }
             }
@@ -880,7 +882,7 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      fragment ExperimentRunFragment on ExperimentRun {
+      fragment ExperimentRepetitionFragment on ExperimentRepetition {
         id
         experimentId
         startTime
@@ -1227,6 +1229,7 @@ class TestChatCompletionOverDatasetSubscription:
             variables={"experimentId": experiment_id},
             operation_name="ExperimentQuery",
         )
+        assert not response.errors
         assert (data := response.data) is not None
         experiment = data["experiment"]
         assert experiment.pop("id") == experiment_id
@@ -1240,14 +1243,17 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
         experiment.pop("description")
         assert created_at == updated_at
-        runs = {run["run"]["id"]: run["run"] for run in experiment.pop("runs")["edges"]}
-        assert len(runs) == 3
+        repetitions = {
+            run["run"]["repetitions"][0]["id"]: run["run"]["repetitions"][0]
+            for run in experiment.pop("runs")["edges"]
+        }
+        assert len(repetitions) == 3
 
         # check example 1 run
         example_id = example_ids[0]
         subscription_run = subscription_runs[example_id]
         run_id = subscription_run["id"]
-        run = runs.pop(run_id)
+        run = repetitions.pop(run_id)
         assert run == subscription_run
         assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
@@ -1272,7 +1278,7 @@ class TestChatCompletionOverDatasetSubscription:
         example_id = example_ids[1]
         subscription_run = subscription_runs[example_id]
         run_id = subscription_run["id"]
-        run = runs.pop(run_id)
+        run = repetitions.pop(run_id)
         assert run == subscription_run
         assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
@@ -1297,7 +1303,7 @@ class TestChatCompletionOverDatasetSubscription:
         example_id = example_ids[2]
         subscription_run = subscription_runs[example_id]
         run_id = subscription_run["id"]
-        run = runs.pop(run_id)
+        run = repetitions.pop(run_id)
         assert run == subscription_run
         assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
@@ -1311,7 +1317,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert run.pop("traceId") is None
         assert run.pop("trace") is None
         assert not run
-        assert not runs
+        assert not repetitions
         assert not experiment
 
     async def test_all_spans_yielded_when_number_of_examples_exceeds_batch_size(
