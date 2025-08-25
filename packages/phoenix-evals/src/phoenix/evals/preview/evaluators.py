@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import itertools
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -8,6 +9,8 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Uni
 import pandas as pd
 from pydantic import BaseModel, ValidationError, create_model
 from typing_extensions import Mapping
+
+from phoenix.evals.executors import ExecutionDetails, SyncExecutor
 
 from .llm import LLM, AsyncLLM
 from .llm.types import ObjectGenerationMethod
@@ -708,9 +711,17 @@ def bind_evaluator(
     return BoundEvaluator(evaluator, mapping)
 
 
-def evaluate_dataframe(dataframe: pd.DataFrame, evaluators: List[Evaluator]) -> pd.DataFrame:
+def evaluate_dataframe(
+    dataframe: pd.DataFrame,
+    evaluators: List[Evaluator],
+    tqdm_bar_format: Optional[str] = None,
+    exit_on_error: Optional[bool] = None,
+    max_retries: Optional[int] = None,
+) -> pd.DataFrame:
     """
     Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
+
+    This function uses a synchronous executor; for async evaluation, use `async_evaluate_dataframe`.
 
     Args:
         dataframe: The input dataframe to evaluate. Each row will be converted to a dict
@@ -718,53 +729,78 @@ def evaluate_dataframe(dataframe: pd.DataFrame, evaluators: List[Evaluator]) -> 
         evaluators: List of evaluators to apply to each row. Input mapping should be
                    already bound via `bind_evaluator` or column names should match
                    evaluator input fields.
+        tqdm_bar_format: Optional format string for the progress bar. If None, the progress
+                        bar is disabled.
+        exit_on_error: Optional flag to control whether execution should stop on the first
+                      error. If None, uses SyncExecutor's default (True).
+        max_retries: Optional number of times to retry on exceptions. If None, uses
+                    SyncExecutor's default (10).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.
-        For each evaluator, adds:
-        - "{evaluator.name}_exceptions": Details about any exceptions encountered
+        For each evaluator, columns are added for:
+        - "{evaluator.name}_execution_details": Details about any exceptions encountered, execution
+            time, and status.
         - "{score.name}_score": JSON-serialized Score objects for each score returned
     """
     # Create a copy to avoid modifying the original dataframe
     result_df = dataframe.copy()
 
-    # Process each evaluator
+    # Prepare task inputs
+    records = [{str(k): v for k, v in record.items()} for record in result_df.to_dict("records")]
+    eval_inputs: Dict[int, Dict[str, Any]] = dict(enumerate(records))
+    evaluator_mapping = {i: evaluator for i, evaluator in enumerate(evaluators)}
+    task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
+
+    # Pre-allocate columns for efficient assignment
+    score_lists: Dict[str, List[Optional[str]]] = {}
     for evaluator in evaluators:
         evaluator_name = evaluator.name
-        exception_col = f"{evaluator_name}_exceptions"
+        execution_details_col = f"{evaluator_name}_execution_details"
+        result_df[execution_details_col] = [None] * len(dataframe)
 
-        # Pre-allocate lists for efficient assignment
-        exceptions: List[Optional[str]] = [None] * len(dataframe)
-        score_lists: Dict[str, List[Optional[str]]] = {}
+    # Execution task: evaluate an eval_input with an evaluator
+    def _task(task_input: Tuple[int, int]) -> List[Score]:
+        eval_input_index, evaluator_index = task_input
+        eval_input = eval_inputs[eval_input_index]
+        evaluator = evaluators[evaluator_index]
+        scores = evaluator.evaluate(eval_input)
+        return scores
 
-        # Process each row
-        for i, (idx, row) in enumerate(result_df.iterrows()):
-            try:
-                # Convert row to dict for evaluation
-                eval_input = row.to_dict()
+    # Only pass parameters that were explicitly provided, otherwise use SyncExecutor defaults
+    executor_kwargs: Dict[str, Any] = {"generation_fn": _task}
+    if tqdm_bar_format is not None:
+        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if exit_on_error is not None:
+        executor_kwargs["exit_on_error"] = exit_on_error
+    if max_retries is not None:
+        executor_kwargs["max_retries"] = max_retries
 
-                # Evaluate the row
-                scores = evaluator.evaluate(eval_input)
+    executor = SyncExecutor(**executor_kwargs)
+    results, execution_details = executor.run(task_inputs)
 
-                # Store scores in pre-allocated lists
-                for score in scores:
-                    score_col = f"{score.name}_score"
-                    if score_col not in score_lists:
-                        score_lists[score_col] = [None] * len(dataframe)
-                    score_lists[score_col][i] = json.dumps(score.to_dict())
+    def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
+        result: Dict[str, Any] = {}
+        result["status"] = eval_execution_details.status.value
+        result["exceptions"] = [repr(exc) for exc in eval_execution_details.exceptions]
+        result["execution_seconds"] = eval_execution_details.execution_seconds
+        return json.dumps(result)
 
-            except Exception as e:
-                # Store exception details
-                exception_details = {
-                    "type": type(e).__name__,
-                    "message": str(e),
-                    "evaluator": evaluator_name,
-                }
-                exceptions[i] = json.dumps(exception_details)
+    for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
+        scores = results[i]
+        details = execution_details[i]
+        # Process scores
+        for score in scores:
+            score_col = f"{score.name}_score"
+            if score_col not in score_lists:
+                score_lists[score_col] = [None] * len(dataframe)
+            score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
+        # Process and add execution details to dataframe
+        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
+        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
 
-        # Assign all columns at once for this evaluator
-        result_df[exception_col] = exceptions
-        for score_col, score_list in score_lists.items():
-            result_df[score_col] = score_list
+    # Add scores to dataframe
+    for score_col, score_list in score_lists.items():
+        result_df[score_col] = score_list
 
     return result_df
