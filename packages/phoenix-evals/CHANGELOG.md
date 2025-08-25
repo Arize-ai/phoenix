@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.1...arize-phoenix-evals-v0.29.0) (2025-08-25)
+
+
+### Features
+
+* Add evals 2.0 tracing ([#9163](https://github.com/Arize-ai/phoenix/issues/9163)) ([aee7edf](https://github.com/Arize-ai/phoenix/commit/aee7edf7fdf8fb37a243166589fdb92615067bad))
+
+
+### Documentation
+
+* **evals:** docs for evals preview module ([#9159](https://github.com/Arize-ai/phoenix/issues/9159)) ([8f38e06](https://github.com/Arize-ai/phoenix/commit/8f38e066edc8659478a40a4b3d99db8b555b8f06))
+
 ## [0.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.0...arize-phoenix-evals-v0.28.1) (2025-08-20)
 
 
