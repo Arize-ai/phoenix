@@ -1,0 +1,97 @@
+# Single source of truth for API auto-discovery and rendering.
+# Maintainers: edit this file to control which modules/symbols appear in the API docs.
+
+# Sections define top-level groupings in the API navigation, each with a package root.
+# - package: the importable package to walk for modules
+# - outdir:  directory under docs/api/ where pages for this section are written
+# - title:   display title for the section
+sections:
+  - package: phoenix
+    outdir: phoenix
+    title: Phoenix
+  - package: phoenix.evals
+    outdir: phoenix-evals
+    title: Phoenix Evals
+  - package: phoenix.client
+    outdir: phoenix-client
+    title: Phoenix Client
+  - package: phoenix.otel
+    outdir: phoenix-otel
+    title: Phoenix OTEL
+
+# Module discovery rules (applied to modules found under each section's package).
+# include: if non-empty, only modules matching at least one glob are considered.
+# exclude: modules matching any glob are removed.
+modules:
+  include:
+    - phoenix.*
+    - phoenix.client.*
+    - phoenix.evals.*
+    - phoenix.otel.*
+  exclude:
+    # Hide internal/experimental/private modules by default
+    - phoenix.internal.*
+    - phoenix.*._experimental.*
+    - phoenix.*._*
+
+  # Per-module overrides and symbol controls.
+  # For each fully-qualified module name you can:
+  # - set symbols.mode: "only" to render only the listed symbols, or
+  #   "all_except" to render everything except the listed symbols.
+  # - include/exclude accept simple names (ClassName, function_name) or globs (exceptions.*).
+  # - set symbols.inherit_defaults: false to ignore symbols.defaults for this module.
+  # - optionally set title to override the page title.
+  per_module:
+    phoenix.client:
+      symbols:
+        mode: only
+        include:
+          - Client
+          - connect
+          - exceptions.*
+        # inherit_defaults: true  # uncomment to keep defaults (private/dunder hidden)
+      title: Client
+    phoenix.evals:
+      symbols:
+        mode: all_except
+        exclude:
+          - .*Internal.*
+          - Deprecated*
+
+# Default symbol filtering for all modules unless overridden per-module above.
+symbols:
+  defaults:
+    include: []         # optional allowlist (regex/glob); rarely needed
+    exclude:
+      - "^_.*"          # hide private members
+      - "^__.*"         # hide dunder members
+    inherit_defaults: true
+    show_if_no_docstring: false
+
+# Rendering defaults used for every module page; can be overridden per-module via
+# modules.per_module.<module>.mkdocstrings_options in the future if needed.
+rendering:
+  show_source: false
+  show_root_heading: true
+  heading_level: 2
+  members_order: source
+  docstring_style: google
+  show_signature_annotations: true
+
+# Navigation behavior:
+# - mode: "generated" means the generator writes SUMMARY.md and section indexes.
+#         Change titles/order here. Manual edits to SUMMARY will be overwritten.
+# - mode: "manual" means the generator does NOT write SUMMARY; you curate nav in mkdocs.yml
+#         or by maintaining a custom SUMMARY.md yourself.
+navigation:
+  mode: generated
+  titles:
+    phoenix: Phoenix
+    phoenix.client: Phoenix Client
+    phoenix.evals: Phoenix Evals
+    phoenix.otel: Phoenix OTEL
+
+# Optional: legacy allow/deny files will be merged into modules.include/exclude during transition.
+legacy:
+  allowlist_file: allowlist.txt
+  blacklist_file: blacklist.txt
