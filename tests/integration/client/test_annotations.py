@@ -35,10 +35,6 @@ from .._helpers import (
 )
 
 
-@pytest.mark.skipif(
-    system() == "Windows",
-    reason="Skipping on Windows to reduce test flakiness",
-)
 class TestClientForSpanAnnotations:
     """Tests the Phoenix span annotation client functionality.
 
