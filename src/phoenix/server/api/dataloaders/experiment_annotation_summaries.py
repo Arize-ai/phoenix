@@ -38,7 +38,11 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         experiment_ids = keys
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
         async with self._db() as session:
-            # CTE to get experiment_run_id and experiment_id pairs for the target experiments
+            # CTE with distinct to avoid duplicate aggregation when experiment_runs has multiple
+            # entries per experiment_id (due to different dataset examples and repetitions).
+            # Table uniqueness:
+            # experiment_runs(experiment_id, dataset_example_id, repetition_number)
+            # experiment_run_annotations(experiment_run_id, name)
             experiment_runs = (
                 select(
                     models.ExperimentRun.id,
