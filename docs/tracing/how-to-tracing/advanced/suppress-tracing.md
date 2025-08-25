@@ -9,7 +9,7 @@ Tracing can be paused temporarily or disabled permanently.
 If there is a section of your code for which tracing is not desired, e.g. the document chunking process, it can be put inside the `suppress_tracing` context manager as shown below.
 
 ```python
-from phoenix.trace import suppress_tracing
+from openinference.instrumentation import suppress_tracing
 
 with suppress_tracing():
     # Code running inside this block doesn't generate traces.
