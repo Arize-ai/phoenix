@@ -509,7 +509,7 @@ securityContext:
     windowsOptions: {}
 
 # -- Extra Volumes configuration
-extraVolumes: {}
+extraVolumes: []
 # -- example
 #- name: config-volume
 #  configMap:
@@ -518,7 +518,7 @@ extraVolumes: {}
 #  emptyDir: {}
 
 # -- Extra Volume Mounts
-extraVolumeMounts: {}
+extraVolumeMounts: []
 # -- example
 #- name: config-volume
 #  mountPath: /etc/config
