@@ -95,10 +95,11 @@ export const progressCircleCSS = css`
 
 export const progressBarCSS = css`
   inline-size: var(--ac-global-dimension-size-2400);
+  height: var(--ac-global-dimension-size-75);
 
   .progress-bar__track {
     forced-color-adjust: none;
-    height: var(--ac-global-dimension-size-75);
+    height: 100%;
     border-radius: 3px;
     overflow: hidden;
     background-color: var(

@@ -340,13 +340,12 @@ export function ExperimentCompareListPage() {
                 max-width: 200px;
                 overflow: hidden;
                 white-space: nowrap;
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
               `}
             >
-              <li
-                css={css`
-                  margin-bottom: var(--ac-global-dimension-size-175);
-                `}
-              >
+              <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
                   <Text
@@ -365,12 +364,7 @@ export function ExperimentCompareListPage() {
                 </Flex>
               </li>
               {value.compareExperimentValues.map((value, index) => (
-                <li
-                  key={index}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={index}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={getExperimentColor(index)}
@@ -399,15 +393,16 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               tokens
             </Text>
-            <ul>
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
               {experiments.map((experiment, index) => {
                 return (
-                  <li
-                    key={experiment.id}
-                    css={css`
-                      margin-bottom: var(--ac-global-dimension-size-175);
-                    `}
-                  >
+                  <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
                       <ColorSwatch
                         color={
@@ -431,12 +426,14 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const tokens = getValue() as TableRow["tokens"];
           return (
-            <ul>
-              <li
-                css={css`
-                  margin-bottom: var(--ac-global-dimension-size-175);
-                `}
-              >
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
+              <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
                   <Text size="S">
@@ -445,12 +442,7 @@ export function ExperimentCompareListPage() {
                 </Flex>
               </li>
               {tokens.compareExperimentValues.map((value, index) => (
-                <li
-                  key={index}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={index}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={getExperimentColor(index)}
@@ -470,14 +462,15 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               latency
             </Text>
-            <ul>
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
               {experiments.map((experiment, index) => (
-                <li
-                  key={experiment.id}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={
@@ -500,12 +493,14 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
-            <ul>
-              <li
-                css={css`
-                  margin-bottom: var(--ac-global-dimension-size-175);
-                `}
-              >
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
+              <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
                   <Text size="S">
@@ -514,12 +509,7 @@ export function ExperimentCompareListPage() {
                 </Flex>
               </li>
               {latencyMs.compareExperimentValues.map((value, index) => (
-                <li
-                  key={index}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={index}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={getExperimentColor(index)}
@@ -539,14 +529,15 @@ export function ExperimentCompareListPage() {
             <Text size="S" weight="heavy">
               cost
             </Text>
-            <ul>
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
               {experiments.map((experiment, index) => (
-                <li
-                  key={experiment.id}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={
@@ -569,12 +560,14 @@ export function ExperimentCompareListPage() {
         cell: ({ getValue }) => {
           const cost = getValue() as TableRow["cost"];
           return (
-            <ul>
-              <li
-                css={css`
-                  margin-bottom: var(--ac-global-dimension-size-175);
-                `}
-              >
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-50);
+              `}
+            >
+              <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
                   <Text size="S">
@@ -583,12 +576,7 @@ export function ExperimentCompareListPage() {
                 </Flex>
               </li>
               {cost.compareExperimentValues.map((value, index) => (
-                <li
-                  key={index}
-                  css={css`
-                    margin-bottom: var(--ac-global-dimension-size-175);
-                  `}
-                >
+                <li key={index}>
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <ColorSwatch
                       color={getExperimentColor(index)}
@@ -613,7 +601,13 @@ export function ExperimentCompareListPage() {
                 {annotationSummary.annotationName}
               </Text>
             </Flex>
-            <ul>
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-25);
+              `}
+            >
               {experiments.map((experiment, index) => {
                 const experimentAnnotationSummary =
                   experiment.annotationSummaries?.find(
@@ -630,7 +624,6 @@ export function ExperimentCompareListPage() {
                     key={experiment.id}
                     css={css`
                       --mod-barloader-fill-color: ${color};
-                      margin-bottom: var(--ac-global-dimension-size-100);
                     `}
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -645,6 +638,7 @@ export function ExperimentCompareListPage() {
                       "number" && (
                       <ProgressBar
                         width="100%"
+                        height="var(--ac-global-dimension-size-25)"
                         value={calculateAnnotationScorePercentile(
                           experimentAnnotationSummary.meanScore,
                           annotationSummary.minScore,
@@ -667,11 +661,16 @@ export function ExperimentCompareListPage() {
           );
 
           return (
-            <ul>
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-25);
+              `}
+            >
               <li
                 css={css`
                   --mod-barloader-fill-color: ${baseExperimentColor};
-                  margin-bottom: var(--ac-global-dimension-size-100);
                 `}
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
@@ -683,6 +682,7 @@ export function ExperimentCompareListPage() {
                 {typeof baseExperimentAnnotationScore === "number" && (
                   <ProgressBar
                     width="100%"
+                    height="var(--ac-global-dimension-size-25)"
                     value={calculateAnnotationScorePercentile(
                       baseExperimentAnnotationScore,
                       annotationSummary.minScore,
@@ -702,7 +702,6 @@ export function ExperimentCompareListPage() {
                     key={index}
                     css={css`
                       --mod-barloader-fill-color: ${color};
-                      margin-bottom: var(--ac-global-dimension-size-100);
                     `}
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -719,6 +718,7 @@ export function ExperimentCompareListPage() {
                     {typeof compareExperimentAnnotationScore === "number" && (
                       <ProgressBar
                         width="100%"
+                        height="var(--ac-global-dimension-size-25)"
                         value={calculateAnnotationScorePercentile(
                           compareExperimentAnnotationScore,
                           annotationSummary.minScore,
@@ -763,12 +763,18 @@ export function ExperimentCompareListPage() {
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <th key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                      <div
+                        css={css`
+                          padding: var(--ac-global-dimension-size-75) 0;
+                        `}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -779,10 +785,16 @@ export function ExperimentCompareListPage() {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      <div
+                        css={css`
+                          padding: var(--ac-global-dimension-size-75) 0;
+                        `}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </div>
                     </td>
                   ))}
                 </tr>
