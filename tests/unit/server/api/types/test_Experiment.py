@@ -366,6 +366,8 @@ class TestExperimentAnnotationSummaries:
                         "minScore": 0,
                         "maxScore": 1,
                         "meanScore": 2 / 3,
+                        "count": 4,
+                        "errorCount": 1,
                     },
                     {
                         "annotationName": "annotation-name-3",
