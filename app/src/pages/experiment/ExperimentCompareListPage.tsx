@@ -301,12 +301,12 @@ export function ExperimentCompareListPage() {
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
-        header: "Example",
+        header: "example",
         accessorKey: "example",
         cell: ({ getValue }) => <Text size="S">{getValue() as string}</Text>,
       },
       {
-        header: "Input",
+        header: "input",
         accessorKey: "input",
         cell: ({ getValue }) => {
           const value = getValue() as string;
@@ -318,7 +318,7 @@ export function ExperimentCompareListPage() {
         },
       },
       {
-        header: "Reference Output",
+        header: "reference output",
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
           const value = getValue() as string;
@@ -330,7 +330,7 @@ export function ExperimentCompareListPage() {
         },
       },
       {
-        header: "Output",
+        header: "output",
         accessorKey: "outputs",
         cell: ({ getValue }) => {
           const value = getValue() as TableRow["outputs"];
@@ -397,7 +397,7 @@ export function ExperimentCompareListPage() {
         header: () => (
           <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
-              Tokens
+              tokens
             </Text>
             <ul>
               {experiments.map((experiment, index) => {
@@ -468,7 +468,7 @@ export function ExperimentCompareListPage() {
         header: () => (
           <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
-              Latency
+              latency
             </Text>
             <ul>
               {experiments.map((experiment, index) => (
@@ -537,7 +537,7 @@ export function ExperimentCompareListPage() {
         header: () => (
           <Flex direction="column" gap="size-100">
             <Text size="S" weight="heavy">
-              Cost
+              cost
             </Text>
             <ul>
               {experiments.map((experiment, index) => (
