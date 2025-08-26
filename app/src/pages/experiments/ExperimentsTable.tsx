@@ -40,6 +40,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
   floatFormatter,
   formatPercent,
@@ -565,18 +566,10 @@ function AnnotationAggregationCell({
   max?: number | null;
 }) {
   const color = useWordColor(annotationName);
-  const percentile = useMemo(() => {
-    // Assume a 0 to 1 range if min and max are not provided
-    const correctedMin = typeof min === "number" ? min : 0;
-    const correctedMax = typeof max === "number" ? max : 1;
-    if (correctedMin === correctedMax && correctedMax === value) {
-      // All the values are the same, so we want to display it as full rather than empty
-      return 100;
-    }
-    // Avoid division by zero
-    const range = correctedMax - correctedMin || 1;
-    return ((value - correctedMin) / range) * 100;
-  }, [value, min, max]);
+  const percentile = useMemo(
+    () => calculateAnnotationScorePercentile(value, min, max),
+    [value, min, max]
+  );
   return (
     <TooltipTrigger>
       <TriggerWrap>

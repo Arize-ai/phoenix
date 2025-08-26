@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 import { useCategoryChartColors } from "@phoenix/components/chart";
 
 /**
@@ -5,12 +7,16 @@ import { useCategoryChartColors } from "@phoenix/components/chart";
  */
 export function useExperimentColors() {
   const colors = useCategoryChartColors();
-  const colorValues = Object.values(colors);
-  const numColors = colorValues.length;
 
-  function getExperimentColor(experimentIndex: number) {
-    return colorValues[experimentIndex % numColors];
-  }
+  const getExperimentColor = useCallback(
+    (experimentIndex: number) => {
+      const colorValues = Object.values(colors);
+      const numColors = colorValues.length;
+      return colorValues[experimentIndex % numColors];
+    },
+    [colors]
+  );
+
   return {
     getExperimentColor,
     baseExperimentColor: "var(--ac-global-color-grey-500)",
