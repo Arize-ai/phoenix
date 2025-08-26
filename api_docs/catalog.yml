@@ -24,15 +24,12 @@ sections:
 # exclude: modules matching any glob are removed.
 modules:
   include:
-    - phoenix.*
+    - phoenix.otel.*
     - phoenix.client.*
     - phoenix.evals.*
-    - phoenix.otel.*
   exclude:
-    # Hide internal/experimental/private modules by default
-    - phoenix.internal.*
-    - phoenix.*._experimental.*
-    - phoenix.*._*
+    - phoenix.otel.otel
+    - phoenix.otel.settings
 
   # Per-module overrides and symbol controls.
   # For each fully-qualified module name you can:
@@ -42,6 +39,11 @@ modules:
   # - set symbols.inherit_defaults: false to ignore symbols.defaults for this module.
   # - optionally set title to override the page title.
   per_module:
+    phoenix.otel:
+      symbols:
+        mode: only
+        include:
+          - register
     phoenix.client:
       symbols:
         mode: only
@@ -70,28 +72,11 @@ symbols:
 
 # Rendering defaults used for every module page; can be overridden per-module via
 # modules.per_module.<module>.mkdocstrings_options in the future if needed.
-rendering:
-  show_source: false
-  show_root_heading: true
-  heading_level: 2
-  members_order: source
-  docstring_style: google
-  show_signature_annotations: true
 
 # Navigation behavior:
 # - mode: "generated" means the generator writes SUMMARY.md and section indexes.
 #         Change titles/order here. Manual edits to SUMMARY will be overwritten.
 # - mode: "manual" means the generator does NOT write SUMMARY; you curate nav in mkdocs.yml
 #         or by maintaining a custom SUMMARY.md yourself.
-navigation:
-  mode: generated
-  titles:
-    phoenix: Phoenix
-    phoenix.client: Phoenix Client
-    phoenix.evals: Phoenix Evals
-    phoenix.otel: Phoenix OTEL
 
 # Optional: legacy allow/deny files will be merged into modules.include/exclude during transition.
-legacy:
-  allowlist_file: allowlist.txt
-  blacklist_file: blacklist.txt
