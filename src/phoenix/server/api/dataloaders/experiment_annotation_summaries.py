@@ -80,6 +80,11 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 func.min(models.ExperimentRunAnnotation.score).label("min_score"),
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
             )
+            .select_from(models.ExperimentRun)
+            .join(
+                models.ExperimentRunAnnotation,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
             .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
             .subquery()
@@ -94,17 +99,17 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .select_from(repetition_mean_scores_subquery)
             .join(
-                repetition_mean_scores_by_example_subquery,
+                repetition_min_max_scores_subquery,
                 and_(
-                    repetition_mean_scores_by_example_subquery.c.experiment_id
-                    == repetition_mean_scores_by_example_subquery.c.experiment_id,
-                    repetition_mean_scores_by_example_subquery.c.annotation_name
+                    repetition_min_max_scores_subquery.c.experiment_id
+                    == repetition_mean_scores_subquery.c.experiment_id,
+                    repetition_min_max_scores_subquery.c.annotation_name
                     == repetition_mean_scores_subquery.c.annotation_name,
                 ),
             )
             .group_by(
-                repetition_mean_scores_by_example_subquery.c.experiment_id,
-                repetition_mean_scores_by_example_subquery.c.annotation_name,
+                repetition_mean_scores_subquery.c.experiment_id,
+                repetition_mean_scores_subquery.c.annotation_name,
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )

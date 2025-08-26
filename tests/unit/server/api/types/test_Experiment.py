@@ -302,7 +302,7 @@ class TestExperimentAnnotationSummaries:
                                         "annotationName": "annotation-name-2",
                                         "minScore": 0.0,
                                         "maxScore": 1.0,
-                                        "meanScore": 2 / 3,
+                                        "meanScore": 3 / 4,
                                     },
                                 ],
                             }
