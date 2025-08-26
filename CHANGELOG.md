@@ -1,5 +1,22 @@
 # Changelog
 
+## [11.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.27.0...arize-phoenix-v11.28.0) (2025-08-26)
+
+
+### Features
+
+* **experiments:** experiment list page frontend ([#9217](https://github.com/Arize-ai/phoenix/issues/9217)) ([bd331a5](https://github.com/Arize-ai/phoenix/commit/bd331a57abee0bda145c70af765b76f6d33f0bd1))
+
+
+### Bug Fixes
+
+* preserve chronological order based on received time during deferred annotation processing ([#9110](https://github.com/Arize-ai/phoenix/issues/9110)) ([e2d9f19](https://github.com/Arize-ai/phoenix/commit/e2d9f199d7e7709bddd1738025a61384ea9e693f))
+
+
+### Documentation
+
+* migrate client ([#9245](https://github.com/Arize-ai/phoenix/issues/9245)) ([f1f2aea](https://github.com/Arize-ai/phoenix/commit/f1f2aea1ab781534bb6baca503f183d5c1da3ffe))
+
 ## [11.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.26.0...arize-phoenix-v11.27.0) (2025-08-25)
 
 
