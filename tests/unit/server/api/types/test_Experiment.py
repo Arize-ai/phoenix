@@ -536,6 +536,21 @@ async def experiments_with_runs_and_annotations(
 ) -> None:
     """
     Inserts three experiments, two with runs and annotations and one without.
+
+    Experiment | Dataset example | Repetition | annotation-name-1 | annotation-name-2 | annotation-name-3
+    ---------- | --------------- | ---------- | ----------------- | ----------------- | -----------------
+    1          | 1               | 1          | 1                 | 0                 | --
+    1          | 1               | 2          | 1                 | 1                 | --
+    1          | 1               | 3          | 0                 | --                | --
+    1          | 2               | 1          | 0                 | failed            | --
+    1          | 2               | 2          | 0                 | 1                 | --
+    1          | 2               | 3          | 0                 | --                | --
+    2          | 1               | 1          | 1                 | --                | failed
+    2          | 1               | 2          | --                | --                | failed
+    2          | 2               | 1          | 1                 | --                | failed
+    2          | 2               | 2          | --                | --                | failed
+    3          | --              | --         | --                | --                | --
+
     """
     async with db() as session:
         dataset = models.Dataset(
@@ -616,8 +631,8 @@ async def experiments_with_runs_and_annotations(
                     tzinfo=pytz.utc,
                 ),
             )
-            for repetition_number in range(1, 4)
             for example in examples
+            for repetition_number in range(1, 4)
         ]
         session.add_all(first_experiment_runs)
         await session.flush()
@@ -647,8 +662,8 @@ async def experiments_with_runs_and_annotations(
                     tzinfo=pytz.utc,
                 ),
             )
-            for repetition_number in range(1, 3)
             for example in examples
+            for repetition_number in range(1, 3)
         ]
         session.add_all(second_experiment_runs)
         await session.flush()
@@ -667,38 +682,56 @@ async def experiments_with_runs_and_annotations(
                 start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                 end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
             )
-            for run, score in zip(first_experiment_runs, [1, 0, 1, 0, 0, 0])
+            for run, score in zip(first_experiment_runs, [1, 1, 0, 0, 0, 0])
         ]
-        first_experiment_annotation_name_2_annotations = [
-            models.ExperimentRunAnnotation(
-                experiment_run_id=run.id,
-                name="annotation-name-2",
-                annotator_kind="CODE",
-                label=f"label-{score}",
-                score=score,
-                explanation="explanation",
-                trace_id=None,
-                error=None,
-                metadata_={},
-                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-            )
-            for run, score in zip(first_experiment_runs[:3], [0, 1, 1])
-        ] + [
-            models.ExperimentRunAnnotation(
-                experiment_run_id=first_experiment_runs[4].id,
-                name="annotation-name-2",
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                trace_id=None,
-                error="failed",
-                metadata_={},
-                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-            )
-        ]
+        first_experiment_annotation_name_2_annotations = (
+            [
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=run.id,
+                    name="annotation-name-2",
+                    annotator_kind="CODE",
+                    label=f"label-{score}",
+                    score=score,
+                    explanation="explanation",
+                    trace_id=None,
+                    error=None,
+                    metadata_={},
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                )
+                for run, score in zip(first_experiment_runs[:2], [0, 1])
+            ]
+            + [
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=first_experiment_runs[3].id,
+                    name="annotation-name-2",
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    trace_id=None,
+                    error="failed",
+                    metadata_={},
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                )
+            ]
+            + [
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=first_experiment_runs[4].id,
+                    name="annotation-name-2",
+                    annotator_kind="CODE",
+                    label=None,
+                    score=1,
+                    explanation=None,
+                    trace_id=None,
+                    error=None,
+                    metadata_={},
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                )
+            ]
+        )
         second_experiment_annotation_name_1_annotations = [
             models.ExperimentRunAnnotation(
                 experiment_run_id=run.id,
@@ -713,9 +746,9 @@ async def experiments_with_runs_and_annotations(
                 start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                 end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
             )
-            for run, score in zip(second_experiment_runs[:2], [1, 1])
+            for run, score in zip([second_experiment_runs[0], second_experiment_runs[2]], [1, 1])
         ]
-        second_experiment_annotation_name_2_annotations = [
+        second_experiment_annotation_name_3_annotations = [
             models.ExperimentRunAnnotation(
                 experiment_run_id=run.id,
                 name="annotation-name-3",
@@ -734,7 +767,7 @@ async def experiments_with_runs_and_annotations(
         session.add_all(first_experiment_annotation_name_1_annotations)
         session.add_all(first_experiment_annotation_name_2_annotations)
         session.add_all(second_experiment_annotation_name_1_annotations)
-        session.add_all(second_experiment_annotation_name_2_annotations)
+        session.add_all(second_experiment_annotation_name_3_annotations)
         await session.flush()
 
 
