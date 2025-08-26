@@ -307,11 +307,9 @@ export function ExperimentCompareListPage() {
         accessorKey: "example",
         size: 80,
         cell: ({ getValue }) => (
-          <Text size="S">
-            <Truncate maxWidth="200px" title={getValue() as string}>
-              {getValue() as string}
-            </Truncate>
-          </Text>
+          <Truncate maxWidth="200px" title={getValue() as string}>
+            {getValue() as string}
+          </Truncate>
         ),
       },
       {
@@ -319,11 +317,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "input",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return (
-            <Text size="S" color="text-500">
-              <JSONText json={value} />
-            </Text>
-          );
+          return <JSONText json={value} />;
         },
       },
       {
@@ -331,11 +325,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return (
-            <Text size="S" color="text-500">
-              <JSONText json={value} />
-            </Text>
-          );
+          return <JSONText json={value} />;
         },
       },
       {
@@ -794,25 +784,18 @@ export function ExperimentCompareListPage() {
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      css={css`
-                        width: calc(
-                          var(--header-${makeSafeColumnId(header?.id)}-size) *
-                            1px
-                        );
-                      `}
+                      style={{
+                        width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
+                        padding:
+                          "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                      }}
                     >
-                      <div
-                        css={css`
-                          padding: var(--ac-global-dimension-size-75) 0;
-                        `}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </div>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                     </th>
                   ))}
                 </tr>
@@ -827,18 +810,14 @@ export function ExperimentCompareListPage() {
                       style={{
                         width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                         maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                        padding:
+                          "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
                       }}
                     >
-                      <div
-                        css={css`
-                          padding: var(--ac-global-dimension-size-75) 0;
-                        `}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </div>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </td>
                   ))}
                 </tr>
