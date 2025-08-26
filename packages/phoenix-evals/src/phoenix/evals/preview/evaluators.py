@@ -807,7 +807,10 @@ def evaluate_dataframe(
         if scores is None:
             continue
         for score in scores:
-            score_col = f"{score.name}_score"
+            if not score.name:  # this shouldn't happen
+                score_col = f"{evaluators[evaluator_index].name}_{i}"
+            else:
+                score_col = f"{score.name}_score"
             if score_col not in score_lists:
                 score_lists[score_col] = [None] * len(dataframe)
             score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
