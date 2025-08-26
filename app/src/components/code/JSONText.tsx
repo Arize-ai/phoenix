@@ -52,7 +52,11 @@ export function JSONText({
     // Just show text and log a warning
     // eslint-disable-next-line no-console
     console.warn("JSONText component received a non-object value", json);
-    return <span title={title}>{String(json)}</span>;
+    return (
+      <span title={title} className="font-mono">
+        {String(json)}
+      </span>
+    );
   }
   const obj = json as Record<string, unknown>;
   if (Object.keys(obj).length === 0) {
@@ -66,7 +70,11 @@ export function JSONText({
       const singleValueStr: string = hasMaxLength
         ? formatText(singleValue, maxLength)
         : singleValue;
-      return <span title={title}>{singleValueStr}</span>;
+      return (
+        <span title={title} className="font-mono">
+          {singleValueStr}
+        </span>
+      );
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;

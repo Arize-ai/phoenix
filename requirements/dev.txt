@@ -7,3 +7,4 @@ uvloop; platform_system != 'Windows'
 fast-hdbscan
 umap-learn
 boto3
+jsonpath-ng

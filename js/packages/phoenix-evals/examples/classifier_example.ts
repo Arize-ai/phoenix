@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import assert from "assert";
-import { createClassifier } from "../src/llm";
+import { createClassificationEvaluator } from "../src/llm";
 import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");
@@ -33,13 +33,14 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 async function main() {
-  const evaluator = await createClassifier({
+  const evaluator = await createClassificationEvaluator({
+    name: "hallucination",
     model,
     choices: { factual: 1, hallucinated: 0 },
     promptTemplate: promptTemplate,
   });
 
-  const result = await evaluator({
+  const result = await evaluator.evaluate({
     output: "Arize is not open source.",
     input: "Is Arize Phoenix Open Source?",
     reference:

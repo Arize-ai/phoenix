@@ -187,6 +187,11 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
 
 def get_func_name(func: Callable[..., Any]) -> str:
     """Get the name of a function."""
+    if isinstance(func, functools.partial):
+        return get_func_name(func.func)
+    is_not_lambda = hasattr(func, "__qualname__") and not func.__qualname__.endswith("<lambda>")
+    if is_not_lambda:
+        return func.__qualname__.split(".<locals>.")[-1]
     return getattr(func, "__name__", str(func))
 
 
@@ -497,7 +502,7 @@ class Experiments:
             )
             experiment_response.raise_for_status()
             exp_json = experiment_response.json()["data"]
-            project_name = exp_json["project_name"]
+            project_name = exp_json.get("project_name")
             experiment: Experiment = {
                 "id": exp_json["id"],
                 "dataset_id": dataset.id,
@@ -515,7 +520,7 @@ class Experiments:
                 "dataset_version_id": dataset.version_id,
                 "repetitions": repetitions,
                 "metadata": {},
-                "project_name": "",
+                "project_name": None,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -626,6 +631,7 @@ class Experiments:
             "task_runs": task_runs_list,
             "evaluation_runs": [],
             "experiment_metadata": experiment.get("metadata", {}),
+            "project_name": experiment.get("project_name"),
         }
 
         if evaluators is not None:
@@ -763,10 +769,11 @@ class Experiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": experiment_data["dataset_id"],
-            "dataset_version_id": experiment_data.get("dataset_version_id"),
+            "dataset_version_id": experiment_data["dataset_version_id"],
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
+            "project_name": experiment_data.get("project_name"),
         }
 
         return ran_experiment
@@ -817,14 +824,14 @@ class Experiments:
         experiment_id = experiment["experiment_id"]
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
-        dataset_version_id = experiment.get("dataset_version_id")
+        dataset_version_id = experiment["dataset_version_id"]
         experiment_metadata = experiment["experiment_metadata"]
 
         if experiment_id == DRY_RUN:
             dry_run = True
 
         if dry_run:
-            project_name = ""
+            project_name = None
         else:
             try:
                 experiment_response = self._client.get(
@@ -832,15 +839,13 @@ class Experiments:
                 )
                 experiment_response.raise_for_status()
                 experiment_data = experiment_response.json()["data"]
-                project_name = experiment_data.get("project_name", "")
+                project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
                     raise ValueError(f"Experiment not found: {experiment_id}")
                 raise
 
-        version_params = (
-            {"version_id": str(dataset_version_id)} if dataset_version_id is not None else {}
-        )
+        version_params = {"version_id": dataset_version_id}
 
         try:
             dataset_info_response = self._client.get(
@@ -886,7 +891,6 @@ class Experiments:
             dry_run,
             timeout,
             rate_limit_errors,
-            project_name,
             dataset,
         )
 
@@ -896,10 +900,11 @@ class Experiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
-            "dataset_version_id": experiment.get("dataset_version_id"),
+            "dataset_version_id": dataset_version_id,
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
+            "project_name": project_name,
         }
 
         if print_summary:
@@ -1003,14 +1008,14 @@ class Experiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, CHAIN)
             span.set_status(status)
 
-            # Handle potential None values in span timing
-            if span.start_time is not None:
-                start_time = _decode_unix_nano(span.start_time)
-            if span.end_time is not None:
-                end_time = _decode_unix_nano(span.end_time)
-            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
-            if span_context is not None and span_context.trace_id != 0:
-                trace_id = _str_trace_id(span_context.trace_id)
+        # Handle potential None values in span timing
+        if span.start_time is not None:
+            start_time = _decode_unix_nano(span.start_time)
+        if span.end_time is not None:
+            end_time = _decode_unix_nano(span.end_time)
+        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        if span_context is not None and span_context.trace_id != 0:
+            trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
@@ -1055,7 +1060,6 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
-        project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         # Create evaluation input with example data
@@ -1085,7 +1089,7 @@ class Experiments:
         ) -> Optional[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return self._run_single_evaluation_sync(
-                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -1113,7 +1117,6 @@ class Experiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -1162,14 +1165,14 @@ class Experiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
-            # Handle potential None values in span timing
-            if span.start_time is not None:
-                start_time = _decode_unix_nano(span.start_time)
-            if span.end_time is not None:
-                end_time = _decode_unix_nano(span.end_time)
-            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
-            if span_context is not None and span_context.trace_id != 0:
-                trace_id = _str_trace_id(span_context.trace_id)
+        # Handle potential None values in span timing
+        if span.start_time is not None:
+            start_time = _decode_unix_nano(span.start_time)
+        if span.end_time is not None:
+            end_time = _decode_unix_nano(span.end_time)
+        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        if span_context is not None and span_context.trace_id != 0:
+            trace_id = _str_trace_id(span_context.trace_id)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
@@ -1524,6 +1527,7 @@ class AsyncExperiments:
             "task_runs": task_runs_list,
             "evaluation_runs": [],
             "experiment_metadata": experiment.get("metadata", {}),
+            "project_name": experiment.get("project_name"),
         }
 
         if evaluators is not None:
@@ -1661,10 +1665,11 @@ class AsyncExperiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": experiment_data["dataset_id"],
-            "dataset_version_id": experiment_data.get("dataset_version_id"),
+            "dataset_version_id": experiment_data["dataset_version_id"],
             "task_runs": task_runs,
             "evaluation_runs": evaluation_runs,
             "experiment_metadata": experiment_data.get("metadata", {}),
+            "project_name": experiment_data.get("project_name"),
         }
 
         return ran_experiment
@@ -1716,14 +1721,14 @@ class AsyncExperiments:
         experiment_id = experiment["experiment_id"]
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
-        dataset_version_id = experiment.get("dataset_version_id")
+        dataset_version_id = experiment["dataset_version_id"]
         experiment_metadata = experiment["experiment_metadata"]
 
         if experiment_id == DRY_RUN:
             dry_run = True
 
         if dry_run:
-            project_name = ""
+            project_name = None
         else:
             try:
                 experiment_response = await self._client.get(
@@ -1731,15 +1736,13 @@ class AsyncExperiments:
                 )
                 experiment_response.raise_for_status()
                 experiment_data = experiment_response.json()["data"]
-                project_name = experiment_data.get("project_name", "")
+                project_name = experiment_data.get("project_name")
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
                     raise ValueError(f"Experiment not found: {experiment_id}")
                 raise
 
-        version_params = (
-            {"version_id": str(dataset_version_id)} if dataset_version_id is not None else {}
-        )
+        version_params = {"version_id": dataset_version_id}
 
         try:
             dataset_info_response = await self._client.get(
@@ -1786,7 +1789,6 @@ class AsyncExperiments:
             timeout,
             rate_limit_errors,
             concurrency,
-            project_name,
             dataset,
         )
 
@@ -1796,10 +1798,11 @@ class AsyncExperiments:
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
-            "dataset_version_id": experiment.get("dataset_version_id"),
+            "dataset_version_id": dataset_version_id,
             "task_runs": task_runs,
             "evaluation_runs": all_evaluation_runs,
             "experiment_metadata": experiment_metadata,
+            "project_name": project_name,
         }
 
         if print_summary:
@@ -1899,14 +1902,14 @@ class AsyncExperiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, CHAIN)
             span.set_status(status)
 
-            # Handle potential None values in span timing
-            if span.start_time is not None:
-                start_time = _decode_unix_nano(span.start_time)
-            if span.end_time is not None:
-                end_time = _decode_unix_nano(span.end_time)
-            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
-            if span_context is not None and span_context.trace_id != 0:
-                trace_id = _str_trace_id(span_context.trace_id)
+        # Handle potential None values in span timing
+        if span.start_time is not None:
+            start_time = _decode_unix_nano(span.start_time)
+        if span.end_time is not None:
+            end_time = _decode_unix_nano(span.end_time)
+        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        if span_context is not None and span_context.trace_id != 0:
+            trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
@@ -1952,7 +1955,6 @@ class AsyncExperiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
-        project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         # Create evaluation input with example data
@@ -1982,7 +1984,7 @@ class AsyncExperiments:
         ) -> Optional[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return await self._run_single_evaluation_async(
-                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -2011,7 +2013,6 @@ class AsyncExperiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -2060,14 +2061,14 @@ class AsyncExperiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
-            # Handle potential None values in span timing
-            if span.start_time is not None:
-                start_time = _decode_unix_nano(span.start_time)
-            if span.end_time is not None:
-                end_time = _decode_unix_nano(span.end_time)
-            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
-            if span_context is not None and span_context.trace_id != 0:
-                trace_id = _str_trace_id(span_context.trace_id)
+        # Handle potential None values in span timing
+        if span.start_time is not None:
+            start_time = _decode_unix_nano(span.start_time)
+        if span.end_time is not None:
+            end_time = _decode_unix_nano(span.end_time)
+        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        if span_context is not None and span_context.trace_id != 0:
+            trace_id = _str_trace_id(span_context.trace_id)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],

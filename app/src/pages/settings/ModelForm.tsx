@@ -70,6 +70,11 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
       label: getProviderName("GOOGLE"),
     },
     {
+      key: "AWS",
+      value: getSemConvProvider("AWS"),
+      label: getProviderName("AWS"),
+    },
+    {
       key: "DEEPSEEK",
       value: getSemConvProvider("DEEPSEEK"),
       label: getProviderName("DEEPSEEK"),

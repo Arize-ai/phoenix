@@ -6082,6 +6082,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -6202,6 +6203,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -6379,6 +6381,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -6442,6 +6445,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -7077,6 +7081,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -7730,8 +7735,15 @@
             "description": "The end time of the evaluation in ISO format"
           },
           "result": {
-            "$ref": "#/components/schemas/ExperimentEvaluationResult",
-            "description": "The result of the evaluation"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentEvaluationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the evaluation. Either result or error must be provided."
           },
           "error": {
             "anyOf": [
@@ -7743,7 +7755,7 @@
               }
             ],
             "title": "Error",
-            "description": "Optional error message if the evaluation encountered an error"
+            "description": "Error message if the evaluation encountered an error. Either result or error must be provided."
           },
           "metadata": {
             "anyOf": [
@@ -7777,8 +7789,7 @@
           "name",
           "annotator_kind",
           "start_time",
-          "end_time",
-          "result"
+          "end_time"
         ],
         "title": "UpsertExperimentEvaluationRequestBody"
       },

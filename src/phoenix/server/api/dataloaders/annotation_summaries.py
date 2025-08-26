@@ -13,6 +13,7 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -20,27 +21,41 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 AnnotationName: TypeAlias = str
 
-Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[
+    Kind,
+    ProjectRowId,
+    TimeInterval,
+    FilterCondition,
+    SessionFilterCondition,
+]
 Param: TypeAlias = AnnotationName
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, AnnotationName]
+Key: TypeAlias = tuple[
+    Kind,
+    ProjectRowId,
+    Optional[TimeRange],
+    FilterCondition,
+    SessionFilterCondition,
+    AnnotationName,
+]
 Result: TypeAlias = Optional[AnnotationSummary]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, eval_name = key
+    kind, project_rowid, time_range, filter_condition, session_filter_condition, eval_name = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, project_rowid, interval, filter_condition), eval_name
+    return (kind, project_rowid, interval, filter_condition, session_filter_condition), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class AnnotationSummaryCache(
@@ -61,8 +76,21 @@ class AnnotationSummaryCache(
                 del self._cache[section]
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, project_rowid, interval, filter_condition), annotation_name = _cache_key_fn(key)
-        return (project_rowid, annotation_name, kind), (interval, filter_condition)
+        (
+            (
+                kind,
+                project_rowid,
+                interval,
+                filter_condition,
+                session_filter_condition,
+            ),
+            annotation_name,
+        ) = _cache_key_fn(key)
+        return (project_rowid, annotation_name, kind), (
+            interval,
+            filter_condition,
+            session_filter_condition,
+        )
 
 
 class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
@@ -102,7 +130,9 @@ def _get_stmt(
     segment: Segment,
     *annotation_names: Param,
 ) -> Select[Any]:
-    kind, project_rowid, (start_time, end_time), filter_condition = segment
+    kind, project_rowid, (start_time, end_time), filter_condition, session_filter_condition = (
+        segment
+    )
 
     annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
     entity_model: Union[Type[models.Span], Type[models.Trace]]
@@ -143,6 +173,19 @@ def _get_stmt(
         entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
         entity_count_query = entity_count_query.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
+        )
+    else:
+        assert_never(kind)
+
+    if session_filter_condition:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition=session_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
+        )
+        entity_count_query = entity_count_query.where(
+            models.Trace.project_session_rowid.in_(filtered_session_rowids)
         )
 
     entity_count_query = entity_count_query.where(
@@ -185,6 +228,15 @@ def _get_stmt(
         )
     else:
         assert_never(kind)
+
+    if session_filter_condition:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition=session_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
+        )
+        base_stmt = base_stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))

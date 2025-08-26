@@ -10,7 +10,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
@@ -171,6 +171,11 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
+
+ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS = "PHOENIX_MASK_INTERNAL_SERVER_ERRORS"
+"""
+Whether to mask internal server errors from the GraphQL and REST APIs. Defaults to true.
+"""
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
@@ -1123,27 +1128,38 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+# LEGACY: Regex for backward compatibility with host:port parsing in PHOENIX_POSTGRES_HOST
+_HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
-    if pg_host and ":" in pg_host:
+
+def get_env_postgres_connection_str() -> Optional[str]:
+    """
+    Build PostgreSQL connection string from environment variables.
+
+    LEGACY: Supports host:port parsing in PHOENIX_POSTGRES_HOST for backward compatibility.
+    """  # noqa: E501
+    if not (
+        (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
+        and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
+        and (pg_password := getenv(ENV_PHOENIX_POSTGRES_PASSWORD))
+    ):
+        return None
+    pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if _HOST_PORT_REGEX.match(pg_host):  # maintain backward compatibility
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
+    encoded_user = quote(pg_user)
+    encoded_password = quote(pg_password)
+    connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
+    if pg_port:
+        connection_str = f"{connection_str}:{pg_port}"
+    if pg_db:
+        connection_str = f"{connection_str}/{pg_db}"
 
-        return connection_str
-    return None
+    return connection_str
 
 
 def _no_local_storage() -> bool:
@@ -1597,6 +1613,10 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 def get_env_disable_migrations() -> bool:
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
+
+
+def get_env_mask_internal_server_errors() -> bool:
+    return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
 
 DEFAULT_PROJECT_NAME = "default"

@@ -41,7 +41,9 @@ function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
           color: var(--ac-global-text-color-900);
         `}
       />
-      <Text size={props.size}>{text}</Text>
+      <Text size={props.size} fontFamily="mono">
+        {text}
+      </Text>
     </div>
   );
 }

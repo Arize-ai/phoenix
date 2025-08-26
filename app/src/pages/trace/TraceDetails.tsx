@@ -85,6 +85,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     spanKind
                     statusCode
                     startTime
+                    endTime
                     parentId
                     latencyMs
                     tokenCountTotal

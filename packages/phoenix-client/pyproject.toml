@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.14.1"
+version = "1.15.3"
 dependencies = [
   "httpx",
   "tqdm",
@@ -78,6 +78,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"tests/**/*.py" = ["E501", "E731"]
 "src/phoenix/client/__generated__/v1/*.py" = ["E501"]
 
 [tool.ruff.format]

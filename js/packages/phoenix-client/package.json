@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "A client for the Phoenix API",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -95,6 +95,6 @@
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^4.1.47",
-    "openai": "^4.86.1"
+    "openai": "^5.12.1"
   }
 }

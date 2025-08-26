@@ -15,6 +15,7 @@ export interface WithLLM {
   model: LanguageModel;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface LLMEvaluationArgs extends WithLLM {}
 
 /**
@@ -78,6 +79,55 @@ export interface CreateClassifierArgs extends WithTelemetry {
   promptTemplate: string;
 }
 
+export interface CreateClassificationEvaluatorArgs
+  extends CreateClassifierArgs {
+  /**
+   * The name of the metric that the evaluator produces
+   * E.x. "correctness"
+   */
+  name: string;
+  /**
+   * If present, represents the direction in which you want the metric to be optimized
+   * E.x. "MAXIMIZE" means you want the number to be higher.
+   */
+  optimizationDirection?: OptimizationDirection;
+}
+
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
   args: ExampleType
 ) => Promise<EvaluationResult>;
+
+/**
+ * The source of the evaluation
+ */
+type EvaluationSource = "LLM" | "CODE";
+
+/**
+ * The direction to optimize the numeric evaluation score
+ * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
+ */
+type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+
+/**
+ * The Base Evaluator interface
+ * This is the interface that all evaluators must implement
+ */
+export interface Evaluator<ExampleType extends Record<string, unknown>> {
+  /**
+   * The name of the evaluator / the metric that it measures
+   */
+  name: string;
+  /**
+   * The source of the evaluation. Also known as the "kind" of evaluator.
+   */
+  source: EvaluationSource;
+  /**
+   * The direction to optimize the numeric evaluation score
+   * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
+   */
+  optimizationDirection?: OptimizationDirection;
+  /**
+   * The function that evaluates the example
+   */
+  evaluate: EvaluatorFn<ExampleType>;
+}

@@ -15,6 +15,12 @@ deployment:
       maxUnavailable: "25%"
       maxSurge: "25%"
 
+  # -- Tolerations, nodeSelector and affinity
+  # For Pod scheduling strategy on the nodes
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+
 # ADDONS
 # - Ingress
 # - Postgres
@@ -182,11 +188,16 @@ persistence:
   # -- Enable persistent storage for Phoenix home directory
   # When enabled, Phoenix uses SQLite for local storage stored in the persistent volume
   # IMPORTANT: Cannot be enabled simultaneously with postgresql.enabled=true
+  # NOTE: This setting is ignored when database.url="sqlite:///:memory:" (in-memory database)
   # Choose one persistence strategy:
   #   - SQLite: persistence.enabled=true, postgresql.enabled=false
-  #   - PostgreSQL: persistence.enabled=false, postgresql.enabled=true  
+  #   - SQLite In-memory: persistence.inMemory=true , postgresql.enabled=false
+  #   - PostgreSQL: persistence.enabled=false, postgresql.enabled=true
   #   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured
   enabled: false
+
+  # -- Enable in-memory configuration of sqlite strategy
+  inMemory: false
 
   # -- Kubernetes storage class for Phoenix home volume
   storageClass: ""
@@ -214,7 +225,7 @@ persistence:
 # NOTE: SQLite database will be created at: ${PHOENIX_WORKING_DIR}/phoenix.db
 #
 # Strategy 2 - Built-in PostgreSQL (for production with managed state):
-# 1. Set persistence.enabled=false 
+# 1. Set persistence.enabled=false
 # 2. Set postgresql.enabled=true (default)
 # 3. PostgreSQL data will be stored in its own persistent volume
 #
@@ -223,6 +234,9 @@ persistence:
 # 2. Set postgresql.enabled=false to disable the built-in PostgreSQL
 # 3. Set database.url with full connection string, OR configure database.postgres settings
 # 4. Ensure the external database is accessible from the cluster
+#
+# Strategy 4 - SQLite In-memory (for demos/testing only - DATA WILL BE LOST ON RESTART):
+# Set persistence.inMemory=true, postgresql.enabled=false
 #
 database:
   # -- Storage allocation in GiB for the database persistent volume
@@ -260,7 +274,7 @@ database:
   # - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume
   # - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured
   # - When using external database (Strategy 3): MUST be configured with full connection string
-  # 
+  #
   # Examples for external databases:
   # PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix"
   # SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)
@@ -328,7 +342,7 @@ auth:
   oauth2:
     # -- Enable OAuth2/OIDC authentication
     enabled: false
-    
+
     # -- List of OAuth2 identity providers to configure
     # Each provider requires client_id, client_secret, and oidc_config_url
     # Optional settings include display_name, allow_sign_up, and auto_login
@@ -447,7 +461,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-11.18.0-nonroot
+  tag: version-11.27.0-nonroot
 
 # -- Resource configuration
 resources:
@@ -493,6 +507,24 @@ securityContext:
     seccompProfile:
       type: RuntimeDefault
     windowsOptions: {}
+
+# -- Extra Volumes configuration
+extraVolumes: []
+# -- example
+#- name: config-volume
+#  configMap:
+#    name: my-app-config
+#- name: cache-volume
+#  emptyDir: {}
+
+# -- Extra Volume Mounts
+extraVolumeMounts: []
+# -- example
+#- name: config-volume
+#  mountPath: /etc/config
+#  readOnly: true
+#- name: cache-volume
+#  mountPath: /app/cache
 
 # -- ServiceAccount configuration
 serviceAccount:

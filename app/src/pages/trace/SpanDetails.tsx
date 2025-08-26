@@ -1751,15 +1751,7 @@ function MessageContentListItem({
   return (
     <li css={text ? messageContentTextListItemCSS : null}>
       {text ? (
-        <pre
-          css={css`
-            white-space: pre-wrap;
-            padding: 0;
-            margin: 0;
-          `}
-        >
-          {text}
-        </pre>
+        <ConnectedMarkdownBlock margin="none">{text}</ConnectedMarkdownBlock>
       ) : null}
       {imageUrl ? <SpanImage url={imageUrl} /> : null}
     </li>

@@ -343,23 +343,6 @@ input ClusterInput {
   id: ID
 }
 
-type CompareExperimentRunAnnotationMetricCounts {
-  annotationName: String!
-  compareExperimentId: ID!
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
-}
-
-type CompareExperimentRunMetricCounts {
-  compareExperimentId: ID!
-  latency: MetricCounts!
-  promptTokenCount: MetricCounts!
-  completionTokenCount: MetricCounts!
-  totalTokenCount: MetricCounts!
-  totalCost: MetricCounts!
-}
-
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -562,7 +545,7 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
@@ -1235,6 +1218,38 @@ type ExperimentRunEdge {
   node: ExperimentRun!
 }
 
+type ExperimentRunMetricComparison {
+  """
+  The number of runs in which the base experiment improved on the best run in any compare experiment.
+  """
+  numRunsImproved: Int!
+
+  """
+  The number of runs in which the base experiment regressed on the best run in any compare experiment.
+  """
+  numRunsRegressed: Int!
+
+  """
+  The number of runs in which the base experiment is equal to the best run in any compare experiment.
+  """
+  numRunsEqual: Int!
+
+  """
+  The number of runs in the base experiment that could not be compared, either because the base experiment run was missing a value or because all compare experiment runs were missing values.
+  """
+  numRunsWithoutComparison: Int!
+}
+
+type ExperimentRunMetricComparisons {
+  latency: ExperimentRunMetricComparison!
+  totalTokenCount: ExperimentRunMetricComparison!
+  promptTokenCount: ExperimentRunMetricComparison!
+  completionTokenCount: ExperimentRunMetricComparison!
+  totalCost: ExperimentRunMetricComparison!
+  promptCost: ExperimentRunMetricComparison!
+  completionCost: ExperimentRunMetricComparison!
+}
+
 type ExportedFile {
   """File name without the file extension."""
   fileName: String!
@@ -1479,12 +1494,6 @@ type LabelFraction {
   fraction: Float!
 }
 
-type MetricCounts {
-  numIncreases: Int!
-  numDecreases: Int!
-  numEqual: Int!
-}
-
 enum MimeType {
   text
   json
@@ -1713,14 +1722,14 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount(timeRange: TimeRange, filterCondition: String): Int!
-  traceCount(timeRange: TimeRange): Int!
+  recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+  traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
-  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
-  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
-  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
+  costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
@@ -1737,8 +1746,8 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
-  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
+  traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -2100,8 +2109,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
-  compareExperimentRunMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunMetricCounts!]!
-  compareExperimentRunAnnotationMetricCounts(baseExperimentId: ID!, compareExperimentIds: [ID!]!): [CompareExperimentRunAnnotationMetricCounts!]!
+  experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!
@@ -2142,7 +2150,7 @@ type Query {
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
-  getProjectSessionByOtelId(sessionId: String!): ProjectSession
+  getProjectSessionById(sessionId: String!): ProjectSession
 }
 
 input RemoveAnnotationConfigFromProjectInput {

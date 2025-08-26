@@ -56,6 +56,8 @@ import {
   datasetLoader,
   DatasetPage,
   DatasetsPage,
+  datasetVersionsLoader,
+  DatasetVersionsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -66,7 +68,6 @@ import {
   ExamplesPage,
   experimentCompareLoader,
   ExperimentComparePage,
-  experimentsLoader,
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
@@ -234,16 +235,8 @@ const router = createBrowserRouter(
               }}
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
-                <Route
-                  index
-                  element={<ExperimentsPage />}
-                  loader={experimentsLoader}
-                />
-                <Route
-                  path="experiments"
-                  element={<ExperimentsPage />}
-                  loader={experimentsLoader}
-                />
+                <Route index element={<ExperimentsPage />} />
+                <Route path="experiments" element={<ExperimentsPage />} />
                 <Route
                   path="examples"
                   element={<ExamplesPage />}
@@ -251,6 +244,11 @@ const router = createBrowserRouter(
                 >
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
+                <Route
+                  path="versions"
+                  element={<DatasetVersionsPage />}
+                  loader={datasetVersionsLoader}
+                />
               </Route>
               <Route
                 path="compare"
@@ -406,7 +404,7 @@ const router = createBrowserRouter(
             errorElement={<ErrorElement />}
           />
           <Route
-            path="/redirects/sessions/:session_otel_id"
+            path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
             errorElement={<ErrorElement />}
           />

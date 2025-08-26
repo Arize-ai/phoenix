@@ -286,10 +286,11 @@ class RanExperiment(TypedDict):
 
     experiment_id: ExperimentId
     dataset_id: DatasetId
-    dataset_version_id: Optional[DatasetVersionId]
+    dataset_version_id: DatasetVersionId
     task_runs: list[ExperimentRun]
     evaluation_runs: list[ExperimentEvaluationRun]
     experiment_metadata: Mapping[str, Any]
+    project_name: Optional[str]
 
 
 # Type aliases for evaluators

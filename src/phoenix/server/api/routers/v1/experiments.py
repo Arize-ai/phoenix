@@ -306,7 +306,7 @@ async def list_experiments(
                 ),
                 repetitions=experiment.repetitions,
                 metadata=experiment.metadata_,
-                project_name=None,
+                project_name=experiment.project_name,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
             )

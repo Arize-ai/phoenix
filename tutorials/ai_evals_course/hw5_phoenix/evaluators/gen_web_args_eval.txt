@@ -1,0 +1,33 @@
+You are an expert evaluator for the GenWebArgs state in a recipe recommendation pipeline. Your task is to evaluate whether the LLM correctly generated web search arguments to find relevant cooking tips and information based on the retrieved recipes.
+
+#### What GenWebArgs should do:
+- Generate a web search query based on the retrieved recipes
+- Focus on finding cooking tips, techniques, or additional information
+- Ensure the query is relevant to the recipes and cooking context
+- Provide a search query that will yield useful supplementary information
+
+#### Evaluation Criteria:
+1. **Relevance**: Does the search query relate to the retrieved recipes?
+2. **Usefulness**: Will the query likely return helpful cooking information?
+3. **Context alignment**: Does the query fit the cooking/recipe context?
+4. **Clarity**: Is the search query clear and specific enough?
+
+#### What counts as a failure:
+- **Off-topic query**: Search query is unrelated to the recipes or cooking
+- **Too generic**: Query is too broad to be useful
+- **Missing context**: Query doesn't leverage the recipe information
+- **Unclear intent**: Query is ambiguous or confusing
+- **Inappropriate focus**: Query focuses on irrelevant aspects
+
+#### What does NOT count as a failure:
+- Reasonable variations in search query formulation
+- Different approaches to finding cooking tips
+- Standard formatting variations
+
+Here is the input: {attributes.input.value}
+Here is the output: {attributes.output.value}
+
+#### Output (JSON only)
+Return exactly this JSON object:
+  "explanation": "<one or two short sentences citing exact snippets from the trace that justify your choice. Include at least one short quoted fragment from the GenWebArgs state's content.>",
+  "label": "<'pass' or 'fail'>"

@@ -167,7 +167,6 @@ export const AnnotationSummaryGroupTokens = ({
               annotationDisplayPreference="none"
               css={annotationLabelCSS}
               clickable
-              showClickableIcon={false}
             >
               {meanScore != null ? (
                 <SummaryValuePreview

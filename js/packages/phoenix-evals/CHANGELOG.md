@@ -1,5 +1,23 @@
 # @arizeai/phoenix-evals
 
+## 0.2.0
+
+### Minor Changes
+
+- f92dab7: add name, optimization direction, etc.
+
+## 0.1.0
+
+### Minor Changes
+
+- f11969d: capture source and optimization direction
+
+## 0.0.8
+
+### Patch Changes
+
+- 7b204a5: bump the ai sdk to 5
+
 ## 0.0.7
 
 ### Patch Changes

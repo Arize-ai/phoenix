@@ -17,6 +17,8 @@ def _up(engine: Engine, alembic_config: Config, revision: str, schema: str) -> N
         alembic_config.attributes["connection"] = conn
         command.upgrade(alembic_config, revision)
     engine.dispose()
+    if revision == "head":
+        return
     actual = _version_num(engine, schema)
     assert actual == (revision,)
 

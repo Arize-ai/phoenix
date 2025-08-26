@@ -2,6 +2,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
+import orjson
 import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
@@ -189,6 +190,9 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
+        return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) and value else value
+
 
 class JsonList(TypeDecorator[list[Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
@@ -197,6 +201,9 @@ class JsonList(TypeDecorator[list[Any]]):
 
     def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
+
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
+        return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):

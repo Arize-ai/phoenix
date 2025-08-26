@@ -1692,7 +1692,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -1741,7 +1741,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -1808,7 +1808,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
@@ -1839,7 +1839,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -2032,7 +2032,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** Span */
         Span: {
@@ -2351,11 +2351,11 @@ export interface components {
              * @description The end time of the evaluation in ISO format
              */
             end_time: string;
-            /** @description The result of the evaluation */
-            result: components["schemas"]["ExperimentEvaluationResult"];
+            /** @description The result of the evaluation. Either result or error must be provided. */
+            result?: components["schemas"]["ExperimentEvaluationResult"] | null;
             /**
              * Error
-             * @description Optional error message if the evaluation encountered an error
+             * @description Error message if the evaluation encountered an error. Either result or error must be provided.
              */
             error?: string | null;
             /**

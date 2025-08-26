@@ -136,7 +136,9 @@ export function ProjectPageHeader(props: {
               <Text elementType="h3" size="S" color="text-700">
                 Total Traces
               </Text>
-              <Text size="L">{intFormatter(data?.traceCount)}</Text>
+              <Text size="L" fontFamily="mono">
+                {intFormatter(data?.traceCount)}
+              </Text>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" size="S" color="text-700">
@@ -144,7 +146,7 @@ export function ProjectPageHeader(props: {
               </Text>
               <TooltipTrigger delay={0}>
                 <Focusable>
-                  <Text size="L" role="button">
+                  <Text size="L" role="button" fontFamily="mono">
                     {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                   </Text>
                 </Focusable>

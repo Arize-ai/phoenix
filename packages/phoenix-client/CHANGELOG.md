@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.15.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.2...arize-phoenix-client-v1.15.3) (2025-08-15)
+
+
+### Bug Fixes
+
+* **experiments:** dataset version id should not be optional ([#9074](https://github.com/Arize-ai/phoenix/issues/9074)) ([ec83174](https://github.com/Arize-ai/phoenix/commit/ec831742aa2cc22453922a7acf61775e4bbe5b29))
+* **experiments:** result should be nullable when there's error in experiment run evaluation ([#9065](https://github.com/Arize-ai/phoenix/issues/9065)) ([fc5c303](https://github.com/Arize-ai/phoenix/commit/fc5c30310b804157f5472a2e2599ca34e0a03a46))
+
+## [1.15.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.1...arize-phoenix-client-v1.15.2) (2025-08-14)
+
+
+### Bug Fixes
+
+* **experiments:** ran experiment should contain project name ([#9076](https://github.com/Arize-ai/phoenix/issues/9076)) ([03dd8de](https://github.com/Arize-ai/phoenix/commit/03dd8deeee5fc26991df5b39f6f0adf29676557e))
+* **experiments:** span name should be short for experiment tasks ([#9079](https://github.com/Arize-ai/phoenix/issues/9079)) ([589e96d](https://github.com/Arize-ai/phoenix/commit/589e96d040d571c28b03cf393ed20d405dd895bb))
+
+## [1.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.0...arize-phoenix-client-v1.15.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* **experiments:** record end time after span ends ([#9070](https://github.com/Arize-ai/phoenix/issues/9070)) ([7961d43](https://github.com/Arize-ai/phoenix/commit/7961d43d9b3002d769be11f06605790d01ca5820))
+
+
+### Documentation
+
+* client config for run_experiment docstring ([#9032](https://github.com/Arize-ai/phoenix/issues/9032)) ([41384be](https://github.com/Arize-ai/phoenix/commit/41384be0e7e65d55285899b54033b269c4c3cc22))
+
+## [1.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.2...arize-phoenix-client-v1.15.0) (2025-08-07)
+
+
+### Features
+
+* **playground:** support gpt-5 ([#8985](https://github.com/Arize-ai/phoenix/issues/8985)) ([8711bde](https://github.com/Arize-ai/phoenix/commit/8711bdecfeee479c480a1acebf32ebc1b11461cb))
+* python phoenix-client delete span method ([#8944](https://github.com/Arize-ai/phoenix/issues/8944)) ([c7a0a1a](https://github.com/Arize-ai/phoenix/commit/c7a0a1a9fa63a659f86c5675ef913168df8962bf))
+* Reexport experiment utilities in top-level client module ([#8953](https://github.com/Arize-ai/phoenix/issues/8953)) ([1f9a9cb](https://github.com/Arize-ai/phoenix/commit/1f9a9cb8d9ac3bf63db05a8541e5826e099a153b))
+
+
+### Bug Fixes
+
+* Update notebooks to use new client ([#8891](https://github.com/Arize-ai/phoenix/issues/8891)) ([6ebbfb4](https://github.com/Arize-ai/phoenix/commit/6ebbfb4d6a9bfb40cf7a7d6a8db1464b4d931bd0))
+
+## [1.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.1...arize-phoenix-client-v1.14.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* Remove reference to experiment evaluators in client docstrings ([#8933](https://github.com/Arize-ai/phoenix/issues/8933)) ([3a45871](https://github.com/Arize-ai/phoenix/commit/3a45871775494496b1993d816a3a9fd26630e51e))
+
 ## [1.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.0...arize-phoenix-client-v1.14.1) (2025-07-30)
 
 

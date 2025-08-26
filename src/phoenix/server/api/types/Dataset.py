@@ -12,6 +12,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -217,6 +218,9 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        filter_ids: Optional[
+            list[GlobalID]
+        ] = UNSET,  # this is a stopgap until a query DSL is implemented
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -238,6 +242,21 @@ class Dataset(Node):
                 models.Experiment.description.ilike(f"%{filter_condition}%"),
             )
             query = query.where(search_filter)
+
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=Experiment.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+            query = query.where(models.Experiment.id.in_(filter_rowids))
+
         async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)

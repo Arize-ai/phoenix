@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.1...arize-phoenix-evals-v0.29.0) (2025-08-26)
+
+
+### Features
+
+* Add evals 2.0 tracing ([#9163](https://github.com/Arize-ai/phoenix/issues/9163)) ([aee7edf](https://github.com/Arize-ai/phoenix/commit/aee7edf7fdf8fb37a243166589fdb92615067bad))
+* **evals:** add evaluate_dataframe function ([#9197](https://github.com/Arize-ai/phoenix/issues/9197)) ([47c562c](https://github.com/Arize-ai/phoenix/commit/47c562c5b434828152bc5199ca7a3a913e0f36c6))
+
+
+### Bug Fixes
+
+* **evals:** switch from glom to jsonpath-ng for input mapping ([#9199](https://github.com/Arize-ai/phoenix/issues/9199)) ([5daaada](https://github.com/Arize-ai/phoenix/commit/5daaadac605269d96a17fb5cce68b773619e6abc))
+
+
+### Documentation
+
+* **evals:** docs for evals preview module ([#9159](https://github.com/Arize-ai/phoenix/issues/9159)) ([8f38e06](https://github.com/Arize-ai/phoenix/commit/8f38e066edc8659478a40a4b3d99db8b555b8f06))
+
+## [0.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.0...arize-phoenix-evals-v0.28.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* **evals:** make evaluator input schema more explicit and discoverable  ([#9109](https://github.com/Arize-ai/phoenix/issues/9109)) ([b5c7170](https://github.com/Arize-ai/phoenix/commit/b5c71702a1e634c8ac6df130f2b5ea0355e9e7e2))
+* **evals:** update `create_evaluator` decorator handle casting function outputs to valid Scores ([#9143](https://github.com/Arize-ai/phoenix/issues/9143)) ([b51b677](https://github.com/Arize-ai/phoenix/commit/b51b677c90e6379f427db3120604113b2813f4b8))
+
+## [0.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.27.0...arize-phoenix-evals-v0.28.0) (2025-08-19)
+
+
+### Features
+
+* Dynamic concurrency ([#8992](https://github.com/Arize-ai/phoenix/issues/8992)) ([3e48611](https://github.com/Arize-ai/phoenix/commit/3e48611896011e820c628b73f592aaa2f5c53889))
+
+
+### Bug Fixes
+
+* [evals] drop batch evaluation methods ([#9052](https://github.com/Arize-ai/phoenix/issues/9052)) ([38df753](https://github.com/Arize-ai/phoenix/commit/38df753a1916ca970c6288cd81e00efa25beb2e1))
+* [evals] raise exceptions as-is ([#9066](https://github.com/Arize-ai/phoenix/issues/9066)) ([f8703b5](https://github.com/Arize-ai/phoenix/commit/f8703b511b41feb47eb1f43b08a06d0b8158286e))
+
+## [0.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.1...arize-phoenix-evals-v0.27.0) (2025-08-13)
+
+
+### Features
+
+* [evals] add precision recall fscore metric  ([#9000](https://github.com/Arize-ai/phoenix/issues/9000)) ([7aeec60](https://github.com/Arize-ai/phoenix/commit/7aeec60d6a9e91a88e56b9d803b49a99fe922ebe))
+* new evaluator and score abstractions ([#8842](https://github.com/Arize-ai/phoenix/issues/8842)) ([f56b9cf](https://github.com/Arize-ai/phoenix/commit/f56b9cf92f7853575d0892aaea165a36dcf6c7a3))
+
+
+### Bug Fixes
+
+* [evals] rename and update evaluator decorator  ([#9044](https://github.com/Arize-ai/phoenix/issues/9044)) ([bb3500b](https://github.com/Arize-ai/phoenix/commit/bb3500b657e13741d23badb3a74ad262fc64f8de))
+* Pass default headers to non-azure OpenAI clients ([#9001](https://github.com/Arize-ai/phoenix/issues/9001)) ([baf54a0](https://github.com/Arize-ai/phoenix/commit/baf54a040a1a6cbc258d960f18b3fe4efdf53413))
+* Properly return objects from Anthropic adapter ([#8977](https://github.com/Arize-ai/phoenix/issues/8977)) ([e9a2e11](https://github.com/Arize-ai/phoenix/commit/e9a2e11719de53ff1f54879f38463746a6813de8))
+* Support o4 in Azure ([#9059](https://github.com/Arize-ai/phoenix/issues/9059)) ([9bec39f](https://github.com/Arize-ai/phoenix/commit/9bec39fc2e184b0778e1fb59d84077b2f6cdbe0a))
+
 ## [0.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.0...arize-phoenix-evals-v0.26.1) (2025-08-01)
 
 

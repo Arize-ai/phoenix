@@ -102,7 +102,7 @@ class OpenAIModel(BaseModel):
         model_kwargs (Dict[str, Any], optional): Holds any model parameters valid for `create` call
             not explicitly specified. Defaults to an empty dictionary.
         request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
-            requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
+            requests to OpenAI completion API. Default is 30 seconds.
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 10.
@@ -150,7 +150,7 @@ class OpenAIModel(BaseModel):
     presence_penalty: float = 0
     n: int = 1
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
-    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    request_timeout: Optional[Union[float, Tuple[float, float]]] = 30
     initial_rate_limit: int = 10
     timeout: int = 120
 
@@ -252,6 +252,7 @@ class OpenAIModel(BaseModel):
             api_key=self.api_key,
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
+            default_headers=self.default_headers,
         )
 
         # The client is not azure, so it must be openai
@@ -260,6 +261,7 @@ class OpenAIModel(BaseModel):
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
             max_retries=0,
+            default_headers=self.default_headers,
         )
 
     def _get_azure_options(self) -> AzureOptions:
@@ -283,7 +285,6 @@ class OpenAIModel(BaseModel):
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._openai.RateLimitError,
-            max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
@@ -553,6 +554,7 @@ def _get_token_param_str(is_azure: bool, model: str) -> str:
     However, Azure OpenAI models currently do not support
     max_completion_tokens unless it's an o1 or o3 model.
     """
-    if is_azure and not model.startswith("o1") and not model.startswith("o3"):
+    azure_reasoning_models = ("o1", "o3", "o4")
+    if is_azure and not model.startswith(azure_reasoning_models):
         return "max_tokens"
     return "max_completion_tokens"

@@ -10,7 +10,7 @@ async function main() {
     model,
   });
 
-  const result = await evaluator({
+  const result = await evaluator.evaluate({
     output: "Arize is not open source.",
     input: "Is Arize Phoenix Open Source?",
     reference:

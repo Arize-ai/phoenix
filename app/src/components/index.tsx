@@ -6,6 +6,8 @@ export {
   DialogTrigger,
   Form,
   I18nProvider,
+  Autocomplete,
+  useFilter,
 } from "react-aria-components";
 export type {
   InputProps,
@@ -26,6 +28,7 @@ export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./exception";
 export * from "./KeyboardToken";
+export * from "./ColorSwatch";
 
 // design system based components
 export * from "./alert";

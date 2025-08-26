@@ -548,6 +548,22 @@ export const Column = () => (
   </svg>
 );
 
+export const CornerUpRightOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="corner-up-right">
+        <rect
+          width="24"
+          height="24"
+          transform="rotate(-90 12 12)"
+          opacity="0"
+        />
+        <path d="M19.78 10.38l-4-5a1 1 0 0 0-1.56 1.24l2.7 3.38H8a3 3 0 0 0-3 3v5a1 1 0 0 0 2 0v-5a1 1 0 0 1 1-1h8.92l-2.7 3.38a1 1 0 0 0 .16 1.4A1 1 0 0 0 15 17a1 1 0 0 0 .78-.38l4-5a1 1 0 0 0 0-1.24z" />
+      </g>
+    </g>
+  </svg>
+);
+
 export const Commit = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -2320,6 +2336,44 @@ export const TimerOffOutline = () => (
       d="M12.988 4.058C12.9889 4.0485 12.9914 4.04002 12.994 4.03164C12.997 4.0215 13 4.0115 13 4V3H14C14.552 3 15 2.553 15 2C15 1.447 14.552 1 14 1H10C9.448 1 9 1.447 9 2C9 2.553 9.448 3 10 3H11V4C11 4.0115 11.003 4.0215 11.006 4.03164C11.0086 4.04002 11.0111 4.0485 11.012 4.058C10.1864 4.14865 9.394 4.35131 8.65042 4.65041L10.4335 6.43348C10.9364 6.31352 11.4609 6.25 12 6.25C15.722 6.25 18.75 9.278 18.75 13C18.75 13.5391 18.6865 14.0636 18.5665 14.5665L20.3525 16.3525C20.7701 15.3159 21 14.1843 21 13C21 8.372 17.487 4.552 12.988 4.058ZM12 19.75C12.82 19.75 13.6063 19.603 14.334 19.334L16.0408 21.0408C14.825 21.6543 13.4521 22 12 22C7.038 22 3 17.963 3 13C3 11.8156 3.23007 10.6842 3.64786 9.64786L5.43348 11.4335C5.31353 11.9364 5.25 12.4609 5.25 13C5.25 16.722 8.278 19.75 12 19.75ZM3.85828 3.09123C3.35638 2.61722 2.56525 2.63982 2.09124 3.14172C1.61722 3.64362 1.63983 4.43475 2.14172 4.90877L20.1417 21.9088C20.6436 22.3828 21.4348 22.3602 21.9088 21.8583C22.3828 21.3564 22.3602 20.5652 21.8583 20.0912L3.85828 3.09123Z"
       fill="currentColor"
     />
+  </svg>
+);
+
+export const ThumbsUpOutline = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="None"
+      d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"
+    ></path>
+  </svg>
+);
+
+export const ThumbsDownOutline = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="None"
+      d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"
+    ></path>
   </svg>
 );
 

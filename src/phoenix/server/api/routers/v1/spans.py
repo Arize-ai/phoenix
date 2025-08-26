@@ -469,26 +469,26 @@ async def query_spans_handler(
             detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
     async with request.app.state.db() as session:
-        results = []
+        results: list[pd.DataFrame] = []
         for query in span_queries:
-            results.append(
-                await session.run_sync(
-                    query,
-                    project_name=project_name,
-                    start_time=normalize_datetime(
-                        request_body.start_time,
-                        timezone.utc,
-                    ),
-                    end_time=normalize_datetime(
-                        end_time,
-                        timezone.utc,
-                    ),
-                    limit=request_body.limit,
-                    root_spans_only=request_body.root_spans_only,
-                    orphan_span_as_root_span=request_body.orphan_span_as_root_span,
-                )
+            df = await session.run_sync(
+                query,
+                project_name=project_name,
+                start_time=normalize_datetime(
+                    request_body.start_time,
+                    timezone.utc,
+                ),
+                end_time=normalize_datetime(
+                    end_time,
+                    timezone.utc,
+                ),
+                limit=request_body.limit,
+                root_spans_only=request_body.root_spans_only,
+                orphan_span_as_root_span=request_body.orphan_span_as_root_span,
             )
+            results.append(df)
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
@@ -880,6 +880,7 @@ class SpanAnnotationData(V1RoutesBaseModel):
 
     def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
+            datetime.now(timezone.utc),
             self.span_id,
             models.SpanAnnotation(
                 name=self.name,

@@ -64,11 +64,11 @@ erDiagram
         int id PK
         string name
         string cron_expression
-        json rule
+        jsonb rule
     }
 
     Project ||--o{ Trace : has
-    Project ||--o| ProjectTraceRetentionPolicy : has
+    Project ||--o{ ProjectSession : has
     Project ||--o{ ProjectAnnotationConfig : has
     Project {
         int id PK
@@ -134,7 +134,7 @@ erDiagram
         string label
         float score
         string explanation
-        json metadata
+        jsonb metadata
         string annotator_kind
         datetime created_at
         datetime updated_at
@@ -150,7 +150,7 @@ erDiagram
         string label
         float score
         string explanation
-        json metadata
+        jsonb metadata
         string annotator_kind
         datetime created_at
         datetime updated_at
@@ -166,7 +166,7 @@ erDiagram
         string label
         float score
         string explanation
-        json metadata
+        jsonb metadata
         string annotator_kind
         datetime created_at
         datetime updated_at
@@ -177,21 +177,23 @@ erDiagram
 
     Dataset ||--o{ DatasetVersion : has
     Dataset ||--o{ DatasetExample : contains
+    Dataset ||--o{ Experiment : used_in
     Dataset {
         int id PK
         string name
         string description
-        json metadata
+        jsonb metadata
         datetime created_at
         datetime updated_at
     }
 
     DatasetVersion ||--o{ DatasetExampleRevision : has
+    DatasetVersion ||--o{ Experiment : used_in
     DatasetVersion {
         int id PK
         int dataset_id FK
         string description
-        json metadata
+        jsonb metadata
         datetime created_at
     }
 
@@ -209,7 +211,7 @@ erDiagram
         int dataset_version_id FK
         json input
         json output
-        json metadata
+        jsonb metadata
         string revision_kind
         datetime created_at
     }
@@ -222,13 +224,14 @@ erDiagram
         string name
         string description
         int repetitions
-        json metadata
+        jsonb metadata
         string project_name
         datetime created_at
         datetime updated_at
     }
 
     ExperimentRun ||--o{ ExperimentRunAnnotation : has
+    DatasetExample ||--o{ ExperimentRun : used_in
     ExperimentRun {
         int id PK
         int experiment_id FK
@@ -253,7 +256,7 @@ erDiagram
         string explanation
         string trace_id
         string error
-        json metadata
+        jsonb metadata
         datetime start_time
         datetime end_time
     }
@@ -298,6 +301,7 @@ erDiagram
         datetime expires_at
     }
 
+    RefreshToken ||--o| AccessToken : creates
     AccessToken {
         int id PK
         int user_id FK
@@ -323,13 +327,13 @@ erDiagram
     Prompt ||--o{ PromptVersion : has
     Prompt ||--o{ PromptPromptLabel : has
     Prompt ||--o{ PromptVersionTag : has
-    Prompt ||--o{ Prompt : has
+    Prompt ||--o{ Prompt : derived_from
     Prompt {
         int id PK
         int source_prompt_id FK
         string name
         string description
-        json metadata
+        jsonb metadata
         datetime created_at
         datetime updated_at
     }
@@ -342,13 +346,13 @@ erDiagram
         int user_id FK
         string template_type
         string template_format
-        json template
-        json invocation_parameters
+        jsonb template
+        jsonb invocation_parameters
         json tools
         json response_format
         string model_provider
         string model_name
-        json metadata
+        jsonb metadata
         datetime created_at
     }
 
@@ -379,12 +383,60 @@ erDiagram
     AnnotationConfig {
         int id PK
         string name
-        json config
+        jsonb config
     }
 
     ProjectAnnotationConfig {
         int id PK
         int project_id FK
         int annotation_config_id FK
+    }
+
+    GenerativeModel ||--o{ TokenPrice : has
+    GenerativeModel ||--o{ SpanCost : used_in
+    GenerativeModel {
+        int id PK
+        string name
+        string provider
+        string name_pattern
+        boolean is_built_in
+        datetime start_time
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+
+    TokenPrice {
+        int id PK
+        int model_id FK
+        string token_type
+        boolean is_prompt
+        float base_rate
+        json customization
+    }
+
+    SpanCost ||--o{ SpanCostDetail : has
+    SpanCost {
+        int id PK
+        int span_rowid FK
+        int trace_rowid FK
+        int model_id FK
+        datetime span_start_time
+        float total_cost
+        float total_tokens
+        float prompt_cost
+        float prompt_tokens
+        float completion_cost
+        float completion_tokens
+    }
+
+    SpanCostDetail {
+        int id PK
+        int span_cost_id FK
+        string token_type
+        boolean is_prompt
+        float cost
+        float tokens
+        float cost_per_token
     }
 ```
