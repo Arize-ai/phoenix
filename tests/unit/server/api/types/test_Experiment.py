@@ -450,7 +450,6 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
         )
         session.add(trace)
-        await session.flush()
 
         dataset = models.Dataset(
             name="dataset-name",
@@ -506,7 +505,6 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
         session.add(experiment_run_without_trace)
-        await session.flush()
 
         experiment_run_with_trace = models.ExperimentRun(
             experiment_id=experiment.id,
@@ -518,7 +516,6 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
         session.add(experiment_run_with_trace)
-        await session.flush()
 
         experiment_run_with_missing_trace = models.ExperimentRun(
             experiment_id=experiment.id,
@@ -579,7 +576,6 @@ async def experiments_with_runs_and_annotations(
             for example in examples
         ]
         session.add_all(revisions)
-        await session.flush()
 
         experiments = [
             models.Experiment(
