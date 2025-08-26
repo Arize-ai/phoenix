@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -19,14 +19,22 @@ from .factories import (
 logger = logging.getLogger(__name__)
 
 
+def get_litellm_rate_limit_errors() -> list[Type[Exception]]:
+    from litellm import RateLimitError as LiteLLMRateLimitError
+
+    return [LiteLLMRateLimitError]
+
+
 @register_provider(
     provider="anthropic",
     client_factory=create_anthropic_client,
+    get_rate_limit_errors=get_litellm_rate_limit_errors,
     dependencies=["litellm"],
 )
 @register_provider(
     provider="openai",
     client_factory=create_openai_client,
+    get_rate_limit_errors=get_litellm_rate_limit_errors,
     dependencies=["litellm"],
 )
 class LiteLLMAdapter(BaseLLMAdapter):

@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -29,6 +29,12 @@ def identify_openai_client(client: Any) -> bool:
     )
 
 
+def get_openai_rate_limit_errors() -> list[Type[Exception]]:
+    from openai import RateLimitError as OpenAIRateLimitError
+
+    return [OpenAIRateLimitError]
+
+
 @register_adapter(
     identifier=identify_openai_client,
     name="openai",
@@ -36,6 +42,7 @@ def identify_openai_client(client: Any) -> bool:
 @register_provider(
     provider="openai",
     client_factory=create_openai_client,
+    get_rate_limit_errors=get_openai_rate_limit_errors,
     dependencies=["openai"],
 )
 class OpenAIAdapter(BaseLLMAdapter):
