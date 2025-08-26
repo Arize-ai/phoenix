@@ -2,7 +2,7 @@
 
 At the core, an Evaluator is anything that returns a Score. 
 
-### Abstractions
+## Abstractions
 - Score: immutable result container
 - Evaluator: base class for sync/async evaluation with input validation and mapping
 - LLMEvaluator: base class that integrates with an LLM and a prompt template
