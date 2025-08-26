@@ -13,9 +13,11 @@ from phoenix.server.types import DbSessionFactory
 @dataclass
 class ExperimentAnnotationSummary:
     annotation_name: str
-    mean_score: float
     min_score: float
     max_score: float
+    mean_score: float
+    count: int
+    error_count: int
 
 
 ExperimentID: TypeAlias = int
@@ -79,6 +81,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.min(models.ExperimentRunAnnotation.score).label("min_score"),
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
+                func.count().label("count"),
+                func.count(models.ExperimentRunAnnotation.error).label("error_count"),
             )
             .select_from(models.ExperimentRun)
             .join(
@@ -96,6 +100,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 repetition_mean_scores_subquery.c.mean_score.label("mean_score"),
                 repetition_min_max_scores_subquery.c.min_score.label("min_score"),
                 repetition_min_max_scores_subquery.c.max_score.label("max_score"),
+                repetition_min_max_scores_subquery.c.count.label("count_"),
+                repetition_min_max_scores_subquery.c.error_count.label("error_count"),
             )
             .select_from(repetition_mean_scores_subquery)
             .join(
@@ -121,6 +127,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         min_score=scores_tuple.min_score,
                         max_score=scores_tuple.max_score,
                         mean_score=scores_tuple.mean_score,
+                        count=scores_tuple.count_,
+                        error_count=scores_tuple.error_count,
                     )
                 )
         return [
