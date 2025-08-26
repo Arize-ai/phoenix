@@ -24,7 +24,7 @@ AsyncLLM mirrors the same methods with async variants.
 - Run `show_provider_availability()` to see what’s enabled in your environment.
 
 ### Object generation methods
-- You can the object generation method: either structured output (response_format/json_schema) or tool calling. You usually don’t need to select a method; the adapter chooses based on capabilities with the "auto" method.
+- You can specify the object generation method: either structured output (response_format/json_schema) or tool calling. You usually don’t need to select a method; the adapter chooses based on capabilities with the "auto" method.
 
 ## Examples
 1) Text generation
