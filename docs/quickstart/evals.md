@@ -12,9 +12,9 @@ pip install -q openai nest_asyncio
 ```
 
 ## Prepare your dataset
-The first thing you'll need is a dataset to evaluate. This could be your own collect or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
+The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
 
-For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to sub this with your own data, just be sure it includes the following columns:
+For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
 - reference
 - query
 - response

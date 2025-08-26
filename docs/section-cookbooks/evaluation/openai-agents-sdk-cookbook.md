@@ -12,48 +12,11 @@ This guide shows you how to create and evaluate agents with Phoenix to improve p
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/openai_agents_cookbook.ipynb" %}
 
-## Initial setup
+***
 
-#### Install Libraries
+## Notebook Walkthrough
 
-```python
-!pip install -q "arize-phoenix>=8.0.0" openinference-instrumentation-openai-agents openinference-instrumentation-openai --upgrade
-!pip install -q openai nest_asyncio openai-agents
-```
-
-#### Setup Dependencies and Keys
-
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
-
-```python
-import os
-
-import nest_asyncio
-
-nest_asyncio.apply()
-
-from getpass import getpass
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-if not os.environ.get("PHOENIX_CLIENT_HEADERS"):
-    os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=" + getpass("Enter your Phoenix API key: ")
-
-if not os.environ.get("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
-```
-
-#### Setup Tracing
-
-```python
-from phoenix.otel import register
-
-# Setup Tracing
-tracer_provider = register(
-    project_name="openai-agents-cookbook",
-    endpoint="https://app.phoenix.arize.com/v1/traces",
-    auto_instrument=True,
-)
-```
+We will go through key code snippets on this page. To follow the full tutorial, check out the full notebook.
 
 ## Create your first agent with the OpenAI SDK
 
@@ -389,4 +352,4 @@ initial_experiment = run_experiment(
 
 ### View Traces and Evaluator Results in Phoenix as Traces Populate
 
-![Results2](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evaluating_openai_agents.gif)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evaluating_openai_agents.gif" %}

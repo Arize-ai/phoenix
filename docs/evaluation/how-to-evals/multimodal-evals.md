@@ -2,7 +2,7 @@
 
 ## Multimodal Templates
 
-Multimodal evaluation templates enable users to evaluate tasks involving multiple input or output modalities, such as text, audio, or images. These templates provide a structured framework for constructing evaluation prompts, allowing LLMs to assess the quality, correctness, or relevance of outputs across diverse use cases.&#x20;
+Multimodal evaluation templates enable users to evaluate tasks involving multiple input or output modalities, such as text, audio, or images. These templates provide a structured framework for constructing evaluation prompts, allowing LLMs to assess the quality, correctness, or relevance of outputs across diverse use cases.
 
 The flexibility of multimodal templates makes them applicable to a wide range of scenarios, such as:
 

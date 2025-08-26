@@ -6,7 +6,7 @@ To log traces, you must instrument your application either manually or automatic
 
 {% tabs %}
 {% tab title="Local Phoenix" %}
-When running running Phoenix locally on the default port of `6006`, no additional configuration is necessary.
+When running Phoenix locally on the default port of `6006`, no additional configuration is necessary.
 
 ```python
 import phoenix as px

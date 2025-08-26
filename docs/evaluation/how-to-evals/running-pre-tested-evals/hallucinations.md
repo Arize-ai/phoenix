@@ -54,7 +54,7 @@ model = OpenAIModel(
     temperature=0.0,
 )
 
-#The rails is used to hold the output to specific values based on the template
+#The rails are used to hold the output to specific values based on the template
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())

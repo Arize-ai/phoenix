@@ -1,48 +1,83 @@
-# Agent Workflow Patterns
+# Evaluating Multi-Agent Systems
 
-Workflows are the backbone of many successful LLM applications. They define how language models interact with tools, data, and users—often through a sequence of clearly orchestrated steps. Unlike fully autonomous agents, workflows offer structure and predictability, making them a practical choice for many real-world tasks.
+Evaluating multi-agent systems involves unique challenges compared to single-agent evaluations. This guide provides clear explanations of various architectures, strategies for effective evaluation, and additional considerations.
 
-In this guide, we share practical workflows using a variety of agent frameworks, including:
+## Understanding Multi-Agent Systems
 
-* [**AutoGen**](agents/agent-workflow-patterns/autogen.md)
-* [**CrewAI**](agents/agent-workflow-patterns/crewai.md)
-* [**Google GenAI SDK**](agents/agent-workflow-patterns/google-genai-sdk.md)
-* [**OpenAI Agents**](agents/agent-workflow-patterns/openai-agents.md)
-* [**LangGraph**](agents/agent-workflow-patterns/langgraph.md)
-* [**Smolagents**](agents/agent-workflow-patterns/smolagents.md)
+A multi-agent system consists of multiple agents, each using an LLM (Large Language Model) to control application flows. As systems grow, you may encounter challenges such as agents struggling with too many tools, overly complex contexts, or the need for specialized domain knowledge (e.g., planning, research, mathematics). Breaking down applications into multiple smaller, specialized agents often resolves these issues.
 
-Each section highlights how to use these tools effectively—showing what’s possible, where they shine, and where a simpler solution might serve you better. Whether you're orchestrating deterministic workflows or building dynamic agentic systems, the goal is to help you choose the right tool for your context and build with confidence.
+### Benefits of Multi-Agent Systems
 
-For a deeper dive into the principles behind agentic systems and when to use them, see [Anthropic’s “Building Effective Agents”](https://www.anthropic.com/engineering/building-effective-agents).
+* **Modularity**: Easier to develop, test, and maintain.
+* **Specialization**: Expert agents handle specific domains.
+* **Control**: Explicit control over agent communication.
 
-### Routing
+### Multi-Agent Architectures
 
-**Agent Routing** is the process of directing a task, query, or request to the most appropriate agent based on context or capabilities. In multi-agent systems, it helps determine which agent is best suited to handle a specific input based on skills, domain expertise, or available tools. This enables more efficient, accurate, and specialized handling of complex tasks.
+Multi-agent systems can connect agents in several ways:
 
-<figure><img src=".gitbook/assets/image (3).png" alt="" width="375"><figcaption></figcaption></figure>
+<table><thead><tr><th width="212.35546875">Architecture Type</th><th>Description</th><th width="287.75">Evaluation Considerations</th></tr></thead><tbody><tr><td><strong>Network</strong></td><td>Agents can communicate freely with each other, each deciding independently whom to contact next.</td><td>Assess communication efficiency, decision quality on agent selection, and coordination complexity.</td></tr><tr><td><strong>Supervisor</strong></td><td>Agents communicate exclusively with a single supervisor that makes all routing decisions.</td><td>Evaluate supervisor decision accuracy, efficiency of routing, and effectiveness in task management.</td></tr><tr><td><strong>Supervisor (Tool-calling)</strong></td><td>Supervisor uses an LLM to invoke agents represented as tools, making explicit tool calls with arguments.</td><td>Evaluate tool-calling accuracy, appropriateness of arguments passed, and supervisor decision quality.</td></tr><tr><td><strong>Hierarchical</strong></td><td>Systems with supervisors of supervisors, allowing complex, structured flows.</td><td>Evaluate communication efficiency, decision-making at each hierarchical level, and overall system coherence.</td></tr><tr><td><strong>Custom Workflow</strong></td><td>Agents communicate within predetermined subsets, combining deterministic and agent-driven decisions.</td><td>Evaluate workflow efficiency, clarity of communication paths, and effectiveness of the predetermined control flow.</td></tr></tbody></table>
 
-### Prompt Chaining
+## Core Evaluation Strategies Explained
 
-**Prompt Chaining** is the technique of breaking a complex task into multiple steps, where the output of one prompt becomes the input for the next. This allows a system to reason more effectively, maintain context across steps, and handle tasks that would be too difficult to solve in a single prompt. It's often used to simulate multi-step thinking or workflows.
+There are a few different strategies for evaluating multi agent applications.
 
-<figure><img src=".gitbook/assets/image (2).png" alt="" width="375"><figcaption></figcaption></figure>
+**1. Agent Handoff Evaluation**
 
-### Parallelization
+When tasks transfer between agents, evaluate:
 
-**Parallelization** is the process of dividing a task into smaller, independent parts that can be executed simultaneously to speed up processing. It’s used to handle multiple inputs, computations, or agent responses at the same time rather than sequentially. This improves efficiency and speed, especially for large-scale or time-sensitive tasks.
+* **Appropriateness**: Is the timing logical?
+* **Information Transfer**: Was context transferred effectively?
+* **Timing**: Optimal handoff moment.
 
-<figure><img src=".gitbook/assets/image (4).png" alt="" width="375"><figcaption></figcaption></figure>
+**2. System-Level Evaluation**
 
-### Orchestrator-workers <a href="#workflow-orchestrator-workers" id="workflow-orchestrator-workers"></a>
+Measure holistic performance:
 
-An **orchestrator** is a central controller that manages and coordinates multiple components, agents, or processes to ensure they work together smoothly.&#x20;
+* **End-to-End Task Completion**
+* **Efficiency**: Number of interactions, processing speed
+* **User Experience**
 
-It decides what tasks need to be done, who or what should do them, and in what order. An orchestrator can handle things like scheduling, routing, error handling, and result aggregation. It might also manage prompt chains, route tasks to agents, and oversee parallel execution.
+**3. Coordination Evaluation**
 
-<figure><img src=".gitbook/assets/image (6).png" alt="" width="375"><figcaption></figcaption></figure>
+Evaluate cooperative effectiveness:
 
-### Evaluator-Optimizer
+* **Communication Quality**
+* **Conflict Resolution**
+* **Resource Management**
 
-An **evaluator** assesses the quality or correctness of outputs, such as ranking responses, checking for factual accuracy, or scoring performance against a metric. An **optimizer** uses that evaluation to improve future outputs, either by fine-tuning models, adjusting parameters, or selecting better strategies. Together, they form a feedback loop that helps a system learn what works and refine itself over time.
+## Additional Evaluation Considerations
 
-<figure><img src=".gitbook/assets/image (7).png" alt="" width="375"><figcaption></figcaption></figure>
+Multi-agent systems introduce added complexity:
+
+* **Complexity Management**: Evaluate agents individually, in pairs, and system-wide.
+* **Emergent Behaviors**: Monitor for collective intelligence and unexpected interactions.
+* **Evaluation Granularity**:
+  * **Agent-level**: Individual performance
+  * **Interaction-level**: Agent interactions
+  * **System-level**: Overall performance
+  * **User-level**: End-user experience
+* **Performance Metrics**: Latency, throughput, scalability, reliability, operational cost
+
+## Practical Approaches to Evaluation
+
+### **Leverage Single-Agent Evaluations**
+
+Adapt single-agent evaluation methods like tool-calling evaluations and planning assessments.
+
+See [our guide on agent evals](https://arize.com/docs/phoenix/evaluation/llm-evals/agent-evaluation) and use our [pre-built evals](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) that you can leverage in Phoenix.
+
+### **Develop Multi-Agent Specific Evaluations**
+
+Focus evaluations on coordination efficiency, overall system efficiency, and emergent behaviors.
+
+See our docs for creating your own [custom evals](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator) in Phoenix.&#x20;
+
+### **Hierarchical Evaluation**
+
+Structure evaluations to match architecture:
+
+* **Bottom-Up**: From individual agents upward.
+* **Top-Down**: From system goals downward.
+* **Hybrid**: Combination for comprehensive coverage.
+

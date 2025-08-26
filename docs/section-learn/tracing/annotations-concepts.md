@@ -5,7 +5,7 @@
 Depending on what you want to do with your annotations, you may want to configure a rubric for what your annotation represents - e.g. is it a **category**, number with a range (**continuous**), or **freeform**.
 
 * Annotation type:\
-  \- **Categorical:** Predefined labels for selection. (e.x. 👍 or 👎)\
+  \- **Categorical:** Predefined labels for selection. (e.g. 👍 or 👎)\
   \- **Continuous:** a score across a specified range. (e.g. confidence score 0-100)\
   \- **Freeform:** Open-ended text comments. (e.g. "correct")
 * Optimize the direction based on your goal:\

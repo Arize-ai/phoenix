@@ -20,6 +20,6 @@ An exporter takes the spans created via **instrumentation** and exports them to 
 
 The Phoenix server is a collector and a UI that helps you troubleshoot your application in real time. When you run or run phoenix (e.x. **px.launch\_app()**, container), Phoenix starts receiving spans from any application(s) that is exporting spans to it.
 
-## OpenTelememetry Protocol
+## OpenTelemetry Protocol
 
-OpenTelemetetry Protocol (or OTLP for short) is the means by which traces arrive from your application to the Phoenix collector. Phoenix currently supports OTLP over HTTP.
+OpenTelemetry Protocol (or OTLP for short) is the means by which traces arrive from your application to the Phoenix collector. Phoenix currently supports OTLP over HTTP.

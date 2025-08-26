@@ -37,10 +37,6 @@ Users can be added and removed from a Phoenix instance with authentication enabl
 
 Only admins can manage phoenix users. They can add, delete, and reset the passwords of other members. To manage users go to the `/settings` page.
 
-{% hint style="info" %}
-Deleting a user results in permanently blocking them from phoenix. The action cannot be undone and the user cannot be reactivated with the same email or username. Please be careful when deleting users.
-{% endhint %}
-
 ## Permissions
 
 This section outlines the specific actions that users can perform based on their assigned roles within the system: **Admin** and **Member**. The permission matrix is divided into two main categories:
@@ -91,7 +87,7 @@ export PHOENIX_API_KEY=<SYSTEM-OR-USER-KEY>
 If authentication is enabled on Phoenix, all interactions with the server need to include an `authorization` header. Phoenix will read the `PHOENIX_API_KEY` environment variable, and automatically include it as an `authorization` header. Interactions with Phoenix include:
 
 * Using `phoenix.Client`
-* Runing experiments
+* Running experiments
 * Sending OpenInference traces (more details below)
 
 ### Sending OpenInference traces

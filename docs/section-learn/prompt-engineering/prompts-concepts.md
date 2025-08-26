@@ -6,7 +6,7 @@ Prompts often times refer to the content of how you "prompt" a LLM, e.g. the "te
 
 * The **prompt template** of the messages to send to a completion endpoint
 * The **invocation parameters** (temperature, frequency penalty, etc.)
-* The **tools** made accessible to the LLM (e.x. weather API)
+* The **tools** made accessible to the LLM (e.g. weather API)
 * The **response** **format** (sometimes called the output schema) used for when you have JSON mode enabled.
 
 This expanded definition of a **prompt** lets you more deterministically invoke LLMs with confidence as everything is snapshotted for you to use within your application.
@@ -19,7 +19,7 @@ Although the terms prompt and prompt template get used interchangeably, it's imp
 
 Prompts refer to the message(s) that are passed into the language model.
 
-Prompt Templates refer a way of formatting information to get the prompt to hold the information you want (such as context and examples) Prompt templates can include placeholders (variables) for things such as examples (e.x. few-shot), outside context (RAG), or any other external data that is needed.
+Prompt Templates refer to a way of formatting information to get the prompt to hold the information you want (such as context and examples). Prompt templates can include placeholders (variables) for things such as examples (e.g. few-shot), outside context (RAG), or any other external data that is needed.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt=""><figcaption><p>Prompt templates have placeholders for variables that are dynamically filled at runtime</p></figcaption></figure>
 
@@ -77,7 +77,7 @@ We recommend using Mustache where possible, since it supports nested attributes,
 
 Tools allow LLMs to interact with the external environment. This can allow LLMs to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
 
-Here is an example of what a tool would looke like for the weather API using OpenAI.
+Here is an example of what a tool would look like for the weather API using OpenAI.
 
 ```json
 {

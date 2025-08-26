@@ -68,7 +68,7 @@ from phoenix.evals import (
     # for a full list of supported models
 )
 
-# The rails is used to hold the output to specific values based on the template
+# The rails are used to hold the output to specific values based on the template
 # It will remove text such as ",,," or "..."
 # Will ensure the binary value expected from the template is returned
 rails = ["irrelevant", "relevant"]
@@ -95,7 +95,7 @@ llm_output_string = "The answer is relevant...!"
 llm_output_string = "Irrelevant."
 >"irrelevant"
 
-#No class in resposne
+#No class in response
 llm_output_string = "I am not sure!"
 >"UNPARSABLE"
 
@@ -114,11 +114,11 @@ The Phoenix library does support numeric score Evals if you would like to use th
 ```
 SCORE_TEMPLATE = """
 You are a helpful AI bot that checks for grammatical, spelling and typing errors
-in a document context. You are going to return a continous score for the
+in a document context. You are going to return a continuous score for the
 document based on the percent of grammatical and typing errors. The score should be
 between 10 and 1. A score of 1 will be no grammatical errors in any word,
 a score of 2 will be 20% of words have errors, a 5 score will be 50% errors,
-a score of 7 is 70%, and a 10 score will be all words in the context have a
+a score of 7 is 70%, and a 10 score will be all words in the context have
 grammatical errors.
 
 The following is the document context.

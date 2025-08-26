@@ -5,7 +5,7 @@ The role-based access control (RBAC) in Phoenix is based on the following user r
 * `admin` - full control to the system, can administer users, system keys, etc.
 * `member` - a developer that can add traces, experiments, datasets, etc.
 
-A user's rule controls their access via the UI as well as through the APIs.&#x20;
+A user's role controls their access via the UI as well as through the APIs.&#x20;
 
 ## User Management
 

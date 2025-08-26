@@ -32,7 +32,7 @@ df = pd.DataFrame(
     [
         {
             "question": "What is Paul Graham known for?",
-            "answer": "Co-founding Y Combinator and writing on startups and techology.",
+            "answer": "Co-founding Y Combinator and writing on startups and technology.",
             "metadata": {"topic": "tech"},
         }
     ]
@@ -58,7 +58,7 @@ const examples = [
   {
     input: { question: "What is Paul Graham known for?" },
     output: {
-      answer: "Co-founding Y Combinator and writing on startups and techology."
+      answer: "Co-founding Y Combinator and writing on startups and technology."
     },
     metadata: { topic: "tech" }
   }
