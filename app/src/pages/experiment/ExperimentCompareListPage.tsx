@@ -754,7 +754,6 @@ export function ExperimentCompareListPage() {
           <table
             css={css(tableCSS, borderedTableCSS)}
             style={{
-              // ...columnSizeVars,
               width: table.getTotalSize(),
               minWidth: "100%",
             }}
