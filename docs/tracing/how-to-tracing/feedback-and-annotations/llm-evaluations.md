@@ -34,14 +34,13 @@ A dataframe of span evaluations would look similar like the table below. It must
 The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `eval_name=` parameter. In this case we name it "Q\&A Correctness".
 
 ```python
-from phoenix.trace import SpanEvaluations
-import os
+from phoenix.client import Client
 
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="Q&A Correctness",
+    annotator_kind="LLM",
 )
 ```
 
@@ -54,6 +53,7 @@ A dataframe of document evaluations would look something like the table below. I
 The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `eval_name=` parameter. In this case we name it "Relevance".
 
 ```python
+import phoenix as px
 from phoenix.trace import DocumentEvaluations
 
 px.Client().log_evaluations(
@@ -69,20 +69,30 @@ px.Client().log_evaluations(
 Multiple sets of Evaluations can be logged by the same `px.Client().log_evaluations()` function call.
 
 ```python
+import phoenix as px
+from phoenix.client import Client
+from phoenix.trace import DocumentEvaluations
+
+px_client = Client()
+
+# Log span evaluations with new client
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="Q&A Correctness",
+    annotator_kind="LLM",
+)
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=hallucination_eval_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+
+# Document evaluations still use legacy client
 px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
     DocumentEvaluations(
         dataframe=document_relevance_eval_df,
         eval_name="Relevance",
     ),
-    SpanEvaluations(
-        dataframe=hallucination_eval_df,
-        eval_name="Hallucination",
-    ),
-    # ... as many as you like
 )
 ```
 
@@ -91,13 +101,13 @@ px.Client().log_evaluations(
 By default the client will push traces to the project specified in the `PHOENIX_PROJECT_NAME` environment variable or to the `default` project. If you want to specify the destination project explicitly, you can pass the project name as a parameter.
 
 ```python
-from phoenix.trace import SpanEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
-    project_name="<my-project>"
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="Q&A Correctness",
+    annotator_kind="LLM",
+    project_identifier="<my-project>",
 )
 ```

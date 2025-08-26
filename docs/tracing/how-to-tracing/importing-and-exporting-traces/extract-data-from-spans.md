@@ -15,7 +15,7 @@ description: Various options for to help you get data out of Phoenix
 
 ## Connect to Phoenix
 
-Before using any of the methods above, make sure you've connected to `px.Client()` . You'll need to set the following environment variables:
+Before using any of the methods above, make sure you've connected to the server via the Phoenix client. You'll need to set the following environment variables:
 
 ```python
 import os
@@ -31,16 +31,18 @@ If you're self-hosting Phoenix, ignore the client headers and change the collect
 If you prefer to handle your filtering locally, you can also download all spans as a dataframe using the `get_spans_dataframe()` function:
 
 ```python
-import phoenix as px
+from phoenix.client import Client
+
+px_client = Client()
 
 # Download all spans from your default project
-px.Client().get_spans_dataframe()
+px_client.spans.get_spans_dataframe()
 
 # Download all spans from a specific project
-px.Client().get_spans_dataframe(project_name='your project name')
+px_client.spans.get_spans_dataframe(project_identifier='your project name')
 
 # You can query for spans with the same filter conditions as in the UI
-px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
+px_client.spans.get_spans_dataframe(query="span_kind == 'CHAIN'")
 ```
 
 ## Running Span Queries
@@ -54,7 +56,7 @@ This **Query DSL** is the same as what is used by the filter bar in the dashboar
 Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 
 query = SpanQuery().where(
@@ -68,7 +70,8 @@ query = SpanQuery().where(
 )
 
 # The Phoenix Client can take this query and return the dataframe.
-px.Client().query_spans(query)
+px_client = Client()
+px_client.spans.get_spans_dataframe(query=query)
 ```
 
 {% hint style="info" %}
@@ -81,12 +84,12 @@ By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is
 By default, all queries will collect all spans that are in your Phoenix instance. If you'd like to focus on most recent spans, you can pull spans based on time frames using `start_time` and `end_time`.
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 from datetime import datetime, timedelta
 
 # Initiate Phoenix client
-px_client = px.Client()
+px_client = Client()
 
 # Get spans from the last 7 days only
 start = datetime.now() - timedelta(days=7)
@@ -94,23 +97,25 @@ start = datetime.now() - timedelta(days=7)
 # Get spans to exclude the last 24 hours
 end = datetime.now() - timedelta(days=1)
 
-phoenix_df = px_client.query_spans(start_time=start, end_time=end)
+phoenix_df = px_client.spans.get_spans_dataframe(start_time=start, end_time=end)
 ```
 
 ### How to Specify a Project
 
-By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://arize.com/docs/phoenix/references/api/client) have an optional parameter named `project_name`
+By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://arize.com/docs/phoenix/references/api/client) have an optional parameter named `project_identifier`
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 
+px_client = Client()
+
 # Get spans from a project
-px.Client().get_spans_dataframe(project_name="<my-project>")
+px_client.spans.get_spans_dataframe(project_identifier="<my-project>")
 
 # Using the query DSL
 query = SpanQuery().where("span_kind == 'CHAIN'").select(input="input.value")
-px.Client().query_spans(query, project_name="<my-project>")
+px_client.spans.get_spans_dataframe(query=query, project_identifier="<my-project>")
 ```
 
 ### Querying for Retrieved Documents
@@ -129,6 +134,7 @@ Note that this DataFrame can be used directly as input for the [Retrieval (RAG) 
 We can accomplish this with a simple query as follows. Also see [Predefined Queries](extract-data-from-spans.md#retrieved-documents) for a helper function executing this query.
 
 ```python
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 
 query = SpanQuery().where(
@@ -148,7 +154,8 @@ query = SpanQuery().where(
 )
 
 # The Phoenix Client can take this query and return the dataframe.
-px.Client().query_spans(query)
+px_client = Client()
+px_client.spans.get_spans_dataframe(query=query)
 ```
 
 ### How to Explode Attributes
@@ -312,17 +319,19 @@ pd.concatenate(
 To learn more about extracting span attributes, see [Extracting Span Attributes](extract-data-from-spans.md#extracting-span-attributes).
 
 ```python
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 
 query = SpanQuery().where(
     "span_kind == 'LLM'",
 ).select(
     input="input.value",
-    output="output.value,
+    output="output.value",
 )
 
 # The Phoenix Client can take this query and return a dataframe.
-px.Client().query_spans(query)
+px_client = Client()
+px_client.spans.get_spans_dataframe(query=query)
 ```
 
 ### Retrieval (RAG) Relevance Evaluations
@@ -335,7 +344,10 @@ To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../..
 
 ```python
 import pandas as pd
+from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
+
+px_client = Client()
 
 query_for_root_span = SpanQuery().where(
     "parent_id is None",   # Filter for root spans
@@ -356,14 +368,10 @@ query_for_retrieved_documents = SpanQuery().where(
 )
 
 # Perform an inner join on the two sets of spans.
-pd.concat(
-    px.Client().query_spans(
-        query_for_root_span,
-        query_for_retrieved_documents,
-    ),
-    axis=1,
-    join="inner",
-)
+root_span_df = px_client.spans.get_spans_dataframe(query=query_for_root_span)
+retrieved_docs_df = px_client.spans.get_spans_dataframe(query=query_for_retrieved_documents)
+
+pd.concat([root_span_df, retrieved_docs_df], axis=1, join="inner")
 ```
 
 ## Pre-defined Queries
@@ -390,9 +398,11 @@ tools_df
 The query shown in the example can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../../evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
 
 ```python
+from phoenix.client import Client
 from phoenix.session.evaluation import get_retrieved_documents
 
-retrieved_documents = get_retrieved_documents(px.Client())
+px_client = Client()
+retrieved_documents = get_retrieved_documents(px_client)
 retrieved_documents
 ```
 
@@ -401,9 +411,11 @@ retrieved_documents
 To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../../../evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md#how-to-run-the-eval), we can use the following helper function.
 
 ```python
+from phoenix.client import Client
 from phoenix.session.evaluation import get_qa_with_reference
 
-qa_with_reference = get_qa_with_reference(px.Client())
+px_client = Client()
+qa_with_reference = get_qa_with_reference(px_client)
 qa_with_reference
 ```
 
@@ -418,20 +430,25 @@ Sometimes you may want to back up your Phoenix traces to a single file, rather t
 Use the following command to save all traces from a Phoenix instance to a designated location.
 
 ```python
-my_traces = px.Client().get_trace_dataset().save()
+from phoenix.client import Client
+
+px_client = Client()
+my_traces = px_client.get_trace_dataset().save()
 ```
 
 You can specify the directory to save your traces by passing a`directory` argument to the `save` method.
 
 ```python
 import os
+from phoenix.client import Client
 
 # Specify and Create the Directory for Trace Dataset
 directory = '/my_saved_traces'
 os.makedirs(directory, exist_ok=True)
 
 # Save the Trace Dataset
-trace_id = px.Client().get_trace_dataset().save(directory=directory)
+px_client = Client()
+trace_id = px_client.get_trace_dataset().save(directory=directory)
 ```
 
 This output the trace ID and prints the path of the saved file:

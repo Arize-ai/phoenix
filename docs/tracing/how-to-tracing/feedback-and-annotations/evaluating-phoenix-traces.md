@@ -97,9 +97,10 @@ print(f"Generated {len(jokes)} jokes and tracked them in Phoenix.")
 ### Download trace dataset from Phoenix
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-spans_df = px.Client().get_spans_dataframe(project_name="evaluating_traces_quickstart")
+px_client = Client()
+spans_df = px_client.spans.get_spans_dataframe(project_identifier="evaluating_traces_quickstart")
 spans_df.head()
 ```
 
@@ -159,9 +160,14 @@ eval_df["label"] = eval_df["label"].astype(str)
 ```
 
 ```python
-from phoenix.trace import SpanEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(SpanEvaluations(eval_name="Duplicate", dataframe=eval_df))
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=eval_df,
+    annotation_name="Duplicate",
+    annotator_kind="LLM",
+)
 ```
 
 You should now see evaluations in the Phoenix UI!
