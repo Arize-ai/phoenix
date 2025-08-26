@@ -508,6 +508,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
+        timeout-minutes: 10
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x -n auto --reruns 5
 
   phoenix-client-canary-tests-sdk:
