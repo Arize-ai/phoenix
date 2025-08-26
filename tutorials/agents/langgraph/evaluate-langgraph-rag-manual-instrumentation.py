@@ -41,7 +41,7 @@ from phoenix.evals import (
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
 from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
+from phoenix.trace import DocumentEvaluations
 
 nest_asyncio.apply()
 
@@ -645,14 +645,21 @@ async def main():
         print("✅ Logged retrieval relevance evaluations")
 
     if qa_results:
+        from phoenix.client import Client
+
+        px_client = Client()
         if "qa_correctness" in qa_results:
-            px.Client().log_evaluations(
-                SpanEvaluations(eval_name="Q&A Correctness", dataframe=qa_results["qa_correctness"])
+            px_client.annotations.log_span_annotations_dataframe(
+                dataframe=qa_results["qa_correctness"],
+                annotation_name="Q&A Correctness",
+                annotator_kind="LLM",
             )
             print("✅ Logged Q&A correctness evaluations")
         if "hallucination" in qa_results:
-            px.Client().log_evaluations(
-                SpanEvaluations(eval_name="Hallucination", dataframe=qa_results["hallucination"])
+            px_client.annotations.log_span_annotations_dataframe(
+                dataframe=qa_results["hallucination"],
+                annotation_name="Hallucination",
+                annotator_kind="LLM",
             )
             print("✅ Logged hallucination evaluations")
 
