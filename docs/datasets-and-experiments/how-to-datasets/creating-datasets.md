@@ -11,6 +11,7 @@ When manually creating a dataset (let's say collecting hypothetical questions an
 ```python
 import pandas as pd
 import phoenix as px
+from phoenix.client import Client
 
 queries = [
     "What are the 9 planets in the solar system?",
@@ -26,10 +27,10 @@ responses = [
 dataset_df = pd.DataFrame(data={"query": queries, "responses": responses})
 
 px.launch_app()
-client = px.Client()
-dataset = client.upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=dataset_df,
-    dataset_name="physics-questions",
+    name="physics-questions",
     input_keys=["query"],
     output_keys=["responses"],
 )
@@ -45,9 +46,11 @@ Sometimes you just want to upload datasets using plain objects as CSVs and DataF
 {% tabs %}
 {% tab title="Python" %}
 ```python
+from phoenix.client import Client
 
-ds = px.Client().upload_dataset(
-    dataset_name="my-synthetic-dataset",
+px_client = Client()
+ds = px_client.datasets.create_dataset(
+    name="my-synthetic-dataset",
     inputs=[{ "question": "hello" }, { "question": "good morning" }],
     outputs=[{ "answer": "hi" }, { "answer": "good morning" }],
 );
@@ -127,12 +130,13 @@ questions_df["output"] = [None, None, None]
 Once we've constructed a collection of synthetic questions, we can upload them to a Phoenix dataset.
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
 # Note that the below code assumes that phoenix is running and accessible
-client = px.Client()
-client.upload_dataset(
-    dataframe=questions_df, dataset_name="paul-graham-questions",
+px_client = Client()
+px_client.datasets.create_dataset(
+    dataframe=questions_df, 
+    name="paul-graham-questions",
     input_keys=["question"],
     output_keys=["output"],
 )
