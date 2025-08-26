@@ -372,7 +372,9 @@ export function ExperimentCompareListPage() {
                       />
                     </span>
                     <Truncate maxWidth="200px" title={value}>
-                      <JSONText json={value} maxLength={100} />
+                      <Text size="S">
+                        <JSONText json={value} maxLength={100} />
+                      </Text>
                     </Truncate>
                   </Flex>
                 </li>
