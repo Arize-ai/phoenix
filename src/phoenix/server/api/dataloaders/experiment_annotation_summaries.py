@@ -44,9 +44,9 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
             )
-            .select_from(models.ExperimentRun)
+            .select_from(models.ExperimentRunAnnotation)
             .join(
-                models.ExperimentRunAnnotation,
+                models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
@@ -56,7 +56,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRunAnnotation.name,
             )
             .subquery()
-            .alias("repetition_scores_by_example")
+            .alias("repetition_mean_scores_by_example")
         )
         repetition_mean_scores_subquery = (
             select(
@@ -84,9 +84,9 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 func.count().label("count"),
                 func.count(models.ExperimentRunAnnotation.error).label("error_count"),
             )
-            .select_from(models.ExperimentRun)
+            .select_from(models.ExperimentRunAnnotation)
             .join(
-                models.ExperimentRunAnnotation,
+                models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
