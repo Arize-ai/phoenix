@@ -42,7 +42,10 @@ px_client.spans.get_spans_dataframe()
 px_client.spans.get_spans_dataframe(project_identifier='your project name')
 
 # You can query for spans with the same filter conditions as in the UI
-px_client.spans.get_spans_dataframe(query="span_kind == 'CHAIN'")
+
+
+query = SpanQuery().where("span_kind == 'CHAIN'")
+px_client.spans.get_spans_dataframe(query=query)
 ```
 
 ## Running Span Queries
@@ -57,7 +60,7 @@ Below is an example of how to pull all retriever spans and select the input valu
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 query = SpanQuery().where(
     # Filter for the `RETRIEVER` span kind.
@@ -85,7 +88,7 @@ By default, all queries will collect all spans that are in your Phoenix instance
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 from datetime import datetime, timedelta
 
 # Initiate Phoenix client
@@ -106,7 +109,7 @@ By default all queries are executed against the default project or the project s
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 px_client = Client()
 
@@ -135,7 +138,7 @@ We can accomplish this with a simple query as follows. Also see [Predefined Quer
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 query = SpanQuery().where(
     # Filter for the `RETRIEVER` span kind.
@@ -320,7 +323,7 @@ To learn more about extracting span attributes, see [Extracting Span Attributes]
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 query = SpanQuery().where(
     "span_kind == 'LLM'",
@@ -345,7 +348,7 @@ To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../..
 ```python
 import pandas as pd
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 px_client = Client()
 
