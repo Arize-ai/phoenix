@@ -366,9 +366,9 @@ class Dataset(Node):
             return [
                 ExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
-                    min_score=scores_tuple.min_run_score,
-                    max_score=scores_tuple.max_run_score,
-                    mean_score=scores_tuple.mean_run_score,
+                    min_score=scores_tuple.min_score,
+                    max_score=scores_tuple.max_score,
+                    mean_score=scores_tuple.mean_score,
                     count=scores_tuple.count_,
                     error_count=scores_tuple.error_count,
                 )
