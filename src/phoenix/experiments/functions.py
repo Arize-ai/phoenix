@@ -32,25 +32,9 @@ from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
-
-# Conditional imports for evals package
-try:
-    from phoenix.evals.executors import get_executor_on_sync_context
-    from phoenix.evals.models.rate_limiters import RateLimiter
-    from phoenix.evals.utils import get_tqdm_progress_bar_formatter
-    _evals_available = True
-except ImportError:
-    _evals_available = False
-    # Provide dummy implementations for when evals is not available
-    def get_executor_on_sync_context(*args: Any, **kwargs: Any) -> Any:
-        raise ImportError("phoenix.evals package is not available")
-    
-    class RateLimiter:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            raise ImportError("phoenix.evals package is not available")
-    
-    def get_tqdm_progress_bar_formatter(*args: Any, **kwargs: Any) -> Any:
-        raise ImportError("phoenix.evals package is not available")
+from phoenix.evals.executors import get_executor_on_sync_context
+from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.evaluators.base import (
     Evaluator,

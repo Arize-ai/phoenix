@@ -3,20 +3,8 @@ from collections.abc import Callable
 from types import MappingProxyType
 from typing import Any, Optional
 
-# Conditional imports for evals package
-try:
-    from phoenix.evals.models.base import BaseModel as LLMBaseModel
-    from phoenix.evals.utils import snap_to_rail
-    _evals_available = True
-except ImportError:
-    _evals_available = False
-    # Provide dummy implementations for when evals is not available
-    class LLMBaseModel:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            raise ImportError("phoenix.evals package is not available")
-    
-    def snap_to_rail(*args: Any, **kwargs: Any) -> Any:
-        raise ImportError("phoenix.evals package is not available")
+from phoenix.evals.models.base import BaseModel as LLMBaseModel
+from phoenix.evals.utils import snap_to_rail
 from phoenix.experiments.evaluators.base import (
     ExperimentEvaluator,
     LLMEvaluator,
