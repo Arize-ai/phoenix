@@ -75,7 +75,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             .subquery()
             .alias("repetition_mean_scores")
         )
-        repetition_min_max_scores_subquery = (
+        repetitions_subquery = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
@@ -98,18 +98,18 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 repetition_mean_scores_subquery.c.experiment_id.label("experiment_id"),
                 repetition_mean_scores_subquery.c.annotation_name.label("annotation_name"),
                 repetition_mean_scores_subquery.c.mean_score.label("mean_score"),
-                repetition_min_max_scores_subquery.c.min_score.label("min_score"),
-                repetition_min_max_scores_subquery.c.max_score.label("max_score"),
-                repetition_min_max_scores_subquery.c.count.label("count_"),
-                repetition_min_max_scores_subquery.c.error_count.label("error_count"),
+                repetitions_subquery.c.min_score.label("min_score"),
+                repetitions_subquery.c.max_score.label("max_score"),
+                repetitions_subquery.c.count.label("count_"),
+                repetitions_subquery.c.error_count.label("error_count"),
             )
             .select_from(repetition_mean_scores_subquery)
             .join(
-                repetition_min_max_scores_subquery,
+                repetitions_subquery,
                 and_(
-                    repetition_min_max_scores_subquery.c.experiment_id
+                    repetitions_subquery.c.experiment_id
                     == repetition_mean_scores_subquery.c.experiment_id,
-                    repetition_min_max_scores_subquery.c.annotation_name
+                    repetitions_subquery.c.annotation_name
                     == repetition_mean_scores_subquery.c.annotation_name,
                 ),
             )
