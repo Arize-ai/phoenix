@@ -1,0 +1,38 @@
+---
+title: "07.13.2025: Experiments module in phoenix-client 🧪"
+description: Available in Phoenix 11.7+
+---
+
+<Update label="07.13.2025">
+
+## Experiments Module in phoenix-client
+
+<Card title="arize-phoenix-client" href="https://pypi.org/project/arize-phoenix-client/" icon="cube" horizontal>
+  PyPI
+</Card>
+
+**New Features in Phoenix 11.7+:**
+
+* Added a new `experiments` property to both `Client` and `AsyncClient` for invoking experiment workflows.
+
+* Introduced `Experiments` and `AsyncExperiments` classes with `run_experiment` methods supporting **tasks**, **evaluators**, **dry-run mode**, and **metadata**.
+
+* Implemented `SyncExecutor` and `AsyncExecutor` classes for **concurrent execution** with built-in **progress bars**.
+
+* Added `RateLimiter` and `AdaptiveTokenBucket` for intelligent handling and throttling of **rate-limit errors**.
+
+**Bug Fixes:**
+
+* Fixed a typo in the `datasets.get_dataset_versions` docstring.
+
+**Enhancements:**
+
+* Introduced a `PhoenixException` base class and **refactored exception imports** for consistency.
+
+* Simplified rate limiter output by replacing `printif` with direct print statements.
+
+
+<Card title="feat: Add experiments module to phoenix-client by anticorrelator · Pull Request #8375 · Arize-ai/phoenix" icon="github" href="https://github.com/Arize-ai/phoenix/pull/8375" horizontal>
+  GitHub
+</Card>
+</Update>
