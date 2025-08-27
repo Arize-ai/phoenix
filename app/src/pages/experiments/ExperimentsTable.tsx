@@ -573,13 +573,9 @@ export function ExperimentsTable({
 
 function CoveragePieChart({ coverage }: { coverage: number }) {
   const nonCoverage = 1 - coverage;
-
-  const { size, outerRadius, innerRadius } = useMemo(() => {
-    const size = 16;
-    const outerRadius = size / 2;
-    const innerRadius = outerRadius - 2;
-    return { size, outerRadius, innerRadius };
-  }, []);
+  const size = 16;
+  const outerRadius = size / 2;
+  const innerRadius = outerRadius - 2;
 
   const chartData = useMemo(() => {
     const data = [];
