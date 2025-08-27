@@ -274,7 +274,6 @@ class Dataset(Node):
         dataset_id = self.id_attr
         repetition_mean_scores_by_example_subquery = (
             select(
-                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
             )
@@ -304,6 +303,7 @@ class Dataset(Node):
                     "mean_score"
                 ),
             )
+            .select_from(repetition_mean_scores_by_example_subquery)
             .group_by(
                 repetition_mean_scores_by_example_subquery.c.annotation_name,
             )
