@@ -275,7 +275,6 @@ class Dataset(Node):
         repetition_mean_scores_by_example_subquery = (
             select(
                 models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
-                models.ExperimentRun.experiment_id.label("experiment_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
             )
@@ -291,7 +290,6 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .group_by(
                 models.ExperimentRun.dataset_example_id,
-                models.ExperimentRun.experiment_id,
                 models.ExperimentRunAnnotation.name,
             )
             .subquery()
@@ -299,7 +297,6 @@ class Dataset(Node):
         )
         repetition_mean_scores_subquery = (
             select(
-                repetition_mean_scores_by_example_subquery.c.experiment_id.label("experiment_id"),
                 repetition_mean_scores_by_example_subquery.c.annotation_name.label(
                     "annotation_name"
                 ),
@@ -308,7 +305,6 @@ class Dataset(Node):
                 ),
             )
             .group_by(
-                repetition_mean_scores_by_example_subquery.c.experiment_id,
                 repetition_mean_scores_by_example_subquery.c.annotation_name,
             )
             .subquery()
@@ -316,7 +312,6 @@ class Dataset(Node):
         )
         repetitions_subquery = (
             select(
-                models.ExperimentRun.experiment_id.label("experiment_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.min(models.ExperimentRunAnnotation.score).label("min_score"),
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
@@ -333,12 +328,11 @@ class Dataset(Node):
                 models.ExperimentRun.experiment_id == models.Experiment.id,
             )
             .where(models.Experiment.dataset_id == dataset_id)
-            .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
+            .group_by(models.ExperimentRunAnnotation.name)
             .subquery()
         )
         run_scores_query = (
             select(
-                repetition_mean_scores_subquery.c.experiment_id.label("experiment_id"),
                 repetition_mean_scores_subquery.c.annotation_name.label("annotation_name"),
                 repetition_mean_scores_subquery.c.mean_score.label("mean_score"),
                 repetitions_subquery.c.min_score.label("min_score"),
@@ -349,17 +343,10 @@ class Dataset(Node):
             .select_from(repetition_mean_scores_subquery)
             .join(
                 repetitions_subquery,
-                and_(
-                    repetitions_subquery.c.experiment_id
-                    == repetition_mean_scores_subquery.c.experiment_id,
-                    repetitions_subquery.c.annotation_name
-                    == repetition_mean_scores_subquery.c.annotation_name,
-                ),
+                repetitions_subquery.c.annotation_name
+                == repetition_mean_scores_subquery.c.annotation_name,
             )
-            .group_by(
-                repetition_mean_scores_subquery.c.experiment_id,
-                repetition_mean_scores_subquery.c.annotation_name,
-            )
+            .group_by(repetition_mean_scores_subquery.c.annotation_name)
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
         async with info.context.db() as session:
