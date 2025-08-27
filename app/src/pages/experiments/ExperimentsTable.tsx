@@ -669,9 +669,6 @@ function AnnotationAggregationCell({
           </TriggerWrap>
           <RichTooltip>
             <View width="size-2000">
-              <Heading level={3} weight="heavy">
-                Missing Data
-              </Heading>
               <Text size="XS">
                 {formatPercent((1 - coverage) * 100)} of runs are missing this
                 annotation
