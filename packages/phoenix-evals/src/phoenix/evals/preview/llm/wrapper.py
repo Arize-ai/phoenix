@@ -30,7 +30,34 @@ def _jsonify_output(result: Any) -> str:
     return json.dumps(result)
 
 
-class LLMBase:
+class LLM:
+    """
+    An LLM wrapper that simplifies the API for generating text and objects.
+    This wrapper delegates API access to SDK/client libraries that are installed in the active
+    Python environment. To show supported providers, use `show_provider_availability()`.
+    Args:
+        provider: The name of the provider to use.
+        model: The name of the model to use.
+        client: Optionally, name of the client to use. If not specified, the first available client
+            for the provider will be used.
+    Examples:
+        >>> from phoenix.evals.llm import LLM, show_provider_availability
+        >>> show_provider_availability()
+        >>> llm = LLM(provider="openai", model="gpt-4o")
+        >>> llm.generate_text(prompt="Hello, world!")
+        "Hello, world!"
+        >>> llm.generate_object(
+        ...     prompt="Hello, world!",
+        ...     schema={
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "text": {"type": "string"}
+        ...     },
+        ...     "required": ["text"]
+        ... })
+        {"text": "Hello, world!"}
+    """
+
     def __init__(
         self,
         *,
@@ -38,7 +65,6 @@ class LLMBase:
         model: Optional[str] = None,
         client: Optional[str] = None,
     ):
-        self._is_async: bool = getattr(self, "_is_async", False)
         self.provider = provider
         self.model = model
 
@@ -70,7 +96,8 @@ class LLMBase:
                 registration = provider_registrations[0]
 
             try:
-                client = registration.client_factory(model=model, is_async=self._is_async)
+                sync_client = registration.client_factory(model=model, is_async=False)
+                async_client = registration.client_factory(model=model, is_async=True)
                 adapter_class = registration.adapter_class
             except Exception as e:
                 raise ValueError(f"Failed to create client for provider '{provider}': {e}") from e
@@ -79,44 +106,10 @@ class LLMBase:
             # This should never happen due to the initial validation
             raise ValueError("Internal error: cannot initialize LLM wrapper.")
 
-        self._client = client
-        self._adapter = adapter_class(client)
-
-
-class LLM(LLMBase):
-    """
-    An LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import LLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = False
-        super().__init__(*args, **kwargs)
+        self._sync_client = sync_client
+        self._async_client = async_client
+        self._sync_adapter = adapter_class(sync_client)
+        self._async_adapter = adapter_class(async_client)
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
@@ -139,7 +132,7 @@ class LLM(LLMBase):
         Returns:
             The generated text.
         """
-        return self._adapter.generate_text(prompt, **kwargs)
+        return self._sync_adapter.generate_text(prompt, **kwargs)
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
@@ -167,7 +160,7 @@ class LLM(LLMBase):
         Returns:
             The generated object.
         """
-        result: Dict[str, Any] = self._adapter.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = self._sync_adapter.generate_object(prompt, schema, **kwargs)
         return result
 
     def generate_classification(
@@ -213,42 +206,6 @@ class LLM(LLMBase):
         result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
         return result
 
-
-class AsyncLLM(LLMBase):
-    """
-    An asynchronous LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import AsyncLLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = AsyncLLM(provider="openai", model="gpt-4o")
-        >>> await llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> await llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = True
-        super().__init__(*args, **kwargs)
-
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
         process_input={
@@ -257,20 +214,24 @@ class AsyncLLM(LLMBase):
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
     )
-    async def generate_text(
-        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    async def agenerate_text(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> str:
         """
         Asynchronously generate text given a prompt.
 
         Args:
             prompt: The prompt to generate text from.
+            tracer: The tracer to use for tracing.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
             The generated text.
         """
-        return await self._adapter.agenerate_text(prompt, **kwargs)
+        return await self._async_adapter.agenerate_text(prompt, **kwargs)
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
@@ -280,7 +241,7 @@ class AsyncLLM(LLMBase):
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
-    async def generate_object(
+    async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
@@ -298,9 +259,9 @@ class AsyncLLM(LLMBase):
         Returns:
             The generated object.
         """
-        return await self._adapter.agenerate_object(prompt, schema, **kwargs)
+        return await self._async_adapter.agenerate_object(prompt, schema, **kwargs)
 
-    async def generate_classification(
+    async def agenerate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
         labels: Union[List[str], Dict[str, str]],
@@ -325,7 +286,7 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = await self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = await self.agenerate_object(prompt, schema, **kwargs)
         return result
 
 
