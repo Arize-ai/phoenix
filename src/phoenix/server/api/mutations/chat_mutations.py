@@ -191,6 +191,17 @@ class ChatCompletionMutationMixin:
             ]
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
+            user_id = None
+            try:
+                user_id = int(info.context.user.identity) if info.context.user.is_authenticated \
+                    else None
+            except AssertionError:
+                # Assertion Error occurs in environments where auth is not enabled
+                # return specific error
+                # "AssertionError: AuthenticationMiddleware must be installed
+                # to access request.user"
+                pass
+
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -200,8 +211,7 @@ class ChatCompletionMutationMixin:
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
-                user_id=int(info.context.user.identity)
-                if info.context.user.is_authenticated else None,
+                user_id=user_id,
             )
             session.add(experiment)
             await session.flush()
