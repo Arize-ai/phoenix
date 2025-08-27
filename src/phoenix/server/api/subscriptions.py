@@ -43,8 +43,8 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.helpers.playground_users import get_user
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,

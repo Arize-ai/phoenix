@@ -46,6 +46,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_tools,
     prompt_metadata,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -66,7 +67,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify

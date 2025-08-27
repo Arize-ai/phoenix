@@ -1,10 +1,12 @@
 from typing import (
     Optional,
 )
-from phoenix.server.bearer_auth import PhoenixUser
-from strawberry import Info
-from phoenix.server.api.context import Context
+
 from starlette.requests import Request
+from strawberry import Info
+
+from phoenix.server.api.context import Context
+from phoenix.server.bearer_auth import PhoenixUser
 
 
 def get_user(info: Info[Context, None]) -> Optional[int]:
