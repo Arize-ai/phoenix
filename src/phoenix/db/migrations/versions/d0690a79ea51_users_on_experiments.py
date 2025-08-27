@@ -19,10 +19,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("experiments", sa.Column("user_id", sa.Integer(), nullable=True))
-    op.create_foreign_key("fk_experiments_user_id_users", "experiments", "users", ["user_id"], ["id"], ondelete="SET NULL")
-
+    with op.batch_alter_table("experiments") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "user_id",
+                sa.Integer,
+                sa.ForeignKey("users.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+        )
 
 def downgrade() -> None:
-    op.drop_constraint("fk_experiments_user_id_users", "experiments", type_="foreignkey")
-    op.drop_column("experiments", "user_id")
+    with op.batch_alter_table("experiments") as batch_op:
+        batch_op.drop_column("user_id") 
