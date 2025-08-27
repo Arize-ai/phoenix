@@ -8,9 +8,17 @@ from starlette.requests import Request
 
 
 def get_user(info: Info[Context, None]) -> int:
-    assert isinstance(request := info.context.request, Request)
     user_id: Optional[int] = None
-    if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-        user_id = int(user.identity)
+    try:
+        assert isinstance(request := info.context.request, Request)
 
-    return user_id
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+    except AssertionError:
+        # Request is not available, try to obtain user identify
+        # this will also throw an assertion error if auth is not available
+        # the finally block will continue execution returning None
+        if info.context.user.is_authenticated:
+            user_id = int(info.context.user.identity)
+    finally:
+        return user_id
