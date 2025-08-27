@@ -605,7 +605,7 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          innerRadius={4}
+          innerRadius={size / 2 - 2}
           outerRadius={size / 2}
           strokeWidth={0}
           stroke="transparent"
