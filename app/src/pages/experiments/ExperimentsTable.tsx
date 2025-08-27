@@ -676,7 +676,7 @@ function AnnotationAggregationCell({
       <TooltipTrigger>
         <TriggerWrap>
           <Flex direction="row" alignItems="center" gap="size-100">
-            {floatFormatter(value)}
+            <Text width="size-350">{floatFormatter(value)}</Text>
             <ProgressBar
               width="40px"
               value={percentile}
