@@ -317,7 +317,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "input",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return <JSONText json={value} />;
+          return <JSONText json={value} maxLength={50} />;
         },
       },
       {
@@ -325,7 +325,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return <JSONText json={value} />;
+          return <JSONText json={value} maxLength={50} />;
         },
       },
       {
@@ -351,10 +351,7 @@ export function ExperimentCompareListPage() {
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
                   <Truncate maxWidth="200px" title={value.baseExperimentValue}>
-                    <JSONText
-                      json={value.baseExperimentValue}
-                      maxLength={100}
-                    />
+                    <JSONText json={value.baseExperimentValue} maxLength={50} />
                   </Truncate>
                 </Flex>
               </li>
@@ -373,7 +370,7 @@ export function ExperimentCompareListPage() {
                     </span>
                     <Truncate maxWidth="200px" title={value}>
                       <Text size="S">
-                        <JSONText json={value} maxLength={100} />
+                        <JSONText json={value} maxLength={50} />
                       </Text>
                     </Truncate>
                   </Flex>
