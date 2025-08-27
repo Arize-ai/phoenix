@@ -14,11 +14,15 @@
 ## Tracing & Annotations
 
 * [Agentic RAG Tracing](tracing-and-annotations/agentic-rag-tracing.md)
-* [Using Human Annotations for Eval-Driven Development](tracing-and-annotations/using-human-annotations-for-eval-driven-development.md)
 * [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing-and-annotations/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
 * [Structured Data Extraction](tracing-and-annotations/structured-data-extraction.md)
 * [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph.md)
 * [More Cookbooks](tracing-and-annotations/cookbooks.md)
+
+## Human-in-the-loop Workflows
+
+* [Using Human Annotations for Eval-Driven Development](human-in-the-loop-workflows/using-human-annotations-for-eval-driven-development.md)
+* [Creating a Custom LLM Evaluator with a Benchmark Dataset](human-in-the-loop-workflows/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 
 ## Prompt Engineering
 
@@ -30,7 +34,6 @@
 
 ## Evaluation
 
-* [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 * [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
 * [Evaluate a Talk-to-your-Data Agent](evaluation/evaluate-an-agent.md)
 * [Evaluate RAG](evaluation/evaluate-rag.md)
