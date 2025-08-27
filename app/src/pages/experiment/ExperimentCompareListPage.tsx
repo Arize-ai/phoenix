@@ -235,8 +235,8 @@ export function ExperimentCompareListPage() {
           referenceOutput: example.revision.referenceOutput,
           outputs: {
             baseExperimentValue: baseExperimentRun.output,
-            compareExperimentValues: compareExperimentRuns.map((run) =>
-              run ? run.output : "not run"
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run?.output
             ),
           },
           tokens: {
@@ -373,11 +373,17 @@ export function ExperimentCompareListPage() {
                         shape="circle"
                       />
                     </span>
-                    <Truncate maxWidth="200px" title={value}>
-                      <Text size="S" fontFamily="mono">
-                        <JSONText json={value} maxLength={50} />
+                    {value ? (
+                      <Truncate maxWidth="200px" title={value}>
+                        <Text size="S" fontFamily="mono">
+                          <JSONText json={value} maxLength={50} />
+                        </Text>
+                      </Truncate>
+                    ) : (
+                      <Text size="S" fontFamily="mono" color="grey-500">
+                        not run
                       </Text>
-                    </Truncate>
+                    )}
                   </Flex>
                 </li>
               ))}
@@ -398,18 +404,10 @@ export function ExperimentCompareListPage() {
                 gap: var(--ac-global-dimension-size-50);
               `}
             >
-              {experiments.map((experiment, index) => {
+              {experiments.map((experiment) => {
                 return (
                   <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <ColorSwatch
-                        color={
-                          index === 0
-                            ? baseExperimentColor
-                            : getExperimentColor(index - 1)
-                        }
-                        shape="circle"
-                      />
                       <Text size="S" fontFamily="mono" color="grey-500">
                         AVG
                       </Text>
@@ -473,17 +471,9 @@ export function ExperimentCompareListPage() {
                 gap: var(--ac-global-dimension-size-50);
               `}
             >
-              {experiments.map((experiment, index) => (
+              {experiments.map((experiment) => (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <ColorSwatch
-                      color={
-                        index === 0
-                          ? baseExperimentColor
-                          : getExperimentColor(index - 1)
-                      }
-                      shape="circle"
-                    />
                     <Text size="S" fontFamily="mono" color="grey-500">
                       AVG
                     </Text>
@@ -546,17 +536,9 @@ export function ExperimentCompareListPage() {
                 gap: var(--ac-global-dimension-size-50);
               `}
             >
-              {experiments.map((experiment, index) => (
+              {experiments.map((experiment) => (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <ColorSwatch
-                      color={
-                        index === 0
-                          ? baseExperimentColor
-                          : getExperimentColor(index - 1)
-                      }
-                      shape="circle"
-                    />
                     <Text size="S" fontFamily="mono" color="grey-500">
                       AVG
                     </Text>
@@ -643,7 +625,6 @@ export function ExperimentCompareListPage() {
                     `}
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <ColorSwatch color={color} shape="circle" />
                       <Text size="S" fontFamily="mono" color="grey-500">
                         AVG
                       </Text>
@@ -694,7 +675,6 @@ export function ExperimentCompareListPage() {
                 `}
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
-                  <ColorSwatch color={baseExperimentColor} shape="circle" />
                   <Text size="S" fontFamily="mono">
                     {numberFormatter(baseExperimentAnnotationScore)}
                   </Text>
@@ -725,7 +705,6 @@ export function ExperimentCompareListPage() {
                     `}
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <ColorSwatch color={color} shape="circle" />
                       <Text size="S" fontFamily="mono">
                         {numberFormatter(
                           getAnnotationScore(
