@@ -4,7 +4,6 @@ from typing import ClassVar, Optional
 import strawberry
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.functions import coalesce
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
@@ -165,8 +164,8 @@ class Experiment(Node):
             select(
                 models.SpanCostDetail.token_type,
                 models.SpanCostDetail.is_prompt,
-                coalesce(func.sum(models.SpanCostDetail.cost), 0).label("cost"),
-                coalesce(func.sum(models.SpanCostDetail.tokens), 0).label("tokens"),
+                func.sum(models.SpanCostDetail.cost).label("cost"),
+                func.sum(models.SpanCostDetail.tokens).label("tokens"),
             )
             .select_from(models.SpanCostDetail)
             .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)

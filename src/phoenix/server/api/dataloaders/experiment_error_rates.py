@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -23,36 +23,29 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
-        resolved_experiment_ids = (
-            select(models.Experiment.id)
-            .where(models.Experiment.id.in_(set(experiment_ids)))
-            .subquery()
-        )
-        query = (
+        average_repetition_error_rates_subquery = (
             select(
-                resolved_experiment_ids.c.id,
-                case(
-                    (
-                        func.count(models.ExperimentRun.id) != 0,
-                        func.count(models.ExperimentRun.error)
-                        / func.count(models.ExperimentRun.id),
-                    ),
-                    else_=None,
-                ),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                (
+                    func.count(models.ExperimentRun.error) / func.count(models.ExperimentRun.id)
+                ).label("average_repetition_error_rate"),
             )
-            .outerjoin_from(
-                from_=resolved_experiment_ids,
-                target=models.ExperimentRun,
-                onclause=resolved_experiment_ids.c.id == models.ExperimentRun.experiment_id,
-            )
-            .group_by(resolved_experiment_ids.c.id)
+            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
+            .subquery()
+            .alias("average_repetition_error_rates")
         )
+        average_run_error_rates_query = select(
+            average_repetition_error_rates_subquery.c.experiment_id,
+            func.avg(average_repetition_error_rates_subquery.c.average_repetition_error_rate).label(
+                "average_run_error_rates"
+            ),
+        ).group_by(average_repetition_error_rates_subquery.c.experiment_id)
         async with self._db() as session:
-            error_rates = {
+            average_run_error_rates = {
                 experiment_id: error_rate
-                async for experiment_id, error_rate in await session.stream(query)
+                async for experiment_id, error_rate in await session.stream(
+                    average_run_error_rates_query
+                )
             }
-        return [
-            error_rates.get(experiment_id, ValueError(f"Unknown experiment ID: {experiment_id}"))
-            for experiment_id in keys
-        ]
+        return [average_run_error_rates.get(experiment_id) for experiment_id in experiment_ids]
