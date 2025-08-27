@@ -50,8 +50,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
             .group_by(
-                models.ExperimentRun.dataset_example_id,
                 models.ExperimentRun.experiment_id,
+                models.ExperimentRun.dataset_example_id,
                 models.ExperimentRunAnnotation.name,
             )
             .subquery()
