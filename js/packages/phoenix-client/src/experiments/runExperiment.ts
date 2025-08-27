@@ -94,6 +94,11 @@ export type RunExperimentParams = ClientFn & {
    * @default true
    */
   setGlobalTracerProvider?: boolean;
+  /**
+   * Whether to use batching for the span processor.
+   * @default true
+   */
+  useBatchSpanProcessor?: boolean;
 };
 
 /**
@@ -141,6 +146,7 @@ export async function runExperiment({
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
+  useBatchSpanProcessor = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
@@ -201,6 +207,7 @@ export async function runExperiment({
       projectName,
       baseUrl,
       headers: client.config.headers ?? {},
+      useBatchSpanProcessor,
     });
     // Register the provider
     if (setGlobalTracerProvider) {
@@ -421,6 +428,7 @@ export async function evaluateExperiment({
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
+  useBatchSpanProcessor = true,
 }: {
   /**
    * The experiment to evaluate
@@ -445,6 +453,11 @@ export async function evaluateExperiment({
    * @default true
    */
   setGlobalTracerProvider?: boolean;
+  /**
+   * Whether to use batching for the span processor.
+   * @default true
+   */
+  useBatchSpanProcessor?: boolean;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -459,6 +472,7 @@ export async function evaluateExperiment({
       projectName: "evaluators",
       baseUrl,
       headers: client.config.headers ?? {},
+      useBatchSpanProcessor,
     });
     if (setGlobalTracerProvider) {
       provider.register();
