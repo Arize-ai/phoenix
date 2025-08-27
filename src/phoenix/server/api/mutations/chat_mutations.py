@@ -200,6 +200,8 @@ class ChatCompletionMutationMixin:
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=int(info.context.user.identity)
+                if info.context.user.is_authenticated else None,
             )
             session.add(experiment)
             await session.flush()
