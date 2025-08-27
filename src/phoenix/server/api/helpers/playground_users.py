@@ -7,7 +7,7 @@ from phoenix.server.api.context import Context
 from starlette.requests import Request
 
 
-def get_user(info: Info[Context, None]) -> int:
+def get_user(info: Info[Context, None]) -> Optional[int]:
     user_id: Optional[int] = None
     try:
         assert isinstance(request := info.context.request, Request)
