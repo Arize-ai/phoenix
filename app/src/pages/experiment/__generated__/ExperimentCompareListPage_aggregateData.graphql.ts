@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08706f2237df633b0d96058d999db88f>>
+ * @generated SignedSource<<39177da82a40833274549e782e011315>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,11 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareListPage_aggregateData$data = {
   readonly dataset: {
+    readonly experimentAnnotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+      readonly maxScore: number | null;
+      readonly minScore: number | null;
+    }>;
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
@@ -38,7 +43,15 @@ export type ExperimentCompareListPage_aggregateData$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ExperimentCompareListPage_aggregateData">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [
     {
       "defaultValue": null,
@@ -72,6 +85,32 @@ const node: ReaderFragment = {
         {
           "kind": "InlineFragment",
           "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "ExperimentAnnotationSummary",
+              "kind": "LinkedField",
+              "name": "experimentAnnotationSummaries",
+              "plural": true,
+              "selections": [
+                (v0/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "minScore",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "maxScore",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            },
             {
               "alias": null,
               "args": [
@@ -160,13 +199,7 @@ const node: ReaderFragment = {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "annotationName",
-                              "storageKey": null
-                            },
+                            (v0/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -197,7 +230,8 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "8c5eca85978d91d67f7eb76fdaa97278";
+(node as any).hash = "936b49e6b7825e3d4373cfb03daf53b2";
 
 export default node;

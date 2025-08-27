@@ -461,14 +461,14 @@ results = llm_generate(
 ### Logging Evaluations to Phoenix
 
 ```python
-from phoenix.trace import SpanEvaluations
-
 # Log evaluation results
-px.Client().log_evaluations(
-    SpanEvaluations(
-        eval_name="LLM-as-Judge Evaluation", 
-        dataframe=results
-    )
+from phoenix.client import Client
+
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=results,
+    annotation_name="LLM-as-Judge Evaluation",
+    annotator_kind="LLM",
 )
 ```
 
@@ -482,7 +482,6 @@ px.Client().log_evaluations(
 import phoenix as px
 from phoenix.evals import llm_generate, OpenAIModel
 from phoenix.trace.dsl import SpanQuery
-from phoenix.trace import SpanEvaluations
 import pandas as pd
 import os
 
@@ -528,8 +527,13 @@ results = llm_generate(
 final_results = pd.merge(results, traces_df, left_index=True, right_index=True)
 
 # 6. Log to Phoenix
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Dietary Adherence Evaluation", dataframe=final_results)
+from phoenix.client import Client
+
+px_client = Client()
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=final_results,
+    annotation_name="Dietary Adherence Evaluation",
+    annotator_kind="LLM",
 )
 ```
 

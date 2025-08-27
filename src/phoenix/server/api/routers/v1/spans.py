@@ -880,6 +880,7 @@ class SpanAnnotationData(V1RoutesBaseModel):
 
     def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
+            datetime.now(timezone.utc),
             self.span_id,
             models.SpanAnnotation(
                 name=self.name,

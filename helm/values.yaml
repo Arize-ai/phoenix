@@ -461,7 +461,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-11.26.0-nonroot
+  tag: version-11.28.0-nonroot
 
 # -- Resource configuration
 resources:
@@ -507,6 +507,24 @@ securityContext:
     seccompProfile:
       type: RuntimeDefault
     windowsOptions: {}
+
+# -- Extra Volumes configuration
+extraVolumes: []
+# -- example
+#- name: config-volume
+#  configMap:
+#    name: my-app-config
+#- name: cache-volume
+#  emptyDir: {}
+
+# -- Extra Volume Mounts
+extraVolumeMounts: []
+# -- example
+#- name: config-volume
+#  mountPath: /etc/config
+#  readOnly: true
+#- name: cache-volume
+#  mountPath: /app/cache
 
 # -- ServiceAccount configuration
 serviceAccount:

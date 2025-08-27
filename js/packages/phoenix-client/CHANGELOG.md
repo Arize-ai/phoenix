@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 3.1.0
+
+### Minor Changes
+
+- ee0c829: switch to batch span processor by default and make it configurable
+
 ## 3.0.0
 
 ### Major Changes

@@ -93,7 +93,7 @@ A Tool is a span that represents a call to an external tool such as a calculator
 
 **AGENT**
 
-A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.\\
+A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.
 
 ## Span Attributes
 

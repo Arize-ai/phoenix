@@ -69,8 +69,9 @@ client = Client(
 
 # Pulling a prompt by name
 prompt_name = "my-prompt-name"
-<strong>client.prompts.get(prompt_identifier=prompt_name)
-</strong></code></pre>
+prompt = client.prompts.get(prompt_identifier=prompt_name)
+print(prompt.id)
+</code></pre>
 
 Note prompt names and IDs are synonymous.
 {% endtab %}
@@ -106,7 +107,6 @@ client = Client(
 # The version ID can be found in the versions tab in the UI
 prompt = client.prompts.get(prompt_version_id="UHJvbXB0VmVyc2lvbjoy")
 print(prompt.id)
-prompt.dumps()
 ```
 {% endtab %}
 
@@ -134,11 +134,10 @@ client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
-# Since tags don't uniquely identify a prompt version 
+# Since tags don't uniquely identify a prompt version
 #  it must be paired with the prompt identifier (e.g. name)
 prompt = client.prompts.get(prompt_identifier="my-prompt-name", tag="staging")
 print(prompt.id)
-prompt.dumps()
 ```
 
 Note that tags are unique per prompt so it must be paired with the **prompt\_identifier**

@@ -22,6 +22,9 @@ If the following variables are set in the server environment, they'll be used at
 
 <table><thead><tr><th width="196">Provider</th><th>Environment Variable</th><th>Platform Link</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li>OPENAI_API_KEY</li></ul></td><td><a href="https://platform.openai.com/">https://platform.openai.com/</a></td></tr><tr><td>Azure OpenAI</td><td><ul><li>AZURE_OPENAI_API_KEY</li><li>AZURE_OPENAI_ENDPOINT</li><li>OPENAI_API_VERSION</li></ul></td><td><a href="https://azure.microsoft.com/en-us/products/ai-services/openai-service/">https://azure.microsoft.com/en-us/products/ai-services/openai-service/</a></td></tr><tr><td>Anthropic</td><td><ul><li>ANTHROPIC_API_KEY</li></ul></td><td><a href="https://console.anthropic.com/">https://console.anthropic.com/</a></td></tr><tr><td>Gemini</td><td><ul><li>GEMINI_API_KEY or GOOGLE_API_KEY</li></ul></td><td><a href="https://aistudio.google.com/">https://aistudio.google.com/</a></td></tr></tbody></table>
 
+{% hint style="info" %}
+For Azure, you can also set the following server-side environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE` to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python).
+{% endhint %}
 
 
 ## Using OpenAI Compatible LLMs

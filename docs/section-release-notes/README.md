@@ -6,6 +6,178 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
+
+**Available in Phoenix 11.26+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/timeline_view.mp4" %}
+
+Easily spot timing bottlenecks with the new trace timeline visualization.
+
+***
+
+## [08.20.2025: New Experiment and Annotation Quick Filters 🏎️](08.2025/08.20.2025-new-experiment-and-annotation-quick-filters.md)
+
+**Available in Phoenix 11.25+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/experiment_quick_filters.mp4" %}
+
+Quick filters in experiment views let you drill down by eval scores and labels to quickly spot regressions and outliers.
+
+***
+
+## [08.15.2025: Enhance Experiment Comparison Views 🧪](08.2025/08.15.2025-enhance-experiment-comparison-views.md)
+
+**Available in Phoenix 11.24+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/enhance_experiment_compare_page.png" %}
+
+***
+
+## [08.14.2025: Trace Transfer for Long-Term Storage 📦](08.2025/08.14.2025-trace-transfer-for-long-term-storage.md)
+
+**Available in Phoenix 11.23+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/transfer%20(1).mp4" %}
+
+&#x20;Transfer traces across projects for long-term storage while preserving annotations, dataset links, and full context.
+
+***
+
+## [08.12.2025: UI Design Overhauls 🎨](08.2025/08.12.2025-ui-design-overhauls.md)
+
+**Available in Phoenix 11.22+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/new_nav.mp4" %}
+
+The platform now features refreshed design elements including expandable navigation, an “Action” bar, and dynamic color contrast for clearer and more intuitive workflows.
+
+***
+
+## [08.09.2025: Day 0 Playground Support for GPT-5 🚀](08.2025/08.09.2025-playground-support-for-gpt-5.md)
+
+**Available in Phoenix 11.21+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gpt-5-release-notes.png" %}
+
+***
+
+## [08.07.2025: Improved Error Handling in Prompt Playground ⚠️](08.2025/08.07.2025-improved-error-handling-in-prompt-playground.md)
+
+**Available in Phoenix 11.20+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/playground_error_handling.png" %}
+
+Prompt Playground experiments now provide clearer error messages, listing valid options when an input is invalid.
+
+***
+
+## [08.06.2025: Expanded Search Capabilities 🔍](08.2025/08.06.2025-expanded-search-capabilities.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/search.mp4" %}
+
+Search functionality has been enhanced across the platform. Users can now search projects, prompts, and datasets, making it easier to quickly find and access the resources they need.
+
+***
+
+## [08.05.2025: Claude Opus 4-1 Support 🤖](08.2025/08.05.2025-claude-opus-4-1-support.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/opus-4-1.mp4" %}
+
+Support for Claude Opus 4-1 is now available, enabling teams to begin experimenting and evaluating with the new model from day 0.
+
+***
+
+## [08.04.2025: Manual Project Creation & Trace Duplication 📂](08.2025/08.04.2025-manual-project-creation-and-trace-duplication.md)
+
+**Available in Phoenix 11.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/manual_projects.mp4" %}
+
+You can now create projects manually in the UI and duplicate traces into other projects via the SDK, making it easier to organize evaluation data and streamline workflows.
+
+***
+
+## [08.03.2025: Delete Spans via REST API 🧹](08.2025/08.03.2025-delete-spans-via-rest-api.md)
+
+**Available in Phoenix 11.18+**
+
+You can now delete spans using the REST API, enabling efficient data redaction and giving teams greater control over trace data.
+
+***
+
+## [07.29.2025: Google GenAI Evals](07.2025/07.29.2025-google-genai-evals.md) 🌐
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/gemini_logo.png" %}
+
+New in `phoenix-evals`: Added support for Google's Gemini models via the Google GenAI SDK — multimodal, async, and ready to scale. Huge shoutout to [Siddharth Sahu](https://github.com/sahusiddharth) for this contribution!
+
+***
+
+## [07.25.2025: Project Dashboards](07.2025/07.25.2025-project-dashboards.md) 📈
+
+**Available in Phoenix 11.12+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dashboards-release-notes.png" %}
+
+Phoenix now has comprehensive project dashboards for detailed performance, cost, and error insights.
+
+***
+
+## [07.25.2025: Average Metrics in Experiment Comparison Table](07.2025/07.25.2025-average-metrics-in-experiment-comparison-table.md) 📊
+
+Available in Phoenix 11.12+
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment-headers-average-metrics.mp4" %}
+
+View average run metrics directly in the headers of the experiment comparison table for quick insights.
+
+***
+
+## [07.21.2025: Project and Trace Management via GraphQL](07.2025/07.21.2025-project-and-trace-management-via-graphql.md)  📤
+
+**Available in Phoenix 11.9+**
+
+Create new projects and transfer traces between them via GraphQL, with full preservation of annotations and cost data.
+
+***
+
+## [07.18.2025: OpenInference Java](07.2025/07.18.2025-openinference-java.md) ✨
+
+OpenInference Java now offers full OpenTelemetry-compatible tracing for AI apps, including auto-instrumentation for LangChain4j and semantic conventions.
+
+***
+
+## [07.13.2025: Experiments Module in `phoenix-client` ](07.2025/07.13.2025-experiments-module-in-phoenix-client.md) 🧪&#x20;
+
+**Available in Phoenix 11.7+**
+
+New experiments feature set in `phoenix-client`, enabling sync and async execution with task runs, evaluations, rate limiting, and progress reporting.
+
+***
+
+## [07.09.2025: Baseline for Experiment Comparisons](07.2025/07.09.2025-baseline-for-experiment-comparisons.md) 🔁
+
+**Available in Phoenix 11.6+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment-baseline-comparison.mp4" %}
+
+Compare experiments relative to a baseline run to easily spot regressions and improvements across metrics.
+
+***
+
+## [07.07.2025: Database Disk Usage Monitor](07.2025/07.07.2025-databse-disk-usage-monitor.md) 🛑
+
+**Available in Phoenix 11.5+**
+
+Monitor database disk usage, notify admins when nearing capacity, and automatically block writes when critical thresholds are reached.
+
+***
+
 ## [07.03.2025: Cost Summaries in Trace Headers](07.2025/07.03.2025-cost-summaries-in-trace-headers.md) 💸
 
 **Available in Phoenix 11.4+**
@@ -88,7 +260,7 @@ Dataset name filtering with live search support across the API and UI.
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment_graphs.mp4" %}
 
-Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.&#x20;
+Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.
 
 ***
 
@@ -331,7 +503,7 @@ You can now delete experiments directly from the action menu, making it quicker 
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/new_integrations.gif" %}
 
-In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference) here.
+In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference/) here.
 
 ***
 
@@ -351,7 +523,7 @@ We've added the ability to resize Span, Trace, and Session tables. Resizing pref
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/openai_sdk_rn.gif" %}
 
-We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference).
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference/).
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
@@ -375,7 +547,7 @@ You can now save and load configurations directly from prompts or default model 
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/added_support_release_notes.gif" %}
 
-Prompt Playground now supports new GPT and Anthropic models new models with enhanced configuration options. Instrumentation options have been improved for better traceability, and evaluation capabilities have expanded to cover Audio & Multi-Modal Evaluations. Phoenix also introduces new integration support for LiteLLM Proxy & Cleanlabs evals.
+Prompt Playground now supports new GPT and Anthropic models with enhanced configuration options. Instrumentation options have been improved for better traceability, and evaluation capabilities have expanded to cover Audio & Multi-Modal Evaluations. Phoenix also introduces new integration support for LiteLLM Proxy & Cleanlabs evals.
 
 ***
 
@@ -400,8 +572,8 @@ Check out [projects](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/feat
 Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications. Some key highlights from this release:
 
 * **Versioning & Iteration**: Seamlessly manage prompt versions in both Phoenix and your codebase.
-* **New TypeScript Clien**t: Sync prompts with your JavaScript runtime, now with native support for OpenAI, Anthropic, and the Vercel AI SDK.
-* **New Python Clien**t: Sync templates and apply them to AI SDKs like OpenAI, Anthropic, and more.
+* **New TypeScript Client**: Sync prompts with your JavaScript runtime, now with native support for OpenAI, Anthropic, and the Vercel AI SDK.
+* **New Python Client**: Sync templates and apply them to AI SDKs like OpenAI, Anthropic, and more.
 * **Standardized Prompt Handling**: Native normalization for OpenAI, Anthropic, Azure OpenAI, and Google AI Studio.
 * **Enhanced Metadata Propagation**: Track prompt metadata on Playground spans and experiment metadata in dataset runs.
 
@@ -447,7 +619,7 @@ Check out the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/instr
 
 Sessions allow you to group multiple responses into a single thread. Each response is still captured as a single trace, but each trace is linked together and presented in a combined view.
 
-Sessions make it easier to visual multi-turn exchanges with your chatbot or agent Sessions launches with Python and TS/JS support. For more on sessions, check out[ a walkthrough video](https://www.youtube.com/watch?v=dzS6x0BE-EU) and the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz--aSHse9NA8I5ncZzavHCp6LBXibZCgbWcRrxbh2RwugL6IQdTOSu8cz-Wqh6EO9xJLGX2E).
+Sessions make it easier to visualize multi-turn exchanges with your chatbot or agent. Sessions launches with Python and TS/JS support. For more on sessions, check out[ a walkthrough video](https://www.youtube.com/watch?v=dzS6x0BE-EU) and the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz--aSHse9NA8I5ncZzavHCp6LBXibZCgbWcRrxbh2RwugL6IQdTOSu8cz-Wqh6EO9xJLGX2E).
 
 ***
 
@@ -509,7 +681,7 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif" %}
 
-**Datasets**: Datasets are a new core feature in Phoenix that live alongside your projects. They can be imported, exported, created, curated, manipulated, and viewed within the platform, and make fine-turning and experimentation easier.n
+**Datasets**: Datasets are a new core feature in Phoenix that live alongside your projects. They can be imported, exported, created, curated, manipulated, and viewed within the platform, and make fine-tuning and experimentation easier.
 
 For more details on using datasets see our [documentation](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F) or [example notebook](https://colab.research.google.com/drive/1e4vZR5VPelXXYGtWfvM3CErPhItHAIp2?usp=sharing\&utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F).
 

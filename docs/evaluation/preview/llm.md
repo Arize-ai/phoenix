@@ -2,6 +2,8 @@
 
 The preview LLM wrapper unifies text, structured output, and classification across providers by delegating to installed SDKs via adapters.
 
+It allows you to invoke models using the keyword arguments you are already familiar with. 
+
 ### Public API
 - Classes: `LLM`, `AsyncLLM`
 - Helpers: `show_provider_availability()`, `generate_classification_schema(labels, include_explanation=True, description=None)`
@@ -10,7 +12,7 @@ The preview LLM wrapper unifies text, structured output, and classification acro
 - Constructor: `LLM(provider: str, model: str, client: str | None = None)`
 - Methods:
   - `generate_text(prompt: str | MultimodalPrompt, **kwargs) -> str`
-  - `generate_object(prompt: str | MultimodalPrompt, schema: dict, **kwargs) -> dict`
+  - `generate_object(prompt: str | MultimodalPrompt, schema: dict, method: str, **kwargs) -> dict`
   - `generate_classification(prompt: str | MultimodalPrompt, labels: list[str] | dict[str,str], include_explanation: bool = True, description: str | None = None, **kwargs) -> dict`
 
 AsyncLLM mirrors the same methods with async variants.
@@ -22,7 +24,7 @@ AsyncLLM mirrors the same methods with async variants.
 - Run `show_provider_availability()` to see what’s enabled in your environment.
 
 ### Object generation methods
-- Adapters may use structured output (response_format/json_schema), tool calling, or fallback automatically. You usually don’t need to select a method; the adapter chooses based on capabilities.
+- You can specify the object generation method: either structured output (response_format/json_schema) or tool calling. You usually don’t need to select a method; the adapter chooses based on capabilities with the "auto" method.
 
 ## Examples
 1) Text generation
@@ -30,7 +32,7 @@ AsyncLLM mirrors the same methods with async variants.
 from phoenix.evals.preview.llm import LLM, show_provider_availability
 
 show_provider_availability()
-llm = LLM(provider="openai", model="gpt-4o", client="openai")
+llm = LLM(provider="openai", model="gpt-4o")
 print(llm.generate_text("Say hello to Phoenix!"))
 ```
 
@@ -38,7 +40,7 @@ print(llm.generate_text("Say hello to Phoenix!"))
 ```python
 from phoenix.evals.preview.llm import LLM
 
-llm = LLM(provider="openai", model="gpt-4o", client="openai")
+llm = LLM(provider="anthropic", model="claude-3-7-sonnet-20250219")
 schema = {
   "type": "object",
   "properties": {
@@ -48,16 +50,17 @@ schema = {
   "required": ["label"]
 }
 obj = llm.generate_object("Answer yes or no with optional explanation.", schema)
+# returns {"label": "yes", "explanation": "..."}
 ```
 
 3) Classification convenience
 ```python
 from phoenix.evals.preview.llm import LLM
 
-llm = LLM(provider="openai", model="gpt-4o", client="openai")
+llm = LLM(provider="openai", model="gpt-4o", client="langchain") # can specify SDK
 result = llm.generate_classification(
     prompt="Is this helpful?", labels=["yes", "no"], include_explanation=True
 )
-print(result)  # {"label": "yes", "explanation": "..."}
+# returns {"label": "yes", "explanation": "..."}
 ```
 

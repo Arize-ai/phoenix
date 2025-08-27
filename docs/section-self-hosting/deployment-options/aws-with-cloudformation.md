@@ -141,7 +141,7 @@ This template:
 #### Deploy with:
 
 ```bash
-cloudformation deploy \
+aws cloudformation deploy \
   --template-file phoenix-network.yml \
   --stack-name phoenix-network \
   --parameter-overrides \

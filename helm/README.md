@@ -115,6 +115,8 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration |
 | securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":true,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"windowsOptions":{}}` | Container-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the container securityContext |
 | securityContext.pod | object | `{"enabled":true,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the pod securityContext |
+| extraVolumes | list | `[]` | Additional volumes to add to the phoenix container |
+| extraVolumeMounts | list | `[]` | Additional volume mounts to add to the phoenix container |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
 | serviceAccount.create | bool | `false` | Create a ServiceAccount for Phoenix |
 | serviceAccount.imagePullSecrets | list | `[]` | List of image pull secrets for the ServiceAccount (if using private container registries) |

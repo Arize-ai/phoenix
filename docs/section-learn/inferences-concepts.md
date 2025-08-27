@@ -41,7 +41,7 @@ Very often, your primary inferences will contain production data and your refere
 
 ### Corpus Inference set (Information Retrieval)
 
-The only difference for the corpus inferences is that it needs a separate schema because it have a different set of columns compared to the model data. See the schema section for more details.
+The only difference for the corpus inferences is that it needs a separate schema because it has a different set of columns compared to the model data. See the schema section for more details.
 
 ## Schemas
 

@@ -15,3 +15,4 @@ This section contains details on Tracing features:
 * [projects.md](projects.md "mention")
 * [how-to-annotate-traces.md](how-to-annotate-traces.md "mention")
 * [sessions.md](sessions.md "mention")
+* [metrics.md](metrics.md "mention")

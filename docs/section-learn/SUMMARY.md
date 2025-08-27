@@ -8,17 +8,7 @@
 
 ## 🤖 Agents
 
-* [Agent Workflow Patterns](README.md)
-  * [AutoGen](agents/agent-workflow-patterns/autogen.md)
-  * [CrewAI](agents/agent-workflow-patterns/crewai.md)
-  * [Google GenAI SDK (Manual Orchestration)](agents/agent-workflow-patterns/google-genai-sdk.md)
-  * [OpenAI Agents](agents/agent-workflow-patterns/openai-agents.md)
-  * [LangGraph](agents/agent-workflow-patterns/langgraph.md)
-  * [Smolagents](agents/agent-workflow-patterns/smolagents.md)
-
-***
-
-* [Evaluating Multi-Agent Systems](evaluating-multi-agent-systems.md)
+* [Evaluating Multi-Agent Systems](README.md)
 
 ## 🔭 Tracing
 
@@ -79,7 +69,4 @@
   * [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](resources/faqs/braintrust-open-source-alternative-llm-evaluation-platform-comparison.md)
 * [Contribute to Phoenix](resources/contribute-to-phoenix.md)
 * [Github](https://github.com/Arize-ai/phoenix)
-
-***
-
 * [OpenInference](https://github.com/Arize-ai/openinference)

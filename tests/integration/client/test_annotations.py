@@ -35,10 +35,6 @@ from .._helpers import (
 )
 
 
-@pytest.mark.skipif(
-    system() == "Windows",
-    reason="Skipping on Windows to reduce test flakiness",
-)
 class TestClientForSpanAnnotations:
     """Tests the Phoenix span annotation client functionality.
 
@@ -1042,7 +1038,9 @@ class TestSendingAnnotationsBeforeSpan:
                     ),
                 ),
             )
-            await sleep(0.01)
+            # Use a significant sleep duration to verify that annotations sent before
+            # span ingestion are properly processed in chronological order
+            await sleep(0.5)
 
         # Send the span and wait
         headers = {"authorization": f"Bearer {_app.admin_secret}"}
