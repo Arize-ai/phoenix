@@ -23,12 +23,10 @@ explanation='Information is supported by context', metadata={'model': 'mock-mode
 source="llm", direction="maximize")]
 """
 
-from typing import Union
-
 from pydantic import BaseModel, Field
 
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM, AsyncLLM
+from ..llm import LLM
 from ..templating import Template
 
 
@@ -73,7 +71,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: Union[LLM, AsyncLLM],
+        llm: LLM,
     ):
         super().__init__(
             name=self.NAME,

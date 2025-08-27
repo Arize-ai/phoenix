@@ -12,7 +12,7 @@ from typing_extensions import Mapping
 
 from phoenix.evals.executors import ExecutionDetails, SyncExecutor
 
-from .llm import LLM, AsyncLLM
+from .llm import LLM
 from .llm.types import ObjectGenerationMethod
 from .templating import Template
 from .utils import remap_eval_input
@@ -241,7 +241,7 @@ class LLMEvaluator(Evaluator):
     def __init__(
         self,
         name: str,
-        llm: Union[LLM, AsyncLLM],
+        llm: LLM,
         prompt_template: Union[str, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -252,7 +252,7 @@ class LLMEvaluator(Evaluator):
 
         Args:
             name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM or AsyncLLM instance to use for evaluation.
+            llm: The LLM instance to use for evaluation.
             prompt_template: The prompt template (string or Template) with placeholders for
                 required fields; used to infer required variables.
             schema: Optional tool/JSON schema for structured output when supported by the LLM.
@@ -294,19 +294,11 @@ class LLMEvaluator(Evaluator):
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        if isinstance(self.llm, AsyncLLM):
-            raise ValueError(
-                "AsyncLLM is not supported for synchronous evaluation. Use aevaluate instead."
-            )
         return super().evaluate(eval_input, input_mapping)
 
     async def aevaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        if isinstance(self.llm, LLM):
-            raise ValueError(
-                "LLM is not supported for asynchronous evaluation. Use evaluate instead."
-            )
         return await super().aevaluate(eval_input, input_mapping)
 
 
@@ -320,7 +312,7 @@ class ClassificationEvaluator(LLMEvaluator):
     def __init__(
         self,
         name: str,
-        llm: Union[LLM, AsyncLLM],
+        llm: LLM,
         prompt_template: Union[str, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -334,7 +326,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
         Args:
             name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM or AsyncLLM instance to use for evaluation.
+            llm: The LLM instance to use for evaluation.
             prompt_template: The prompt template (string or Template) with placeholders for inputs.
             choices: One of:
                 - List[str]: set of label names; scores will be None.
@@ -423,7 +415,7 @@ class ClassificationEvaluator(LLMEvaluator):
             if isinstance(self.labels, Dict)
             else ObjectGenerationMethod.AUTO
         )
-        response = await self.llm.generate_classification(
+        response = await self.llm.agenerate_classification(
             prompt=prompt_filled,
             labels=self.labels,
             include_explanation=self.include_explanation,
@@ -633,7 +625,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: Union[LLM, AsyncLLM],
+    llm: LLM,
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
@@ -644,7 +636,7 @@ def create_classifier(
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM or AsyncLLM instance to use for evaluation.
+        llm: The LLM instance to use for evaluation.
         prompt_template: Prompt template string with placeholders for inputs.
         choices: One of List[str], Dict[str, number], or Dict[str, Tuple[number, str]] describing
             classification labels (and optional scores/descriptions).

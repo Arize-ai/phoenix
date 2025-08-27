@@ -14,7 +14,7 @@ from phoenix.evals.preview.evaluators import (
     list_evaluators,
     to_thread,
 )
-from phoenix.evals.preview.llm import LLM, AsyncLLM
+from phoenix.evals.preview.llm import LLM
 from phoenix.evals.preview.templating import Template
 
 
@@ -26,22 +26,13 @@ class MockLLM(LLM):
         # Mock the LLM without calling parent constructor to avoid API key issues
         self.provider = "openai"
         self.model = model
-        self._is_async = False
 
     def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
         return {"label": "good", "explanation": "This is a good result"}
 
-
-class MockAsyncLLM(AsyncLLM):
-    """Mock AsyncLLM for testing that uses a valid provider."""
-
-    def __init__(self, model: str = "test-model"):
-        # Mock the AsyncLLM without calling parent constructor to avoid API key issues
-        self.provider = "openai"
-        self.model = model
-        self._is_async = True
-
-    async def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
+    async def agenerate_classification(
+        self, prompt: str, labels, include_explanation: bool, method
+    ):
         return {"label": "good", "explanation": "This is a good result"}
 
 
@@ -401,29 +392,6 @@ class TestLLMEvaluator:
         )
         assert evaluator._get_required_fields(None) == {"input"}
 
-    def test_llm_evaluator_sync_evaluate_with_async_llm(self):
-        """Test that sync evaluate raises error with AsyncLLM."""
-        llm = MockAsyncLLM()
-        template = "Test template"
-
-        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
-
-        with pytest.raises(
-            ValueError, match="AsyncLLM is not supported for synchronous evaluation"
-        ):
-            evaluator.evaluate({"input": "test"})
-
-    @pytest.mark.asyncio
-    async def test_llm_evaluator_async_evaluate_with_sync_llm(self):
-        """Test that async evaluate raises error with sync LLM."""
-        llm = MockLLM()
-        template = "Test template"
-
-        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
-
-        with pytest.raises(ValueError, match="LLM is not supported for asynchronous evaluation"):
-            await evaluator.aevaluate({"input": "test"})
-
 
 class TestClassificationEvaluator:
     """Test the ClassificationEvaluator class."""
@@ -515,7 +483,7 @@ class TestClassificationEvaluator:
     @pytest.mark.asyncio
     async def test_classification_evaluator_async_evaluate_success(self):
         """Test successful async classification evaluation."""
-        llm = MockAsyncLLM()
+        llm = MockLLM()
         template = "Test template with {input}"
         choices = ["good", "bad"]
 
