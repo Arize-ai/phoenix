@@ -5,7 +5,7 @@ import { progressBarCSS } from "./styles";
 import { ProgressBarProps } from "./types";
 
 function ProgressBar(
-  { width, ...props }: ProgressBarProps,
+  { width, height, ...props }: ProgressBarProps,
   ref: Ref<HTMLDivElement>
 ) {
   return (
@@ -13,7 +13,7 @@ function ProgressBar(
       {...props}
       ref={ref}
       css={progressBarCSS}
-      style={{ width }}
+      style={{ width, height }}
     >
       {({ percentage }) => (
         <div className="progress-bar__track">
