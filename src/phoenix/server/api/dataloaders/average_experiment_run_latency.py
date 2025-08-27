@@ -25,7 +25,6 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
         experiment_ids = keys
         average_repetition_latency_ms = (
             select(
-                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
                 models.ExperimentRun.experiment_id.label("experiment_id"),
                 func.avg(
                     func.extract("epoch", models.ExperimentRun.end_time)

@@ -25,14 +25,13 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
         experiment_ids = keys
         average_repetition_error_rates_subquery = (
             select(
-                models.ExperimentRun.id,
-                func.min(models.ExperimentRun.experiment_id).label("experiment_id"),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
                 (
                     func.count(models.ExperimentRun.error) / func.count(models.ExperimentRun.id)
                 ).label("average_repetition_error_rate"),
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-            .group_by(models.ExperimentRun.id)
+            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
             .subquery()
             .alias("average_repetition_error_rates")
         )
