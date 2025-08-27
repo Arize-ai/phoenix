@@ -8,6 +8,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { Cell, Pie, PieChart } from "recharts";
 import { css } from "@emotion/react";
 
 import {
@@ -572,46 +573,59 @@ export function ExperimentsTable({
 
 function CoveragePieChart({ coverage }: { coverage: number }) {
   const size = 16;
-  const strokeWidth = 2;
-  const center = size / 2;
-  const radius = center - strokeWidth / 2;
-
   const nonCoverage = 1 - coverage;
 
-  // Calculate the arc path for the non-coverage percentage (counter-clockwise)
-  const nonCoverageAngle = nonCoverage * 2 * Math.PI;
-  const x1 = center + radius * Math.cos(-Math.PI / 2);
-  const y1 = center + radius * Math.sin(-Math.PI / 2);
-  const x2 = center + radius * Math.cos(-Math.PI / 2 - nonCoverageAngle);
-  const y2 = center + radius * Math.sin(-Math.PI / 2 - nonCoverageAngle);
+  // Prepare data for the pie chart
+  const chartData = useMemo(() => {
+    const data = [];
+    if (coverage > 0) {
+      data.push({ name: "covered", value: coverage });
+    }
+    if (nonCoverage > 0) {
+      data.push({ name: "missing", value: nonCoverage });
+    }
+    return data;
+  }, [coverage, nonCoverage]);
 
-  const largeArc = nonCoverageAngle > Math.PI ? 1 : 0;
+  // Don't render if no data
+  if (chartData.length === 0) {
+    return null;
+  }
 
   return (
-    <svg
-      width={size}
-      height={size}
+    <div
       css={css`
         flex-shrink: 0;
       `}
     >
-      {/* Background circle */}
-      <circle
-        cx={center}
-        cy={center}
-        r={radius}
-        fill="var(--ac-global-color-grey-300)"
-        opacity={0.5}
-      />
-      {/* Non-coverage arc (missing data - warning color) */}
-      {nonCoverage > 0 && (
-        <path
-          d={`M ${center},${center} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},0 ${x2},${y2} Z`}
-          fill="var(--ac-global-color-warning)"
-          opacity={0.8}
-        />
-      )}
-    </svg>
+      <PieChart width={size} height={size}>
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={4}
+          outerRadius={size / 2}
+          strokeWidth={0}
+          stroke="transparent"
+          startAngle={90}
+          endAngle={-270}
+        >
+          {chartData.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={
+                entry.name === "missing"
+                  ? "var(--ac-global-color-warning)"
+                  : "var(--ac-global-color-grey-300)"
+              }
+              opacity={entry.name === "missing" ? 0.8 : 0.5}
+            />
+          ))}
+        </Pie>
+      </PieChart>
+    </div>
   );
 }
 
