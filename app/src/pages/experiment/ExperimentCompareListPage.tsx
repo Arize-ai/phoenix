@@ -21,6 +21,12 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import {
+  RichTooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components/tooltip";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   costFormatter,
@@ -317,7 +323,11 @@ export function ExperimentCompareListPage() {
         accessorKey: "input",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return <JSONText json={value} maxLength={50} />;
+          return (
+            <ContentPreviewTooltip content={value}>
+              <JSONText json={value} maxLength={50} disableTitle />
+            </ContentPreviewTooltip>
+          );
         },
       },
       {
@@ -325,7 +335,11 @@ export function ExperimentCompareListPage() {
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
           const value = getValue() as string;
-          return <JSONText json={value} maxLength={50} />;
+          return (
+            <ContentPreviewTooltip content={value}>
+              <JSONText json={value} maxLength={50} disableTitle />
+            </ContentPreviewTooltip>
+          );
         },
       },
       {
@@ -350,14 +364,17 @@ export function ExperimentCompareListPage() {
                   >
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
-                  <Truncate maxWidth="200px" title={value.baseExperimentValue}>
-                    <Text size="S" fontFamily="mono">
-                      <JSONText
-                        json={value.baseExperimentValue}
-                        maxLength={50}
-                      />
-                    </Text>
-                  </Truncate>
+                  <ContentPreviewTooltip content={value.baseExperimentValue}>
+                    <Truncate maxWidth="200px">
+                      <Text size="S" fontFamily="mono">
+                        <JSONText
+                          json={value.baseExperimentValue}
+                          maxLength={50}
+                          disableTitle
+                        />
+                      </Text>
+                    </Truncate>
+                  </ContentPreviewTooltip>
                 </Flex>
               </li>
               {value.compareExperimentValues.map((value, index) => (
@@ -374,11 +391,17 @@ export function ExperimentCompareListPage() {
                       />
                     </span>
                     {value ? (
-                      <Truncate maxWidth="200px" title={value}>
-                        <Text size="S" fontFamily="mono">
-                          <JSONText json={value} maxLength={50} />
-                        </Text>
-                      </Truncate>
+                      <ContentPreviewTooltip content={value}>
+                        <Truncate maxWidth="200px">
+                          <Text size="S" fontFamily="mono">
+                            <JSONText
+                              json={value}
+                              maxLength={50}
+                              disableTitle
+                            />
+                          </Text>
+                        </Truncate>
+                      </ContentPreviewTooltip>
                     ) : (
                       <Text size="S" fontFamily="mono" color="grey-500">
                         not run
@@ -841,3 +864,34 @@ const getAnnotationScore = (
   )?.score;
   return score;
 };
+
+function ContentPreviewTooltip({
+  content,
+  children,
+}: {
+  content: unknown;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipTrigger>
+      <TriggerWrap
+        css={css`
+          overflow: hidden;
+        `}
+      >
+        {children}
+      </TriggerWrap>
+      <RichTooltip offset={3}>
+        <TooltipArrow />
+        <div
+          css={css`
+            max-height: 300px;
+            overflow: auto;
+          `}
+        >
+          <JSONText json={content} disableTitle />
+        </div>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
