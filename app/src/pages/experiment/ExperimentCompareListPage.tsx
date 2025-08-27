@@ -405,6 +405,9 @@ export function ExperimentCompareListPage() {
                         }
                         shape="circle"
                       />
+                      <Text size="S" fontFamily="mono" color="grey-500">
+                        AVG
+                      </Text>
                       <Text size="S" fontFamily="mono">
                         {intFormatter(experiment.costSummary.total.tokens)}
                       </Text>
@@ -476,6 +479,9 @@ export function ExperimentCompareListPage() {
                       }
                       shape="circle"
                     />
+                    <Text size="S" fontFamily="mono" color="grey-500">
+                      AVG
+                    </Text>
                     <Text size="S" fontFamily="mono">
                       {latencyMsFormatter(experiment.averageRunLatencyMs)}
                     </Text>
@@ -546,6 +552,9 @@ export function ExperimentCompareListPage() {
                       }
                       shape="circle"
                     />
+                    <Text size="S" fontFamily="mono" color="grey-500">
+                      AVG
+                    </Text>
                     <Text size="S" fontFamily="mono">
                       {costFormatter(experiment.costSummary.total.cost)}
                     </Text>
@@ -630,6 +639,9 @@ export function ExperimentCompareListPage() {
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
                       <ColorSwatch color={color} shape="circle" />
+                      <Text size="S" fontFamily="mono" color="grey-500">
+                        AVG
+                      </Text>
                       <Text size="S" fontFamily="mono">
                         {numberFormatter(
                           experimentAnnotationSummary?.meanScore
