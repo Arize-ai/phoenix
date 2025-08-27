@@ -109,7 +109,7 @@ class LLM:
         self._sync_client = sync_client
         self._async_client = async_client
         self._sync_adapter = adapter_class(sync_client)
-        self._async_adapter = adapter_class(async_client, is_async=True)
+        self._async_adapter = adapter_class(async_client)
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,

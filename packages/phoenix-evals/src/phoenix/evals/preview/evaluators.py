@@ -382,8 +382,8 @@ class ClassificationEvaluator(LLMEvaluator):
             include_explanation=self.include_explanation,
             method=method,
         )
-        label = response["label"]  # type: ignore
-        explanation = response.get("explanation", None)  # type: ignore
+        label = response["label"]
+        explanation = response.get("explanation", None)
 
         # Validate that the returned label is one of the valid choices
         valid_labels = (
@@ -420,7 +420,7 @@ class ClassificationEvaluator(LLMEvaluator):
             labels=self.labels,
             include_explanation=self.include_explanation,
             method=method,
-        )  # type: ignore
+        )
         label = response["label"]
         explanation = response.get("explanation", None)
 
