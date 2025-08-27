@@ -27,6 +27,7 @@ export function JSONText({
   space = 0,
   disableTitle = false,
   collapseSingleKey = true,
+  as,
 }: {
   json: unknown;
   maxLength?: number;
@@ -37,6 +38,7 @@ export function JSONText({
    * @default true
    */
   collapseSingleKey?: boolean;
+  as?: "span" | "pre";
 }) {
   const hasMaxLength = typeof maxLength === "number";
   const fullValue = useMemo(
@@ -78,8 +80,8 @@ export function JSONText({
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;
-  const Element = hasMaxLength ? "span" : "pre";
-  const additionalCSS = hasMaxLength ? undefined : preCSS;
+  const Element = as ?? (hasMaxLength ? "span" : "pre");
+  const additionalCSS = Element === "pre" ? preCSS : undefined;
   return (
     <Element title={title} css={additionalCSS}>
       {textValue}

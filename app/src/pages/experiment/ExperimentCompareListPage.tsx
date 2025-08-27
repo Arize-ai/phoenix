@@ -314,7 +314,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "example",
         size: 80,
         cell: ({ getValue }) => (
-          <Truncate maxWidth="200px" title={getValue() as string}>
+          <Truncate title={getValue() as string}>
             {getValue() as string}
           </Truncate>
         ),
@@ -326,7 +326,16 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <ContentPreviewTooltip content={value}>
-              <JSONText json={value} maxLength={50} disableTitle />
+              <div
+                css={css`
+                  display: -webkit-box;
+                  -webkit-box-orient: vertical;
+                  -webkit-line-clamp: ${experiments.length};
+                  overflow: hidden;
+                `}
+              >
+                <JSONText json={value} disableTitle />
+              </div>
             </ContentPreviewTooltip>
           );
         },
@@ -338,7 +347,16 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <ContentPreviewTooltip content={value}>
-              <JSONText json={value} maxLength={50} disableTitle />
+              <div
+                css={css`
+                  display: -webkit-box;
+                  -webkit-box-orient: vertical;
+                  -webkit-line-clamp: ${experiments.length};
+                  overflow: hidden;
+                `}
+              >
+                <JSONText json={value} disableTitle />
+              </div>
             </ContentPreviewTooltip>
           );
         },
@@ -366,12 +384,12 @@ export function ExperimentCompareListPage() {
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
                   <ContentPreviewTooltip content={value.baseExperimentValue}>
-                    <Truncate maxWidth="200px">
+                    <Truncate>
                       <Text size="S" fontFamily="mono">
                         <JSONText
                           json={value.baseExperimentValue}
-                          maxLength={50}
                           disableTitle
+                          as="span"
                         />
                       </Text>
                     </Truncate>
@@ -393,13 +411,9 @@ export function ExperimentCompareListPage() {
                     </span>
                     {value ? (
                       <ContentPreviewTooltip content={value}>
-                        <Truncate maxWidth="200px">
+                        <Truncate>
                           <Text size="S" fontFamily="mono">
-                            <JSONText
-                              json={value}
-                              maxLength={50}
-                              disableTitle
-                            />
+                            <JSONText json={value} disableTitle as="span" />
                           </Text>
                         </Truncate>
                       </ContentPreviewTooltip>
