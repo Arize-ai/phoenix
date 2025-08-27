@@ -1,5 +1,17 @@
 # Changelog
 
+## [11.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.28.0...arize-phoenix-v11.29.0) (2025-08-27)
+
+
+### Features
+
+* **experiments:** experiments compare list page styling improvements ([#9281](https://github.com/Arize-ai/phoenix/issues/9281)) ([8554ac5](https://github.com/Arize-ai/phoenix/commit/8554ac5dadcc921a466e4444398adc5afed48d0c))
+
+
+### Bug Fixes
+
+* upper bound on version of sqlean.py for windows ([#9282](https://github.com/Arize-ai/phoenix/issues/9282)) ([feef88c](https://github.com/Arize-ai/phoenix/commit/feef88c16228838b0bc68bbf66afdc968f724815))
+
 ## [11.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.27.0...arize-phoenix-v11.28.0) (2025-08-26)
 
 
