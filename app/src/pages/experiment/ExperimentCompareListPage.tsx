@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -6,6 +6,7 @@ import {
   flexRender,
   getCoreRowModel,
   Getter,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -763,6 +764,7 @@ export function ExperimentCompareListPage() {
     data: tableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onChange",
   });
 
   /**
@@ -814,46 +816,78 @@ export function ExperimentCompareListPage() {
                           "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
                       }}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
+                      {header.isPlaceholder ? null : (
+                        <>
+                          {flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                          {(header.id === "input" ||
+                            header.id === "outputs" ||
+                            header.id === "referenceOutput") && (
+                            <div
+                              {...{
+                                onMouseDown: header.getResizeHandler(),
+                                onTouchStart: header.getResizeHandler(),
+                                className: `resizer ${
+                                  header.column.getIsResizing()
+                                    ? "isResizing"
+                                    : ""
+                                }`,
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>
               ))}
             </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      style={{
-                        width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                        maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                        padding:
-                          "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+            {table.getState().columnSizingInfo.isResizingColumn ? (
+              /* When resizing any column we will render this special memoized version of our table body */
+              <MemoizedTableBody table={table} />
+            ) : (
+              <TableBody table={table} />
+            )}
           </table>
         </div>
       </Flex>
     </View>
   );
 }
+
+//un-memoized normal table body component - see memoized version below
+function TableBody<T>({ table }: { table: Table<T> }) {
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => (
+        <tr key={row.id}>
+          {row.getVisibleCells().map((cell) => (
+            <td
+              key={cell.id}
+              style={{
+                width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                padding:
+                  "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                verticalAlign: "middle",
+              }}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+//special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
 
 const getAnnotationScore = (
   values: { name: string; score: number | null }[],
