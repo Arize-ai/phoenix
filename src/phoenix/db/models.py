@@ -1178,10 +1178,13 @@ class Experiment(Base):
     repetitions: Mapped[int]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+
+    user: Mapped[Optional["User"]] = relationship("User")
 
 
 class ExperimentRun(Base):
