@@ -39,7 +39,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
         repetition_mean_scores_by_example_subquery = (
             select(
-                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
                 models.ExperimentRun.experiment_id.label("experiment_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
