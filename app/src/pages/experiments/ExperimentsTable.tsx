@@ -648,80 +648,79 @@ function AnnotationAggregationCell({
     [value, min, max]
   );
   return (
-    <TooltipTrigger>
-      <TriggerWrap>
-        <div
-          css={css`
-            float: right;
-            --mod-barloader-fill-color: ${color};
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: var(--ac-global-dimension-size-100);
-          `}
-        >
-          {coverage !== null && coverage < 1.0 && (
+    <div
+      css={css`
+        float: right;
+        --mod-barloader-fill-color: ${color};
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {coverage !== null && coverage < 1.0 && (
+        <TooltipTrigger>
+          <TriggerWrap>
             <CoveragePieChart coverage={coverage} />
-          )}
-          {floatFormatter(value)}
-          <ProgressBar
-            width="40px"
-            value={percentile}
-            aria-label="where the mean score lands between overall min max"
-          />
-        </div>
-      </TriggerWrap>
-      <RichTooltip>
-        <View width="size-2400">
-          <Heading level={3} weight="heavy">
-            {annotationName}
-          </Heading>
-          <Flex direction="column">
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score
+          </TriggerWrap>
+          <RichTooltip>
+            <View width="size-2000">
+              <Heading level={3} weight="heavy">
+                Missing Data
+              </Heading>
+              <Text size="XS">
+                {formatPercent((1 - coverage) * 100)} of runs are missing this
+                annotation
               </Text>
-              <Text size="XS">{floatFormatter(value)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Min
-              </Text>
-              <Text size="XS">{floatFormatter(min)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Max
-              </Text>
-              <Text size="XS">{floatFormatter(max)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score Percentile
-              </Text>
-              <Text size="XS">{formatPercent(percentile)}</Text>
-            </Flex>
+            </View>
+          </RichTooltip>
+        </TooltipTrigger>
+      )}
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            {floatFormatter(value)}
+            <ProgressBar
+              width="40px"
+              value={percentile}
+              aria-label="where the mean score lands between overall min max"
+            />
           </Flex>
-          {coverage !== null && coverage < 1.0 && (
-            <Flex direction="column" marginTop="size-100">
-              <View
-                borderTopWidth="thin"
-                borderTopColor="default"
-                paddingTop="size-100"
-              >
-                <Flex justifyContent="space-between">
-                  <Text weight="heavy" size="XS" color="warning">
-                    Missing Data
-                  </Text>
-                  <Text size="XS" color="warning">
-                    {formatPercent((1 - coverage) * 100)}
-                  </Text>
-                </Flex>
-              </View>
+        </TriggerWrap>
+        <RichTooltip>
+          <View width="size-2400">
+            <Heading level={3} weight="heavy">
+              {annotationName}
+            </Heading>
+            <Flex direction="column">
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score
+                </Text>
+                <Text size="XS">{floatFormatter(value)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Min
+                </Text>
+                <Text size="XS">{floatFormatter(min)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Max
+                </Text>
+                <Text size="XS">{floatFormatter(max)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score Percentile
+                </Text>
+                <Text size="XS">{formatPercent(percentile)}</Text>
+              </Flex>
             </Flex>
-          )}
-        </View>
-      </RichTooltip>
-    </TooltipTrigger>
+          </View>
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
   );
 }
