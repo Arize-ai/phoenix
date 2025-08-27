@@ -109,10 +109,10 @@ class Experiment(Node):
 
     @strawberry.field
     async def average_run_latency_ms(self, info: Info[Context, None]) -> Optional[float]:
-        latency_seconds = await info.context.data_loaders.average_experiment_run_latency.load(
+        latency_ms = await info.context.data_loaders.average_experiment_run_latency.load(
             self.id_attr
         )
-        return latency_seconds * 1000 if latency_seconds is not None else None
+        return latency_ms
 
     @strawberry.field
     async def project(self, info: Info[Context, None]) -> Optional[Project]:
