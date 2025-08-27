@@ -44,6 +44,7 @@ from phoenix.server.api.helpers.playground_spans import (
     streaming_llm_span,
 )
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -302,17 +303,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            user_id = None
-            try:
-                user_id = int(info.context.user.identity) if info.context.user.is_authenticated \
-                    else None
-            except AssertionError:
-                # Assertion Error occurs in environments where auth is not enabled
-                # return specific error
-                # "AssertionError: AuthenticationMiddleware must be installed
-                # to access request.user"
-                pass
-
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,

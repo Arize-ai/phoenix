@@ -66,6 +66,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
@@ -191,17 +192,7 @@ class ChatCompletionMutationMixin:
             ]
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
-            user_id = None
-            try:
-                user_id = int(info.context.user.identity) if info.context.user.is_authenticated \
-                    else None
-            except AssertionError:
-                # Assertion Error occurs in environments where auth is not enabled
-                # return specific error
-                # "AssertionError: AuthenticationMiddleware must be installed
-                # to access request.user"
-                pass
-
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
