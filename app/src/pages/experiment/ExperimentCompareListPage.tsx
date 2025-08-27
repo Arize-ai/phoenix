@@ -351,7 +351,12 @@ export function ExperimentCompareListPage() {
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
                   <Truncate maxWidth="200px" title={value.baseExperimentValue}>
-                    <JSONText json={value.baseExperimentValue} maxLength={50} />
+                    <Text size="S" fontFamily="mono">
+                      <JSONText
+                        json={value.baseExperimentValue}
+                        maxLength={50}
+                      />
+                    </Text>
                   </Truncate>
                 </Flex>
               </li>
@@ -419,7 +424,7 @@ export function ExperimentCompareListPage() {
           </Flex>
         ),
         accessorKey: "tokens",
-        minSize: 200,
+        minSize: 150,
         cell: ({ getValue }) => {
           const tokens = getValue() as TableRow["tokens"];
           return (
@@ -492,7 +497,7 @@ export function ExperimentCompareListPage() {
           </Flex>
         ),
         accessorKey: "latencyMs",
-        minSize: 200,
+        minSize: 150,
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
@@ -565,7 +570,7 @@ export function ExperimentCompareListPage() {
           </Flex>
         ),
         accessorKey: "cost",
-        minSize: 200,
+        minSize: 150,
         cell: ({ getValue }) => {
           const cost = getValue() as TableRow["cost"];
           return (
@@ -829,6 +834,7 @@ export function ExperimentCompareListPage() {
                         maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                         padding:
                           "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                        verticalAlign: "middle",
                       }}
                     >
                       {flexRender(
