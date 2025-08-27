@@ -283,6 +283,7 @@ export async function runExperiment({
     concurrency,
     dryRun,
     setGlobalTracerProvider,
+    useBatchSpanProcessor,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
