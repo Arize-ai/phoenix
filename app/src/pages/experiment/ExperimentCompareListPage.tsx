@@ -369,7 +369,7 @@ export function ExperimentCompareListPage() {
                       />
                     </span>
                     <Truncate maxWidth="200px" title={value}>
-                      <Text size="S">
+                      <Text size="S" fontFamily="mono">
                         <JSONText json={value} maxLength={50} />
                       </Text>
                     </Truncate>
@@ -405,7 +405,7 @@ export function ExperimentCompareListPage() {
                         }
                         shape="circle"
                       />
-                      <Text size="S">
+                      <Text size="S" fontFamily="mono">
                         {intFormatter(experiment.costSummary.total.tokens)}
                       </Text>
                     </Flex>
@@ -430,7 +430,7 @@ export function ExperimentCompareListPage() {
               <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
-                  <Text size="S">
+                  <Text size="S" fontFamily="mono">
                     {intFormatter(tokens.baseExperimentValue)}
                   </Text>
                 </Flex>
@@ -442,7 +442,9 @@ export function ExperimentCompareListPage() {
                       color={getExperimentColor(index)}
                       shape="circle"
                     />
-                    <Text size="S">{intFormatter(value)}</Text>
+                    <Text size="S" fontFamily="mono">
+                      {intFormatter(value)}
+                    </Text>
                   </Flex>
                 </li>
               ))}
@@ -474,7 +476,7 @@ export function ExperimentCompareListPage() {
                       }
                       shape="circle"
                     />
-                    <Text size="S">
+                    <Text size="S" fontFamily="mono">
                       {latencyMsFormatter(experiment.averageRunLatencyMs)}
                     </Text>
                   </Flex>
@@ -498,7 +500,7 @@ export function ExperimentCompareListPage() {
               <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
-                  <Text size="S">
+                  <Text size="S" fontFamily="mono">
                     {latencyMsFormatter(latencyMs.baseExperimentValue)}
                   </Text>
                 </Flex>
@@ -510,7 +512,9 @@ export function ExperimentCompareListPage() {
                       color={getExperimentColor(index)}
                       shape="circle"
                     />
-                    <Text size="S">{latencyMsFormatter(value)}</Text>
+                    <Text size="S" fontFamily="mono">
+                      {latencyMsFormatter(value)}
+                    </Text>
                   </Flex>
                 </li>
               ))}
@@ -542,7 +546,7 @@ export function ExperimentCompareListPage() {
                       }
                       shape="circle"
                     />
-                    <Text size="S">
+                    <Text size="S" fontFamily="mono">
                       {costFormatter(experiment.costSummary.total.cost)}
                     </Text>
                   </Flex>
@@ -566,7 +570,7 @@ export function ExperimentCompareListPage() {
               <li>
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
-                  <Text size="S">
+                  <Text size="S" fontFamily="mono">
                     {costFormatter(cost.baseExperimentValue)}
                   </Text>
                 </Flex>
@@ -578,7 +582,9 @@ export function ExperimentCompareListPage() {
                       color={getExperimentColor(index)}
                       shape="circle"
                     />
-                    <Text size="S">{costFormatter(value)}</Text>
+                    <Text size="S" fontFamily="mono">
+                      {costFormatter(value)}
+                    </Text>
                   </Flex>
                 </li>
               ))}
@@ -624,7 +630,7 @@ export function ExperimentCompareListPage() {
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
                       <ColorSwatch color={color} shape="circle" />
-                      <Text size="S">
+                      <Text size="S" fontFamily="mono">
                         {numberFormatter(
                           experimentAnnotationSummary?.meanScore
                         )}
@@ -672,7 +678,7 @@ export function ExperimentCompareListPage() {
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <ColorSwatch color={baseExperimentColor} shape="circle" />
-                  <Text size="S">
+                  <Text size="S" fontFamily="mono">
                     {numberFormatter(baseExperimentAnnotationScore)}
                   </Text>
                 </Flex>
@@ -703,7 +709,7 @@ export function ExperimentCompareListPage() {
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
                       <ColorSwatch color={color} shape="circle" />
-                      <Text size="S">
+                      <Text size="S" fontFamily="mono">
                         {numberFormatter(
                           getAnnotationScore(
                             values,
