@@ -147,7 +147,7 @@ def evaluate_judge_on_test(
 
     # Get results via API
     base_url = "http://localhost:6006"
-    url = f"{base_url}/v1/experiments/{experiment_id}/json"
+    url = f"{base_url}/v1/experiments/{experiment.id}/json"
     response = requests.get(url)
     results = response.json()
 
