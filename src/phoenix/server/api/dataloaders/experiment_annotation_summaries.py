@@ -113,10 +113,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     == repetition_mean_scores_subquery.c.annotation_name,
                 ),
             )
-            .group_by(
-                repetition_mean_scores_subquery.c.experiment_id,
-                repetition_mean_scores_subquery.c.annotation_name,
-            )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
         async with self._db() as session:
