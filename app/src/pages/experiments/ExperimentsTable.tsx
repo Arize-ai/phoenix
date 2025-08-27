@@ -572,10 +572,15 @@ export function ExperimentsTable({
 }
 
 function CoveragePieChart({ coverage }: { coverage: number }) {
-  const size = 16;
   const nonCoverage = 1 - coverage;
 
-  // Prepare data for the pie chart
+  const { size, outerRadius, innerRadius } = useMemo(() => {
+    const size = 16;
+    const outerRadius = size / 2;
+    const innerRadius = outerRadius - 2;
+    return { size, outerRadius, innerRadius };
+  }, []);
+
   const chartData = useMemo(() => {
     const data = [];
     if (coverage > 0) {
@@ -587,7 +592,6 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
     return data;
   }, [coverage, nonCoverage]);
 
-  // Don't render if no data
   if (chartData.length === 0) {
     return null;
   }
@@ -605,8 +609,8 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          innerRadius={size / 2 - 2}
-          outerRadius={size / 2}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius}
           strokeWidth={0}
           stroke="transparent"
           startAngle={90}
