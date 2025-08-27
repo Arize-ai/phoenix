@@ -30,6 +30,11 @@ modules:
   exclude:
     - phoenix.otel.otel
     - phoenix.otel.settings
+    - phoenix.client
+    - phoenix.client.constants
+    - phoenix.client.helpers.sdk
+    - phoenix.client.resources
+    - phoenix.client.utils.*
 
   # Per-module overrides and symbol controls.
   # For each fully-qualified module name you can:
@@ -44,6 +49,12 @@ modules:
         mode: only
         include:
           - register
+          - TracerProvider
+          - SimpleSpanProcessor
+          - BatchSpanProcessor
+          - HTTPSpanExporter
+          - GRPCSpanExporter
+
     phoenix.client:
       symbols:
         mode: only
@@ -59,6 +70,7 @@ modules:
         exclude:
           - .*Internal.*
           - Deprecated*
+
 
 # Default symbol filtering for all modules unless overridden per-module above.
 symbols:

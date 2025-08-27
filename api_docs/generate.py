@@ -74,6 +74,14 @@ def _to_regex(pattern: str) -> str:
     return anchored
 
 
+def _is_simple_symbol_pattern(name: str) -> bool:
+    """
+    True if 'name' is a concrete symbol (no glob/regex metacharacters).
+    Allows dotted paths (e.g., 'exceptions.Foo') but rejects patterns like 'exceptions.*' or '^Foo$'.
+    """
+    return not any(ch in name for ch in "*?[]^$(){}|+")
+
+
 # ---------------------------
 # Discovery
 # ---------------------------
@@ -227,7 +235,12 @@ def _compose_filters_for_module(
 
     def _add_excludes(seq: list[str]) -> None:
         for p in seq:
-            filt.append("!" + _to_regex(p))
+            rx = _to_regex(p)
+            filt.append("!" + rx)
+            # Also exclude when matched as a full dotted path segment (handles dunders like __version__)
+            if p in ("^_.*", "^__.*"):
+                # Match names at end of full dotted path
+                filt.append("!(^|.*\\.)_.*$" if p == "^_.*" else "!(^|.*\\.)__.*$")
 
     if mode == "only":
         _add_includes(mod_include)
@@ -287,10 +300,30 @@ def _write_module_page(
         # Header for readability
         print(f"# `{module_name}`\n", file=fd)
 
-        # mkdocstrings directive with only selection filters
-        print(f"::: {module_name}", file=fd)
-        if filters:
-            config_block: Dict[str, Any] = {"selection": {"filters": list(filters)}}
+        # Determine if we should emit per-symbol directives (mode: only + concrete includes)
+        mod_cfg_local = _as_dict(per_module_cfg.get(module_name, {}))
+        sym_cfg_local = _as_dict(mod_cfg_local.get("symbols"))
+        mode_local = str(sym_cfg_local.get("mode") or "").strip().lower()
+        include_syms = _as_list_of_str(sym_cfg_local.get("include"))
+        use_per_symbol = bool(
+            mode_local == "only"
+            and include_syms
+            and all(_is_simple_symbol_pattern(s) for s in include_syms)
+        )
+
+        if use_per_symbol:
+            # Emit one directive per explicitly included symbol; avoids module-level enumeration entirely
+            for sym in include_syms:
+                # Allow dotted relative paths (e.g., "exceptions.Foo"); prefix with module_name if not absolute
+                target = sym if sym.startswith(module_name + ".") else f"{module_name}.{sym}"
+                print(f"::: {target}", file=fd)
+        else:
+            # Fallback: module-level directive with selection limited to classes/functions and filters
+            print(f"::: {module_name}", file=fd)
+            selection_block: Dict[str, Any] = {"members": ["classes", "functions"]}
+            if filters:
+                selection_block["filters"] = list(filters)
+            config_block: Dict[str, Any] = {"selection": selection_block}
             yaml_str = yaml.safe_dump(config_block, sort_keys=False)
             for line in yaml_str.splitlines():
                 print(f"    {line}", file=fd)
