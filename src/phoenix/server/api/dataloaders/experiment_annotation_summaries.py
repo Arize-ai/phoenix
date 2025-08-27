@@ -67,6 +67,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     "mean_score"
                 ),
             )
+            .select_from(repetition_mean_scores_by_example_subquery)
             .group_by(
                 repetition_mean_scores_by_example_subquery.c.experiment_id,
                 repetition_mean_scores_by_example_subquery.c.annotation_name,
