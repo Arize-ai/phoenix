@@ -96,7 +96,7 @@ class LLM:
                 registration = provider_registrations[0]
 
             try:
-                sync_client = registration.client_factory(model=model)
+                sync_client = registration.client_factory(model=model, is_async=False)
                 async_client = registration.client_factory(model=model, is_async=True)
                 adapter_class = registration.adapter_class
             except Exception as e:
