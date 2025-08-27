@@ -18,6 +18,7 @@ DOCS_DIR = Path(__file__).parent.resolve()
 # Directories (relative to docs_dir=api_docs)
 api_root = Path("api")
 handwritten_root = DOCS_DIR / "api"
+SUMMARY_LINES: List[str] = []
 
 
 # ---------------------------
@@ -80,6 +81,28 @@ def _is_simple_symbol_pattern(name: str) -> bool:
     Allows dotted paths (e.g., 'exceptions.Foo') but rejects patterns like 'exceptions.*' or '^Foo$'.
     """
     return not any(ch in name for ch in "*?[]^$(){}|+")
+
+
+def _label_relative(module_name: str, section_pkg: str) -> str:
+    """
+    Build a display label for a module relative to its section package.
+    - If module == section_pkg, show the last segment (e.g., 'otel' for 'phoenix.otel').
+    - Else show the dotted path after removing the section prefix, e.g.,
+      'resources.datasets' for 'phoenix.client.resources.datasets' within 'phoenix.client'.
+    """
+    m_parts = module_name.split(".")
+    p_parts = section_pkg.split(".")
+    if module_name == section_pkg:
+        return m_parts[-1]
+    rel_parts = m_parts[len(p_parts):]
+    return ".".join(rel_parts) if rel_parts else m_parts[-1]
+
+
+def _label_leaf(module_name: str) -> str:
+    """
+    Leaf-only label: just the last segment of the module name.
+    """
+    return module_name.split(".")[-1]
 
 
 # ---------------------------
@@ -364,6 +387,10 @@ def generate_docs() -> None:
         for s in sections:
             print(f"- [{s['title']}](./{s['outdir']}/index.md)", file=fd)
 
+    # Initialize nested summary lines
+    global SUMMARY_LINES
+    SUMMARY_LINES.clear()
+
     # Sections and module pages
     for s in sections:
         pkg = s["package"]
@@ -371,6 +398,9 @@ def generate_docs() -> None:
         title = s["title"]
         section_dir = api_root / outdir
         section_dir.mkdir(parents=True, exist_ok=True)
+
+        # SUMMARY: section header
+        SUMMARY_LINES.append(f"- [{title}](api/{outdir}/index.md)")
 
         # Discovery with skip of child sections
         skip_children = all_child_prefixes.get(pkg) or set()
@@ -388,7 +418,22 @@ def generate_docs() -> None:
                 print("\n## Modules", file=fd)
                 for m in mods:
                     page_rel = f"./{m}.md"
-                    print(f"- [{m}]({page_rel})", file=fd)
+                    label = _label_relative(m, pkg)
+                    print(f"- [{label}]({page_rel})", file=fd)
+
+        # SUMMARY: nested module entries (indent using subpackage depth)
+        pkg_parts = pkg.split(".")
+        for m in mods:
+            handwritten_md = handwritten_root / outdir / f"{m}.md"
+            if handwritten_md.exists():
+                link = handwritten_md.relative_to(DOCS_DIR).as_posix()
+            else:
+                link = f"api/{outdir}/{m}.md"
+            rel_parts = m.split(".")[len(pkg_parts):]
+            depth = len(rel_parts)
+            indent = "  " * (1 + depth)
+            label = _label_leaf(m)
+            SUMMARY_LINES.append(f"{indent}- [{label}]({link})")
 
         # Module pages
         for m in mods:
@@ -402,3 +447,7 @@ def generate_docs() -> None:
 
 # Execute once when run by mkdocs-gen-files
 generate_docs()
+
+# Write SUMMARY.md for literate-nav
+with mkdocs_gen_files.open("SUMMARY.md", "w") as fd:
+    fd.write("\n".join(SUMMARY_LINES) + "\n")

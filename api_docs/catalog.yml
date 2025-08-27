@@ -6,9 +6,6 @@
 # - outdir:  directory under docs/api/ where pages for this section are written
 # - title:   display title for the section
 sections:
-  - package: phoenix
-    outdir: phoenix
-    title: Phoenix
   - package: phoenix.evals
     outdir: phoenix-evals
     title: Phoenix Evals
@@ -30,6 +27,8 @@ modules:
   exclude:
     - phoenix.otel.otel
     - phoenix.otel.settings
+    - phoenix.*._*
+    - phoenix.*.__*
     - phoenix.client
     - phoenix.client.constants
     - phoenix.client.helpers.sdk
@@ -62,14 +61,14 @@ modules:
           - Client
           - connect
           - exceptions.*
-        # inherit_defaults: true  # uncomment to keep defaults (private/dunder hidden)
+        inherit_defaults: true
       title: Client
     phoenix.evals:
       symbols:
         mode: all_except
         exclude:
-          - .*Internal.*
-          - Deprecated*
+          - "^*.deprecated*"
+          - "^*.internal*"
 
 
 # Default symbol filtering for all modules unless overridden per-module above.

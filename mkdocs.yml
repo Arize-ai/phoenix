@@ -7,7 +7,6 @@ theme:
   name: material
   features:
     - navigation.sections
-    - navigation.expand
     - navigation.tracking
     - navigation.tabs
     - navigation.instant
@@ -70,15 +69,8 @@ plugins:
 
 nav:
   - Overview: index.md
-  - Guides:
-      - guides/index.md
-  - API Reference:
-      - api/index.md
-      - Phoenix:
-          - api/phoenix/index.md
-      - Phoenix Evals:
-          - api/phoenix-evals/index.md
-      - Phoenix Client:
-          - api/phoenix-client/index.md
-      - Phoenix OTEL:
-          - api/phoenix-otel/index.md
+  - Guides: guides/index.md
+  - Phoenix OTEL: api/phoenix-otel/index.md
+  - Phoenix Client: api/phoenix-client/index.md
+  - Phoenix Evals: api/phoenix-evals/index.md
+  - Phoenix: api/phoenix/index.md
