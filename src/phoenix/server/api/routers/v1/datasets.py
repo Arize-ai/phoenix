@@ -1129,40 +1129,50 @@ async def delete_dataset_examples(
         dataset = datasets[0]
 
         # Create a new dataset version
-        dataset_version_stmt = insert(models.DatasetVersion).values(
-            dataset_id=dataset.id,
-            description=body.version_description or "Deleted examples",
-            metadata_=body.version_metadata or {},
-            created_at=timestamp,
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(
+                dataset_id=dataset.id,
+                description=body.version_description,
+                metadata_=body.version_metadata,
+                created_at=timestamp,
+            )
+            .returning(models.DatasetVersion.id)
         )
-        dataset_version_id = await session.scalar(dataset_version_stmt)
 
         # Check if any examples are already deleted
-        deleted_examples = await session.scalars(
-            select(models.DatasetExampleRevision.dataset_example_id)
-            .where(models.DatasetExampleRevision.dataset_example_id.in_(example_db_ids))
-            .where(models.DatasetExampleRevision.revision_kind == "DELETE")
-        )
-        deleted_example_ids = set(deleted_examples)
+        existing_delete_revisions = (
+            await session.scalars(
+                select(models.DatasetExampleRevision).where(
+                    models.DatasetExampleRevision.dataset_example_id.in_(example_db_ids),
+                    models.DatasetExampleRevision.revision_kind == "DELETE",
+                )
+            )
+        ).all()
 
-        if deleted_example_ids:
+        if existing_delete_revisions:
             raise HTTPException(
                 detail="Provided examples contain already deleted examples. Delete aborted.",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        # Mark examples as deleted by creating DELETE revisions
-        for example_id in example_db_ids:
-            delete_revision_stmt = insert(models.DatasetExampleRevision).values(
-                dataset_example_id=example_id,
-                dataset_version_id=dataset_version_id,
-                revision_kind="DELETE",
-                input={},
-                output={},
-                metadata_={},
-                created_at=timestamp,
-            )
-            await session.execute(delete_revision_stmt)
+        # Mark examples as deleted by creating DELETE revisions (batch insert for performance)
+        DatasetExampleRevision = models.DatasetExampleRevision
+        await session.execute(
+            insert(DatasetExampleRevision),
+            [
+                {
+                    DatasetExampleRevision.dataset_example_id.key: dataset_example_id,
+                    DatasetExampleRevision.dataset_version_id.key: dataset_version_id,
+                    DatasetExampleRevision.input.key: {},
+                    DatasetExampleRevision.output.key: {},
+                    DatasetExampleRevision.metadata_.key: {},
+                    DatasetExampleRevision.revision_kind.key: "DELETE",
+                    DatasetExampleRevision.created_at.key: timestamp,
+                }
+                for dataset_example_id in example_db_ids
+            ],
+        )
 
         await session.commit()
 
