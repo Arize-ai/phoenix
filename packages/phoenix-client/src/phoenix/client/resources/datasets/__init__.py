@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import gzip
 import logging
@@ -8,7 +10,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
 from urllib.parse import quote
 
 import httpx
@@ -1042,14 +1044,14 @@ class Datasets:
 
         return dataset
 
-    def delete_example_from_dataset(
+    def delete_examples(
         self,
         *,
-        example_ids: Union[str, List[str]],
+        example_ids: Union[str, list[str]],
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Dataset:
+    ) -> None:
         """
         Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
 
@@ -1061,7 +1063,7 @@ class Datasets:
             timeout: Request timeout in seconds (default: 5).
 
         Returns:
-            Dataset object containing the updated dataset and examples.
+            None
 
         Raises:
             ValueError: If example_ids is empty or invalid.
@@ -1071,14 +1073,13 @@ class Datasets:
             >>> from phoenix.client import Client
             >>> client = Client()
             >>>
-            >>> # Delete a single example (fast, no return value)
-            >>> client.datasets.delete_example_from_dataset(example_ids="example-123")
+            >>> # Delete a single example
+            >>> client.datasets.delete_examples(example_ids="example-123")
             >>>
-            >>> # Delete multiple examples and get updated dataset
-            >>> updated_dataset = client.datasets.delete_example_from_dataset(
+            >>> # Delete multiple examples
+            >>> client.datasets.delete_examples(
             ...     example_ids=["ex1", "ex2", "ex3"],
-            ...     version_description="Removed outdated examples",
-            ...     return_dataset=True
+            ...     version_description="Removed outdated examples"
             ... )
         """
         # Normalize example_ids to a list
@@ -1093,50 +1094,24 @@ class Datasets:
         if not example_ids_list:
             raise ValueError("example_ids cannot be empty")
 
-        # Prepare the GraphQL mutation payload
-        input_data: dict[str, Any] = {"exampleIds": example_ids_list}
+        # Prepare the REST API payload
+        payload: dict[str, Any] = {"example_ids": example_ids_list}
 
         # Add optional version fields if provided
         if version_description is not None:
-            input_data["datasetVersionDescription"] = version_description
+            payload["version_description"] = version_description
         if version_metadata is not None:
-            input_data["datasetVersionMetadata"] = version_metadata
-
-        payload: dict[str, Any] = {
-            "query": """
-                mutation DeleteDatasetExamples($input: DeleteDatasetExamplesInput!) {
-                    deleteDatasetExamples(input: $input) {
-                        dataset {
-                            id
-                            name
-                        }
-                    }
-                }
-            """,
-            "variables": {"input": input_data},
-        }
+            payload["version_metadata"] = version_metadata
 
         response = self._client.post(
-            url="graphql",
+            url="v1/datasets/examples/delete",
             json=payload,
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
         response.raise_for_status()
 
-        # Parse response to get dataset info
-        response_data = response.json()
-        if "errors" in response_data:
-            error_messages = [error.get("message", str(error)) for error in response_data["errors"]]
-            raise ValueError(f"GraphQL errors: {'; '.join(error_messages)}")
-
-        dataset_info = response_data["data"]["deleteDatasetExamples"]["dataset"]
-        dataset_id = dataset_info["id"]
-
-        # Optionally return the updated dataset
-        if return_dataset:
-            return self.get_dataset(dataset=dataset_id, timeout=timeout)
-        return None
+        # Method returns None as per delete pattern
 
 
 class AsyncDatasets:
@@ -1816,15 +1791,14 @@ class AsyncDatasets:
 
         return dataset
 
-    async def delete_example_from_dataset(
+    async def delete_examples(
         self,
         *,
-        example_ids: Union[str, List[str]],
+        example_ids: Union[str, list[str]],
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
-        return_dataset: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Dataset]:
+    ) -> None:
         """
         Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
 
@@ -1836,7 +1810,7 @@ class AsyncDatasets:
             timeout: Request timeout in seconds (default: 5).
 
         Returns:
-            Dataset object containing the updated dataset and examples.
+            None
 
         Raises:
             ValueError: If example_ids is empty or invalid.
@@ -1846,14 +1820,13 @@ class AsyncDatasets:
             >>> from phoenix.client import AsyncClient
             >>> client = AsyncClient()
             >>>
-            >>> # Delete a single example (fast, no return value)
-            >>> await client.datasets.delete_example_from_dataset(example_ids="example-123")
+            >>> # Delete a single example
+            >>> await client.datasets.delete_examples(example_ids="example-123")
             >>>
-            >>> # Delete multiple examples and get updated dataset
-            >>> updated_dataset = await client.datasets.delete_example_from_dataset(
+            >>> # Delete multiple examples
+            >>> await client.datasets.delete_examples(
             ...     example_ids=["ex1", "ex2", "ex3"],
-            ...     version_description="Removed outdated examples",
-            ...     return_dataset=True
+            ...     version_description="Removed outdated examples"
             ... )
         """
         # Normalize example_ids to a list
@@ -1868,49 +1841,22 @@ class AsyncDatasets:
         if not example_ids_list:
             raise ValueError("example_ids cannot be empty")
 
-        # Prepare the GraphQL mutation payload
-        input_data: dict[str, Any] = {"exampleIds": example_ids_list}
+        # Prepare the REST API payload
+        payload: dict[str, Any] = {"example_ids": example_ids_list}
 
         # Add optional version fields if provided
         if version_description is not None:
-            input_data["datasetVersionDescription"] = version_description
+            payload["version_description"] = version_description
         if version_metadata is not None:
-            input_data["datasetVersionMetadata"] = version_metadata
-
-        payload: dict[str, Any] = {
-            "query": """
-                mutation DeleteDatasetExamples($input: DeleteDatasetExamplesInput!) {
-                    deleteDatasetExamples(input: $input) {
-                        dataset {
-                            id
-                            name
-                        }
-                    }
-                }
-            """,
-            "variables": {"input": input_data},
-        }
+            payload["version_metadata"] = version_metadata
 
         response = await self._client.post(
-            url="graphql",
+            url="v1/datasets/examples/delete",
             json=payload,
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
         response.raise_for_status()
-
-        # Parse response to get dataset info
-        response_data = response.json()
-        if "errors" in response_data:
-            error_messages = [error.get("message", str(error)) for error in response_data["errors"]]
-            raise ValueError(f"GraphQL errors: {'; '.join(error_messages)}")
-
-        dataset_info = response_data["data"]["deleteDatasetExamples"]["dataset"]
-        dataset_id = dataset_info["id"]
-
-        if return_dataset:
-            return await self.get_dataset(dataset=dataset_id, timeout=timeout)
-        return None
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
