@@ -6,7 +6,7 @@ description: >-
 
 # Google ADK
 
-**Website:** [https://cloud.google.com/vertex-ai/docs/generative-ai/overview](https://cloud.google.com/vertex-ai/docs/generative-ai/overview)
+**Website:** [https://google.github.io/adk-docs/](https://google.github.io/adk-docs/)
 
 <table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="google-adk-tracing.md"><strong>Google ADK Tracing</strong></a></td><td><a href="../../.gitbook/assets/google.avif">google.avif</a></td><td><a href="google-adk-tracing.md">google-adk-tracing.md</a></td></tr></tbody></table>
 
