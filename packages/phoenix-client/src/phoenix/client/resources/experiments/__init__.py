@@ -349,43 +349,48 @@ class Experiments:
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+
+            from phoenix.client import Client
+
+            client = Client()
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+
+            def my_task(input):
+                return f"Hello {input['name']}"
+
+            experiment = client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
 
         With evaluators:
-            >>> def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+
+            def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected['text'] else 0.0
+
+            experiment = client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment",
+            )
 
         Using dynamic binding for tasks:
-            >>> def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+            def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
 
         Using dynamic binding for evaluators:
-            >>> def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -673,16 +678,18 @@ class Experiments:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example:
-            >>> client = Client()
-            >>> experiment = client.experiments.get_experiment(experiment_id="123")
-            >>> client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[
-            ...         correctness,
-            ...     ],
-            ...     print_summary=True,
-            ... )
+        Examples:
+            Basic usage:
+
+                client = Client()
+                experiment = client.experiments.get_experiment(experiment_id="123")
+                client.experiments.evaluate_experiment(
+                    experiment=experiment,
+                    evaluators=[
+                        correctness,
+                    ],
+                    print_summary=True,
+                )
         """
         # Get experiment metadata using existing endpoint
         try:
@@ -1244,43 +1251,48 @@ class AsyncExperiments:
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> async def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = await client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+
+            from phoenix.client import AsyncClient
+
+            client = AsyncClient()
+            dataset = await client.datasets.get_dataset(dataset="my-dataset")
+
+            async def my_task(input):
+                return f"Hello {input['name']}"
+
+            experiment = await client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
 
         With evaluators:
-            >>> async def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = await client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+
+            async def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected['text'] else 0.0
+
+            experiment = await client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment",
+            )
 
         Using dynamic binding for tasks:
-            >>> async def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+            async def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
 
         Using dynamic binding for evaluators:
-            >>> async def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = await calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            async def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = await calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -1570,16 +1582,18 @@ class AsyncExperiments:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example:
-            >>> client = AsyncClient()
-            >>> experiment = await client.experiments.get_experiment(experiment_id="123")
-            >>> await client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[
-            ...         correctness,
-            ...     ],
-            ...     print_summary=True,
-            ... )
+        Examples:
+            Basic usage:
+
+                client = AsyncClient()
+                experiment = await client.experiments.get_experiment(experiment_id="123")
+                await client.experiments.evaluate_experiment(
+                    experiment=experiment,
+                    evaluators=[
+                        correctness,
+                    ],
+                    print_summary=True,
+                )
         """
         # Get experiment metadata using existing endpoint
         try:

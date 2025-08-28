@@ -10,7 +10,6 @@ theme:
     - navigation.tracking
     - navigation.tabs
     - navigation.instant
-    - toc.integrate
     - toc.follow
     - content.code.copy
     - content.action.edit
@@ -19,7 +18,7 @@ theme:
       primary: indigo
       accent: indigo
 extra_css:
-  - styles/overrides.css
+  - styles/nav-hierarchy.css
 
 markdown_extensions:
   - admonition
@@ -27,7 +26,8 @@ markdown_extensions:
       permalink: true
   - pymdownx.details
   - pymdownx.superfences
-  - pymdownx.highlight
+  - pymdownx.highlight:
+      default_lang: python
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.tasklist
@@ -58,7 +58,8 @@ plugins:
             show_signature_annotations: false
             show_if_no_docstring: false
             filters:
-              - '!^_[^_]'
+              - "!^_.*"
+              - "!^__.*"
             selection:
               members:
                 - classes

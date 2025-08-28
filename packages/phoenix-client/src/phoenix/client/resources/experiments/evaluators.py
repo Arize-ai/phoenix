@@ -133,17 +133,17 @@ def create_evaluator(
     Examples:
         Configuring an evaluator that returns a boolean
 
-        ```python
+
         from phoenix.client.resources.experiments.evaluators import create_evaluator
 
         @create_evaluator(kind="CODE", name="exact-match")
         def match(output: str, expected: str) -> bool:
             return output == expected
-        ```
+
 
         Configuring an evaluator that returns a label
 
-        ```python
+
         import openai  # ensure openai is installed and configured
 
         client = openai.Client()
@@ -165,11 +165,11 @@ def create_evaluator(
                 ],
             )
             return res.choices[0].message.content
-        ```
+
 
         Configuring an evaluator that returns a score and explanation
 
-        ```python
+
         from textdistance import levenshtein
         from phoenix.client.resources.experiments.evaluators import create_evaluator
 
@@ -179,7 +179,7 @@ def create_evaluator(
                 levenshtein(output, expected),
                 f"Levenshtein distance between {output} and {expected}",
             )
-        ```
+
     """
     if scorer is None:
         scorer = _default_eval_scorer

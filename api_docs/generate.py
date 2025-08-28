@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import fnmatch
+import importlib
 import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Set, cast
 
 import mkdocs_gen_files
-import importlib
 
 # Avoid mypy/Pylance stub issues by importing via importlib and typing as Any
 yaml: Any = importlib.import_module("yaml")
@@ -78,7 +78,7 @@ def _to_regex(pattern: str) -> str:
 def _is_simple_symbol_pattern(name: str) -> bool:
     """
     True if 'name' is a concrete symbol (no glob/regex metacharacters).
-    Allows dotted paths (e.g., 'exceptions.Foo') but rejects patterns like 'exceptions.*' or '^Foo$'.
+    Allows dotted paths (e.g., 'exceptions.Foo') but rejects patterns like 'exceptions.*'
     """
     return not any(ch in name for ch in "*?[]^$(){}|+")
 
@@ -96,13 +96,6 @@ def _label_relative(module_name: str, section_pkg: str) -> str:
         return m_parts[-1]
     rel_parts = m_parts[len(p_parts):]
     return ".".join(rel_parts) if rel_parts else m_parts[-1]
-
-
-def _label_leaf(module_name: str) -> str:
-    """
-    Leaf-only label: just the last segment of the module name.
-    """
-    return module_name.split(".")[-1]
 
 
 # ---------------------------
@@ -211,7 +204,7 @@ def discover_modules(
 
     # Apply simple include then exclude
     if include_globs:
-        # Always keep the root package module (e.g., "phoenix.client") even if globs are "phoenix.client.*"
+        # Always keep the root package module (e.g., "phoenix.client")
         modules = [m for m in modules if m == package or _matches_any(m, include_globs)]
     if exclude_globs:
         modules = [m for m in modules if not _matches_any(m, exclude_globs)]
@@ -233,8 +226,8 @@ def _compose_filters_for_module(
     Build mkdocstrings 'filters' list given defaults and a module's override.
 
     Semantics:
-      - mode: only       -> include listed patterns; then apply excludes (defaults + per-module) if inherit.
-      - mode: all_except -> include defaults.include (if any); then apply excludes (defaults + per-module).
+      - mode: only       -> include listed patterns; then apply excludes (defaults + per-module)
+      - mode: all_except -> include defaults.include (if any); then apply excludes
       - no per-module    -> include defaults.include (if any); then apply defaults.exclude.
     """
     filt: list[str] = []
@@ -260,7 +253,8 @@ def _compose_filters_for_module(
         for p in seq:
             rx = _to_regex(p)
             filt.append("!" + rx)
-            # Also exclude when matched as a full dotted path segment (handles dunders like __version__)
+            # Also exclude when matched as a full dotted path segment
+            # handles dunders like __version__
             if p in ("^_.*", "^__.*"):
                 # Match names at end of full dotted path
                 filt.append("!(^|.*\\.)_.*$" if p == "^_.*" else "!(^|.*\\.)__.*$")
@@ -310,7 +304,6 @@ def _write_module_page(
         per_module_cfg=per_module_cfg,
     )
 
-    # Title
     page_title = _page_title_for_module(module_name, per_module_cfg=per_module_cfg)
 
     with mkdocs_gen_files.open(target_md, "w") as fd:
@@ -335,13 +328,16 @@ def _write_module_page(
         )
 
         if use_per_symbol:
-            # Emit one directive per explicitly included symbol; avoids module-level enumeration entirely
+            # Emit one directive per explicitly included symbol; avoids module-level enumeration
+            # entirely
             for sym in include_syms:
-                # Allow dotted relative paths (e.g., "exceptions.Foo"); prefix with module_name if not absolute
+                # Allow dotted relative paths (e.g., "exceptions.Foo"); prefix with module_name
+                # if not absolute
                 target = sym if sym.startswith(module_name + ".") else f"{module_name}.{sym}"
                 print(f"::: {target}", file=fd)
         else:
-            # Fallback: module-level directive with selection limited to classes/functions and filters
+            # Fallback: module-level directive with selection limited to classes/functions and
+            # filters
             print(f"::: {module_name}", file=fd)
             selection_block: Dict[str, Any] = {"members": ["classes", "functions"]}
             if filters:
@@ -423,6 +419,32 @@ def generate_docs() -> None:
 
         # SUMMARY: nested module entries using mkdocs_gen_files.Nav for hierarchy
         pkg_parts = pkg.split(".")
+        # Collect all intermediate prefixes for subpackages (exclude leaves)
+        parent_prefixes: set[tuple[str, ...]] = set()
+        for m in mods:
+            rel_parts = tuple(m.split(".")[len(pkg_parts):])
+            for i in range(1, len(rel_parts)):  # intermediate levels only
+                parent_prefixes.add(rel_parts[:i])
+
+        # Generate index pages for parent prefixes and add them to nav
+        for prefix in sorted(parent_prefixes):
+            parent_dir = section_dir.joinpath(*prefix)
+            parent_dir.mkdir(parents=True, exist_ok=True)
+            index_md = parent_dir / "index.md"
+            # Write a minimal index page for the parent node
+            with mkdocs_gen_files.open(index_md, "w") as fd:
+                dotted = ".".join(pkg_parts + list(prefix))
+                # Title shows relative label for clarity
+                rel_label = ".".join(prefix)
+                print("---", file=fd)
+                print(f'title: "{rel_label or title}"', file=fd)
+                print("generated: true", file=fd)
+                print("---\n", file=fd)
+                print(f"# `{dotted}`", file=fd)
+            # Map nav to this parent index
+            nav[(title,) + prefix] = f"api/{outdir}/{'/'.join(prefix)}/index.md"
+
+        # Add leaf module pages to nav
         for m in mods:
             handwritten_md = handwritten_root / outdir / f"{m}.md"
             if handwritten_md.exists():

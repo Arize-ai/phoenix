@@ -32,7 +32,10 @@ modules:
     - phoenix.client
     - phoenix.client.constants
     - phoenix.client.helpers.sdk
+    - phoenix.client.utils
     - phoenix.client.utils.*
+    - phoenix.evals.models.base
+    - phoenix.evals.models.rate_limiter
 
   # Per-module overrides and symbol controls.
   # For each fully-qualified module name you can:
