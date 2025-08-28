@@ -27,6 +27,7 @@ def run_experiment(
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["Client"] = None,
+    dangerously_set_repetitions: int = 1,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples.
@@ -86,6 +87,8 @@ def run_experiment(
             to avoid re-queuing the same task multiple times. Defaults to 60.
         client: A Phoenix client instance to use for the experiment. If not provided, a new client
             will be configured from environment variables. Defaults to None.
+        dangerously_set_repetitions: The number of times the task will be run on each example.
+            Defaults to 1. This argument is currently for internal testing purposes only.
 
     Returns:
         A dictionary containing the experiment results.
@@ -180,6 +183,7 @@ def run_experiment(
         dry_run=dry_run,
         print_summary=print_summary,
         timeout=timeout,
+        dangerously_set_repetitions=dangerously_set_repetitions,
     )
 
 
@@ -197,6 +201,7 @@ async def async_run_experiment(
     concurrency: int = 3,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["AsyncClient"] = None,
+    dangerously_set_repetitions: int = 1,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples (async version).
@@ -264,6 +269,8 @@ async def async_run_experiment(
         concurrency: Specifies the concurrency for task execution. Defaults to 3.
         timeout: The timeout for the task execution in seconds. Use this to run longer tasks
             to avoid re-queuing the same task multiple times. Defaults to 60.
+        dangerously_set_repetitions: The number of times the task will be run on each example.
+            Defaults to 1. This argument is currently for internal testing purposes only.
 
     Returns:
         A dictionary containing the experiment results.
@@ -361,6 +368,7 @@ async def async_run_experiment(
         print_summary=print_summary,
         concurrency=concurrency,
         timeout=timeout,
+        dangerously_set_repetitions=dangerously_set_repetitions,
     )
 
 
