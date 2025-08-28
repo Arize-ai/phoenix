@@ -85,12 +85,14 @@ class ProviderRegistry(metaclass=SingletonMeta):
         provider: str,
         adapter_class: Type["BaseLLMAdapter"],
         client_factory: Callable[..., Any],
+        get_rate_limit_errors: Optional[Callable[..., List[Type[Exception]]]] = None,
         dependencies: Optional[List[str]] = None,
     ) -> None:
         registration = ProviderRegistration(
             provider=provider,
             adapter_class=adapter_class,
             client_factory=client_factory,
+            get_rate_limit_errors=get_rate_limit_errors,
             dependencies=dependencies or [],
             client_name=adapter_class.client_name(),
         )
@@ -279,6 +281,7 @@ def register_adapter(
 def register_provider(
     provider: str,
     client_factory: Callable[..., Any],
+    get_rate_limit_errors: Optional[Callable[..., List[Type[Exception]]]] = None,
     dependencies: Optional[List[str]] = None,
 ) -> Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]:
     """
@@ -287,12 +290,14 @@ def register_provider(
     Args:
         provider: Provider name (e.g., "openai", "anthropic")
         client_factory: Factory function to create clients for this provider
+        get_rate_limit_errors: Optional function to get rate limit errors for this client/provider
         dependencies: Optional list of required packages
 
     Example:
         @register_provider(
             provider="openai",
             client_factory=_create_openai_langchain_client,
+            get_rate_limit_errors=lambda: [OpenAIRateLimitError],
             dependencies=["langchain", "langchain-openai"]
         )
         class LangChainModelAdapter(BaseLLMAdapter):
@@ -304,6 +309,7 @@ def register_provider(
             provider=provider,
             adapter_class=adapter_class,
             client_factory=client_factory,
+            get_rate_limit_errors=get_rate_limit_errors,
             dependencies=dependencies,
         )
         return adapter_class
