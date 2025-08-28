@@ -195,14 +195,15 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            const coverage =
+            const missingAnnotationPercent =
               edge.experiment.runCount > 0
-                ? (summary.count - summary.errorCount) /
-                  edge.experiment.runCount
+                ? 1 -
+                  (summary.count - summary.errorCount) /
+                    edge.experiment.runCount
                 : null;
             acc[summary.annotationName] = {
               ...summary,
-              coverage,
+              missingAnnotationPercent,
             };
             return acc;
           },
@@ -211,7 +212,7 @@ export function ExperimentsTable({
             | {
                 annotationName: string;
                 meanScore: number | null;
-                coverage: number | null;
+                missingAnnotationPercent: number | null;
               }
             | undefined
           >
@@ -320,7 +321,7 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
-              coverage={annotation.coverage}
+              missingAnnotationPercent={annotation.missingAnnotationPercent}
             />
           );
         },
@@ -571,26 +572,24 @@ export function ExperimentsTable({
   );
 }
 
-function CoveragePieChart({ coverage }: { coverage: number }) {
-  const nonCoverage = 1 - coverage;
+function MissingAnnotationPieChart({
+  missingAnnotationPercent,
+}: {
+  missingAnnotationPercent: number;
+}) {
   const size = 16;
-  const outerRadius = size / 2;
-  const innerRadius = outerRadius - 2;
 
   const chartData = useMemo(() => {
+    const hasAnnotationPercent = 1 - missingAnnotationPercent;
     const data = [];
-    if (coverage > 0) {
-      data.push({ name: "covered", value: coverage });
+    if (hasAnnotationPercent > 0.0) {
+      data.push({ name: "hasAnnotation", value: hasAnnotationPercent });
     }
-    if (nonCoverage > 0) {
-      data.push({ name: "missing", value: nonCoverage });
+    if (missingAnnotationPercent > 0.0) {
+      data.push({ name: "missingAnnotation", value: missingAnnotationPercent });
     }
     return data;
-  }, [coverage, nonCoverage]);
-
-  if (chartData.length === 0) {
-    return null;
-  }
+  }, [missingAnnotationPercent]);
 
   return (
     <div
@@ -605,8 +604,8 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          innerRadius={innerRadius}
-          outerRadius={outerRadius}
+          innerRadius={6}
+          outerRadius={8}
           strokeWidth={0}
           stroke="transparent"
           startAngle={90}
@@ -616,11 +615,11 @@ function CoveragePieChart({ coverage }: { coverage: number }) {
             <Cell
               key={`cell-${index}`}
               fill={
-                entry.name === "missing"
+                entry.name === "missingAnnotation"
                   ? "var(--ac-global-color-warning)"
                   : "var(--ac-global-color-grey-300)"
               }
-              opacity={entry.name === "missing" ? 0.8 : 0.5}
+              opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
             />
           ))}
         </Pie>
@@ -634,13 +633,13 @@ function AnnotationAggregationCell({
   value,
   min,
   max,
-  coverage,
+  missingAnnotationPercent,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
-  coverage: number | null;
+  missingAnnotationPercent: number | null;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
@@ -658,16 +657,18 @@ function AnnotationAggregationCell({
         gap: var(--ac-global-dimension-size-100);
       `}
     >
-      {coverage !== null && coverage < 1.0 && (
+      {missingAnnotationPercent !== null && missingAnnotationPercent > 0.0 && (
         <TooltipTrigger>
           <TriggerWrap>
-            <CoveragePieChart coverage={coverage} />
+            <MissingAnnotationPieChart
+              missingAnnotationPercent={missingAnnotationPercent}
+            />
           </TriggerWrap>
           <RichTooltip>
             <View width="size-2000">
               <Text size="XS">
-                {formatPercent((1 - coverage) * 100)} of runs are missing this
-                annotation
+                {formatPercent(missingAnnotationPercent * 100)} of runs are
+                missing this annotation
               </Text>
             </View>
           </RichTooltip>
