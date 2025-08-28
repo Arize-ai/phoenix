@@ -8,7 +8,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, List, Literal, Optional, Union
 from urllib.parse import quote
 
 import httpx
@@ -1045,13 +1045,13 @@ class Datasets:
     def delete_examples(
         self,
         *,
-        example_ids: "Union[str, list[str]]",
+        example_ids: "Union[str, List[str]]",
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> None:
         """
-        Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
+        Delete one or more examples from a dataset using the REST API.
 
         Args:
             example_ids: The ID(s) of dataset examples to delete. Can be a single string or list of
@@ -1082,7 +1082,7 @@ class Datasets:
         """
         # Normalize example_ids to a list
         # Convert single ID to list for consistent handling
-        example_ids_list: list[str]
+        example_ids_list: "List[str]"
         if isinstance(example_ids, str):
             example_ids_list = [example_ids]
         else:
@@ -1792,13 +1792,13 @@ class AsyncDatasets:
     async def delete_examples(
         self,
         *,
-        example_ids: "Union[str, list[str]]",
+        example_ids: "Union[str, List[str]]",
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> None:
         """
-        Delete one or more examples from a dataset using the deleteDatasetExamples GraphQL mutation.
+        Delete one or more examples from a dataset using the REST API.
 
         Args:
             example_ids: The ID(s) of dataset examples to delete. Can be a single string or list of
@@ -1829,7 +1829,7 @@ class AsyncDatasets:
         """
         # Normalize example_ids to a list
         # Convert single ID to list for consistent handling
-        example_ids_list: list[str]
+        example_ids_list: "List[str]"
         if isinstance(example_ids, str):
             example_ids_list = [example_ids]
         else:
