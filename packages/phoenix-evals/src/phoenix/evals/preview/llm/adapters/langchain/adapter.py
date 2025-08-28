@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, Type, Union, cast
 
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -24,6 +24,18 @@ def identify_langchain_client(client: Any) -> bool:
     )
 
 
+def get_anthropic_langchain_rate_limit_errors() -> list[Type[Exception]]:
+    from anthropic import RateLimitError as AnthropicRateLimitError
+
+    return [AnthropicRateLimitError]
+
+
+def get_openai_langchain_rate_limit_errors() -> list[Type[Exception]]:
+    from openai import RateLimitError as OpenAIRateLimitError
+
+    return [OpenAIRateLimitError]
+
+
 @register_adapter(
     identifier=identify_langchain_client,
     name="langchain",
@@ -31,11 +43,13 @@ def identify_langchain_client(client: Any) -> bool:
 @register_provider(
     provider="openai",
     client_factory=create_openai_langchain_client,  # pyright: ignore
+    get_rate_limit_errors=get_openai_langchain_rate_limit_errors,
     dependencies=["langchain", "langchain_openai"],
 )
 @register_provider(
     provider="anthropic",
     client_factory=create_anthropic_langchain_client,  # pyright: ignore
+    get_rate_limit_errors=get_anthropic_langchain_rate_limit_errors,
     dependencies=["langchain", "langchain_anthropic"],
 )
 class LangChainModelAdapter(BaseLLMAdapter):
