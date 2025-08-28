@@ -276,7 +276,7 @@ class ChatCompletionMutationMixin:
             dataset_example_id = GlobalID(
                 models.DatasetExample.__name__, str(revision.dataset_example_id)
             )
-            experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
+            experiment_run_id = GlobalID("ExperimentRepetition", str(experiment_run.id))
             example_payload = ChatCompletionOverDatasetMutationExamplePayload(
                 dataset_example_id=dataset_example_id,
                 experiment_run_id=experiment_run_id,
