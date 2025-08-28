@@ -1,15 +1,19 @@
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import DocumentAnnotationInsertEvent
 
 from .models import V1RoutesBaseModel
 from .spans import SpanAnnotationResult
@@ -109,4 +113,39 @@ async def annotate_span_documents(
     if not sync:
         await request.state.enqueue(*precursors)
 
+    span_ids = {p.span_id for p in precursors}
+    # Account for the fact that the spans could arrive after the annotation
+    async with request.app.state.db() as session:
+        existing_spans = {
+            span.span_id: span.id
+            async for span in await session.stream_scalars(
+                select(models.Span).filter(models.Span.span_id.in_(span_ids))
+            )
+        }
+
+    missing_span_ids = span_ids - set(existing_spans.keys())
+    # We prefer to fail the entire operation if there are missing spans in sync mode
+    if missing_span_ids:
+        raise HTTPException(
+            detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+    inserted_document_annotation_ids = []
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    for annotation in precursors:
+        values = dict(as_kv(annotation.as_insertable(existing_spans[annotation.span_id]).row))
+        span_document_annotation_id = await session.scalar(
+            insert_on_conflict(
+                values,
+                dialect=dialect,
+                table=models.DocumentAnnotation,
+                unique_by=("name", "span_rowid", "identifier", "document_position"),
+            )
+        )
+        inserted_document_annotation_ids.append(span_document_annotation_id)
+
+    # We queue an event to let the application know that annotations have changed
+    request.state.event_queue.put(
+        DocumentAnnotationInsertEvent(tuple(inserted_document_annotation_ids))
+    )
     return AnnotateSpanDocumentsResponseBody(data=[])
