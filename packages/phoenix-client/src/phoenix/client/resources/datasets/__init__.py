@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import csv
 import gzip
 import logging
@@ -1047,7 +1045,7 @@ class Datasets:
     def delete_examples(
         self,
         *,
-        example_ids: Union[str, list[str]],
+        example_ids: "Union[str, list[str]]",
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1794,7 +1792,7 @@ class AsyncDatasets:
     async def delete_examples(
         self,
         *,
-        example_ids: Union[str, list[str]],
+        example_ids: "Union[str, list[str]]",
         version_description: Optional[str] = None,
         version_metadata: Optional[Mapping[str, Any]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
