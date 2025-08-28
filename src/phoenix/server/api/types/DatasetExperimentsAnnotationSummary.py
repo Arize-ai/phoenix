@@ -4,7 +4,7 @@ import strawberry
 
 
 @strawberry.type
-class DatasetExperimentAnnotationSummary:
+class DatasetExperimentsAnnotationSummary:
     annotation_name: str
     min_score: Optional[float]
     max_score: Optional[float]
