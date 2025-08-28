@@ -101,7 +101,11 @@ class LLM:
             try:
                 sync_client = registration.client_factory(model=model, is_async=False)
                 async_client = registration.client_factory(model=model, is_async=True)
-                rate_limit_errors = registration.get_rate_limit_errors()
+                rate_limit_errors = (
+                    registration.get_rate_limit_errors()
+                    if registration.get_rate_limit_errors
+                    else []
+                )
                 adapter_class = registration.adapter_class
             except Exception as e:
                 raise ValueError(f"Failed to create client for provider '{provider}': {e}") from e
