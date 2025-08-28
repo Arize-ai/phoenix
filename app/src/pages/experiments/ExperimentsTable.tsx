@@ -195,15 +195,12 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            const unannotatedRatio =
-              edge.experiment.runCount > 0
-                ? 1 -
-                  (summary.count - summary.errorCount) /
-                    edge.experiment.runCount
-                : null;
+            const totalRunCount = edge.experiment.runCount;
+            const annotatedCount = summary.count - summary.errorCount;
             acc[summary.annotationName] = {
               ...summary,
-              unannotatedRatio,
+              annotatedCount,
+              totalRunCount,
             };
             return acc;
           },
@@ -212,7 +209,8 @@ export function ExperimentsTable({
             | {
                 annotationName: string;
                 meanScore: number | null;
-                unannotatedRatio: number | null;
+                annotatedCount: number;
+                totalRunCount: number;
               }
             | undefined
           >
@@ -321,7 +319,8 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
-              unannotatedRatio={annotation.unannotatedRatio}
+              annotatedCount={annotation.annotatedCount}
+              totalRunCount={annotation.totalRunCount}
             />
           );
         },
@@ -623,19 +622,23 @@ function AnnotationAggregationCell({
   value,
   min,
   max,
-  unannotatedRatio,
+  annotatedCount,
+  totalRunCount,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
-  unannotatedRatio: number | null;
+  annotatedCount: number;
+  totalRunCount: number;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
     () => calculateAnnotationScorePercentile(value, min, max),
     [value, min, max]
   );
+  const unannotatedRatio =
+    totalRunCount > 0 ? 1 - annotatedCount / totalRunCount : 0;
   return (
     <div
       css={css`
@@ -647,7 +650,7 @@ function AnnotationAggregationCell({
         gap: var(--ac-global-dimension-size-100);
       `}
     >
-      {unannotatedRatio !== null && unannotatedRatio > 0.0 && (
+      {unannotatedRatio > 0.0 && (
         <TooltipTrigger>
           <TriggerWrap>
             <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
@@ -655,8 +658,9 @@ function AnnotationAggregationCell({
           <RichTooltip>
             <View width="size-2000">
               <Text size="XS">
-                {formatPercent(unannotatedRatio * 100)} of runs are missing this
-                annotation
+                {formatPercent(unannotatedRatio * 100)} (
+                {totalRunCount - annotatedCount}/{totalRunCount}) missing{" "}
+                {annotationName}
               </Text>
             </View>
           </RichTooltip>
