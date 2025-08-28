@@ -18,7 +18,7 @@ DOCS_DIR = Path(__file__).parent.resolve()
 # Directories (relative to docs_dir=api_docs)
 api_root = Path("api")
 handwritten_root = DOCS_DIR / "api"
-SUMMARY_LINES: List[str] = []
+nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined]
 
 
 # ---------------------------
@@ -387,9 +387,9 @@ def generate_docs() -> None:
         for s in sections:
             print(f"- [{s['title']}](./{s['outdir']}/index.md)", file=fd)
 
-    # Initialize nested summary lines
-    global SUMMARY_LINES
-    SUMMARY_LINES.clear()
+    # Initialize nav for literate-nav
+    global nav
+    nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined]
 
     # Sections and module pages
     for s in sections:
@@ -400,7 +400,7 @@ def generate_docs() -> None:
         section_dir.mkdir(parents=True, exist_ok=True)
 
         # SUMMARY: section header
-        SUMMARY_LINES.append(f"- [{title}](api/{outdir}/index.md)")
+        nav[(title,)] = f"api/{outdir}/index.md"
 
         # Discovery with skip of child sections
         skip_children = all_child_prefixes.get(pkg) or set()
@@ -421,7 +421,7 @@ def generate_docs() -> None:
                     label = _label_relative(m, pkg)
                     print(f"- [{label}]({page_rel})", file=fd)
 
-        # SUMMARY: nested module entries (indent using subpackage depth)
+        # SUMMARY: nested module entries using mkdocs_gen_files.Nav for hierarchy
         pkg_parts = pkg.split(".")
         for m in mods:
             handwritten_md = handwritten_root / outdir / f"{m}.md"
@@ -429,11 +429,12 @@ def generate_docs() -> None:
                 link = handwritten_md.relative_to(DOCS_DIR).as_posix()
             else:
                 link = f"api/{outdir}/{m}.md"
-            rel_parts = m.split(".")[len(pkg_parts):]
-            depth = len(rel_parts)
-            indent = "  " * (1 + depth)
-            label = _label_leaf(m)
-            SUMMARY_LINES.append(f"{indent}- [{label}]({link})")
+            rel_parts = tuple(m.split(".")[len(pkg_parts):])
+            if rel_parts:
+                nav[(title,) + rel_parts] = link
+            else:
+                # Package module itself; ensure section index is already mapped
+                nav[(title,)] = f"api/{outdir}/index.md"
 
         # Module pages
         for m in mods:
@@ -450,4 +451,4 @@ generate_docs()
 
 # Write SUMMARY.md for literate-nav
 with mkdocs_gen_files.open("SUMMARY.md", "w") as fd:
-    fd.write("\n".join(SUMMARY_LINES) + "\n")
+    fd.writelines(nav.build_literate_nav())

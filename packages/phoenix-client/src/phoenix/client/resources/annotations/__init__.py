@@ -23,7 +23,7 @@ class Annotations:
 
     This class provides synchronous methods for creating and managing span annotations.
 
-    Example::
+    Examples:
 
         from phoenix.client import Client
 
@@ -88,7 +88,7 @@ class Annotations:
             ValueError: If the response is invalid or if at least one of label, score, or
                 explanation is not provided.
 
-        Example::
+        Example:
 
             from phoenix.client import Client
 

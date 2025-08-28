@@ -151,12 +151,12 @@ class Dataset:
             ImportError: If pandas is not installed.
 
         Example:
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> df = dataset.to_dataframe()
-            >>> print(df.columns)
-            Index(['input', 'output', 'metadata'], dtype='object')
-            >>> print(df.index.name)
-            example_id
+            ```python
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            df = dataset.to_dataframe()
+            print(df.columns)  # -> Index(['input', 'output', 'metadata'], dtype='object')
+            print(df.index.name)  # -> example_id
+            ```
         """
         try:
             import pandas as pd
@@ -187,9 +187,11 @@ class Dataset:
         Convert the dataset to a JSON-serializable dictionary.
 
         Example:
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> json_data = dataset.to_dict()
-            >>> restored = Dataset.from_dict(json_data)
+            ```python
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            json_data = dataset.to_dict()
+            restored = Dataset.from_dict(json_data)
+            ```
         """
         return {
             "id": self.id,
@@ -220,9 +222,11 @@ class Dataset:
             KeyError: If json_data is missing required keys
 
         Example:
-            >>> json_data = dataset.to_dict()
-            >>> restored = Dataset.from_dict(json_data)
-            >>> assert restored.id == dataset.id
+            ```python
+            json_data = dataset.to_dict()
+            restored = Dataset.from_dict(json_data)
+            assert restored.id == dataset.id
+            ```
         """
         required_fields = {"id", "name", "version_id", "examples"}
         if not all(field in json_data for field in required_fields):

@@ -17,10 +17,12 @@ class Prompts:
 
     This class allows you to retrieve and create prompt versions.
 
-    Example::
-
+    Examples:
+        ```python
         from phoenix.client import Client
+
         Client().prompts.get(prompt_identifier="my-prompt")
+        ```
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -53,8 +55,11 @@ class Prompts:
 
         Example:
             Basic usage:
-                >>> from phoenix.client import Client
-                >>> Client().prompts.get(prompt_identifier="my-prompt")
+                ```python
+                from phoenix.client import Client
+
+                Client().prompts.get(prompt_identifier="my-prompt")
+                ```
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
@@ -103,8 +108,11 @@ class PromptVersionTags:
 
     Example:
         Basic usage:
-            >>> from phoenix.client import Client
-            >>> Client().prompts.tags.list(prompt_version_id="...")
+            ```python
+            from phoenix.client import Client
+
+            Client().prompts.tags.list(prompt_version_id="...")
+            ```
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -132,11 +140,13 @@ class PromptVersionTags:
                 permission issues.
 
         Example:
-            >>> client.prompts.tags.create(
-            ...     prompt_version_id="version-123",
-            ...     name="staging",
-            ...     description="Ready for staging environment"
-            ... )
+            ```python
+            client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging environment",
+            )
+            ```
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
@@ -166,9 +176,11 @@ class PromptVersionTags:
                 permission issues.
 
         Example:
-            >>> tags = client.prompts.tags.list(prompt_version_id="version-123")
-            >>> for tag in tags:
-            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+            ```python
+            tags = client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag.name}, Description: {tag.description}")
+            ```
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = self._client.get(url)
@@ -184,8 +196,11 @@ class AsyncPrompts:
 
     Example:
         Basic usage:
-            >>> from phoenix.client import AsyncClient
-            >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+            ```python
+            from phoenix.client import AsyncClient
+
+            await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+            ```
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -218,8 +233,11 @@ class AsyncPrompts:
 
         Example:
             Basic usage:
-                >>> from phoenix.client import AsyncClient
-                >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+                ```python
+                from phoenix.client import AsyncClient
+
+                await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+                ```
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
@@ -268,8 +286,11 @@ class AsyncPromptVersionTags:
 
     Example:
         Basic usage:
-            >>> from phoenix.client import Client
-            >>> await Client().prompts.tags.list(prompt_version_id="...")
+            ```python
+            from phoenix.client import AsyncClient
+
+            await AsyncClient().prompts.tags.list(prompt_version_id="...")
+            ```
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -297,11 +318,13 @@ class AsyncPromptVersionTags:
                 permission issues.
 
         Example:
-            >>> await client.prompts.tags.create(
-            ...     prompt_version_id="version-123",
-            ...     name="staging",
-            ...     description="Ready for staging environment"
-            ... )
+            ```python
+            await client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging environment",
+            )
+            ```
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
@@ -331,9 +354,11 @@ class AsyncPromptVersionTags:
                 permission issues.
 
         Example:
-            >>> tags = await client.prompts.tags.list(prompt_version_id="version-123")
-            >>> for tag in tags:
-            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+            ```python
+            tags = await client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag.name}, Description: {tag.description}")
+            ```
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = await self._client.get(url)
@@ -368,12 +393,11 @@ def _url(
             or if the provided values are not strings.
 
     Example:
-        >>> _url(prompt_version_id="version-123")
-        'v1/prompt_versions/version-123'
-        >>> _url(prompt_identifier="my-prompt")
-        'v1/prompts/my-prompt/latest'
-        >>> _url(prompt_identifier="my-prompt", tag="production")
-        'v1/prompts/my-prompt/tags/production'
+        ```python
+        _url(prompt_version_id="version-123")  # -> 'v1/prompt_versions/version-123'
+        _url(prompt_identifier="my-prompt")  # -> 'v1/prompts/my-prompt/latest'
+        _url(prompt_identifier="my-prompt", tag="production")  # -> 'v1/prompts/my-prompt/tags/production'
+        ```
     """
     if prompt_version_id is not None:
         assert isinstance(prompt_version_id, str)

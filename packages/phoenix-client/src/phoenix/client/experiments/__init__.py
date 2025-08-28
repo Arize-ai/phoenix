@@ -94,76 +94,99 @@ def run_experiment(
         ValueError: If dataset format is invalid or has no examples.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import run_experiment
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+            ```python
+            from phoenix.client.experiments import run_experiment
+            from phoenix.client import Client
+
+            client = Client()
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+
+            def my_task(input):
+                return f"Hello {input['name']}"
+
+            experiment = run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
+            ```
 
         With client configuration:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> experiment = run_experiment(
-            ...     client = client,
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+            ```python
+            from phoenix.client import Client
+            from phoenix.client.experiments import run_experiment
+
+            client = Client()
+            # assume dataset is defined as above
+            experiment = run_experiment(
+                client=client,
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
+            ```
 
         With evaluators:
-            >>> def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+            ```python
+            from phoenix.client.experiments import run_experiment
+
+            def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected["text"] else 0.0
+
+            experiment = run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment",
+            )
+            ```
 
         Using dynamic binding for tasks:
-            >>> def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
-            >>>
-            >>> experiment = run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="dynamic-task"
-            ... )
+            ```python
+            from phoenix.client.experiments import run_experiment
+
+            def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+            experiment = run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="dynamic-task",
+            )
+            ```
 
         Using dynamic binding for evaluators:
-            >>> def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
-            >>>
-            >>> experiment = run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[my_evaluator],
-            ...     experiment_name="dynamic-evaluator"
-            ... )
+            ```python
+            from phoenix.client.experiments import run_experiment
+
+            def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            experiment = run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[my_evaluator],
+                experiment_name="dynamic-evaluator",
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> experiment = client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+            ```python
+            from phoenix.client import Client
+
+            client = Client()
+            experiment = client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
+            ```
     """
     if client is None:
         from phoenix.client.client import Client
@@ -272,78 +295,100 @@ async def async_run_experiment(
         ValueError: If dataset format is invalid or has no examples.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import async_run_experiment
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> async def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = await async_run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+            ```python
+            from phoenix.client.experiments import async_run_experiment
+            from phoenix.client import AsyncClient
+
+            client = AsyncClient()
+            dataset = await client.datasets.get_dataset(dataset="my-dataset")
+
+            async def my_task(input):
+                return f"Hello {input['name']}"
+
+            experiment = await async_run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
+            ```
 
         With client configuration:
-            >>> experiment = await async_run_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+            ```python
+            from phoenix.client.experiments import async_run_experiment
+
+            experiment = await async_run_experiment(
+                base_url="https://app.phoenix.arize.com",
+                api_key="your-api-key",
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+            )
+            ```
 
         With evaluators:
-            >>> async def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = await async_run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+            ```python
+            from phoenix.client.experiments import async_run_experiment
+
+            async def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected["text"] else 0.0
+
+            experiment = await async_run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment",
+            )
+            ```
 
         Using dynamic binding for tasks:
-            >>> async def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
-            >>>
-            >>> experiment = await async_run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="dynamic-task",
-            ...     concurrency=5
-            ... )
+            ```python
+            from phoenix.client.experiments import async_run_experiment
+
+            async def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+            experiment = await async_run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="dynamic-task",
+                concurrency=5,
+            )
+            ```
 
         Using dynamic binding for evaluators:
-            >>> async def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = await calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
-            >>>
-            >>> experiment = await async_run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[my_evaluator],
-            ...     experiment_name="dynamic-evaluator",
-            ...     concurrency=10
-            ... )
+            ```python
+            from phoenix.client.experiments import async_run_experiment
+
+            async def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = await calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            experiment = await async_run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[my_evaluator],
+                experiment_name="dynamic-evaluator",
+                concurrency=10,
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> experiment = await client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment",
-            ...     concurrency=5
-            ... )
+            ```python
+            from phoenix.client import AsyncClient
+
+            client = AsyncClient()
+            experiment = await client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment",
+                concurrency=5,
+            )
+            ```
     """
     if client is None:
         from phoenix.client.client import AsyncClient
@@ -388,24 +433,33 @@ def get_experiment(
         ValueError: If the experiment is not found.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import get_experiment
-            >>> experiment = get_experiment(experiment_id="123")
+            ```python
+            from phoenix.client.experiments import get_experiment
+
+            experiment = get_experiment(experiment_id="123")
+            ```
 
         Using with evaluate_experiment:
-            >>> from phoenix.client.experiments import get_experiment, evaluate_experiment
-            >>> experiment = get_experiment(experiment_id="123")
-            >>> evaluated = evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[correctness_evaluator],
-            ...     print_summary=True,
-            ... )
+            ```python
+            from phoenix.client.experiments import get_experiment, evaluate_experiment
+
+            experiment = get_experiment(experiment_id="123")
+            evaluated = evaluate_experiment(
+                experiment=experiment,
+                evaluators=[correctness_evaluator],
+                print_summary=True,
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> experiment = client.experiments.get_experiment(experiment_id="123")
+            ```python
+            from phoenix.client import Client
+
+            client = Client()
+            experiment = client.experiments.get_experiment(experiment_id="123")
+            ```
     """
     if client is None:
         from phoenix.client.client import Client
@@ -438,27 +492,36 @@ async def async_get_experiment(
         ValueError: If the experiment is not found.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import async_get_experiment
-            >>> experiment = await async_get_experiment(experiment_id="123")
+            ```python
+            from phoenix.client.experiments import async_get_experiment
+
+            experiment = await async_get_experiment(experiment_id="123")
+            ```
 
         Using with async_evaluate_experiment:
-            >>> from phoenix.client.experiments import (
-            ...     async_get_experiment,
-            ...     async_evaluate_experiment,
-            ... )
-            >>> experiment = await async_get_experiment(experiment_id="123")
-            >>> evaluated = await async_evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[correctness_evaluator],
-            ...     print_summary=True,
-            ... )
+            ```python
+            from phoenix.client.experiments import (
+                async_get_experiment,
+                async_evaluate_experiment,
+            )
+
+            experiment = await async_get_experiment(experiment_id="123")
+            evaluated = await async_evaluate_experiment(
+                experiment=experiment,
+                evaluators=[correctness_evaluator],
+                print_summary=True,
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> experiment = await client.experiments.get_experiment(experiment_id="123")
+            ```python
+            from phoenix.client import AsyncClient
+
+            client = AsyncClient()
+            experiment = await client.experiments.get_experiment(experiment_id="123")
+            ```
     """
     if client is None:
         from phoenix.client.client import AsyncClient
@@ -519,34 +582,45 @@ def evaluate_experiment(
         ValueError: If no evaluators are provided or experiment has no runs.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import get_experiment, evaluate_experiment
-            >>> experiment = get_experiment(experiment_id="123")
-            >>> def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected else 0.0
-            >>> evaluated = evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator]
-            ... )
+            ```python
+            from phoenix.client.experiments import get_experiment, evaluate_experiment
+
+            experiment = get_experiment(experiment_id="123")
+
+            def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected else 0.0
+
+            evaluated = evaluate_experiment(
+                experiment=experiment,
+                evaluators=[accuracy_evaluator],
+            )
+            ```
 
         Using dynamic binding for evaluators:
-            >>> def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
-            >>> evaluated = evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[my_evaluator]
-            ... )
+            ```python
+            def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            evaluated = evaluate_experiment(
+                experiment=experiment,
+                evaluators=[my_evaluator],
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> evaluated = client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator]
-            ... )
+            ```python
+            from phoenix.client import Client
+
+            client = Client()
+            evaluated = client.experiments.evaluate_experiment(
+                experiment=experiment,
+                evaluators=[accuracy_evaluator],
+            )
+            ```
     """
     if client is None:
         from phoenix.client.client import Client
@@ -616,39 +690,50 @@ async def async_evaluate_experiment(
         ValueError: If no evaluators are provided or experiment has no runs.
         httpx.HTTPStatusError: If the API returns an error response.
 
-    Example:
+    Examples:
         Basic usage:
-            >>> from phoenix.client.experiments import (
-            ...     async_get_experiment,
-            ...     async_evaluate_experiment,
-            ... )
-            >>> experiment = await async_get_experiment(experiment_id="123")
-            >>> async def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected else 0.0
-            >>> evaluated = await async_evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator]
-            ... )
+            ```python
+            from phoenix.client.experiments import (
+                async_get_experiment,
+                async_evaluate_experiment,
+            )
+
+            experiment = await async_get_experiment(experiment_id="123")
+
+            async def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected else 0.0
+
+            evaluated = await async_evaluate_experiment(
+                experiment=experiment,
+                evaluators=[accuracy_evaluator],
+            )
+            ```
 
         Using dynamic binding for evaluators:
-            >>> async def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = await calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
-            >>> evaluated = await async_evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[my_evaluator],
-            ...     concurrency=10
-            ... )
+            ```python
+            async def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = await calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+            evaluated = await async_evaluate_experiment(
+                experiment=experiment,
+                evaluators=[my_evaluator],
+                concurrency=10,
+            )
+            ```
 
         Direct client usage (equivalent):
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> evaluated = await client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator],
-            ...     concurrency=5
-            ... )
+            ```python
+            from phoenix.client import AsyncClient
+
+            client = AsyncClient()
+            evaluated = await client.experiments.evaluate_experiment(
+                experiment=experiment,
+                evaluators=[accuracy_evaluator],
+                concurrency=5,
+            )
+            ```
     """
     if client is None:
         from phoenix.client.client import AsyncClient

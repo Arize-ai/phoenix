@@ -133,44 +133,53 @@ def create_evaluator(
     Examples:
         Configuring an evaluator that returns a boolean
 
-        .. code-block:: python
-            @create_evaluator(kind="CODE", name="exact-match")
-            def match(output: str, expected: str) -> bool:
-                return output == expected
+        ```python
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="CODE", name="exact-match")
+        def match(output: str, expected: str) -> bool:
+            return output == expected
+        ```
 
         Configuring an evaluator that returns a label
 
-        .. code-block:: python
-            client = openai.Client()
+        ```python
+        import openai  # ensure openai is installed and configured
 
-            @create_evaluator(kind="LLM")
-            def label(output: str) -> str:
-                res = client.chat.completions.create(
-                    model = "gpt-4",
-                    messages = [
-                        {
-                            "role": "user",
-                            "content": (
-                                "in one word, characterize the sentiment of the following customer "
-                                f"request: {output}"
-                            )
-                        },
-                    ],
-                )
-                label = res.choices[0].message.content
-                return label
+        client = openai.Client()
+
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="LLM")
+        def label(output: str) -> str:
+            res = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            "in one word, characterize the sentiment of the following customer "
+                            f"request: {output}"
+                        ),
+                    },
+                ],
+            )
+            return res.choices[0].message.content
+        ```
 
         Configuring an evaluator that returns a score and explanation
 
-        .. code-block:: python
-            from textdistance import levenshtein
+        ```python
+        from textdistance import levenshtein
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
 
-            @create_evaluator(kind="CODE", name="levenshtein-distance")
-            def ld(output: str, expected: str) -> tuple[float, str]:
-                return (
-                    levenshtein(output, expected),
-                    f"Levenshtein distance between {output} and {expected}"
-                )
+        @create_evaluator(kind="CODE", name="levenshtein-distance")
+        def ld(output: str, expected: str) -> tuple[float, str]:
+            return (
+                levenshtein(output, expected),
+                f"Levenshtein distance between {output} and {expected}",
+            )
+        ```
     """
     if scorer is None:
         scorer = _default_eval_scorer

@@ -32,7 +32,6 @@ modules:
     - phoenix.client
     - phoenix.client.constants
     - phoenix.client.helpers.sdk
-    - phoenix.client.resources
     - phoenix.client.utils.*
 
   # Per-module overrides and symbol controls.
@@ -63,6 +62,19 @@ modules:
           - exceptions.*
         inherit_defaults: true
       title: Client
+
+    phoenix.client.experiments:
+      symbols:
+        mode: only
+        include:
+          - run_experiment
+          - async_run_experiment
+          - get_experiment
+          - async_get_experiment
+          - evaluate_experiment
+          - async_evaluate_experiment
+          - create_evaluator
+
     phoenix.evals:
       symbols:
         mode: all_except

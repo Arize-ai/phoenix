@@ -60,10 +60,10 @@ class NoOpFormatterBase(BaseTemplateFormatter):
     No-op template formatter.
 
     Examples:
-
-    >>> formatter = NoOpFormatterBase()
-    >>> formatter.format("hello")
-    'hello'
+        ```python
+        formatter = NoOpFormatterBase()
+        formatter.format("hello")  # -> 'hello'
+        ```
     """
 
     def parse(self, template: str) -> set[str]:
@@ -78,10 +78,10 @@ class FStringBaseTemplateFormatter(BaseTemplateFormatter):
     Regular f-string template formatter.
 
     Examples:
-
-    >>> formatter = FStringBaseTemplateFormatter()
-    >>> formatter.format("{hello}", {"hello": "world"})
-    'world'
+        ```python
+        formatter = FStringBaseTemplateFormatter()
+        formatter.format("{hello}", {"hello": "world"})  # -> 'world'
+        ```
     """
 
     def parse(self, template: str) -> set[str]:
@@ -103,10 +103,10 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
     Mustache template formatter.
 
     Examples:
-
-    >>> formatter = MustacheBaseTemplateFormatter()
-    >>> formatter.format("{{ hello }}", {"hello": "world"})
-    'world'
+        ```python
+        formatter = MustacheBaseTemplateFormatter()
+        formatter.format("{{ hello }}", {"hello": "world"})  # -> 'world'
+        ```
     """
 
     PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
