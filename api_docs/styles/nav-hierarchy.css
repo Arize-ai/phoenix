@@ -3,16 +3,21 @@
   --nav-guide-color: var(--md-default-fg-color--lighter);
 }
 
-.md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__list {
+.md-nav--primary .md-nav__list .md-nav__list {
   margin-left: var(--nav-indent);
   padding-left: var(--nav-indent);
+}
+
+.md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__list {
   border-left: none;
 }
 
 .md-nav--primary .md-nav__list .md-nav__list .md-nav__list {
-  margin-left: var(--nav-indent);
-  padding-left: var(--nav-indent);
   border-left: 1px solid var(--nav-guide-color);
+}
+
+.md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__list .md-nav__link {
+  padding-left: 0;
 }
 
 .md-nav--primary .md-nav__list .md-nav__list .md-nav__link {
