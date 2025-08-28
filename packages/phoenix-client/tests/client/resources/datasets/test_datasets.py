@@ -492,9 +492,7 @@ class TestDatasetDeleting:
         # Verify method returns None
         assert result is None
 
-    def test_delete_examples_returns_none(
-        self, mock_datasets_client: Any
-    ) -> None:
+    def test_delete_examples_returns_none(self, mock_datasets_client: Any) -> None:
         """Test that delete_examples always returns None (simplified API)."""
         # Mock successful REST response
         rest_response = Mock()
@@ -507,9 +505,7 @@ class TestDatasetDeleting:
         # Verify method returns None (simplified delete pattern)
         assert result is None
 
-    def test_delete_examples_multiple_ids(
-        self, mock_datasets_client: Any
-    ) -> None:
+    def test_delete_examples_multiple_ids(self, mock_datasets_client: Any) -> None:
         """Test deleting multiple examples from dataset."""
         # Mock successful REST response
         rest_response = Mock()
@@ -536,6 +532,7 @@ class TestDatasetDeleting:
         """Test handling of HTTP errors in delete operation."""
         # Mock HTTP error response
         import httpx
+
         rest_response = Mock()
         rest_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "404 Not Found", request=Mock(), response=Mock(status_code=404)
@@ -546,9 +543,7 @@ class TestDatasetDeleting:
         with pytest.raises(httpx.HTTPStatusError):
             mock_datasets_client.delete_examples(example_ids=["nonexistent"])
 
-    def test_delete_examples_with_version_info(
-        self, mock_datasets_client: Any
-    ) -> None:
+    def test_delete_examples_with_version_info(self, mock_datasets_client: Any) -> None:
         """Test deleting with version description and metadata."""
         # Mock successful REST response
         rest_response = Mock()
