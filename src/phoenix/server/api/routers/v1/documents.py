@@ -6,11 +6,13 @@ from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.api.types.Evaluation import DocumentAnnotation
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DocumentAnnotationInsertEvent
@@ -77,7 +79,7 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
 
 
 @router.post(
-    "/span_document_annotations",
+    "/document_annotations",
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateSpanDocuments",
     responses=add_errors_to_responses(
@@ -148,4 +150,9 @@ async def annotate_span_documents(
     request.state.event_queue.put(
         DocumentAnnotationInsertEvent(tuple(inserted_document_annotation_ids))
     )
-    return AnnotateSpanDocumentsResponseBody(data=[])
+    return AnnotateSpanDocumentsResponseBody(
+        data=[
+            InsertedSpanDocumentAnnotation(id=str(GlobalID(DocumentAnnotation.__name__, str(id_))))
+            for id_ in inserted_document_annotation_ids
+        ]
+    )
