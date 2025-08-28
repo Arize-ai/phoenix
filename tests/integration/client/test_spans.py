@@ -153,9 +153,9 @@ class TestClientForSpanAnnotationsRetrieval:
             assert not subset.empty  # pyright: ignore[reportUnknownMemberType]
             row = subset.iloc[0]  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
             assert "result.label" in row
-            assert row["result.label"] == label
-            assert abs(float(row["result.score"]) - scr) < 1e-6  # pyright: ignore[reportUnknownArgumentType]
-            assert row["result.explanation"] == expl
+            assert row.loc["result.label"] == label
+            assert abs(float(row.loc["result.score"]) - scr) < 1e-6  # pyright: ignore[reportUnknownArgumentType]
+            assert row.loc["result.explanation"] == expl
 
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
