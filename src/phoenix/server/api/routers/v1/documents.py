@@ -1,11 +1,15 @@
+from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import Field
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
 
+from phoenix.db import models
+from phoenix.db.insertion.types import Precursors
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.bearer_auth import PhoenixUser
 
 from .models import V1RoutesBaseModel
 from .spans import SpanAnnotationResult
@@ -36,6 +40,25 @@ class SpanDocumentAnnotationData(V1RoutesBaseModel):
         ),
     )
 
+    # Precursor here means a value to add to a queue for processing async
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.DocumentAnnotation:
+        return Precursors.DocumentAnnotation(
+            datetime.now(timezone.utc),
+            self.span_id,
+            self.document_position,
+            models.DocumentAnnotation(
+                name=self.name,
+                annotator_kind=self.annotator_kind,
+                score=self.result.score if self.result else None,
+                label=self.result.label if self.result else None,
+                explanation=self.result.explanation if self.result else None,
+                metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="API",
+                user_id=user_id,
+            ),
+        )
+
 
 class AnnotateSpanDocumentsRequestBody(RequestBody[list[SpanDocumentAnnotationData]]):
     pass
@@ -65,9 +88,25 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
     include_in_schema=True,
 )
 async def annotate_span_documents(
-    request: Request, request_body: AnnotateSpanDocumentsRequestBody
+    request: Request,
+    request_body: AnnotateSpanDocumentsRequestBody,
+    sync: bool = Query(
+        default=False, description="If set to true, the annotations are inserted synchronously."
+    ),
 ) -> AnnotateSpanDocumentsResponseBody:
     if not request_body.data:
         return AnnotateSpanDocumentsResponseBody(data=[])
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    span_document_annotations = request_body.data
+
+    precursors = [
+        annotation.as_precursor(user_id=user_id) for annotation in span_document_annotations
+    ]
+    if not sync:
+        await request.state.enqueue(*precursors)
 
     return AnnotateSpanDocumentsResponseBody(data=[])
