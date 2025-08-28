@@ -412,6 +412,7 @@ class Experiments:
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        dangerously_set_repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
@@ -470,6 +471,8 @@ class Experiments:
                 Defaults to True.
             timeout: The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
+        dangerously_set_repetitions: The number of times the task will be run on each example.
+            Defaults to 1. This argument is currently for internal testing purposes only.
 
         Returns:
             A dictionary containing the experiment results.
@@ -484,7 +487,7 @@ class Experiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        repetitions = 1
+        repetitions = dangerously_set_repetitions
 
         payload = {
             "version_id": dataset.version_id,
@@ -1308,6 +1311,7 @@ class AsyncExperiments:
         print_summary: bool = True,
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        dangerously_set_repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
@@ -1363,6 +1367,8 @@ class AsyncExperiments:
             concurrency: Specifies the concurrency for task execution. Defaults to 3.
             timeout: The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
+        dangerously_set_repetitions: The number of times the task will be run on each example.
+            Defaults to 1. This argument is currently for internal testing purposes only.
 
         Returns:
             A dictionary containing the experiment results.
@@ -1377,7 +1383,7 @@ class AsyncExperiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        repetitions = 1
+        repetitions = dangerously_set_repetitions
 
         payload = {
             "version_id": dataset.version_id,
