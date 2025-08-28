@@ -150,9 +150,9 @@ async def annotate_span_documents(
 
     inserted_document_annotation_ids = []
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    for annotation in precursors:
-        span_rowid, _ = existing_spans[annotation.span_id]
-        values = dict(as_kv(annotation.as_insertable(span_rowid).row))
+    for anno in precursors:
+        span_rowid, _ = existing_spans[anno.span_id]
+        values = dict(as_kv(anno.as_insertable(span_rowid).row))
         span_document_annotation_id = await session.scalar(
             insert_on_conflict(
                 values,
