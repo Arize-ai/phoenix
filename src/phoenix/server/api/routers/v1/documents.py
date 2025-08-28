@@ -56,6 +56,7 @@ class SpanDocumentAnnotationData(V1RoutesBaseModel):
             models.DocumentAnnotation(
                 name=self.name,
                 annotator_kind=self.annotator_kind,
+                document_position=self.document_position,
                 score=self.result.score if self.result else None,
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
@@ -143,7 +144,7 @@ async def annotate_span_documents(
                 dialect=dialect,
                 table=models.DocumentAnnotation,
                 unique_by=("name", "span_rowid", "identifier", "document_position"),
-            )
+            ).returning(models.DocumentAnnotation.id)
         )
         inserted_document_annotation_ids.append(span_document_annotation_id)
 
