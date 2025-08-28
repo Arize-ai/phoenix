@@ -1106,9 +1106,7 @@ async def delete_dataset_examples(
         datasets = (
             await session.scalars(
                 select(models.Dataset)
-                .join(
-                    models.DatasetExample, models.Dataset.id == models.DatasetExample.dataset_id
-                )
+                .join(models.DatasetExample, models.Dataset.id == models.DatasetExample.dataset_id)
                 .where(models.DatasetExample.id.in_(example_db_ids))
                 .distinct()
                 .limit(2)  # limit to 2 to check if there are more than 1 dataset
