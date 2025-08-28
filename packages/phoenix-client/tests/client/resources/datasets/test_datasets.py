@@ -422,7 +422,7 @@ class TestCSVProcessing:
 
 
 class TestDatasetDeleting:
-    """Test delete_example_from_dataset method."""
+    """Test delete_examples method."""
 
     @pytest.fixture
     def mock_datasets_client(self) -> Any:
@@ -465,135 +465,109 @@ class TestDatasetDeleting:
 
         return Dataset(dataset_info, examples_data)
 
-    def test_delete_example_from_dataset_single_id(
+    def test_delete_examples_single_id(
         self, mock_datasets_client: Any, mock_dataset_response: Any
     ) -> None:
         """Test deleting a single example from dataset."""
-        # Mock successful GraphQL response
-        graphql_response = Mock()
-        graphql_response.raise_for_status.return_value = None
-        graphql_response.json.return_value = {
-            "data": {
-                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
-            }
-        }
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = graphql_response
-        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+        mock_datasets_client._client.post.return_value = rest_response
 
-        # Test default behavior (no return value)
-        result = mock_datasets_client.delete_example_from_dataset(example_ids="ex1")
+        # Test default behavior (returns None)
+        result = mock_datasets_client.delete_examples(example_ids="ex1")
 
-        # Verify GraphQL mutation was called correctly
+        # Verify REST API was called correctly
         mock_datasets_client._client.post.assert_called_once()
         call_args = mock_datasets_client._client.post.call_args
-        assert call_args[1]["url"] == "graphql"
-        assert "deleteDatasetExamples" in call_args[1]["json"]["query"]
+        assert call_args[1]["url"] == "v1/datasets/examples/delete"
 
-        # Verify payload structure
+        # Verify payload structure (REST format)
         payload = call_args[1]["json"]
-        assert payload["variables"]["input"]["exampleIds"] == ["ex1"]
+        assert payload["example_ids"] == ["ex1"]
+        assert "version_description" not in payload
+        assert "version_metadata" not in payload
 
-        # Verify get_dataset was NOT called (default behavior)
-        mock_datasets_client.get_dataset.assert_not_called()
+        # Verify method returns None
         assert result is None
 
-    def test_delete_example_from_dataset_with_return_dataset(
-        self, mock_datasets_client: Any, mock_dataset_response: Any
+    def test_delete_examples_returns_none(
+        self, mock_datasets_client: Any
     ) -> None:
-        """Test deleting with return_dataset=True."""
-        # Mock successful GraphQL response
-        graphql_response = Mock()
-        graphql_response.raise_for_status.return_value = None
-        graphql_response.json.return_value = {
-            "data": {
-                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
-            }
-        }
+        """Test that delete_examples always returns None (simplified API)."""
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = graphql_response
-        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+        mock_datasets_client._client.post.return_value = rest_response
 
-        result = mock_datasets_client.delete_example_from_dataset(
-            example_ids="ex1", return_dataset=True
-        )
+        result = mock_datasets_client.delete_examples(example_ids="ex1")
 
-        # Verify get_dataset was called when return_dataset=True
-        mock_datasets_client.get_dataset.assert_called_once_with(dataset="dataset123", timeout=5)
-        assert result == mock_dataset_response
+        # Verify method returns None (simplified delete pattern)
+        assert result is None
 
-    def test_delete_example_from_dataset_multiple_ids(
-        self, mock_datasets_client: Any, mock_dataset_response: Any
+    def test_delete_examples_multiple_ids(
+        self, mock_datasets_client: Any
     ) -> None:
         """Test deleting multiple examples from dataset."""
-        # Mock successful GraphQL response
-        graphql_response = Mock()
-        graphql_response.raise_for_status.return_value = None
-        graphql_response.json.return_value = {
-            "data": {
-                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
-            }
-        }
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = graphql_response
-        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+        mock_datasets_client._client.post.return_value = rest_response
 
-        result = mock_datasets_client.delete_example_from_dataset(example_ids=["ex1", "ex2", "ex3"])
+        result = mock_datasets_client.delete_examples(example_ids=["ex1", "ex2", "ex3"])
 
-        # Verify payload structure
+        # Verify payload structure (REST format)
         call_args = mock_datasets_client._client.post.call_args
         payload = call_args[1]["json"]
-        assert payload["variables"]["input"]["exampleIds"] == ["ex1", "ex2", "ex3"]
+        assert payload["example_ids"] == ["ex1", "ex2", "ex3"]
 
-        # Verify get_dataset was NOT called (default behavior)
-        mock_datasets_client.get_dataset.assert_not_called()
+        # Verify method returns None
         assert result is None
 
-    def test_delete_example_from_dataset_empty_ids_error(self, mock_datasets_client: Any) -> None:
+    def test_delete_examples_empty_ids_error(self, mock_datasets_client: Any) -> None:
         """Test that deleting with empty example_ids raises ValueError."""
         with pytest.raises(ValueError, match="example_ids cannot be empty"):
-            mock_datasets_client.delete_example_from_dataset(example_ids=[])
+            mock_datasets_client.delete_examples(example_ids=[])
 
-    def test_delete_example_from_dataset_graphql_error(self, mock_datasets_client: Any) -> None:
-        """Test handling of GraphQL errors in delete operation."""
-        # Mock GraphQL error response
-        graphql_response = Mock()
-        graphql_response.raise_for_status.return_value = None
-        graphql_response.json.return_value = {"errors": [{"message": "Examples not found"}]}
+    def test_delete_examples_http_error(self, mock_datasets_client: Any) -> None:
+        """Test handling of HTTP errors in delete operation."""
+        # Mock HTTP error response
+        import httpx
+        rest_response = Mock()
+        rest_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "404 Not Found", request=Mock(), response=Mock(status_code=404)
+        )
 
-        mock_datasets_client._client.post.return_value = graphql_response
+        mock_datasets_client._client.post.return_value = rest_response
 
-        with pytest.raises(ValueError, match="GraphQL errors: Examples not found"):
-            mock_datasets_client.delete_example_from_dataset(example_ids=["nonexistent"])
+        with pytest.raises(httpx.HTTPStatusError):
+            mock_datasets_client.delete_examples(example_ids=["nonexistent"])
 
-    def test_delete_example_from_dataset_with_version_info(
-        self, mock_datasets_client: Any, mock_dataset_response: Any
+    def test_delete_examples_with_version_info(
+        self, mock_datasets_client: Any
     ) -> None:
         """Test deleting with version description and metadata."""
-        # Mock successful GraphQL response
-        graphql_response = Mock()
-        graphql_response.raise_for_status.return_value = None
-        graphql_response.json.return_value = {
-            "data": {
-                "deleteDatasetExamples": {"dataset": {"id": "dataset123", "name": "Test Dataset"}}
-            }
-        }
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = graphql_response
-        mock_datasets_client.get_dataset = Mock(return_value=mock_dataset_response)
+        mock_datasets_client._client.post.return_value = rest_response
 
-        result = mock_datasets_client.delete_example_from_dataset(
+        result = mock_datasets_client.delete_examples(
             example_ids=["ex1"],
             version_description="Removed example",
             version_metadata={"operation": "delete"},
         )
 
-        # Verify version fields were included
+        # Verify version fields were included (REST format)
         call_args = mock_datasets_client._client.post.call_args
         payload = call_args[1]["json"]
-        assert payload["variables"]["input"]["datasetVersionDescription"] == "Removed example"
-        assert payload["variables"]["input"]["datasetVersionMetadata"] == {"operation": "delete"}
+        assert payload["example_ids"] == ["ex1"]
+        assert payload["version_description"] == "Removed example"
+        assert payload["version_metadata"] == {"operation": "delete"}
 
-        # Verify get_dataset was NOT called (default behavior)
-        mock_datasets_client.get_dataset.assert_not_called()
+        # Verify method returns None
         assert result is None
