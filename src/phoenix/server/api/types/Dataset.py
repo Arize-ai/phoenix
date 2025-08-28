@@ -291,6 +291,7 @@ class Dataset(Node):
             )
             .where(models.Experiment.dataset_id == dataset_id)
             .group_by(models.ExperimentRunAnnotation.name)
+            .order_by(models.ExperimentRunAnnotation.name)
         )
         async with info.context.db() as session:
             return [
