@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c7b7f5cf045feffcf9b440c5c40bf69>>
+ * @generated SignedSource<<11cef0b6509d395b21da79d2ffd9cf5f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -1022,7 +1022,7 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentAnnotationSummary",
+                    "concreteType": "DatasetExperimentAnnotationSummary",
                     "kind": "LinkedField",
                     "name": "experimentAnnotationSummaries",
                     "plural": true,

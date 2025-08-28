@@ -335,9 +335,6 @@ class TestExperimentAnnotationSummaries:
                   annotationName
                   minScore
                   maxScore
-                  meanScore
-                  count
-                  errorCount
                 }
               }
             }
@@ -357,25 +354,16 @@ class TestExperimentAnnotationSummaries:
                         "annotationName": "annotation-name-1",
                         "minScore": 0.0,
                         "maxScore": 1.0,
-                        "meanScore": 1 / 2,
-                        "count": 8,
-                        "errorCount": 0,
                     },
                     {
                         "annotationName": "annotation-name-2",
                         "minScore": 0.0,
                         "maxScore": 1.0,
-                        "meanScore": 3 / 4,
-                        "count": 4,
-                        "errorCount": 1,
                     },
                     {
                         "annotationName": "annotation-name-3",
                         "minScore": None,
                         "maxScore": None,
-                        "meanScore": None,
-                        "count": 4,
-                        "errorCount": 4,
                     },
                 ],
             }
