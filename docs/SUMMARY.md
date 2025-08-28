@@ -1,6 +1,6 @@
 # Table of contents
 
-* [Arize Phoenix](README.md)
+* [Arize Phoenixcs](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
 * [Environments](environments.md)

@@ -2,8 +2,6 @@
 
 The Agent Function Call eval can be used to determine how well a model selects a tool to use, extracts the right parameters from the user query, and generates the tool call code.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_tool_calling.ipynb" %}
-
 {% embed url="https://www.youtube.com/watch?v=Rsu-UZ1ZVZU" %}
 Demo
 {% endembed %}
@@ -85,7 +83,7 @@ Parameters:
 
 This template instead evaluates only the parameter extraction step of a router:
 
-```
+```python
 You are comparing a function call response to a question and trying to determine if the generated call has extracted the exact right parameters from the question. Here is the data:
     [BEGIN DATA]
     ************

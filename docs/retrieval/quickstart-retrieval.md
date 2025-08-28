@@ -6,15 +6,7 @@ description: Debug your Search and Retrieval LLM workflows
 
 This quickstart shows how to start logging your retrievals from your vector datastore to Phoenix and run evaluations.
 
-## Notebooks
-
-_Follow our tutorial in a notebook with our Langchain and LlamaIndex integrations_
-
-<table><thead><tr><th width="152.10989010989013">Framework</th><th width="302.3333333333333">Phoenix Inferences</th><th>Phoenix Traces &#x26; Spans</th></tr></thead><tbody><tr><td>LangChain</td><td><strong>Retrieval Analyzer w/ Embeddings</strong> <a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/qdrant_langchain_instrumentation_search_and_retrieval_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a></td><td><strong>Traces and Spans</strong> <a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a></td></tr><tr><td>LlamaIndex</td><td><strong>Retrieval Analyzer w/ Embeddings</strong><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a></td><td><strong>Traces and Spans</strong> <a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a></td></tr></tbody></table>
-
 ## Logging Retrievals to Phoenix (as Inferences)
-
-<figure><img src="broken-reference" alt=""><figcaption></figcaption></figure>
 
 #### Step 1: Logging Knowledge Base
 
