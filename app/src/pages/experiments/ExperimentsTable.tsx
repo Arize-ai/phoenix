@@ -195,7 +195,7 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            const missingAnnotationPercent =
+            const unannotatedRatio =
               edge.experiment.runCount > 0
                 ? 1 -
                   (summary.count - summary.errorCount) /
@@ -203,7 +203,7 @@ export function ExperimentsTable({
                 : null;
             acc[summary.annotationName] = {
               ...summary,
-              missingAnnotationPercent,
+              unannotatedRatio,
             };
             return acc;
           },
@@ -212,7 +212,7 @@ export function ExperimentsTable({
             | {
                 annotationName: string;
                 meanScore: number | null;
-                missingAnnotationPercent: number | null;
+                unannotatedRatio: number | null;
               }
             | undefined
           >
@@ -321,7 +321,7 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
-              missingAnnotationPercent={annotation.missingAnnotationPercent}
+              unannotatedRatio={annotation.unannotatedRatio}
             />
           );
         },
@@ -573,23 +573,19 @@ export function ExperimentsTable({
 }
 
 function MissingAnnotationPieChart({
-  missingAnnotationPercent,
+  unannotatedRatio,
 }: {
-  missingAnnotationPercent: number;
+  unannotatedRatio: number;
 }) {
   const size = 16;
 
-  const chartData = useMemo(() => {
-    const hasAnnotationPercent = 1 - missingAnnotationPercent;
-    const data = [];
-    if (hasAnnotationPercent > 0.0) {
-      data.push({ name: "hasAnnotation", value: hasAnnotationPercent });
-    }
-    if (missingAnnotationPercent > 0.0) {
-      data.push({ name: "missingAnnotation", value: missingAnnotationPercent });
-    }
-    return data;
-  }, [missingAnnotationPercent]);
+  const chartData = useMemo(
+    () => [
+      { name: "hasAnnotation", value: 1 - unannotatedRatio },
+      { name: "missingAnnotation", value: unannotatedRatio },
+    ],
+    [unannotatedRatio]
+  );
 
   return (
     <PieChart width={size} height={size}>
@@ -627,13 +623,13 @@ function AnnotationAggregationCell({
   value,
   min,
   max,
-  missingAnnotationPercent,
+  unannotatedRatio,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
-  missingAnnotationPercent: number | null;
+  unannotatedRatio: number | null;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
@@ -651,18 +647,16 @@ function AnnotationAggregationCell({
         gap: var(--ac-global-dimension-size-100);
       `}
     >
-      {missingAnnotationPercent !== null && missingAnnotationPercent > 0.0 && (
+      {unannotatedRatio !== null && unannotatedRatio > 0.0 && (
         <TooltipTrigger>
           <TriggerWrap>
-            <MissingAnnotationPieChart
-              missingAnnotationPercent={missingAnnotationPercent}
-            />
+            <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
           </TriggerWrap>
           <RichTooltip>
             <View width="size-2000">
               <Text size="XS">
-                {formatPercent(missingAnnotationPercent * 100)} of runs are
-                missing this annotation
+                {formatPercent(unannotatedRatio * 100)} of runs are missing this
+                annotation
               </Text>
             </View>
           </RichTooltip>
