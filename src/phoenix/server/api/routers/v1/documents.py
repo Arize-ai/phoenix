@@ -122,9 +122,11 @@ async def annotate_span_documents(
     # Account for the fact that the spans could arrive after the annotation
     async with request.app.state.db() as session:
         existing_spans = {
-            span.span_id: span.id
-            async for span in await session.stream_scalars(
-                select(models.Span).filter(models.Span.span_id.in_(span_ids))
+            span_id: (id_, num_docs)
+            async for span_id, id_, num_docs in await session.stream(
+                select(models.Span.span_id, models.Span.id, models.Span.num_documents).filter(
+                    models.Span.span_id.in_(span_ids)
+                )
             )
         }
 
@@ -135,10 +137,22 @@ async def annotate_span_documents(
             detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
             status_code=HTTP_404_NOT_FOUND,
         )
+
+    # Validate that document positions are within bounds
+    for annotation in span_document_annotations:
+        _, num_docs = existing_spans[annotation.span_id]
+        if annotation.document_position not in range(num_docs):
+            raise HTTPException(
+                detail=f"Document position {annotation.document_position} is out of bounds for "
+                f"span {annotation.span_id} (max: {num_docs - 1})",
+                status_code=422,  # Unprocessable Entity
+            )
+
     inserted_document_annotation_ids = []
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    for annotation in precursors:
-        values = dict(as_kv(annotation.as_insertable(existing_spans[annotation.span_id]).row))
+    for anno in precursors:
+        span_rowid, _ = existing_spans[anno.span_id]
+        values = dict(as_kv(anno.as_insertable(span_rowid).row))
         span_document_annotation_id = await session.scalar(
             insert_on_conflict(
                 values,
