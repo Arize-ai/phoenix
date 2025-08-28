@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.29.0...arize-phoenix-v11.30.0) (2025-08-28)
+
+
+### Features
+
+* **api:** span document annotations API ([#9293](https://github.com/Arize-ai/phoenix/issues/9293)) ([37f3b15](https://github.com/Arize-ai/phoenix/commit/37f3b15393cae97a6ac1b237b957deddfceb4a81))
+* **experiments:** show missing percentage for experiment evaluations ([#9210](https://github.com/Arize-ai/phoenix/issues/9210)) ([c865c1a](https://github.com/Arize-ai/phoenix/commit/c865c1a950ffe06cea07e72b53a570dde73d51d0))
+
+
+### Bug Fixes
+
+* check bound on num docs for annotations ([#9305](https://github.com/Arize-ai/phoenix/issues/9305)) ([32388b8](https://github.com/Arize-ai/phoenix/commit/32388b8aed744e8ebf357602651ced1c361c436f))
+
 ## [11.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.28.0...arize-phoenix-v11.29.0) (2025-08-27)
 
 
