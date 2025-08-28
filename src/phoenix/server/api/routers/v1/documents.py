@@ -43,7 +43,8 @@ class SpanDocumentAnnotationData(V1RoutesBaseModel):
     identifier: str = Field(
         default="",
         description=(
-            "An custom ID for the annotation. If provided, the annotation will be updated if it already exists."
+            "An custom ID for the annotation. "
+            "If provided, the annotation will be updated if it already exists."
         ),
     )
 
