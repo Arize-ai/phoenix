@@ -134,6 +134,10 @@ class InsertedSpanAnnotation(TypedDict):
     id: str
 
 
+class InsertedSpanDocumentAnnotation(TypedDict):
+    id: str
+
+
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -352,6 +356,16 @@ class SpanContext(TypedDict):
     span_id: str
 
 
+class SpanDocumentAnnotationData(TypedDict):
+    span_id: str
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    document_position: int
+    result: NotRequired[SpanAnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
 class SpanEvent(TypedDict):
     name: str
     timestamp: str
@@ -412,6 +426,14 @@ class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
     type: str
+
+
+class AnnotateSpanDocumentsRequestBody(TypedDict):
+    data: Sequence[SpanDocumentAnnotationData]
+
+
+class AnnotateSpanDocumentsResponseBody(TypedDict):
+    data: Sequence[InsertedSpanDocumentAnnotation]
 
 
 class AnnotateSpansResponseBody(TypedDict):
