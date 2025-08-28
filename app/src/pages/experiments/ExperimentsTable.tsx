@@ -592,39 +592,33 @@ function MissingAnnotationPieChart({
   }, [missingAnnotationPercent]);
 
   return (
-    <div
-      css={css`
-        flex-shrink: 0;
-      `}
-    >
-      <PieChart width={size} height={size}>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius={6}
-          outerRadius={8}
-          strokeWidth={0}
-          stroke="transparent"
-          startAngle={90}
-          endAngle={-270}
-        >
-          {chartData.map((entry, index) => (
-            <Cell
-              key={`cell-${index}`}
-              fill={
-                entry.name === "missingAnnotation"
-                  ? "var(--ac-global-color-warning)"
-                  : "var(--ac-global-color-grey-300)"
-              }
-              opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
-            />
-          ))}
-        </Pie>
-      </PieChart>
-    </div>
+    <PieChart width={size} height={size}>
+      <Pie
+        data={chartData}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        innerRadius={6}
+        outerRadius={8}
+        strokeWidth={0}
+        stroke="transparent"
+        startAngle={90}
+        endAngle={-270}
+      >
+        {chartData.map((entry, index) => (
+          <Cell
+            key={entry.name}
+            fill={
+              entry.name === "missingAnnotation"
+                ? "var(--ac-global-color-warning)"
+                : "var(--ac-global-color-grey-300)"
+            }
+            opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
+          />
+        ))}
+      </Pie>
+    </PieChart>
   );
 }
 
