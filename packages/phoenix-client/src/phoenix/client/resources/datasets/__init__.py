@@ -8,7 +8,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, List, Literal, Optional, Union
 from urllib.parse import quote
 
 import httpx
@@ -1034,6 +1034,75 @@ class Datasets:
 
         return dataset
 
+    def delete_examples(
+        self,
+        *,
+        example_ids: "Union[str, List[str]]",
+        version_description: Optional[str] = None,
+        version_metadata: Optional[Mapping[str, Any]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete one or more examples from a dataset using the REST API.
+
+        Args:
+            example_ids: The ID(s) of dataset examples to delete. Can be a single string or list of
+                strings.
+            version_description: Description for the new dataset version (optional).
+            version_metadata: Metadata for the new dataset version (optional).
+            timeout: Request timeout in seconds (default: 5).
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If example_ids is empty or invalid.
+            httpx.HTTPStatusError: If the API request fails.
+
+        Example:
+            >>> from phoenix.client import Client
+            >>> client = Client()
+            >>>
+            >>> # Delete a single example
+            >>> client.datasets.delete_examples(example_ids="example-123")
+            >>>
+            >>> # Delete multiple examples
+            >>> client.datasets.delete_examples(
+            ...     example_ids=["ex1", "ex2", "ex3"],
+            ...     version_description="Removed outdated examples"
+            ... )
+        """
+        # Normalize example_ids to a list
+        # Convert single ID to list for consistent handling
+        example_ids_list: "List[str]"
+        if isinstance(example_ids, str):
+            example_ids_list = [example_ids]
+        else:
+            # example_ids is list[str] at this point
+            example_ids_list = list(example_ids)
+
+        if not example_ids_list:
+            raise ValueError("example_ids cannot be empty")
+
+        # Prepare the REST API payload
+        payload: dict[str, Any] = {"example_ids": example_ids_list}
+
+        # Add optional version fields if provided
+        if version_description is not None:
+            payload["version_description"] = version_description
+        if version_metadata is not None:
+            payload["version_metadata"] = version_metadata
+
+        response = self._client.post(
+            url="v1/datasets/examples/delete",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        # Method returns None as per delete pattern
+
 
 class AsyncDatasets:
     """
@@ -1704,6 +1773,73 @@ class AsyncDatasets:
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
+
+    async def delete_examples(
+        self,
+        *,
+        example_ids: "Union[str, List[str]]",
+        version_description: Optional[str] = None,
+        version_metadata: Optional[Mapping[str, Any]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete one or more examples from a dataset using the REST API.
+
+        Args:
+            example_ids: The ID(s) of dataset examples to delete. Can be a single string or list of
+                strings.
+            version_description: Description for the new dataset version (optional).
+            version_metadata: Metadata for the new dataset version (optional).
+            timeout: Request timeout in seconds (default: 5).
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If example_ids is empty or invalid.
+            httpx.HTTPStatusError: If the API request fails.
+
+        Example:
+            >>> from phoenix.client import AsyncClient
+            >>> client = AsyncClient()
+            >>>
+            >>> # Delete a single example
+            >>> await client.datasets.delete_examples(example_ids="example-123")
+            >>>
+            >>> # Delete multiple examples
+            >>> await client.datasets.delete_examples(
+            ...     example_ids=["ex1", "ex2", "ex3"],
+            ...     version_description="Removed outdated examples"
+            ... )
+        """
+        # Normalize example_ids to a list
+        # Convert single ID to list for consistent handling
+        example_ids_list: "List[str]"
+        if isinstance(example_ids, str):
+            example_ids_list = [example_ids]
+        else:
+            # example_ids is list[str] at this point
+            example_ids_list = list(example_ids)
+
+        if not example_ids_list:
+            raise ValueError("example_ids cannot be empty")
+
+        # Prepare the REST API payload
+        payload: dict[str, Any] = {"example_ids": example_ids_list}
+
+        # Add optional version fields if provided
+        if version_description is not None:
+            payload["version_description"] = version_description
+        if version_metadata is not None:
+            payload["version_metadata"] = version_metadata
+
+        response = await self._client.post(
+            url="v1/datasets/examples/delete",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
