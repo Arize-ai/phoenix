@@ -1,6 +1,7 @@
 import strawberry
 
-from phoenix.db.models import DocumentAnnotation, TraceAnnotation
+from phoenix.db.models import DocumentAnnotation as DBDocumentAnnotation
+from phoenix.db.models import TraceAnnotation
 
 from .Annotation import Annotation
 
@@ -20,15 +21,15 @@ class TraceEvaluation(Annotation):
 
 
 @strawberry.type
-class DocumentEvaluation(Annotation):
+class DocumentAnnotation(Annotation):
     document_position: int = strawberry.field(
         description="The zero-based index among retrieved documents, which "
         "is collected as a list (even when ordering is not inherently meaningful)."
     )
 
     @staticmethod
-    def from_sql_document_annotation(annotation: DocumentAnnotation) -> "DocumentEvaluation":
-        return DocumentEvaluation(
+    def from_sql_document_annotation(annotation: DBDocumentAnnotation) -> "DocumentAnnotation":
+        return DocumentAnnotation(
             name=annotation.name,
             score=annotation.score,
             label=annotation.label,
