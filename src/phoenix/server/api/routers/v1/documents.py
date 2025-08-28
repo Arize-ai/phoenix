@@ -21,7 +21,8 @@ from .models import V1RoutesBaseModel
 from .spans import SpanAnnotationResult
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["documents"])
+# Since the document annotations are spans related, we place it under spans
+router = APIRouter(tags=["spans"])
 
 
 class SpanDocumentAnnotationData(V1RoutesBaseModel):
