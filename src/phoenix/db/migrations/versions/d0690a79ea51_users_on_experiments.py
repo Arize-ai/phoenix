@@ -5,11 +5,11 @@ Revises: 0df286449799
 Create Date: 2025-08-26 19:12:47.849806
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d0690a79ea51"
@@ -29,6 +29,7 @@ def upgrade() -> None:
             ),
         )
 
+
 def downgrade() -> None:
     with op.batch_alter_table("experiments") as batch_op:
-        batch_op.drop_column("user_id") 
+        batch_op.drop_column("user_id")
