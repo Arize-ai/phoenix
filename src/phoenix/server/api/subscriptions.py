@@ -43,6 +43,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -302,6 +303,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -311,6 +313,7 @@ class Subscription:
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=user_id,
             )
             session.add(experiment)
             await session.flush()
