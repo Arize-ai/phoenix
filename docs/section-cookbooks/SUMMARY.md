@@ -55,3 +55,7 @@
 
 * [Embeddings Analysis](retrieval-and-inferences/embeddings-analysis.md)
 * [More Cookbooks](retrieval-and-inferences/cookbooks.md)
+
+## Prompt Learning
+
+* [Improving Classification Accuracy with Prompt Learning](prompt-learning/improving-classification-accuracy-with-prompt-learning.md)
