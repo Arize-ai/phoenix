@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75a0848407f7629d3d04b441c859fee9>>
+ * @generated SignedSource<<e03ab7e37a40ee21db87556d4801219f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -47,7 +47,7 @@ export type ExperimentCompareTable_comparisons$data = {
           };
         };
         readonly runs: ReadonlyArray<{
-          readonly experimentId: number;
+          readonly experimentId: string;
           readonly repetitions: ReadonlyArray<{
             readonly annotations: {
               readonly edges: ReadonlyArray<{

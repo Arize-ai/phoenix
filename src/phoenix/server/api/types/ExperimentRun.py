@@ -1,12 +1,12 @@
 import re
 from base64 import b64decode, b64encode
-from collections.abc import Awaitable
-from typing import Iterable, Literal, Optional, Union, overload
+from typing import Iterable, Optional, Union
 
 import strawberry
 from sqlalchemy import select, tuple_
-from strawberry.relay import Node
+from strawberry.relay import GlobalID, Node
 from strawberry.types import Info
+from strawberry.utils.await_maybe import AwaitableOrValue
 from typing_extensions import Self, TypeAlias
 
 from phoenix.db import models
@@ -21,9 +21,13 @@ DatasetExampleId: TypeAlias = int
 
 @strawberry.type
 class ExperimentRun(Node):
-    experiment_id: int
-    dataset_example_id: strawberry.Private[DatasetExampleId]
+    experiment_rowid: strawberry.Private[ExperimentId]
+    dataset_example_rowid: strawberry.Private[DatasetExampleId]
     repetitions: list[ExperimentRepetition]
+
+    @strawberry.field
+    def experiment_id(self) -> str:
+        return str(GlobalID("Experiment", str(self.experiment_rowid)))
 
     @classmethod
     def resolve_id(
@@ -32,31 +36,10 @@ class ExperimentRun(Node):
         *,
         info: Info,
     ) -> str:
-        unencoded_id = f"ExperimentRuns:experiment_id={root.experiment_id}:dataset_example_id={root.dataset_example_id}"  # noqa: E501
+        unencoded_id = f"ExperimentRuns:experiment_id={root.experiment_rowid}:dataset_example_id={root.dataset_example_rowid}"  # noqa: E501
         encoded_id = _base64_encode(unencoded_id)
         return encoded_id
 
-    @overload
-    @classmethod
-    def resolve_nodes(
-        cls,
-        *,
-        info: Info,
-        node_ids: Iterable[str],
-        required: Literal[True],
-    ) -> Awaitable[Iterable[Self]]: ...
-
-    @overload
-    @classmethod
-    def resolve_nodes(
-        cls,
-        *,
-        info: Info,
-        node_ids: Iterable[str],
-        required: Literal[False] = ...,
-    ) -> Awaitable[Iterable[Optional[Self]]]: ...
-
-    @overload
     @classmethod
     def resolve_nodes(
         cls,
@@ -65,8 +48,8 @@ class ExperimentRun(Node):
         node_ids: Iterable[str],
         required: bool,
     ) -> Union[
-        Awaitable[Iterable[Self]],
-        Awaitable[Iterable[Optional[Self]]],
+        AwaitableOrValue[Iterable[Self]],
+        AwaitableOrValue[Iterable[Optional[Self]]],
     ]:
         async def resolve_nodes_inner() -> Iterable[
             Optional[Self]
@@ -97,9 +80,9 @@ class ExperimentRun(Node):
                     experiment_id, dataset_example_id = key
                     experiment_runs_list.append(
                         cls(
-                            experiment_id=experiment_id,
-                            dataset_example_id=dataset_example_id,
-                            runs=[
+                            experiment_rowid=experiment_id,
+                            dataset_example_rowid=dataset_example_id,
+                            repetitions=[
                                 to_gql_experiment_repetition(run)
                                 for run in sorted(
                                     experiment_runs, key=lambda run: run.repetition_number

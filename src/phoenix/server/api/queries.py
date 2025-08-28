@@ -518,15 +518,15 @@ class Query:
         cursors_and_nodes = []
         for example in examples:
             run_nodes = []
-            for experiment_id in experiment_rowids:
+            for experiment_rowid in experiment_rowids:
                 run_nodes.append(
                     ExperimentRun(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
-                        dataset_example_id=example.id,
+                        experiment_rowid=experiment_rowid,
+                        dataset_example_rowid=example.id,
                         repetitions=[
                             to_gql_experiment_repetition(run)
                             for run in sorted(
-                                runs[example.id][experiment_id], key=lambda run: run.id
+                                runs[example.id][experiment_rowid], key=lambda run: run.id
                             )
                         ],
                     )

@@ -25,6 +25,8 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
+_DEFAULT_FIRST = 50
+
 
 @strawberry.type
 class Experiment(Node):
@@ -56,7 +58,7 @@ class Experiment(Node):
     async def runs(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = _DEFAULT_FIRST,
         after: Optional[CursorString] = UNSET,
     ) -> Connection[ExperimentRun]:
         experiment_id = self.id_attr
@@ -64,7 +66,7 @@ class Experiment(Node):
             select(models.ExperimentRun.dataset_example_id)
             .where(models.ExperimentRun.experiment_id == experiment_id)
             .order_by(models.ExperimentRun.dataset_example_id.asc())
-            .limit(first + 1)
+            .limit((first or _DEFAULT_FIRST) + 1)
             .scalar_subquery()
         )
         if after:
@@ -100,8 +102,8 @@ class Experiment(Node):
         for example_id, runs in runs_by_example_id.items():
             cursor = ""  # todo
             runs_node = ExperimentRun(
-                experiment_id=experiment_id,
-                dataset_example_id=example_id,
+                experiment_rowid=experiment_id,
+                dataset_example_rowid=example_id,
                 repetitions=[
                     to_gql_experiment_repetition(run)
                     for run in sorted(runs, key=lambda run: run.repetition_number)
