@@ -606,7 +606,7 @@ function MissingAnnotationPieChart({
         startAngle={90}
         endAngle={-270}
       >
-        {chartData.map((entry, index) => (
+        {chartData.map((entry) => (
           <Cell
             key={entry.name}
             fill={
