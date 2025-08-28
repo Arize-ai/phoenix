@@ -949,9 +949,11 @@ async def annotate_spans(
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
         existing_spans = {
-            span.span_id: span.id
-            async for span in await session.stream_scalars(
-                select(models.Span).filter(models.Span.span_id.in_(span_ids))
+            span_id: id_
+            async for span_id, id_ in await session.stream(
+                select(models.Span.span_id, models.Span.id).filter(
+                    models.Span.span_id.in_(span_ids)
+                )
             )
         }
 
