@@ -929,16 +929,14 @@ function ContentPreviewTooltip({
       >
         {children}
       </TriggerWrap>
-      <RichTooltip offset={3}>
-        <TooltipArrow />
-        <div
-          css={css`
-            max-height: 300px;
-            overflow: auto;
-          `}
-        >
-          <JSONText json={content} disableTitle />
-        </div>
+      <RichTooltip
+        offset={3}
+        css={css`
+          max-height: 300px !important;
+          overflow-y: auto;
+        `}
+      >
+        <JSONText json={content} disableTitle />
       </RichTooltip>
     </TooltipTrigger>
   );
