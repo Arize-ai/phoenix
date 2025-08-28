@@ -16,7 +16,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
-    DatasetExperimentsAnnotationSummary,
+    DatasetExperimentAnnotationSummary,
 )
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
@@ -272,7 +272,7 @@ class Dataset(Node):
     @strawberry.field
     async def experiment_annotation_summaries(
         self, info: Info[Context, None]
-    ) -> list[DatasetExperimentsAnnotationSummary]:
+    ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id_attr
         query = (
             select(
@@ -294,7 +294,7 @@ class Dataset(Node):
         )
         async with info.context.db() as session:
             return [
-                DatasetExperimentsAnnotationSummary(
+                DatasetExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
                     min_score=scores_tuple.min_score,
                     max_score=scores_tuple.max_score,
