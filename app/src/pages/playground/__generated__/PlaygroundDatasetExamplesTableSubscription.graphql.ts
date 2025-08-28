@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<510c3911fb9ca78f67f92fb4d166d28c>>
+ * @generated SignedSource<<ffd5af967c035334c64258ca8b714b02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -317,7 +317,7 @@ v4 = [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ExperimentRun",
+            "concreteType": "ExperimentRepetition",
             "kind": "LinkedField",
             "name": "experimentRun",
             "plural": false,

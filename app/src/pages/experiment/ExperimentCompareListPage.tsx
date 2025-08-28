@@ -56,8 +56,8 @@ const tableWrapCSS = css`
   }
 `;
 
-type ExperimentRun =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+type ExperimentRepetition =
+  ExperimentCompareListPage_comparisons$data["experimentRunComparisons"]["edges"][number]["comparison"]["runs"][number]["repetitions"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -150,12 +150,15 @@ export function ExperimentCompareListPage() {
         after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
       ) {
-        compareExperiments(
+        experimentRunComparisons(
           first: $first
           after: $after
           baseExperimentId: $baseExperimentId
           compareExperimentIds: $compareExperimentIds
-        ) @connection(key: "ExperimentCompareListPage_compareExperiments") {
+        )
+          @connection(
+            key: "ExperimentCompareListPage_experimentRunComparisons"
+          ) {
           edges {
             comparison: node {
               example {
@@ -165,9 +168,9 @@ export function ExperimentCompareListPage() {
                   referenceOutput: output
                 }
               }
-              runComparisonItems {
-                experimentId
-                runs {
+              runs {
+                repetitions {
+                  experimentId
                   output
                   startTime
                   endTime
@@ -219,37 +222,40 @@ export function ExperimentCompareListPage() {
 
   const tableData: TableRow[] = useMemo(() => {
     return (
-      data?.compareExperiments.edges.map((edge) => {
+      data?.experimentRunComparisons.edges.map((edge) => {
         const comparison = edge.comparison;
         const example = comparison.example;
-        const runItems = comparison.runComparisonItems;
+        const runs = comparison.runs;
 
-        const baseExperimentRun: ExperimentRun = runItems[0].runs[0];
-        const compareExperimentRuns: (ExperimentRun | undefined)[] = runItems
-          .slice(1)
-          .map((item) => item.runs[0]);
+        const baseExperimentRepetition: ExperimentRepetition =
+          runs[0]["repetitions"][0];
+        const compareExperimentRepetitions: (
+          | ExperimentRepetition
+          | undefined
+        )[] = runs.slice(1).map((run) => run["repetitions"][0]);
         const tableData = {
           id: example.id,
           example: example.id,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
           outputs: {
-            baseExperimentValue: baseExperimentRun.output,
-            compareExperimentValues: compareExperimentRuns.map(
+            baseExperimentValue: baseExperimentRepetition.output,
+            compareExperimentValues: compareExperimentRepetitions.map(
               (run) => run?.output
             ),
           },
           tokens: {
-            baseExperimentValue: baseExperimentRun.costSummary.total.tokens,
-            compareExperimentValues: compareExperimentRuns.map(
+            baseExperimentValue:
+              baseExperimentRepetition.costSummary.total.tokens,
+            compareExperimentValues: compareExperimentRepetitions.map(
               (run) => run?.costSummary.total.tokens
             ),
           },
           latencyMs: {
             baseExperimentValue:
-              new Date(baseExperimentRun.endTime).getTime() -
-              new Date(baseExperimentRun.startTime).getTime(),
-            compareExperimentValues: compareExperimentRuns.map((run) =>
+              new Date(baseExperimentRepetition.endTime).getTime() -
+              new Date(baseExperimentRepetition.startTime).getTime(),
+            compareExperimentValues: compareExperimentRepetitions.map((run) =>
               run
                 ? new Date(run.endTime).getTime() -
                   new Date(run.startTime).getTime()
@@ -257,19 +263,20 @@ export function ExperimentCompareListPage() {
             ),
           },
           cost: {
-            baseExperimentValue: baseExperimentRun.costSummary.total.cost,
-            compareExperimentValues: compareExperimentRuns.map(
+            baseExperimentValue:
+              baseExperimentRepetition.costSummary.total.cost,
+            compareExperimentValues: compareExperimentRepetitions.map(
               (run) => run?.costSummary.total.cost
             ),
           },
           annotations: {
-            baseExperimentValue: baseExperimentRun.annotations.edges.map(
+            baseExperimentValue: baseExperimentRepetition.annotations.edges.map(
               (edge) => ({
                 name: edge.annotation.name,
                 score: edge.annotation.score,
               })
             ),
-            compareExperimentValues: compareExperimentRuns.map(
+            compareExperimentValues: compareExperimentRepetitions.map(
               (run) =>
                 run?.annotations.edges.map((edge) => ({
                   name: edge.annotation.name,

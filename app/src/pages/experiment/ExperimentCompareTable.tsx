@@ -64,8 +64,8 @@ import {
 } from "@phoenix/components/dialog";
 import {
   ExperimentAverageRunTokenCosts,
-  ExperimentRunTokenCosts,
-  ExperimentRunTokenCount,
+  ExperimentRepetitionTokenCosts,
+  ExperimentRepetitionTokenCount,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
@@ -109,21 +109,23 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
+type ExperimentRun =
+  ExperimentCompareTable_comparisons$data["experimentRunComparisons"]["edges"][number]["comparison"]["runs"][number];
+
+type ExperimentRepetition = ExperimentRun["repetitions"][number];
+
+type ExperimentRepetitionAnnotation =
+  ExperimentRepetition["annotations"]["edges"][number]["annotation"];
+
 type ExperimentInfoMap = Record<string, Experiment | null>;
 
 type TableRow =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
+  ExperimentCompareTable_comparisons$data["experimentRunComparisons"]["edges"][number]["comparison"] & {
     id: string;
     input: unknown;
     referenceOutput: unknown;
-    runComparisonMap: Record<
-      string,
-      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-    >;
+    runsMap: Record<string, ExperimentRun>;
   };
-
-type ExperimentRun =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -169,13 +171,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           datasetId: { type: "ID!" }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          compareExperiments(
+          experimentRunComparisons(
             first: $first
             after: $after
             baseExperimentId: $baseExperimentId
             compareExperimentIds: $compareExperimentIds
             filterCondition: $filterCondition
-          ) @connection(key: "ExperimentCompareTable_compareExperiments") {
+          )
+            @connection(
+              key: "ExperimentCompareTable_experimentRunComparisons"
+            ) {
             edges {
               comparison: node {
                 example {
@@ -185,9 +190,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     referenceOutput: output
                   }
                 }
-                runComparisonItems {
+                runs {
                   experimentId
-                  runs {
+                  repetitions {
                     id
                     output
                     error
@@ -266,24 +271,21 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [data]);
   const tableData: TableRow[] = useMemo(
     () =>
-      data.compareExperiments.edges.map((edge) => {
+      data.experimentRunComparisons.edges.map((edge) => {
         const comparison = edge.comparison;
-        const runComparisonMap = comparison.runComparisonItems.reduce(
+        const runsMap = comparison.runs.reduce(
           (acc, item) => {
             acc[item.experimentId] = item;
             return acc;
           },
-          {} as Record<
-            string,
-            ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-          >
+          {} as Record<string, ExperimentRun>
         );
         return {
           ...comparison,
           id: comparison.example.id,
           input: comparison.example.revision.input,
           referenceOutput: comparison.example.revision.referenceOutput,
-          runComparisonMap,
+          runsMap,
         };
       }),
     [data]
@@ -415,24 +417,25 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
-          const runComparisonItem = row.original.runComparisonMap[experimentId];
-          const numRuns = runComparisonItem?.runs.length || 0;
-          if (numRuns === 0) {
+          const run = row.original.runsMap[experimentId];
+          const repetitions = run.repetitions;
+          const repetition = repetitions[0];
+          const numRepetitions = repetitions.length || 0;
+          if (numRepetitions === 0) {
             return (
               <PaddedCell>
                 <NotRunText />
               </PaddedCell>
             );
-          } else if (numRuns > 1) {
+          } else if (numRepetitions > 1) {
             // TODO: Support repetitions
-            return <Text color="warning">{`${numRuns} runs`}</Text>;
+            return <Text color="warning">{`${numRepetitions} runs`}</Text>;
           }
-          // Only show the first run
-          const run = runComparisonItem?.runs[0];
+          // Only show the first run and repetition
 
           let traceButton = null;
-          const traceId = run?.trace?.traceId;
-          const projectId = run?.trace?.projectId;
+          const traceId = repetition.trace?.traceId;
+          const projectId = repetition.trace?.projectId;
           if (traceId && projectId) {
             traceButton = (
               <TooltipTrigger>
@@ -487,13 +490,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </>
           );
 
-          return run ? (
+          return repetition ? (
             <Flex direction="column" height="100%">
               <CellTop extra={runControls}>
-                <ExperimentRunMetadata {...run} />
+                <ExperimentRepetitionMetadata {...repetition} />
               </CellTop>
-              <ExperimentRunOutput
-                {...run}
+              <ExperimentRepetitionOutput
+                {...repetition}
                 displayFullText={displayFullText}
                 setDialog={setDialog}
               />
@@ -899,7 +902,7 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
   );
 }
 
-function ExperimentRunMetadata(props: ExperimentRun) {
+function ExperimentRepetitionMetadata(props: ExperimentRepetition) {
   const { id, startTime, endTime, costSummary } = props;
   const tokenCountTotal = costSummary.total.tokens;
   const costTotal = costSummary.total.cost;
@@ -907,18 +910,18 @@ function ExperimentRunMetadata(props: ExperimentRun) {
     <Flex direction="row" gap="size-100">
       <RunLatency startTime={startTime} endTime={endTime} />
       {tokenCountTotal != null && id ? (
-        <ExperimentRunTokenCount
+        <ExperimentRepetitionTokenCount
           tokenCountTotal={tokenCountTotal}
-          experimentRunId={id}
+          experimentRepetitionId={id}
           size="S"
         />
       ) : (
         <TokenCount size="S">{tokenCountTotal}</TokenCount>
       )}
       {costTotal != null && id ? (
-        <ExperimentRunTokenCosts
+        <ExperimentRepetitionTokenCosts
           costTotal={costTotal}
-          experimentRunId={id}
+          experimentRepetitionId={id}
           size="S"
         />
       ) : null}
@@ -926,10 +929,10 @@ function ExperimentRunMetadata(props: ExperimentRun) {
   );
 }
 /**
- * Display the output of an experiment run.
+ * Display the output of an experiment repetition.
  */
-function ExperimentRunOutput(
-  props: ExperimentRun & {
+function ExperimentRepetitionOutput(
+  props: ExperimentRepetition & {
     displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
   }
@@ -1136,10 +1139,10 @@ function SelectedExampleDialog({
                     gap: var(--ac-global-dimension-static-size-200);
                   `}
                 >
-                  {selectedExample.runComparisonItems.map((runItem) => {
-                    const experiment = experimentInfoById[runItem.experimentId];
+                  {selectedExample.runs.map((run) => {
+                    const experiment = experimentInfoById[run.experimentId];
                     return (
-                      <li key={runItem.experimentId}>
+                      <li key={run.experimentId}>
                         <Card
                           {...defaultCardProps}
                           title={experiment?.name ?? ""}
@@ -1150,18 +1153,18 @@ function SelectedExampleDialog({
                           }
                         >
                           <ul>
-                            {runItem.runs.map((run, index) => (
+                            {run.repetitions.map((repetition, index) => (
                               <li key={index}>
                                 <Flex direction="row">
                                   <View flex>
-                                    {run.error ? (
+                                    {repetition.error ? (
                                       <View padding="size-200">
-                                        <RunError error={run.error} />
+                                        <RunError error={repetition.error} />
                                       </View>
                                     ) : (
                                       <JSONBlock
                                         value={JSON.stringify(
-                                          run.output,
+                                          repetition.output,
                                           null,
                                           2
                                         )}
@@ -1170,8 +1173,8 @@ function SelectedExampleDialog({
                                   </View>
                                   <ViewSummaryAside width="size-3000">
                                     <RunLatency
-                                      startTime={run.startTime}
-                                      endTime={run.endTime}
+                                      startTime={repetition.startTime}
+                                      endTime={repetition.endTime}
                                     />
                                     <ul
                                       css={css`
@@ -1187,13 +1190,15 @@ function SelectedExampleDialog({
                                         );
                                       `}
                                     >
-                                      {run.annotations?.edges.map((edge) => (
-                                        <li key={edge.annotation.id}>
-                                          <AnnotationLabel
-                                            annotation={edge.annotation}
-                                          />
-                                        </li>
-                                      ))}
+                                      {repetition.annotations.edges.map(
+                                        (edge) => (
+                                          <li key={edge.annotation.id}>
+                                            <AnnotationLabel
+                                              annotation={edge.annotation}
+                                            />
+                                          </li>
+                                        )
+                                      )}
                                     </ul>
                                   </ViewSummaryAside>
                                 </Flex>
@@ -1257,10 +1262,8 @@ function PaddedCell({ children }: { children: ReactNode }) {
   );
 }
 
-type ExperimentRunAnnotation =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number]["annotations"]["edges"][number]["annotation"];
 export type ExperimentRunCellAnnotationsListProps = {
-  annotations: ExperimentRunAnnotation[];
+  annotations: ExperimentRepetitionAnnotation[];
   onTraceClick: ({
     annotationName,
     traceId,

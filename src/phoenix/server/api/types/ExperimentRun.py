@@ -21,7 +21,7 @@ DatasetExampleId: TypeAlias = int
 
 @strawberry.type
 class ExperimentRun(Node):
-    experiment_id: strawberry.Private[ExperimentId]
+    experiment_id: int
     dataset_example_id: strawberry.Private[DatasetExampleId]
     repetitions: list[ExperimentRepetition]
 

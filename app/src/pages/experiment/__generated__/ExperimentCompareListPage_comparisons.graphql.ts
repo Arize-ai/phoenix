@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a91c76ecb2c27c673d34a95666d8bba>>
+ * @generated SignedSource<<a160be5b536996cba10696dfa30b1c5f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareListPage_comparisons$data = {
-  readonly compareExperiments: {
+  readonly experimentRunComparisons: {
     readonly edges: ReadonlyArray<{
       readonly comparison: {
         readonly example: {
@@ -21,9 +21,8 @@ export type ExperimentCompareListPage_comparisons$data = {
             readonly referenceOutput: any;
           };
         };
-        readonly runComparisonItems: ReadonlyArray<{
-          readonly experimentId: string;
-          readonly runs: ReadonlyArray<{
+        readonly runs: ReadonlyArray<{
+          readonly repetitions: ReadonlyArray<{
             readonly annotations: {
               readonly edges: ReadonlyArray<{
                 readonly annotation: {
@@ -39,6 +38,7 @@ export type ExperimentCompareListPage_comparisons$data = {
               };
             };
             readonly endTime: string;
+            readonly experimentId: string;
             readonly output: any | null;
             readonly startTime: string;
           }>;
@@ -57,7 +57,7 @@ import ExperimentCompareListPageQuery_graphql from './ExperimentCompareListPageQ
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "compareExperiments"
+  "experimentRunComparisons"
 ];
 return {
   "argumentDefinitions": [
@@ -107,7 +107,7 @@ return {
   "name": "ExperimentCompareListPage_comparisons",
   "selections": [
     {
-      "alias": "compareExperiments",
+      "alias": "experimentRunComparisons",
       "args": [
         {
           "kind": "Variable",
@@ -120,15 +120,15 @@ return {
           "variableName": "compareExperimentIds"
         }
       ],
-      "concreteType": "ExperimentComparisonConnection",
+      "concreteType": "ExperimentRunComparisonConnection",
       "kind": "LinkedField",
-      "name": "__ExperimentCompareListPage_compareExperiments_connection",
+      "name": "__ExperimentCompareListPage_experimentRunComparisons_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "ExperimentComparisonEdge",
+          "concreteType": "ExperimentRunComparisonEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
@@ -136,7 +136,7 @@ return {
             {
               "alias": "comparison",
               "args": null,
-              "concreteType": "ExperimentComparison",
+              "concreteType": "ExperimentRunComparison",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -187,26 +187,26 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "RunComparisonItem",
+                  "concreteType": "ExperimentRun",
                   "kind": "LinkedField",
-                  "name": "runComparisonItems",
+                  "name": "runs",
                   "plural": true,
                   "selections": [
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "experimentId",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "ExperimentRun",
+                      "concreteType": "ExperimentRepetition",
                       "kind": "LinkedField",
-                      "name": "runs",
+                      "name": "repetitions",
                       "plural": true,
                       "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "experimentId",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -330,7 +330,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentComparison",
+              "concreteType": "ExperimentRunComparison",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -382,6 +382,6 @@ return {
 };
 })();
 
-(node as any).hash = "cf13cff08fc63c5db0426e51c42585fd";
+(node as any).hash = "b3a73979a6fd30c0c39cc1e797abc675";
 
 export default node;

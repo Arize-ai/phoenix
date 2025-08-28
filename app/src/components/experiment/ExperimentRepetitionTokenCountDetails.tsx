@@ -3,17 +3,17 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCountDetails } from "../trace/TokenCountDetails";
 
-import { ExperimentRunTokenCountDetailsQuery } from "./__generated__/ExperimentRunTokenCountDetailsQuery.graphql";
+import { ExperimentRepetitionTokenCountDetailsQuery } from "./__generated__/ExperimentRepetitionTokenCountDetailsQuery.graphql";
 
-export function ExperimentRunTokenCountDetails(props: {
-  experimentRunId: string;
+export function ExperimentRepetitionTokenCountDetails(props: {
+  experimentRepetitionId: string;
 }) {
-  const data = useLazyLoadQuery<ExperimentRunTokenCountDetailsQuery>(
+  const data = useLazyLoadQuery<ExperimentRepetitionTokenCountDetailsQuery>(
     graphql`
-      query ExperimentRunTokenCountDetailsQuery($nodeId: ID!) {
+      query ExperimentRepetitionTokenCountDetailsQuery($nodeId: ID!) {
         node(id: $nodeId) {
           __typename
-          ... on ExperimentRun {
+          ... on ExperimentRepetition {
             costSummary {
               total {
                 tokens
@@ -29,11 +29,11 @@ export function ExperimentRunTokenCountDetails(props: {
         }
       }
     `,
-    { nodeId: props.experimentRunId }
+    { nodeId: props.experimentRepetitionId }
   );
 
   const tokenData = useMemo(() => {
-    if (data.node.__typename === "ExperimentRun") {
+    if (data.node.__typename === "ExperimentRepetition") {
       const prompt = data.node.costSummary?.prompt?.tokens ?? 0;
       const completion = data.node.costSummary?.completion?.tokens ?? 0;
       const total = data.node.costSummary?.total?.tokens ?? 0;

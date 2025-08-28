@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3231ad0bc9b564c9b85f7a72864560b>>
+ * @generated SignedSource<<185d4e8411622ffe32c6ff06fa726d3d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -199,15 +199,15 @@ return {
       {
         "alias": null,
         "args": (v6/*: any*/),
-        "concreteType": "ExperimentComparisonConnection",
+        "concreteType": "ExperimentRunComparisonConnection",
         "kind": "LinkedField",
-        "name": "compareExperiments",
+        "name": "experimentRunComparisons",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ExperimentComparisonEdge",
+            "concreteType": "ExperimentRunComparisonEdge",
             "kind": "LinkedField",
             "name": "edges",
             "plural": true,
@@ -215,7 +215,7 @@ return {
               {
                 "alias": "comparison",
                 "args": null,
-                "concreteType": "ExperimentComparison",
+                "concreteType": "ExperimentRunComparison",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -260,9 +260,9 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "RunComparisonItem",
+                    "concreteType": "ExperimentRun",
                     "kind": "LinkedField",
-                    "name": "runComparisonItems",
+                    "name": "runs",
                     "plural": true,
                     "selections": [
                       {
@@ -275,9 +275,9 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "ExperimentRun",
+                        "concreteType": "ExperimentRepetition",
                         "kind": "LinkedField",
-                        "name": "runs",
+                        "name": "repetitions",
                         "plural": true,
                         "selections": [
                           (v7/*: any*/),
@@ -400,7 +400,8 @@ return {
                           }
                         ],
                         "storageKey": null
-                      }
+                      },
+                      (v7/*: any*/)
                     ],
                     "storageKey": null
                   },
@@ -418,7 +419,7 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "ExperimentComparison",
+                "concreteType": "ExperimentRunComparison",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -468,9 +469,9 @@ return {
           "filterCondition"
         ],
         "handle": "connection",
-        "key": "ExperimentCompareTable_compareExperiments",
+        "key": "ExperimentCompareTable_experimentRunComparisons",
         "kind": "LinkedHandle",
-        "name": "compareExperiments"
+        "name": "experimentRunComparisons"
       },
       {
         "alias": "dataset",
@@ -606,16 +607,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "41fb0ab21c1e06cf77779ceeba86054d",
+    "cacheID": "5cd752db21f78d8ea77b2bd7e271e08c",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  experimentRunComparisons(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runs {\n          experimentId\n          repetitions {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d94346bf96bd527ddb757879eded860a";
+(node as any).hash = "01c831c0e9f205565e94714aff64b6d4";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2807a9555a8ca1c8ccddf83d69e183f9>>
+ * @generated SignedSource<<a019f518ebae95bdcf80c983721f91a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentRunTokenCountDetailsQuery$variables = {
+export type ExperimentRepetitionTokenCountDetailsQuery$variables = {
   nodeId: string;
 };
-export type ExperimentRunTokenCountDetailsQuery$data = {
+export type ExperimentRepetitionTokenCountDetailsQuery$data = {
   readonly node: {
-    readonly __typename: "ExperimentRun";
+    readonly __typename: "ExperimentRepetition";
     readonly costSummary: {
       readonly completion: {
         readonly tokens: number | null;
@@ -32,9 +32,9 @@ export type ExperimentRunTokenCountDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type ExperimentRunTokenCountDetailsQuery = {
-  response: ExperimentRunTokenCountDetailsQuery$data;
-  variables: ExperimentRunTokenCountDetailsQuery$variables;
+export type ExperimentRepetitionTokenCountDetailsQuery = {
+  response: ExperimentRepetitionTokenCountDetailsQuery$data;
+  variables: ExperimentRepetitionTokenCountDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -113,7 +113,7 @@ v4 = {
       "storageKey": null
     }
   ],
-  "type": "ExperimentRun",
+  "type": "ExperimentRepetition",
   "abstractKey": null
 };
 return {
@@ -121,7 +121,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentRunTokenCountDetailsQuery",
+    "name": "ExperimentRepetitionTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -144,7 +144,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ExperimentRunTokenCountDetailsQuery",
+    "name": "ExperimentRepetitionTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -169,16 +169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bb25f38a892f4b257794b8e43b04f835",
+    "cacheID": "bd2d8ae62986dc1a98d0f70d9d282333",
     "id": null,
     "metadata": {},
-    "name": "ExperimentRunTokenCountDetailsQuery",
+    "name": "ExperimentRepetitionTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentRunTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRun {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentRepetitionTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRepetition {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0de1caa674a484b1e5d1449743805823";
+(node as any).hash = "a8d360aac576b82a7e14e9d7072aa14c";
 
 export default node;

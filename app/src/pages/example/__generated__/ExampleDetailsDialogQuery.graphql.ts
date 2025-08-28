@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a75efbeeb929a10eacdd7f99f44a11d>>
+ * @generated SignedSource<<9824f3c786027bb6f143748894350b07>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -233,7 +233,7 @@ return {
               {
                 "alias": null,
                 "args": (v8/*: any*/),
-                "concreteType": "ExperimentRunConnection",
+                "concreteType": "ExperimentRepetitionConnection",
                 "kind": "LinkedField",
                 "name": "experimentRuns",
                 "plural": false,
@@ -241,7 +241,7 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentRunEdge",
+                    "concreteType": "ExperimentRepetitionEdge",
                     "kind": "LinkedField",
                     "name": "edges",
                     "plural": true,
@@ -249,7 +249,7 @@ return {
                       {
                         "alias": "run",
                         "args": null,
-                        "concreteType": "ExperimentRun",
+                        "concreteType": "ExperimentRepetition",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
@@ -361,7 +361,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "ExperimentRun",
+                        "concreteType": "ExperimentRepetition",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,

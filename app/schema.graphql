@@ -1163,6 +1163,7 @@ type ExperimentRepetitionEdge {
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+  experimentId: Int!
   repetitions: [ExperimentRepetition!]!
 }
 

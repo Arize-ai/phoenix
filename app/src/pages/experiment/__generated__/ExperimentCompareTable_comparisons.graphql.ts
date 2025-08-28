@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36aab213bb1e425b1b59e337e7c6a6c9>>
+ * @generated SignedSource<<75a0848407f7629d3d04b441c859fee9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,31 @@ import { ReaderFragment } from 'relay-runtime';
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareTable_comparisons$data = {
-  readonly compareExperiments: {
+  readonly dataset: {
+    readonly experiments?: {
+      readonly edges: ReadonlyArray<{
+        readonly experiment: {
+          readonly averageRunLatencyMs: number | null;
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+              readonly tokens: number | null;
+            };
+          };
+          readonly id: string;
+          readonly metadata: any;
+          readonly name: string;
+          readonly project: {
+            readonly id: string;
+          } | null;
+          readonly runCount: number;
+          readonly sequenceNumber: number;
+        };
+      }>;
+    };
+    readonly id: string;
+  };
+  readonly experimentRunComparisons: {
     readonly edges: ReadonlyArray<{
       readonly comparison: {
         readonly example: {
@@ -22,9 +46,9 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly referenceOutput: any;
           };
         };
-        readonly runComparisonItems: ReadonlyArray<{
-          readonly experimentId: string;
-          readonly runs: ReadonlyArray<{
+        readonly runs: ReadonlyArray<{
+          readonly experimentId: number;
+          readonly repetitions: ReadonlyArray<{
             readonly annotations: {
               readonly edges: ReadonlyArray<{
                 readonly annotation: {
@@ -61,30 +85,6 @@ export type ExperimentCompareTable_comparisons$data = {
       };
     }>;
   };
-  readonly dataset: {
-    readonly experiments?: {
-      readonly edges: ReadonlyArray<{
-        readonly experiment: {
-          readonly averageRunLatencyMs: number | null;
-          readonly costSummary: {
-            readonly total: {
-              readonly cost: number | null;
-              readonly tokens: number | null;
-            };
-          };
-          readonly id: string;
-          readonly metadata: any;
-          readonly name: string;
-          readonly project: {
-            readonly id: string;
-          } | null;
-          readonly runCount: number;
-          readonly sequenceNumber: number;
-        };
-      }>;
-    };
-    readonly id: string;
-  };
   readonly " $fragmentType": "ExperimentCompareTable_comparisons";
 };
 export type ExperimentCompareTable_comparisons$key = {
@@ -96,7 +96,7 @@ import ExperimentCompareTableQuery_graphql from './ExperimentCompareTableQuery.g
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "compareExperiments"
+  "experimentRunComparisons"
 ],
 v1 = {
   "alias": null,
@@ -215,7 +215,7 @@ return {
   "name": "ExperimentCompareTable_comparisons",
   "selections": [
     {
-      "alias": "compareExperiments",
+      "alias": "experimentRunComparisons",
       "args": [
         {
           "kind": "Variable",
@@ -233,15 +233,15 @@ return {
           "variableName": "filterCondition"
         }
       ],
-      "concreteType": "ExperimentComparisonConnection",
+      "concreteType": "ExperimentRunComparisonConnection",
       "kind": "LinkedField",
-      "name": "__ExperimentCompareTable_compareExperiments_connection",
+      "name": "__ExperimentCompareTable_experimentRunComparisons_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "ExperimentComparisonEdge",
+          "concreteType": "ExperimentRunComparisonEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
@@ -249,7 +249,7 @@ return {
             {
               "alias": "comparison",
               "args": null,
-              "concreteType": "ExperimentComparison",
+              "concreteType": "ExperimentRunComparison",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -294,9 +294,9 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "RunComparisonItem",
+                  "concreteType": "ExperimentRun",
                   "kind": "LinkedField",
-                  "name": "runComparisonItems",
+                  "name": "runs",
                   "plural": true,
                   "selections": [
                     {
@@ -309,9 +309,9 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "ExperimentRun",
+                      "concreteType": "ExperimentRepetition",
                       "kind": "LinkedField",
-                      "name": "runs",
+                      "name": "repetitions",
                       "plural": true,
                       "selections": [
                         (v1/*: any*/),
@@ -451,7 +451,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "ExperimentComparison",
+              "concreteType": "ExperimentRunComparison",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -633,6 +633,6 @@ return {
 };
 })();
 
-(node as any).hash = "d94346bf96bd527ddb757879eded860a";
+(node as any).hash = "01c831c0e9f205565e94714aff64b6d4";
 
 export default node;
