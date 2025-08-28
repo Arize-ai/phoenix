@@ -3349,6 +3349,81 @@
         }
       }
     },
+    "/v1/document_annotations": {
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Annotate Span Documents",
+        "operationId": "annotateSpanDocuments",
+        "parameters": [
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If set to true, the annotations are inserted synchronously.",
+              "default": false,
+              "title": "Sync"
+            },
+            "description": "If set to true, the annotations are inserted synchronously."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateSpanDocumentsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Span document annotation inserted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateSpanDocumentsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Span not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/users": {
       "get": {
         "tags": [
@@ -3548,6 +3623,38 @@
   },
   "components": {
     "schemas": {
+      "AnnotateSpanDocumentsRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SpanDocumentAnnotationData"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpanDocumentsRequestBody"
+      },
+      "AnnotateSpanDocumentsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InsertedSpanDocumentAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpanDocumentsResponseBody"
+      },
       "AnnotateSpansRequestBody": {
         "properties": {
           "data": {
@@ -4955,6 +5062,20 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
+      },
+      "InsertedSpanDocumentAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted span document annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedSpanDocumentAnnotation"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -7425,6 +7546,73 @@
           "span_id"
         ],
         "title": "SpanContext"
+      },
+      "SpanDocumentAnnotationData": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the document annotation. E.x. relevance"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator. E.g. llm judge, a heuristic piece of code, or a human"
+          },
+          "document_position": {
+            "type": "integer",
+            "title": "Document Position",
+            "description": "A 0 based index of the document. E.x. the first document during retrieval is 0"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanAnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The score and or label of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for custom values of the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "An custom ID for the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "name",
+          "annotator_kind",
+          "document_position"
+        ],
+        "title": "SpanDocumentAnnotationData"
       },
       "SpanEvent": {
         "properties": {

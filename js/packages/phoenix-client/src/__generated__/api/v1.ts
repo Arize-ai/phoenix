@@ -633,6 +633,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/document_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Annotate Span Documents */
+        post: operations["annotateSpanDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users": {
         parameters: {
             query?: never;
@@ -681,6 +698,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnnotateSpanDocumentsRequestBody */
+        AnnotateSpanDocumentsRequestBody: {
+            /** Data */
+            data: components["schemas"]["SpanDocumentAnnotationData"][];
+        };
+        /** AnnotateSpanDocumentsResponseBody */
+        AnnotateSpanDocumentsResponseBody: {
+            /** Data */
+            data: components["schemas"]["InsertedSpanDocumentAnnotation"][];
+        };
         /** AnnotateSpansRequestBody */
         AnnotateSpansRequestBody: {
             /** Data */
@@ -1225,6 +1252,14 @@ export interface components {
             /**
              * Id
              * @description The ID of the inserted span annotation
+             */
+            id: string;
+        };
+        /** InsertedSpanDocumentAnnotation */
+        InsertedSpanDocumentAnnotation: {
+            /**
+             * Id
+             * @description The ID of the inserted span document annotation
              */
             id: string;
         };
@@ -2219,6 +2254,45 @@ export interface components {
              * @description OpenTelemetry span ID
              */
             span_id: string;
+        };
+        /** SpanDocumentAnnotationData */
+        SpanDocumentAnnotationData: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the document annotation. E.x. relevance
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator. E.g. llm judge, a heuristic piece of code, or a human
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /**
+             * Document Position
+             * @description A 0 based index of the document. E.x. the first document during retrieval is 0
+             */
+            document_position: number;
+            /** @description The score and or label of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for custom values of the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description An custom ID for the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
         };
         /** SpanEvent */
         SpanEvent: {
@@ -4583,6 +4657,60 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    annotateSpanDocuments: {
+        parameters: {
+            query?: {
+                /** @description If set to true, the annotations are inserted synchronously. */
+                sync?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotateSpanDocumentsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Span document annotation inserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotateSpanDocumentsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

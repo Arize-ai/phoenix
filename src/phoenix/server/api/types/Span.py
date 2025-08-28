@@ -35,7 +35,7 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types.Evaluation import DocumentAnnotation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
@@ -638,7 +638,7 @@ class Span(Node):
     async def document_evaluations(
         self,
         info: Info[Context, None],
-    ) -> list[DocumentEvaluation]:
+    ) -> list[DocumentAnnotation]:
         return await info.context.data_loaders.document_evaluations.load(self.span_rowid)
 
     @strawberry.field(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82d59b6ad83fb81cddfe7305eaff93b7>>
+ * @generated SignedSource<<f30a43e521e8a9dcdf7e2b6097b83c87>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -327,7 +327,7 @@ v23 = {
 v24 = {
   "alias": null,
   "args": null,
-  "concreteType": "DocumentEvaluation",
+  "concreteType": "DocumentAnnotation",
   "kind": "LinkedField",
   "name": "documentEvaluations",
   "plural": true,
