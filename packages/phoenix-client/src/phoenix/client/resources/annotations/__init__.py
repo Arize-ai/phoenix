@@ -240,7 +240,130 @@ class Annotations:
             return None
         return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])
 
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: Iterable[v1.SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[v1.InsertedSpanDocumentAnnotation]]:
+        """Log document annotations for retrieval spans.
 
+         Args:
+            document_annotations: An iterable of document annotation data to log.
+            sync: If True, the request will be fulfilled synchronously and the response will contain
+                the inserted annotation IDs. If False, the request will be processed asynchronously.
+
+        Returns:
+            If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if the input is invalid.
+
+        Note:
+            This API is only available for phoenix 11.30 or higher
+        """
+
+        params = {"sync": sync} if sync else {}
+        json_ = v1.AnnotateSpanDocumentsRequestBody(data=list(document_annotations))
+        response = self._client.post(url="v1/document_annotations", json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(v1.AnnotateSpanDocumentsResponseBody, response.json())["data"])
+
+     def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: pd.DataFrame,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotation_name: Optional[str] = None,
+        sync: bool = False,
+    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
+        """Log multiple document annotations from a pandas DataFrame.
+
+        This method allows you to create multiple document annotations at once
+        by providing the data in a pandas DataFrame. The DataFrame can either
+        include `name` or `annotation_name` columns (but not both) and
+        `annotator_kind` column, or you can specify global values for all rows.
+        The data is processed in chunks of 100 rows for efficient batch
+        processing.
+
+        Args:
+            dataframe (pd.DataFrame): A pandas DataFrame containing the document
+            annotation data. Must include
+                either a "name" or "annotation_name" column (but not both) or
+                provide a global annotation_name parameter. The dataframe must
+                also contain a "document_position" int column for which document
+                index to target. Similarly, must include an "annotator_kind"
+                column or provide a global annotator_kind. The `span_id` can be
+                either a column in the DataFrame or will be taken from the
+                DataFrame index. Optional columns include: "label", "score",
+                "explanation", "metadata", and "identifier".
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind
+            of annotator used
+                for all annotations. If provided, this value will be used for
+                all rows and the DataFrame does not need to include an
+                "annotator_kind" column. Must be one of "LLM", "CODE", or
+                "HUMAN".
+            annotation_name (Optional[str]): The name to use for all
+            annotations. If provided, this
+                value will be used for all rows and the DataFrame does not need
+                to include a "name" or "annotation_name" column.
+            sync (bool): If True, the request will be fulfilled synchronously
+            and the response will
+                contain the inserted annotation IDs. If False, the request will
+                be processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[v1.InsertedDocumentAnnotation]]: If sync is True, a list
+            of all inserted span
+                annotations. If sync is False, None.
+
+        Raises:
+            ImportError: If pandas is not installed. ValueError: If the
+            DataFrame is missing required columns, if both "name" and
+                "annotation_name" columns are present, or if no valid annotation
+                data is provided.
+
+        Example::
+
+            import pandas as pd
+
+            # Using name and annotator_kind from DataFrame df1 = pd.DataFrame({
+                "name": ["relevance", "relevance"], "annotator_kind": ["HUMAN",
+                "LLM"], "label": ["relevant", "irrelevant"], "score": [1, 0]
+            }, index=["span-id-1", "span-id-2"]) client.annotations.log_document_annotations_dataframe(dataframe=df1)
+
+            # Using annotation_name and annotator_kind from DataFrame df2 =
+            pd.DataFrame({
+                "annotation_name": ["sentiment", "toxicity"], "annotator_kind":
+                ["HUMAN", "LLM"], "label": ["positive", "low"], "score": [0.9,
+                0.1]
+            }, index=["span-id-1", "span-id-2"]) client.annotations.log_document_annotations_dataframe(dataframe=df2)
+
+            # Using global name and annotator_kind df3 = pd.DataFrame({
+                "label": ["positive", "low"]
+            }, index=["span1", "span2"])
+            client.annotations.log_document_annotations_dataframe(
+                dataframe=df3, annotation_name="relevance",  # applies to all
+                rows annotator_kind="HUMAN"  # applies to all rows
+            )
+        """  # noqa: E501
+        # Process DataFrame chunks using iterator
+        all_responses: list[v1.InsertedSpanDocumentAnnotation] = []
+        for chunk in _chunk_dataframe(
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            chunk_size=_DATAFRAME_CHUNK_SIZE,
+        ):
+            # Delegate to log_span_annotations
+            response = self.log_document_annotations(span_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
+
+        return all_responses if sync else None
 class AsyncAnnotations:
     """Asynchronous client for interacting with the Annotations API endpoints.
 
@@ -474,6 +597,38 @@ class AsyncAnnotations:
         if not sync:
             return None
         return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])
+
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: Iterable[v1.SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[v1.InsertedSpanDocumentAnnotation]]:
+        """Log document annotations for retrieval spans.
+
+         Args:
+            document_annotations: An iterable of document annotation data to log.
+            sync: If True, the request will be fulfilled synchronously and the response will contain
+                the inserted annotation IDs. If False, the request will be processed asynchronously.
+
+        Returns:
+            If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if the input is invalid.
+
+        Note:
+            This API is only available for phoenix 11.30 or higher
+        """
+
+        params = {"sync": sync} if sync else {}
+        json_ = v1.AnnotateSpanDocumentsRequestBody(data=list(document_annotations))
+        response = await self._client.post(url="v1/document_annotations", json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(v1.AnnotateSpanDocumentsResponseBody, response.json())["data"])
 
 
 def _get_span_annotation(
@@ -793,3 +948,82 @@ def _chunk_dataframe(
     # Yield any remaining annotations
     if span_annotations:
         yield span_annotations
+
+
+def _get_document_annotation(
+    *,
+    span_id: str,
+    document_position: int,
+    annotation_name: str,
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+    label: Optional[str] = None,
+    score: Optional[float] = None,
+    explanation: Optional[str] = None,
+    metadata: Optional[dict[str, Any]] = None,
+    identifier: Optional[str] = None,
+) -> v1.SpanDocumentAnnotationData:
+    """Create a span annotation data object.
+
+    Args:
+        annotation_name: The name of the annotation.
+        span_id: The ID of the span to annotate.
+        document_position: The position of the document in the document set.
+        annotator_kind: The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        label: The label assigned by the annotation.
+        score: The score assigned by the annotation.
+        explanation: Explanation of the annotation result.
+        metadata: Additional metadata for the annotation.
+        identifier: An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+            of name, span_id, document_position, and identifier (where a null identifier is equivalent to an empty string).
+            If an annotation with the same name, span_id, document_position, and identifier already exists, it will be updated.
+            Using a non-empty identifier allows you to have multiple annotations with the same name, span_id, and document_position.
+            Most of the time, you can leave this as None - it will still update the record if it exists.
+            It will also update the record with identifier="" if it exists.
+
+    Returns:
+        A span annotation data object that can be used with the Annotations API.
+
+    Raises:
+        ValueError: If at least one of label, score, or explanation is not provided, or if required fields are invalid.
+    """  # noqa: E501
+    # Validate required fields
+    if not span_id or not isinstance(span_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("span_id must be a non-empty string")
+    if not document_position or not isinstance(document_position, int):
+        raise ValueError("document_position must be an integer")
+    if not annotation_name or not isinstance(annotation_name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("annotation_name must be a non-empty string")
+    if annotator_kind not in _VALID_ANNOTATOR_KINDS:
+        raise ValueError(f"annotator_kind must be one of {_VALID_ANNOTATOR_KINDS}")
+
+    # Validate that at least one of label, score, or explanation is provided
+    if not label and score is None and not explanation:
+        raise ValueError("At least one of label, score, or explanation must be provided.")
+
+    # Validate score if provided
+    if score is not None and not isinstance(score, (int, float)):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("score must be a number")
+
+    # Validate metadata if provided
+    if metadata is not None and not isinstance(metadata, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("metadata must be a dictionary")
+
+    result: v1.SpanAnnotationResult = {}
+    if label:
+        result["label"] = label
+    if score is not None:
+        result["score"] = score
+    if explanation:
+        result["explanation"] = explanation
+    anno = v1.SpanDocumentAnnotationData(
+        name=annotation_name,
+        span_id=span_id,
+        document_position=document_position,
+        annotator_kind=annotator_kind,
+        result=result,
+    )
+    if metadata:
+        anno["metadata"] = metadata
+    if identifier and identifier.strip():
+        anno["identifier"] = identifier.strip()
+    return anno
