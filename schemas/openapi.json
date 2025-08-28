@@ -1218,6 +1218,60 @@
         }
       }
     },
+    "/v1/datasets/examples/delete": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete examples from a dataset",
+        "operationId": "deleteDatasetExamples",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDatasetExamplesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Examples not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{dataset_id}/experiments": {
       "post": {
         "tags": [
@@ -4545,6 +4599,45 @@
           "data"
         ],
         "title": "DeleteAnnotationConfigResponseBody"
+      },
+      "DeleteDatasetExamplesRequest": {
+        "properties": {
+          "example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Example Ids"
+          },
+          "version_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Description"
+          },
+          "version_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "example_ids"
+        ],
+        "title": "DeleteDatasetExamplesRequest"
       },
       "Experiment": {
         "properties": {

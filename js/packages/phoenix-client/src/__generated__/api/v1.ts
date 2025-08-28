@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/examples/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete examples from a dataset */
+        post: operations["deleteDatasetExamples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{dataset_id}/experiments": {
         parameters: {
             query?: never;
@@ -1053,6 +1070,17 @@ export interface components {
         DeleteAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /** DeleteDatasetExamplesRequest */
+        DeleteDatasetExamplesRequest: {
+            /** Example Ids */
+            example_ids: string[];
+            /** Version Description */
+            version_description?: string | null;
+            /** Version Metadata */
+            version_metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** Experiment */
         Experiment: {
@@ -3185,6 +3213,55 @@ export interface operations {
                 };
             };
             /** @description Invalid dataset or version ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetExamples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteDatasetExamplesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Examples not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
             422: {
                 headers: {
                     [name: string]: unknown;
