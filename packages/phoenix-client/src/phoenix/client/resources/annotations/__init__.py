@@ -86,7 +86,7 @@ class Annotations:
         metadata: Optional[dict[str, Any]] = None,
         identifier: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[dict]:
+    ) -> Optional[v1.InsertedSpanAnnotation]:
         """Add a single span annotation.
 
         Args:
@@ -110,7 +110,7 @@ class Annotations:
                 processed asynchronously. Defaults to False.
 
         Returns:
-            Optional[dict]: If sync is True, the inserted span annotation
+            Optional[v1.InsertedSpanAnnotation]: If sync is True, the inserted span annotation
                 containing an ID. If sync is False, None.
 
         Raises:
@@ -154,7 +154,7 @@ class Annotations:
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         annotation_name: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[list[dict]]:
+    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame.
 
         This method allows you to create multiple span annotations at once by providing the data
@@ -181,7 +181,7 @@ class Annotations:
                 asynchronously. Defaults to False.
 
         Returns:
-            Optional[list[dict]]: If sync is True, a list of all inserted span
+            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of all inserted span
                 annotations. If sync is False, None.
 
         Raises:
@@ -243,9 +243,9 @@ class Annotations:
     def log_span_annotations(
         self,
         *,
-        span_annotations: Iterable[dict],
+        span_annotations: Iterable[v1.SpanAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[dict]]:
+    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
         """Log multiple span annotations.
 
         Args:
@@ -345,13 +345,14 @@ class AsyncAnnotations:
         metadata: Optional[dict[str, Any]] = None,
         identifier: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[dict]:
+    ) -> Optional[v1.InsertedSpanAnnotation]:
         """Add a single span annotation asynchronously.
 
         Args:
             span_id: The ID of the span to annotate.
             annotation_name: The name of the annotation.
             annotator_kind: The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+                Defaults to "HUMAN".
                 Defaults to "HUMAN".
             label: The label assigned by the annotation.
             score: The score assigned by the annotation.
@@ -410,7 +411,7 @@ class AsyncAnnotations:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[dict]]:
+    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame asynchronously.
 
         This method allows you to create multiple span annotations at once by providing the data
@@ -487,9 +488,9 @@ class AsyncAnnotations:
     async def log_span_annotations(
         self,
         *,
-        span_annotations: Iterable[dict],
+        span_annotations: Iterable[v1.SpanAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[dict]]:
+    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
         """Log multiple span annotations asynchronously.
 
         Args:
