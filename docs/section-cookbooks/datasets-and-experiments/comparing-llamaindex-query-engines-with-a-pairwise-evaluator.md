@@ -23,8 +23,9 @@ url = "hf://datasets/databricks/databricks-dolly-15k/databricks-dolly-15k.jsonl"
 df = pd.read_json(url, lines=True)
 df = df.loc[df.category == category, ["instruction", "response"]]
 df = df.sample(sample_size, random_state=42)
-dataset = px.Client().upload_dataset(
-    dataset_name=f"{category}_{time_ns()}",
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
+    name=f"{category}_{time_ns()}",
     dataframe=df,
 )
 ```

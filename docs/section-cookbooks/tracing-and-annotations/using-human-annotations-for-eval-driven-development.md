@@ -106,7 +106,7 @@ This tool was built using the Phoenix [REST API](https://app.gitbook.com/o/-MB4w
 
 ```python
 import pandas as pd
-import phoenix as px
+from phoenix.client import Client
 from phoenix.client import Client
 from phoenix.client.types import spans
 
@@ -114,9 +114,9 @@ client = Client()
 # replace "correctness" if you chose to annotate on different criteria
 query = spans.SpanQuery().where("annotations['correctness']")
 spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="my-annotations-app")
-dataset = px.Client().upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=spans_df,
-    dataset_name="annotated-rhymes",
+    name="annotated-rhymes",
     input_keys=["attributes.input.value"],
     output_keys=["attributes.llm.output_messages"],
 )
