@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2c744584a69d34c53ec3de771b0ce182>>
+ * @generated SignedSource<<22b578c59e31dc34cc4238e77fc3159b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -141,7 +141,16 @@ return {
   "selections": [
     {
       "alias": "experimentRuns",
-      "args": null,
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "sort",
+          "value": {
+            "col": "id",
+            "dir": "desc"
+          }
+        }
+      ],
       "concreteType": "ExperimentRunConnection",
       "kind": "LinkedField",
       "name": "__ExampleExperimentRunsTable_experimentRuns_connection",
@@ -332,7 +341,7 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "__ExampleExperimentRunsTable_experimentRuns_connection(sort:{\"col\":\"id\",\"dir\":\"desc\"})"
     },
     (v1/*: any*/)
   ],
@@ -341,6 +350,6 @@ return {
 };
 })();
 
-(node as any).hash = "0962e5684bea3e6b09a524b69d8d34e9";
+(node as any).hash = "3cfcfda139fa99964bff35c624896dee";
 
 export default node;

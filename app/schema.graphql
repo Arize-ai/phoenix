@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(first: Int = 50, after: String): ExperimentRunConnection!
+  experimentRuns(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
 }
 
 """A connection to a list of items."""
@@ -1189,6 +1189,10 @@ enum ExperimentRunAnnotatorKind {
   CODE
 }
 
+enum ExperimentRunColumn {
+  id
+}
+
 type ExperimentRunComparison implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1262,6 +1266,12 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
+}
+
+"""The sort key and direction for experiment run connections"""
+input ExperimentRunSort {
+  col: ExperimentRunColumn!
+  dir: SortDir!
 }
 
 type ExportedFile {

@@ -69,8 +69,11 @@ export function ExampleExperimentRunsTable({
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
       ) {
-        experimentRuns(first: $first, after: $after)
-          @connection(key: "ExampleExperimentRunsTable_experimentRuns") {
+        experimentRuns(
+          first: $first
+          after: $after
+          sort: { col: id, dir: desc }
+        ) @connection(key: "ExampleExperimentRunsTable_experimentRuns") {
           edges {
             run: node {
               id

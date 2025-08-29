@@ -7,11 +7,12 @@ from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.ExperimentRunSort import ExperimentRunColumn, ExperimentRunSort
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRepetition import to_gql_experiment_repetition
@@ -25,6 +26,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
 )
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 
 _DEFAULT_FIRST = 50
@@ -71,34 +73,61 @@ class DatasetExample(Node):
         info: Info[Context, None],
         first: Optional[int] = _DEFAULT_FIRST,
         after: Optional[CursorString] = UNSET,
+        sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
+        sort_dir: SortDir = SortDir.asc
+        if sort:
+            if sort.col is not ExperimentRunColumn.id:
+                assert_never(sort.col)
+            sort_dir = sort.dir
+
         example_id = self.id_attr
         experiment_ids_subquery = (
             select(models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
-            .order_by(models.ExperimentRun.experiment_id.asc())
             .limit((first or _DEFAULT_FIRST) + 1)
             .scalar_subquery()
         )
+        if sort_dir is SortDir.asc:
+            experiment_ids_subquery = experiment_ids_subquery.order_by(
+                models.ExperimentRun.experiment_id.asc()
+            )
+        else:
+            experiment_ids_subquery = experiment_ids_subquery.order_by(
+                models.ExperimentRun.experiment_id.desc()
+            )
+
         if after:
             after_experiment_id, after_example_id = parse_experiment_run_node_id(after)
             if after_example_id != example_id:
                 raise BadRequest(f"Invalid after node ID: {after}")
-            experiment_ids_subquery = experiment_ids_subquery.where(
-                models.ExperimentRun.experiment_id > after_experiment_id
-            )
+            if sort_dir is SortDir.asc:
+                experiment_ids_subquery = experiment_ids_subquery.where(
+                    models.ExperimentRun.experiment_id > after_experiment_id
+                )
+            else:
+                experiment_ids_subquery = experiment_ids_subquery.where(
+                    models.ExperimentRun.experiment_id < after_experiment_id
+                )
 
         query = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids_subquery))
-            .order_by(
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+        )
+        if sort_dir is SortDir.asc:
+            query = query.order_by(
                 models.ExperimentRun.experiment_id.asc(),
                 models.ExperimentRun.dataset_example_id.asc(),
                 models.ExperimentRun.repetition_number.asc(),
             )
-            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
-        )
+        else:
+            query = query.order_by(
+                models.ExperimentRun.experiment_id.desc(),
+                models.ExperimentRun.dataset_example_id.desc(),
+                models.ExperimentRun.repetition_number.desc(),
+            )
 
         ExperimentId: TypeAlias = int
         async with info.context.db() as session:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d74f0777c6ee3558b9e83c90e9a9610e>>
+ * @generated SignedSource<<d8c387f8637988af5344b818ff74f459>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -150,6 +150,14 @@ v8 = [
     "kind": "Literal",
     "name": "first",
     "value": 100
+  },
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "id",
+      "dir": "desc"
+    }
   }
 ],
 v9 = {
@@ -412,12 +420,14 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "experimentRuns(first:100)"
+                "storageKey": "experimentRuns(first:100,sort:{\"col\":\"id\",\"dir\":\"desc\"})"
               },
               {
                 "alias": null,
                 "args": (v8/*: any*/),
-                "filters": null,
+                "filters": [
+                  "sort"
+                ],
                 "handle": "connection",
                 "key": "ExampleExperimentRunsTable_experimentRuns",
                 "kind": "LinkedHandle",
@@ -433,12 +443,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "43e86d96b9ae325deac76d70f67fa31e",
+    "cacheID": "8ca3a7fc5e879da2d06a154103e5915a",
     "id": null,
     "metadata": {},
     "name": "ExampleDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        repetitions {\n          id\n          startTime\n          endTime\n          error\n          output\n          trace {\n            id\n            traceId\n            projectId\n          }\n          annotations {\n            edges {\n              annotation: node {\n                id\n                name\n                label\n                score\n                explanation\n                annotatorKind\n                trace {\n                  id\n                  traceId\n                  projectId\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: ID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100, sort: {col: id, dir: desc}) {\n    edges {\n      run: node {\n        id\n        repetitions {\n          id\n          startTime\n          endTime\n          error\n          output\n          trace {\n            id\n            traceId\n            projectId\n          }\n          annotations {\n            edges {\n              annotation: node {\n                id\n                name\n                label\n                score\n                explanation\n                annotatorKind\n                trace {\n                  id\n                  traceId\n                  projectId\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
