@@ -73,7 +73,6 @@ class DatasetExample(Node):
         after: Optional[CursorString] = UNSET,
     ) -> Connection[ExperimentRun]:
         example_id = self.id_attr
-
         experiment_ids_subquery = (
             select(models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
