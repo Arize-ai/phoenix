@@ -37,12 +37,12 @@ At the core, an Evaluator is anything that returns a Score.
 - Use `input_mapping` to map evaluator-required field names to your input keys or paths.
 
 ### LLMEvaluator
-- Constructor: `LLMEvaluator(name: str, llm: LLM | AsyncLLM, prompt_template: str | Template, schema: dict | None = None, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`
+- Constructor: `LLMEvaluator(name: str, llm: LLM, prompt_template: str | Template, schema: dict | None = None, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`
 - Infers `input_schema` from the prompt template placeholders when not provided.
-- Synchronous `evaluate` requires a sync `LLM`. Asynchronous `aevaluate` requires an `AsyncLLM`.
+- Synchronous `evaluate` requires a sync `LLM`. Asynchronous `aevaluate` requires the same `LLM` instance (which supports both sync and async methods).
 
 ### ClassificationEvaluator
-- Constructor: `ClassificationEvaluator(name: str, llm: LLM | AsyncLLM, prompt_template: str | Template, choices: list[str] | dict[str, float | int] | dict[str, tuple[float|int, str]], include_explanation: bool = True, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`
+- Constructor: `ClassificationEvaluator(name: str, llm: LLM, prompt_template: str | Template, choices: list[str] | dict[str, float | int] | dict[str, tuple[float|int, str]], include_explanation: bool = True, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`
 - Behavior:
   - `choices` may be a list of labels, a mapping label->score, or label->(score, description)
   - Returns one `Score` with `label` and optional `score` (from mapping) and `explanation`
