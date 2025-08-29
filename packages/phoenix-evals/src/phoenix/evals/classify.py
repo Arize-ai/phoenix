@@ -73,6 +73,17 @@ PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
 
 def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to deprecate the 'dataframe' argument in favor of 'data'.
+
+    Args:
+        func (Callable[..., Any]): Function to be decorated that may receive
+            a deprecated 'dataframe' argument.
+
+    Returns:
+        Callable[..., Any]: Wrapper function that converts 'dataframe' argument
+            to 'data' and issues deprecation warning.
+    """
     # Remove this once the `dataframe` arg in `llm_classify` is no longer supported
 
     @wraps(func)

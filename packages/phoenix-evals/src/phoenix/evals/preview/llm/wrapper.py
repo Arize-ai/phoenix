@@ -17,18 +17,50 @@ register_adapters()
 
 
 def _get_llm_model_name(bound: BoundArguments) -> str:
+    """Extract model name from bound function arguments.
+
+    Args:
+        bound (BoundArguments): Bound arguments from function call inspection.
+
+    Returns:
+        str: Model name from the 'self.model' attribute, or empty string if not found.
+    """
     return bound.arguments["self"].model or ""
 
 
 def _get_prompt(bound: BoundArguments) -> str:
+    """Extract prompt text from bound function arguments.
+
+    Args:
+        bound (BoundArguments): Bound arguments from function call inspection.
+
+    Returns:
+        str: Prompt text from arguments, or empty string if not found.
+    """
     return bound.arguments.get("prompt", "") or ""
 
 
 def _get_output(result: Any) -> Any:
+    """Pass-through function for output processing in tracing.
+
+    Args:
+        result (Any): The raw result from function execution.
+
+    Returns:
+        Any: The unmodified result.
+    """
     return result
 
 
 def _jsonify_output(result: Any) -> str:
+    """Convert result to JSON string representation.
+
+    Args:
+        result (Any): The result to convert to JSON.
+
+    Returns:
+        str: JSON string representation of the result.
+    """
     return json.dumps(result)
 
 
