@@ -183,3 +183,15 @@ runExperiment({
   evaluators: [hallucinationCheck],
 });
 ```
+
+## Community
+
+Join our community to connect with thousands of AI builders:
+
+- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
+- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
