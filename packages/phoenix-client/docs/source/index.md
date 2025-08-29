@@ -2,6 +2,13 @@
 
 Welcome to the Phoenix Client documentation. This lightweight Python client provides a simple interface for interacting with the Phoenix platform via its REST API, enabling you to manage datasets, run experiments, analyze traces, and collect feedback programmatically.
 
+- **[Datasets](api/datasets)** - Create and manage datasets for experimentation
+- **[Experiments](api/experiments)** - Run experiments and evaluate model performance
+- **[Prompts](api/prompts)** - Manage prompt templates and versions
+- **[Spans](api/spans)** - Access and analyze traces and spans
+- **[Annotations](api/annotations)** - Add annotations, evals, and feedback to spans
+- **[Projects](api/projects)** - Organize your work with project management
+
 ## Installation
 
 Install the Phoenix Client using pip:
