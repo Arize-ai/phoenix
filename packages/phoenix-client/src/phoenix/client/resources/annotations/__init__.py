@@ -249,14 +249,14 @@ class Annotations:
         """Log multiple span annotations.
 
         Args:
-            span_annotations (Iterable[dict]): An iterable of span annotation data to log. Each annotation must include
+            span_annotations (Iterable[v1.SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
                 at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
             sync (bool): If True, the request will be fulfilled synchronously and the response will contain
                 the inserted annotation IDs. If False, the request will be processed asynchronously.
                 Defaults to False.
 
         Returns:
-            Optional[list[dict]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -349,26 +349,25 @@ class AsyncAnnotations:
         """Add a single span annotation asynchronously.
 
         Args:
-            span_id: The ID of the span to annotate.
-            annotation_name: The name of the annotation.
-            annotator_kind: The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            span_id (str): The ID of the span to annotate.
+            annotation_name (str): The name of the annotation.
+            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
                 Defaults to "HUMAN".
-                Defaults to "HUMAN".
-            label: The label assigned by the annotation.
-            score: The score assigned by the annotation.
-            explanation: Explanation of the annotation result.
-            metadata: Additional metadata for the annotation.
-            identifier: An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+            label (Optional[str]): The label assigned by the annotation.
+            score (Optional[float]): The score assigned by the annotation.
+            explanation (Optional[str]): Explanation of the annotation result.
+            metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+            identifier (Optional[str]): An optional identifier for the annotation. Each annotation is uniquely identified by the combination
                 of name, span_id, and identifier (where a null identifier is equivalent to an empty string).
                 If an annotation with the same name, span_id, and identifier already exists, it will be updated.
                 Using a non-empty identifier allows you to have multiple annotations with the same name and span_id.
                 Most of the time, you can leave this as None - it will also update the record with identifier="" if it exists.
-            sync: If True, the request will be fulfilled synchronously and the response will contain
+            sync (bool): If True, the request will be fulfilled synchronously and the response will contain
                 the inserted annotation ID. If False, the request will be processed asynchronously.
                 Defaults to False.
 
         Returns:
-            If sync is True, the inserted span annotation containing an ID. If sync is False, None.
+            Optional[v1.InsertedSpanAnnotation]: If sync is True, the inserted span annotation containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -494,14 +493,14 @@ class AsyncAnnotations:
         """Log multiple span annotations asynchronously.
 
         Args:
-            span_annotations (Iterable[dict]): An iterable of span annotation data to log. Each annotation must include
+            span_annotations (Iterable[v1.SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
                 at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
             sync (bool): If True, the request will be fulfilled synchronously and the response will contain
                 the inserted annotation IDs. If False, the request will be processed asynchronously.
                 Defaults to False.
 
         Returns:
-            Optional[list[dict]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -569,15 +568,15 @@ def _get_span_annotation(
     """Create a span annotation data object.
 
     Args:
-        span_id: The ID of the span to annotate.
-        annotation_name: The name of the annotation.
-        annotator_kind: The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        span_id (str): The ID of the span to annotate.
+        annotation_name (str): The name of the annotation.
+        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
             Defaults to "HUMAN".
-        label: The label assigned by the annotation.
-        score: The score assigned by the annotation.
-        explanation: Explanation of the annotation result.
-        metadata: Additional metadata for the annotation.
-        identifier: An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+        label (Optional[str]): The label assigned by the annotation.
+        score (Optional[float]): The score assigned by the annotation.
+        explanation (Optional[str]): Explanation of the annotation result.
+        metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+        identifier (Optional[str]): An optional identifier for the annotation. Each annotation is uniquely identified by the combination
             of name, span_id, and identifier (where a null identifier is equivalent to an empty string).
             If an annotation with the same name, span_id, and identifier already exists, it will be updated.
             Using a non-empty identifier allows you to have multiple annotations with the same name and span_id.
@@ -585,7 +584,7 @@ def _get_span_annotation(
             It will also update the record with identifier="" if it exists.
 
     Returns:
-        A span annotation data object that can be used with the Annotations API.
+        av1.SpanAnnotationData: A span annotation data object that can be used with the Annotations API.
 
     Raises:
         ValueError: If at least one of label, score, or explanation is not provided, or if required fields are invalid.
