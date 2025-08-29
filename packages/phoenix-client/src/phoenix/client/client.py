@@ -166,7 +166,8 @@ class AsyncClient:
 
     @property
     def prompts(self) -> AsyncPrompts:
-        """Returns an instance of the AsyncPrompts class for interacting with prompt-related API endpoints.
+        """
+        Returns an instance of the AsyncPrompts class for interacting with prompt-related API endpoints.
 
         Returns:
             AsyncPrompts: An instance of the AsyncPrompts class.
