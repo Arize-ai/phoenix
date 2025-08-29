@@ -716,17 +716,16 @@ def evaluate_dataframe(
     This function uses a synchronous executor; for async evaluation, use `async_evaluate_dataframe`.
 
     Args:
-        dataframe: The input dataframe to evaluate. Each row will be converted to a dict
-                  and passed to each evaluator.
+        dataframe: The input dataframe to evaluate. Each row will be converted to a dict and passed
+            to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
-                   already bound via `bind_evaluator` or column names should match
-                   evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress
-                        bar is disabled.
-        exit_on_error: Optional flag to control whether execution should stop on the first
-                      error. If None, uses SyncExecutor's default (True).
-        max_retries: Optional number of times to retry on exceptions. If None, uses
-                    SyncExecutor's default (10).
+            already bound via `bind_evaluator` or column names should match evaluator input fields.
+        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
+            disabled.
+        exit_on_error: Optional flag to control whether execution should stop on the first error.
+            If None, uses SyncExecutor's default (True).
+        max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
+            default (10).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.
