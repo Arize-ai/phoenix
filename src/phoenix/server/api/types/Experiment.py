@@ -22,6 +22,7 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
+from phoenix.server.api.types.User import User, to_gql_user
 
 
 @strawberry.type
@@ -35,6 +36,19 @@ class Experiment(Node):
     metadata: JSON
     created_at: datetime
     updated_at: datetime
+    user_id: Private[Optional[int]]
+
+    @strawberry.field
+    async def user(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[User]:
+        if self.user_id is None:
+            return None
+        user = await info.context.data_loaders.users.load(self.user_id)
+        if user is None:
+            return None
+        return to_gql_user(user)
 
     @strawberry.field(
         description="Sequence number (1-based) of experiments belonging to the same dataset"
@@ -204,4 +218,5 @@ def to_gql_experiment(
         metadata=experiment.metadata_,
         created_at=experiment.created_at,
         updated_at=experiment.updated_at,
+        user_id=experiment.user_id,
     )

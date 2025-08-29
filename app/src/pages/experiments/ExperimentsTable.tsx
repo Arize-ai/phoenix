@@ -162,6 +162,10 @@ export function ExperimentsTable({
                 project {
                   id
                 }
+                user {
+                  id
+                  username
+                }
                 costSummary {
                   total {
                     tokens
@@ -273,6 +277,15 @@ export function ExperimentsTable({
       accessorKey: "description",
       minSize: 300,
       cell: TextCell,
+    },
+    {
+      header: "user",
+      accessorKey: "user.username",
+      minSize: 150,
+      cell: ({ row }) => {
+        const user = row.original.user;
+        return user?.username || "--";
+      },
     },
     {
       header: "created at",
