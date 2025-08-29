@@ -1,5 +1,14 @@
 # arize-phoenix-evals
 
+<p align="center">
+    <a href="https://pypi.org/project/arize-phoenix-evals/">
+        <img src="https://img.shields.io/pypi/v/arize-phoenix-evals" alt="PyPI Version">
+    </a>
+    <a href="https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html">
+        <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
+    </a>
+</p>
+
 Phoenix provides tooling to evaluate LLM applications, including tools to determine the relevance or irrelevance of documents retrieved by retrieval-augmented generation (RAG) application, whether or not the response is toxic, and much more.
 
 Phoenix's approach to LLM evals is notable for the following reasons:
@@ -28,6 +37,7 @@ pip install 'openai>=1.0.0'
 Here is an example of running the RAG relevance eval on a dataset of Wikipedia questions and answers:
 
 This example uses scikit-learn, so install it via `pip`
+
 ```shell
 pip install scikit-learn
 ```
@@ -84,3 +94,21 @@ for idx, label in enumerate(class_names):
 ```
 
 To learn more about LLM Evals, see the [LLM Evals documentation](https://arize.com/docs/phoenix/concepts/llm-evals/).
+
+## Documentation
+
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html)** - Complete API reference and guides
+- **[Phoenix Docs](https://arize.com/docs/phoenix)** -Detailed use-cases and examples
+- **[OpenInference](https://github.com/Arize-ai/openinference)** - Auto-instrumentation libraries for frameworks
+
+## Community
+
+Join our community to connect with thousands of AI builders:
+
+- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
+- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
