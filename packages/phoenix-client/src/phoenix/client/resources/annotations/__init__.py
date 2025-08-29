@@ -158,7 +158,7 @@ class Annotations:
             ValueError: If the DataFrame is missing required columns, if both "name" and
                 "annotation_name" columns are present, or if no valid annotation data is provided.
 
-        Example::
+        Example:
 
             import pandas as pd
 
@@ -246,7 +246,7 @@ class AsyncAnnotations:
 
     This class provides asynchronous methods for creating and managing span annotations.
 
-    Example::
+    Example:
 
         from phoenix.client import AsyncClient
 
@@ -306,7 +306,7 @@ class AsyncAnnotations:
             ValueError: If the response is invalid or if at least one of label, score, or explanation
                 is not provided.
 
-        Example::
+        Example:
 
             from phoenix.client import AsyncClient
 
@@ -368,7 +368,7 @@ class AsyncAnnotations:
             ImportError: If pandas is not installed.
             ValueError: If the DataFrame is missing required columns or if no valid annotation data is provided.
 
-        Example::
+        Example:
 
             import pandas as pd
 
@@ -427,7 +427,7 @@ class AsyncAnnotations:
             httpx.HTTPError: If the request fails.
             ValueError: If the response is invalid.
 
-        Example::
+        Example:
 
             from phoenix.client import AsyncClient
 
