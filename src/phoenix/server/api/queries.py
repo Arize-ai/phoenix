@@ -495,9 +495,9 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]] = (
-                defaultdict(lambda: defaultdict(list))
-            )
+            runs_by_id: defaultdict[
+                ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]
+            ] = defaultdict(lambda: defaultdict(list))
             async for run in await session.stream_scalars(
                 select(models.ExperimentRun)
                 .where(
@@ -513,20 +513,21 @@ class Query:
                     models.ExperimentRun.repetition_number.asc()
                 )  # repetitions are not currently implemented, but this ensures that the repetitions will be properly ordered once implemented # noqa: E501
             ):
-                runs[run.dataset_example_id][run.experiment_id].append(run)
+                runs_by_id[run.dataset_example_id][run.experiment_id].append(run)
 
         cursors_and_nodes = []
         for example in examples:
-            run_nodes = []
+            runs = []
             for experiment_rowid in experiment_rowids:
-                run_nodes.append(
+                runs.append(
                     ExperimentRun(
                         experiment_rowid=experiment_rowid,
                         dataset_example_rowid=example.id,
                         repetitions=[
                             to_gql_experiment_repetition(run)
                             for run in sorted(
-                                runs[example.id][experiment_rowid], key=lambda run: run.id
+                                runs_by_id[example.id][experiment_rowid],
+                                key=lambda run: run.repetition_number,
                             )
                         ],
                     )
@@ -538,7 +539,7 @@ class Query:
                     created_at=example.created_at,
                     version_id=base_experiment.dataset_version_id,
                 ),
-                runs=run_nodes,
+                runs=runs,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
 
