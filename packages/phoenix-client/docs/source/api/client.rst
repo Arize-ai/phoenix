@@ -139,6 +139,117 @@ AsyncAnnotations
    :members:
    :show-inheritance:
 
+Helpers
+-------
+
+Spans Helpers
+~~~~~~~~~~~~~
+.. automodule:: client.helpers.spans
+   :members:
+   :show-inheritance:
+
+SDK Helpers
+~~~~~~~~~~~
+
+OpenAI
+^^^^^^
+.. automodule:: client.helpers.sdk.openai
+   :members:
+   :show-inheritance:
+
+Anthropic
+^^^^^^^^^
+.. automodule:: client.helpers.sdk.anthropic
+   :members:
+   :show-inheritance:
+
+Google Generative AI
+^^^^^^^^^^^^^^^^^^^^
+.. automodule:: client.helpers.sdk.google_generativeai
+   :members:
+   :show-inheritance:
+
+Types
+-----
+
+Prompts Types
+~~~~~~~~~~~~~
+.. automodule:: client.types.prompts
+   :members:
+   :show-inheritance:
+
+Spans Types
+~~~~~~~~~~~
+.. automodule:: client.types.spans
+   :members:
+   :show-inheritance:
+
+Utils
+-----
+
+Executors
+~~~~~~~~~
+.. automodule:: client.utils.executors
+   :members:
+   :show-inheritance:
+
+Rate Limiters
+~~~~~~~~~~~~~
+.. automodule:: client.utils.rate_limiters
+   :members:
+   :show-inheritance:
+
+Configuration
+~~~~~~~~~~~~~
+.. automodule:: client.utils.config
+   :members:
+   :show-inheritance:
+
+Template Formatters
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: client.utils.template_formatters
+   :members:
+   :show-inheritance:
+
+ID Handling
+~~~~~~~~~~~
+.. automodule:: client.utils.id_handling
+   :members:
+   :show-inheritance:
+
+Environment Headers
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: client.utils.parse_env_headers
+   :members:
+   :show-inheritance:
+
+Path Encoding
+~~~~~~~~~~~~~
+.. automodule:: client.utils.encode_path_param
+   :members:
+   :show-inheritance:
+
+Exceptions
+----------
+.. automodule:: client.exceptions
+   :members:
+   :show-inheritance:
+
+Experiment Types and Evaluators
+-------------------------------
+
+Experiment Types
+~~~~~~~~~~~~~~~~
+.. automodule:: client.resources.experiments.types
+   :members:
+   :show-inheritance:
+
+Evaluators
+~~~~~~~~~~
+.. automodule:: client.resources.experiments.evaluators
+   :members:
+   :show-inheritance:
+
 Module Contents
 ---------------
 
