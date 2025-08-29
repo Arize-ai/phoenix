@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRepetitionConnection!
+  experimentRuns(first: Int = 50, after: String): ExperimentRunConnection!
 }
 
 """A connection to a list of items."""
@@ -1142,29 +1142,11 @@ type ExperimentRepetition implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-"""A connection to a list of items."""
-type ExperimentRepetitionConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExperimentRepetitionEdge!]!
-}
-
-"""An edge in a connection."""
-type ExperimentRepetitionEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ExperimentRepetition!
-}
-
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   repetitions: [ExperimentRepetition!]!
-  experimentId: String!
+  experimentId: ID!
 }
 
 type ExperimentRunAnnotation implements Node {

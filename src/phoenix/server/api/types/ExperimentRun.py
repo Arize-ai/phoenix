@@ -19,7 +19,7 @@ class ExperimentRun(Node):
     repetitions: list[ExperimentRepetition]
 
     @strawberry.field
-    def experiment_id(self) -> str:
+    def experiment_id(self) -> strawberry.ID:
         return str(GlobalID("Experiment", str(self.experiment_rowid)))
 
     @classmethod
@@ -29,7 +29,9 @@ class ExperimentRun(Node):
         *,
         info: Info,
     ) -> str:
-        return get_experiment_run_node_id(root.experiment_rowid, root.dataset_example_rowid)
+        return (
+            f"experiment_id={root.experiment_rowid}:dataset_example_id={root.dataset_example_rowid}"
+        )
 
 
 _EXPERIMENT_RUN_NODE_ID_PATTERN = re.compile(

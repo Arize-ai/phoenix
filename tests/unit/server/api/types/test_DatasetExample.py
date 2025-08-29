@@ -9,6 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.types.ExperimentRun import get_experiment_run_node_id
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -102,11 +103,14 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
               edges {
                 run: node {
                   id
-                  traceId
-                  output
-                  startTime
-                  endTime
-                  error
+                  repetitions {
+                    id
+                    traceId
+                    output
+                    startTime
+                    endTime
+                    error
+                  }
                 }
               }
             }
@@ -125,22 +129,36 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
                 "edges": [
                     {
                         "run": {
-                            "id": str(GlobalID("ExperimentRepetition", str(2))),
-                            "traceId": None,
-                            "output": {"output": "experiment-2-run-1-output"},
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:01:00+00:00",
-                            "error": None,
+                            "id": get_experiment_run_node_id(
+                                experiment_rowid=1, dataset_example_rowid=1
+                            ),
+                            "repetitions": [
+                                {
+                                    "id": str(GlobalID("ExperimentRepetition", str(1))),
+                                    "traceId": None,
+                                    "output": "experiment-1-run-1-output",
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:01:00+00:00",
+                                    "error": None,
+                                }
+                            ],
                         }
                     },
                     {
                         "run": {
-                            "id": str(GlobalID("ExperimentRepetition", str(1))),
-                            "traceId": None,
-                            "output": "experiment-1-run-1-output",
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:01:00+00:00",
-                            "error": None,
+                            "id": get_experiment_run_node_id(
+                                experiment_rowid=2, dataset_example_rowid=1
+                            ),
+                            "repetitions": [
+                                {
+                                    "id": str(GlobalID("ExperimentRepetition", str(2))),
+                                    "traceId": None,
+                                    "output": {"output": "experiment-2-run-1-output"},
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:01:00+00:00",
+                                    "error": None,
+                                }
+                            ],
                         }
                     },
                 ]
