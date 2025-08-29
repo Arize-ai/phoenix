@@ -90,22 +90,22 @@ class Experiment(Node):
 
         DatasetExampleId: TypeAlias = int
         async with info.context.db() as session:
-            runs_by_example_id: dict[DatasetExampleId, list[models.ExperimentRun]] = {}
-            for run in await session.scalars(query):
-                example_id = run.dataset_example_id
-                if example_id not in runs_by_example_id:
-                    runs_by_example_id[example_id] = []
-                runs_by_example_id[example_id].append(run)
+            db_runs_by_example_id: dict[DatasetExampleId, list[models.ExperimentRun]] = {}
+            for db_run in await session.scalars(query):
+                example_id = db_run.dataset_example_id
+                if example_id not in db_runs_by_example_id:
+                    db_runs_by_example_id[example_id] = []
+                db_runs_by_example_id[example_id].append(db_run)
 
         has_next_page = False
-        if first and len(runs_by_example_id) > first:
+        if first and len(db_runs_by_example_id) > first:
             has_next_page = True
-            runs_by_example_id.popitem()
+            db_runs_by_example_id.popitem()
 
         cursors_and_nodes: list[tuple[str, ExperimentRun]] = []
-        for example_id, runs in runs_by_example_id.items():
+        for example_id, runs in db_runs_by_example_id.items():
             cursor = get_experiment_run_node_id(experiment_id, example_id)
-            runs_node = ExperimentRun(
+            run_node = ExperimentRun(
                 experiment_rowid=experiment_id,
                 dataset_example_rowid=example_id,
                 repetitions=[
@@ -113,7 +113,7 @@ class Experiment(Node):
                     for run in sorted(runs, key=lambda run: run.repetition_number)
                 ],
             )
-            cursors_and_nodes.append((cursor, runs_node))
+            cursors_and_nodes.append((cursor, run_node))
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
