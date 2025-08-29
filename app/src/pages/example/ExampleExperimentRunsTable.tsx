@@ -74,28 +74,31 @@ export function ExampleExperimentRunsTable({
           edges {
             run: node {
               id
-              startTime
-              endTime
-              error
-              output
-              trace {
+              repetitions {
                 id
-                traceId
-                projectId
-              }
-              annotations {
-                edges {
-                  annotation: node {
-                    id
-                    name
-                    label
-                    score
-                    explanation
-                    annotatorKind
-                    trace {
+                startTime
+                endTime
+                error
+                output
+                trace {
+                  id
+                  traceId
+                  projectId
+                }
+                annotations {
+                  edges {
+                    annotation: node {
                       id
-                      traceId
-                      projectId
+                      name
+                      label
+                      score
+                      explanation
+                      annotatorKind
+                      trace {
+                        id
+                        traceId
+                        projectId
+                      }
                     }
                   }
                 }
@@ -112,14 +115,15 @@ export function ExampleExperimentRunsTable({
     () =>
       data.experimentRuns.edges.map((edge) => {
         let latencyMs: number | null = null;
-        if (edge.run.startTime && edge.run.endTime) {
+        const repetition = edge.run.repetitions[0];
+        if (repetition.startTime && repetition.endTime) {
           latencyMs =
-            new Date(edge.run.endTime).getTime() -
-            new Date(edge.run.startTime).getTime();
+            new Date(repetition.endTime).getTime() -
+            new Date(repetition.startTime).getTime();
         }
         return {
-          ...edge.run,
-          output: JSON.stringify(edge.run.output),
+          ...repetition,
+          output: JSON.stringify(repetition.output),
           latencyMs,
         };
       }),
