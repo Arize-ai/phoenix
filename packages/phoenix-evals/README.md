@@ -1,5 +1,14 @@
 # arize-phoenix-evals
 
+<p align="center">
+    <a href="https://pypi.org/project/arize-phoenix-evals/">
+        <img src="https://img.shields.io/pypi/v/arize-phoenix-evals" alt="PyPI Version">
+    </a>
+    <a href="https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html">
+        <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
+    </a>
+</p>
+
 Phoenix provides tooling to evaluate LLM applications, including tools to determine the relevance or irrelevance of documents retrieved by retrieval-augmented generation (RAG) application, whether or not the response is toxic, and much more.
 
 Phoenix's approach to LLM evals is notable for the following reasons:
@@ -28,6 +37,7 @@ pip install 'openai>=1.0.0'
 Here is an example of running the RAG relevance eval on a dataset of Wikipedia questions and answers:
 
 This example uses scikit-learn, so install it via `pip`
+
 ```shell
 pip install scikit-learn
 ```

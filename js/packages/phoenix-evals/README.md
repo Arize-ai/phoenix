@@ -12,7 +12,14 @@
     </div>
 </h1>
 
-![NPM](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)
+<p align="center">
+    <a href="https://www.npmjs.com/package/@arizeai/phoenix-evals">
+        <img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals" alt="NPM Version">
+    </a>
+    <a href="https://arize-ai.github.io/phoenix/">
+        <img src="https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white" alt="Documentation">
+    </a>
+</p>
 
 This package provides a TypeScript evaluation library. It is vendor agnostic and can be used in isolation of any framework or platform. This package is still under active development and is subject to change.
 
