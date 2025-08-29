@@ -46,31 +46,34 @@ def uniquify_spans(
     collection are preserved by mapping old IDs to new IDs consistently.
 
     Args:
-        spans: A sequence of Span objects to regenerate IDs for.
-        in_place: If True, modifies the original spans. If False (default),
+        spans (Sequence[v1.Span]): A sequence of Span objects to regenerate IDs for.
+        in_place (bool): If True, modifies the original spans. If False (default),
             creates deep copies of the spans before modification.
 
     Returns:
-        A list of Span objects with regenerated IDs.
-        If in_place=True, returns the modified input. If in_place=False, returns
-        a deep copy with modifications.
+        list[v1.Span]: A list of Span objects with regenerated IDs.
+            If in_place=True, returns the modified input. If in_place=False, returns
+            a deep copy with modifications.
 
-    Example:
-        >>> from phoenix.client import Client
-        >>> from phoenix.client.helpers.spans import uniquify_spans
-        >>> client = Client()
-        >>>
-        >>> # Original spans that may have duplicate IDs
-        >>> spans = [...]
-        >>>
-        >>> # Generate new IDs to ensure uniqueness
-        >>> new_spans = uniquify_spans(spans)
-        >>>
-        >>> # Now create the spans with guaranteed unique IDs
-        >>> result = client.spans.create_spans(
-        ...     project_identifier="my-project",
-        ...     spans=new_spans
-        ... )
+    Examples:
+        Basic usage::
+
+            from phoenix.client import Client
+            from phoenix.client.helpers.spans import uniquify_spans
+
+            client = Client()
+
+            # Original spans that may have duplicate IDs
+            spans = [...]
+
+            # Generate new IDs to ensure uniqueness
+            new_spans = uniquify_spans(spans)
+
+            # Now create the spans with guaranteed unique IDs
+            result = client.spans.create_spans(
+                project_identifier="my-project",
+                spans=new_spans
+            )
     """
     if in_place:
         mutable_spans = spans if isinstance(spans, list) else list(spans)
@@ -134,27 +137,34 @@ def uniquify_spans_dataframe(
     consistently.
 
     Args:
-        df: A pandas DataFrame (typically from get_spans_dataframe) to regenerate IDs for.
-        in_place: If True, modifies the original DataFrame. If False (default),
+        df (pd.DataFrame): A pandas DataFrame (typically from get_spans_dataframe) to
+            regenerate IDs for.
+        in_place (bool): If True, modifies the original DataFrame. If False (default),
             creates a deep copy of the DataFrame before modification.
 
     Returns:
-        A DataFrame with regenerated IDs in the index and columns.
-        If in_place=True, returns the modified input. If in_place=False, returns
-        a deep copy with modifications.
+        pd.DataFrame: A DataFrame with regenerated IDs in the index and columns.
+            If in_place=True, returns the modified input. If in_place=False, returns
+            a deep copy with modifications.
 
-    Example:
-        >>> from phoenix.client import Client
-        >>> from phoenix.client.helpers.spans import uniquify_spans_dataframe
-        >>> client = Client()
-        >>>
-        >>> # Get spans as DataFrame
-        >>> df = client.spans.get_spans_dataframe(
-        ...     project_identifier="my-project"
-        ... )
-        >>>
-        >>> # Generate new IDs for the DataFrame
-        >>> new_df = uniquify_spans_dataframe(df)
+    Examples:
+        Basic usage::
+
+            from phoenix.client import Client
+            from phoenix.client.helpers.spans import uniquify_spans_dataframe
+
+            client = Client()
+
+            # Get spans as DataFrame
+            df = client.spans.get_spans_dataframe(
+                project_identifier="my-project"
+            )
+
+            # Generate new IDs for the DataFrame
+            new_df = uniquify_spans_dataframe(df)
+
+            # Use the DataFrame with unique IDs
+            print(f"Generated {len(new_df)} spans with unique IDs")
     """
     import pandas as pd
 
@@ -228,33 +238,36 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
     names (e.g., 'context.span_id') back to nested dictionaries.
 
     Args:
-        df: A pandas DataFrame typically returned by get_spans_dataframe.
+        df (pd.DataFrame): A pandas DataFrame typically returned by get_spans_dataframe.
 
     Returns:
-        A list of Span objects reconstructed from the DataFrame.
+        list[v1.Span]: A list of Span objects reconstructed from the DataFrame.
 
-    Example:
-        >>> from phoenix.client import Client
-        >>> from phoenix.client.helpers.spans import dataframe_to_spans
-        >>>
-        >>> client = Client()
-        >>>
-        >>> # Get spans as DataFrame
-        >>> df = client.spans.get_spans_dataframe(
-        ...     project_identifier="my-project"
-        ... )
-        >>>
-        >>> # Filter or modify the DataFrame
-        >>> filtered_df = df[df['span_kind'] == 'LLM']
-        >>>
-        >>> # Convert back to Span objects
-        >>> spans = dataframe_to_spans(filtered_df)
-        >>>
-        >>> # Now you can use these spans with other APIs
-        >>> result = client.spans.create_spans(
-        ...     project_identifier="another-project",
-        ...     spans=spans
-        ... )
+    Examples:
+        Basic usage::
+
+            from phoenix.client import Client
+            from phoenix.client.helpers.spans import dataframe_to_spans
+
+            client = Client()
+
+            # Get spans as DataFrame
+            df = client.spans.get_spans_dataframe(
+                project_identifier="my-project"
+            )
+
+            # Filter or modify the DataFrame
+            filtered_df = df[df['span_kind'] == 'LLM']
+
+            # Convert back to Span objects
+            spans = dataframe_to_spans(filtered_df)
+            print(f"Converted {len(spans)} spans from DataFrame")
+
+            # Now you can use these spans with other APIs
+            result = client.spans.create_spans(
+                project_identifier="another-project",
+                spans=spans
+            )
     """
     import pandas as pd
 
