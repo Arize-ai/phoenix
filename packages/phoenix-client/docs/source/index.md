@@ -13,15 +13,26 @@ pip install arize-phoenix-client
 ## API Reference
 
 ```{toctree}
-:maxdepth: 3
+:maxdepth: 2
 :caption: API Reference
 
 api/client
+api/projects
+api/prompts
+api/spans
+api/datasets
+api/experiments
+api/annotations
+api/helpers
+api/utils
+api/types
+api/exceptions
 ```
 
 ## Getting Started
 
 ### Environment Variables
+
 Configure the Phoenix Client using environment variables for seamless use across different environments:
 
 ```bash
@@ -41,6 +52,7 @@ export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=v
 ```
 
 ### Client Initialization
+
 The client automatically reads environment variables, or you can override them:
 
 ```python
@@ -77,7 +89,9 @@ async_client = AsyncClient(
 The Phoenix Client organizes functionality into resources that correspond to key Phoenix platform features. Each resource provides specialized methods for managing different types of data:
 
 ### Prompts
+
 Manage prompt templates and versions:
+
 ```python
 # Create a new prompt
 from phoenix.client import Client
@@ -117,6 +131,7 @@ print(resp.choices[0].message.content)
 ```
 
 ### Spans
+
 Query for spans and annotations from your projects for custom evaluation and annotation workflows.
 
 ```python
@@ -165,6 +180,7 @@ annotations = client.spans.get_span_annotations(
 ```
 
 ### Annotations
+
 Add annotations to spans for evaluation, user feedback, and custom annotation workflows:
 
 ```python
@@ -198,7 +214,7 @@ annotations = [
     },
     {
         "name": "accuracy",
-        "span_id": "span-456", 
+        "span_id": "span-456",
         "annotator_kind": "HUMAN",
         "result": {"label": "accurate", "score": 0.95}
     },
@@ -225,6 +241,7 @@ client.annotations.log_span_annotations_dataframe(dataframe=df)
 ```
 
 ### Datasets
+
 Manage evaluation datasets and examples for experiments and testing:
 
 ```python
@@ -355,6 +372,7 @@ restored_dataset = Dataset.from_dict(dataset_dict)
 ```
 
 ### Experiments
+
 Run evaluations and experiments on your datasets to test AI application performance:
 
 ```python
@@ -434,6 +452,7 @@ experiment = await async_run_experiment(
 ```
 
 ### Projects
+
 Manage Phoenix projects that organize your AI application data:
 
 ```python
@@ -477,4 +496,4 @@ print(f"Updated project description: {updated_project['description']}")
 
 - {ref}`genindex`
 - {ref}`modindex`
-- {ref}`search` 
+- {ref}`search`
