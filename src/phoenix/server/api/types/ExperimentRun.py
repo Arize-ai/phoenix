@@ -20,7 +20,7 @@ class ExperimentRun(Node):
 
     @strawberry.field
     def experiment_id(self) -> strawberry.ID:
-        return str(GlobalID("Experiment", str(self.experiment_rowid)))
+        return strawberry.ID(str(GlobalID("Experiment", str(self.experiment_rowid))))
 
     @classmethod
     def resolve_id(
