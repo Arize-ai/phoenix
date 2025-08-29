@@ -199,9 +199,12 @@ scores = bound_evaluator({
 - **Static validation**: Mapping syntax is validated at creation time
 - **Introspection**: `describe()` shows mapping details alongside schema
 
-## Dataframe Evaluation
+# Dataframe Evaluation
 
-Run multiple evaluators over a pandas dataframe. The output is an augmented dataframe with two added columns per score:
+- `evaluate_dataframe` for synchronous dataframe evaluations
+- `async_evaluate_dataframe` an asynchronous version for optimized speed and ability to specify concurrency.
+
+Both methods run multiple evaluators over a pandas dataframe. The output is an augmented dataframe with two added columns per score:
 
 1. `{score_name}_score` contains the JSON serialized score (or None if the evaluation failed)
 2. `{evaluator_name}_execution_details` contains information about the execution status, duration, and any exceptions that ocurred.
@@ -218,7 +221,7 @@ Run multiple evaluators over a pandas dataframe. The output is an augmented data
       in the execution_details column and the score will be None.
 
 ### Examples 
-Evaluator with more than one score returned:
+1) Evaluator with more than one score returned:
 ```python
 import pandas as pd
 
@@ -237,12 +240,11 @@ df = pd.DataFrame(
 result = evaluate_dataframe(df, [precision_recall_fscore])
 result.head()
 ```
-Running multiple evaluators, one bound with an input_mapping:
+2) Running multiple evaluators, one bound with an input_mapping:
 ```python
 from phoenix.evals.preview.llm import LLM
-from phoenix.evals.preview.evaluators import bind_evaluator
+from phoenix.evals.preview.evaluators import bind_evaluator, evaluate_dataframe
 from phoenix.evals.preview.metrics import HallucinationEvaluator, exact_match
-
 
 df = pd.DataFrame(
     {
@@ -266,6 +268,30 @@ hallucination_evaluator = bind_evaluator(
 )
 
 result = evaluate_dataframe(df, [exact_match, hallucination_evaluator])
+result.head()
+```
+3) Asynchronous evaluation 
+```python
+from phoenix.evals.preview.llm import LLM
+from phoenix.evals.preview.metrics import HallucinationEvaluator
+from phoenix.evals.preview import async_evaluate_dataframe
+
+df = pd.DataFrame(
+    {
+        "context": ["This is a test", "This is another test", "This is a third test"],
+        "input": [ 
+            "What is the name of this test?",
+            "What is the name of this test?",
+            "What is the name of this test?",
+        ],
+        "output": ["First test", "Another test", "Third test"],
+    }
+)
+
+llm = LLM(provider="openai", model="gpt-4o")
+hallucination_evaluator = HallucinationEvaluator(llm=llm)
+
+result = await async_evaluate_dataframe(df, [hallucination_evaluator], concurrency=5)
 result.head()
 ```
 
