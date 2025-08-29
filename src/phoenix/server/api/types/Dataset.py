@@ -15,9 +15,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
+    DatasetExperimentAnnotationSummary,
+)
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -270,53 +272,13 @@ class Dataset(Node):
     @strawberry.field
     async def experiment_annotation_summaries(
         self, info: Info[Context, None]
-    ) -> list[ExperimentAnnotationSummary]:
+    ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id_attr
-        repetition_mean_scores_by_example_subquery = (
-            select(
-                models.ExperimentRunAnnotation.name.label("annotation_name"),
-                func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
-            )
-            .select_from(models.ExperimentRunAnnotation)
-            .join(
-                models.ExperimentRun,
-                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
-            )
-            .join(
-                models.Experiment,
-                models.ExperimentRun.experiment_id == models.Experiment.id,
-            )
-            .where(models.Experiment.dataset_id == dataset_id)
-            .group_by(
-                models.ExperimentRun.dataset_example_id,
-                models.ExperimentRunAnnotation.name,
-            )
-            .subquery()
-            .alias("repetition_mean_scores_by_example")
-        )
-        repetition_mean_scores_subquery = (
-            select(
-                repetition_mean_scores_by_example_subquery.c.annotation_name.label(
-                    "annotation_name"
-                ),
-                func.avg(repetition_mean_scores_by_example_subquery.c.mean_repetition_score).label(
-                    "mean_score"
-                ),
-            )
-            .select_from(repetition_mean_scores_by_example_subquery)
-            .group_by(
-                repetition_mean_scores_by_example_subquery.c.annotation_name,
-            )
-            .subquery()
-            .alias("repetition_mean_scores")
-        )
-        repetitions_subquery = (
+        query = (
             select(
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 func.min(models.ExperimentRunAnnotation.score).label("min_score"),
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
-                func.count().label("count"),
-                func.count(models.ExperimentRunAnnotation.error).label("error_count"),
             )
             .select_from(models.ExperimentRunAnnotation)
             .join(
@@ -329,36 +291,16 @@ class Dataset(Node):
             )
             .where(models.Experiment.dataset_id == dataset_id)
             .group_by(models.ExperimentRunAnnotation.name)
-            .subquery()
-        )
-        run_scores_query = (
-            select(
-                repetition_mean_scores_subquery.c.annotation_name.label("annotation_name"),
-                repetition_mean_scores_subquery.c.mean_score.label("mean_score"),
-                repetitions_subquery.c.min_score.label("min_score"),
-                repetitions_subquery.c.max_score.label("max_score"),
-                repetitions_subquery.c.count.label("count_"),
-                repetitions_subquery.c.error_count.label("error_count"),
-            )
-            .select_from(repetition_mean_scores_subquery)
-            .join(
-                repetitions_subquery,
-                repetitions_subquery.c.annotation_name
-                == repetition_mean_scores_subquery.c.annotation_name,
-            )
-            .order_by(repetition_mean_scores_subquery.c.annotation_name)
+            .order_by(models.ExperimentRunAnnotation.name)
         )
         async with info.context.db() as session:
             return [
-                ExperimentAnnotationSummary(
+                DatasetExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
                     min_score=scores_tuple.min_score,
                     max_score=scores_tuple.max_score,
-                    mean_score=scores_tuple.mean_score,
-                    count=scores_tuple.count_,
-                    error_count=scores_tuple.error_count,
                 )
-                async for scores_tuple in await session.stream(run_scores_query)
+                async for scores_tuple in await session.stream(query)
             ]
 
     @strawberry.field

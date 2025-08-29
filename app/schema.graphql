@@ -558,7 +558,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
-  experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
 
@@ -632,6 +632,12 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+type DatasetExperimentAnnotationSummary {
+  annotationName: String!
+  minScore: Float
+  maxScore: Float
 }
 
 """A filter for datasets"""
