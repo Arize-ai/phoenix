@@ -69,6 +69,7 @@ class Experiment(Node):
         dataset_example_ids_subquery = (
             select(models.ExperimentRun.dataset_example_id)
             .where(models.ExperimentRun.experiment_id == experiment_id)
+            .order_by(models.ExperimentRun.dataset_example_id.asc())
             .limit((first or _DEFAULT_FIRST) + 1)
             .scalar_subquery()
         )
