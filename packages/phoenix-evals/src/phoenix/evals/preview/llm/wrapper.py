@@ -118,8 +118,6 @@ class LLM:
         self._async_client = async_client
         self._sync_adapter = adapter_class(sync_client)
         self._async_adapter = adapter_class(async_client)
-        self._client = client
-        self._adapter = adapter_class(client)
         self._rate_limit_errors = rate_limit_errors
         rate_limit_args: Dict[str, Any] = {}
         if initial_per_second_request_rate is not None:
