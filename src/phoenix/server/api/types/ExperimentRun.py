@@ -29,9 +29,7 @@ class ExperimentRun(Node):
         *,
         info: Info,
     ) -> str:
-        unencoded_id = f"ExperimentRuns:experiment_id={root.experiment_rowid}:dataset_example_id={root.dataset_example_rowid}"  # noqa: E501
-        encoded_id = _base64_encode(unencoded_id)
-        return encoded_id
+        return get_experiment_run_node_id(root.experiment_rowid, root.dataset_example_rowid)
 
 
 _EXPERIMENT_RUN_NODE_ID_PATTERN = re.compile(
