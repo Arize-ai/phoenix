@@ -78,9 +78,11 @@ def snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = Fa
     snapped to a rail.
 
     Args:
-        raw_string (str): An input to be snapped to a rail.
+        raw_string (Optional[str]): An input to be snapped to a rail.
 
         rails (List[str]): The target set of strings to snap to.
+
+        verbose (bool, optional): Whether to print debug information. Defaults to False.
 
     Returns:
         str: A string from the rails argument or "UNPARSABLE" if the input
@@ -187,6 +189,13 @@ def _default_openai_function(
 
 
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
+    """Print arguments if the condition is True.
+
+    Args:
+        condition (bool): Whether to print or not.
+        *args (Any): Positional arguments to pass to tqdm.write.
+        **kwargs (Any): Keyword arguments to pass to tqdm.write.
+    """
     if condition:
         tqdm.write(*args, **kwargs)
 
@@ -198,10 +207,10 @@ def get_audio_format_from_base64(
     Determines the audio format from a base64 encoded string by checking file signatures.
 
     Args:
-        enc_str: Base64 encoded audio data
+        enc_str (str): Base64 encoded audio data
 
     Returns:
-        Audio format as string
+        Literal["mp3", "wav", "ogg", "flac", "m4a", "aac"]: Audio format as string
 
     Raises:
         ValueError: If the audio format is not supported or cannot be determined
@@ -251,10 +260,11 @@ def get_image_format_from_base64(
     Determines the image format from a base64 encoded string by checking file signatures.
 
     Args:
-        enc_str: Base64 encoded image data
+        enc_str (str): Base64 encoded image data
 
     Returns:
-        Image format as string
+        Literal["png", "jpeg", "jpg", "webp", "heic", "heif", "bmp", "gif", "tiff", "ico"]:
+            Image format as string
 
     Raises:
         ValueError: If the image format is not supported or cannot be determined
@@ -305,6 +315,15 @@ def get_image_format_from_base64(
 
 
 def emoji_guard(emoji: str, fallback: str = "") -> str:
+    """Return emoji on non-Windows systems, fallback on Windows.
+
+    Args:
+        emoji (str): The emoji string to display.
+        fallback (str, optional): The fallback string for Windows. Defaults to "".
+
+    Returns:
+        str: The emoji or fallback string depending on the operating system.
+    """
     # Windows has problems with showing emojis
     if os.name == "nt":
         return fallback
