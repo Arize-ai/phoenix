@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.30.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.30.0...arize-phoenix-v11.30.1) (2025-08-29)
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+
 ## [11.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.29.0...arize-phoenix-v11.30.0) (2025-08-28)
 
 
