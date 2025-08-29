@@ -2,19 +2,8 @@
 
 Welcome to the Phoenix Client documentation. This lightweight Python client provides a simple interface for interacting with the Phoenix platform via its REST API, enabling you to manage datasets, run experiments, analyze traces, and collect feedback programmatically.
 
-## Installation
-
-Install the Phoenix Client using pip:
-
-```bash
-pip install arize-phoenix-client
-```
-
-## API Reference
-
 ```{toctree}
-:maxdepth: 2
-:caption: API Reference
+:maxdepth: 3
 
 api/client
 api/projects
@@ -27,6 +16,14 @@ api/helpers
 api/utils
 api/types
 api/exceptions
+```
+
+## Installation
+
+Install the Phoenix Client using pip:
+
+```bash
+pip install arize-phoenix-client
 ```
 
 ## Getting Started
