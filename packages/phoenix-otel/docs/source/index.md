@@ -1,16 +1,19 @@
 # Phoenix OTEL Reference
 
-Welcome to the Phoenix OTEL reference documentation. This package provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults and tracing decorators for common GenAI patterns.
-
-## Overview
-
-`arize-phoenix-otel` simplifies OpenTelemetry configuration for Phoenix users by providing:
+Welcome to the Phoenix OTEL reference documentation. This package provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults and tracing decorators for common GenAI patterns. `arize-phoenix-otel` simplifies OpenTelemetry configuration for Phoenix users by providing:
 
 - Phoenix-aware defaults for common OpenTelemetry primitives
-- Automatic configuration from environment variables
+- Automatic configuration from environment variables 
 - Drop-in replacements for OTel classes with enhanced functionality
 - Simplified tracing setup with the `register()` function
 - Tracing decorators for GenAI patterns
+
+The key components include:
+
+- **[Register](api/register)** - Simple setup and configuration with `register()`
+- **[TracerProvider](api/provider)** - Phoenix-aware tracer provider
+- **[Span Processors](api/processors)** - Batch and simple span processors
+- **[Exporters](api/exporters)** - HTTP and gRPC span exporters
 
 ## Installation
 
@@ -29,7 +32,7 @@ from phoenix.otel import register
 tracer_provider = register(auto_instrument=True)
 ```
 
-This is all you need to get started using OpenTelemetry with Phoenix! The `register()` function defaults to sending spans to an endpoint at `http://localhost` using gRPC. With `auto_instrument=True`, your AI/ML libraries are automatically traced.
+This is all you need to get started using OpenTelemetry with Phoenix! The `register()` function defaults to sending spans to an endpoint at `http://localhost` using gRPC. With `auto_instrument=True`, your AI/ML libraries are automatically traced
 
 ### Basic Configuration
 
@@ -66,6 +69,24 @@ response = client.chat.completions.create(  # This will be automatically traced
 )
 ```
 
+**Note**: `auto_instrument=True` only works if the corresponding OpenInference instrumentation libraries are installed. For example, to automatically trace OpenAI calls, you need `openinference-instrumentation-openai` installed:
+
+```bash
+pip install openinference-instrumentation-openai
+pip install openinference-instrumentation-langchain  # For LangChain
+pip install openinference-instrumentation-llama-index  # For LlamaIndex
+```
+
+See the [OpenInference repository](https://github.com/Arize-ai/openinference) for the complete list of available instrumentation packages.
+
+**Production Tip**: For production deployments, set `batch=True` to improve performance by batching spans before sending them to the collector. Spans are exported in the background, so your application won't be blocked:
+
+```python
+tracer_provider = register(
+    auto_instrument=True,
+    batch=True  # Recommended for production - exports spans in background
+)
+```
 
 ## Authentication
 
@@ -226,9 +247,9 @@ The package recognizes these Phoenix-specific environment variables for automati
 
 - `PHOENIX_COLLECTOR_ENDPOINT`: Collector endpoint URL (e.g., `https://your-phoenix.com:6006`)
 - `PHOENIX_PROJECT_NAME`: Project name for spans (e.g., `my-llm-app`)
-- `PHOENIX_CLIENT_HEADERS`: Additional headers for requests (e.g., `Authorization=Bearer token,custom-header=value`)
 - `PHOENIX_API_KEY`: User or system key
 - `PHOENIX_GRPC_PORT`: gRPC port override (defaults to 4317)
+- `PHOENIX_CLIENT_HEADERS`: Additional headers for requests (e.g., `Authorization=Bearer token,custom-header=value`)
 
 ### Environment Variable Examples
 
