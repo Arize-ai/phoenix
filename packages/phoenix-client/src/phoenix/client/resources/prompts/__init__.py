@@ -17,10 +17,51 @@ class Prompts:
 
     This class allows you to retrieve and create prompt versions.
 
-    Example::
+    Examples:
+        Basic prompt operations::
 
-        from phoenix.client import Client
-        Client().prompts.get(prompt_identifier="my-prompt")
+            from phoenix.client import Client
+            client = Client()
+
+            # Get the latest version of a prompt
+            prompt_version = client.prompts.get(prompt_identifier="my-prompt")
+            print(f"Prompt template: {prompt_version.template}")
+
+            # Get a specific version by ID
+            specific_version = client.prompts.get(prompt_version_id="version-123")
+            print(f"Model: {specific_version.model_name}")
+
+            # Get a tagged version
+            production_version = client.prompts.get(
+                prompt_identifier="my-prompt",
+                tag="production"
+            )
+
+            # Create a new prompt version
+            from phoenix.client.types.prompts import PromptVersion
+            new_version = client.prompts.create(
+                name="sentiment-classifier",
+                version=PromptVersion(
+                    template="Classify the sentiment: {{text}}",
+                    model_name="gpt-4",
+                    model_provider="OPENAI"
+                ),
+                prompt_description="Sentiment classification prompt"
+            )
+
+        Working with tags::
+
+            # List all tags for a prompt version
+            tags = client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}")
+
+            # Create a new tag
+            client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging deployment"
+            )
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -51,10 +92,23 @@ class Prompts:
         Raises:
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
-        Example:
-            Basic usage:
-                >>> from phoenix.client import Client
-                >>> Client().prompts.get(prompt_identifier="my-prompt")
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Get latest version of a prompt
+            prompt_version = client.prompts.get(prompt_identifier="my-prompt")
+            print(f"Template: {prompt_version.template}")
+
+            # Get specific version by ID
+            specific_version = client.prompts.get(prompt_version_id="version-123")
+
+            # Get tagged version
+            tagged_version = client.prompts.get(
+                prompt_identifier="my-prompt",
+                tag="production"
+            )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
@@ -101,10 +155,34 @@ class PromptVersionTags:
     organizing and categorizing different versions of prompts, making it easier to track
     and manage prompt versions.
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> Client().prompts.tags.list(prompt_version_id="...")
+    Examples:
+        Tag management operations::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # List all tags for a prompt version
+            tags = client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}, Description: {tag['description']}")
+
+            # Create a new tag
+            client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="production",
+                description="Production-ready version"
+            )
+
+            # Create multiple tags for different environments
+            environments = [
+                {"name": "staging", "description": "Staging environment"},
+                {"name": "development", "description": "Development environment"},
+            ]
+            for env in environments:
+                client.prompts.tags.create(
+                    prompt_version_id="version-123",
+                    **env
+                )
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -131,12 +209,24 @@ class PromptVersionTags:
                 This could happen if the prompt version doesn't exist or if there are
                 permission issues.
 
-        Example:
-            >>> client.prompts.tags.create(
-            ...     prompt_version_id="version-123",
-            ...     name="staging",
-            ...     description="Ready for staging environment"
-            ... )
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Create a tag for a prompt version
+            client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging environment"
+            )
+
+            # Create a production tag
+            client.prompts.tags.create(
+                prompt_version_id="version-456",
+                name="production",
+                description="Production deployment"
+            )
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
@@ -165,10 +255,20 @@ class PromptVersionTags:
                 This could happen if the prompt version doesn't exist or if there are
                 permission issues.
 
-        Example:
-            >>> tags = client.prompts.tags.list(prompt_version_id="version-123")
-            >>> for tag in tags:
-            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # List all tags for a prompt version
+            tags = client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}, Description: {tag['description']}")
+
+            # Check if a specific tag exists
+            production_tags = [tag for tag in tags if tag['name'] == 'production']
+            if production_tags:
+                print("Production version is available")
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = self._client.get(url)
@@ -180,12 +280,53 @@ class AsyncPrompts:
     """
     Provides asynchronous methods for interacting with prompt resources.
 
-    This class allows you to retrieve and create prompt versions.
+    This class allows you to retrieve and create prompt versions asynchronously.
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import AsyncClient
-            >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+    Examples:
+        Basic prompt operations::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Get the latest version of a prompt
+            prompt_version = await async_client.prompts.get(prompt_identifier="my-prompt")
+            print(f"Prompt template: {prompt_version.template}")
+
+            # Get a specific version by ID
+            specific_version = await async_client.prompts.get(prompt_version_id="version-123")
+            print(f"Model: {specific_version.model_name}")
+
+            # Get a tagged version
+            production_version = await async_client.prompts.get(
+                prompt_identifier="my-prompt",
+                tag="production"
+            )
+
+            # Create a new prompt version
+            from phoenix.client.types.prompts import PromptVersion
+            new_version = await async_client.prompts.create(
+                name="sentiment-classifier",
+                version=PromptVersion(
+                    template="Classify the sentiment: {{text}}",
+                    model_name="gpt-4",
+                    model_provider="OPENAI"
+                ),
+                prompt_description="Sentiment classification prompt"
+            )
+
+        Working with tags::
+
+            # List all tags for a prompt version
+            tags = await async_client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}")
+
+            # Create a new tag
+            await async_client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging deployment"
+            )
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -216,10 +357,23 @@ class AsyncPrompts:
         Raises:
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
-        Example:
-            Basic usage:
-                >>> from phoenix.client import AsyncClient
-                >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Get latest version of a prompt
+            prompt_version = await async_client.prompts.get(prompt_identifier="my-prompt")
+            print(f"Template: {prompt_version.template}")
+
+            # Get specific version by ID
+            specific_version = await async_client.prompts.get(prompt_version_id="version-123")
+
+            # Get tagged version
+            tagged_version = await async_client.prompts.get(
+                prompt_identifier="my-prompt",
+                tag="production"
+            )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
@@ -266,10 +420,34 @@ class AsyncPromptVersionTags:
     useful for organizing and categorizing different versions of prompts, making it easier to
     track and manage prompt versions in an asynchronous context.
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> await Client().prompts.tags.list(prompt_version_id="...")
+    Examples:
+        Tag management operations::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # List all tags for a prompt version
+            tags = await async_client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}, Description: {tag['description']}")
+
+            # Create a new tag
+            await async_client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="production",
+                description="Production-ready version"
+            )
+
+            # Create multiple tags for different environments
+            environments = [
+                {"name": "staging", "description": "Staging environment"},
+                {"name": "development", "description": "Development environment"},
+            ]
+            for env in environments:
+                await async_client.prompts.tags.create(
+                    prompt_version_id="version-123",
+                    **env
+                )
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -296,12 +474,24 @@ class AsyncPromptVersionTags:
                 This could happen if the prompt version doesn't exist or if there are
                 permission issues.
 
-        Example:
-            >>> await client.prompts.tags.create(
-            ...     prompt_version_id="version-123",
-            ...     name="staging",
-            ...     description="Ready for staging environment"
-            ... )
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Create a tag for a prompt version
+            await async_client.prompts.tags.create(
+                prompt_version_id="version-123",
+                name="staging",
+                description="Ready for staging environment"
+            )
+
+            # Create a production tag
+            await async_client.prompts.tags.create(
+                prompt_version_id="version-456",
+                name="production",
+                description="Production deployment"
+            )
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
@@ -330,10 +520,20 @@ class AsyncPromptVersionTags:
                 This could happen if the prompt version doesn't exist or if there are
                 permission issues.
 
-        Example:
-            >>> tags = await client.prompts.tags.list(prompt_version_id="version-123")
-            >>> for tag in tags:
-            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # List all tags for a prompt version
+            tags = await async_client.prompts.tags.list(prompt_version_id="version-123")
+            for tag in tags:
+                print(f"Tag: {tag['name']}, Description: {tag['description']}")
+
+            # Check if a specific tag exists
+            production_tags = [tag for tag in tags if tag['name'] == 'production']
+            if production_tags:
+                print("Production version is available")
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = await self._client.get(url)
@@ -367,13 +567,19 @@ def _url(
         AssertionError: If neither prompt_version_id nor prompt_identifier is provided,
             or if the provided values are not strings.
 
-    Example:
-        >>> _url(prompt_version_id="version-123")
-        'v1/prompt_versions/version-123'
-        >>> _url(prompt_identifier="my-prompt")
-        'v1/prompts/my-prompt/latest'
-        >>> _url(prompt_identifier="my-prompt", tag="production")
-        'v1/prompts/my-prompt/tags/production'
+    Example::
+
+        # Get URL for specific prompt version
+        url = _url(prompt_version_id="version-123")
+        # Returns: 'v1/prompt_versions/version-123'
+
+        # Get URL for latest version of a prompt
+        url = _url(prompt_identifier="my-prompt")
+        # Returns: 'v1/prompts/my-prompt/latest'
+
+        # Get URL for tagged version of a prompt
+        url = _url(prompt_identifier="my-prompt", tag="production")
+        # Returns: 'v1/prompts/my-prompt/tags/production'
     """
     if prompt_version_id is not None:
         assert isinstance(prompt_version_id, str)
