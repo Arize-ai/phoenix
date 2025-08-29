@@ -534,34 +534,6 @@ with using_attributes(session_id="123", user_id="user456"):
     result = my_function("input")
 ```
 
-#### Adding Images to Traces
-
-Phoenix supports multimodal traces with images:
-
-```python
-import openinference.instrumentation as oi
-
-def process_image_query(image_url: str, text_query: str):
-    # Create multimodal message
-    image = oi.Image(url=image_url)
-    contents = [
-        oi.TextMessageContent(type="text", text=text_query),
-        oi.ImageMessageContent(type="image", image=image),
-    ]
-    messages = [oi.Message(role="user", contents=contents)]
-    
-    with tracer.start_as_current_span(
-        "image_analysis",
-        openinference_span_kind="llm",
-        attributes=oi.get_llm_attributes(input_messages=messages)
-    ) as span:
-        span.set_input(text_query)
-        # Process the image and text
-        response = "Analysis result"
-        span.set_output(response)
-        return response
-```
-
 For more detailed examples and advanced usage patterns, see the [Phoenix tracing documentation](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python).
 
 ## API Reference
