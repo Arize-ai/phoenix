@@ -462,19 +462,18 @@ OpenAIInstrumentor().uninstrument()  # Uninstrument the OpenAI client to avoid c
 ```python
 import nest_asyncio
 
-import phoenix as px
+from phoenix.client import Client
 from phoenix.evals import TOOL_CALLING_PROMPT_TEMPLATE, OpenAIModel, llm_classify
-from phoenix.experiments import evaluate_experiment, run_experiment
+from phoenix.client.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.types import Example
-from phoenix.trace import SpanEvaluations
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 nest_asyncio.apply()
 ```
 
 ```python
-px_client = px.Client()
+px_client = Client()
 eval_model = OpenAIModel(model="gpt-4o-mini")
 ```
 
@@ -499,7 +498,7 @@ query = (
 )
 
 # The Phoenix Client can take this query and return the dataframe.
-tool_calls_df = px.Client().query_spans(query, project_name=project_name, timeout=None)
+tool_calls_df = px_client.spans.get_spans_dataframe(query=query, project_identifier=project_name, timeout=None)
 tool_calls_df.dropna(subset=["output_messages"], inplace=True)
 
 
@@ -541,8 +540,10 @@ tool_call_eval.head()
 ```
 
 ```python
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Tool Calling Eval", dataframe=tool_call_eval),
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=tool_call_eval,
+    annotation_name="Tool Calling Eval",
+    annotator_kind="LLM",
 )
 ```
 
@@ -581,9 +582,9 @@ agent_tool_responses = {
 
 
 tool_calling_df = pd.DataFrame(agent_tool_responses.items(), columns=["question", "tool_calls"])
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=tool_calling_df,
-    dataset_name=f"tool_calling_ground_truth_{id}",
+    name=f"tool_calling_ground_truth_{id}",
     input_keys=["question"],
     output_keys=["tool_calls"],
 )
@@ -670,9 +671,9 @@ display(questions_df)
 ```
 
 ```python
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=questions_df,
-    dataset_name=f"sales_db_lookup_questions_{id}",
+    name=f"sales_db_lookup_questions_{id}",
     input_keys=["question"],
     output_keys=["expected_result"],
 )
@@ -738,9 +739,9 @@ code_generation_df = pd.DataFrame(
     }
 )
 
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=code_generation_df,
-    dataset_name=f"code_generation_questions_{id}",
+    name=f"code_generation_questions_{id}",
     input_keys=["question", "example_data", "chart_configs"],
 )
 ```
@@ -832,8 +833,8 @@ convergence_questions = [
 
 convergence_df = pd.DataFrame({"question": convergence_questions})
 
-dataset = px_client.upload_dataset(
-    dataframe=convergence_df, dataset_name="convergence_questions", input_keys=["question"]
+dataset = px_client.datasets.create_dataset(
+    dataframe=convergence_df, name="convergence_questions", input_keys=["question"]
 )
 ```
 
@@ -1114,7 +1115,7 @@ print(overall_experiment_questions[6])
 
 # overall_experiment_df = pd.DataFrame(overall_experiment_questions)
 
-# dataset = px_client.upload_dataset(dataframe=overall_experiment_df, dataset_name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
+# dataset = px_client.datasets.create_dataset(dataframe=overall_experiment_df, name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
 ```
 
 ```python
