@@ -92,7 +92,11 @@ class DatasetExample(Node):
             select(models.ExperimentRun)
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids_subquery))
-            .order_by(models.ExperimentRun.experiment_id.asc())
+            .order_by(
+                models.ExperimentRun.experiment_id.asc(),
+                models.ExperimentRun.dataset_example_id.asc(),
+                models.ExperimentRun.repetition_number.asc(),
+            )
             .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
         )
 
@@ -113,15 +117,12 @@ class DatasetExample(Node):
         cursors_and_nodes: list[tuple[str, ExperimentRun]] = []
         for experiment_id, runs in runs_by_experiment_id.items():
             cursor = get_experiment_run_node_id(experiment_id, example_id)
-            runs_node = ExperimentRun(
+            run_node = ExperimentRun(
                 experiment_rowid=experiment_id,
                 dataset_example_rowid=example_id,
-                repetitions=[
-                    to_gql_experiment_repetition(run)
-                    for run in sorted(runs, key=lambda run: run.repetition_number)
-                ],
+                repetitions=[to_gql_experiment_repetition(run) for run in runs],
             )
-            cursors_and_nodes.append((cursor, runs_node))
+            cursors_and_nodes.append((cursor, run_node))
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
