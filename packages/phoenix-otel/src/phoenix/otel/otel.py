@@ -705,16 +705,42 @@ def _exporter_transport(exporter: SpanExporter) -> str:
 
 
 def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
+    """
+    Mask header values for safe printing/logging.
+
+    Args:
+        headers (Union[List[Tuple[str, str]], Dict[str, str]]): Headers as either
+            a list of key-value tuples or a dictionary.
+
+    Returns:
+        Dict[str, str]: Dictionary with header keys preserved but values masked as "****".
+    """
     if isinstance(headers, dict):
         return {key: "****" for key, _ in headers.items()}
     return {key: "****" for key, _ in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    """Construct HTTP endpoint URL with traces path.
+
+    Args:
+        parsed_endpoint (ParseResult): Parsed URL endpoint.
+
+    Returns:
+        ParseResult: Modified endpoint with "/v1/traces" path.
+    """
     return parsed_endpoint._replace(path="/v1/traces")
 
 
 def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    """Construct Phoenix Cloud endpoint URL.
+
+    Args:
+        parsed_endpoint (ParseResult): Parsed URL endpoint.
+
+    Returns:
+        ParseResult: Modified endpoint for Phoenix Cloud.
+    """
     space_pattern = r"^/s/([a-zA-Z0-9_-]+)"
 
     match = re.match(space_pattern, parsed_endpoint.path)

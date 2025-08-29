@@ -481,13 +481,27 @@ class OpenAIAdapter(BaseLLMAdapter):
 
 
 def _is_url(url: str) -> bool:
-    """Check if a string is a valid URL."""
+    """Check if a string is a valid URL.
+
+    Args:
+        url (str): The string to check for URL validity.
+
+    Returns:
+        bool: True if the string is a valid URL with scheme and netloc, False otherwise.
+    """
     parsed_url = urlparse(url)
     return bool(parsed_url.scheme and parsed_url.netloc)
 
 
 def _is_base64(s: str) -> bool:
-    """Check if a string is valid base64."""
+    """Check if a string is valid base64.
+
+    Args:
+        s (str): The string to check for base64 validity.
+
+    Returns:
+        bool: True if the string is valid base64, False otherwise.
+    """
     try:
         base64.b64decode(s, validate=True)
         return True
