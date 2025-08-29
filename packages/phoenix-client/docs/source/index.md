@@ -1,6 +1,6 @@
 # Phoenix Client Reference
 
-Welcome to the Phoenix Client Reference documentation. This package provides a lightweight Python client for interacting with the Phoenix platform via its OpenAPI REST interface.
+Welcome to the Phoenix Client documentation. This lightweight Python client provides a simple interface for interacting with the Phoenix platform via its REST API, enabling you to manage datasets, run experiments, analyze traces, and collect feedback programmatically.
 
 ## Installation
 
@@ -22,7 +22,7 @@ api/client
 ## Getting Started
 
 ### Environment Variables
-Configure Phoenix Client using environment variables for easier deployment:
+Configure the Phoenix Client using environment variables for seamless use across different environments:
 
 ```bash
 # For local Phoenix server (default)
@@ -77,7 +77,7 @@ async_client = AsyncClient(
 )
 ```
 
-## Recources
+## Resources
 
 The Phoenix Client organizes its functionality into **resources** that correspond to different aspects of the Phoenix platform. Each resource provides methods to interact with specific entities:
 
@@ -122,28 +122,406 @@ print(resp.choices[0].message.content)
 ```
 
 ### Spans
-Query and analyze trace spans:
+Query for spans and annotations from your projects for custom evaluation and annotation workflows.
+
 ```python
-# Get spans from a project
-spans = client.spans.list(project_name="my-project")
+from datetime import datetime, timedelta
+from phoenix.client.types.spans import SpanQuery
+
+# Get spans as a simple list
+spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    limit=100,
+    start_time=datetime.now() - timedelta(days=7),
+    end_time=datetime.now()
+)
+
+# Get spans as pandas DataFrame for analysis
+spans_df = client.spans.get_spans_dataframe(
+    project_identifier="my-llm-app",
+    limit=1000,
+    root_spans_only=True,  # Only get top-level spans
+    start_time=datetime.now() - timedelta(hours=24)
+)
+
+# Advanced querying with SpanQuery
+query = SpanQuery().where("span_kind == 'LLM'")
+
+filtered_df = client.spans.get_spans_dataframe(
+    query=query,
+    project_identifier="my-llm-app",
+    limit=500
+)
+
+# Get span annotations as DataFrame
+annotations_df = client.spans.get_span_annotations_dataframe(
+    spans_dataframe=spans_df,  # Use spans from previous query
+    project_identifier="my-llm-app",
+    include_annotation_names=["relevance", "accuracy"],  # Only specific annotations
+    exclude_annotation_names=["note"]  # Exclude UI notes
+)
+
+# Get annotations as a list
+annotations = client.spans.get_span_annotations(
+    span_ids=["span-123", "span-456"],
+    project_identifier="my-llm-app",
+    include_annotation_names=["sentiment", "toxicity"]
+)
 ```
 
 ### Annotations
-Work with human feedback and evaluations:
+Add annotations to spans for evaluation, user feedback, and custom annotation workflows:
+
 ```python
-# Add annotations to spans
-client.annotations.create(...)
+# Add a single annotation with human feedback
+client.annotations.add_span_annotation(
+    span_id="span-123",
+    annotation_name="helpfulness",
+    annotator_kind="HUMAN",
+    label="helpful",
+    score=0.9,
+    explanation="Response directly answered the user's question"
+)
+
+# Add automated evaluation annotations
+client.annotations.add_span_annotation(
+    span_id="span-123",
+    annotation_name="toxicity",
+    annotator_kind="LLM",
+    label="safe",
+    score=0.05,
+    explanation="Content is appropriate and non-toxic"
+)
+
+# Bulk annotation logging for multiple spans
+annotations = [
+    {
+        "name": "sentiment",
+        "span_id": "span-123",
+        "annotator_kind": "LLM",
+        "result": {"label": "positive", "score": 0.8}
+    },
+    {
+        "name": "accuracy",
+        "span_id": "span-456", 
+        "annotator_kind": "HUMAN",
+        "result": {"label": "accurate", "score": 0.95}
+    },
+]
+client.annotations.log_span_annotations(span_annotations=annotations)
+
+# Using pandas DataFrame for large-scale annotation
+import pandas as pd
+
+# Create DataFrame with evaluation results
+df = pd.DataFrame({
+    "name": ["relevance", "coherence", "fluency"],
+    "span_id": ["span-001", "span-002", "span-003"],
+    "annotator_kind": ["LLM", "LLM", "HUMAN"],
+    "label": ["relevant", "coherent", "fluent"],
+    "score": [0.85, 0.92, 0.88],
+    "explanation": [
+        "Response addresses the user query",
+        "Answer flows logically",
+        "Natural language generation"
+    ]
+})
+client.annotations.log_span_annotations_dataframe(dataframe=df)
+```
+
+### Datasets
+Manage evaluation datasets and examples for experiments and testing:
+
+```python
+import pandas as pd
+
+# List all available datasets
+datasets = client.datasets.list()
+for dataset in datasets:
+    print(f"Dataset: {dataset['name']} ({dataset['example_count']} examples)")
+    print(f"Created: {dataset['created_at']}")
+
+# Get limited number of datasets for large collections
+limited_datasets = client.datasets.list(limit=10)
+
+# Get a specific dataset with all examples
+dataset = client.datasets.get_dataset(dataset="qa-evaluation")
+print(f"Dataset {dataset.name} has {len(dataset)} examples")
+print(f"Version ID: {dataset.version_id}")
+
+# Access dataset properties
+print(f"Description: {dataset.description}")
+print(f"Created: {dataset.created_at}")
+print(f"Updated: {dataset.updated_at}")
+
+# Iterate through examples
+for example in dataset:
+    print(f"Input: {example['input']}")
+    print(f"Output: {example['output']}")
+    print(f"Metadata: {example['metadata']}")
+
+# Get specific example by index
+first_example = dataset[0]
+
+# Convert dataset to pandas DataFrame for analysis
+df = dataset.to_dataframe()
+print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
+print(df.index.name)  # example_id
+
+# Create a new dataset from dictionaries
+dataset = client.datasets.create_dataset(
+    name="customer-support-qa",
+    description="Q&A dataset for customer support evaluation",
+    inputs=[
+        {"question": "How do I reset my password?"},
+        {"question": "What's your return policy?"},
+        {"question": "How do I track my order?"}
+    ],
+    outputs=[
+        {"answer": "You can reset your password by clicking the 'Forgot Password' link on the login page."},
+        {"answer": "We offer 30-day returns for unused items in original packaging."},
+        {"answer": "You can track your order using the tracking number sent to your email."}
+    ],
+    metadata=[
+        {"category": "account", "difficulty": "easy"},
+        {"category": "policy", "difficulty": "medium"},
+        {"category": "orders", "difficulty": "easy"}
+    ]
+)
+
+# Create dataset from pandas DataFrame
+df = pd.DataFrame({
+    "prompt": ["Hello", "Hi there", "Good morning"],
+    "response": ["Hi! How can I help?", "Hello! What can I do for you?", "Good morning! How may I assist?"],
+    "sentiment": ["neutral", "positive", "positive"],
+    "length": [20, 25, 30]
+})
+
+dataset = client.datasets.create_dataset(
+    name="greeting-responses",
+    dataframe=df,
+    input_keys=["prompt"],           # Columns to use as input
+    output_keys=["response"],        # Columns to use as expected output
+    metadata_keys=["sentiment", "length"]  # Additional metadata columns
+)
+
+# Create dataset from CSV file
+dataset = client.datasets.create_dataset(
+    name="csv-dataset",
+    csv_file_path="path/to/data.csv",
+    input_keys=["question", "context"],
+    output_keys=["answer"],
+    metadata_keys=["source", "confidence"]
+)
+
+# Add more examples to existing dataset
+updated_dataset = client.datasets.add_examples_to_dataset(
+    dataset="customer-support-qa",
+    inputs=[{"question": "How do I cancel my subscription?"}],
+    outputs=[{"answer": "You can cancel your subscription in your account settings."}],
+    metadata=[{"category": "subscription", "difficulty": "medium"}]
+)
+
+# Add examples from DataFrame
+new_examples_df = pd.DataFrame({
+    "question": ["What are your hours?", "Do you offer live chat?"],
+    "answer": ["We're open 24/7", "Yes, live chat is available on our website"],
+    "topic": ["hours", "support"]
+})
+
+client.datasets.add_examples_to_dataset(
+    dataset="customer-support-qa",
+    dataframe=new_examples_df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    metadata_keys=["topic"]
+)
+
+# Get dataset versions (track changes over time)
+versions = client.datasets.get_dataset_versions(dataset="customer-support-qa")
+for version in versions:
+    print(f"Version: {version['version_id']}")
+    print(f"Created: {version['created_at']}")
+
+# Get specific version of dataset
+versioned_dataset = client.datasets.get_dataset(
+    dataset="customer-support-qa",
+    version_id="version-123"
+)
+
+# Dataset serialization for backup/sharing
+dataset_dict = dataset.to_dict()
+# Save to file, send over network, etc.
+
+# Restore dataset from dictionary
+restored_dataset = Dataset.from_dict(dataset_dict)
+```
+
+### Experiments
+Run evaluations and experiments on your datasets to test AI application performance:
+
+```python
+from phoenix.client.experiments import run_experiment, get_experiment, evaluate_experiment
+
+# Get a dataset for experimentation
+dataset = client.datasets.get_dataset(dataset="customer-support-qa")
+
+# Define a task function - your AI application logic
+def customer_support_task(input):
+    """Process customer support queries"""
+    question = input["question"]
+    
+    # Your AI logic here (e.g., call to LLM, RAG pipeline, etc.)
+    # This is a simplified example
+    if "password" in question.lower():
+        return {"answer": "You can reset your password in account settings."}
+    elif "return" in question.lower():
+        return {"answer": "We offer 30-day returns for unused items."}
+    else:
+        return {"answer": "Please contact our support team for assistance."}
+
+# Define evaluators to measure performance
+def accuracy_evaluator(output, expected):
+    """Evaluate response accuracy"""
+    return 1.0 if output["answer"] == expected["answer"] else 0.0
+
+def relevance_evaluator(output, input, expected):
+    """Evaluate response relevance using multiple inputs"""
+    # Your evaluation logic here
+    score = 0.8  # Example score
+    return {
+        "score": score,
+        "label": "relevant" if score > 0.7 else "irrelevant",
+        "explanation": f"Response relevance for question: {input['question']}"
+    }
+
+# Run a complete experiment
+experiment = run_experiment(
+    dataset=dataset,
+    task=customer_support_task,
+    evaluators=[accuracy_evaluator, relevance_evaluator],
+    experiment_name="support-bot-v1",
+    experiment_description="Initial evaluation of customer support bot",
+    experiment_metadata={"model_version": "v1.0", "test_date": "2024-01-15"}
+)
+
+print(f"Experiment completed with {len(experiment.runs)} runs")
+print(f"Experiment ID: {experiment.experiment_id}")
+
+# Access experiment results
+for run in experiment.runs[:3]:  # Show first 3 runs
+    print(f"Input: {run.dataset_example.input}")
+    print(f"Output: {run.output}")
+    print(f"Evaluations: {run.evaluations}")
+
+# Get experiment by ID for later analysis
+retrieved_experiment = get_experiment(experiment_id=experiment.experiment_id)
+print(f"Retrieved experiment: {retrieved_experiment.experiment_name}")
+
+# Run additional evaluators on existing experiment
+def helpfulness_evaluator(output, input):
+    """New evaluator for helpfulness"""
+    # Your evaluation logic
+    return {"score": 0.85, "label": "helpful"}
+
+# Evaluate existing experiment with new evaluator
+evaluated_experiment = evaluate_experiment(
+    experiment=retrieved_experiment,
+    evaluators=[helpfulness_evaluator],
+    print_summary=True
+)
+
+# Advanced task with dynamic binding
+def advanced_task(input, metadata, expected):
+    """Task that uses multiple dataset fields"""
+    question = input["question"]
+    category = metadata.get("category", "general")
+    
+    # Use category information to customize response
+    if category == "account":
+        return {"answer": f"For account questions like '{question}', please check your profile."}
+    else:
+        return {"answer": f"For {category} questions, our team will help you."}
+
+# Run experiment with dynamic binding
+advanced_experiment = run_experiment(
+    dataset=dataset,
+    task=advanced_task,
+    experiment_name="advanced-support-bot",
+    dry_run=True  # Test mode - results not saved to Phoenix
+)
+
+# Dry run options for testing
+# dry_run=True: Run on single random example
+# dry_run=5: Run on 5 random examples  
+# dry_run=False: Run on full dataset (default)
+
+test_experiment = run_experiment(
+    dataset=dataset,
+    task=customer_support_task,
+    evaluators=[accuracy_evaluator],
+    dry_run=3,  # Test on 3 random examples
+    print_summary=True
+)
+
+# Async experiments for better performance
+from phoenix.client.experiments import async_run_experiment
+from phoenix.client import AsyncClient
+
+async def async_task(input):
+    """Async task for concurrent execution"""
+    # Your async AI logic here
+    question = input["question"]
+    return {"answer": f"Async response to: {question}"}
+
+async def run_async_experiment():
+    async_client = AsyncClient()
+    dataset = await async_client.datasets.get_dataset(dataset="customer-support-qa")
+    
+    experiment = await async_run_experiment(
+        dataset=dataset,
+        task=async_task,
+        experiment_name="async-support-experiment",
+        concurrency=5,  # Run 5 tasks concurrently
+        timeout=120
+    )
+    return experiment
 ```
 
 ### Projects
-Access and manage your Phoenix projects:
+Manage Phoenix projects that organize your AI application data:
+
 ```python
 # List all projects
 projects = client.projects.list()
+for project in projects:
+    print(f"Project: {project['name']} (ID: {project['id']})")
+    print(f"Description: {project.get('description', 'No description')}")
 
-# Get a specific project
-project = client.projects.get(project_name="my-project")
+# Get a specific project by name
+project = client.projects.get(project_name="my-llm-app")
+print(f"Project name: {project['name']}")
+print(f"Project ID: {project['id']}")
+
+# Get a project by ID (useful when you have the project ID from other operations)
+project = client.projects.get(project_id="UHJvamVjdDoy")
+print(f"Project name: {project['name']}")
+
+# Create a new project
+new_project = client.projects.create(
+    name="Customer Support Bot",
+    description="Traces and evaluations for our customer support chatbot"
+)
+print(f"Created project with ID: {new_project['id']}")
+
+# Update project description (note: project names cannot be changed)
+updated_project = client.projects.update(
+    project_id=new_project["id"],
+    description="Updated: Customer support bot with sentiment analysis and quality metrics"
+)
+print(f"Updated project description: {updated_project['description']}")
 ```
+
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
