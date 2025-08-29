@@ -361,103 +361,59 @@ Run evaluations and experiments on your datasets to test AI application performa
 from phoenix.client.experiments import run_experiment, get_experiment, evaluate_experiment
 
 # Get a dataset for experimentation
-dataset = client.datasets.get_dataset(dataset="customer-support-qa")
+dataset = client.datasets.get_dataset(dataset="my-dataset")
 
-# Define a task function - your AI application logic
-def customer_support_task(input):
-    """Process customer support queries"""
-    question = input["question"]
-    
-    # Your AI logic here (e.g., call to LLM, RAG pipeline, etc.)
-    # This is a simplified example
-    if "password" in question.lower():
-        return {"answer": "You can reset your password in account settings."}
-    elif "return" in question.lower():
-        return {"answer": "We offer 30-day returns for unused items."}
-    else:
-        return {"answer": "Please contact our support team for assistance."}
+# Define a simple task function
+def my_task(input):
+    return f"Hello {input['name']}"
 
-# Define evaluators to measure performance
-def accuracy_evaluator(output, expected):
-    """Evaluate response accuracy"""
-    return 1.0 if output["answer"] == expected["answer"] else 0.0
-
-def relevance_evaluator(output, input, expected):
-    """Evaluate response relevance using multiple inputs"""
-    # Your evaluation logic here
-    score = 0.8  # Example score
-    return {
-        "score": score,
-        "label": "relevant" if score > 0.7 else "irrelevant",
-        "explanation": f"Response relevance for question: {input['question']}"
-    }
-
-# Run a complete experiment
+# Basic experiment
 experiment = run_experiment(
     dataset=dataset,
-    task=customer_support_task,
-    evaluators=[accuracy_evaluator, relevance_evaluator],
-    experiment_name="support-bot-v1",
-    experiment_description="Initial evaluation of customer support bot",
-    experiment_metadata={"model_version": "v1.0", "test_date": "2024-01-15"}
+    task=my_task,
+    experiment_name="greeting-experiment"
 )
-
 print(f"Experiment completed with {len(experiment.runs)} runs")
-print(f"Experiment ID: {experiment.experiment_id}")
 
-# Access experiment results
-for run in experiment.runs[:3]:  # Show first 3 runs
-    print(f"Input: {run.dataset_example.input}")
-    print(f"Output: {run.output}")
-    print(f"Evaluations: {run.evaluations}")
+# With evaluators
+def accuracy_evaluator(output, expected):
+    return 1.0 if output == expected['text'] else 0.0
 
-# Get experiment by ID for later analysis
-retrieved_experiment = get_experiment(experiment_id=experiment.experiment_id)
-print(f"Retrieved experiment: {retrieved_experiment.experiment_name}")
-
-# Run additional evaluators on existing experiment
-def helpfulness_evaluator(output, input):
-    """New evaluator for helpfulness"""
-    # Your evaluation logic
-    return {"score": 0.85, "label": "helpful"}
-
-# Evaluate existing experiment with new evaluator
-evaluated_experiment = evaluate_experiment(
-    experiment=retrieved_experiment,
-    evaluators=[helpfulness_evaluator],
-    print_summary=True
-)
-
-# Advanced task with dynamic binding
-def advanced_task(input, metadata, expected):
-    """Task that uses multiple dataset fields"""
-    question = input["question"]
-    category = metadata.get("category", "general")
-    
-    # Use category information to customize response
-    if category == "account":
-        return {"answer": f"For account questions like '{question}', please check your profile."}
-    else:
-        return {"answer": f"For {category} questions, our team will help you."}
-
-# Run experiment with dynamic binding
-advanced_experiment = run_experiment(
+experiment = run_experiment(
     dataset=dataset,
-    task=advanced_task,
-    experiment_name="advanced-support-bot",
-    dry_run=True  # Test mode - results not saved to Phoenix
-)
-
-# Dry run options for testing
-# dry_run=True: Run on single random example
-# dry_run=5: Run on 5 random examples  
-# dry_run=False: Run on full dataset (default)
-
-test_experiment = run_experiment(
-    dataset=dataset,
-    task=customer_support_task,
+    task=my_task,
     evaluators=[accuracy_evaluator],
-    dry_run=3,  # Test on 3 random examples
+    experiment_name="evaluated-experiment"
+)
+
+# Dynamic binding for tasks (access multiple dataset fields)
+def my_task(input, metadata, expected):
+    # Task can access multiple fields from the dataset example
+    context = metadata.get("context", "")
+    return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+# Dynamic binding for evaluators
+def my_evaluator(output, input, expected, metadata):
+    # Evaluator can access task output and example fields
+    score = calculate_similarity(output, expected)
+    return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+
+experiment = run_experiment(
+    dataset=dataset,
+    task=my_task,
+    evaluators=[my_evaluator],
+    experiment_name="dynamic-evaluator"
+)
+
+# Get a completed experiment by ID
+experiment = get_experiment(experiment_id="123")
+print(f"Experiment: {experiment.experiment_name}")
+print(f"Total runs: {len(experiment.runs)}")
+
+# Run additional evaluations on existing experiment
+evaluated = evaluate_experiment(
+    experiment=experiment,
+    evaluators=[accuracy_evaluator],
     print_summary=True
 )
 
@@ -466,23 +422,17 @@ from phoenix.client.experiments import async_run_experiment
 from phoenix.client import AsyncClient
 
 async def async_task(input):
-    """Async task for concurrent execution"""
-    # Your async AI logic here
-    question = input["question"]
-    return {"answer": f"Async response to: {question}"}
+    return f"Hello {input['name']}"
 
-async def run_async_experiment():
-    async_client = AsyncClient()
-    dataset = await async_client.datasets.get_dataset(dataset="customer-support-qa")
-    
-    experiment = await async_run_experiment(
-        dataset=dataset,
-        task=async_task,
-        experiment_name="async-support-experiment",
-        concurrency=5,  # Run 5 tasks concurrently
-        timeout=120
-    )
-    return experiment
+async_client = AsyncClient()
+dataset = await async_client.datasets.get_dataset(dataset="my-dataset")
+
+experiment = await async_run_experiment(
+    dataset=dataset,
+    task=async_task,
+    experiment_name="greeting-experiment",
+    concurrency=5  # Run 5 tasks concurrently
+)
 ```
 
 ### Projects
