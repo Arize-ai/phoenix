@@ -1,7 +1,7 @@
-Registration & Setup
-====================
+Register
+========
 
-The register function provides the simplest way to configure OpenTelemetry tracing with Phoenix-aware defaults.
+Simple setup and configuration with the `register()` function.
 
 register
 --------

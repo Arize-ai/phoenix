@@ -1,10 +1,10 @@
-Settings & Configuration
-========================
+Settings
+========
 
-Configuration utilities and environment variable handling for Phoenix OTEL.
+Configuration and environment variables.
 
-Settings Functions
-------------------
+Settings
+--------
 .. automodule:: phoenix.otel.settings
    :members:
    :no-undoc-members:

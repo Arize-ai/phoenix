@@ -1,7 +1,7 @@
-Span Processors
-===============
+Processors
+==========
 
-Span processors control how spans are processed and exported to Phoenix.
+Batch and simple span processors.
 
 SimpleSpanProcessor
 -------------------

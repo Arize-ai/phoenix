@@ -1,7 +1,7 @@
-Span Exporters
-==============
+Exporters
+=========
 
-Span exporters handle the actual transmission of trace data to Phoenix collectors.
+HTTP and gRPC span exporters.
 
 HTTPSpanExporter
 ----------------
