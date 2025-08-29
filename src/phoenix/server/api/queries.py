@@ -57,12 +57,12 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentRunComparison
 from phoenix.server.api.types.ExperimentRepetition import (
     ExperimentRepetition,
     to_gql_experiment_repetition,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentRunComparison import ExperimentRunComparison
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
