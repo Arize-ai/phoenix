@@ -58,9 +58,7 @@ DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
 class SpanModifier:
-    """
-    A class that modifies spans with the specified resource attributes.
-    """
+    """A class that modifies spans with the specified resource attributes."""
 
     __slots__ = ("_resource",)
 
@@ -68,11 +66,10 @@ class SpanModifier:
         self._resource = resource
 
     def modify_resource(self, span: ReadableSpan) -> None:
-        """
-        Takes a span and merges in the resource attributes specified in the constructor.
+        """Takes a span and merges in the resource attributes specified in the constructor.
 
         Args:
-          span: ReadableSpan: the span to modify
+            span (ReadableSpan): The span to modify.
         """
         if (ctx := span._context) is None or ctx.span_id == INVALID_SPAN_ID:  # pyright: ignore[reportPrivateUsage]
             return
@@ -123,14 +120,13 @@ def _monkey_patch_span_init() -> Iterator[None]:
 
 @contextmanager
 def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
-    """
-    A context manager that captures spans and modifies them with the specified resources.
+    """A context manager that captures spans and modifies them with the specified resources.
 
     Args:
         resource (Resource): The resource to merge into the spans created within the context.
 
-    Returns:
-        Iterator[SpanModifier]: The span modifier that is active within the context.
+    Yields:
+        SpanModifier: The span modifier that is active within the context.
     """
     modifier = SpanModifier(resource)
     with _monkey_patch_span_init():
@@ -186,7 +182,14 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
 
 
 def get_func_name(func: Callable[..., Any]) -> str:
-    """Get the name of a function."""
+    """Get the name of a function.
+
+    Args:
+        func (Callable[..., Any]): The function to get the name of.
+
+    Returns:
+        str: The name of the function.
+    """
     if isinstance(func, functools.partial):
         return get_func_name(func.func)
     is_not_lambda = hasattr(func, "__qualname__") and not func.__qualname__.endswith("<lambda>")
@@ -196,7 +199,14 @@ def get_func_name(func: Callable[..., Any]) -> str:
 
 
 def jsonify(obj: Any) -> Any:
-    """Convert object to JSON-serializable format."""
+    """Convert object to JSON-serializable format.
+
+    Args:
+        obj (Any): The object to convert to JSON-serializable format.
+
+    Returns:
+        Any: The JSON-serializable representation of the object.
+    """
     if obj is None:
         return None
     elif isinstance(obj, (str, int, float, bool)):
@@ -458,28 +468,32 @@ class Experiments:
 
 
         Args:
-            dataset: The dataset on which to run the experiment.
-            task: The task to run on each example in the dataset.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment. Defaults to None.
-            experiment_name: The name of the experiment. Defaults to None.
-            experiment_description: A description of the experiment. Defaults to None.
-            experiment_metadata: Metadata to associate with the experiment. Defaults to None.
-            rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
-                Defaults to None.
-            dry_run: Run the experiment in dry-run mode. When set, experiment results will
-                not be recorded in Phoenix. If True, the experiment will run on a random dataset
-                example. If an integer, the experiment will run on a random sample of the dataset
-                examples of the given size. Defaults to False.
-            print_summary: Whether to print a summary of the experiment and evaluation results.
-                Defaults to True.
-            timeout: The timeout for the task execution in seconds. Use this to run
+            dataset (Dataset): The dataset on which to run the experiment.
+            task (ExperimentTask): The task to run on each example in the dataset.
+            evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
+                evaluators used to evaluate the results of the experiment. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
+                adaptively throttle on. Defaults to None.
+            dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
+                experiment results will not be recorded in Phoenix. If True, the experiment will run
+                on a random
+                dataset example. If an integer, the experiment will run on a random sample of the
+                dataset examples of the given size. Defaults to False.
+            print_summary (bool): Whether to print a summary of the experiment and evaluation
+                results. Defaults to True.
+            timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
-        dangerously_set_repetitions: The number of times the task will be run on each example.
-            Defaults to 1. This argument is currently for internal testing purposes only.
+            dangerously_set_repetitions (int): The number of times the task will be run on each
+                example. Defaults to 1. This argument is currently for internal testing purposes
+                only.
 
         Returns:
-            A dictionary containing the experiment results.
+            RanExperiment: A dictionary containing the experiment results.
 
         Raises:
             ValueError: If dataset format is invalid or has no examples.
@@ -671,16 +685,17 @@ class Experiments:
         additional evaluations.
 
         Args:
-            experiment_id: The ID of the experiment to retrieve.
+            experiment_id (str): The ID of the experiment to retrieve.
 
         Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+            RanExperiment: A RanExperiment object containing the experiment data, task runs,
+                and evaluation runs.
 
         Raises:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example::
+        Examples::
 
             client = Client()
             experiment = client.experiments.get_experiment(experiment_id="123")
@@ -809,17 +824,22 @@ class Experiments:
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
 
         Args:
-            experiment: The experiment to evaluate, returned from `run_experiment`.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment.
-            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+            experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                used to evaluate the results of the experiment.
+            dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
-            print_summary: Whether to print a summary of the evaluation results.
+            print_summary (bool): Whether to print a summary of the evaluation results.
                 Defaults to True.
-            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+            timeout (Optional[int]): The timeout for the evaluation execution in seconds.
+                Defaults to 60.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on.
+                Defaults to None.
 
         Returns:
-            A dictionary containing the evaluation results with the same format as run_experiment.
+            RanExperiment: A dictionary containing the evaluation results with the same format
+                as run_experiment.
 
         Raises:
             ValueError: If no evaluators are provided or experiment has no runs.
@@ -1361,26 +1381,33 @@ class AsyncExperiments:
         - `metadata`: Metadata associated with the dataset example
 
         Args:
-            dataset: The dataset on which to run the experiment.
-            task: The task to run on each example in the dataset.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment. Defaults to None.
-            experiment_name: The name of the experiment. Defaults to None.
-            experiment_description: A description of the experiment. Defaults to None.
-            experiment_metadata: Metadata to associate with the experiment. Defaults to None.
-            rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
-                Defaults to None.
-            dry_run: Run the experiment in dry-run mode. Defaults to False.
-            print_summary: Whether to print a summary of the experiment and evaluation results.
-                Defaults to True.
-            concurrency: Specifies the concurrency for task execution. Defaults to 3.
-            timeout: The timeout for the task execution in seconds. Use this to run
+            dataset (Dataset): The dataset on which to run the experiment.
+            task (ExperimentTask): The task to run on each example in the dataset.
+            evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
+                evaluators used to evaluate the results of the experiment. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
+                adaptively throttle on. Defaults to None.
+            dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
+                experiment results will not be recorded in Phoenix. If True, the experiment will run
+                on a random
+                dataset example. If an integer, the experiment will run on a random sample of the
+                dataset examples of the given size. Defaults to False.
+            print_summary (bool): Whether to print a summary of the experiment and evaluation
+                results. Defaults to True.
+            concurrency (int): Specifies the concurrency for task execution. Defaults to 3.
+            timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
-        dangerously_set_repetitions: The number of times the task will be run on each example.
-            Defaults to 1. This argument is currently for internal testing purposes only.
+            dangerously_set_repetitions (int): The number of times the task will be run on each
+                example. Defaults to 1. This argument is currently for internal testing purposes
+                only.
 
         Returns:
-            A dictionary containing the experiment results.
+            RanExperiment: A dictionary containing the experiment results.
 
         Raises:
             ValueError: If dataset format is invalid or has no examples.
@@ -1576,16 +1603,17 @@ class AsyncExperiments:
         additional evaluations.
 
         Args:
-            experiment_id: The ID of the experiment to retrieve.
+            experiment_id (str): The ID of the experiment to retrieve.
 
         Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+            RanExperiment: A RanExperiment object containing the experiment data, task runs,
+                and evaluation runs.
 
         Raises:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example::
+        Examples::
 
             client = AsyncClient()
             experiment = await client.experiments.get_experiment(experiment_id="123")
@@ -1714,17 +1742,23 @@ class AsyncExperiments:
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
 
         Args:
-            experiment: The experiment to evaluate, returned from `run_experiment`.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment.
-            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+            experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                used to evaluate the results of the experiment.
+            dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
-            print_summary: Whether to print a summary of the evaluation results.
+            print_summary (bool): Whether to print a summary of the evaluation results.
                 Defaults to True.
-            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+            timeout (Optional[int]): The timeout for the evaluation execution in seconds.
+                Defaults to 60.
+            concurrency (int): Specifies the concurrency for evaluation execution. Defaults to 3.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on.
+                Defaults to None.
 
         Returns:
-            A dictionary containing the evaluation results with the same format as run_experiment.
+            RanExperiment: A dictionary containing the evaluation results with the same format
+                as run_experiment.
 
         Raises:
             ValueError: If no evaluators are provided or experiment has no runs.
