@@ -1,28 +1,21 @@
 import re
 from base64 import b64decode, b64encode
-from typing import Iterable, Optional, Union
 
 import strawberry
-from sqlalchemy import select, tuple_
 from strawberry.relay import GlobalID, Node
 from strawberry.types import Info
-from strawberry.utils.await_maybe import AwaitableOrValue
 from typing_extensions import Self, TypeAlias
 
-from phoenix.db import models
-from phoenix.server.api.types.ExperimentRepetition import (
-    ExperimentRepetition,
-    to_gql_experiment_repetition,
-)
+from phoenix.server.api.types.ExperimentRepetition import ExperimentRepetition
 
-ExperimentId: TypeAlias = int
-DatasetExampleId: TypeAlias = int
+ExperimentRowId: TypeAlias = int
+DatasetExampleRowId: TypeAlias = int
 
 
 @strawberry.type
 class ExperimentRun(Node):
-    experiment_rowid: strawberry.Private[ExperimentId]
-    dataset_example_rowid: strawberry.Private[DatasetExampleId]
+    experiment_rowid: strawberry.Private[ExperimentRowId]
+    dataset_example_rowid: strawberry.Private[DatasetExampleRowId]
     repetitions: list[ExperimentRepetition]
 
     @strawberry.field
@@ -40,69 +33,23 @@ class ExperimentRun(Node):
         encoded_id = _base64_encode(unencoded_id)
         return encoded_id
 
-    @classmethod
-    def resolve_nodes(
-        cls,
-        *,
-        info: Info,
-        node_ids: Iterable[str],
-        required: bool,
-    ) -> Union[
-        AwaitableOrValue[Iterable[Self]],
-        AwaitableOrValue[Iterable[Optional[Self]]],
-    ]:
-        async def resolve_nodes_inner() -> Iterable[
-            Optional[Self]
-        ]:  # satisfy the superclass method type by defining an inner coroutine
-            experiment_and_dataset_example_ids = [
-                parse_experiment_runs_node_id(node_id) for node_id in node_ids
-            ]
-            query = select(models.ExperimentRun).where(
-                tuple_(
-                    models.ExperimentRun.experiment_id,
-                    models.ExperimentRun.dataset_example_id,
-                ).in_(set(experiment_and_dataset_example_ids))
-            )
-            experiment_runs_by_id: dict[
-                tuple[ExperimentId, DatasetExampleId], list[models.ExperimentRun]
-            ] = {}
-            async with info.context._db() as session:
-                for experiment_run in await session.scalars(query):
-                    key = (experiment_run.experiment_id, experiment_run.dataset_example_id)
-                    if key not in experiment_runs_by_id:
-                        experiment_runs_by_id[key] = []
-                    experiment_runs_by_id[key].append(experiment_run)
-            experiment_runs_list: list[Optional[Self]] = []
-            for key in experiment_and_dataset_example_ids:
-                if (experiment_runs := experiment_runs_by_id.get(key)) is None:
-                    experiment_runs_list.append(None)
-                else:
-                    experiment_id, dataset_example_id = key
-                    experiment_runs_list.append(
-                        cls(
-                            experiment_rowid=experiment_id,
-                            dataset_example_rowid=dataset_example_id,
-                            repetitions=[
-                                to_gql_experiment_repetition(run)
-                                for run in sorted(
-                                    experiment_runs, key=lambda run: run.repetition_number
-                                )
-                            ],
-                        )
-                    )
-            return experiment_runs_list
 
-        return resolve_nodes_inner()
-
-
-_EXPERIMENT_RUNS_NODE_ID_PATTERN = re.compile(
-    r"ExperimentRuns:experiment_id=(\d+):dataset_example_id=(\d+)"
+_EXPERIMENT_RUN_NODE_ID_PATTERN = re.compile(
+    r"ExperimentRun:experiment_id=(\d+):dataset_example_id=(\d+)"
 )
 
 
-def parse_experiment_runs_node_id(node_id: str) -> tuple[ExperimentId, DatasetExampleId]:
+def get_experiment_run_node_id(
+    experiment_rowid: ExperimentRowId, dataset_example_rowid: DatasetExampleRowId
+) -> str:
+    return _base64_encode(
+        f"ExperimentRun:experiment_id={experiment_rowid}:dataset_example_id={dataset_example_rowid}"
+    )
+
+
+def parse_experiment_run_node_id(node_id: str) -> tuple[ExperimentRowId, DatasetExampleRowId]:
     decoded_node_id = _base64_decode(node_id)
-    match = re.match(_EXPERIMENT_RUNS_NODE_ID_PATTERN, decoded_node_id)
+    match = re.match(_EXPERIMENT_RUN_NODE_ID_PATTERN, decoded_node_id)
     if not match:
         raise ValueError(f"Invalid node ID format: {node_id}")
 

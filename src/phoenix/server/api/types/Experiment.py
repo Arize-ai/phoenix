@@ -16,7 +16,11 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRepetition import to_gql_experiment_repetition
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, parse_experiment_runs_node_id
+from phoenix.server.api.types.ExperimentRun import (
+    ExperimentRun,
+    get_experiment_run_node_id,
+    parse_experiment_run_node_id,
+)
 from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
@@ -69,7 +73,7 @@ class Experiment(Node):
             .scalar_subquery()
         )
         if after:
-            after_experiment_id, after_dataset_example_id = parse_experiment_runs_node_id(after)
+            after_experiment_id, after_dataset_example_id = parse_experiment_run_node_id(after)
             if after_experiment_id != experiment_id:
                 raise BadRequest(f"Invalid after node ID: {after}")
             dataset_example_ids_subquery = dataset_example_ids_subquery.where(
@@ -99,7 +103,7 @@ class Experiment(Node):
 
         cursors_and_nodes: list[tuple[str, ExperimentRun]] = []
         for example_id, runs in runs_by_example_id.items():
-            cursor = ""  # todo
+            cursor = get_experiment_run_node_id(experiment_id, example_id)
             runs_node = ExperimentRun(
                 experiment_rowid=experiment_id,
                 dataset_example_rowid=example_id,
