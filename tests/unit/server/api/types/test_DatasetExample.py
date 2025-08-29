@@ -91,15 +91,247 @@ async def test_dataset_example_span_resolver(
     }
 
 
+@pytest.mark.parametrize(
+    "variables, expected_payload",
+    [
+        pytest.param(
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+                "first": 2,
+            },
+            {
+                "example": {
+                    "experimentRuns": {
+                        "edges": [
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=1, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(1))),
+                                            "traceId": None,
+                                            "output": "experiment-1-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=2, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(2))),
+                                            "traceId": None,
+                                            "output": "experiment-2-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": True,
+                            "endCursor": get_experiment_run_node_id(
+                                experiment_rowid=2, dataset_example_rowid=1
+                            ),
+                        },
+                    }
+                }
+            },
+            id="ascending-with-next-page",
+        ),
+        pytest.param(
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+                "first": 2,
+                "after": get_experiment_run_node_id(experiment_rowid=1, dataset_example_rowid=1),
+                "sort": {"col": "id", "dir": "asc"},
+            },
+            {
+                "example": {
+                    "experimentRuns": {
+                        "edges": [
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=2, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(2))),
+                                            "traceId": None,
+                                            "output": "experiment-2-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=3, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(3))),
+                                            "traceId": None,
+                                            "output": "experiment-3-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": get_experiment_run_node_id(
+                                experiment_rowid=3, dataset_example_rowid=1
+                            ),
+                        },
+                    }
+                }
+            },
+            id="ascending-with-after-cursor-with-no-next-page",
+        ),
+        pytest.param(
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+                "first": 2,
+                "sort": {"col": "id", "dir": "desc"},
+            },
+            {
+                "example": {
+                    "experimentRuns": {
+                        "edges": [
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=3, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(3))),
+                                            "traceId": None,
+                                            "output": "experiment-3-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=2, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(2))),
+                                            "traceId": None,
+                                            "output": "experiment-2-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": True,
+                            "endCursor": get_experiment_run_node_id(
+                                experiment_rowid=2, dataset_example_rowid=1
+                            ),
+                        },
+                    }
+                }
+            },
+            id="descending-with-next-page",
+        ),
+        pytest.param(
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+                "first": 2,
+                "after": get_experiment_run_node_id(experiment_rowid=3, dataset_example_rowid=1),
+                "sort": {"col": "id", "dir": "desc"},
+            },
+            {
+                "example": {
+                    "experimentRuns": {
+                        "edges": [
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=2, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(2))),
+                                            "traceId": None,
+                                            "output": "experiment-2-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                            {
+                                "run": {
+                                    "id": get_experiment_run_node_id(
+                                        experiment_rowid=1, dataset_example_rowid=1
+                                    ),
+                                    "repetitions": [
+                                        {
+                                            "id": str(GlobalID("ExperimentRepetition", str(1))),
+                                            "traceId": None,
+                                            "output": "experiment-1-run-1-output",
+                                            "startTime": "2020-01-01T00:00:00+00:00",
+                                            "endTime": "2020-01-01T00:01:00+00:00",
+                                            "error": None,
+                                        }
+                                    ],
+                                }
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": get_experiment_run_node_id(
+                                experiment_rowid=1, dataset_example_rowid=1
+                            ),
+                        },
+                    }
+                }
+            },
+            id="descending-with-after-cursor-with-no-next-page",
+        ),
+    ],
+)
 async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
+    variables: dict[str, Any],
+    expected_payload: dict[str, Any],
     gql_client: AsyncGraphQLClient,
     example_with_experiment_runs: Any,
 ) -> None:
     query = """
-      query ($exampleId: ID!) {
+      query ($exampleId: ID!, $first: Int, $after: String, $sort: ExperimentRunSort) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
-            experimentRuns {
+            experimentRuns(first: $first, after: $after, sort: $sort) {
               edges {
                 run: node {
                   id
@@ -113,58 +345,18 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
                   }
                 }
               }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
             }
           }
         }
       }
     """
-    response = await gql_client.execute(
-        query=query,
-        variables={"exampleId": str(GlobalID("DatasetExample", str(1)))},
-    )
+    response = await gql_client.execute(query=query, variables=variables)
     assert not response.errors
-    assert response.data == {
-        "example": {
-            "experimentRuns": {
-                "edges": [
-                    {
-                        "run": {
-                            "id": get_experiment_run_node_id(
-                                experiment_rowid=1, dataset_example_rowid=1
-                            ),
-                            "repetitions": [
-                                {
-                                    "id": str(GlobalID("ExperimentRepetition", str(1))),
-                                    "traceId": None,
-                                    "output": "experiment-1-run-1-output",
-                                    "startTime": "2020-01-01T00:00:00+00:00",
-                                    "endTime": "2020-01-01T00:01:00+00:00",
-                                    "error": None,
-                                }
-                            ],
-                        }
-                    },
-                    {
-                        "run": {
-                            "id": get_experiment_run_node_id(
-                                experiment_rowid=2, dataset_example_rowid=1
-                            ),
-                            "repetitions": [
-                                {
-                                    "id": str(GlobalID("ExperimentRepetition", str(2))),
-                                    "traceId": None,
-                                    "output": {"output": "experiment-2-run-1-output"},
-                                    "startTime": "2020-01-01T00:00:00+00:00",
-                                    "endTime": "2020-01-01T00:01:00+00:00",
-                                    "error": None,
-                                }
-                            ],
-                        }
-                    },
-                ]
-            }
-        }
-    }
+    assert response.data == expected_payload
 
 
 @pytest.fixture
@@ -268,7 +460,7 @@ async def dataset_with_span_and_nonspan_examples(
 @pytest.fixture
 async def example_with_experiment_runs(db: DbSessionFactory) -> None:
     """
-    A dataset with a single example and two experiments that use the example in
+    A dataset with a single example and three experiments that use the example in
     their runs.
     """
     async with db() as session:
@@ -362,7 +554,33 @@ async def example_with_experiment_runs(db: DbSessionFactory) -> None:
             insert(models.ExperimentRun).values(
                 experiment_id=experiment_2_id,
                 dataset_example_id=example_id,
-                output={"task_output": {"output": "experiment-2-run-1-output"}},
+                output={"task_output": "experiment-2-run-1-output"},
+                repetition_number=1,
+                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
+            )
+        )
+
+        # insert a third experiment
+        experiment_3_id = await session.scalar(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="experiment-3",
+                description="experiment-3-description",
+                repetitions=1,
+                metadata_={"metadata": "experiment-3-metadata"},
+            )
+        )
+
+        # insert a run for the third experiment on the example
+        await session.execute(
+            insert(models.ExperimentRun).values(
+                experiment_id=experiment_3_id,
+                dataset_example_id=example_id,
+                output={"task_output": "experiment-3-run-1-output"},
                 repetition_number=1,
                 start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
