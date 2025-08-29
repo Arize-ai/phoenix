@@ -2,22 +2,6 @@
 
 Welcome to the Phoenix Client documentation. This lightweight Python client provides a simple interface for interacting with the Phoenix platform via its REST API, enabling you to manage datasets, run experiments, analyze traces, and collect feedback programmatically.
 
-```{toctree}
-:maxdepth: 3
-
-api/client
-api/projects
-api/prompts
-api/spans
-api/datasets
-api/experiments
-api/annotations
-api/helpers
-api/utils
-api/types
-api/exceptions
-```
-
 ## Installation
 
 Install the Phoenix Client using pip:
@@ -481,6 +465,24 @@ updated_project = client.projects.update(
     description="Updated: Customer support bot with sentiment analysis and quality metrics"
 )
 print(f"Updated project description: {updated_project['description']}")
+```
+
+## API Reference
+
+```{toctree}
+:maxdepth: 3
+
+api/client
+api/datasets
+api/experiments
+api/prompts
+api/spans
+api/annotations
+api/projects
+api/helpers
+api/utils
+api/types
+api/exceptions
 ```
 
 ## External Links

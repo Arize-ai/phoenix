@@ -1,4 +1,4 @@
-client
+Client
 ======
 
 .. autoclass:: client.Client
