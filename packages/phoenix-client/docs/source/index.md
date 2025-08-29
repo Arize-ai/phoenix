@@ -407,8 +407,6 @@ experiment = run_experiment(
 
 # Get a completed experiment by ID
 experiment = get_experiment(experiment_id="123")
-print(f"Experiment: {experiment.experiment_name}")
-print(f"Total runs: {len(experiment.runs)}")
 
 # Run additional evaluations on existing experiment
 evaluated = evaluate_experiment(
@@ -417,7 +415,7 @@ evaluated = evaluate_experiment(
     print_summary=True
 )
 
-# Async experiments for better performance
+# Async experiments
 from phoenix.client.experiments import async_run_experiment
 from phoenix.client import AsyncClient
 
