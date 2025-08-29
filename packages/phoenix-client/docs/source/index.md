@@ -12,13 +12,6 @@ pip install arize-phoenix-client
 
 ## API Reference
 
-The Phoenix Client API is organized into several main components:
-
-### Core Components
-- **Client & AsyncClient**: Main client classes for synchronous and asynchronous operations
-- **Resources**: Organized endpoints for different Phoenix entities (Projects, Prompts, Spans, etc.)
-- **Helpers**: Utility functions and SDK integrations
-
 ```{toctree}
 :maxdepth: 3
 :caption: API Reference
@@ -26,54 +19,69 @@ The Phoenix Client API is organized into several main components:
 api/client
 ```
 
-### Quick Reference
+## Getting Started
 
-#### Main Client Classes
-- `Client`: Synchronous client for Phoenix API interactions
-- `AsyncClient`: Asynchronous client for Phoenix API interactions
+### Environment Variables
+Configure Phoenix Client using environment variables for easier deployment:
 
-#### Resource Classes
-- `Projects`: Manage Phoenix projects and their metadata
-- `Prompts`: Create, retrieve, and manage prompt templates
-- `Spans`: Query and analyze trace spans from your applications
-- `Annotations`: Add human feedback and evaluations to spans
-- `Datasets`: Manage datasets for experiments and evaluations
-- `Experiments`: Run and manage experiments on your datasets
+```bash
+# For local Phoenix server (default)
+export PHOENIX_BASE_URL="http://localhost:6006"
 
-#### Helper Modules
-- `SDK Helpers`: Integrations with popular AI frameworks (OpenAI, Anthropic, Google)
-- `Span Helpers`: Utilities for working with span data
+# Cloud Instance
+export PHOENIX_API_KEY="your-api-key"
+export PHOENIX_BASE_URL="https://app.phoenix.arize.com/s/your-space"
 
-## Quick Start
+# For custom Phoenix instances with API key authentication
+export PHOENIX_BASE_URL="https://your-phoenix-instance.com"
+export PHOENIX_API_KEY="your-api-key"
+
+# Customize headers
+export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
+```
+
+### Client Initialization
+The client automatically reads environment variables, or you can override them:
 
 ```python
 from phoenix.client import Client
 
-# Connect to your Phoenix server
-client = Client(base_url="http://localhost:6006")  # Default Phoenix server URL
+# Automatic configuration from environment variables
+client = Client()  # Uses PHOENIX_BASE_URL, PHOENIX_API_KEY, PHOENIX_CLIENT_HEADERS
 
-# Or connect to Phoenix Cloud or other hosted instances
+# Override environment variables
+client = Client(base_url="http://localhost:6006")  # Local Phoenix server
+
+# Explicit API key
+client = Client(
+    base_url="https://app.phoenix.arize.com/s/your-space",
+    api_key="your-api-key"
+)
+
+# Custom headers for authentication
 client = Client(
     base_url="https://your-phoenix-instance.com",
+    headers={"Authorization": "Bearer your-api-key"}
+)
+
+# Asynchronous Client
+async_client = AsyncClient()  # Uses environment variables
+
+# Override environment variables for async client
+async_client = AsyncClient(base_url="http://localhost:6006")
+
+# Cloud instance
+async_client = AsyncClient(
+    base_url="https://app.phoenix.arize.com/s/your-space",
     api_key="your-api-key"
 )
 ```
 
-## Client Resources
+## Recources
 
 The Phoenix Client organizes its functionality into **resources** that correspond to different aspects of the Phoenix platform. Each resource provides methods to interact with specific entities:
 
-### Projects Resource
-Access and manage your Phoenix projects:
-```python
-# List all projects
-projects = client.projects.list()
-
-# Get a specific project
-project = client.projects.get(project_name="my-project")
-```
-
-### Prompts Resource
+### Prompts
 Manage prompt templates and versions:
 ```python
 # Create a new prompt
@@ -113,44 +121,29 @@ resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
 ```
 
-### Spans Resource
+### Spans
 Query and analyze trace spans:
 ```python
 # Get spans from a project
 spans = client.spans.list(project_name="my-project")
 ```
 
-### Annotations Resource
+### Annotations
 Work with human feedback and evaluations:
 ```python
 # Add annotations to spans
 client.annotations.create(...)
 ```
 
-## Authentication
-
-### API Key Authentication
-Set your API key via environment variable:
-```bash
-export PHOENIX_API_KEY="your-api-key"
-```
-
-Or pass it directly to the client:
+### Projects
+Access and manage your Phoenix projects:
 ```python
-client = Client(api_key="your-api-key")
-```
+# List all projects
+projects = client.projects.list()
 
-### Custom Headers (Phoenix Cloud)
-For Phoenix Cloud or custom authentication:
-```bash
-export PHOENIX_CLIENT_HEADERS="api-key=your-api-key"
+# Get a specific project
+project = client.projects.get(project_name="my-project")
 ```
-
-Or programmatically:
-```python
-client = Client(headers={"api-key": "your-api-key"})
-```
-
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
