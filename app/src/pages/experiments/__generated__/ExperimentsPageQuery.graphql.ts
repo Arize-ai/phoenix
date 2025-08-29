@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffa31e1bf721abfb03421454d21b1cb3>>
+ * @generated SignedSource<<cd0c9cf22b04a1a01c2722289c59b16f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -269,6 +269,25 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              (v2/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "username",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "SpanCostSummary",
                             "kind": "LinkedField",
                             "name": "costSummary",
@@ -413,12 +432,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "86af3903121ecf82222b6bccf7ea462b",
+    "cacheID": "fc53145de02e78b9e7f2d91be4144b30",
     "id": null,
     "metadata": {},
     "name": "ExperimentsPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        user {\n          id\n          username\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

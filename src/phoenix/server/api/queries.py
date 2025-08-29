@@ -951,6 +951,7 @@ class Query:
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
                 metadata=experiment.metadata_,
+                user_id=experiment.user_id,
             )
         elif type_name == ExperimentRun.__name__:
             async with info.context.db() as session:
