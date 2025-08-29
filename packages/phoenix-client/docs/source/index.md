@@ -12,12 +12,37 @@ pip install arize-phoenix-client
 
 ## API Reference
 
+The Phoenix Client API is organized into several main components:
+
+### Core Components
+- **Client & AsyncClient**: Main client classes for synchronous and asynchronous operations
+- **Resources**: Organized endpoints for different Phoenix entities (Projects, Prompts, Spans, etc.)
+- **Helpers**: Utility functions and SDK integrations
+
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 3
 :caption: API Reference
 
 api/client
 ```
+
+### Quick Reference
+
+#### Main Client Classes
+- `Client`: Synchronous client for Phoenix API interactions
+- `AsyncClient`: Asynchronous client for Phoenix API interactions
+
+#### Resource Classes
+- `Projects`: Manage Phoenix projects and their metadata
+- `Prompts`: Create, retrieve, and manage prompt templates
+- `Spans`: Query and analyze trace spans from your applications
+- `Annotations`: Add human feedback and evaluations to spans
+- `Datasets`: Manage datasets for experiments and evaluations
+- `Experiments`: Run and manage experiments on your datasets
+
+#### Helper Modules
+- `SDK Helpers`: Integrations with popular AI frameworks (OpenAI, Anthropic, Google)
+- `Span Helpers`: Utilities for working with span data
 
 ## Quick Start
 
