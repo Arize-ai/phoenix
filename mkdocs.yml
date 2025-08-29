@@ -47,8 +47,8 @@ plugins:
           options:
             docstring_style: google
             docstring_section_style: table
-            members: true
-            inherited_members: true
+            # Don't set members globally - let individual directives control it
+            inherited_members: false
             group_by_category: true
             show_category_heading: true
             show_root_heading: true
@@ -57,21 +57,16 @@ plugins:
             separate_signature: false
             show_signature_annotations: false
             show_if_no_docstring: false
+            members_order: source
             filters:
-              - "!^_.*"
-              - "!^__.*"
-            selection:
-              members:
-                - classes
-                - functions
-                - methods
+              - "!^_"  # Exclude all private members
             merge_init_into_class: true
             line_length: 100
 
 nav:
   - Overview: index.md
   - Guides: guides/index.md
-  - Phoenix OTEL: api/phoenix-otel/index.md
+  - Phoenix OTEL: api/phoenix-otel/phoenix.otel.md
   - Phoenix Client: api/phoenix-client/index.md
   - Phoenix Evals: api/phoenix-evals/index.md
   - Phoenix: api/phoenix/index.md

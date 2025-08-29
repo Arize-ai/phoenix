@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import fnmatch
 import importlib
-import re
+import ast
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Set, cast
 
@@ -18,7 +18,7 @@ DOCS_DIR = Path(__file__).parent.resolve()
 # Directories (relative to docs_dir=api_docs)
 api_root = Path("api")
 handwritten_root = DOCS_DIR / "api"
-nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined]
+nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined, no-untyped-call]
 
 
 # ---------------------------
@@ -55,24 +55,6 @@ def _as_list_of_str(obj: Any) -> List[str]:
     return []
 
 
-def _to_regex(pattern: str) -> str:
-    """
-    Convert a human-friendly pattern (glob-like or regex) into a regex usable by mkdocstrings filters.
-    Heuristic:
-      - If it contains regex-only metachars [+(){}|\\^$], treat as regex and return as-is.
-      - Otherwise, treat as glob and convert via fnmatch.translate, then anchor.
-    """
-    if re.search(r"[+(){}|\\^$]", pattern):
-        return pattern
-    rx = fnmatch.translate(pattern)  # e.g. '(?s:foo\\..*)\\Z'
-    if rx.startswith("(?s:") and rx.endswith(")\\Z"):
-        core = rx[4:-3]
-    elif rx.endswith("\\Z"):
-        core = rx[:-2]
-    else:
-        core = rx
-    anchored = f"^{core}$" if not core.startswith("^") else core
-    return anchored
 
 
 def _is_simple_symbol_pattern(name: str) -> bool:
@@ -96,6 +78,52 @@ def _label_relative(module_name: str, section_pkg: str) -> str:
         return m_parts[-1]
     rel_parts = m_parts[len(p_parts):]
     return ".".join(rel_parts) if rel_parts else m_parts[-1]
+
+
+# ---------------------------
+# Stronger filtering helpers
+# ---------------------------
+
+def _module_file_path(module_name: str) -> Path | None:
+    """
+    Resolve a module's file path under ROOT (src/) for either module.py or package/__init__.py.
+    """
+    parts = module_name.split(".")
+    file_py = ROOT.joinpath(*parts).with_suffix(".py")
+    if file_py.exists():
+        return file_py
+    init_py = ROOT.joinpath(*parts, "__init__.py")
+    if init_py.exists():
+        return init_py
+    return None
+
+
+def _public_symbols_for_module(module_name: str) -> List[tuple[str, str]]:
+    """
+    Enumerate top-level public symbols (classes and functions) using AST, excluding any
+    names starting with '_' to provide a hard guarantee that private members are never rendered.
+    Returns a list of (name, type) tuples where type is 'class' or 'function'.
+    """
+    path = _module_file_path(module_name)
+    if not path:
+        return []
+    try:
+        src = path.read_text(encoding="utf-8")
+    except Exception:
+        return []
+    try:
+        tree = ast.parse(src)
+    except Exception:
+        return []
+    symbols: list[tuple[str, str]] = []
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            if not node.name.startswith("_"):
+                symbols.append((node.name, "class"))
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if not node.name.startswith("_"):
+                symbols.append((node.name, "function"))
+    return sorted(symbols, key=lambda x: x[0])
 
 
 # ---------------------------
@@ -216,66 +244,6 @@ def discover_modules(
 # ---------------------------
 
 
-def _compose_filters_for_module(
-    module_name: str,
-    *,
-    defaults: Mapping[str, Any],
-    per_module_cfg: Mapping[str, Any],
-) -> List[str]:
-    """
-    Build mkdocstrings 'filters' list given defaults and a module's override.
-
-    Semantics:
-      - mode: only       -> include listed patterns; then apply excludes (defaults + per-module)
-      - mode: all_except -> include defaults.include (if any); then apply excludes
-      - no per-module    -> include defaults.include (if any); then apply defaults.exclude.
-    """
-    filt: list[str] = []
-
-    # Defaults
-    defaults_include = _as_list_of_str(defaults.get("include"))
-    defaults_exclude = _as_list_of_str(defaults.get("exclude"))
-    default_inherit = bool(defaults.get("inherit_defaults", True))
-
-    # Per-module
-    mod_cfg = _as_dict(per_module_cfg.get(module_name, {}))
-    sym_cfg = _as_dict(mod_cfg.get("symbols"))
-    mode = str(sym_cfg.get("mode") or "").strip().lower()
-    mod_include = _as_list_of_str(sym_cfg.get("include"))
-    mod_exclude = _as_list_of_str(sym_cfg.get("exclude"))
-    inherit = bool(sym_cfg.get("inherit_defaults", default_inherit))
-
-    def _add_includes(seq: list[str]) -> None:
-        for p in seq:
-            filt.append(_to_regex(p))
-
-    def _add_excludes(seq: list[str]) -> None:
-        for p in seq:
-            rx = _to_regex(p)
-            filt.append("!" + rx)
-            # Also exclude when matched as a full dotted path segment
-            # handles dunders like __version__
-            if p in ("^_.*", "^__.*"):
-                # Match names at end of full dotted path
-                filt.append("!(^|.*\\.)_.*$" if p == "^_.*" else "!(^|.*\\.)__.*$")
-
-    if mode == "only":
-        _add_includes(mod_include)
-        if inherit:
-            _add_excludes(defaults_exclude)
-        _add_excludes(mod_exclude or [])
-    else:
-        if defaults_include:
-            _add_includes(defaults_include)
-        if mode == "all_except" and mod_include:
-            _add_includes(mod_include)
-        if inherit:
-            _add_excludes(defaults_exclude)
-        _add_excludes(mod_exclude or [])
-
-    return filt
-
-
 def _page_title_for_module(module_name: str, *, per_module_cfg: Mapping[str, Any]) -> str:
     mod_cfg = per_module_cfg.get(module_name, {}) or {}
     if "title" in mod_cfg and mod_cfg["title"]:
@@ -297,13 +265,6 @@ def _write_module_page(
     if handwritten_md.exists():
         return
 
-    # mkdocstrings filters for this module
-    filters = _compose_filters_for_module(
-        module_name,
-        defaults=defaults,
-        per_module_cfg=per_module_cfg,
-    )
-
     page_title = _page_title_for_module(module_name, per_module_cfg=per_module_cfg)
 
     with mkdocs_gen_files.open(target_md, "w") as fd:
@@ -321,13 +282,24 @@ def _write_module_page(
         sym_cfg_local = _as_dict(mod_cfg_local.get("symbols"))
         mode_local = str(sym_cfg_local.get("mode") or "").strip().lower()
         include_syms = _as_list_of_str(sym_cfg_local.get("include"))
+        # Enforce global exclusion of private symbols in per-symbol includes
+        include_syms = [s for s in include_syms if not s.split(".")[-1].startswith("_")]
         use_per_symbol = bool(
             mode_local == "only"
             and include_syms
             and all(_is_simple_symbol_pattern(s) for s in include_syms)
         )
 
-        if use_per_symbol:
+        # Force per-symbol rendering for phoenix.otel so top-level imports are shown directly
+        if module_name == "phoenix.otel" and include_syms:
+            for sym in include_syms:
+                target = sym if sym.startswith(module_name + ".") else f"{module_name}.{sym}"
+                print(f"::: {target}", file=fd)
+                print("    options:", file=fd)
+                print("      members: false", file=fd)
+                print("      show_source: false", file=fd)
+                print("      show_if_no_docstring: false", file=fd)
+        elif use_per_symbol:
             # Emit one directive per explicitly included symbol; avoids module-level enumeration
             # entirely
             for sym in include_syms:
@@ -335,17 +307,30 @@ def _write_module_page(
                 # if not absolute
                 target = sym if sym.startswith(module_name + ".") else f"{module_name}.{sym}"
                 print(f"::: {target}", file=fd)
+                print("    options:", file=fd)
+                print("      members: false", file=fd)
+                print("      show_source: false", file=fd)
+                print("      show_if_no_docstring: false", file=fd)
         else:
-            # Fallback: module-level directive with selection limited to classes/functions and
-            # filters
-            print(f"::: {module_name}", file=fd)
-            selection_block: Dict[str, Any] = {"members": ["classes", "functions"]}
-            if filters:
-                selection_block["filters"] = list(filters)
-            config_block: Dict[str, Any] = {"selection": selection_block}
-            yaml_str = yaml.safe_dump(config_block, sort_keys=False)
-            for line in yaml_str.splitlines():
-                print(f"    {line}", file=fd)
+            # Strong default: enumerate only public classes/functions to avoid leaking variables/privates
+            public_syms = _public_symbols_for_module(module_name)
+            for sym_name, sym_type in public_syms:
+                target = f"{module_name}.{sym_name}"
+                print(f"::: {target}", file=fd)
+                print("    options:", file=fd)
+                if sym_type == "class":
+                    # For classes, use members: null (default) to allow filters to work
+                    # members: null allows filters to be applied
+                    print("      show_source: false", file=fd)
+                    print("      show_if_no_docstring: false", file=fd)
+                    print("      inherited_members: false", file=fd)
+                    print("      filters:", file=fd)
+                    print("        - '!^_'", file=fd)  # Exclude all private/protected/special
+                else:
+                    # For functions, don't enumerate members
+                    print("      members: false", file=fd)
+                    print("      show_source: false", file=fd)
+                    print("      show_if_no_docstring: false", file=fd)
 
 
 # ---------------------------
@@ -385,7 +370,7 @@ def generate_docs() -> None:
 
     # Initialize nav for literate-nav
     global nav
-    nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined]
+    nav = mkdocs_gen_files.Nav()  # type: ignore[attr-defined, no-untyped-call]
 
     # Sections and module pages
     for s in sections:
@@ -396,7 +381,10 @@ def generate_docs() -> None:
         section_dir.mkdir(parents=True, exist_ok=True)
 
         # SUMMARY: section header
-        nav[(title,)] = f"api/{outdir}/index.md"
+        if pkg == "phoenix.otel":
+            nav[(title,)] = f"api/{outdir}/phoenix.otel.md"
+        else:
+            nav[(title,)] = f"api/{outdir}/index.md"
 
         # Discovery with skip of child sections
         skip_children = all_child_prefixes.get(pkg) or set()
@@ -455,8 +443,9 @@ def generate_docs() -> None:
             if rel_parts:
                 nav[(title,) + rel_parts] = link
             else:
-                # Package module itself; ensure section index is already mapped
-                nav[(title,)] = f"api/{outdir}/index.md"
+                # Package module itself; keep existing mapping for phoenix.otel (points to module page)
+                if pkg != "phoenix.otel":
+                    nav[(title,)] = f"api/{outdir}/index.md"
 
         # Module pages
         for m in mods:

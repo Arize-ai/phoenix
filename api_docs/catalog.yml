@@ -31,9 +31,12 @@ modules:
     - phoenix.*.__*
     - phoenix.client
     - phoenix.client.constants
+    - phoenix.client.helpers
     - phoenix.client.helpers.sdk
+    - phoenix.client.helpers.sdk.*
     - phoenix.client.utils
     - phoenix.client.utils.*
+    - phoenix.client.resources.experiments.types
     - phoenix.evals.models.base
     - phoenix.evals.models.rate_limiter
 
@@ -56,16 +59,6 @@ modules:
           - HTTPSpanExporter
           - GRPCSpanExporter
 
-    phoenix.client:
-      symbols:
-        mode: only
-        include:
-          - Client
-          - connect
-          - exceptions.*
-        inherit_defaults: true
-      title: Client
-
     phoenix.client.experiments:
       symbols:
         mode: only
@@ -78,22 +71,12 @@ modules:
           - async_evaluate_experiment
           - create_evaluator
 
-    phoenix.evals:
-      symbols:
-        mode: all_except
-        exclude:
-          - "^*.deprecated*"
-          - "^*.internal*"
 
 
 # Default symbol filtering for all modules unless overridden per-module above.
 symbols:
   defaults:
-    include: []         # optional allowlist (regex/glob); rarely needed
-    exclude:
-      - "^_.*"          # hide private members
-      - "^__.*"         # hide dunder members
-    inherit_defaults: true
+    show_private: false
     show_if_no_docstring: false
 
 # Rendering defaults used for every module page; can be overridden per-module via
