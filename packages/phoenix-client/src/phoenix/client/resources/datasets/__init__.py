@@ -417,38 +417,38 @@ class Datasets:
         """
         Retrieve a specific dataset with its examples.
 
-        Gets the dataset for a specific version, or the latest version if no version
-        is specified. Returns the complete dataset including metadata and all examples.
+        Gets the dataset for a specific version, or the latest version if no
+        version is specified. Returns the complete dataset including metadata
+        and all examples.
 
         Args:
-            dataset (DatasetIdentifier): Dataset identifier - can be a dataset ID string, name string,
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+            ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            version_id (Optional[str]): Specific version ID of the dataset. If None, returns the
+            version_id (Optional[str]): Specific version ID of the dataset. If
+            None, returns the
                 latest version.
             timeout (Optional[int]): Request timeout in seconds (default: 5).
 
         Returns:
-            Dataset: Dataset object containing complete dataset metadata and all examples.
-            The dataset can be iterated over, converted to DataFrame, or accessed
-            by index.
+            Dataset: Dataset object containing complete dataset metadata and all
+            examples. The dataset can be iterated over, converted to DataFrame,
+            or accessed by index.
 
         Raises:
-            ValueError: If dataset identifier format is invalid or dataset not found.
-            httpx.HTTPStatusError: If the API request fails.
+            ValueError: If dataset identifier format is invalid or dataset not
+            found. httpx.HTTPStatusError: If the API request fails.
 
         Example::
 
-            from phoenix.client import Client
-            client = Client()
+            from phoenix.client import Client client = Client()
 
-            # Get dataset by name
-            dataset = client.datasets.get_dataset(dataset="my-dataset")
-            print(f"Dataset {dataset.name} has {len(dataset)} examples")
+            # Get dataset by name dataset =
+            client.datasets.get_dataset(dataset="my-dataset") print(f"Dataset
+            {dataset.name} has {len(dataset)} examples")
 
-            # Get specific version
-            versioned = client.datasets.get_dataset(
-                dataset="my-dataset",
-                version_id="version-123"
+            # Get specific version versioned = client.datasets.get_dataset(
+                dataset="my-dataset", version_id="version-123"
             )
         """
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
