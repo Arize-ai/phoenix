@@ -1243,10 +1243,11 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
         experiment.pop("description")
         assert created_at == updated_at
-        repetitions = {
-            run["run"]["repetitions"][0]["id"]: run["run"]["repetitions"][0]
-            for run in experiment.pop("runs")["edges"]
-        }
+        repetitions = {}
+        for run in experiment.pop("runs")["edges"]:
+            for repetition in run["run"]["repetitions"]:
+                repetition_id = repetition["id"]
+                repetitions[repetition_id] = repetition
         assert len(repetitions) == 3
 
         # check example 1 run
