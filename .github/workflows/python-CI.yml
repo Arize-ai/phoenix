@@ -405,10 +405,10 @@ jobs:
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x -n auto --reruns 5 --run-postgres
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x -n auto --reruns 5
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -511,7 +511,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 10
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x -n auto --reruns 5
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x --reruns 5
 
   phoenix-client-canary-tests-sdk:
     name: Phoenix Client Canary Tests for Third-Party SDKs
