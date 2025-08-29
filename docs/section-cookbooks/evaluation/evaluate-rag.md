@@ -56,7 +56,7 @@ import os
 from getpass import getpass
 
 import pandas as pd
-import phoenix as px
+from phoenix.client import Client
 from llama_index import SimpleDirectoryReader, VectorStoreIndex, set_global_handler
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
@@ -65,6 +65,8 @@ from llama_index.node_parser import SimpleNodeParser
 During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, simply start the phoenix application and instrument LlamaIndex.
 
 ```python
+import phoenix as px
+px_client = Client()
 px.launch_app()
 ```
 
@@ -483,13 +485,8 @@ As we can see from the above numbers, our RAG system is not perfect, there are t
 We have now evaluated our RAG system's retrieval performance. Let's send these evaluations to Phoenix for visualization. By sending the evaluations to Phoenix, you will be able to view the evaluations alongside the traces that were captured earlier.
 
 ```python
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
-
-px.Client().log_evaluations(
-    SpanEvaluations(dataframe=ndcg_at_2, eval_name="ndcg@2"),
-    SpanEvaluations(dataframe=precision_at_2, eval_name="precision@2"),
-    DocumentEvaluations(dataframe=retrieved_documents_relevance_df, eval_name="relevance"),
-)
+client.annotations.log_span_annotations(span_annotations=ndcg_annotations, sync=False)
+client.annotations.log_span_annotations(span_annotations=precision_annotations, sync=False)
 ```
 
 ### Response Evaluation <a href="#response-evaluation" id="response-evaluation"></a>
@@ -559,12 +556,8 @@ Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies t
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 
 ```python
-from phoenix.trace import SpanEvaluations
-
-px.Client().log_evaluations(
-    SpanEvaluations(dataframe=qa_correctness_eval_df, eval_name="Q&A Correctness"),
-    SpanEvaluations(dataframe=hallucination_eval_df, eval_name="Hallucination"),
-)
+client.annotations.log_span_annotations(span_annotations=qa_annotations, sync=False)
+client.annotations.log_span_annotations(span_annotations=hall_annotations, sync=False)
 ```
 
 We now have sent all our evaluations to Phoenix. Let's go to the Phoenix application and view the results! Since we've sent all the evals to Phoenix, we can analyze the results together to make a determination on whether or not poor retrieval or irrelevant context has an effect on the LLM's ability to generate the correct response.

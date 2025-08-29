@@ -39,7 +39,9 @@ Launch Phoenix and follow the instructions in the cell output to open the Phoeni
 
 ```python
 import phoenix as px
+from phoenix.client import Client
 
+px_client = Client()
 px.launch_app()
 ```
 
@@ -78,11 +80,12 @@ df = (
     .rename(columns={"highlights": "summary"})
 )
 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=df,
     input_keys=["article"],
     output_keys=["summary"],
-    dataset_name=f"news-article-summaries-{now}",
+    name=f"news-article-summaries-{now}",
 )
 ```
 

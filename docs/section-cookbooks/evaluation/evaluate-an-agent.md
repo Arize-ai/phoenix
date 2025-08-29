@@ -462,19 +462,18 @@ OpenAIInstrumentor().uninstrument()  # Uninstrument the OpenAI client to avoid c
 ```python
 import nest_asyncio
 
-import phoenix as px
+from phoenix.client import Client
 from phoenix.evals import TOOL_CALLING_PROMPT_TEMPLATE, OpenAIModel, llm_classify
-from phoenix.experiments import evaluate_experiment, run_experiment
+from phoenix.client.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.types import Example
-from phoenix.trace import SpanEvaluations
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 nest_asyncio.apply()
 ```
 
 ```python
-px_client = px.Client()
+px_client = Client()
 eval_model = OpenAIModel(model="gpt-4o-mini")
 ```
 
@@ -499,7 +498,7 @@ query = (
 )
 
 # The Phoenix Client can take this query and return the dataframe.
-tool_calls_df = px.Client().query_spans(query, project_name=project_name, timeout=None)
+tool_calls_df = px_client.spans.get_spans_dataframe(query=query, project_identifier=project_name, timeout=None)
 tool_calls_df.dropna(subset=["output_messages"], inplace=True)
 
 
@@ -541,8 +540,10 @@ tool_call_eval.head()
 ```
 
 ```python
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Tool Calling Eval", dataframe=tool_call_eval),
+px_client.annotations.log_span_annotations_dataframe(
+    dataframe=tool_call_eval,
+    annotation_name="Tool Calling Eval",
+    annotator_kind="LLM",
 )
 ```
 

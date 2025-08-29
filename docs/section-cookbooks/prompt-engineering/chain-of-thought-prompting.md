@@ -47,8 +47,7 @@ Here, we also import the Phoenix Client, which enables us to create and modify p
 import uuid
 
 from datasets import load_dataset
-
-import phoenix as px
+from phoenix.client import Client
 from phoenix.client import Client as PhoenixClient
 
 ds = load_dataset("syeddula/math_word_problems")["train"]
@@ -58,11 +57,12 @@ ds.head()
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=ds,
     input_keys=["Word Problem"],
     output_keys=["Answer"],
-    dataset_name=f"wordproblems-{unique_id}",
+    name=f"wordproblems-{unique_id}",
 )
 ```
 
@@ -366,7 +366,7 @@ def evaluate_response(output, expected):
 
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 
