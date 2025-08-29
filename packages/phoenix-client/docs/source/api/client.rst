@@ -1,22 +1,14 @@
 client
 ======
 
-.. contents:: :local:
-
-Client
-------
 .. autoclass:: client.Client
    :members:
    :show-inheritance:
 
-AsyncClient
------------
 .. autoclass:: client.AsyncClient
    :members:
    :show-inheritance:
 
-Projects
---------
 .. autoclass:: client.resources.projects.Projects
    :members:
    :show-inheritance:
@@ -25,8 +17,6 @@ Projects
    :members:
    :show-inheritance:
 
-Prompts
--------
 .. autoclass:: client.resources.prompts.Prompts
    :members:
    :show-inheritance:
@@ -35,8 +25,6 @@ Prompts
    :members:
    :show-inheritance:
 
-Spans
------
 .. autoclass:: client.resources.spans.Spans
    :members:
    :show-inheritance:
@@ -45,8 +33,6 @@ Spans
    :members:
    :show-inheritance:
 
-Datasets
---------
 .. autoclass:: client.resources.datasets.Datasets
    :members:
    :show-inheritance:
@@ -55,8 +41,6 @@ Datasets
    :members:
    :show-inheritance:
 
-Experiments
------------
 .. autoclass:: client.resources.experiments.Experiments
    :members:
    :show-inheritance:
@@ -65,8 +49,6 @@ Experiments
    :members:
    :show-inheritance:
 
-Annotations
------------
 .. autoclass:: client.resources.annotations.Annotations
    :members:
    :show-inheritance:
@@ -75,15 +57,6 @@ Annotations
    :members:
    :show-inheritance:
 
-Helpers
--------
 .. automodule:: client.helpers.spans
    :members:
    :show-inheritance:
-
-Module Contents
----------------
-.. automodule:: client
-   :members:
-   :exclude-members: Client, AsyncClient
-   :no-undoc-members: 
