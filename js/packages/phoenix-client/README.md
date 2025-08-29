@@ -12,7 +12,14 @@
     </div>
 </h1>
 
-![NPM](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)
+<p align="center">
+    <a href="https://www.npmjs.com/package/@arizeai/phoenix-client">
+        <img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client" alt="NPM Version">
+    </a>
+    <a href="https://arize-ai.github.io/phoenix/">
+        <img src="https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white" alt="Documentation">
+    </a>
+</p>
 
 This package provides a TypeSript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
 
@@ -312,3 +319,17 @@ Compatibility Table:
 | ---------------------- | ---------------------- |
 | ^2.0.0                 | ^9.0.0                 |
 | ^1.0.0                 | ^8.0.0                 |
+
+---
+
+## Community
+
+Join our community to connect with thousands of AI builders:
+
+- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
+- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
