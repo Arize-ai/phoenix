@@ -58,6 +58,7 @@ class _TableSchemaInfo(TypedDict):
     column_names: frozenset[str]
     index_names: frozenset[str]
     constraint_names: frozenset[str]
+    nullable_column_names: frozenset[str]
 
 
 def _get_table_schema_info(
@@ -113,11 +114,11 @@ def _get_table_schema_info(
         if not table_exists:
             return None
 
-        # Get column names
+        # Get column names and nullable info
         columns_result = conn.execute(
             text(
                 """
-                SELECT a.attname
+                SELECT a.attname, a.attnotnull
                 FROM pg_attribute a
                 JOIN pg_class c ON c.oid = a.attrelid
                 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -131,6 +132,7 @@ def _get_table_schema_info(
             {"table_name": table_name, "schema": schema},
         ).fetchall()
         column_names = {col[0] for col in columns_result}
+        nullable_column_names = {col[0] for col in columns_result if not col[1]}
 
         # Get index names
         indices_result = conn.execute(
@@ -181,9 +183,11 @@ def _get_table_schema_info(
         if not table_exists:
             return None
 
-        # Get column names and primary key info
+        # Get column names and nullable info
         columns_result = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         column_names = {col[1] for col in columns_result}
+        # In SQLite PRAGMA table_info, col[3] is notnull (1 if NOT NULL, 0 if nullable)
+        nullable_column_names = {col[1] for col in columns_result if col[3] == 0}
 
         # Get primary key columns
         pk_columns = [col[1] for col in columns_result if col[5] == 1]
@@ -236,6 +240,7 @@ def _get_table_schema_info(
         column_names=frozenset(column_names),
         index_names=frozenset(index_names),
         constraint_names=frozenset(constraint_names),
+        nullable_column_names=frozenset(nullable_column_names),
     )
 
 

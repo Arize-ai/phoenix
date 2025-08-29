@@ -46,6 +46,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_tools,
     prompt_metadata,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -191,6 +192,7 @@ class ChatCompletionMutationMixin:
             ]
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -200,6 +202,7 @@ class ChatCompletionMutationMixin:
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=user_id,
             )
             session.add(experiment)
             await session.flush()
