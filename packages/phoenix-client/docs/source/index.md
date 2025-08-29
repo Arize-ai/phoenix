@@ -44,33 +44,28 @@ export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=v
 The client automatically reads environment variables, or you can override them:
 
 ```python
-from phoenix.client import Client
+from phoenix.client import Client, AsyncClient
 
 # Automatic configuration from environment variables
-client = Client()  # Uses PHOENIX_BASE_URL, PHOENIX_API_KEY, PHOENIX_CLIENT_HEADERS
+client = Client()
 
-# Override environment variables
 client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
-# Explicit API key
+# Cloud instance with API key
 client = Client(
     base_url="https://app.phoenix.arize.com/s/your-space",
     api_key="your-api-key"
 )
 
-# Custom headers for authentication
+# Custom authentication headers
 client = Client(
     base_url="https://your-phoenix-instance.com",
     headers={"Authorization": "Bearer your-api-key"}
 )
 
-# Asynchronous Client
-async_client = AsyncClient()  # Uses environment variables
-
-# Override environment variables for async client
+# Asynchronous client (same configuration options)
+async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
-
-# Cloud instance
 async_client = AsyncClient(
     base_url="https://app.phoenix.arize.com/s/your-space",
     api_key="your-api-key"
@@ -79,7 +74,7 @@ async_client = AsyncClient(
 
 ## Resources
 
-The Phoenix Client organizes its functionality into **resources** that correspond to different aspects of the Phoenix platform. Each resource provides methods to interact with specific entities:
+The Phoenix Client organizes functionality into resources that correspond to key Phoenix platform features. Each resource provides specialized methods for managing different types of data:
 
 ### Prompts
 Manage prompt templates and versions:
@@ -101,7 +96,7 @@ prompt = client.prompts.create(
         messages=[{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
-    prompt_description="Summarize an article in a few bullet points",
+    prompt_description="Summarize an article in a few bullet points"
 )
 
 # Retrieve and use prompts
@@ -128,7 +123,7 @@ Query for spans and annotations from your projects for custom evaluation and ann
 from datetime import datetime, timedelta
 from phoenix.client.types.spans import SpanQuery
 
-# Get spans as a simple list
+# Get spans as a list
 spans = client.spans.get_spans(
     project_identifier="my-llm-app",
     limit=100,
@@ -271,7 +266,7 @@ print(df.index.name)  # example_id
 # Create a new dataset from dictionaries
 dataset = client.datasets.create_dataset(
     name="customer-support-qa",
-    description="Q&A dataset for customer support evaluation",
+    dataset_description="Q&A dataset for customer support evaluation",
     inputs=[
         {"question": "How do I reset my password?"},
         {"question": "What's your return policy?"},
@@ -350,6 +345,8 @@ versioned_dataset = client.datasets.get_dataset(
 )
 
 # Dataset serialization for backup/sharing
+from phoenix.client.resources.datasets import Dataset
+
 dataset_dict = dataset.to_dict()
 # Save to file, send over network, etc.
 
