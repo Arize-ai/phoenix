@@ -637,13 +637,13 @@ def _get_span_annotation(
     return anno
 
 
-def _validate_annotation_dataframe(
+def _validate_annotations_dataframe(
     *,
     dataframe: pd.DataFrame,
     annotation_name: Optional[str] = None,
     annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
 ) -> None:
-    """Internal function to validate that the DataFrame has the required columns and data.
+    """Internal function to validate that the DataFrame has the required annotations columns and data.
 
     This function performs comprehensive validation of the DataFrame structure and content,
     including type checking, required columns, and value validation.
@@ -781,7 +781,7 @@ def _validate_document_annotation_dataframe(
     """Internal function to validate that the Dataframe has the required data
     for document annotations"""
     # First validate that it is a valid annotation dataframe
-    _validate_annotation_dataframe(
+    _validate_annotations_dataframe(
         dataframe=dataframe, annotation_name=annotation_name, annotator_kind=annotator_kind
     )
     if "document_position" not in dataframe.columns:
@@ -820,7 +820,7 @@ def _chunk_span_annotations_dataframe(
         TypeError: If score values cannot be converted to float.
     """  # noqa: E501
     # Validate DataFrame upfront
-    _validate_annotation_dataframe(
+    _validate_annotations_dataframe(
         dataframe=dataframe,
         annotation_name=annotation_name,
         annotator_kind=annotator_kind,
