@@ -62,11 +62,10 @@
   "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
-    "@ai-sdk/openai": "^1.1.15",
+    "@ai-sdk/openai": "^2.0.19",
     "@anthropic-ai/sdk": "^0.35.0",
     "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
-    "ai": "^4.1.24",
     "openai": "^4.77.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
@@ -94,7 +93,8 @@
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^4.1.47",
+    "@arizeai/phoenix-evals": "^0.2.0",
+    "ai": "^5.0.0",
     "openai": "^5.12.1"
   }
 }
