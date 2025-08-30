@@ -485,6 +485,31 @@ As we can see from the above numbers, our RAG system is not perfect, there are t
 We have now evaluated our RAG system's retrieval performance. Let's send these evaluations to Phoenix for visualization. By sending the evaluations to Phoenix, you will be able to view the evaluations alongside the traces that were captured earlier.
 
 ```python
+from phoenix.client.__generated__ import v1
+
+ndcg_rows = ndcg_at_2.reset_index()[["context.span_id", "score"]].dropna()
+prec_rows = precision_at_2.reset_index()[["context.span_id", "score"]].dropna()
+
+ndcg_annotations: list[v1.SpanAnnotationData] = [
+    v1.SpanAnnotationData(
+        name="ndcg@2",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="CODE",
+        result={"score": float(row["score"])},
+    )
+    for _, row in ndcg_rows.iterrows()
+]
+
+precision_annotations: list[v1.SpanAnnotationData] = [
+    v1.SpanAnnotationData(
+        name="precision@2",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="CODE",
+        result={"score": float(row["score"])},
+    )
+    for _, row in prec_rows.iterrows()
+]
+
 client.annotations.log_span_annotations(span_annotations=ndcg_annotations, sync=False)
 client.annotations.log_span_annotations(span_annotations=precision_annotations, sync=False)
 ```
@@ -556,6 +581,43 @@ Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies t
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 
 ```python
+# Expect dataframes indexed by context.span_id
+qac_rows = qa_correctness_eval_df.reset_index()[
+    ["context.span_id", "score", "label", "explanation"]
+].dropna(how="all", subset=["score", "label", "explanation"])
+hall_rows = hallucination_eval_df.reset_index()[
+    ["context.span_id", "score", "label", "explanation"]
+].dropna(how="all", subset=["score", "label", "explanation"])
+
+# Construct annotations in the same style as retrieval metrics
+qa_annotations: list[v1.SpanAnnotationData] = [
+    v1.SpanAnnotationData(
+        name="Q&A Correctness",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="LLM",
+        result={
+            **({"score": float(row["score"])} if pd.notna(row["score"]) else {}),
+            **({"label": str(row["label"])} if pd.notna(row["label"]) else {}),
+            **({"explanation": str(row["explanation"])} if pd.notna(row["explanation"]) else {}),
+        },
+    )
+    for _, row in qac_rows.iterrows()
+]
+
+hall_annotations: list[v1.SpanAnnotationData] = [
+    v1.SpanAnnotationData(
+        name="Hallucination",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="LLM",
+        result={
+            **({"score": float(row["score"])} if pd.notna(row["score"]) else {}),
+            **({"label": str(row["label"])} if pd.notna(row["label"]) else {}),
+            **({"explanation": str(row["explanation"])} if pd.notna(row["explanation"]) else {}),
+        },
+    )
+    for _, row in hall_rows.iterrows()
+]
+
 client.annotations.log_span_annotations(span_annotations=qa_annotations, sync=False)
 client.annotations.log_span_annotations(span_annotations=hall_annotations, sync=False)
 ```

@@ -315,7 +315,7 @@ import json
 
 from openai import OpenAI
 
-from phoenix.experiments import evaluate_experiment
+from phoenix.client.experiments import evaluate_experiment
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.types import EvaluationResult
 

@@ -197,7 +197,6 @@ from phoenix.client import Client
 
 unique_id = uuid.uuid4()
 
-dataset_name = "math-questions-" + str(uuid.uuid4())[:5]
 
 # Upload the dataset to Phoenix
 px_client = Client()
@@ -240,7 +239,6 @@ Another option is to pull traces from completed production runs and batch proces
 ```python
 from opentelemetry.trace import StatusCode, format_span_id
 
-from phoenix.trace import SpanEvaluations
 ```
 
 After importing the necessary libraries, we set up a tracer object to enable span creation for tracing our task function.

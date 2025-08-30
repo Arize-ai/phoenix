@@ -112,7 +112,7 @@ Because our dataset has ground truth labels, we can use a simple function to ext
 ```python
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 

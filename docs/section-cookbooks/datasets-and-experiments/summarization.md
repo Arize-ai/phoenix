@@ -107,7 +107,7 @@ Next, define a function to format a prompt template and invoke an OpenAI model o
 
 ```python
 from openai import AsyncOpenAI
-from phoenix.experiments import Example
+from phoenix.client.experiments import Example
 
 openai_client = AsyncOpenAI()
 
@@ -209,7 +209,7 @@ EVALUATORS = [rouge_1_f1_score, rouge_1_precision, rouge_1_recall, num_tokens]
 Run your first experiment and follow the link in the cell output to inspect the task outputs (generated summaries) and evaluations.
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment_results = run_experiment(
     dataset,

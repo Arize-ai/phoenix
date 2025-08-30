@@ -175,7 +175,7 @@ def evaluate_response(input, output):
 ```python
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 

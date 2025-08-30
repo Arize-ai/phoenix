@@ -54,7 +54,7 @@ from phoenix.evals import (
     OpenAIModel,
     llm_classify,
 )
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
 nest_asyncio.apply()
