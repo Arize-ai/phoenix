@@ -637,7 +637,7 @@ def _get_span_annotation(
     return anno
 
 
-def _validate_dataframe(
+def _validate_annotation_dataframe(
     *,
     dataframe: pd.DataFrame,
     annotation_name: Optional[str] = None,
@@ -772,6 +772,25 @@ def _validate_dataframe(
             )
 
 
+def _validate_document_annotation_dataframe(
+    *,
+    dataframe: pd.DataFrame,
+    annotation_name: Optional[str] = None,
+    annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]],
+) -> None:
+    """Internal function to validate that the Dataframe has the required data for document annotations"""
+    # First validate that it is a valid annotation dataframe
+    _validate_annotation_dataframe(
+        dataframe=dataframe, annotation_name=annotation_name, annotator_kind=annotator_kind
+    )
+    if "document_position" not in dataframe.columns:
+        raise ValueError(
+            "Dataframe must have a column for the 'document_position' of each annotation"
+        )
+    if not all(isinstance(x, int) for x in dataframe["document_position"]):
+        raise ValueError("Every value in the 'document_offset' column must be an int")
+
+
 def _chunk_dataframe(
     *,
     dataframe: pd.DataFrame,
@@ -800,7 +819,7 @@ def _chunk_dataframe(
         TypeError: If score values cannot be converted to float.
     """  # noqa: E501
     # Validate DataFrame upfront
-    _validate_dataframe(
+    _validate_annotation_dataframe(
         dataframe=dataframe,
         annotation_name=annotation_name,
         annotator_kind=annotator_kind,
