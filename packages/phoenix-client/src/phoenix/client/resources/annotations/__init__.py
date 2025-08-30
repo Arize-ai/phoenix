@@ -591,7 +591,7 @@ def _get_span_annotation(
             It will also update the record with identifier="" if it exists.
 
     Returns:
-        aSpanAnnotationData: A span annotation data object that can be used with the Annotations API.
+        SpanAnnotationData: A span annotation data object that can be used with the Annotations API.
 
     Raises:
         ValueError: If at least one of label, score, or explanation is not provided, or if required fields are invalid.
