@@ -4,7 +4,9 @@ import random
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
-from phoenix.client.resources.spans import Span
+from phoenix.client.__generated__ import v1
+
+Span = v1.Span
 
 if TYPE_CHECKING:
     import pandas as pd
