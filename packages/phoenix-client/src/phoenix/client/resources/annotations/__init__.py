@@ -551,7 +551,7 @@ class AsyncAnnotations:
         if not annotations_list:
             raise ValueError("span_annotations cannot be empty")
 
-        url = "span_annotations"
+        url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
         json_ = AnnotateSpansRequestBody(data=annotations_list)
         response = await self._client.post(url=url, json=json_, params=params)
