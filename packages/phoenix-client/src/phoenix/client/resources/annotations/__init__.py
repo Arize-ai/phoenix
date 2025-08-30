@@ -789,7 +789,7 @@ def _validate_document_annotation_dataframe(
             "Dataframe must have a column for the 'document_position' of each annotation"
         )
     if not all(isinstance(x, int) for x in dataframe["document_position"]):
-        raise ValueError("Every value in the 'document_offset' column must be an int")
+        raise ValueError("Every value in the 'document_position' column must be an int")
 
 
 def _chunk_span_annotations_dataframe(
