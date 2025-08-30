@@ -21,6 +21,8 @@ from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
+DatasetExample = v1.DatasetExample
+
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
@@ -36,7 +38,7 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    required_fields = set(v1.DatasetExample.__annotations__.keys())
+    required_fields = set(DatasetExample.__annotations__.keys())
 
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
@@ -51,7 +53,7 @@ class Dataset:
         name (str): The dataset name.
         description (Optional[str]): The dataset description.
         version_id (str): The current version ID.
-        examples (list[v1.DatasetExample]): List of examples in this version.
+        examples (list[DatasetExample]): List of examples in this version.
         metadata (dict[str, Any]): Additional dataset metadata.
         created_at (datetime): When the dataset was created.
         updated_at (datetime): When the dataset was last updated.
@@ -87,7 +89,7 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
-    def examples(self) -> list[v1.DatasetExample]:
+    def examples(self) -> list[DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
 
@@ -127,11 +129,11 @@ class Dataset:
         """Number of examples in this dataset version."""
         return len(self.examples)
 
-    def __iter__(self) -> Iterator[v1.DatasetExample]:
+    def __iter__(self) -> Iterator[DatasetExample]:
         """Iterate over examples."""
         return iter(self.examples)
 
-    def __getitem__(self, index: int) -> v1.DatasetExample:
+    def __getitem__(self, index: int) -> DatasetExample:
         """Get example by index."""
         return self.examples[index]
 
@@ -662,7 +664,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -714,7 +716,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -752,7 +754,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -820,7 +822,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -1359,7 +1361,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1411,7 +1413,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -1449,7 +1451,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1517,7 +1519,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:

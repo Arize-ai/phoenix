@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
+Span = v1.Span
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -32,10 +34,10 @@ def _generate_span_id() -> str:
 
 
 def uniquify_spans(
-    spans: Sequence[v1.Span],
+    spans: Sequence[Span],
     *,
     in_place: bool = False,
-) -> list[v1.Span]:
+) -> list[Span]:
     """
     Regenerates span and trace IDs for a sequence of Span objects while maintaining parent-child
     relationships. Typically used when creating spans with the client to ensure that the spans
@@ -229,7 +231,7 @@ def uniquify_spans_dataframe(
     return df
 
 
-def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
+def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
     """
     Converts a pandas DataFrame (from get_spans_dataframe) back to a list of Span objects.
 
@@ -271,7 +273,7 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
     """
     import pandas as pd
 
-    spans: list[v1.Span] = []
+    spans: list[Span] = []
 
     for idx, row in df.iterrows():  # pyright: ignore
         span: dict[str, Any] = {}
@@ -362,6 +364,6 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
             span["status_code"] = "UNSET"
 
         if span.get("context", {}).get("span_id") and span.get("context", {}).get("trace_id"):
-            spans.append(cast(v1.Span, span))
+            spans.append(cast(Span, span))
 
     return spans

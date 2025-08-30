@@ -17,6 +17,13 @@ _AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
 _VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
+# Type aliases so that we don't encourage the use of generated types
+InsertedSpanAnnotation = v1.InsertedSpanAnnotation
+SpanAnnotationData = v1.SpanAnnotationData
+AnnotateSpansResponseBody = v1.AnnotateSpansResponseBody
+AnnotateSpansRequestBody = v1.AnnotateSpansRequestBody
+SpanAnnotationResult = v1.SpanAnnotationResult
+
 
 class Annotations:
     """Client for interacting with the Annotations API endpoints.
@@ -86,7 +93,7 @@ class Annotations:
         metadata: Optional[dict[str, Any]] = None,
         identifier: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[v1.InsertedSpanAnnotation]:
+    ) -> Optional[InsertedSpanAnnotation]:
         """Add a single span annotation.
 
         Args:
@@ -110,7 +117,7 @@ class Annotations:
                 processed asynchronously. Defaults to False.
 
         Returns:
-            Optional[v1.InsertedSpanAnnotation]: If sync is True, the inserted span annotation
+            Optional[InsertedSpanAnnotation]: If sync is True, the inserted span annotation
                 containing an ID. If sync is False, None.
 
         Raises:
@@ -154,7 +161,7 @@ class Annotations:
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         annotation_name: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
+    ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame.
 
         This method allows you to create multiple span annotations at once by providing the data
@@ -181,7 +188,7 @@ class Annotations:
                 asynchronously. Defaults to False.
 
         Returns:
-            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of all inserted span
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of all inserted span
                 annotations. If sync is False, None.
 
         Raises:
@@ -226,7 +233,7 @@ class Annotations:
             )
         """  # noqa: E501
         # Process DataFrame chunks using iterator
-        all_responses: list[v1.InsertedSpanAnnotation] = []
+        all_responses: list[InsertedSpanAnnotation] = []
         for chunk in _chunk_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
@@ -243,20 +250,20 @@ class Annotations:
     def log_span_annotations(
         self,
         *,
-        span_annotations: Iterable[v1.SpanAnnotationData],
+        span_annotations: Iterable[SpanAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
+    ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations.
 
         Args:
-            span_annotations (Iterable[v1.SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
+            span_annotations (Iterable[SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
                 at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
             sync (bool): If True, the request will be fulfilled synchronously and the response will contain
                 the inserted annotation IDs. If False, the request will be processed asynchronously.
                 Defaults to False.
 
         Returns:
-            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -269,12 +276,12 @@ class Annotations:
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
+        json_ = AnnotateSpansRequestBody(data=annotations_list)
         response = self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
             return None
-        return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])
+        return list(cast(AnnotateSpansResponseBody, response.json())["data"])
 
 
 class AsyncAnnotations:
@@ -345,7 +352,7 @@ class AsyncAnnotations:
         metadata: Optional[dict[str, Any]] = None,
         identifier: Optional[str] = None,
         sync: bool = False,
-    ) -> Optional[v1.InsertedSpanAnnotation]:
+    ) -> Optional[InsertedSpanAnnotation]:
         """Add a single span annotation asynchronously.
 
         Args:
@@ -367,7 +374,7 @@ class AsyncAnnotations:
                 Defaults to False.
 
         Returns:
-            Optional[v1.InsertedSpanAnnotation]: If sync is True, the inserted span annotation containing an ID. If sync is False, None.
+            Optional[InsertedSpanAnnotation]: If sync is True, the inserted span annotation containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -410,7 +417,7 @@ class AsyncAnnotations:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
+    ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame asynchronously.
 
         This method allows you to create multiple span annotations at once by providing the data
@@ -470,7 +477,7 @@ class AsyncAnnotations:
             )
         """  # noqa: E501
         # Process DataFrame chunks using iterator
-        all_responses: list[v1.InsertedSpanAnnotation] = []
+        all_responses: list[InsertedSpanAnnotation] = []
         for chunk in _chunk_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
@@ -487,20 +494,20 @@ class AsyncAnnotations:
     async def log_span_annotations(
         self,
         *,
-        span_annotations: Iterable[v1.SpanAnnotationData],
+        span_annotations: Iterable[SpanAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[v1.InsertedSpanAnnotation]]:
+    ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations asynchronously.
 
         Args:
-            span_annotations (Iterable[v1.SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
+            span_annotations (Iterable[SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
                 at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
             sync (bool): If True, the request will be fulfilled synchronously and the response will contain
                 the inserted annotation IDs. If False, the request will be processed asynchronously.
                 Defaults to False.
 
         Returns:
-            Optional[list[v1.InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -540,18 +547,18 @@ class AsyncAnnotations:
             )
         """  # noqa: E501
         # Convert to list and validate input
-        annotations_list: list[v1.SpanAnnotationData] = list(span_annotations)
+        annotations_list: list[SpanAnnotationData] = list(span_annotations)
         if not annotations_list:
             raise ValueError("span_annotations cannot be empty")
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
+        json_ = AnnotateSpansRequestBody(data=annotations_list)
         response = await self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
             return None
-        return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])
+        return list(cast(AnnotateSpansResponseBody, response.json())["data"])
 
 
 def _get_span_annotation(
@@ -564,7 +571,7 @@ def _get_span_annotation(
     explanation: Optional[str] = None,
     metadata: Optional[dict[str, Any]] = None,
     identifier: Optional[str] = None,
-) -> v1.SpanAnnotationData:
+) -> SpanAnnotationData:
     """Create a span annotation data object.
 
     Args:
@@ -584,7 +591,7 @@ def _get_span_annotation(
             It will also update the record with identifier="" if it exists.
 
     Returns:
-        av1.SpanAnnotationData: A span annotation data object that can be used with the Annotations API.
+        SpanAnnotationData: A span annotation data object that can be used with the Annotations API.
 
     Raises:
         ValueError: If at least one of label, score, or explanation is not provided, or if required fields are invalid.
@@ -609,14 +616,14 @@ def _get_span_annotation(
     if metadata is not None and not isinstance(metadata, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("metadata must be a dictionary")
 
-    result: v1.SpanAnnotationResult = {}
+    result: SpanAnnotationResult = {}
     if label:
         result["label"] = label
     if score is not None:
         result["score"] = score
     if explanation:
         result["explanation"] = explanation
-    anno = v1.SpanAnnotationData(
+    anno = SpanAnnotationData(
         name=annotation_name,
         span_id=span_id,
         annotator_kind=annotator_kind,
@@ -770,7 +777,7 @@ def _chunk_dataframe(
     annotation_name: Optional[str] = None,
     annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
     chunk_size: int = _DATAFRAME_CHUNK_SIZE,
-) -> Iterator[list[v1.SpanAnnotationData]]:
+) -> Iterator[list[SpanAnnotationData]]:
     """Internal function to split a DataFrame into smaller chunks for batch processing.
 
     This function processes the DataFrame in chunks of 100 rows for efficient batch processing.
