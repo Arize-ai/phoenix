@@ -8,13 +8,14 @@ from typing_extensions import TypeAlias
 
 from phoenix.client.__generated__ import v1
 
+from .constants import VALID_ANNOTATOR_KINDS
+
 if TYPE_CHECKING:
     import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 _AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
-_VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
 # Type aliases so that we don't encourage the use of generated types
@@ -601,8 +602,8 @@ def _get_span_annotation(
         raise ValueError("span_id must be a non-empty string")
     if not annotation_name or not isinstance(annotation_name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("annotation_name must be a non-empty string")
-    if annotator_kind not in _VALID_ANNOTATOR_KINDS:
-        raise ValueError(f"annotator_kind must be one of {_VALID_ANNOTATOR_KINDS}")
+    if annotator_kind not in VALID_ANNOTATOR_KINDS:
+        raise ValueError(f"annotator_kind must be one of {VALID_ANNOTATOR_KINDS}")
 
     # Validate that at least one of label, score, or explanation is provided
     if not label and score is None and not explanation:
@@ -755,19 +756,19 @@ def _validate_dataframe(
             raise ValueError("Index values must be strings when used as span_id")
 
     # Check global annotator_kind if provided
-    if annotator_kind is not None and annotator_kind not in _VALID_ANNOTATOR_KINDS:
+    if annotator_kind is not None and annotator_kind not in VALID_ANNOTATOR_KINDS:
         raise ValueError(
             f"Invalid annotator_kind value: {annotator_kind}. "
-            f"Must be one of: {_VALID_ANNOTATOR_KINDS}"
+            f"Must be one of: {VALID_ANNOTATOR_KINDS}"
         )
 
     # Only check row-level annotator_kind values if no global value is provided
     if annotator_kind is None and "annotator_kind" in dataframe.columns:
-        invalid_values = set(dataframe["annotator_kind"].dropna().unique()) - _VALID_ANNOTATOR_KINDS  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+        invalid_values = set(dataframe["annotator_kind"].dropna().unique()) - VALID_ANNOTATOR_KINDS  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
         if invalid_values:
             raise ValueError(
                 f"Invalid annotator_kind values found in DataFrame: {invalid_values}. "
-                f"Must be one of: {_VALID_ANNOTATOR_KINDS}"
+                f"Must be one of: {VALID_ANNOTATOR_KINDS}"
             )
 
 

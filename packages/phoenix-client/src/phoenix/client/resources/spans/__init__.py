@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Re-export generated types
 Span = v1.Span
+SpanAnnotationData = v1.SpanAnnotationData
 SpanAnnotation = v1.SpanAnnotation
 SpanAnnotationResult = v1.SpanAnnotationResult
 SpanAnnotationsResponseBody = v1.SpanAnnotationsResponseBody
