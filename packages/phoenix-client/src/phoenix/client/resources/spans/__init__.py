@@ -17,6 +17,14 @@ from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
+# Re-export generated types
+Span = v1.Span
+SpanAnnotation = v1.SpanAnnotation
+SpanAnnotationResult = v1.SpanAnnotationResult
+SpanAnnotationsResponseBody = v1.SpanAnnotationsResponseBody
+CreateSpansResponseBody = v1.CreateSpansResponseBody
+
+
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
@@ -245,7 +253,7 @@ class Spans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -271,8 +279,8 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                payload = cast(SpanAnnotationsResponseBody, payload)
+                batch = cast(list[SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -295,7 +303,7 @@ class Spans:
         exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SpanAnnotation]:
+    ) -> list[SpanAnnotation]:
         """Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
         Exactly one of *span_ids* or *spans* should be provided.
@@ -317,7 +325,7 @@ class Spans:
             timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            list[v1.SpanAnnotation]: A list of SpanAnnotation objects.
+            list[SpanAnnotation]: A list of SpanAnnotation objects.
 
         Raises:
             ValueError: If not exactly one of *span_ids* or *spans* is provided.
@@ -350,7 +358,7 @@ class Spans:
         if not span_ids_list:
             return []
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -376,8 +384,8 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                payload = cast(SpanAnnotationsResponseBody, payload)
+                batch = cast(list[SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -796,7 +804,7 @@ class AsyncSpans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -822,8 +830,8 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                payload = cast(SpanAnnotationsResponseBody, payload)
+                batch = cast(list[SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -846,7 +854,7 @@ class AsyncSpans:
         exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SpanAnnotation]:
+    ) -> list[SpanAnnotation]:
         """Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
         Exactly one of *span_ids* or *spans* should be provided.
@@ -868,7 +876,7 @@ class AsyncSpans:
             timeout (Optional[int]): Optional request timeout in seconds.
 
         Returns:
-            list[v1.SpanAnnotation]: A list of SpanAnnotation objects.
+            list[SpanAnnotation]: A list of SpanAnnotation objects.
 
         Raises:
             ValueError: If not exactly one of *span_ids* or *spans* is provided.
@@ -901,7 +909,7 @@ class AsyncSpans:
         if not span_ids_list:
             return []
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -927,8 +935,8 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                payload = cast(SpanAnnotationsResponseBody, payload)
+                batch = cast(list[SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -1390,7 +1398,7 @@ def _extract_invalid_span_from_log_spans_error(
 
 
 def _raise_log_spans_error(
-    error_data: Union[dict[str, Any], v1.CreateSpansResponseBody],
+    error_data: Union[dict[str, Any], CreateSpansResponseBody],
 ) -> None:
     """Raise SpanCreationError from error response data.
 
