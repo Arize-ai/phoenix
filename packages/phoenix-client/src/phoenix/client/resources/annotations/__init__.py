@@ -778,7 +778,8 @@ def _validate_document_annotation_dataframe(
     annotation_name: Optional[str] = None,
     annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]],
 ) -> None:
-    """Internal function to validate that the Dataframe has the required data for document annotations"""
+    """Internal function to validate that the Dataframe has the required data
+    for document annotations"""
     # First validate that it is a valid annotation dataframe
     _validate_annotation_dataframe(
         dataframe=dataframe, annotation_name=annotation_name, annotator_kind=annotator_kind
