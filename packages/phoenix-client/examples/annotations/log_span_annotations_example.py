@@ -1,10 +1,5 @@
-from openai import OpenAI
-
 from phoenix.client import Client
 
-openai = OpenAI()
-
-openai.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "bla"}])
 client = Client()
 
 # Add a single span annotation
