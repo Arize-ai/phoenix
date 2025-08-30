@@ -582,9 +582,9 @@ agent_tool_responses = {
 
 
 tool_calling_df = pd.DataFrame(agent_tool_responses.items(), columns=["question", "tool_calls"])
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=tool_calling_df,
-    dataset_name=f"tool_calling_ground_truth_{id}",
+    name=f"tool_calling_ground_truth_{id}",
     input_keys=["question"],
     output_keys=["tool_calls"],
 )
@@ -671,9 +671,9 @@ display(questions_df)
 ```
 
 ```python
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=questions_df,
-    dataset_name=f"sales_db_lookup_questions_{id}",
+    name=f"sales_db_lookup_questions_{id}",
     input_keys=["question"],
     output_keys=["expected_result"],
 )
@@ -739,9 +739,9 @@ code_generation_df = pd.DataFrame(
     }
 )
 
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=code_generation_df,
-    dataset_name=f"code_generation_questions_{id}",
+    name=f"code_generation_questions_{id}",
     input_keys=["question", "example_data", "chart_configs"],
 )
 ```
@@ -833,8 +833,8 @@ convergence_questions = [
 
 convergence_df = pd.DataFrame({"question": convergence_questions})
 
-dataset = px_client.upload_dataset(
-    dataframe=convergence_df, dataset_name="convergence_questions", input_keys=["question"]
+dataset = px_client.datasets.create_dataset(
+    dataframe=convergence_df, name="convergence_questions", input_keys=["question"]
 )
 ```
 
@@ -1115,7 +1115,7 @@ print(overall_experiment_questions[6])
 
 # overall_experiment_df = pd.DataFrame(overall_experiment_questions)
 
-# dataset = px_client.upload_dataset(dataframe=overall_experiment_df, dataset_name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
+# dataset = px_client.datasets.create_dataset(dataframe=overall_experiment_df, name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
 ```
 
 ```python

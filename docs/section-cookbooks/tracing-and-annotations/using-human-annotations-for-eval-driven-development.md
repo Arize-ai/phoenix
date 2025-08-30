@@ -110,7 +110,7 @@ from phoenix.client import Client
 from phoenix.client import Client
 from phoenix.client.types import spans
 
-client = Client()
+px_client = Client()
 # replace "correctness" if you chose to annotate on different criteria
 query = spans.SpanQuery().where("annotations['correctness']")
 spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="my-annotations-app")
