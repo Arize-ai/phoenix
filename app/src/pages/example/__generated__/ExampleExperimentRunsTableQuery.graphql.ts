@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<daecace9bba89881b3ee8128f260a286>>
+ * @generated SignedSource<<261b4bc6602f006eaaa7793a026c3fe7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,33 +50,43 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "after",
-    "variableName": "after"
-  },
-  {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
-  }
-],
+v2 = {
+  "kind": "Variable",
+  "name": "after",
+  "variableName": "after"
+},
 v3 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = {
+v6 = [
+  (v2/*: any*/),
+  (v3/*: any*/),
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "id",
+      "dir": "desc"
+    }
+  }
+],
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -84,7 +94,7 @@ v5 = {
   "name": "trace",
   "plural": false,
   "selections": [
-    (v4/*: any*/),
+    (v5/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -118,7 +128,10 @@ return {
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": [
+              (v2/*: any*/),
+              (v3/*: any*/)
+            ],
             "kind": "FragmentSpread",
             "name": "ExampleExperimentRunsTableFragment"
           }
@@ -143,14 +156,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
           (v4/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "experimentRuns",
@@ -172,97 +185,109 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "startTime",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "endTime",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "error",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "output",
-                            "storageKey": null
-                          },
                           (v5/*: any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "ExperimentRunAnnotationConnection",
+                            "concreteType": "ExperimentRepetition",
                             "kind": "LinkedField",
-                            "name": "annotations",
-                            "plural": false,
+                            "name": "repetitions",
+                            "plural": true,
                             "selections": [
+                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": "ExperimentRunAnnotationEdge",
+                                "kind": "ScalarField",
+                                "name": "startTime",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "endTime",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "error",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "output",
+                                "storageKey": null
+                              },
+                              (v7/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "ExperimentRunAnnotationConnection",
                                 "kind": "LinkedField",
-                                "name": "edges",
-                                "plural": true,
+                                "name": "annotations",
+                                "plural": false,
                                 "selections": [
                                   {
-                                    "alias": "annotation",
+                                    "alias": null,
                                     "args": null,
-                                    "concreteType": "ExperimentRunAnnotation",
+                                    "concreteType": "ExperimentRunAnnotationEdge",
                                     "kind": "LinkedField",
-                                    "name": "node",
-                                    "plural": false,
+                                    "name": "edges",
+                                    "plural": true,
                                     "selections": [
-                                      (v4/*: any*/),
                                       {
-                                        "alias": null,
+                                        "alias": "annotation",
                                         "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "name",
+                                        "concreteType": "ExperimentRunAnnotation",
+                                        "kind": "LinkedField",
+                                        "name": "node",
+                                        "plural": false,
+                                        "selections": [
+                                          (v5/*: any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "name",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "label",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "score",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "explanation",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "annotatorKind",
+                                            "storageKey": null
+                                          },
+                                          (v7/*: any*/)
+                                        ],
                                         "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "label",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "score",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "explanation",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "annotatorKind",
-                                        "storageKey": null
-                                      },
-                                      (v5/*: any*/)
+                                      }
                                     ],
                                     "storageKey": null
                                   }
@@ -290,8 +315,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v4/*: any*/),
+                          (v5/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -328,8 +353,10 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
-                "filters": null,
+                "args": (v6/*: any*/),
+                "filters": [
+                  "sort"
+                ],
                 "handle": "connection",
                 "key": "ExampleExperimentRunsTable_experimentRuns",
                 "kind": "LinkedHandle",
@@ -345,16 +372,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0b278c0b360ced38183ea75b27edca2d",
+    "cacheID": "f67026a9d056c7bc07b245f9c58cf985",
     "id": null,
     "metadata": {},
     "name": "ExampleExperimentRunsTableQuery",
     "operationKind": "query",
-    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after, sort: {col: id, dir: desc}) {\n    edges {\n      run: node {\n        id\n        repetitions {\n          id\n          startTime\n          endTime\n          error\n          output\n          trace {\n            id\n            traceId\n            projectId\n          }\n          annotations {\n            edges {\n              annotation: node {\n                id\n                name\n                label\n                score\n                explanation\n                annotatorKind\n                trace {\n                  id\n                  traceId\n                  projectId\n                }\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "73457524533365ed047cb575ee6c93ab";
+(node as any).hash = "3cfcfda139fa99964bff35c624896dee";
 
 export default node;

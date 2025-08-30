@@ -57,8 +57,12 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRepetition import (
+    ExperimentRepetition,
+    to_gql_experiment_repetition,
+)
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentRunComparison import ExperimentRunComparison
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
@@ -385,7 +389,7 @@ class Query:
         return info.context.last_updated_at.get(models.Dataset)
 
     @strawberry.field
-    async def compare_experiments(
+    async def experiment_run_comparisons(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
@@ -393,7 +397,7 @@ class Query:
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> Connection[ExperimentComparison]:
+    ) -> Connection[ExperimentRunComparison]:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
@@ -491,9 +495,9 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]] = (
-                defaultdict(lambda: defaultdict(list))
-            )
+            runs_by_id: defaultdict[
+                ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]
+            ] = defaultdict(lambda: defaultdict(list))
             async for run in await session.stream_scalars(
                 select(models.ExperimentRun)
                 .where(
@@ -509,31 +513,33 @@ class Query:
                     models.ExperimentRun.repetition_number.asc()
                 )  # repetitions are not currently implemented, but this ensures that the repetitions will be properly ordered once implemented # noqa: E501
             ):
-                runs[run.dataset_example_id][run.experiment_id].append(run)
+                runs_by_id[run.dataset_example_id][run.experiment_id].append(run)
 
         cursors_and_nodes = []
         for example in examples:
-            run_comparison_items = []
-            for experiment_id in experiment_rowids:
-                run_comparison_items.append(
-                    RunComparisonItem(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
-                        runs=[
-                            to_gql_experiment_run(run)
+            runs = []
+            for experiment_rowid in experiment_rowids:
+                runs.append(
+                    ExperimentRun(
+                        experiment_rowid=experiment_rowid,
+                        dataset_example_rowid=example.id,
+                        repetitions=[
+                            to_gql_experiment_repetition(run)
                             for run in sorted(
-                                runs[example.id][experiment_id], key=lambda run: run.id
+                                runs_by_id[example.id][experiment_rowid],
+                                key=lambda run: run.repetition_number,
                             )
                         ],
                     )
                 )
-            experiment_comparison = ExperimentComparison(
+            experiment_comparison = ExperimentRunComparison(
                 id_attr=example.id,
                 example=DatasetExample(
                     id_attr=example.id,
                     created_at=example.created_at,
                     version_id=base_experiment.dataset_version_id,
                 ),
-                run_comparison_items=run_comparison_items,
+                runs=runs,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
 
@@ -952,7 +958,7 @@ class Query:
                 updated_at=experiment.updated_at,
                 metadata=experiment.metadata_,
             )
-        elif type_name == ExperimentRun.__name__:
+        elif type_name == ExperimentRepetition.__name__:
             async with info.context.db() as session:
                 if not (
                     run := await session.scalar(
@@ -963,8 +969,8 @@ class Query:
                         )
                     )
                 ):
-                    raise NotFound(f"Unknown experiment run: {id}")
-            return to_gql_experiment_run(run)
+                    raise NotFound(f"Unknown experiment repetition: {id}")
+            return to_gql_experiment_repetition(run)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)

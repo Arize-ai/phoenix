@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<45079a5f44722be2c885c8d41b113c1d>>
+ * @generated SignedSource<<a2b22e63f5ec057f0c6006b2dcecc3a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -108,15 +108,15 @@ return {
       {
         "alias": null,
         "args": (v4/*: any*/),
-        "concreteType": "ExperimentComparisonConnection",
+        "concreteType": "ExperimentRunComparisonConnection",
         "kind": "LinkedField",
-        "name": "compareExperiments",
+        "name": "experimentRunComparisons",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ExperimentComparisonEdge",
+            "concreteType": "ExperimentRunComparisonEdge",
             "kind": "LinkedField",
             "name": "edges",
             "plural": true,
@@ -124,7 +124,7 @@ return {
               {
                 "alias": "comparison",
                 "args": null,
-                "concreteType": "ExperimentComparison",
+                "concreteType": "ExperimentRunComparison",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -169,26 +169,26 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "RunComparisonItem",
+                    "concreteType": "ExperimentRun",
                     "kind": "LinkedField",
-                    "name": "runComparisonItems",
+                    "name": "runs",
                     "plural": true,
                     "selections": [
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "experimentId",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ExperimentRun",
+                        "concreteType": "ExperimentRepetition",
                         "kind": "LinkedField",
-                        "name": "runs",
+                        "name": "repetitions",
                         "plural": true,
                         "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "experimentId",
+                            "storageKey": null
+                          },
                           {
                             "alias": null,
                             "args": null,
@@ -297,7 +297,8 @@ return {
                           (v5/*: any*/)
                         ],
                         "storageKey": null
-                      }
+                      },
+                      (v5/*: any*/)
                     ],
                     "storageKey": null
                   },
@@ -315,7 +316,7 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "ExperimentComparison",
+                "concreteType": "ExperimentRunComparison",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -370,23 +371,23 @@ return {
           "compareExperimentIds"
         ],
         "handle": "connection",
-        "key": "ExperimentCompareListPage_compareExperiments",
+        "key": "ExperimentCompareListPage_experimentRunComparisons",
         "kind": "LinkedHandle",
-        "name": "compareExperiments"
+        "name": "experimentRunComparisons"
       }
     ]
   },
   "params": {
-    "cacheID": "e0959ea3bd41faa16bcc072e94472226",
+    "cacheID": "d1735823c4a5edc0956f117558269ee9",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareListPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n) {\n  ...ExperimentCompareListPage_comparisons_2H9k7i\n}\n\nfragment ExperimentCompareListPage_comparisons_2H9k7i on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  id\n                }\n              }\n            }\n            id\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n) {\n  ...ExperimentCompareListPage_comparisons_2H9k7i\n}\n\nfragment ExperimentCompareListPage_comparisons_2H9k7i on Query {\n  experimentRunComparisons(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runs {\n          repetitions {\n            experimentId\n            output\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  id\n                }\n              }\n            }\n            id\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cf13cff08fc63c5db0426e51c42585fd";
+(node as any).hash = "b3a73979a6fd30c0c39cc1e797abc675";
 
 export default node;

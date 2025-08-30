@@ -43,26 +43,28 @@ export function PlaygroundExperimentRunDetailsDialog({
       query PlaygroundExperimentRunDetailsDialogQuery($runId: ID!) {
         run: node(id: $runId) {
           ... on ExperimentRun {
-            output
-            startTime
-            endTime
-            error
-            example {
-              id
-              revision {
-                input
-                output
+            repetitions {
+              output
+              startTime
+              endTime
+              error
+              example {
+                id
+                revision {
+                  input
+                  output
+                }
               }
-            }
-            annotations {
-              edges {
-                annotation: node {
-                  id
-                  name
-                  label
-                  score
-                  explanation
-                  annotatorKind
+              annotations {
+                edges {
+                  annotation: node {
+                    id
+                    name
+                    label
+                    score
+                    explanation
+                    annotatorKind
+                  }
                 }
               }
             }
@@ -73,8 +75,9 @@ export function PlaygroundExperimentRunDetailsDialog({
     { runId }
   );
   const run = data.run;
-  const exampleId = run.example?.id;
-  const revision = run.example?.revision;
+  const repetition = run.repetitions?.[0];
+  const exampleId = repetition?.example?.id;
+  const revision = repetition?.example?.revision;
   const input = revision?.input;
   const referenceOutput = revision?.output;
   return (
@@ -154,21 +157,21 @@ export function PlaygroundExperimentRunDetailsDialog({
                 >
                   <Flex direction="row">
                     <View flex>
-                      {run.error ? (
+                      {repetition?.error ? (
                         <View padding="size-200">
-                          <RunError error={run.error} />
+                          <RunError error={repetition.error} />
                         </View>
                       ) : (
                         <JSONBlock
-                          value={JSON.stringify(run.output, null, 2)}
+                          value={JSON.stringify(repetition?.output, null, 2)}
                         />
                       )}
                     </View>
                     <ViewSummaryAside width="size-3000">
-                      {run.startTime && run.endTime && (
+                      {repetition?.startTime && repetition?.endTime && (
                         <RunLatency
-                          startTime={run.startTime}
-                          endTime={run.endTime}
+                          startTime={repetition.startTime}
+                          endTime={repetition.endTime}
                         />
                       )}
                       <ul
@@ -183,7 +186,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                           gap: var(--ac-global-dimension-static-size-100);
                         `}
                       >
-                        {run.annotations?.edges.map((edge) => (
+                        {repetition?.annotations?.edges.map((edge) => (
                           <li key={edge.annotation.id}>
                             <AnnotationLabel annotation={edge.annotation} />
                           </li>

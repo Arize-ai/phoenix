@@ -10,17 +10,17 @@ import {
 } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
-import { ExperimentRunTokenCostsDetails } from "./ExperimentRunTokenCostsDetails";
+import { ExperimentRepetitionTokenCostsDetails } from "./ExperimentRepetitionTokenCostsDetails";
 
-type ExperimentRunTokenCostsProps = {
+type ExperimentRepetitionTokenCostsProps = {
   /**
-   * The total cost of the experiment run
+   * The total cost of the experiment repetition
    */
   costTotal: number;
   /**
-   * The id of the experiment run node
+   * The id of the experiment repetition node
    */
-  experimentRunId: string;
+  experimentRepetitionId: string;
   /**
    * The size of the icon and text
    */
@@ -28,9 +28,11 @@ type ExperimentRunTokenCostsProps = {
 };
 
 /**
- * Displays the cost of an experiment run with detailed breakdown
+ * Displays the cost of an experiment repetition with detailed breakdown
  */
-export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
+export function ExperimentRepetitionTokenCosts(
+  props: ExperimentRepetitionTokenCostsProps
+) {
   return (
     <TooltipTrigger>
       <Pressable>
@@ -41,8 +43,8 @@ export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <ExperimentRunTokenCostsDetails
-            experimentRunId={props.experimentRunId}
+          <ExperimentRepetitionTokenCostsDetails
+            experimentRepetitionId={props.experimentRepetitionId}
           />
         </Suspense>
       </RichTooltip>

@@ -51,13 +51,16 @@ async def test_runs_resolver_returns_runs_for_experiment(
             runs {
               edges {
                 run: node {
-                  id
-                  experimentId
-                  traceId
-                  output
-                  startTime
-                  endTime
-                  error
+                  repetitions {
+                    id
+                    repetitionNumber
+                    experimentId
+                    traceId
+                    output
+                    startTime
+                    endTime
+                    error
+                  }
                 }
               }
             }
@@ -78,35 +81,50 @@ async def test_runs_resolver_returns_runs_for_experiment(
                 "edges": [
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": 12345,
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
-                        }
-                    },
-                    {
-                        "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(2))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": "trace-id",
-                            "output": {"run-2-output-key": "run-2-output-value"},
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
-                        }
-                    },
-                    {
-                        "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": "run-1-output-value",
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
+                            "repetitions": [
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(1))
+                                    ),
+                                    "repetitionNumber": 1,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": None,
+                                    "output": "run-1-output-value",
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                },
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(2))
+                                    ),
+                                    "repetitionNumber": 2,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": "trace-id",
+                                    "output": {"run-2-output-key": "run-2-output-value"},
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                },
+                                {
+                                    "id": str(
+                                        GlobalID(type_name="ExperimentRepetition", node_id=str(3))
+                                    ),
+                                    "repetitionNumber": 3,
+                                    "experimentId": str(
+                                        GlobalID(type_name="Experiment", node_id=str(1))
+                                    ),
+                                    "traceId": None,
+                                    "output": 12345,
+                                    "startTime": "2020-01-01T00:00:00+00:00",
+                                    "endTime": "2020-01-01T00:00:00+00:00",
+                                    "error": None,
+                                },
+                            ]
                         }
                     },
                 ]
