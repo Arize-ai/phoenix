@@ -66,7 +66,7 @@ During this tutorial, we will capture all the data we need to evaluate our RAG p
 
 ```python
 import phoenix as px
-px_client = Client()
+client = Client()
 px.launch_app()
 ```
 
@@ -485,13 +485,13 @@ As we can see from the above numbers, our RAG system is not perfect, there are t
 We have now evaluated our RAG system's retrieval performance. Let's send these evaluations to Phoenix for visualization. By sending the evaluations to Phoenix, you will be able to view the evaluations alongside the traces that were captured earlier.
 
 ```python
-from phoenix.client.__generated__ import v1
+from phoenix.client.resources.annotations import SpanAnnotationData
 
 ndcg_rows = ndcg_at_2.reset_index()[["context.span_id", "score"]].dropna()
 prec_rows = precision_at_2.reset_index()[["context.span_id", "score"]].dropna()
 
-ndcg_annotations: list[v1.SpanAnnotationData] = [
-    v1.SpanAnnotationData(
+ndcg_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
         name="ndcg@2",
         span_id=str(row["context.span_id"]),
         annotator_kind="CODE",
@@ -500,8 +500,8 @@ ndcg_annotations: list[v1.SpanAnnotationData] = [
     for _, row in ndcg_rows.iterrows()
 ]
 
-precision_annotations: list[v1.SpanAnnotationData] = [
-    v1.SpanAnnotationData(
+precision_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
         name="precision@2",
         span_id=str(row["context.span_id"]),
         annotator_kind="CODE",
@@ -590,8 +590,8 @@ hall_rows = hallucination_eval_df.reset_index()[
 ].dropna(how="all", subset=["score", "label", "explanation"])
 
 # Construct annotations in the same style as retrieval metrics
-qa_annotations: list[v1.SpanAnnotationData] = [
-    v1.SpanAnnotationData(
+qa_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
         name="Q&A Correctness",
         span_id=str(row["context.span_id"]),
         annotator_kind="LLM",
@@ -604,8 +604,8 @@ qa_annotations: list[v1.SpanAnnotationData] = [
     for _, row in qac_rows.iterrows()
 ]
 
-hall_annotations: list[v1.SpanAnnotationData] = [
-    v1.SpanAnnotationData(
+hall_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
         name="Hallucination",
         span_id=str(row["context.span_id"]),
         annotator_kind="LLM",
