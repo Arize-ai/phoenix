@@ -34,6 +34,7 @@ class Annotations:
         Basic annotation methods::
 
             from phoenix.client import Client
+            from phoenix.client.resources.annotations import SpanAnnotationData
             client = Client()
 
             # Add a single span annotation
@@ -45,16 +46,19 @@ class Annotations:
             )
 
             # Log multiple annotations
-            annotations = [
-                {
-                    "name": "sentiment",
-                    "span_id": "span_123",
-                    "annotator_kind": "HUMAN",
-                    "result": {
-                        "label": "positive",
-                        "score": 0.9
-                    }
-                }
+         annotations = [
+                SpanAnnotationData(
+                    name="sentiment",
+                    span_id="72dda197b0e1b3ef",
+                    annotator_kind="HUMAN",
+                    result={"label": "positive", "score": 0.9},
+                ),
+                SpanAnnotationData(
+                    name="sentiment",
+                    span_id="72dda197b0e1b3ef",
+                    annotator_kind="HUMAN",
+                    result={"label": "negative", "score": 0.1},
+                ),
             ]
             client.annotations.log_span_annotations(span_annotations=annotations)
 
@@ -305,16 +309,20 @@ class AsyncAnnotations:
 
             # Log multiple annotations
             annotations = [
-                {
-                    "name": "sentiment",
-                    "span_id": "span_123",
-                    "annotator_kind": "HUMAN",
-                    "result": {
-                        "label": "positive",
-                        "score": 0.9
-                    }
-                }
+                SpanAnnotationData(
+                    name="sentiment",
+                    span_id="72dda197b0e1b3ef",
+                    annotator_kind="HUMAN",
+                    result={"label": "positive", "score": 0.9},
+                ),
+                SpanAnnotationData(
+                    name="sentiment",
+                span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN",
+                result={"label": "negative", "score": 0.1},
+                ),
             ]
+
             await async_client.annotations.log_span_annotations(span_annotations=annotations)
 
         DataFrame methods::
@@ -516,30 +524,23 @@ class AsyncAnnotations:
         Example::
 
             from phoenix.client import AsyncClient
+            from phoenix.client.resources.annotations import SpanAnnotationData
             async_client = AsyncClient()
 
             # Create span annotation data objects using dictionaries
-            annotation1 = {
-                "name": "sentiment",
-                "span_id": "span_123",
-                "annotator_kind": "HUMAN",
-                "result": {
-                    "label": "positive",
-                    "score": 0.9
-                },
-                "metadata": {"source": "user_feedback"}
-            }
+            annotation1 =  SpanAnnotationData(
+                name="sentiment",
+                span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN",
+                result={"label": "positive", "score": 0.9},
+            ),
 
-            annotation2 = {
-                "name": "toxicity",
-                "span_id": "span_456",
-                "annotator_kind": "LLM",
-                "result": {
-                    "label": "low",
-                    "score": 0.1,
-                    "explanation": "No harmful content detected"
-                }
-            }
+            annotation2 =  SpanAnnotationData(
+                name="sentiment",
+                span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN",
+                result={"label": "negative", "score": 0.1},
+            ),
 
             # Log multiple annotations at once
             await async_client.annotations.log_span_annotations(
