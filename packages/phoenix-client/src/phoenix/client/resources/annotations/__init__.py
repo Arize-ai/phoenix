@@ -533,14 +533,14 @@ class AsyncAnnotations:
                 span_id="72dda197b0e1b3ef",
                 annotator_kind="HUMAN",
                 result={"label": "positive", "score": 0.9},
-            ),
+            )
 
             annotation2 =  SpanAnnotationData(
                 name="sentiment",
                 span_id="72dda197b0e1b3ef",
                 annotator_kind="HUMAN",
                 result={"label": "negative", "score": 0.1},
-            ),
+            )
 
             # Log multiple annotations at once
             await async_client.annotations.log_span_annotations(
