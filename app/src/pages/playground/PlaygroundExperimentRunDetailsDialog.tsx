@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
@@ -41,31 +42,30 @@ export function PlaygroundExperimentRunDetailsDialog({
   const data = useLazyLoadQuery<PlaygroundExperimentRunDetailsDialogQuery>(
     graphql`
       query PlaygroundExperimentRunDetailsDialogQuery($runId: ID!) {
-        run: node(id: $runId) {
-          ... on ExperimentRun {
-            repetitions {
-              output
-              startTime
-              endTime
-              error
-              example {
-                id
-                revision {
-                  input
-                  output
+        repetition: node(id: $runId) {
+          __typename
+          ... on ExperimentRepetition {
+            output
+            startTime
+            endTime
+            error
+            annotations {
+              edges {
+                annotation: node {
+                  id
+                  name
+                  label
+                  score
+                  explanation
+                  annotatorKind
                 }
               }
-              annotations {
-                edges {
-                  annotation: node {
-                    id
-                    name
-                    label
-                    score
-                    explanation
-                    annotatorKind
-                  }
-                }
+            }
+            example {
+              id
+              revision {
+                input
+                output
               }
             }
           }
@@ -74,12 +74,13 @@ export function PlaygroundExperimentRunDetailsDialog({
     `,
     { runId }
   );
-  const run = data.run;
-  const repetition = run.repetitions?.[0];
-  const exampleId = repetition?.example?.id;
-  const revision = repetition?.example?.revision;
-  const input = revision?.input;
-  const referenceOutput = revision?.output;
+  const repetition = data.repetition;
+  invariant(repetition.__typename === "ExperimentRepetition");
+  const exampleId = repetition.example.id;
+  const revision = repetition.example.revision;
+  const input = revision.input;
+  const referenceOutput = revision.output;
+
   return (
     <Dialog>
       <DialogContent>
@@ -157,23 +158,21 @@ export function PlaygroundExperimentRunDetailsDialog({
                 >
                   <Flex direction="row">
                     <View flex>
-                      {repetition?.error ? (
+                      {repetition.error ? (
                         <View padding="size-200">
                           <RunError error={repetition.error} />
                         </View>
                       ) : (
                         <JSONBlock
-                          value={JSON.stringify(repetition?.output, null, 2)}
+                          value={JSON.stringify(repetition.output, null, 2)}
                         />
                       )}
                     </View>
                     <ViewSummaryAside width="size-3000">
-                      {repetition?.startTime && repetition?.endTime && (
-                        <RunLatency
-                          startTime={repetition.startTime}
-                          endTime={repetition.endTime}
-                        />
-                      )}
+                      <RunLatency
+                        startTime={repetition.startTime}
+                        endTime={repetition.endTime}
+                      />
                       <ul
                         css={css`
                           margin-top: var(
@@ -186,7 +185,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                           gap: var(--ac-global-dimension-static-size-100);
                         `}
                       >
-                        {repetition?.annotations?.edges.map((edge) => (
+                        {repetition.annotations.edges.map((edge) => (
                           <li key={edge.annotation.id}>
                             <AnnotationLabel annotation={edge.annotation} />
                           </li>

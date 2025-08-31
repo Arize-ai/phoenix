@@ -1147,6 +1147,7 @@ type ExperimentRun implements Node {
   id: ID!
   repetitions: [ExperimentRepetition!]!
   experimentId: ID!
+  example: DatasetExample!
 }
 
 type ExperimentRunAnnotation implements Node {
