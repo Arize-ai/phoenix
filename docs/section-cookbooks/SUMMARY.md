@@ -26,6 +26,7 @@
 
 ## Prompt Engineering
 
+* [Prompt Learning - Optimizing Prompts for Classification](prompt-engineering/prompt-learning-optimizing-prompts-for-classification.md)
 * [Few Shot Prompting](prompt-engineering/few-shot-prompting.md)
 * [ReAct Prompting](prompt-engineering/react-prompting.md)
 * [Chain-of-Thought Prompting](prompt-engineering/chain-of-thought-prompting.md)
@@ -57,5 +58,3 @@
 * [More Cookbooks](retrieval-and-inferences/cookbooks.md)
 
 ## Prompt Learning
-
-* [Improving Classification Accuracy with Prompt Learning](prompt-learning/improving-classification-accuracy-with-prompt-learning.md)
