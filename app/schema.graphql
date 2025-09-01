@@ -187,6 +187,19 @@ type CategoricalAnnotationValue {
   score: Float
 }
 
+input ChatCompletionExperimentInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: [InvocationParameterInput!]! = []
+  tools: [JSON!]
+  credentials: [GenerativeCredentialInput!]
+  template: PromptTemplateOptions
+  promptName: Identifier = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = {}
+}
+
 type ChatCompletionFunctionCall {
   name: String!
   arguments: String!
@@ -238,18 +251,9 @@ type ChatCompletionMutationPayload {
 union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
 input ChatCompletionOverDatasetInput {
-  messages: [ChatCompletionMessageInput!]!
-  model: GenerativeModelInput!
-  invocationParameters: [InvocationParameterInput!]! = []
-  tools: [JSON!]
-  credentials: [GenerativeCredentialInput!]
-  templateFormat: PromptTemplateFormat! = MUSTACHE
+  chatCompletionExperimentInputs: [ChatCompletionExperimentInput!]!
   datasetId: ID!
   datasetVersionId: ID = null
-  experimentName: String = null
-  experimentDescription: String = null
-  experimentMetadata: JSON = {}
-  promptName: Identifier = null
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
@@ -267,20 +271,24 @@ type ChatCompletionOverDatasetMutationPayload {
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   span: Span
   experimentRun: ExperimentRun
 }
@@ -1285,6 +1293,7 @@ input FreeformAnnotationConfigInput {
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   name: String!
   arguments: String!
 }
@@ -2556,6 +2565,7 @@ type SystemApiKey implements ApiKey & Node {
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   content: String!
 }
 
@@ -2637,6 +2647,7 @@ type TokenUsage {
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  experimentId: ID
   id: String!
   function: FunctionCallChunk!
 }

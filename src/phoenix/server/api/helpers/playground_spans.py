@@ -34,6 +34,7 @@ from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.input_types.ChatCompletionInput import (
+    ChatCompletionExperimentInput,
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
@@ -67,7 +68,7 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
+        input: Union[ChatCompletionInput, ChatCompletionExperimentInput],
         messages: list[ChatCompletionMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
