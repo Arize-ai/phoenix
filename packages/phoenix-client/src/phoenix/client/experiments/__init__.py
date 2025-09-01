@@ -72,6 +72,7 @@ def run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         dataset (Dataset): The dataset on which to run the experiment. task
@@ -264,6 +265,7 @@ async def async_run_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         dataset (Dataset): The dataset on which to run the experiment. task
@@ -561,6 +563,7 @@ def evaluate_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         experiment (RanExperiment): The experiment to evaluate, returned from
@@ -676,6 +679,7 @@ async def async_evaluate_experiment(
     - `expected`: The expected or reference output of the dataset example
     - `reference`: An alias for `expected`
     - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     Args:
         experiment (RanExperiment): The experiment to evaluate, returned from
