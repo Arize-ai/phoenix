@@ -4,6 +4,8 @@ description: Using Prompt Learning to boost accuracy on a classification dataset
 
 # Prompt Learning - Optimizing Prompts for Classification
 
+Skip to [#prompt-learning-for-classification](prompt-learning-optimizing-prompts-for-classification.md#prompt-learning-for-classification "mention") if you want to see the notebook.
+
 ## What is Prompt Learning?
 
 Prompt Learning is an algorithm developed by Arize to optimize prompts based on data.&#x20;
