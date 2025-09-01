@@ -788,7 +788,7 @@ def _validate_document_annotation_dataframe(
         raise ValueError(
             "Dataframe must have a column for the 'document_position' of each annotation"
         )
-    if not all(isinstance(x, int) for x in dataframe["document_position"]):
+    if not all(isinstance(x, int) for x in dataframe["document_position"]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
         raise ValueError("Every value in the 'document_position' column must be an int")
 
 
