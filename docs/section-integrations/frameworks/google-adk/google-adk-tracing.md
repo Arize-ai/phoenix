@@ -18,7 +18,7 @@ pip install openinference-instrumentation-google-adk google-adk arize-phoenix-ot
 
 ### Setup <a href="#setup" id="setup"></a>
 
-Set the `GOOGLE_API_KEY` environment variable. Refer to Google's [ADK documentation](https://cloud.google.com/vertex-ai/docs/generative-ai/overview) for more details on authentication and environment variables.
+Set the `GOOGLE_API_KEY` environment variable. Refer to Google's [ADK documentation](https://google.github.io/adk-docs/) for more details on authentication and environment variables.
 
 ```bash
 export GOOGLE_API_KEY=[your_key_here]
