@@ -80,8 +80,8 @@ class Annotations:
     def __init__(self, client: httpx.Client) -> None:
         """Initialize the Annotations client.
 
-            Args:
-                client (httpx.Client): The httpx client to use for making requests.
+        Args:
+            client (httpx.Client): The httpx client to use for making requests.
         """
         self._client = client
 
@@ -239,17 +239,17 @@ class Annotations:
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedSpanAnnotation] = []
         for chunk in _chunk_span_annotations_dataframe(
-                dataframe=dataframe,
-                annotation_name=annotation_name,
-                annotator_kind=annotator_kind,
-                chunk_size=_DATAFRAME_CHUNK_SIZE,
-            ):
-                # Delegate to log_span_annotations
-                response = self.log_span_annotations(span_annotations=chunk, sync=sync)
-                if sync and response:
-                    all_responses.extend(response)
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            chunk_size=_DATAFRAME_CHUNK_SIZE,
+        ):
+            # Delegate to log_span_annotations
+            response = self.log_span_annotations(span_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
 
-            return all_responses if sync else None
+        return all_responses if sync else None
 
     def log_span_annotations(
         self,
