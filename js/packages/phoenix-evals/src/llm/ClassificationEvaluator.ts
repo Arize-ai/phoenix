@@ -28,12 +28,12 @@ export class ClassificationEvaluator<
    * List out the prompt template variables needed to perform evaluation
    */
   get promptTemplateVariables(): string[] {
-    if (Array.isArray(this._promptTemplateVariables)) {
-      return this._promptTemplateVariables;
+    // Use dynamic programming to see if it's computed already
+    if (!Array.isArray(this._promptTemplateVariables)) {
+      this._promptTemplateVariables = getTemplateVariables({
+        template: this.promptTemplate,
+      });
     }
-    this._promptTemplateVariables = getTemplateVariables({
-      template: this.promptTemplate,
-    });
     // Give a copy of the variables
     return [...this._promptTemplateVariables];
   }
