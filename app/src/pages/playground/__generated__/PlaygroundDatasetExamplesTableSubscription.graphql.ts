@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<510c3911fb9ca78f67f92fb4d166d28c>>
+ * @generated SignedSource<<13e079c25e7c921834f812068b72dacb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,9 +14,12 @@ export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  chatCompletionExperimentInputs: ReadonlyArray<ChatCompletionExperimentInput>;
   datasetId: string;
   datasetVersionId?: string | null;
+};
+export type ChatCompletionExperimentInput = {
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
@@ -24,7 +27,7 @@ export type ChatCompletionOverDatasetInput = {
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
   promptName?: string | null;
-  templateFormat?: PromptTemplateFormat;
+  template?: PromptTemplateOptions | null;
   tools?: ReadonlyArray<any> | null;
 };
 export type ChatCompletionMessageInput = {
@@ -55,6 +58,10 @@ export type InvocationParameterInput = {
 export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
+};
+export type PromptTemplateOptions = {
+  format: PromptTemplateFormat;
+  variables: any;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;

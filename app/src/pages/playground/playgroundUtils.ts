@@ -1290,8 +1290,15 @@ export const getChatCompletionOverDatasetInput = ({
   });
 
   return {
-    ...baseChatCompletionVariables,
-    templateFormat: playgroundStore.getState().templateFormat,
+    chatCompletionExperimentInputs: [
+      {
+        ...baseChatCompletionVariables,
+        template: {
+          format: playgroundStore.getState().templateFormat,
+          variables: {},
+        },
+      },
+    ],
     datasetId,
   };
 };
