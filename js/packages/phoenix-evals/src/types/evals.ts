@@ -100,19 +100,18 @@ export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
 /**
  * The source of the evaluation
  */
-type EvaluationSource = "LLM" | "CODE";
+export type EvaluationSource = "LLM" | "CODE";
 
 /**
  * The direction to optimize the numeric evaluation score
  * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
  */
-type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
 
 /**
- * The Base Evaluator interface
- * This is the interface that all evaluators must implement
+ * The description of an evaluator
  */
-export interface Evaluator<ExampleType extends Record<string, unknown>> {
+interface EvaluatorDescription {
   /**
    * The name of the evaluator / the metric that it measures
    */
@@ -126,6 +125,14 @@ export interface Evaluator<ExampleType extends Record<string, unknown>> {
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
    */
   optimizationDirection?: OptimizationDirection;
+}
+
+/**
+ * The Base Evaluator interface
+ * This is the interface that all evaluators must implement
+ */
+export interface Evaluator<ExampleType extends Record<string, unknown>>
+  extends EvaluatorDescription {
   /**
    * The function that evaluates the example
    */

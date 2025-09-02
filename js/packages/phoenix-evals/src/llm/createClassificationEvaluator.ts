@@ -1,13 +1,8 @@
 import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
-import { createClassifierFn } from "./createClassifierFn";
+import { ClassificationEvaluator } from "./ClassificationEvaluator";
 
 export function createClassificationEvaluator<
   ExampleType extends Record<string, unknown>,
 >(args: CreateClassificationEvaluatorArgs): Evaluator<ExampleType> {
-  return {
-    name: args.name,
-    source: "LLM",
-    optimizationDirection: args.optimizationDirection,
-    evaluate: createClassifierFn(args),
-  };
+  return new ClassificationEvaluator<ExampleType>(args);
 }
