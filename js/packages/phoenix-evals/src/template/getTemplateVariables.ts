@@ -1,5 +1,5 @@
 import { Template } from "../types/templating";
-import Mustache from "mustache";
+import Mustache, { TemplateSpans } from "mustache";
 
 type GetTemplateVariableArgs = {
   template: Template;
@@ -9,11 +9,10 @@ type GetTemplateVariableArgs = {
  * @param {GetTemplateVariableArgs} args
  * @returns {string[]} a list of prompt template variables
  */
-export function getTemplateVariables(args: GetTemplateVariableArgs) {
+export function getTemplateVariables(args: GetTemplateVariableArgs): string[] {
   const { template } = args;
   const templateSpans = Mustache.parse(template);
-  return templateSpans.reduce((acc, entry) => {
-    const [, templateSpan] = entry;
+  return templateSpans.reduce((acc, templateSpan) => {
     const [spanType, value] = templateSpan;
     if (spanType === "name" && typeof value === "string") {
       acc = [...acc, value];
