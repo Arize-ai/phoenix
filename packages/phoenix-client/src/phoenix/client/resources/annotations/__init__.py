@@ -46,7 +46,7 @@ class Annotations:
             )
 
             # Log multiple annotations
-         annotations = [
+            annotations = [
                 SpanAnnotationData(
                     name="sentiment",
                     span_id="72dda197b0e1b3ef",
@@ -238,7 +238,7 @@ class Annotations:
         """  # noqa: E501
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedSpanAnnotation] = []
-        for chunk in _chunk_dataframe(
+        for chunk in _chunk_span_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
             annotator_kind=annotator_kind,
@@ -486,7 +486,7 @@ class AsyncAnnotations:
         """  # noqa: E501
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedSpanAnnotation] = []
-        for chunk in _chunk_dataframe(
+        for chunk in _chunk_span_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
             annotator_kind=annotator_kind,
@@ -637,13 +637,13 @@ def _get_span_annotation(
     return anno
 
 
-def _validate_dataframe(
+def _validate_annotations_dataframe(
     *,
     dataframe: pd.DataFrame,
     annotation_name: Optional[str] = None,
     annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
 ) -> None:
-    """Internal function to validate that the DataFrame has the required columns and data.
+    """Internal function to validate that the DataFrame has the required annotations columns and data.
 
     This function performs comprehensive validation of the DataFrame structure and content,
     including type checking, required columns, and value validation.
@@ -772,7 +772,27 @@ def _validate_dataframe(
             )
 
 
-def _chunk_dataframe(
+def _validate_document_annotation_dataframe(
+    *,
+    dataframe: pd.DataFrame,
+    annotation_name: Optional[str] = None,
+    annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = "HUMAN",
+) -> None:
+    """Internal function to validate that the Dataframe has the required data
+    for document annotations"""
+    # First validate that it is a valid annotation dataframe
+    _validate_annotations_dataframe(
+        dataframe=dataframe, annotation_name=annotation_name, annotator_kind=annotator_kind
+    )
+    if "document_position" not in dataframe.columns:
+        raise ValueError(
+            "Dataframe must have a column for the 'document_position' of each annotation"
+        )
+    if not all(isinstance(x, int) for x in dataframe["document_position"]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+        raise ValueError("Every value in the 'document_position' column must be an int")
+
+
+def _chunk_span_annotations_dataframe(
     *,
     dataframe: pd.DataFrame,
     annotation_name: Optional[str] = None,
@@ -800,7 +820,7 @@ def _chunk_dataframe(
         TypeError: If score values cannot be converted to float.
     """  # noqa: E501
     # Validate DataFrame upfront
-    _validate_dataframe(
+    _validate_annotations_dataframe(
         dataframe=dataframe,
         annotation_name=annotation_name,
         annotator_kind=annotator_kind,
