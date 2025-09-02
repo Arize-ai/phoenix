@@ -1,4 +1,9 @@
-import { EvaluationResult, Evaluator, OptimizationDirection } from "../types";
+import {
+  EvaluationResult,
+  Evaluator,
+  OptimizationDirection,
+  CreateEvaluatorArgs,
+} from "../types";
 
 /**
  * Base class for llm evaluation metrics / scores
@@ -9,8 +14,9 @@ export class LLMEvaluator<ExampleType extends Record<string, unknown>>
   readonly name: string;
   readonly source = "LLM" as const;
   readonly optimizationDirection?: OptimizationDirection;
-  constructor({ name }: { name: string }) {
+  constructor({ name, optimizationDirection }: CreateEvaluatorArgs) {
     this.name = name;
+    this.optimizationDirection = optimizationDirection;
   }
   async evaluate(_example: ExampleType): Promise<EvaluationResult> {
     throw new Error("evaluator.evaluate not implemented");

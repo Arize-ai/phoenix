@@ -79,8 +79,7 @@ export interface CreateClassifierArgs extends WithTelemetry {
   promptTemplate: string;
 }
 
-export interface CreateClassificationEvaluatorArgs
-  extends CreateClassifierArgs {
+export interface CreateEvaluatorArgs {
   /**
    * The name of the metric that the evaluator produces
    * E.x. "correctness"
@@ -92,6 +91,10 @@ export interface CreateClassificationEvaluatorArgs
    */
   optimizationDirection?: OptimizationDirection;
 }
+
+export interface CreateClassificationEvaluatorArgs
+  extends CreateClassifierArgs,
+    CreateEvaluatorArgs {}
 
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
   args: ExampleType
