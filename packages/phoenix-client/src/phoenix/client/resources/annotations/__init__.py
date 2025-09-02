@@ -79,17 +79,6 @@ class Annotations:
                 "score": [0.9, 0.1]
             })
             client.annotations.log_span_annotations_dataframe(dataframe=df)
-
-            # Log document annotations from DataFrame
-            doc_df = pd.DataFrame({
-                "name": ["document_type", "quality_score"],
-                "span_id": ["span_123", "span_456"],
-                "document_position": [0, 1],
-                "annotator_kind": ["HUMAN", "LLM"],
-                "label": ["invoice", "high"],
-                "score": [0.95, 0.8]
-            })
-            client.annotations.log_document_annotations_dataframe(dataframe=doc_df)
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -512,17 +501,6 @@ class AsyncAnnotations:
                 "score": [0.9, 0.1]
             })
             await async_client.annotations.log_span_annotations_dataframe(dataframe=df)
-
-            # Log document annotations from DataFrame
-            doc_df = pd.DataFrame({
-                "name": ["document_type", "quality_score"],
-                "span_id": ["span_123", "span_456"],
-                "document_position": [0, 1],
-                "annotator_kind": ["HUMAN", "LLM"],
-                "label": ["invoice", "high"],
-                "score": [0.95, 0.8]
-            })
-            await async_client.annotations.log_document_annotations_dataframe(dataframe=doc_df)
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
