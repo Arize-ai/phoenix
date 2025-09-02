@@ -8,7 +8,7 @@ import {
 /**
  * Base class for llm evaluation metrics / scores
  */
-export class LLMEvaluator<ExampleType extends Record<string, unknown>>
+export abstract class LLMEvaluator<ExampleType extends Record<string, unknown>>
   implements Evaluator<ExampleType>
 {
   readonly name: string;
@@ -18,7 +18,5 @@ export class LLMEvaluator<ExampleType extends Record<string, unknown>>
     this.name = name;
     this.optimizationDirection = optimizationDirection;
   }
-  async evaluate(_example: ExampleType): Promise<EvaluationResult> {
-    throw new Error("evaluator.evaluate not implemented");
-  }
+  abstract evaluate(_example: ExampleType): Promise<EvaluationResult>;
 }
