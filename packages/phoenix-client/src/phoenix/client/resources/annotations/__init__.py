@@ -24,6 +24,10 @@ AnnotateSpansResponseBody = v1.AnnotateSpansResponseBody
 AnnotateSpansRequestBody = v1.AnnotateSpansRequestBody
 SpanAnnotationResult = v1.SpanAnnotationResult
 
+SpanDocumentAnnotationData = v1.SpanDocumentAnnotationData
+InsertedSpanDocumentAnnotation = v1.InsertedSpanDocumentAnnotation
+AnnotateSpanDocumentsResponseBody = v1.AnnotateSpanDocumentsResponseBody
+
 
 class Annotations:
     """Client for interacting with the Annotations API endpoints.
@@ -286,6 +290,26 @@ class Annotations:
         if not sync:
             return None
         return list(cast(AnnotateSpansResponseBody, response.json())["data"])
+
+    def log_document_annotations(
+        self,
+        *,
+        document_annotations: Iterable[SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple document annotations."""
+        document_annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
+        if not document_annotations_list:
+            raise ValueError("Cannot be called with an empty set of annotations")
+        params = {"sync": sync} if sync else {}
+        response = self._client.post(
+            url="v1/document_annotations",
+            json=v1.AnnotateSpanDocumentsRequestBody(data=document_annotations_list),
+            params=params,
+        )
+        if not sync:
+            return None
+        return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])
 
 
 class AsyncAnnotations:
@@ -560,6 +584,26 @@ class AsyncAnnotations:
         if not sync:
             return None
         return list(cast(AnnotateSpansResponseBody, response.json())["data"])
+
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: Iterable[SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple document annotations."""
+        document_annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
+        if not document_annotations_list:
+            raise ValueError("Cannot be called with an empty set of annotations")
+        params = {"sync": sync} if sync else {}
+        response = await self._client.post(
+            url="v1/document_annotations",
+            json=v1.AnnotateSpanDocumentsRequestBody(data=document_annotations_list),
+            params=params,
+        )
+        if not sync:
+            return None
+        return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])
 
 
 def _get_span_annotation(
