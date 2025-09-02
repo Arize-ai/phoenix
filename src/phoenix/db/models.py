@@ -1096,6 +1096,10 @@ class DatasetExample(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
+    dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
+        "DatasetSplitDatasetExample",
+        back_populates="dataset_example",
+    )
 
 
 class DatasetExampleRevision(Base):
@@ -1127,15 +1131,16 @@ class DatasetExampleRevision(Base):
 
 class DatasetSplit(Base):
     __tablename__ = "dataset_splits"
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    dataset_split_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
-        back_populates="dataset_splits"
+    dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
+        "DatasetSplitDatasetExample",
+        back_populates="dataset_split",
     )
 
 class DatasetSplitDatasetExample(Base):
@@ -1148,8 +1153,12 @@ class DatasetSplitDatasetExample(Base):
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
         index=True,
     )
-    dataset_split: Mapped["DatasetSplit"] = relationship("dataset_split")
-    dataset_example: Mapped["DatasetExample"] = relationship("dataset_example")
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        "DatasetSplit", back_populates="dataset_splits_dataset_examples"
+    )
+    dataset_example: Mapped["DatasetExample"] = relationship(
+        "DatasetExample", back_populates="dataset_splits_dataset_examples"
+    )
     __table_args__ = (
         UniqueConstraint(
             "dataset_split_id",
@@ -1180,7 +1189,7 @@ class Experiment(Base):
         ForeignKey("dataset_splits.id", ondelete="SET NULL"),
         nullable=True,
     )
-    dataset_split: Mapped[Optional["DatasetSplit"]] = relationship("dataset_split")
+    dataset_split: Mapped[Optional["DatasetSplit"]] = relationship("DatasetSplit")
 
 
 class ExperimentRun(Base):
