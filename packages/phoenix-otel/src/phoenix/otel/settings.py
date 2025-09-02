@@ -22,20 +22,53 @@ See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 
 
 def get_env_collector_endpoint() -> Optional[str]:
+    """
+    Get the collector endpoint from environment variables.
+
+    Checks for Phoenix-specific collector endpoint first, then falls back to the
+    standard OpenTelemetry OTLP endpoint environment variable.
+
+    Returns:
+        Optional[str]: The collector endpoint URL if found, None otherwise.
+    """
     return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_env_project_name() -> str:
+    """
+    Get the project name from environment variables.
+
+    Returns:
+        str: The project name from PHOENIX_PROJECT_NAME, defaults to "default".
+    """
     return os.getenv(ENV_PHOENIX_PROJECT_NAME, "default")
 
 
 def get_env_client_headers() -> Optional[Dict[str, str]]:
+    """
+    Get client headers from environment variables.
+
+    Parses the PHOENIX_CLIENT_HEADERS environment variable into a dictionary
+    of HTTP headers using the W3C Baggage HTTP header format.
+
+    Returns:
+        Optional[Dict[str, str]]: Parsed headers dictionary or None if not set.
+    """
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
 
 
 def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
+    """
+    Get Phoenix authentication header from environment variables.
+
+    Creates an authorization header with Bearer token format using the
+    PHOENIX_API_KEY environment variable.
+
+    Returns:
+        Optional[Dict[str, str]]: Authorization header dictionary or None if API key not set.
+    """
     api_key = os.environ.get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
@@ -44,6 +77,18 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
 
 
 def get_env_grpc_port() -> int:
+    """
+    Get the gRPC port from environment variables.
+
+    Returns the port number for gRPC connections, with a default of 4317
+    (the standard OTLP/gRPC port).
+
+    Returns:
+        int: The gRPC port number.
+
+    Raises:
+        ValueError: If PHOENIX_GRPC_PORT is set but not a valid integer.
+    """
     if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
         return GRPC_PORT
     if port.isnumeric():

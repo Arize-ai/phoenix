@@ -72,12 +72,13 @@ def register(
     protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     verbose: bool = True,
     auto_instrument: bool = False,
+    api_key: Optional[str] = None,
     **kwargs: Any,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
 
-    For futher configuration, the `phoenix.otel` module provides drop-in replacements for
+    For further configuration, the `phoenix.otel` module provides drop-in replacements for
     OpenTelemetry TracerProvider, SimpleSpanProcessor, BatchSpanProcessor, HTTPSpanExporter, and
     GRPCSpanExporter objects with Phoenix-aware defaults. Documentation on how to configure tracing
     can be found at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
@@ -99,7 +100,47 @@ def register(
         verbose (bool): If True, configuration details will be printed to stdout.
         auto_instrument (bool): If True, automatically instruments all installed OpenInference
             libraries.
+        api_key (str, optional): API key for authentication. If not provided, the `PHOENIX_API_KEY`
+            environment variable will be used.
         **kwargs: Additional keyword arguments passed to the TracerProvider constructor.
+
+    Examples:
+        Basic setup with automatic instrumentation::
+
+            from phoenix.otel import register
+            tracer_provider = register(auto_instrument=True)
+
+        Production configuration with batching::
+
+            tracer_provider = register(
+                project_name="my-app",
+                batch=True,
+                auto_instrument=True
+            )
+
+        Production configuration with API key::
+
+            tracer_provider = register(
+                project_name="my-app",
+                batch=True,
+                auto_instrument=True,
+                api_key="your-api-key"
+            )
+
+        Custom endpoint and headers::
+
+            tracer_provider = register(
+                endpoint="https://my-phoenix.com:6006/v1/traces",
+                headers={"Authorization": "Bearer my-token"},
+                protocol="http/protobuf"
+            )
+
+        Using environment variables::
+
+            # Set environment variables first:
+            # export PHOENIX_PROJECT_NAME="my-project"
+            # export PHOENIX_API_KEY="my-api-key"
+            tracer_provider = register()  # Uses environment variables
     """
 
     # Handle resource creation and ensure project name is always included
@@ -119,6 +160,14 @@ def register(
 
     # Ensure TracerProvider verbose is False (register handles its own verbose output)
     tracer_provider_kwargs["verbose"] = False
+
+    # Handle API key by adding to headers
+    if api_key:
+        if headers is None:
+            headers = {}
+        else:
+            headers = headers.copy()  # Don't modify the original dict
+        headers["authorization"] = f"Bearer {api_key}"
 
     tracer_provider = TracerProvider(protocol=protocol, **tracer_provider_kwargs)
     span_processor: SpanProcessor
@@ -166,6 +215,33 @@ class TracerProvider(_TracerProvider):
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
             "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
         verbose (bool): If True, configuration details will be printed to stdout.
+
+    Examples:
+        Basic TracerProvider with automatic endpoint inference::
+
+            from phoenix.otel import TracerProvider
+            tracer_provider = TracerProvider()
+
+        Custom HTTP endpoint::
+
+            tracer_provider = TracerProvider(
+                endpoint="http://localhost:6006/v1/traces"
+            )
+
+        Custom gRPC endpoint with explicit protocol::
+
+            tracer_provider = TracerProvider(
+                endpoint="http://localhost:4317",
+                protocol="grpc"
+            )
+
+        With custom resource attributes::
+
+            from opentelemetry.sdk.resources import Resource
+            from phoenix.otel import PROJECT_NAME
+            tracer_provider = TracerProvider(
+                resource=Resource({PROJECT_NAME: "my-custom-project"})
+            )
     """
 
     def __init__(
@@ -307,6 +383,31 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
             environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
             "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+
+    Examples:
+        Basic usage with automatic endpoint inference::
+
+            from phoenix.otel import SimpleSpanProcessor
+            processor = SimpleSpanProcessor()
+
+        With custom HTTP endpoint::
+
+            processor = SimpleSpanProcessor(
+                endpoint="http://localhost:6006/v1/traces"
+            )
+
+        With custom exporter::
+
+            from phoenix.otel import HTTPSpanExporter
+            exporter = HTTPSpanExporter(endpoint="http://localhost:6006/v1/traces")
+            processor = SimpleSpanProcessor(span_exporter=exporter)
+
+        With headers for authentication::
+
+            processor = SimpleSpanProcessor(
+                endpoint="https://my-phoenix.com/v1/traces",
+                headers={"Authorization": "Bearer my-token"}
+            )
     """
 
     def __init__(
@@ -367,6 +468,33 @@ class BatchSpanProcessor(_BatchSpanProcessor):
             milliseconds.
         max_export_batch_size (int, optional): The maximum batch size.
         export_timeout_millis (float, optional): The batch timeout in milliseconds.
+
+    Examples:
+        Basic usage with automatic endpoint inference (recommended for production)::
+
+            from phoenix.otel import BatchSpanProcessor
+            processor = BatchSpanProcessor()
+
+        With custom HTTP endpoint::
+
+            processor = BatchSpanProcessor(
+                endpoint="http://localhost:6006/v1/traces"
+            )
+
+        With custom batch configuration::
+
+            processor = BatchSpanProcessor(
+                endpoint="http://localhost:6006/v1/traces",
+                max_queue_size=2048,
+                max_export_batch_size=512,
+                schedule_delay_millis=5000
+            )
+
+        With custom exporter::
+
+            from phoenix.otel import GRPCSpanExporter
+            exporter = GRPCSpanExporter(endpoint="http://localhost:4317")
+            processor = BatchSpanProcessor(span_exporter=exporter)
     """
 
     def __init__(
@@ -408,6 +536,32 @@ class HTTPSpanExporter(_HTTPSpanExporter):
             collector endpoint to use, defaults to the HTTP endpoint.
         headers: Headers to send when exporting. If not provided, the `PHOENIX_CLIENT_HEADERS`
             or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
+
+    Examples:
+        Basic usage with automatic endpoint inference::
+
+            from phoenix.otel import HTTPSpanExporter
+            exporter = HTTPSpanExporter()
+
+        With custom endpoint::
+
+            exporter = HTTPSpanExporter(
+                endpoint="http://localhost:6006/v1/traces"
+            )
+
+        With authentication headers::
+
+            exporter = HTTPSpanExporter(
+                endpoint="https://my-phoenix.com/v1/traces",
+                headers={"Authorization": "Bearer my-token"}
+            )
+
+        Using environment variables::
+
+            # Set environment variables first:
+            # export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+            # export PHOENIX_API_KEY="my-api-key"
+            exporter = HTTPSpanExporter()  # Uses environment variables
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -461,6 +615,38 @@ class GRPCSpanExporter(_GRPCSpanExporter):
             or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
         timeout: Backend request timeout in seconds
         compression: gRPC compression method to use
+
+    Examples:
+        Basic usage with automatic endpoint inference::
+
+            from phoenix.otel import GRPCSpanExporter
+            exporter = GRPCSpanExporter()
+
+        With custom endpoint::
+
+            exporter = GRPCSpanExporter(
+                endpoint="http://localhost:4317"
+            )
+
+        With authentication headers::
+
+            exporter = GRPCSpanExporter(
+                endpoint="http://my-phoenix.com:4317",
+                headers={"authorization": "Bearer my-token"}
+            )
+
+        With custom timeout and compression::
+
+            exporter = GRPCSpanExporter(
+                endpoint="http://localhost:4317",
+            )
+
+        Using environment variables::
+
+            # Set environment variables first:
+            # export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+            # export PHOENIX_API_KEY="my-api-key"
+            exporter = GRPCSpanExporter()  # Uses environment variables
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -519,16 +705,42 @@ def _exporter_transport(exporter: SpanExporter) -> str:
 
 
 def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
+    """
+    Mask header values for safe printing/logging.
+
+    Args:
+        headers (Union[List[Tuple[str, str]], Dict[str, str]]): Headers as either
+            a list of key-value tuples or a dictionary.
+
+    Returns:
+        Dict[str, str]: Dictionary with header keys preserved but values masked as "****".
+    """
     if isinstance(headers, dict):
         return {key: "****" for key, _ in headers.items()}
     return {key: "****" for key, _ in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    """Construct HTTP endpoint URL with traces path.
+
+    Args:
+        parsed_endpoint (ParseResult): Parsed URL endpoint.
+
+    Returns:
+        ParseResult: Modified endpoint with "/v1/traces" path.
+    """
     return parsed_endpoint._replace(path="/v1/traces")
 
 
 def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    """Construct Phoenix Cloud endpoint URL.
+
+    Args:
+        parsed_endpoint (ParseResult): Parsed URL endpoint.
+
+    Returns:
+        ParseResult: Modified endpoint for Phoenix Cloud.
+    """
     space_pattern = r"^/s/([a-zA-Z0-9_-]+)"
 
     match = re.match(space_pattern, parsed_endpoint.path)

@@ -18,8 +18,8 @@ import requests
 from dotenv import load_dotenv
 from rich.console import Console
 
-import phoenix as px
-from phoenix.experiments import run_experiment
+from phoenix.client import Client
+from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -116,12 +116,12 @@ def evaluate_judge_on_test(
     )
 
     # Set up Phoenix client
-    phoenix_client = px.Client()
+    phoenix_client = Client()
 
     # Upload test dataset to Phoenix
-    test_dataset = phoenix_client.upload_dataset(
+    test_dataset = phoenix_client.datasets.create_dataset(
         dataframe=test_traces,
-        dataset_name="test_set",
+        name="test_set",
         input_keys=["attributes.query"],
         output_keys=[],
         metadata_keys=[
@@ -141,13 +141,13 @@ def evaluate_judge_on_test(
         dataset=test_dataset,
         task=task,
         evaluators=[eval_tp, eval_tn, eval_fp, eval_fn, accuracy],
-        concurrency=3,
     )
-    experiment_id = experiment.id
+    # Note: experiment result object may have different API in new client
+    # experiment_id = experiment.id
 
     # Get results via API
     base_url = "http://localhost:6006"
-    url = f"{base_url}/v1/experiments/{experiment_id}/json"
+    url = f"{base_url}/v1/experiments/{experiment.id}/json"
     response = requests.get(url)
     results = response.json()
 

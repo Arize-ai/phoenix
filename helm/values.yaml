@@ -461,7 +461,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-11.27.0-nonroot
+  tag: version-11.30.0-nonroot
 
 # -- Resource configuration
 resources:

@@ -1,5 +1,47 @@
 # Changelog
 
+## [11.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.29.0...arize-phoenix-v11.30.0) (2025-08-28)
+
+
+### Features
+
+* **api:** span document annotations API ([#9293](https://github.com/Arize-ai/phoenix/issues/9293)) ([37f3b15](https://github.com/Arize-ai/phoenix/commit/37f3b15393cae97a6ac1b237b957deddfceb4a81))
+* **experiments:** show missing percentage for experiment evaluations ([#9210](https://github.com/Arize-ai/phoenix/issues/9210)) ([c865c1a](https://github.com/Arize-ai/phoenix/commit/c865c1a950ffe06cea07e72b53a570dde73d51d0))
+
+
+### Bug Fixes
+
+* check bound on num docs for annotations ([#9305](https://github.com/Arize-ai/phoenix/issues/9305)) ([32388b8](https://github.com/Arize-ai/phoenix/commit/32388b8aed744e8ebf357602651ced1c361c436f))
+
+## [11.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.28.0...arize-phoenix-v11.29.0) (2025-08-27)
+
+
+### Features
+
+* **experiments:** experiments compare list page styling improvements ([#9281](https://github.com/Arize-ai/phoenix/issues/9281)) ([8554ac5](https://github.com/Arize-ai/phoenix/commit/8554ac5dadcc921a466e4444398adc5afed48d0c))
+
+
+### Bug Fixes
+
+* upper bound on version of sqlean.py for windows ([#9282](https://github.com/Arize-ai/phoenix/issues/9282)) ([feef88c](https://github.com/Arize-ai/phoenix/commit/feef88c16228838b0bc68bbf66afdc968f724815))
+
+## [11.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.27.0...arize-phoenix-v11.28.0) (2025-08-26)
+
+
+### Features
+
+* **experiments:** experiment list page frontend ([#9217](https://github.com/Arize-ai/phoenix/issues/9217)) ([bd331a5](https://github.com/Arize-ai/phoenix/commit/bd331a57abee0bda145c70af765b76f6d33f0bd1))
+
+
+### Bug Fixes
+
+* preserve chronological order based on received time during deferred annotation processing ([#9110](https://github.com/Arize-ai/phoenix/issues/9110)) ([e2d9f19](https://github.com/Arize-ai/phoenix/commit/e2d9f199d7e7709bddd1738025a61384ea9e693f))
+
+
+### Documentation
+
+* migrate client ([#9245](https://github.com/Arize-ai/phoenix/issues/9245)) ([f1f2aea](https://github.com/Arize-ai/phoenix/commit/f1f2aea1ab781534bb6baca503f183d5c1da3ffe))
+
 ## [11.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.26.0...arize-phoenix-v11.27.0) (2025-08-25)
 
 

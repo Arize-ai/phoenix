@@ -546,7 +546,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
-  experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
 
@@ -620,6 +620,12 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+type DatasetExperimentAnnotationSummary {
+  annotationName: String!
+  minScore: Float
+  maxScore: Float
 }
 
 """A filter for datasets"""
@@ -867,7 +873,7 @@ type DimensionWithValue {
   value: String
 }
 
-type DocumentEvaluation implements Annotation {
+type DocumentAnnotation implements Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
@@ -2289,7 +2295,7 @@ type Span implements Node {
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
   """
-  documentEvaluations: [DocumentEvaluation!]!
+  documentEvaluations: [DocumentAnnotation!]!
 
   """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
   documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!

@@ -193,9 +193,11 @@ async def annotate_traces(
     trace_ids = {p.trace_id for p in precursors}
     async with request.app.state.db() as session:
         existing_traces = {
-            trace.trace_id: trace.id
-            async for trace in await session.stream_scalars(
-                select(models.Trace).filter(models.Trace.trace_id.in_(trace_ids))
+            trace_id: id_
+            async for trace_id, id_ in await session.stream(
+                select(models.Trace.trace_id, models.Trace.id).filter(
+                    models.Trace.trace_id.in_(trace_ids)
+                )
             )
         }
 

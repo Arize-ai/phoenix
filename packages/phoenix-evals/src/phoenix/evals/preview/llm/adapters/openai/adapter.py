@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -29,6 +29,12 @@ def identify_openai_client(client: Any) -> bool:
     )
 
 
+def get_openai_rate_limit_errors() -> list[Type[Exception]]:
+    from openai import RateLimitError as OpenAIRateLimitError
+
+    return [OpenAIRateLimitError]
+
+
 @register_adapter(
     identifier=identify_openai_client,
     name="openai",
@@ -36,6 +42,7 @@ def identify_openai_client(client: Any) -> bool:
 @register_provider(
     provider="openai",
     client_factory=create_openai_client,
+    get_rate_limit_errors=get_openai_rate_limit_errors,
     dependencies=["openai"],
 )
 class OpenAIAdapter(BaseLLMAdapter):
@@ -474,13 +481,27 @@ class OpenAIAdapter(BaseLLMAdapter):
 
 
 def _is_url(url: str) -> bool:
-    """Check if a string is a valid URL."""
+    """Check if a string is a valid URL.
+
+    Args:
+        url (str): The string to check for URL validity.
+
+    Returns:
+        bool: True if the string is a valid URL with scheme and netloc, False otherwise.
+    """
     parsed_url = urlparse(url)
     return bool(parsed_url.scheme and parsed_url.netloc)
 
 
 def _is_base64(s: str) -> bool:
-    """Check if a string is valid base64."""
+    """Check if a string is valid base64.
+
+    Args:
+        s (str): The string to check for base64 validity.
+
+    Returns:
+        bool: True if the string is valid base64, False otherwise.
+    """
     try:
         base64.b64decode(s, validate=True)
         return True

@@ -47,6 +47,7 @@ From the root of the reposistory, install the `arize-phoenix` package in editabl
 ```bash
 uv pip install -e ".[dev]"
 ```
+
 Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
 
 To make these modules available when working from source, run:
@@ -54,6 +55,7 @@ To make these modules available when working from source, run:
 ```bash
 tox run -e add_symlinks
 ```
+
 This command will create symbolic links inside src/phoenix/ pointing to the relevant submodules.
 
 **Second**, install the web build dependencies.
@@ -64,7 +66,7 @@ installing `pnpm` globally to manage the web frontend dependencies.
 ```bash
 # install nvm
 # https://github.com/nvm-sh/nvm
-# install node via nvm, our .nvmrc file will automatically instruct nvm to install 
+# install node via nvm, our .nvmrc file will automatically instruct nvm to install
 # the version specified in the file
 nvm install
 # set it as default (optional)
@@ -99,12 +101,12 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we recommend using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
+Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we are using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
 
 You can install `tox-uv` globally with
 
 ```bash
-uv tool install tox --with tox-uv
+pip install tox-uv
 ```
 
 `tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
@@ -225,28 +227,28 @@ To publish a new release, follow the steps below.
 
 ### REST API
 
--   The API should communicate over JSON unless otherwise specified by the URL.
--   The API should be versioned. If a backwards incompatible change is made, the new route should be nested under a new version.
+- The API should communicate over JSON unless otherwise specified by the URL.
+- The API should be versioned. If a backwards incompatible change is made, the new route should be nested under a new version.
 
 #### HTTP Methods
 
--   **GET** Used to retrieve a representation of a resource.
--   **POST** Used to create new resources and sub-resources.
--   **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
--   **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
--   **DELETE** Used to delete existing resources.
+- **GET** Used to retrieve a representation of a resource.
+- **POST** Used to create new resources and sub-resources.
+- **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
+- **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
+- **DELETE** Used to delete existing resources.
 
 #### Status Codes
 
--   **4xx** The client application behaved erroneously - client error
--   **5xx** The API behaved erroneously - server error
--   **2xx** The client and API worked
+- **4xx** The client application behaved erroneously - client error
+- **5xx** The API behaved erroneously - server error
+- **2xx** The client and API worked
 
 #### Path Structure
 
--   Use nouns for resources and sub-resources.
--   Avoid using verbs in the path.
--   Nouns should be pluralized and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id` where the dataset ID is the globally unique identifier consistent with the GraphQL API).
+- Use nouns for resources and sub-resources.
+- Avoid using verbs in the path.
+- Nouns should be pluralized and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id` where the dataset ID is the globally unique identifier consistent with the GraphQL API).
 
 #### Query Parameters
 
@@ -258,8 +260,8 @@ Use cursor-based pagination. Each request gives a cursor to the next page of res
 
 #### Response Format
 
--   The response should be a JSON object with a `data` key.
--   Payload content should use snake case to make it easier to work with when translating to objects.
+- The response should be a JSON object with a `data` key.
+- Payload content should use snake case to make it easier to work with when translating to objects.
 
 ## Cursor
 

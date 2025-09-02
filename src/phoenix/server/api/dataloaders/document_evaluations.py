@@ -5,11 +5,11 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types.Evaluation import DocumentAnnotation
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int
-Result: TypeAlias = list[DocumentEvaluation]
+Result: TypeAlias = list[DocumentAnnotation]
 
 
 class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
@@ -26,6 +26,6 @@ class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
             )
             async for document_evaluation in data:
                 document_evaluations_by_id[document_evaluation.span_rowid].append(
-                    DocumentEvaluation.from_sql_document_annotation(document_evaluation)
+                    DocumentAnnotation.from_sql_document_annotation(document_evaluation)
                 )
         return [document_evaluations_by_id[key] for key in keys]

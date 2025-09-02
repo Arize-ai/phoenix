@@ -21,6 +21,8 @@ from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
+DatasetExample = v1.DatasetExample
+
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
@@ -36,7 +38,7 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    required_fields = set(v1.DatasetExample.__annotations__.keys())
+    required_fields = set(DatasetExample.__annotations__.keys())
 
     if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
@@ -51,7 +53,7 @@ class Dataset:
         name (str): The dataset name.
         description (Optional[str]): The dataset description.
         version_id (str): The current version ID.
-        examples (list[v1.DatasetExample]): List of examples in this version.
+        examples (list[DatasetExample]): List of examples in this version.
         metadata (dict[str, Any]): Additional dataset metadata.
         created_at (datetime): When the dataset was created.
         updated_at (datetime): When the dataset was last updated.
@@ -87,7 +89,7 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
-    def examples(self) -> list[v1.DatasetExample]:
+    def examples(self) -> list[DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
 
@@ -127,11 +129,11 @@ class Dataset:
         """Number of examples in this dataset version."""
         return len(self.examples)
 
-    def __iter__(self) -> Iterator[v1.DatasetExample]:
+    def __iter__(self) -> Iterator[DatasetExample]:
         """Iterate over examples."""
         return iter(self.examples)
 
-    def __getitem__(self, index: int) -> v1.DatasetExample:
+    def __getitem__(self, index: int) -> DatasetExample:
         """Get example by index."""
         return self.examples[index]
 
@@ -150,13 +152,14 @@ class Dataset:
         Raises:
             ImportError: If pandas is not installed.
 
-        Example:
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> df = dataset.to_dataframe()
-            >>> print(df.columns)
-            Index(['input', 'output', 'metadata'], dtype='object')
-            >>> print(df.index.name)
-            example_id
+        Example::
+
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            df = dataset.to_dataframe()
+            print(df.columns)
+            # Index(['input', 'output', 'metadata'], dtype='object')
+            print(df.index.name)
+            # example_id
         """
         try:
             import pandas as pd
@@ -186,10 +189,11 @@ class Dataset:
         """
         Convert the dataset to a JSON-serializable dictionary.
 
-        Example:
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> json_data = dataset.to_dict()
-            >>> restored = Dataset.from_dict(json_data)
+        Example::
+
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            json_data = dataset.to_dict()
+            restored = Dataset.from_dict(json_data)
         """
         return {
             "id": self.id,
@@ -219,10 +223,11 @@ class Dataset:
             ValueError: If required fields are missing from json_data
             KeyError: If json_data is missing required keys
 
-        Example:
-            >>> json_data = dataset.to_dict()
-            >>> restored = Dataset.from_dict(json_data)
-            >>> assert restored.id == dataset.id
+        Example::
+
+            json_data = dataset.to_dict()
+            restored = Dataset.from_dict(json_data)
+            assert restored.id == dataset.id
         """
         required_fields = {"id", "name", "version_id", "examples"}
         if not all(field in json_data for field in required_fields):
@@ -310,69 +315,70 @@ class Datasets:
 
     Key Methods:
         - list(): Get all datasets with automatic pagination
-        - paginate(): Manual pagination control
         - get_dataset(): Retrieve a specific dataset with examples
         - create_dataset(): Create new datasets from various sources
         - add_examples_to_dataset(): Add examples to existing datasets
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
+    Examples:
+        Basic usage::
 
-        Listing datasets:
-            >>> # Get all datasets (automatically handles pagination)
-            >>> all_datasets = client.datasets.list()
-            >>> print(f"Found {len(all_datasets)} total datasets")
-            >>>
-            >>> # Get limited number of datasets
-            >>> limited_datasets = client.datasets.list(limit=10)
-            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
-            >>>
-            >>> # Manual pagination for fine-grained control
-            >>> response = client.datasets.paginate(limit=10)
-            >>> datasets = response["data"]
-            >>> print(f"Found {len(datasets)} datasets on this page")
+            from phoenix.client import Client
+            client = Client()
 
-        Creating and updating datasets:
-            >>> # Create a new dataset
-            >>> dataset = client.datasets.create_dataset(
-            ...     name="qa-dataset",
-            ...     inputs=[
-            ...         {"question": "What is 2+2?"},
-            ...         {"question": "What's the capital of France?"},
-            ...     ],
-            ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
-            ... )
-            >>>
-            >>> # Add more examples later
-            >>> updated = client.datasets.add_examples_to_dataset(
-            ...     dataset="qa-dataset",
-            ...     inputs=[{"question": "Who wrote Hamlet?"}],
-            ...     outputs=[{"answer": "Shakespeare"}]
-            ... )
+            # Get a dataset
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
+            print(f"Dataset {dataset.name} has {len(dataset)} examples")
 
-        Working with DataFrames:
-            >>> # Convert dataset to DataFrame
-            >>> df = dataset.to_dataframe()
-            >>> print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
-            >>>
-            >>> # Create dataset from DataFrame
-            >>> import pandas as pd
-            >>> df = pd.DataFrame({
-            ...     "prompt": ["Hello", "Hi there"],
-            ...     "response": ["Hi!", "Hello!"],
-            ...     "score": [0.9, 0.95]
-            ... })
-            >>> dataset = client.datasets.create_dataset(
-            ...     name="greetings",
-            ...     dataframe=df,
-            ...     input_keys=["prompt"],
-            ...     output_keys=["response"],
-            ...     metadata_keys=["score"]
-            ... )
+        Listing datasets::
+
+            # Get all datasets (automatically handles pagination)
+            all_datasets = client.datasets.list()
+            print(f"Found {len(all_datasets)} total datasets")
+
+            # Get limited number of datasets
+            limited_datasets = client.datasets.list(limit=10)
+            print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+
+        Creating and updating datasets::
+
+            # Create a new dataset
+            dataset = client.datasets.create_dataset(
+                name="qa-dataset",
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What's the capital of France?"},
+                ],
+                outputs=[{"answer": "4"}, {"answer": "Paris"}]
+            )
+
+            # Add more examples later
+            updated = client.datasets.add_examples_to_dataset(
+                dataset="qa-dataset",
+                inputs=[{"question": "Who wrote Hamlet?"}],
+                outputs=[{"answer": "Shakespeare"}]
+            )
+
+        Working with DataFrames::
+
+            import pandas as pd
+
+            # Convert dataset to DataFrame
+            df = dataset.to_dataframe()
+            print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
+
+            # Create dataset from DataFrame
+            df = pd.DataFrame({
+                "prompt": ["Hello", "Hi there"],
+                "response": ["Hi!", "Hello!"],
+                "score": [0.9, 0.95]
+            })
+            dataset = client.datasets.create_dataset(
+                name="greetings",
+                dataframe=df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                metadata_keys=["score"]
+            )
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -413,38 +419,39 @@ class Datasets:
         """
         Retrieve a specific dataset with its examples.
 
-        Gets the dataset for a specific version, or the latest version if no version
-        is specified. Returns the complete dataset including metadata and all examples.
+        Gets the dataset for a specific version, or the latest version if no
+        version is specified. Returns the complete dataset including metadata
+        and all examples.
 
         Args:
-            dataset: Dataset identifier - can be a dataset ID string, name string,
+            dataset (DatasetIdentifier): Dataset identifier - can be a dataset
+            ID string, name string,
                 Dataset object, or dict with 'id'/'name' fields.
-            version_id: Specific version ID of the dataset. If None, returns the
+            version_id (Optional[str]): Specific version ID of the dataset. If
+            None, returns the
                 latest version.
-            timeout: Request timeout in seconds (default: 5).
+            timeout (Optional[int]): Request timeout in seconds (default: 5).
 
         Returns:
-            Dataset object containing complete dataset metadata and all examples.
-            The dataset can be iterated over, converted to DataFrame, or accessed
-            by index.
+            Dataset: Dataset object containing complete dataset metadata and all
+            examples. The dataset can be iterated over, converted to DataFrame,
+            or accessed by index.
 
         Raises:
-            ValueError: If dataset identifier format is invalid or dataset not found.
-            httpx.HTTPStatusError: If the API request fails.
+            ValueError: If dataset identifier format is invalid or dataset not
+            found. httpx.HTTPStatusError: If the API request fails.
 
-        Example:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>>
-            >>> # Get dataset by name
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            >>>
-            >>> # Get specific version
-            >>> versioned = client.datasets.get_dataset(
-            ...     dataset="my-dataset",
-            ...     version_id="version-123"
-            ... )
+        Example::
+
+            from phoenix.client import Client client = Client()
+
+            # Get dataset by name dataset =
+            client.datasets.get_dataset(dataset="my-dataset") print(f"Dataset
+            {dataset.name} has {len(dataset)} examples")
+
+            # Get specific version versioned = client.datasets.get_dataset(
+                dataset="my-dataset", version_id="version-123"
+            )
         """
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -605,21 +612,22 @@ class Datasets:
         Raises:
             httpx.HTTPStatusError: If any API request fails during pagination.
 
-        Example:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>>
-            >>> # Get all datasets (automatically paginates, includes counts)
-            >>> all_datasets = client.datasets.list()
-            >>> print(f"Found {len(all_datasets)} total datasets")
-            >>>
-            >>> # Get datasets with example counts
-            >>> for dataset in all_datasets:
-            ...     print(f"{dataset['name']}: {dataset['example_count']} examples")
-            >>>
-            >>> # Get only first 10 datasets (efficient for large collections)
-            >>> limited_datasets = client.datasets.list(limit=10)
-            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Get all datasets (automatically paginates, includes counts)
+            all_datasets = client.datasets.list()
+            print(f"Found {len(all_datasets)} total datasets")
+
+            # Get datasets with example counts
+            for dataset in all_datasets:
+                print(f"{dataset['name']}: {dataset['example_count']} examples")
+
+            # Get only first 10 datasets (efficient for large collections)
+            limited_datasets = client.datasets.list(limit=10)
+            print(f"Found {len(limited_datasets)} datasets (limited to 10)")
         """  # noqa: E501
         all_datasets: list[v1.Dataset] = []
         cursor = None
@@ -656,7 +664,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -708,7 +716,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -746,7 +754,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -814,7 +822,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -1039,50 +1047,56 @@ class AsyncDatasets:
     """
     Provides async methods for interacting with dataset resources.
 
-    Example:
-        Basic usage:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset(dataset="my-dataset")
-            >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
+    Examples:
+        Basic usage::
 
-        Creating and updating datasets:
-            >>> # Create a new dataset
-            >>> dataset = await client.datasets.create_dataset(
-            ...     name="qa-dataset",
-            ...     inputs=[
-            ...         {"question": "What is 2+2?"},
-            ...         {"question": "What's the capital of France?"},
-            ...     ],
-            ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
-            ... )
-            >>>
-            >>> # Add more examples later
-            >>> updated = await client.datasets.add_examples_to_dataset(
-            ...     dataset="qa-dataset",
-            ...     inputs=[{"question": "Who wrote Hamlet?"}],
-            ...     outputs=[{"answer": "Shakespeare"}]
-            ... )
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
 
-        Working with DataFrames:
-            >>> # Convert dataset to DataFrame (sync operation)
-            >>> df = dataset.to_dataframe()
-            >>> print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
-            >>>
-            >>> # Create dataset from DataFrame
-            >>> import pandas as pd
-            >>> df = pd.DataFrame({
-            ...     "prompt": ["Hello", "Hi there"],
-            ...     "response": ["Hi!", "Hello!"],
-            ...     "score": [0.9, 0.95]
-            ... })
-            >>> dataset = await client.datasets.create_dataset(
-            ...     name="greetings",
-            ...     dataframe=df,
-            ...     input_keys=["prompt"],
-            ...     output_keys=["response"],
-            ...     metadata_keys=["score"]
-            ... )
+            # Get a dataset
+            dataset = await client.datasets.get_dataset(dataset="my-dataset")
+            print(f"Dataset {dataset.name} has {len(dataset)} examples")
+
+        Creating and updating datasets::
+
+            # Create a new dataset
+            dataset = await client.datasets.create_dataset(
+                name="qa-dataset",
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What's the capital of France?"},
+                ],
+                outputs=[{"answer": "4"}, {"answer": "Paris"}]
+            )
+
+            # Add more examples later
+            updated = await client.datasets.add_examples_to_dataset(
+                dataset="qa-dataset",
+                inputs=[{"question": "Who wrote Hamlet?"}],
+                outputs=[{"answer": "Shakespeare"}]
+            )
+
+        Working with DataFrames::
+
+            import pandas as pd
+
+            # Convert dataset to DataFrame (sync operation)
+            df = dataset.to_dataframe()
+            print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
+
+            # Create dataset from DataFrame
+            df = pd.DataFrame({
+                "prompt": ["Hello", "Hi there"],
+                "response": ["Hi!", "Hello!"],
+                "score": [0.9, 0.95]
+            })
+            dataset = await client.datasets.create_dataset(
+                name="greetings",
+                dataframe=df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                metadata_keys=["score"]
+            )
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -1299,17 +1313,18 @@ class AsyncDatasets:
         Raises:
             httpx.HTTPStatusError: If any API request fails during pagination.
 
-        Example:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>>
-            >>> # Get all datasets (automatically paginates)
-            >>> all_datasets = await client.datasets.list()
-            >>> print(f"Found {len(all_datasets)} total datasets")
-            >>>
-            >>> # Get only first 10 datasets (efficient for large collections)
-            >>> limited_datasets = await client.datasets.list(limit=10)
-            >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            # Get all datasets (automatically paginates)
+            all_datasets = await client.datasets.list()
+            print(f"Found {len(all_datasets)} total datasets")
+
+            # Get only first 10 datasets (efficient for large collections)
+            limited_datasets = await client.datasets.list(limit=10)
+            print(f"Found {len(limited_datasets)} datasets (limited to 10)")
         """  # noqa: E501
         all_datasets: list[v1.Dataset] = []
         cursor = None
@@ -1346,7 +1361,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1398,7 +1413,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
@@ -1436,7 +1451,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
+        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1504,7 +1519,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[v1.DatasetExample]
+            examples_list: list[DatasetExample]
             if _is_valid_dataset_example(examples):
                 examples_list = [examples]  # type: ignore[list-item]
             else:
