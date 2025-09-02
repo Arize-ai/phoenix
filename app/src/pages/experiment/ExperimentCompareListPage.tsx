@@ -868,9 +868,9 @@ export function ExperimentCompareListPage() {
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
+                  {headerGroup.headers.map((header, index) => (
                     <th
-                      key={header.id}
+                      key={header.id + index}
                       style={{
                         width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
                         padding:
@@ -947,9 +947,9 @@ function TableBody<T>({
               }px)`,
             }}
           >
-            {row.getVisibleCells().map((cell) => (
+            {row.getVisibleCells().map((cell, index) => (
               <td
-                key={cell.id}
+                key={cell.id + index}
                 style={{
                   width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                   maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
