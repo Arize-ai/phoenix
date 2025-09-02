@@ -1,5 +1,28 @@
 # Migrations
 
+## v11.0.0 to v12.0.0 (upcoming)
+
+Instrumentation helpers are being moved to `openinference-instrumentation`.
+
+Before:
+
+```python
+from phoenix.trace import using_project
+
+with using_project(project_name="change-project"):
+    ...
+```
+
+After:
+
+```python
+# openinference-instrumentation>=0.1.38
+from openinference.instrumentation import dangerously_using_project
+
+with dangerously_using_project(project_name="change-project"):
+    ...
+```
+
 ## v10.0.0 to v11.0.0
 
 This release is entirely encapsulated in a set of new tables. Have a nice release!
