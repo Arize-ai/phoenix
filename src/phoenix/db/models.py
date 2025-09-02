@@ -1172,7 +1172,7 @@ class DatasetSplit(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     dataset_split_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
-        back_populates="dataset_split"
+        back_populates="dataset_splits"
     )
 
 class DatasetSplitDatasetExample(Base):
