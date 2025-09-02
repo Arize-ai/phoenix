@@ -1,5 +1,5 @@
 import { Template } from "../types/templating";
-import Mustache, { TemplateSpans } from "mustache";
+import Mustache from "mustache";
 
 type GetTemplateVariableArgs = {
   template: Template;
