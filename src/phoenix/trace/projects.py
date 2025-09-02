@@ -31,7 +31,7 @@ def project_override_wrapper(project_name: str) -> Callable[..., None]:
 
 @deprecated(
     "This decorator has been moved to openinference-instrumentation via dangerously_using_project"
-    " in version 0.1.28 and will be removed in an upcoming major release"
+    " in version 0.1.38 and will be removed in an upcoming major release"
 )
 class using_project:
     """
