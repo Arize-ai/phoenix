@@ -12,7 +12,7 @@ type GetTemplateVariableArgs = {
 export function getTemplateVariables(args: GetTemplateVariableArgs) {
   const { template } = args;
   const templateSpans = Mustache.parse(template);
-  return templateSpans.entries().reduce((acc, entry) => {
+  return templateSpans.reduce((acc, entry) => {
     const [, templateSpan] = entry;
     const [spanType, value] = templateSpan;
     if (spanType === "name" && typeof value === "string") {
