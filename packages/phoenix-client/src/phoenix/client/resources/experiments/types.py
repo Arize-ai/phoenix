@@ -9,9 +9,12 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Union, cast
 
-from typing_extensions import Protocol, TypedDict, runtime_checkable
+from typing_extensions import TYPE_CHECKING, Protocol, TypedDict, runtime_checkable
 
 from phoenix.client.__generated__ import v1
+
+if TYPE_CHECKING:
+    from phoenix.evals.preview.evaluators import Score as EvalScore
 
 # Type aliases
 JSONSerializable = Optional[Union[dict[str, Any], list[Any], str, int, float, bool]]
@@ -67,7 +70,9 @@ class ExperimentEvaluationRun:
     result: Optional[EvaluationResult] = None
     id: str = field(default_factory=_dry_run_id)
     trace_id: Optional[TraceId] = None
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
+    metadata: Mapping[str, JSONSerializable] = field(
+        default_factory=lambda: cast(dict[str, JSONSerializable], {})
+    )
 
     def __post_init__(self) -> None:
         if self.result is None and self.error is None:
@@ -83,7 +88,14 @@ ExperimentTask = Union[
 ]
 
 EvaluatorOutput = Union[
-    EvaluationResult, bool, int, float, str, tuple[Score, Label, Explanation], dict[str, Any]
+    EvaluationResult,
+    bool,
+    int,
+    float,
+    str,
+    tuple[Score, Label, Explanation],
+    dict[str, Any],
+    EvalScore,
 ]
 
 
@@ -115,7 +127,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> EvaluationResult:
+    ) -> Union[EvaluationResult, EvalScore]:
         """Evaluate the output synchronously."""
         ...
 
@@ -127,7 +139,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> EvaluationResult:
+    ) -> Union[EvaluationResult, EvalScore]:
         """Evaluate the output asynchronously."""
         ...
 
@@ -164,7 +176,7 @@ def _validate_evaluator_method_signature(fn: Callable[..., Any], fn_name: str) -
         raise ValueError(f"`{fn_name}` should allow variadic keyword arguments `**kwargs`")
 
 
-class BaseEvaluator(ABC):
+class BaseEvaluator(ABC, Evaluator):
     """
     A helper abstract class to guide the implementation of an `Evaluator` object.
     Subclasses must implement either the `evaluate` or `async_evaluate` method.
@@ -201,7 +213,7 @@ class BaseEvaluator(ABC):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> EvaluationResult:
+    ) -> Union[EvaluationResult, EvalScore]:
         """
         Evaluate the output synchronously.
 
@@ -218,7 +230,7 @@ class BaseEvaluator(ABC):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> EvaluationResult:
+    ) -> Union[EvaluationResult, EvalScore]:
         """
         Evaluate the output asynchronously.
 
