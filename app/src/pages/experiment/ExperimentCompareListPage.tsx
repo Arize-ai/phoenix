@@ -9,6 +9,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import {
@@ -780,6 +781,17 @@ export function ExperimentCompareListPage() {
     columnResizeMode: "onChange",
   });
 
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => {
+      const numExperiments = experiments.length;
+      return 25 + numExperiments * 25;
+    },
+    overscan: 10,
+  });
+
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
@@ -815,6 +827,7 @@ export function ExperimentCompareListPage() {
               ...columnSizeVars,
               width: table.getTotalSize(),
               minWidth: "100%",
+              tableLayout: "fixed",
             }}
           >
             <thead>
@@ -859,9 +872,9 @@ export function ExperimentCompareListPage() {
             </thead>
             {table.getState().columnSizingInfo.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody table={table} />
+              <MemoizedTableBody table={table} virtualizer={virtualizer} />
             ) : (
-              <TableBody table={table} />
+              <TableBody table={table} virtualizer={virtualizer} />
             )}
           </table>
         </div>
@@ -871,27 +884,61 @@ export function ExperimentCompareListPage() {
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({ table }: { table: Table<T> }) {
+function TableBody<T>({
+  table,
+  virtualizer,
+}: {
+  table: Table<T>;
+  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
+}) {
+  const rows = table.getRowModel().rows;
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => (
-            <td
-              key={cell.id}
-              style={{
-                width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                padding:
-                  "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
-                verticalAlign: "middle",
-              }}
-            >
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </td>
-          ))}
-        </tr>
-      ))}
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell) => (
+              <td
+                key={cell.id}
+                style={{
+                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  padding:
+                    "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                  verticalAlign: "middle",
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        );
+      })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getAllColumns().length}
+        />
+      </tr>
     </tbody>
   );
 }
