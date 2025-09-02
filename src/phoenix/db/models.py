@@ -1162,6 +1162,34 @@ class DatasetExampleRevision(Base):
         ),
     )
 
+class DatasetSplit(Base):
+    __tablename__ = "dataset_splits"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+class DatasetSplitDatasetExample(Base):
+    __tablename__ = "dataset_splits_dataset_examples"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_split_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        back_populates="dataset_split_dataset_examples",
+    )
+    dataset_example: Mapped["DatasetExample"] = relationship(
+        back_populates="dataset_split_dataset_examples",
+    )
 
 class Experiment(Base):
     __tablename__ = "experiments"
@@ -1182,6 +1210,13 @@ class Experiment(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    dataset_split_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_splits.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        back_populates="dataset_split",
     )
 
     user: Mapped[Optional["User"]] = relationship("User")
