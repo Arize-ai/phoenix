@@ -35,6 +35,6 @@ export class ClassificationEvaluator<
       template: this.promptTemplate,
     });
     // Give a copy of the variables
-    return [...this.promptTemplateVariables];
+    return [...this._promptTemplateVariables];
   }
 }
