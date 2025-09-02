@@ -103,5 +103,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    with op.batch_alter_table("experiments") as batch_op:
+        batch_op.drop_column(
+            "dataset_split_id",
+        )
     op.drop_table("dataset_splits_dataset_examples")
     op.drop_table("dataset_splits")
