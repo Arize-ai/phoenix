@@ -17,7 +17,7 @@ Phoenix instruments Autogen by instrumenting the underlying model library it's u
 If your agents are using a different model, be sure to instrument that model instead by installing its respective OpenInference library.
 
 ```shell
-pip install openinference-instrumentation-openai arize-phoenix-otel arize-phoenix
+pip install openinference-instrumentation-openai openinference-instrumentation-autogen autogen openai arize-phoenix-otel arize-phoenix
 ```
 
 ## Setup
