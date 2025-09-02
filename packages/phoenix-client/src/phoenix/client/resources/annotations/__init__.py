@@ -297,7 +297,46 @@ class Annotations:
         document_annotations: Iterable[SpanDocumentAnnotationData],
         sync: bool = False,
     ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
-        """Log multiple document annotations."""
+        """Log multiple document annotations.
+
+        Args:
+            document_annotations (Iterable[SpanDocumentAnnotationData]): An
+            iterable of document annotation data to log. Each annotation must
+            include
+                at least a span_id, name, and annotator_kind, along with the
+                document annotation result.
+            sync (bool): If True, the request will be fulfilled synchronously
+            and the response will contain
+                the inserted annotation IDs. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True,
+            returns a list of the inserted document annotations.
+                If sync is False, returns None.
+
+        Raises:
+            httpx.HTTPError: If the request fails. ValueError: If
+            document_annotations is empty.
+
+        Example::
+
+            from phoenix.client import Client from
+            phoenix.client.resources.annotations import
+            SpanDocumentAnnotationData client = Client()
+
+            # Create document annotation data objects doc_annotation =
+            SpanDocumentAnnotationData(
+                name="document_type", span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN", result={"type": "invoice", "confidence":
+                0.95},
+            )
+
+            # Log document annotations
+            client.annotations.log_document_annotations(
+                document_annotations=[doc_annotation], sync=True
+            )
+        """
         document_annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
         if not document_annotations_list:
             raise ValueError("Cannot be called with an empty set of annotations")
@@ -307,6 +346,7 @@ class Annotations:
             json=v1.AnnotateSpanDocumentsRequestBody(data=document_annotations_list),
             params=params,
         )
+        response.raise_for_status()
         if not sync:
             return None
         return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])
@@ -591,7 +631,43 @@ class AsyncAnnotations:
         document_annotations: Iterable[SpanDocumentAnnotationData],
         sync: bool = False,
     ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
-        """Log multiple document annotations."""
+        """Log multiple document annotations to the Phoenix platform.
+
+        Args:
+            document_annotations (Iterable[SpanDocumentAnnotationData]): An
+            iterable of document annotations to log.
+                Cannot be empty.
+            sync (bool, optional): If True, wait for the annotations to be
+            processed and return the results.
+                If False, return immediately. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True,
+            returns a list of the inserted annotations.
+                If sync is False, returns None.
+
+        Raises:
+            httpx.HTTPError: If the request fails. ValueError: If
+            document_annotations is empty.
+
+        Example::
+
+            from phoenix.client import AsyncClient from
+            phoenix.client.resources.annotations import
+            SpanDocumentAnnotationData async_client = AsyncClient()
+
+            # Create document annotation data objects doc_annotation =
+            SpanDocumentAnnotationData(
+                name="document_type", span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN", result={"type": "invoice", "confidence":
+                0.95},
+            )
+
+            # Log document annotations await
+            async_client.annotations.log_document_annotations(
+                document_annotations=[doc_annotation], sync=True
+            )
+        """
         document_annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
         if not document_annotations_list:
             raise ValueError("Cannot be called with an empty set of annotations")
@@ -601,6 +677,7 @@ class AsyncAnnotations:
             json=v1.AnnotateSpanDocumentsRequestBody(data=document_annotations_list),
             params=params,
         )
+        response.raise_for_status()
         if not sync:
             return None
         return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])
