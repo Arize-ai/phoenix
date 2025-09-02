@@ -684,7 +684,7 @@ export function ExperimentCompareListPage() {
                       </Text>
                     </Flex>
                     {typeof experimentAnnotationSummary?.meanScore ===
-                      "number" && (
+                    "number" ? (
                       <ProgressBar
                         width="100%"
                         height="var(--ac-global-dimension-size-25)"
@@ -693,6 +693,13 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "var(--ac-global-dimension-size-25)",
+                        }}
                       />
                     )}
                   </li>
@@ -732,7 +739,7 @@ export function ExperimentCompareListPage() {
                     {baseExperimentAnnotationValueFormatted}
                   </Text>
                 </Flex>
-                {typeof baseExperimentAnnotationValue === "number" && (
+                {typeof baseExperimentAnnotationValue === "number" ? (
                   <ProgressBar
                     width="100%"
                     height="var(--ac-global-dimension-size-25)"
@@ -741,6 +748,13 @@ export function ExperimentCompareListPage() {
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "var(--ac-global-dimension-size-25)",
+                    }}
                   />
                 )}
               </li>
@@ -766,7 +780,7 @@ export function ExperimentCompareListPage() {
                         {compareExperimentAnnotationValueFormatted}
                       </Text>
                     </Flex>
-                    {typeof compareExperimentAnnotationValue === "number" && (
+                    {typeof compareExperimentAnnotationValue === "number" ? (
                       <ProgressBar
                         width="100%"
                         height="var(--ac-global-dimension-size-25)"
@@ -775,6 +789,13 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "var(--ac-global-dimension-size-25)",
+                        }}
                       />
                     )}
                   </li>
