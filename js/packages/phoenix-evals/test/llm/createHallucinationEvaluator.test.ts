@@ -62,6 +62,15 @@ Is the answer hallucinated? Respond with "yes" or "no".
     );
   });
 
+  it("should advertize the variables needed", () => {
+    const hallucination = createHallucinationEvaluator({ model });
+    expect(hallucination.promptTemplateVariables).toEqual([
+      "input",
+      "reference",
+      "output",
+    ]);
+  });
+
   it("should support custom template", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi

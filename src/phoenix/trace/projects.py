@@ -7,6 +7,8 @@ from opentelemetry.sdk import trace
 from opentelemetry.sdk.resources import Resource
 from wrapt import wrap_function_wrapper
 
+from phoenix.utilities.deprecation import deprecated
+
 
 def project_override_wrapper(project_name: str) -> Callable[..., None]:
     def wrapper(
@@ -27,6 +29,10 @@ def project_override_wrapper(project_name: str) -> Callable[..., None]:
     return wrapper
 
 
+@deprecated(
+    "This decorator has been moved to openinference-instrumentation via dangerously_using_project"
+    " in version 0.1.38 and will be removed in an upcoming major release"
+)
 class using_project:
     """
     A context manager that switches the project for all spans created within the context.
