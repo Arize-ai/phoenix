@@ -15,7 +15,7 @@ export function getTemplateVariables(args: GetTemplateVariableArgs) {
   return templateSpans.entries().reduce((acc, entry) => {
     const [, templateSpan] = entry;
     const [spanType, value] = templateSpan;
-    if (spanType === "name") {
+    if (spanType === "name" && typeof value === "string") {
       acc = [...acc, value];
     }
     return acc;
