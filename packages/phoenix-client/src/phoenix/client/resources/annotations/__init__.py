@@ -1384,7 +1384,7 @@ def _chunk_document_annotations_dataframe(
                 else str(idx)
             )
 
-            document_position = int(row["document_position"])  # pyright: ignore[reportUnknownArgumentType]
+            document_position = int(str(row["document_position"]))  # pyright: ignore[reportUnknownArgumentType]
 
             # Get optional fields with proper type conversion
             label = str(row["label"]) if "label" in row and bool(row["label"]) else None  # pyright: ignore[reportUnknownArgumentType]
