@@ -10,7 +10,7 @@ import pandas as pd
 from pydantic import BaseModel, ValidationError, create_model
 from typing_extensions import Mapping
 
-from phoenix.evals.executors import ExecutionDetails, SyncExecutor
+from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
 from .llm import LLM
 from .llm.types import ObjectGenerationMethod
@@ -716,17 +716,16 @@ def evaluate_dataframe(
     This function uses a synchronous executor; for async evaluation, use `async_evaluate_dataframe`.
 
     Args:
-        dataframe: The input dataframe to evaluate. Each row will be converted to a dict
-                  and passed to each evaluator.
+        dataframe: The input dataframe to evaluate. Each row will be converted to a dict and passed
+            to each evaluator.
         evaluators: List of evaluators to apply to each row. Input mapping should be
-                   already bound via `bind_evaluator` or column names should match
-                   evaluator input fields.
-        tqdm_bar_format: Optional format string for the progress bar. If None, the progress
-                        bar is disabled.
-        exit_on_error: Optional flag to control whether execution should stop on the first
-                      error. If None, uses SyncExecutor's default (True).
-        max_retries: Optional number of times to retry on exceptions. If None, uses
-                    SyncExecutor's default (10).
+            already bound via `bind_evaluator` or column names should match evaluator input fields.
+        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
+            disabled.
+        exit_on_error: Optional flag to control whether execution should stop on the first error.
+            If None, uses SyncExecutor's default (True).
+        max_retries: Optional number of times to retry on exceptions. If None, uses SyncExecutor's
+            default (10).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.
@@ -778,6 +777,121 @@ def evaluate_dataframe(
 
     executor = SyncExecutor(**executor_kwargs)
     results, execution_details = executor.run(task_inputs)
+
+    def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
+        result: Dict[str, Any] = {}
+        result["status"] = eval_execution_details.status.value
+        result["exceptions"] = [repr(exc) for exc in eval_execution_details.exceptions]
+        result["execution_seconds"] = eval_execution_details.execution_seconds
+        return json.dumps(result)
+
+    for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
+        # Process and add execution details to dataframe
+        details = execution_details[i]
+        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
+        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
+
+        # Process scores
+        if results is None:
+            continue
+        scores = results[i]
+        if scores is None:
+            continue
+        for score in scores:
+            if not score.name:  # this shouldn't happen
+                score_col = f"{evaluators[evaluator_index].name}_{i}"
+            else:
+                score_col = f"{score.name}_score"
+            if score_col not in score_lists:
+                score_lists[score_col] = [None] * len(dataframe)
+            score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
+
+    # Add scores to dataframe
+    for score_col, score_list in score_lists.items():
+        result_df[score_col] = score_list
+
+    return result_df
+
+
+async def async_evaluate_dataframe(
+    dataframe: pd.DataFrame,
+    evaluators: List[Evaluator],
+    concurrency: Optional[int] = None,
+    tqdm_bar_format: Optional[str] = None,
+    exit_on_error: Optional[bool] = None,
+    max_retries: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Evaluate a dataframe with a list of evaluators and return an augmented dataframe.
+
+    This function uses an asynchronous executor; for sync evaluation, use `evaluate_dataframe`.
+
+    Args:
+        dataframe: The input dataframe to evaluate. Each row will be converted to a dict
+            and passed to each evaluator.
+        evaluators: List of evaluators to apply to each row. Input mapping should be
+            already bound via `bind_evaluator` or column names should match evaluator input fields.
+        concurrency: Optional number of concurrent consumers. If None, uses AsyncExecutor's default
+            (3).
+        tqdm_bar_format: Optional format string for the progress bar. If None, the progress bar is
+            disabled.
+        exit_on_error: Optional flag to control whether execution should stop on the first
+            error. If None, uses AsyncExecutor's default (True).
+        max_retries: Optional number of times to retry on exceptions. If None, uses
+            AsyncExecutor's default (10).
+
+    Returns:
+        A copy of the input dataframe with additional columns for scores and exceptions.
+        For each evaluator, columns are added for:
+        - "{evaluator.name}_execution_details": Details about any exceptions encountered, execution
+            time, and status.
+        - "{score.name}_score": JSON-serialized Score objects for each score returned
+
+    Notes:
+    - Score name collisions: If multiple evaluators return scores with the same name,
+      they will write to the same column (e.g., 'same_name_score'). This can lead to
+      data loss as later scores overwrite earlier ones.
+    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
+    - Failed evaluations: If an evaluation fails, the failure details will be recorded
+      in the execution_details column and the score will be None.
+    """
+    # Create a copy to avoid modifying the original dataframe
+    result_df = dataframe.copy()
+
+    # Prepare task inputs
+    records = [{str(k): v for k, v in record.items()} for record in result_df.to_dict("records")]
+    eval_inputs: Dict[int, Dict[str, Any]] = dict(enumerate(records))
+    evaluator_mapping = {i: evaluator for i, evaluator in enumerate(evaluators)}
+    task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
+
+    # Pre-allocate columns for efficient assignment
+    score_lists: Dict[str, List[Optional[str]]] = {}
+    for evaluator in evaluators:
+        evaluator_name = evaluator.name
+        execution_details_col = f"{evaluator_name}_execution_details"
+        result_df[execution_details_col] = [None] * len(dataframe)
+
+    # Execution task: evaluate an eval_input with an evaluator
+    async def _task(task_input: Tuple[int, int]) -> List[Score]:
+        eval_input_index, evaluator_index = task_input
+        eval_input = eval_inputs[eval_input_index]
+        evaluator = evaluators[evaluator_index]
+        scores = await evaluator.aevaluate(eval_input)
+        return scores
+
+    # Only pass parameters that were explicitly provided, otherwise use Executor defaults
+    executor_kwargs: Dict[str, Any] = {"generation_fn": _task, "fallback_return_value": None}
+    if tqdm_bar_format is not None:
+        executor_kwargs["tqdm_bar_format"] = tqdm_bar_format
+    if exit_on_error is not None:
+        executor_kwargs["exit_on_error"] = exit_on_error
+    if max_retries is not None:
+        executor_kwargs["max_retries"] = max_retries
+    if concurrency is not None:
+        executor_kwargs["concurrency"] = concurrency
+
+    executor = AsyncExecutor(**executor_kwargs)
+    results, execution_details = await executor.execute(task_inputs)
 
     def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
         result: Dict[str, Any] = {}
