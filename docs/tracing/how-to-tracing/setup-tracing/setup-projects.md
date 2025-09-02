@@ -52,7 +52,7 @@ span_exporter = OTLPSpanExporter(endpoint="http://phoenix:6006/v1/traces")
 span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
 tracer_provider.add_span_processor(span_processor=span_processor)
 trace_api.set_tracer_provider(tracer_provider=tracer_provider)
-# Add any auto-instrumentation you want 
+# Add any auto-instrumentation you want
 LlamaIndexInstrumentor().instrument()
 ```
 {% endtab %}
@@ -67,10 +67,10 @@ Typically you want traces for an LLM app to all be grouped in one project. Howev
 {% tabs %}
 {% tab title="Notebook" %}
 ```python
-from phoenix.trace import using_project
+from openinference.instrumentation import dangerously_using_project
 
 # Switch project to run evals
-with using_project("my-eval-project"):
+with dangerously_using_project("my-eval-project"):
     # all spans created within this context will be associated with
     # the "my-eval-project" project.
     # Run evaluations here...
