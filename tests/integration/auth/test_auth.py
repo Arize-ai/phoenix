@@ -5,6 +5,7 @@ from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from random import choice
 from secrets import token_hex
 from typing import (
     Any,
@@ -1471,7 +1472,7 @@ class TestSpanAnnotations:
         _app: _AppInfo,
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
-        (span_gid, *_), *_ = _existing_spans
+        span_gid, *_ = choice(_existing_spans)
 
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1623,7 +1624,9 @@ class TestTraceAnnotations:
         metadata
         source
         identifier
-        traceId
+        trace {
+          traceId
+        }
         user {
           id
           email
@@ -1639,7 +1642,7 @@ class TestTraceAnnotations:
         _app: _AppInfo,
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
-        existing_span, *_ = _existing_spans
+        existing_span = choice(_existing_spans)
         trace_gid = existing_span.trace.id
 
         annotation_creator = _get_user(_app, _MEMBER)

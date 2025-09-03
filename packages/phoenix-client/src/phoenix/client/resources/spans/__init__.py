@@ -2,9 +2,19 @@ import json
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
 
 import httpx
+from typing_extensions import TypeAlias
+
+from phoenix.client.utils.annotation_helpers import (
+    _chunk_document_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
+    _chunk_span_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
+    _create_document_annotation,  # pyright: ignore[reportPrivateUsage]
+    _create_span_annotation,  # pyright: ignore[reportPrivateUsage]
+    _validate_document_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
+    _validate_span_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -18,16 +28,26 @@ from phoenix.client.utils.id_handling import is_node_id
 logger = logging.getLogger(__name__)
 
 # Re-export generated types
+AnnotateSpanDocumentsRequestBody = v1.AnnotateSpanDocumentsRequestBody
+AnnotateSpanDocumentsResponseBody = v1.AnnotateSpanDocumentsResponseBody
+AnnotateSpansRequestBody = v1.AnnotateSpansRequestBody
+AnnotateSpansResponseBody = v1.AnnotateSpansResponseBody
+CreateSpansResponseBody = v1.CreateSpansResponseBody
+InsertedSpanAnnotation = v1.InsertedSpanAnnotation
+InsertedSpanDocumentAnnotation = v1.InsertedSpanDocumentAnnotation
 Span = v1.Span
 SpanAnnotation = v1.SpanAnnotation
-SpanAnnotationResult = v1.SpanAnnotationResult
+SpanAnnotationData = v1.SpanAnnotationData
+SpanAnnotationResult = v1.AnnotationResult
 SpanAnnotationsResponseBody = v1.SpanAnnotationsResponseBody
-CreateSpansResponseBody = v1.CreateSpansResponseBody
-
+SpanDocumentAnnotationData = v1.SpanDocumentAnnotationData
+SpanDocumentAnnotationResult = v1.AnnotationResult
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
+
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
 
 
 class Spans:
@@ -577,6 +597,627 @@ class Spans:
             timeout=timeout,
         )
         response.raise_for_status()
+
+    @overload
+    def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: Literal[True],
+    ) -> InsertedSpanAnnotation: ...
+
+    @overload
+    def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: bool,
+    ) -> Optional[InsertedSpanAnnotation]: ...
+
+    def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: bool = False,
+    ) -> Optional[InsertedSpanAnnotation]:
+        """Add a single span annotation.
+
+        Args:
+            span_id (str): The ID of the span to annotate.
+            annotation_name (str): The name of the annotation.
+            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            label (Optional[str]): The label assigned by the annotation.
+            score (Optional[float]): The score assigned by the annotation.
+            explanation (Optional[str]): Explanation of the annotation result.
+            metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+            identifier (Optional[str]): An optional identifier for the annotation. Each
+                annotation is uniquely identified by the combination of name, span_id, and
+                identifier (where a null identifier is equivalent to an empty string).
+                If an annotation with the same name, span_id, and identifier already exists,
+                it will be updated. Using a non-empty identifier allows you to have multiple
+                annotations with the same name and span_id. Most of the time, you can leave
+                this as None - it will also update the record with identifier="" if it exists.
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation ID. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[InsertedSpanAnnotation]: If sync is True, the inserted span annotation
+                containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if at least one of label, score, or
+                explanation is not provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Add a single annotation with sync response
+            annotation = client.annotations.add_span_annotation(
+                span_id="abc123",
+                annotation_name="sentiment",
+                label="positive",
+                score=0.9,
+                explanation="The text expresses a positive sentiment.",
+                sync=True,
+            )
+        """  # noqa: E501
+        anno = _create_span_annotation(
+            span_id=span_id,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            label=label,
+            score=score,
+            explanation=explanation,
+            metadata=metadata,
+            identifier=identifier,
+        )
+        if res := self.log_span_annotations(span_annotations=[anno], sync=sync):
+            return res[0]
+        return None
+
+    @overload
+    def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotation_name: Optional[str] = None,
+        sync: Literal[True],
+    ) -> list[InsertedSpanAnnotation]: ...
+
+    @overload
+    def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotation_name: Optional[str] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotation_name: Optional[str] = None,
+        sync: bool,
+    ) -> Optional[list[InsertedSpanAnnotation]]: ...
+
+    def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotation_name: Optional[str] = None,
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanAnnotation]]:
+        """Log multiple span annotations from a pandas DataFrame.
+
+        This method allows you to create multiple span annotations at once by providing the data
+        in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns
+        (but not both) and `annotator_kind` column, or you can specify global values for all rows.
+        The data is processed in chunks of 100 rows for efficient batch processing.
+
+        Args:
+            dataframe (pd.DataFrame): A pandas DataFrame containing the annotation data. Must include
+                either a "name" or "annotation_name" column (but not both) or provide a global
+                annotation_name parameter. Similarly, must include an "annotator_kind" column or
+                provide a global annotator_kind. The `span_id` can be either a column in the
+                DataFrame or will be taken from the DataFrame index. Optional columns include:
+                "label", "score", "explanation", "metadata", and "identifier".
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+                for all annotations. If provided, this value will be used for all rows and the
+                DataFrame does not need to include an "annotator_kind" column. Must be one of
+                "LLM", "CODE", or "HUMAN".
+            annotation_name (Optional[str]): The name to use for all annotations. If provided, this
+                value will be used for all rows and the DataFrame does not need to include a "name"
+                or "annotation_name" column.
+            sync (bool): If True, the request will be fulfilled synchronously and the response will
+                contain the inserted annotation IDs. If False, the request will be processed
+                asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of all inserted span
+                annotations. If sync is False, None.
+
+        Raises:
+            ImportError: If pandas is not installed.
+            ValueError: If the DataFrame is missing required columns, if both "name" and
+                "annotation_name" columns are present, or if no valid annotation data is provided.
+
+        Example::
+
+            import pandas as pd
+            from phoenix.client import Client
+            client = Client()
+
+            # Using name and annotator_kind from DataFrame with span_id column
+            df1 = pd.DataFrame({
+                "name": ["sentiment", "toxicity"],
+                "span_id": ["span_123", "span_456"],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["positive", "low"],
+                "score": [0.9, 0.1]
+            })
+            client.annotations.log_span_annotations_dataframe(dataframe=df1)
+
+            # Using annotation_name and annotator_kind from DataFrame
+            df2 = pd.DataFrame({
+                "annotation_name": ["sentiment", "toxicity"],
+                "span_id": ["span_789", "span_012"],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["positive", "low"],
+                "score": [0.9, 0.1]
+            })
+            client.annotations.log_span_annotations_dataframe(dataframe=df2)
+
+            # Using global name and annotator_kind with span_id from index
+            df3 = pd.DataFrame({
+                "label": ["positive", "low"]
+            }, index=["span_345", "span_678"])
+            client.annotations.log_span_annotations_dataframe(
+                dataframe=df3,
+                annotation_name="sentiment",  # applies to all rows
+                annotator_kind="HUMAN"  # applies to all rows
+            )
+        """  # noqa: E501
+        # Validate DataFrame first
+        _validate_span_annotations_dataframe(dataframe=dataframe)
+
+        # Process DataFrame chunks using iterator
+        all_responses: list[InsertedSpanAnnotation] = []
+        for chunk in _chunk_span_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+        ):
+            # Delegate to log_span_annotations
+            response = self.log_span_annotations(span_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
+
+        return all_responses if sync else None
+
+    @overload
+    def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: Literal[True],
+    ) -> list[InsertedSpanAnnotation]: ...
+
+    @overload
+    def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: bool,
+    ) -> Optional[list[InsertedSpanAnnotation]]: ...
+
+    def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanAnnotation]]:
+        """Log multiple span annotations.
+
+        Args:
+            span_annotations (Iterable[SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
+                at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
+            sync (bool): If True, the request will be fulfilled synchronously and the response will contain
+                the inserted annotation IDs. If False, the request will be processed asynchronously.
+                Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if the input is invalid.
+        """  # noqa: E501
+        # Convert to list and validate input
+        annotations_list = list(span_annotations)
+        if not annotations_list:
+            raise ValueError("span_annotations cannot be empty")
+
+        url = "v1/span_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = AnnotateSpansRequestBody(data=annotations_list)
+        response = self._client.post(url=url, json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(AnnotateSpansResponseBody, response.json())["data"])
+
+    @overload
+    def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: Literal[True],
+    ) -> InsertedSpanDocumentAnnotation: ...
+
+    @overload
+    def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: bool,
+    ) -> Optional[InsertedSpanDocumentAnnotation]: ...
+
+    def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: bool = False,
+    ) -> Optional[InsertedSpanDocumentAnnotation]:
+        """Add a single span document annotation.
+
+        Args:
+            span_id (str): The ID of the span to annotate.
+            document_position (int): The 0-based index of the document within the span.
+            annotation_name (str): The name of the annotation.
+            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            label (Optional[str]): The label assigned by the annotation.
+            score (Optional[float]): The score assigned by the annotation.
+            explanation (Optional[str]): Explanation of the annotation result.
+            metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation ID. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[InsertedSpanDocumentAnnotation]: If sync is True, the inserted span document
+                annotation containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if at least one of label, score, or
+                explanation is not provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Add a single document annotation with sync response
+            annotation = client.annotations.add_document_annotation(
+                span_id="abc123",
+                document_position=0,
+                annotation_name="relevance",
+                label="relevant",
+                score=0.9,
+                explanation="The document is relevant to the query.",
+                sync=True,
+            )
+        """  # noqa: E501
+
+        anno = _create_document_annotation(
+            span_id=span_id,
+            document_position=document_position,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            label=label,
+            score=score,
+            explanation=explanation,
+            metadata=metadata,
+        )
+
+        url = "v1/document_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = {"data": [anno]}
+        response = self._client.post(url=url, json=json_, params=params)
+        if sync:
+            response.raise_for_status()
+            response_body = cast(AnnotateSpanDocumentsResponseBody, response.json())
+            return list(response_body["data"])[0]
+        return None
+
+    @overload
+    def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: Literal[True],
+    ) -> list[InsertedSpanDocumentAnnotation]: ...
+
+    @overload
+    def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: bool,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]: ...
+
+    def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple span document annotations.
+
+        Args:
+            document_annotations (list[SpanDocumentAnnotationData]): A list of span document
+                annotation data objects.
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation IDs. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True, a list of inserted
+                span document annotations containing IDs. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If span_document_annotations is empty.
+
+        Example::
+
+            from phoenix.client import Client
+            from phoenix.client.resources.annotations import SpanDocumentAnnotationData
+            client = Client()
+
+            # Log multiple document annotations
+            annotations = [
+                SpanDocumentAnnotationData(
+                    name="relevance",
+                    span_id="span-123",
+                    document_position=0,
+                    annotator_kind="HUMAN",
+                    result={"label": "relevant", "score": 0.9}
+                ),
+                SpanDocumentAnnotationData(
+                    name="accuracy",
+                    span_id="span-123",
+                    document_position=1,
+                    annotator_kind="LLM",
+                    result={"label": "accurate", "score": 0.8}
+                ),
+            ]
+            client.annotations.log_document_annotations(
+                span_document_annotations=annotations
+            )
+        """  # noqa: E501
+        annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
+        if not annotations_list:
+            raise ValueError("span_document_annotations cannot be empty")
+
+        url = "v1/document_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = {"data": annotations_list}
+        response = self._client.post(url=url, json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])
+
+    @overload
+    def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
+        sync: Literal[True],
+    ) -> list[InsertedSpanDocumentAnnotation]: ...
+
+    @overload
+    def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
+        sync: bool,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]: ...
+
+    def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple span document annotations from a pandas DataFrame.
+
+        This method allows you to create multiple span document annotations at once by providing
+        the data in a pandas DataFrame. The DataFrame can either include `name` or
+        `annotation_name` columns (but not both) and `annotator_kind` column, or you can
+        specify global values for all rows. The data is processed in chunks of 100 rows for
+        efficient batch processing.
+
+        Args:
+            dataframe (pd.DataFrame): A pandas DataFrame containing the annotation data. Must
+                include either a "name" or "annotation_name" column (but not both) or provide a
+                global annotation_name parameter. Similarly, must include an "annotator_kind"
+                column or provide a global annotator_kind. The `span_id` and `document_position`
+                can be either columns in the DataFrame or `span_id` will be taken from the
+                DataFrame index. Optional columns include: "label", "score", "explanation",
+                and "metadata".
+            annotation_name (Optional[str]): The name to use for all annotations. If provided,
+                this name will be used for all rows in the DataFrame. Cannot be used if the
+                DataFrame contains a "name" or "annotation_name" column.
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The annotator kind to
+                use for all annotations. If provided, this kind will be used for all rows in the
+                DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation IDs. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True, a list of inserted
+                span document annotations containing IDs. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the DataFrame is invalid or empty.
+
+        Example::
+
+            import pandas as pd
+            from phoenix.client import Client
+            client = Client()
+
+            # Log document annotations from DataFrame
+            df = pd.DataFrame({
+                "name": ["relevance", "accuracy"],
+                "span_id": ["span_123", "span_456"],
+                "document_position": [0, 1],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["relevant", "accurate"],
+                "score": [0.9, 0.8]
+            })
+            client.annotations.log_document_annotations_dataframe(dataframe=df)
+        """  # noqa: E501
+        # Validate the DataFrame
+        _validate_document_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
+
+        # Process DataFrame in chunks
+        all_responses: list[InsertedSpanDocumentAnnotation] = []
+        for chunk in _chunk_document_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+        ):
+            response = self.log_document_annotations(document_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
+
+        return all_responses if sync else None
 
 
 class AsyncSpans:
@@ -1130,6 +1771,636 @@ class AsyncSpans:
             timeout=timeout,
         )
         response.raise_for_status()
+
+    @overload
+    async def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: Literal[True],
+    ) -> InsertedSpanAnnotation: ...
+
+    @overload
+    async def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: bool,
+    ) -> Optional[InsertedSpanAnnotation]: ...
+
+    async def add_span_annotation(
+        self,
+        *,
+        span_id: str,
+        annotation_name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        identifier: Optional[str] = None,
+        sync: bool = False,
+    ) -> Optional[InsertedSpanAnnotation]:
+        """Add a single span annotation asynchronously.
+
+        Args:
+            span_id (str): The ID of the span to annotate.
+            annotation_name (str): The name of the annotation.
+            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+                Defaults to "HUMAN".
+            label (Optional[str]): The label assigned by the annotation.
+            score (Optional[float]): The score assigned by the annotation.
+            explanation (Optional[str]): Explanation of the annotation result.
+            metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+            identifier (Optional[str]): An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+                of name, span_id, and identifier (where a null identifier is equivalent to an empty string).
+                If an annotation with the same name, span_id, and identifier already exists, it will be updated.
+                Using a non-empty identifier allows you to have multiple annotations with the same name and span_id.
+                Most of the time, you can leave this as None - it will also update the record with identifier="" if it exists.
+            sync (bool): If True, the request will be fulfilled synchronously and the response will contain
+                the inserted annotation ID. If False, the request will be processed asynchronously.
+                Defaults to False.
+
+        Returns:
+            Optional[InsertedSpanAnnotation]: If sync is True, the inserted span annotation containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if at least one of label, score, or explanation
+                is not provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Add a single annotation with sync response
+            annotation = await async_client.annotations.add_span_annotation(
+                span_id="abc123",
+                annotation_name="sentiment",
+                label="positive",
+                score=0.9,
+                explanation="The text expresses a positive sentiment.",
+                sync=True,
+            )
+        """  # noqa: E501
+        anno = _create_span_annotation(
+            span_id=span_id,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            label=label,
+            score=score,
+            explanation=explanation,
+            metadata=metadata,
+            identifier=identifier,
+        )
+        if res := await self.log_span_annotations(span_annotations=[anno], sync=sync):
+            return res[0]
+        return None
+
+    @overload
+    async def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: Literal[True],
+    ) -> list[InsertedSpanAnnotation]: ...
+
+    @overload
+    async def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: bool,
+    ) -> Optional[list[InsertedSpanAnnotation]]: ...
+
+    async def log_span_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanAnnotation]]:
+        """Log multiple span annotations from a pandas DataFrame asynchronously.
+
+        This method allows you to create multiple span annotations at once by providing the data
+        in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns
+        (but not both) and `annotator_kind` column, or you can specify global values for all rows.
+        The data is processed in chunks of 100 rows for efficient batch processing.
+
+        Args:
+            dataframe (pd.DataFrame): A pandas DataFrame containing the annotation data. Must include
+                either a "name" or "annotation_name" column (but not both) or provide a global
+                annotation_name parameter. Similarly, must include an "annotator_kind" column or
+                provide a global annotator_kind. The `span_id` can be either a column in the
+                DataFrame or will be taken from the DataFrame index. Optional columns include:
+                "label", "score", "explanation", "metadata", and "identifier".
+            annotation_name (Optional[str]): The name to use for all annotations. If provided, this
+                value will be used for all rows and the DataFrame does not need to include a "name"
+                or "annotation_name" column.
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+                for all annotations. If provided, this value will be used for all rows and the
+                DataFrame does not need to include an "annotator_kind" column. Must be one of
+                "LLM", "CODE", or "HUMAN".
+            sync (bool): If True, the request will be fulfilled synchronously and the response will
+                contain the inserted annotation IDs. If False, the request will be processed
+                asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[dict]]: If sync is True, a list of all inserted span annotations. If sync is False, None.
+
+        Raises:
+            ImportError: If pandas is not installed.
+            ValueError: If the DataFrame is missing required columns or if no valid annotation data is provided.
+
+        Example::
+
+            import pandas as pd
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Using name and annotator_kind from DataFrame with span_id column
+            df1 = pd.DataFrame({
+                "name": ["sentiment", "toxicity"],
+                "span_id": ["span_123", "span_456"],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["positive", "low"],
+                "score": [0.9, 0.1]
+            })
+            await async_client.annotations.log_span_annotations_dataframe(dataframe=df1)
+
+            # Using global name and annotator_kind with span_id from index
+            df2 = pd.DataFrame({
+                "label": ["positive", "low"]
+            }, index=["span_345", "span_678"])
+            await async_client.annotations.log_span_annotations_dataframe(
+                dataframe=df2,
+                annotation_name="sentiment",  # applies to all rows
+                annotator_kind="HUMAN"  # applies to all rows
+            )
+        """  # noqa: E501
+        # Validate DataFrame first
+        _validate_span_annotations_dataframe(dataframe=dataframe)
+
+        # Process DataFrame chunks using iterator
+        all_responses: list[InsertedSpanAnnotation] = []
+        for chunk in _chunk_span_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+        ):
+            # Delegate to log_span_annotations
+            response = await self.log_span_annotations(span_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
+
+        return all_responses if sync else None
+
+    @overload
+    async def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: Literal[True],
+    ) -> list[InsertedSpanAnnotation]: ...
+
+    @overload
+    async def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: bool,
+    ) -> Optional[list[InsertedSpanAnnotation]]: ...
+
+    async def log_span_annotations(
+        self,
+        *,
+        span_annotations: Iterable[SpanAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanAnnotation]]:
+        """Log multiple span annotations asynchronously.
+
+        Args:
+            span_annotations (Iterable[SpanAnnotationData]): An iterable of span annotation data to log. Each annotation must include
+                at least a span_id, name, and annotator_kind, and at least one of label, score, or explanation.
+            sync (bool): If True, the request will be fulfilled synchronously and the response will contain
+                the inserted annotation IDs. If False, the request will be processed asynchronously.
+                Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanAnnotation]]: If sync is True, a list of inserted span annotations, each containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if the input is invalid.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            from phoenix.client.resources.annotations import SpanAnnotationData
+            async_client = AsyncClient()
+
+            # Create span annotation data objects using dictionaries
+            annotation1 =  SpanAnnotationData(
+                name="sentiment",
+                span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN",
+                result={"label": "positive", "score": 0.9},
+            )
+
+            annotation2 =  SpanAnnotationData(
+                name="sentiment",
+                span_id="72dda197b0e1b3ef",
+                annotator_kind="HUMAN",
+                result={"label": "negative", "score": 0.1},
+            )
+
+            # Log multiple annotations at once
+            await async_client.annotations.log_span_annotations(
+                span_annotations=[annotation1, annotation2],
+            )
+        """  # noqa: E501
+        # Convert to list and validate input
+        annotations_list: list[SpanAnnotationData] = list(span_annotations)
+        if not annotations_list:
+            raise ValueError("span_annotations cannot be empty")
+
+        url = "v1/span_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = AnnotateSpansRequestBody(data=annotations_list)
+        response = await self._client.post(url=url, json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(AnnotateSpansResponseBody, response.json())["data"])
+
+    @overload
+    async def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: Literal[True],
+    ) -> InsertedSpanDocumentAnnotation: ...
+
+    @overload
+    async def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: bool,
+    ) -> Optional[InsertedSpanDocumentAnnotation]: ...
+
+    async def add_document_annotation(
+        self,
+        *,
+        span_id: str,
+        document_position: int,
+        annotation_name: str,
+        annotator_kind: _AnnotatorKind = "HUMAN",
+        label: Optional[str] = None,
+        score: Optional[float] = None,
+        explanation: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        sync: bool = False,
+    ) -> Optional[InsertedSpanDocumentAnnotation]:
+        """Add a single span document annotation asynchronously.
+
+        Args:
+            span_id (str): The ID of the span to annotate.
+            document_position (int): The 0-based index of the document within the span.
+            annotation_name (str): The name of the annotation.
+            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the
+                annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            label (Optional[str]): The label assigned by the annotation.
+            score (Optional[float]): The score assigned by the annotation.
+            explanation (Optional[str]): Explanation of the annotation result.
+            metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation ID. If False, the request will be processed
+                asynchronously. Defaults to False.
+
+        Returns:
+            Optional[InsertedSpanDocumentAnnotation]: If sync is True, the inserted span document
+                annotation containing an ID. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response is invalid or if at least one of label, score, or
+                explanation is not provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Add a single document annotation with sync response
+            annotation = await async_client.annotations.add_document_annotation(
+                span_id="abc123",
+                document_position=0,
+                annotation_name="relevance",
+                label="relevant",
+                score=0.9,
+                explanation="The document is relevant to the query.",
+                sync=True,
+            )
+        """  # noqa: E501
+        anno = _create_document_annotation(
+            span_id=span_id,
+            document_position=document_position,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+            label=label,
+            score=score,
+            explanation=explanation,
+            metadata=metadata,
+        )
+
+        url = "v1/document_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = {"data": [anno]}
+        response = await self._client.post(url=url, json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(v1.AnnotateSpanDocumentsResponseBody, response.json())["data"])[0]
+
+    @overload
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: Literal[True],
+    ) -> list[InsertedSpanDocumentAnnotation]: ...
+
+    @overload
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: bool,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]: ...
+
+    async def log_document_annotations(
+        self,
+        *,
+        document_annotations: list[SpanDocumentAnnotationData],
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple span document annotations asynchronously.
+
+        Args:
+            document_annotations (list[SpanDocumentAnnotationData]): A list of span document
+                annotation data objects.
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation IDs. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True, a list of inserted
+                span document annotations containing IDs. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If span_document_annotations is empty.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            from phoenix.client.resources.annotations import SpanDocumentAnnotationData
+            async_client = AsyncClient()
+
+            # Log multiple document annotations
+            annotations = [
+                SpanDocumentAnnotationData(
+                    name="relevance",
+                    span_id="span-123",
+                    document_position=0,
+                    annotator_kind="HUMAN",
+                    result={"label": "relevant", "score": 0.9}
+                ),
+                SpanDocumentAnnotationData(
+                    name="accuracy",
+                    span_id="span-123",
+                    document_position=1,
+                    annotator_kind="LLM",
+                    result={"label": "accurate", "score": 0.8}
+                ),
+            ]
+            await async_client.annotations.log_document_annotations(
+                span_document_annotations=annotations
+            )
+        """  # noqa: E501
+        annotations_list: list[SpanDocumentAnnotationData] = list(document_annotations)
+        if not annotations_list:
+            raise ValueError("span_document_annotations cannot be empty")
+
+        url = "v1/document_annotations"
+        params = {"sync": sync} if sync else {}
+        json_ = {"data": annotations_list}
+        response = await self._client.post(url=url, json=json_, params=params)
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(v1.AnnotateSpanDocumentsResponseBody, response.json())["data"])
+
+    @overload
+    async def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: Literal[True],
+    ) -> list[InsertedSpanDocumentAnnotation]: ...
+
+    @overload
+    async def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: Literal[False] = False,
+    ) -> None: ...
+
+    @overload
+    async def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: bool,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]: ...
+
+    async def log_document_annotations_dataframe(
+        self,
+        *,
+        dataframe: "pd.DataFrame",
+        annotation_name: Optional[str] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        sync: bool = False,
+    ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
+        """Log multiple span document annotations from a pandas DataFrame asynchronously.
+
+        This method allows you to create multiple span document annotations at once by providing
+        the data in a pandas DataFrame. The DataFrame can either include `name` or
+        `annotation_name` columns (but not both) and `annotator_kind` column, or you can
+        specify global values for all rows. The data is processed in chunks of 100 rows for
+        efficient batch processing.
+
+        Args:
+            dataframe (pd.DataFrame): A pandas DataFrame containing the annotation data. Must
+                include either a "name" or "annotation_name" column (but not both) or provide a
+                global annotation_name parameter. Similarly, must include an "annotator_kind"
+                column or provide a global annotator_kind. The `span_id` and `document_position`
+                can be either columns in the DataFrame or `span_id` will be taken from the
+                DataFrame index. Optional columns include: "label", "score", "explanation",
+                "metadata", and "identifier".
+            annotation_name (Optional[str]): The name to use for all annotations. If provided,
+                this name will be used for all rows in the DataFrame. Cannot be used if the
+                DataFrame contains a "name" or "annotation_name" column.
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The annotator kind to
+                use for all annotations. If provided, this kind will be used for all rows in the
+                DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
+            sync (bool): If True, the request will be fulfilled synchronously and the response
+                will contain the inserted annotation IDs. If False, the request will be
+                processed asynchronously. Defaults to False.
+
+        Returns:
+            Optional[list[InsertedSpanDocumentAnnotation]]: If sync is True, a list of inserted
+                span document annotations containing IDs. If sync is False, None.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the DataFrame is invalid or empty.
+
+        Example::
+
+            import pandas as pd
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            # Log document annotations from DataFrame
+            df = pd.DataFrame({
+                "name": ["relevance", "accuracy"],
+                "span_id": ["span_123", "span_456"],
+                "document_position": [0, 1],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["relevant", "accurate"],
+                "score": [0.9, 0.8]
+            })
+            await async_client.annotations.log_document_annotations_dataframe(dataframe=df)
+        """  # noqa: E501
+        # Validate the DataFrame
+        _validate_document_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
+
+        # Process DataFrame in chunks
+        all_responses: list[InsertedSpanDocumentAnnotation] = []
+        for chunk in _chunk_document_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name=annotation_name,
+            annotator_kind=annotator_kind,
+        ):
+            response = await self.log_document_annotations(document_annotations=chunk, sync=sync)
+            if sync and response:
+                all_responses.extend(response)
+
+        return all_responses if sync else None
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

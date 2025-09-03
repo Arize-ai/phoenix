@@ -3412,14 +3412,14 @@
             "description": "Span not found"
           },
           "422": {
-            "description": "Validation Error",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Invalid request - non-empty identifier not supported"
           }
         }
       }
@@ -3686,6 +3686,48 @@
           "data"
         ],
         "title": "AnnotateSpansResponseBody"
+      },
+      "AnnotationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation result"
+          }
+        },
+        "type": "object",
+        "title": "AnnotationResult"
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -7299,56 +7341,6 @@
       },
       "SpanAnnotation": {
         "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "The name of the annotation"
-          },
-          "annotator_kind": {
-            "type": "string",
-            "enum": [
-              "LLM",
-              "CODE",
-              "HUMAN"
-            ],
-            "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The result of the annotation"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata",
-            "description": "Metadata for the annotation"
-          },
-          "identifier": {
-            "type": "string",
-            "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
-            "default": ""
-          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -7381,27 +7373,6 @@
               }
             ],
             "title": "User Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "span_id",
-          "name",
-          "annotator_kind",
-          "id",
-          "created_at",
-          "updated_at",
-          "source",
-          "user_id"
-        ],
-        "title": "SpanAnnotation"
-      },
-      "SpanAnnotationData": {
-        "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           },
           "name": {
             "type": "string",
@@ -7421,7 +7392,7 @@
           "result": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
+                "$ref": "#/components/schemas/AnnotationResult"
               },
               {
                 "type": "null"
@@ -7447,57 +7418,86 @@
             "title": "Identifier",
             "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
             "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           }
         },
         "type": "object",
         "required": [
-          "span_id",
+          "id",
+          "created_at",
+          "updated_at",
+          "source",
+          "user_id",
           "name",
-          "annotator_kind"
+          "annotator_kind",
+          "span_id"
         ],
-        "title": "SpanAnnotationData"
+        "title": "SpanAnnotation"
       },
-      "SpanAnnotationResult": {
+      "SpanAnnotationData": {
         "properties": {
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label",
-            "description": "The label assigned by the annotation"
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
           },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
             ],
-            "title": "Score",
-            "description": "The score assigned by the annotation"
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
           },
-          "explanation": {
+          "result": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/AnnotationResult"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Explanation",
-            "description": "Explanation of the annotation result"
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           }
         },
         "type": "object",
-        "title": "SpanAnnotationResult"
+        "required": [
+          "name",
+          "annotator_kind",
+          "span_id"
+        ],
+        "title": "SpanAnnotationData"
       },
       "SpanAnnotationsResponseBody": {
         "properties": {
@@ -7549,15 +7549,10 @@
       },
       "SpanDocumentAnnotationData": {
         "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
-          },
           "name": {
             "type": "string",
             "title": "Name",
-            "description": "The name of the document annotation. E.x. relevance"
+            "description": "The name of the annotation"
           },
           "annotator_kind": {
             "type": "string",
@@ -7567,23 +7562,18 @@
               "HUMAN"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator. E.g. llm judge, a heuristic piece of code, or a human"
-          },
-          "document_position": {
-            "type": "integer",
-            "title": "Document Position",
-            "description": "A 0 based index of the document. E.x. the first document during retrieval is 0"
+            "description": "The kind of annotator used for the annotation"
           },
           "result": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
+                "$ref": "#/components/schemas/AnnotationResult"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The score and or label of the annotation"
+            "description": "The result of the annotation"
           },
           "metadata": {
             "anyOf": [
@@ -7596,20 +7586,30 @@
               }
             ],
             "title": "Metadata",
-            "description": "Metadata for custom values of the annotation"
+            "description": "Metadata for the annotation"
           },
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "An custom ID for the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
             "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "document_position": {
+            "type": "integer",
+            "title": "Document Position",
+            "description": "A 0 based index of the document. E.x. the first document during retrieval is 0"
           }
         },
         "type": "object",
         "required": [
-          "span_id",
           "name",
           "annotator_kind",
+          "span_id",
           "document_position"
         ],
         "title": "SpanDocumentAnnotationData"

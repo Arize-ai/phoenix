@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from random import random
+from random import choice, random, sample
 from secrets import token_hex
 from typing import Any, Sequence, cast
 
@@ -46,7 +46,7 @@ class TestClientForSpanAnnotationsRetrieval:
     ) -> None:
         num_spans = len(_existing_spans)
         assert num_spans >= 2, "At least two existing spans are required for this test"
-        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        existing_span1, (_, span_id2, *_) = sample(_existing_spans, 2)
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
@@ -169,7 +169,7 @@ class TestClientForSpanAnnotationsRetrieval:
     ) -> None:
         num_spans = len(_existing_spans)
         assert num_spans >= 2, "At least two existing spans are required for this test"
-        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        existing_span1, (_, span_id2, *_) = sample(_existing_spans, 2)
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
@@ -351,7 +351,7 @@ class TestClientForSpanAnnotationsRetrieval:
         """Test getting span annotations using Span objects from get_spans."""
         num_spans = len(_existing_spans)
         assert num_spans >= 2, "At least two existing spans are required for this test"
-        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        existing_span1, (_, span_id2, *_) = sample(_existing_spans, 2)
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
@@ -495,8 +495,8 @@ class TestClientForSpansRetrieval:
     ) -> None:
         """Test basic span retrieval returns ergonomic span format."""
         num_spans = len(_existing_spans)
-        assert num_spans >= 2, "At least two existing spans are required for this test"
-        existing_span1, *_ = _existing_spans
+        assert num_spans >= 1, "At least one existing span is required for this test"
+        existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
         user = _get_user(_app, role_or_user).log_in(_app)
@@ -681,7 +681,7 @@ class TestClientForSpansRetrieval:
     ) -> None:
         """Test that the method automatically handles pagination to fetch up to the limit."""
         assert len(_existing_spans) >= 102, "At least 102 spans are required for this test"
-        existing_span1, *_ = _existing_spans
+        existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
         user = _get_user(_app, _MEMBER).log_in(_app)
@@ -726,7 +726,7 @@ class TestClientForSpansRetrieval:
     ) -> None:
         """Test that project identifier works with both project names and IDs."""
         assert _existing_spans, "At least one existing span is required for this test"
-        existing_span1, *_ = _existing_spans
+        existing_span1 = choice(_existing_spans)
         project_id = str(existing_span1.trace.project.id)
         project_name = existing_span1.trace.project.name
 
@@ -767,7 +767,7 @@ class TestClientForSpansRetrieval:
         _app: _AppInfo,
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
-        existing_span, *_ = _existing_spans
+        existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
         user = _get_user(_app, _MEMBER).log_in(_app)
@@ -834,7 +834,7 @@ class TestClientForSpansRetrieval:
     ) -> None:
         """Test behavior when no spans match the filter criteria."""
         assert _existing_spans, "At least one existing span is required for this test"
-        existing_span, *_ = _existing_spans
+        existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
         user = _get_user(_app, _MEMBER).log_in(_app)
@@ -898,7 +898,7 @@ class TestClientForSpansRetrieval:
         """Test the get_spans method returns spans correctly."""
         num_spans = len(_existing_spans)
         assert num_spans >= 2, "At least two existing spans are required for this test"
-        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        existing_span1, (_, span_id2, *_) = sample(_existing_spans, 2)
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 

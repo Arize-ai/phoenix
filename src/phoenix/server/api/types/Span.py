@@ -34,8 +34,11 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DocumentAnnotation import (
+    DocumentAnnotation,
+    to_gql_document_annotation,
+)
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentAnnotation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
@@ -639,7 +642,10 @@ class Span(Node):
         self,
         info: Info[Context, None],
     ) -> list[DocumentAnnotation]:
-        return await info.context.data_loaders.document_evaluations.load(self.span_rowid)
+        return [
+            to_gql_document_annotation(anno)
+            for anno in await info.context.data_loaders.document_evaluations.load(self.span_rowid)
+        ]
 
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",

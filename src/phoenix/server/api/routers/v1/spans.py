@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from enum import Enum
 from secrets import token_urlsafe
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 import pandas as pd
 import sqlalchemy as sa
@@ -27,8 +27,8 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
-from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -848,52 +848,6 @@ async def get_spans_handler(
     ),
 ) -> Response:
     return await query_spans_handler(request, request_body, project_name)
-
-
-class SpanAnnotationResult(V1RoutesBaseModel):
-    label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
-    score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
-    explanation: Optional[str] = Field(
-        default=None, description="Explanation of the annotation result"
-    )
-
-
-class SpanAnnotationData(V1RoutesBaseModel):
-    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
-    name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
-        description="The kind of annotator used for the annotation"
-    )
-    result: Optional[SpanAnnotationResult] = Field(
-        default=None, description="The result of the annotation"
-    )
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None, description="Metadata for the annotation"
-    )
-    identifier: str = Field(
-        default="",
-        description=(
-            "The identifier of the annotation. "
-            "If provided, the annotation will be updated if it already exists."
-        ),
-    )
-
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
-        return Precursors.SpanAnnotation(
-            datetime.now(timezone.utc),
-            self.span_id,
-            models.SpanAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
 
 
 class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotationData]]):

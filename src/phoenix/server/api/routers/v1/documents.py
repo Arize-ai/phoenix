@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from typing import Any, Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
@@ -11,62 +10,17 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
-from phoenix.db.insertion.types import Precursors
-from phoenix.server.api.types.Evaluation import DocumentAnnotation
+from phoenix.server.api.routers.v1.annotations import SpanDocumentAnnotationData
+from phoenix.server.api.types.DocumentAnnotation import DocumentAnnotation
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DocumentAnnotationInsertEvent
 
 from .models import V1RoutesBaseModel
-from .spans import SpanAnnotationResult
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 # Since the document annotations are spans related, we place it under spans
 router = APIRouter(tags=["spans"])
-
-
-class SpanDocumentAnnotationData(V1RoutesBaseModel):
-    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
-    name: str = Field(description="The name of the document annotation. E.x. relevance")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
-        description="The kind of annotator. E.g. llm judge, a heuristic piece of code, or a human"
-    )
-    document_position: int = Field(
-        description="A 0 based index of the document. E.x. the first document during retrieval is 0"
-    )
-    result: Optional[SpanAnnotationResult] = Field(
-        default=None, description="The score and or label of the annotation"
-    )
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None, description="Metadata for custom values of the annotation"
-    )
-    identifier: str = Field(
-        default="",
-        description=(
-            "An custom ID for the annotation. "
-            "If provided, the annotation will be updated if it already exists."
-        ),
-    )
-
-    # Precursor here means a value to add to a queue for processing async
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.DocumentAnnotation:
-        return Precursors.DocumentAnnotation(
-            datetime.now(timezone.utc),
-            self.span_id,
-            self.document_position,
-            models.DocumentAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                document_position=self.document_position,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
 
 
 class AnnotateSpanDocumentsRequestBody(RequestBody[list[SpanDocumentAnnotationData]]):
@@ -90,7 +44,11 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
             {
                 "status_code": HTTP_404_NOT_FOUND,
                 "description": "Span not found",
-            }
+            },
+            {
+                "status_code": 422,
+                "description": "Invalid request - non-empty identifier not supported",
+            },
         ]
     ),
     response_description="Span document annotation inserted successfully",
@@ -106,6 +64,14 @@ async def annotate_span_documents(
     if not request_body.data:
         return AnnotateSpanDocumentsResponseBody(data=[])
 
+    # Validate that identifiers are empty or only whitespace
+    for annotation in request_body.data:
+        if annotation.identifier.strip():
+            raise HTTPException(
+                detail=f"Non-empty identifier '{annotation.identifier}' is not supported",
+                status_code=422,  # Unprocessable Entity
+            )
+
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
@@ -117,6 +83,7 @@ async def annotate_span_documents(
     ]
     if not sync:
         await request.state.enqueue(*precursors)
+        return AnnotateSpanDocumentsResponseBody(data=[])
 
     span_ids = {p.span_id for p in precursors}
     # Account for the fact that the spans could arrive after the annotation
@@ -130,38 +97,38 @@ async def annotate_span_documents(
             )
         }
 
-    missing_span_ids = span_ids - set(existing_spans.keys())
-    # We prefer to fail the entire operation if there are missing spans in sync mode
-    if missing_span_ids:
-        raise HTTPException(
-            detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
-            status_code=HTTP_404_NOT_FOUND,
-        )
-
-    # Validate that document positions are within bounds
-    for annotation in span_document_annotations:
-        _, num_docs = existing_spans[annotation.span_id]
-        if annotation.document_position not in range(num_docs):
+        missing_span_ids = span_ids - set(existing_spans.keys())
+        # We prefer to fail the entire operation if there are missing spans in sync mode
+        if missing_span_ids:
             raise HTTPException(
-                detail=f"Document position {annotation.document_position} is out of bounds for "
-                f"span {annotation.span_id} (max: {num_docs - 1})",
-                status_code=422,  # Unprocessable Entity
+                detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
+                status_code=HTTP_404_NOT_FOUND,
             )
 
-    inserted_document_annotation_ids = []
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
-    for anno in precursors:
-        span_rowid, _ = existing_spans[anno.span_id]
-        values = dict(as_kv(anno.as_insertable(span_rowid).row))
-        span_document_annotation_id = await session.scalar(
-            insert_on_conflict(
-                values,
-                dialect=dialect,
-                table=models.DocumentAnnotation,
-                unique_by=("name", "span_rowid", "identifier", "document_position"),
-            ).returning(models.DocumentAnnotation.id)
-        )
-        inserted_document_annotation_ids.append(span_document_annotation_id)
+        # Validate that document positions are within bounds
+        for annotation in span_document_annotations:
+            _, num_docs = existing_spans[annotation.span_id]
+            if annotation.document_position not in range(num_docs):
+                raise HTTPException(
+                    detail=f"Document position {annotation.document_position} is out of bounds for "
+                    f"span {annotation.span_id} (max: {num_docs - 1})",
+                    status_code=422,  # Unprocessable Entity
+                )
+
+        inserted_document_annotation_ids = []
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        for anno in precursors:
+            span_rowid, _ = existing_spans[anno.span_id]
+            values = dict(as_kv(anno.as_insertable(span_rowid).row))
+            span_document_annotation_id = await session.scalar(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.DocumentAnnotation,
+                    unique_by=("name", "span_rowid", "identifier", "document_position"),
+                ).returning(models.DocumentAnnotation.id)
+            )
+            inserted_document_annotation_ids.append(span_document_annotation_id)
 
     # We queue an event to let the application know that annotations have changed
     request.state.event_queue.put(
