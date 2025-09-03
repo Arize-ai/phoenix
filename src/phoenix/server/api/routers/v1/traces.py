@@ -129,7 +129,6 @@ class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Trace not found"}]
     ),
-    include_in_schema=False,
 )
 async def annotate_traces(
     request: Request,
