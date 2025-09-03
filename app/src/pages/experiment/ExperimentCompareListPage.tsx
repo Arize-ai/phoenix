@@ -73,11 +73,11 @@ type Experiment = NonNullable<
 type TableRow = {
   id: string;
   example: string;
-  input: string;
-  referenceOutput: string;
+  input: unknown;
+  referenceOutput: unknown;
   outputs: {
-    baseExperimentValue: string;
-    compareExperimentValues: string[];
+    baseExperimentValue: unknown;
+    compareExperimentValues: unknown[];
   };
   tokens: {
     baseExperimentValue: number | null;
@@ -332,7 +332,7 @@ export function ExperimentCompareListPage() {
         header: "input",
         accessorKey: "input",
         cell: ({ getValue }) => {
-          const value = getValue() as string;
+          const value = getValue();
           return (
             <ContentPreviewTooltip content={value}>
               <LineClamp lines={experiments.length}>
@@ -346,7 +346,7 @@ export function ExperimentCompareListPage() {
         header: "reference output",
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
-          const value = getValue() as string;
+          const value = getValue();
           return (
             <ContentPreviewTooltip content={value}>
               <LineClamp lines={experiments.length}>
@@ -383,7 +383,7 @@ export function ExperimentCompareListPage() {
                       <Text size="S" fontFamily="mono">
                         {isObject(value.baseExperimentValue)
                           ? JSON.stringify(value.baseExperimentValue)
-                          : value.baseExperimentValue}
+                          : String(value.baseExperimentValue)}
                       </Text>
                     </TextOverflow>
                   </ContentPreviewTooltip>
@@ -406,7 +406,9 @@ export function ExperimentCompareListPage() {
                       <ContentPreviewTooltip content={value}>
                         <TextOverflow>
                           <Text size="S" fontFamily="mono">
-                            {isObject(value) ? JSON.stringify(value) : value}
+                            {isObject(value)
+                              ? JSON.stringify(value)
+                              : String(value)}
                           </Text>
                         </TextOverflow>
                       </ContentPreviewTooltip>
@@ -989,7 +991,7 @@ function ContentPreviewTooltip({
         `}
       >
         {isObject(content) ? (
-          <JSONText json={content} disableTitle />
+          <JSONText json={content} disableTitle space={2} />
         ) : (
           <Text size="S" fontFamily="mono">
             {String(content)}
