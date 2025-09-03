@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.16.0...arize-phoenix-client-v1.17.0) (2025-09-03)
+
+
+### Features
+
+* add methods to log document annotations ([#9352](https://github.com/Arize-ai/phoenix/issues/9352)) ([26808b7](https://github.com/Arize-ai/phoenix/commit/26808b795a1333c40e79a62742a9ff0b631cd064))
+
+
+### Documentation
+
+* fix doctring on document annotations ([#9367](https://github.com/Arize-ai/phoenix/issues/9367)) ([5a149f2](https://github.com/Arize-ai/phoenix/commit/5a149f23983725579939ee36ce358f659b0ef5bd))
+* fix doctring trailing comma ([#9339](https://github.com/Arize-ai/phoenix/issues/9339)) ([292cace](https://github.com/Arize-ai/phoenix/commit/292cace00b1fcb399bff2f6936a7715fa012ebe9))
+* fix doctrings for annotatiosn ([#9337](https://github.com/Arize-ai/phoenix/issues/9337)) ([e1c713a](https://github.com/Arize-ai/phoenix/commit/e1c713a11e614b225f222493d8286b63e7a23452))
+
 ## [1.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.3...arize-phoenix-client-v1.16.0) (2025-08-30)
 
 
