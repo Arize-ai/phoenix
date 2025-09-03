@@ -1166,6 +1166,7 @@ class DatasetExampleRevision(Base):
         ),
     )
 
+
 class DatasetSplit(Base):
     __tablename__ = "dataset_splits"
     name: Mapped[str] = mapped_column(unique=True, index=True)
@@ -1179,6 +1180,7 @@ class DatasetSplit(Base):
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",
     )
+
 
 class DatasetSplitDatasetExample(Base):
     __tablename__ = "dataset_splits_dataset_examples"
@@ -1202,6 +1204,7 @@ class DatasetSplitDatasetExample(Base):
             "dataset_example_id",
         ),
     )
+
 
 class Experiment(Base):
     __tablename__ = "experiments"

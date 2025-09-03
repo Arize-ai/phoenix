@@ -5,6 +5,7 @@ Revises: d0690a79ea51
 Create Date: 2025-08-31 18:10:50.962341
 
 """
+
 from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
@@ -38,8 +39,8 @@ JSON_ = (
 )
 
 # revision identifiers, used by Alembic.
-revision: str = '0d25cd7dee22'
-down_revision: Union[str, None] = 'd0690a79ea51'
+revision: str = "0d25cd7dee22"
+down_revision: Union[str, None] = "d0690a79ea51"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
