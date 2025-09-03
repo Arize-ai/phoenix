@@ -16,18 +16,17 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.3.22",
-    "@arizeai/openinference-mastra": "^2.1.0",
-    "@arizeai/phoenix-client": "^2.1.1",
-    "@mastra/core": "^0.10.1",
-    "@mastra/libsql": "^0.10.0",
-    "@mastra/loggers": "^0.10.0",
-    "@mastra/memory": "^0.10.1",
-    "zod": "^3.25.49"
+    "@ai-sdk/openai": "^1.3.24",
+    "@arizeai/openinference-mastra": "^2.2.0",
+    "@mastra/core": "^0.15.2",
+    "@mastra/libsql": "^0.13.7",
+    "@mastra/loggers": "^0.10.9",
+    "@mastra/memory": "^0.14.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^22.15.29",
-    "mastra": "^0.10.1",
-    "typescript": "^5.8.3"
+    "@types/node": "^24.3.0",
+    "mastra": "^0.11.2",
+    "typescript": "^5.9.2"
   }
 }

@@ -1,35 +1,33 @@
-// chosen-project-name/src/index.ts
-import { Mastra } from "@mastra/core/mastra";
-import { createLogger } from "@mastra/core/logger";
-import { LibSQLStore } from "@mastra/libsql";
+import { Mastra } from '@mastra/core/mastra';
+import { PinoLogger } from '@mastra/loggers';
+import { LibSQLStore } from '@mastra/libsql';
+import { weatherAgent } from './agents/weather-agent';
+
 import {
   isOpenInferenceSpan,
   OpenInferenceOTLPTraceExporter,
 } from "@arizeai/openinference-mastra";
 
-import { weatherAgent } from "./agents/weather-agent";
-
 export const mastra = new Mastra({
   agents: { weatherAgent },
   storage: new LibSQLStore({
+    // stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db
     url: ":memory:",
   }),
-  logger: createLogger({
-    name: "Mastra",
-    level: "info",
+  logger: new PinoLogger({
+    name: 'Mastra',
+    level: 'info',
   }),
   telemetry: {
     enabled: true,
-    serviceName: "weather-agent",
+    serviceName: "mastra-weather-agent",
     export: {
       type: "custom",
+      tracerName: "mastra-weather-agent",
       exporter: new OpenInferenceOTLPTraceExporter({
-        url: process.env.PHOENIX_COLLECTOR_ENDPOINT + "/v1/traces",
-        headers: {
-          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
-        },
+        url: "http://localhost:6006/v1/traces",
         spanFilter: isOpenInferenceSpan,
-      }),
+      }),    
     },
   },
 });
