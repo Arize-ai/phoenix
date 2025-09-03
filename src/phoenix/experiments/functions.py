@@ -109,6 +109,48 @@ def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     )
 
 
+def _get_all_experiment_runs(client: httpx.Client, experiment_id: str) -> list[dict[str, Any]]:
+    """
+    Fetch all experiment runs using pagination to avoid timeouts.
+
+    Args:
+        client: The HTTP client to use for requests.
+        experiment_id: The ID of the experiment.
+
+    Returns:
+        List of all experiment runs.
+    """
+    all_runs = []
+    cursor = None
+
+    while True:
+        params = {}
+        if cursor:
+            params["cursor"] = cursor
+
+        try:
+            response = client.get(f"/v1/experiments/{experiment_id}/runs", params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            runs = data["data"]
+            all_runs.extend(runs)
+
+            # Check if there are more pages
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                break
+            else:
+                raise
+
+    return all_runs
+
+
 Evaluators: TypeAlias = Union[
     ExperimentEvaluator,
     Sequence[ExperimentEvaluator],
@@ -548,7 +590,7 @@ def run_experiment(
 
     # Get the final state of runs from the database
     if not dry_run:
-        all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
+        all_runs = _get_all_experiment_runs(sync_client, experiment.id)
         task_runs = []
         for run in all_runs:
             # Parse datetime strings
@@ -619,10 +661,8 @@ def evaluate_experiment(
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
-        experiment_runs = {
-            exp_run["id"]: ExperimentRun.from_dict(exp_run)
-            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
-        }
+        all_runs = _get_all_experiment_runs(sync_client, experiment.id)
+        experiment_runs = {exp_run["id"]: ExperimentRun.from_dict(exp_run) for exp_run in all_runs}
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
         params = ExperimentParameters(n_examples=len(dataset.examples))

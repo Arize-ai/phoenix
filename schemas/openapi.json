@@ -1606,6 +1606,7 @@
           "experiments"
         ],
         "summary": "List runs for an experiment",
+        "description": "Retrieve a paginated list of runs for an experiment",
         "operationId": "listExperimentRuns",
         "parameters": [
           {
@@ -1616,6 +1617,37 @@
               "type": "string",
               "title": "Experiment Id"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded experiment run ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded experiment run ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of experiment runs to return at a time.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "The max number of experiment runs to return at a time."
           }
         ],
         "responses": {
@@ -1650,14 +1682,14 @@
             "description": "Experiment not found"
           },
           "422": {
-            "description": "Validation Error",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Invalid cursor format"
           }
         }
       }
@@ -5221,11 +5253,23 @@
             },
             "type": "array",
             "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "type": "object",
         "required": [
-          "data"
+          "data",
+          "next_cursor"
         ],
         "title": "ListExperimentRunsResponseBody"
       },
