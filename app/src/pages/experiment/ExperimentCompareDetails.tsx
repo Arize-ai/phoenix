@@ -13,14 +13,26 @@ import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { SequenceNumberToken } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-type ExperimentCompareDetailsProps = { datasetId: string };
-export function ExperimentCompareDetails(args: ExperimentCompareDetailsProps) {
+
+import type { ExperimentInfoMap, TableRow } from "./ExperimentCompareTable";
+
+// TODO: this is an anti-pattern but right now the components are coupled.
+// This will be re-factored to encapsulated.
+type ExperimentCompareDetailsProps = {
+  selectedExample: TableRow;
+  experimentInfoById: ExperimentInfoMap;
+};
+
+export function ExperimentCompareDetails({
+  selectedExample,
+  experimentInfoById,
+}: ExperimentCompareDetailsProps) {
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
       <Panel defaultSize={35}>
         <div
           css={css`
-            overflow-y: auto;
+            overflow: auto;
             height: 100%;
           `}
         >
@@ -52,7 +64,7 @@ export function ExperimentCompareDetails(args: ExperimentCompareDetailsProps) {
       </Panel>
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel defaultSize={65}>
-        {/* <Flex direction="column" height="100%">
+        <Flex direction="column" height="100%">
           <View
             paddingStart="size-200"
             paddingEnd="size-200"
@@ -74,7 +86,8 @@ export function ExperimentCompareDetails(args: ExperimentCompareDetailsProps) {
             <ul
               css={css`
                 display: flex;
-                flex-direction: column;
+                flex-direction: row;
+                flex-wrap: none;
                 gap: var(--ac-global-dimension-static-size-200);
               `}
             >
@@ -82,14 +95,17 @@ export function ExperimentCompareDetails(args: ExperimentCompareDetailsProps) {
                 const experiment = experimentInfoById[runItem.experimentId];
                 return (
                   <li key={runItem.experimentId}>
-                    <Card
-                      title={experiment?.name ?? ""}
-                      titleExtra={
+                    <View
+                      borderWidth="thin"
+                      borderColor="light"
+                      borderRadius="medium"
+                    >
+                      <Flex direction="row" gap="size-100">
+                        <Heading>{experiment?.name ?? ""}</Heading>{" "}
                         <SequenceNumberToken
                           sequenceNumber={experiment?.sequenceNumber ?? 0}
                         />
-                      }
-                    >
+                      </Flex>
                       <ul>
                         {runItem.runs.map((run, index) => (
                           <li key={index}>
@@ -131,13 +147,13 @@ export function ExperimentCompareDetails(args: ExperimentCompareDetailsProps) {
                           </li>
                         ))}
                       </ul>
-                    </Card>
+                    </View>
                   </li>
                 );
               })}
             </ul>
           </div>
-        </Flex> */}
+        </Flex>
       </Panel>
     </PanelGroup>
   );

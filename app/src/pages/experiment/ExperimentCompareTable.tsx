@@ -11,7 +11,6 @@ import React, {
 } from "react";
 import { Pressable } from "react-aria-components";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
@@ -28,9 +27,6 @@ import { Switch } from "@arizeai/components";
 
 import {
   Button,
-  Card,
-  CardProps,
-  CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
   DialogTrigger,
@@ -49,12 +45,9 @@ import {
   Separator,
   Text,
   View,
-  ViewSummaryAside,
 } from "@phoenix/components";
-import { AnnotationLabel } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
-import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   DialogContent,
@@ -70,8 +63,6 @@ import {
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
-import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -96,6 +87,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
@@ -109,9 +101,11 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment | null>;
+// TODO - do not do this. This is exported until the data can be fetched independently in the detail view
+export type ExperimentInfoMap = Record<string, Experiment | null>;
 
-type TableRow =
+// TODO - do not do this. This is exported until the data can be fetched independently in the detail view
+export type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
     id: string;
     input: unknown;
@@ -124,12 +118,6 @@ type TableRow =
 
 type ExperimentRun =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
-
-const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
-  collapsible: true,
-};
 
 const tableWrapCSS = css`
   flex: 1 1 auto;
@@ -1053,162 +1041,10 @@ function SelectedExampleDialog({
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <PanelGroup
-          direction="vertical"
-          autoSaveId="example-compare-panel-group"
-        >
-          <Panel defaultSize={35}>
-            <div
-              css={css`
-                overflow-y: auto;
-                height: 100%;
-              `}
-            >
-              <View overflow="hidden" padding="size-200">
-                <Flex direction="row" gap="size-200" flex="1 1 auto">
-                  <View width="50%">
-                    <Card
-                      title="Input"
-                      {...defaultCardProps}
-                      extra={
-                        <CopyToClipboardButton
-                          text={JSON.stringify(selectedExample.input)}
-                        />
-                      }
-                    >
-                      <View maxHeight="300px" overflow="auto">
-                        <JSONBlock
-                          value={JSON.stringify(selectedExample.input, null, 2)}
-                        />
-                      </View>
-                    </Card>
-                  </View>
-                  <View width="50%">
-                    <Card
-                      title="Reference Output"
-                      {...defaultCardProps}
-                      extra={
-                        <CopyToClipboardButton
-                          text={JSON.stringify(selectedExample.referenceOutput)}
-                        />
-                      }
-                    >
-                      <View maxHeight="300px" overflow="auto">
-                        <JSONBlock
-                          value={JSON.stringify(
-                            selectedExample.referenceOutput,
-                            null,
-                            2
-                          )}
-                        />
-                      </View>
-                    </Card>
-                  </View>
-                </Flex>
-              </View>
-            </div>
-          </Panel>
-          <PanelResizeHandle css={resizeHandleCSS} />
-          <Panel defaultSize={65}>
-            <Flex direction="column" height="100%">
-              <View
-                paddingStart="size-200"
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderBottomColor="dark"
-                borderBottomWidth="thin"
-                flex="none"
-              >
-                <Heading level={2}>Experiments</Heading>
-              </View>
-              <div
-                css={css`
-                  overflow-y: auto;
-                  height: 100%;
-                  padding: var(--ac-global-dimension-static-size-200);
-                `}
-              >
-                <ul
-                  css={css`
-                    display: flex;
-                    flex-direction: column;
-                    gap: var(--ac-global-dimension-static-size-200);
-                  `}
-                >
-                  {selectedExample.runComparisonItems.map((runItem) => {
-                    const experiment = experimentInfoById[runItem.experimentId];
-                    return (
-                      <li key={runItem.experimentId}>
-                        <Card
-                          {...defaultCardProps}
-                          title={experiment?.name ?? ""}
-                          titleExtra={
-                            <SequenceNumberToken
-                              sequenceNumber={experiment?.sequenceNumber ?? 0}
-                            />
-                          }
-                        >
-                          <ul>
-                            {runItem.runs.map((run, index) => (
-                              <li key={index}>
-                                <Flex direction="row">
-                                  <View flex>
-                                    {run.error ? (
-                                      <View padding="size-200">
-                                        <RunError error={run.error} />
-                                      </View>
-                                    ) : (
-                                      <JSONBlock
-                                        value={JSON.stringify(
-                                          run.output,
-                                          null,
-                                          2
-                                        )}
-                                      />
-                                    )}
-                                  </View>
-                                  <ViewSummaryAside width="size-3000">
-                                    <RunLatency
-                                      startTime={run.startTime}
-                                      endTime={run.endTime}
-                                    />
-                                    <ul
-                                      css={css`
-                                        margin-top: var(
-                                          --ac-global-dimension-static-size-100
-                                        );
-                                        display: flex;
-                                        flex-direction: column;
-                                        justify-content: flex-start;
-                                        align-items: flex-end;
-                                        gap: var(
-                                          --ac-global-dimension-static-size-100
-                                        );
-                                      `}
-                                    >
-                                      {run.annotations?.edges.map((edge) => (
-                                        <li key={edge.annotation.id}>
-                                          <AnnotationLabel
-                                            annotation={edge.annotation}
-                                          />
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </ViewSummaryAside>
-                                </Flex>
-                              </li>
-                            ))}
-                          </ul>
-                        </Card>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </Flex>
-          </Panel>
-        </PanelGroup>
+        <ExperimentCompareDetails
+          selectedExample={selectedExample}
+          experimentInfoById={experimentInfoById}
+        />
       </DialogContent>
     </Dialog>
   );
