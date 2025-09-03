@@ -1,10 +1,10 @@
 from phoenix.client import Client
-from phoenix.client.resources.annotations import SpanAnnotationData
+from phoenix.client.resources.spans import SpanAnnotationData
 
 client = Client()
 
 # Add a single span annotation
-annotation = client.annotations.add_span_annotation(
+annotation = client.spans.add_span_annotation(
     span_id="72dda197b0e1b3ef",
     annotation_name="sentiment",
     label="positive",
@@ -28,4 +28,4 @@ annotations = [
 ]
 
 
-client.annotations.log_span_annotations(span_annotations=annotations)
+client.spans.log_span_annotations(span_annotations=annotations)

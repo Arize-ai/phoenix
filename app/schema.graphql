@@ -873,7 +873,10 @@ type DimensionWithValue {
   value: String
 }
 
-type DocumentAnnotation implements Annotation {
+type DocumentAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
@@ -895,11 +898,13 @@ type DocumentAnnotation implements Annotation {
 
   """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
-
-  """
-  The zero-based index among retrieved documents, which is collected as a list (even when ordering is not inherently meaningful).
-  """
+  annotatorKind: AnnotatorKind!
+  metadata: JSON!
   documentPosition: Int!
+  identifier: String!
+  source: AnnotationSource!
+  span: Span!
+  user: User
 }
 
 """
@@ -2720,7 +2725,7 @@ type TraceAnnotation implements Node {
   metadata: JSON!
   identifier: String!
   source: AnnotationSource!
-  traceId: ID!
+  trace: Trace!
   user: User
 }
 
