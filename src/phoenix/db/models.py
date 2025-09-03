@@ -1171,6 +1171,7 @@ class DatasetSplit(Base):
     __tablename__ = "dataset_splits"
     name: Mapped[str] = mapped_column(unique=True, index=True)
     description: Mapped[Optional[str]]
+    color: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
