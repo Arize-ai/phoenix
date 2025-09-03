@@ -124,7 +124,7 @@ def _get_all_experiment_runs(client: httpx.Client, experiment_id: str) -> list[d
     cursor = None
 
     while True:
-        params = {}
+        params: dict[str, str] = {}
         if cursor:
             params["cursor"] = cursor
 
