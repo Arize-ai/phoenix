@@ -786,7 +786,10 @@ export function ExperimentCompareListPage() {
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => {
       const numExperiments = experiments.length;
-      return 25 + numExperiments * 25;
+      // 29px [cell padding + border]
+      // + 20px * numExperiments [line height per experiment metric line]
+      // + 4px * (numExperiments - 1) [gap between experiment metric lines]
+      return 29 + numExperiments * 20 + 4 * (numExperiments - 1);
     },
     overscan: 10,
   });
