@@ -28,7 +28,6 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   costFormatter,
   intFormatter,
@@ -325,9 +324,7 @@ export function ExperimentCompareListPage() {
         accessorKey: "example",
         size: 80,
         cell: ({ getValue }) => (
-          <Truncate title={getValue() as string}>
-            {getValue() as string}
-          </Truncate>
+          <TextOverflow>{getValue() as string}</TextOverflow>
         ),
       },
       {
@@ -337,16 +334,9 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <ContentPreviewTooltip content={value}>
-              <div
-                css={css`
-                  display: -webkit-box;
-                  -webkit-box-orient: vertical;
-                  -webkit-line-clamp: ${experiments.length};
-                  overflow: hidden;
-                `}
-              >
+              <LineClamp lines={experiments.length}>
                 <JSONText json={value} disableTitle />
-              </div>
+              </LineClamp>
             </ContentPreviewTooltip>
           );
         },
@@ -358,16 +348,9 @@ export function ExperimentCompareListPage() {
           const value = getValue() as string;
           return (
             <ContentPreviewTooltip content={value}>
-              <div
-                css={css`
-                  display: -webkit-box;
-                  -webkit-box-orient: vertical;
-                  -webkit-line-clamp: ${experiments.length};
-                  overflow: hidden;
-                `}
-              >
+              <LineClamp lines={experiments.length}>
                 <JSONText json={value} disableTitle />
-              </div>
+              </LineClamp>
             </ContentPreviewTooltip>
           );
         },
@@ -395,11 +378,11 @@ export function ExperimentCompareListPage() {
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
                   <ContentPreviewTooltip content={value.baseExperimentValue}>
-                    <Truncate>
+                    <TextOverflow>
                       <Text size="S" fontFamily="mono">
                         {JSON.stringify(value.baseExperimentValue)}
                       </Text>
-                    </Truncate>
+                    </TextOverflow>
                   </ContentPreviewTooltip>
                 </Flex>
               </li>
@@ -418,11 +401,11 @@ export function ExperimentCompareListPage() {
                     </span>
                     {value ? (
                       <ContentPreviewTooltip content={value}>
-                        <Truncate>
+                        <TextOverflow>
                           <Text size="S" fontFamily="mono">
                             {JSON.stringify(value)}
                           </Text>
-                        </Truncate>
+                        </TextOverflow>
                       </ContentPreviewTooltip>
                     ) : (
                       <Text size="S" fontFamily="mono" color="grey-500">
@@ -691,12 +674,7 @@ export function ExperimentCompareListPage() {
                         )}
                       />
                     ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "var(--ac-global-dimension-size-25)",
-                        }}
-                      />
+                      <ProgressBarPlaceholder />
                     )}
                   </li>
                 );
@@ -746,12 +724,7 @@ export function ExperimentCompareListPage() {
                     )}
                   />
                 ) : (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "var(--ac-global-dimension-size-25)",
-                    }}
-                  />
+                  <ProgressBarPlaceholder />
                 )}
               </li>
               {annotations.compareExperimentValues.map((values, index) => {
@@ -787,12 +760,7 @@ export function ExperimentCompareListPage() {
                         )}
                       />
                     ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "var(--ac-global-dimension-size-25)",
-                        }}
-                      />
+                      <ProgressBarPlaceholder />
                     )}
                   </li>
                 );
@@ -866,7 +834,7 @@ export function ExperimentCompareListPage() {
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header, index) => (
                     <th
-                      key={header.id + index}
+                      key={header.id + "-" + index}
                       style={{
                         width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
                         padding:
@@ -945,7 +913,7 @@ function TableBody<T>({
           >
             {row.getVisibleCells().map((cell, index) => (
               <td
-                key={cell.id + index}
+                key={cell.id + "-" + index}
                 style={{
                   width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                   maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
@@ -1017,4 +985,40 @@ function ContentPreviewTooltip({
       </RichTooltip>
     </TooltipTrigger>
   );
+}
+
+const textOverflowCSS = css`
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+`;
+
+function TextOverflow({ children }: { children: React.ReactNode }) {
+  return <div css={textOverflowCSS}>{children}</div>;
+}
+
+const lineClampCSS = (lines: number) => css`
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: ${lines};
+  overflow: hidden;
+`;
+
+function LineClamp({
+  children,
+  lines,
+}: {
+  children: React.ReactNode;
+  lines: number;
+}) {
+  return <div css={lineClampCSS(lines)}>{children}</div>;
+}
+
+const progressBarPlaceholderCSS = css`
+  width: 100%;
+  height: var(--ac-global-dimension-size-25);
+`;
+
+function ProgressBarPlaceholder() {
+  return <div css={progressBarPlaceholderCSS} />;
 }

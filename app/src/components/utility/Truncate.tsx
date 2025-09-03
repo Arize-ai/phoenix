@@ -13,7 +13,7 @@ export const Truncate = ({
   title,
 }: {
   children: React.ReactNode;
-  maxWidth?: CSSProperties["maxWidth"];
+  maxWidth: CSSProperties["maxWidth"];
   title?: string;
 }) => {
   return (
