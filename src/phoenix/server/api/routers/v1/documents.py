@@ -125,7 +125,7 @@ async def annotate_span_documents(
                     values,
                     dialect=dialect,
                     table=models.DocumentAnnotation,
-                    unique_by=("name", "span_rowid", "identifier", "document_position"),
+                    constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
                 ).returning(models.DocumentAnnotation.id)
             )
             inserted_document_annotation_ids.append(span_document_annotation_id)
