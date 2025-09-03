@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import distinct, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
@@ -10,8 +10,10 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -55,6 +57,62 @@ class DatasetExample(Node):
             Span(span_rowid=span.id, db_span=span)
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
+        )
+
+    @strawberry.field
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        filter_ids: Optional[list[GlobalID]] = UNSET,
+    ) -> Connection[Experiment]:
+        connection_args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        example_id = self.id_attr
+        experiment_ids_subquery = (
+            select(distinct(models.ExperimentRun.experiment_id))
+            .select_from(models.ExperimentRun)
+            .where(models.ExperimentRun.dataset_example_id == example_id)
+            .scalar_subquery()
+        )
+        experiments_query = (
+            select(models.Experiment)
+            .where(models.Experiment.id.in_(experiment_ids_subquery))
+            .order_by(models.Experiment.id.asc())
+        )
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    experiment_rowid = from_global_id_with_expected_type(
+                        filter_id, Experiment.__name__
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+                filter_rowids.append(experiment_rowid)
+
+            experiments_query = experiments_query.where(models.Experiment.id.in_(filter_rowids))
+
+        experiments_by_id = {}
+        async with info.context.db() as session:
+            for experiment in await session.scalars(experiments_query):
+                experiments_by_id[experiment.id] = experiment
+
+        for filter_rowid in filter_rowids:
+            if filter_rowid not in experiments_by_id:
+                experiment_id = str(GlobalID(Experiment.__name__, str(filter_rowid)))
+                raise NotFound(f"Could not find experiment with ID {experiment_id}")
+
+        return connection_from_list(
+            [to_gql_experiment(experiment) for experiment in experiments_by_id.values()],
+            connection_args,
         )
 
     @strawberry.field
