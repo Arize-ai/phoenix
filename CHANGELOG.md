@@ -1,5 +1,22 @@
 # Changelog
 
+## [11.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.30.0...arize-phoenix-v11.31.0) (2025-09-03)
+
+
+### Features
+
+* add methods to log document annotations ([#9352](https://github.com/Arize-ai/phoenix/issues/9352)) ([26808b7](https://github.com/Arize-ai/phoenix/commit/26808b795a1333c40e79a62742a9ff0b631cd064))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9343](https://github.com/Arize-ai/phoenix/issues/9343)) ([1e29092](https://github.com/Arize-ai/phoenix/commit/1e290928060e35b196ac39c92d6a64ad267c54f8))
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+
 ## [11.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.29.0...arize-phoenix-v11.30.0) (2025-08-28)
 
 
