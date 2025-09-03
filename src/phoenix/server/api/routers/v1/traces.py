@@ -66,7 +66,6 @@ router = APIRouter(tags=["traces"])
             },
         }
     },
-    include_in_schema=False,
 )
 async def post_traces(
     request: Request,
