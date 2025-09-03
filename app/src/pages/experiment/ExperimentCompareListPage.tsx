@@ -850,7 +850,8 @@ export function ExperimentCompareListPage() {
                             header.column.columnDef.header,
                             header.getContext()
                           )}
-                          {(header.id === "input" ||
+                          {(header.id === "example" ||
+                            header.id === "input" ||
                             header.id === "outputs" ||
                             header.id === "referenceOutput") && (
                             <div
