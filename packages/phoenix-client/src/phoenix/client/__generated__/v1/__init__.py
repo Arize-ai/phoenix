@@ -359,28 +359,6 @@ class PromptXAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
-class SpanAnnotationData(TypedDict):
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    span_id: str
-    result: NotRequired[AnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
-class SpanAnnotation(SpanAnnotationData):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-
-
-class SpanAnnotationsResponseBody(TypedDict):
-    data: Sequence[SpanAnnotation]
-    next_cursor: Optional[str]
-
-
 class SessionAnnotation(TypedDict):
     id: str
     created_at: str
@@ -406,6 +384,28 @@ class SessionAnnotationData(TypedDict):
 
 class SessionAnnotationsResponseBody(TypedDict):
     data: Sequence[SessionAnnotation]
+    next_cursor: Optional[str]
+
+
+class SpanAnnotationData(TypedDict):
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    span_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class SpanAnnotation(SpanAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
+
+
+class SpanAnnotationsResponseBody(TypedDict):
+    data: Sequence[SpanAnnotation]
     next_cursor: Optional[str]
 
 

@@ -77,6 +77,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/trace_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get trace annotations for a list of trace_ids. */
+        get: operations["listTraceAnnotationsByTraceIds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/session_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get session annotations for a list of session_ids. */
+        get: operations["listSessionAnnotationsBySessionIds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets": {
         parameters: {
             query?: never;
@@ -312,6 +346,23 @@ export interface paths {
         put?: never;
         /** Create or update evaluation for an experiment run */
         post: operations["upsertExperimentEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trace_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create trace annotations */
+        post: operations["annotateTraces"];
         delete?: never;
         options?: never;
         head?: never;
@@ -633,6 +684,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/session_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create session annotations */
+        post: operations["annotateSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/document_annotations": {
         parameters: {
             query?: never;
@@ -698,6 +766,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnnotateSessionsRequestBody */
+        AnnotateSessionsRequestBody: {
+            /** Data */
+            data: components["schemas"]["SessionAnnotationData"][];
+        };
+        /** AnnotateSessionsResponseBody */
+        AnnotateSessionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["InsertedSessionAnnotation"][];
+        };
         /** AnnotateSpanDocumentsRequestBody */
         AnnotateSpanDocumentsRequestBody: {
             /** Data */
@@ -717,6 +795,19 @@ export interface components {
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
+        };
+        /** AnnotateTracesRequestBody */
+        AnnotateTracesRequestBody: {
+            /**
+             * Data
+             * @description The trace annotations to be upserted
+             */
+            data: components["schemas"]["TraceAnnotationData"][];
+        };
+        /** AnnotateTracesResponseBody */
+        AnnotateTracesResponseBody: {
+            /** Data */
+            data: components["schemas"]["InsertedTraceAnnotation"][];
         };
         /** AnnotationResult */
         AnnotationResult: {
@@ -1265,6 +1356,14 @@ export interface components {
         };
         /** Identifier */
         Identifier: string;
+        /** InsertedSessionAnnotation */
+        InsertedSessionAnnotation: {
+            /**
+             * Id
+             * @description The ID of the inserted session annotation
+             */
+            id: string;
+        };
         /** InsertedSpanAnnotation */
         InsertedSpanAnnotation: {
             /**
@@ -1278,6 +1377,14 @@ export interface components {
             /**
              * Id
              * @description The ID of the inserted span document annotation
+             */
+            id: string;
+        };
+        /** InsertedTraceAnnotation */
+        InsertedTraceAnnotation: {
+            /**
+             * Id
+             * @description The ID of the inserted trace annotation
              */
             id: string;
         };
@@ -2087,6 +2194,100 @@ export interface components {
              */
             reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
+        /** SessionAnnotation */
+        SessionAnnotation: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "API" | "APP";
+            /** User Id */
+            user_id: string | null;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Session Id
+             * @description Session ID
+             */
+            session_id: string;
+        };
+        /** SessionAnnotationData */
+        SessionAnnotationData: {
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Session Id
+             * @description Session ID
+             */
+            session_id: string;
+        };
+        /** SessionAnnotationsResponseBody */
+        SessionAnnotationsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SessionAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** Span */
         Span: {
             /**
@@ -2369,6 +2570,100 @@ export interface components {
             tool_result: boolean | number | string | {
                 [key: string]: unknown;
             } | unknown[] | null;
+        };
+        /** TraceAnnotation */
+        TraceAnnotation: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "API" | "APP";
+            /** User Id */
+            user_id: string | null;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Trace Id
+             * @description OpenTelemetry Trace ID (hex format w/o 0x prefix)
+             */
+            trace_id: string;
+        };
+        /** TraceAnnotationData */
+        TraceAnnotationData: {
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Trace Id
+             * @description OpenTelemetry Trace ID (hex format w/o 0x prefix)
+             */
+            trace_id: string;
+        };
+        /** TraceAnnotationsResponseBody */
+        TraceAnnotationsResponseBody: {
+            /** Data */
+            data: components["schemas"]["TraceAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -2729,6 +3024,128 @@ export interface operations {
                 };
             };
             /** @description Project or spans not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listTraceAnnotationsByTraceIds: {
+        parameters: {
+            query: {
+                /** @description One or more trace id to fetch annotations for */
+                trace_ids: string[];
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+                include_annotation_names?: string[] | null;
+                /** @description Optional list of annotation names to exclude from results. */
+                exclude_annotation_names?: string[] | null;
+                /** @description A cursor for pagination */
+                cursor?: string | null;
+                /** @description The maximum number of annotations to return in a single request */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceAnnotationsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project or traces not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listSessionAnnotationsBySessionIds: {
+        parameters: {
+            query: {
+                /** @description One or more session id to fetch annotations for */
+                session_ids: string[];
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+                include_annotation_names?: string[] | null;
+                /** @description Optional list of annotation names to exclude from results. */
+                exclude_annotation_names?: string[] | null;
+                /** @description A cursor for pagination */
+                cursor?: string | null;
+                /** @description The maximum number of annotations to return in a single request */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionAnnotationsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project or sessions not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3570,6 +3987,60 @@ export interface operations {
                 };
             };
             /** @description Experiment run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    annotateTraces: {
+        parameters: {
+            query?: {
+                /** @description If true, fulfill request synchronously. */
+                sync?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotateTracesRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotateTracesResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Trace not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4657,6 +5128,60 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    annotateSessions: {
+        parameters: {
+            query?: {
+                /** @description If true, fulfill request synchronously. */
+                sync?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotateSessionsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Session annotations inserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotateSessionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
