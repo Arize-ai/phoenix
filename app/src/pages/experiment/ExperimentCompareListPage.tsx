@@ -381,7 +381,9 @@ export function ExperimentCompareListPage() {
                   <ContentPreviewTooltip content={value.baseExperimentValue}>
                     <TextOverflow>
                       <Text size="S" fontFamily="mono">
-                        {JSON.stringify(value.baseExperimentValue)}
+                        {isObject(value.baseExperimentValue)
+                          ? JSON.stringify(value.baseExperimentValue)
+                          : value.baseExperimentValue}
                       </Text>
                     </TextOverflow>
                   </ContentPreviewTooltip>
@@ -404,7 +406,7 @@ export function ExperimentCompareListPage() {
                       <ContentPreviewTooltip content={value}>
                         <TextOverflow>
                           <Text size="S" fontFamily="mono">
-                            {JSON.stringify(value)}
+                            {isObject(value) ? JSON.stringify(value) : value}
                           </Text>
                         </TextOverflow>
                       </ContentPreviewTooltip>
