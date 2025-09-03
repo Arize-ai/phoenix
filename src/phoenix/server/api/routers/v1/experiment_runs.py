@@ -173,7 +173,7 @@ async def list_experiment_runs(
             # order by id for consistent cursor-based pagination
             .order_by(models.ExperimentRun.id.desc())
         )
-        
+
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id

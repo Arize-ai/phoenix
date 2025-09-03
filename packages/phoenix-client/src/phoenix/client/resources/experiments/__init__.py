@@ -693,12 +693,12 @@ class Experiments:
             params: dict[str, str] = {}
             if cursor:
                 params["cursor"] = cursor
-            
+
             try:
                 response = self._client.get(f"v1/experiments/{experiment_id}/runs", params=params)
                 response.raise_for_status()
                 data: dict[str, Any] = response.json()
-                
+
                 runs: list[dict[str, Any]] = data["data"]
                 all_runs.extend(runs)
 
