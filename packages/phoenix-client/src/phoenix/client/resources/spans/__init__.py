@@ -693,7 +693,7 @@ class Spans:
             client = Client()
 
             # Add a single annotation with sync response
-            annotation = client.annotations.add_span_annotation(
+            annotation = client.spans.add_span_annotation(
                 span_id="abc123",
                 annotation_name="sentiment",
                 label="positive",
@@ -802,7 +802,7 @@ class Spans:
                 "label": ["positive", "low"],
                 "score": [0.9, 0.1]
             })
-            client.annotations.log_span_annotations_dataframe(dataframe=df1)
+            client.spans.log_span_annotations_dataframe(dataframe=df1)
 
             # Using annotation_name and annotator_kind from DataFrame
             df2 = pd.DataFrame({
@@ -812,13 +812,13 @@ class Spans:
                 "label": ["positive", "low"],
                 "score": [0.9, 0.1]
             })
-            client.annotations.log_span_annotations_dataframe(dataframe=df2)
+            client.spans.log_span_annotations_dataframe(dataframe=df2)
 
             # Using global name and annotator_kind with span_id from index
             df3 = pd.DataFrame({
                 "label": ["positive", "low"]
             }, index=["span_345", "span_678"])
-            client.annotations.log_span_annotations_dataframe(
+            client.spans.log_span_annotations_dataframe(
                 dataframe=df3,
                 annotation_name="sentiment",  # applies to all rows
                 annotator_kind="HUMAN"  # applies to all rows
@@ -991,7 +991,7 @@ class Spans:
             client = Client()
 
             # Add a single document annotation with sync response
-            annotation = client.annotations.add_document_annotation(
+            annotation = client.spans.add_document_annotation(
                 span_id="abc123",
                 document_position=0,
                 annotation_name="relevance",
@@ -1017,11 +1017,10 @@ class Spans:
         params = {"sync": sync} if sync else {}
         json_ = {"data": [anno]}
         response = self._client.post(url=url, json=json_, params=params)
-        if sync:
-            response.raise_for_status()
-            response_body = cast(AnnotateSpanDocumentsResponseBody, response.json())
-            return list(response_body["data"])[0]
-        return None
+        response.raise_for_status()
+        if not sync:
+            return None
+        return list(cast(AnnotateSpanDocumentsResponseBody, response.json())["data"])[0]
 
     @overload
     def log_document_annotations(
@@ -1093,7 +1092,7 @@ class Spans:
                     result={"label": "accurate", "score": 0.8}
                 ),
             ]
-            client.annotations.log_document_annotations(
+            client.spans.log_document_annotations(
                 span_document_annotations=annotations
             )
         """  # noqa: E501
@@ -1197,7 +1196,7 @@ class Spans:
                 "label": ["relevant", "accurate"],
                 "score": [0.9, 0.8]
             })
-            client.annotations.log_document_annotations_dataframe(dataframe=df)
+            client.spans.log_document_annotations_dataframe(dataframe=df)
         """  # noqa: E501
         # Validate the DataFrame
         _validate_document_annotations_dataframe(
@@ -1864,7 +1863,7 @@ class AsyncSpans:
             async_client = AsyncClient()
 
             # Add a single annotation with sync response
-            annotation = await async_client.annotations.add_span_annotation(
+            annotation = await async_client.spans.add_span_annotation(
                 span_id="abc123",
                 annotation_name="sentiment",
                 label="positive",
@@ -1971,13 +1970,13 @@ class AsyncSpans:
                 "label": ["positive", "low"],
                 "score": [0.9, 0.1]
             })
-            await async_client.annotations.log_span_annotations_dataframe(dataframe=df1)
+            await async_client.spans.log_span_annotations_dataframe(dataframe=df1)
 
             # Using global name and annotator_kind with span_id from index
             df2 = pd.DataFrame({
                 "label": ["positive", "low"]
             }, index=["span_345", "span_678"])
-            await async_client.annotations.log_span_annotations_dataframe(
+            await async_client.spans.log_span_annotations_dataframe(
                 dataframe=df2,
                 annotation_name="sentiment",  # applies to all rows
                 annotator_kind="HUMAN"  # applies to all rows
@@ -2068,7 +2067,7 @@ class AsyncSpans:
             )
 
             # Log multiple annotations at once
-            await async_client.annotations.log_span_annotations(
+            await async_client.spans.log_span_annotations(
                 span_annotations=[annotation1, annotation2],
             )
         """  # noqa: E501
@@ -2176,7 +2175,7 @@ class AsyncSpans:
             async_client = AsyncClient()
 
             # Add a single document annotation with sync response
-            annotation = await async_client.annotations.add_document_annotation(
+            annotation = await async_client.spans.add_document_annotation(
                 span_id="abc123",
                 document_position=0,
                 annotation_name="relevance",
@@ -2276,7 +2275,7 @@ class AsyncSpans:
                     result={"label": "accurate", "score": 0.8}
                 ),
             ]
-            await async_client.annotations.log_document_annotations(
+            await async_client.spans.log_document_annotations(
                 span_document_annotations=annotations
             )
         """  # noqa: E501
@@ -2380,7 +2379,7 @@ class AsyncSpans:
                 "label": ["relevant", "accurate"],
                 "score": [0.9, 0.8]
             })
-            await async_client.annotations.log_document_annotations_dataframe(dataframe=df)
+            await async_client.spans.log_document_annotations_dataframe(dataframe=df)
         """  # noqa: E501
         # Validate the DataFrame
         _validate_document_annotations_dataframe(

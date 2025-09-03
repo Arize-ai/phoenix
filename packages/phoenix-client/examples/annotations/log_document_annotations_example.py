@@ -1,5 +1,5 @@
 from phoenix.client import Client
-from phoenix.client.resources.annotations import SpanDocumentAnnotationData
+from phoenix.client.resources.spans import SpanDocumentAnnotationData
 
 client = Client()
 
@@ -22,7 +22,7 @@ annotations = [
 ]
 
 # Log the document annotations and store the returned list
-logged_annotations = client.annotations.log_document_annotations(
+logged_annotations = client.spans.log_document_annotations(
     document_annotations=annotations, sync=True
 )
 print(logged_annotations)

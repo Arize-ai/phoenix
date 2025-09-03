@@ -69,7 +69,7 @@ class TestClientForSpanAnnotationsRetrieval:
         explanation2 = token_hex(8)
 
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).spans.add_span_annotation(
                 annotation_name=annotation_name_1,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -81,7 +81,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).spans.add_span_annotation(
                 annotation_name=annotation_name_2,
                 span_id=span_id2,
                 annotator_kind="CODE",
@@ -188,7 +188,7 @@ class TestClientForSpanAnnotationsRetrieval:
         explanation1 = token_hex(8)
 
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).spans.add_span_annotation(
                 annotation_name=regular_annotation_name,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -373,7 +373,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Add annotations to specific spans
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).spans.add_span_annotation(
                 annotation_name=annotation_name_1,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -384,7 +384,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).spans.add_span_annotation(
                 annotation_name=annotation_name_2,
                 span_id=span_id2,
                 annotator_kind="CODE",
