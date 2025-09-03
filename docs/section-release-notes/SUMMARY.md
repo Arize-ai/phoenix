@@ -2,6 +2,7 @@
 
 * [Release Notes](README.md)
 * [08.2025](08.2025/README.md)
+  * [08.28.2025: New arize-phoenix-client Package 📦](08.2025/08.28.2025-new-arize-phoenix-client-package.md)
   * [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
   * [08.20.2025: New Experiment and Annotation Quick Filters 🏎️](08.2025/08.20.2025-new-experiment-and-annotation-quick-filters.md)
   * [08.15.2025:  Enhance Experiment Comparison Views 🧪](08.2025/08.15.2025-enhance-experiment-comparison-views.md)

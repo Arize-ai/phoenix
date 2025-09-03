@@ -6,6 +6,14 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [08.28.2025: New arize-phoenix-client Package 📦](08.2025/08.28.2025-new-arize-phoenix-client-package.md)
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-phoenix-client-docs.png" %}
+
+**`arize-phoenix-client`** is a lightweight, fully-featured package for interacting with Phoenix. It lets you manage datasets, experiments, prompts, spans, annotations, and projects - without needing a local Phoenix installation.&#x20;
+
+***
+
 ## [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
 
 **Available in Phoenix 11.26+**
