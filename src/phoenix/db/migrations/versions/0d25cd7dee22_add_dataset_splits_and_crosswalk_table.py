@@ -38,6 +38,11 @@ JSON_ = (
     )
 )
 
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 # revision identifiers, used by Alembic.
 revision: str = "0d25cd7dee22"
 down_revision: Union[str, None] = "d0690a79ea51"
@@ -49,7 +54,7 @@ def upgrade() -> None:
     # Create dataset_splits table
     op.create_table(
         "dataset_splits",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True, index=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("metadata", JSON_, nullable=False),
@@ -71,17 +76,17 @@ def upgrade() -> None:
     # Create crosswalk table: dataset_splits_dataset_examples
     op.create_table(
         "dataset_splits_dataset_examples",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "dataset_split_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
         sa.Column(
             "dataset_example_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
@@ -96,7 +101,7 @@ def upgrade() -> None:
         batch_op.add_column(
             sa.Column(
                 "dataset_split_id",
-                sa.Integer,
+                _Integer,
                 sa.ForeignKey("dataset_splits.id", ondelete="SET NULL"),
                 nullable=True,
             ),
