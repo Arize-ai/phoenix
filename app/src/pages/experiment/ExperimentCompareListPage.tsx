@@ -397,11 +397,7 @@ export function ExperimentCompareListPage() {
                   <ContentPreviewTooltip content={value.baseExperimentValue}>
                     <Truncate>
                       <Text size="S" fontFamily="mono">
-                        <JSONText
-                          json={value.baseExperimentValue}
-                          disableTitle
-                          as="span"
-                        />
+                        {JSON.stringify(value.baseExperimentValue)}
                       </Text>
                     </Truncate>
                   </ContentPreviewTooltip>
@@ -424,7 +420,7 @@ export function ExperimentCompareListPage() {
                       <ContentPreviewTooltip content={value}>
                         <Truncate>
                           <Text size="S" fontFamily="mono">
-                            <JSONText json={value} disableTitle as="span" />
+                            {JSON.stringify(value)}
                           </Text>
                         </Truncate>
                       </ContentPreviewTooltip>
