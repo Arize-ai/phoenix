@@ -170,14 +170,14 @@ async def list_experiment_runs(
         stmt = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_rowid)
-            # order by dataset_example_id to be consistent with `list_dataset_examples`
-            .order_by(models.ExperimentRun.dataset_example_id.asc())
+            # order by id for consistent cursor-based pagination
+            .order_by(models.ExperimentRun.id.desc())
         )
-
+        
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
-                stmt = stmt.where(models.ExperimentRun.id > int(cursor_id))
+                stmt = stmt.where(models.ExperimentRun.id <= int(cursor_id))
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",

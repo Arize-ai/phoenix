@@ -629,7 +629,7 @@ class Experiments:
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(run)
+                task_runs_from_db.append(cast(ExperimentRun, run))
             task_runs = task_runs_from_db
 
             # Check if we got all expected runs
@@ -686,20 +686,20 @@ class Experiments:
         Returns:
             list[dict[str, Any]]: List of all experiment runs.
         """
-        all_runs = []
-        cursor = None
+        all_runs: list[dict[str, Any]] = []
+        cursor: Optional[str] = None
 
         while True:
-            params = {}
+            params: dict[str, str] = {}
             if cursor:
                 params["cursor"] = cursor
-
+            
             try:
                 response = self._client.get(f"v1/experiments/{experiment_id}/runs", params=params)
                 response.raise_for_status()
-                data = response.json()
-
-                runs = data["data"]
+                data: dict[str, Any] = response.json()
+                
+                runs: list[dict[str, Any]] = data["data"]
                 all_runs.extend(runs)
 
                 # Check if there are more pages
@@ -1577,7 +1577,7 @@ class AsyncExperiments:
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(run)
+                async_task_runs.append(cast(ExperimentRun, run))
             task_runs = async_task_runs
 
             # Check if we got all expected runs
@@ -1635,11 +1635,11 @@ class AsyncExperiments:
         Returns:
             list[dict[str, Any]]: List of all experiment runs.
         """
-        all_runs = []
-        cursor = None
+        all_runs: list[dict[str, Any]] = []
+        cursor: Optional[str] = None
 
         while True:
-            params = {}
+            params: dict[str, str] = {}
             if cursor:
                 params["cursor"] = cursor
 
@@ -1648,9 +1648,9 @@ class AsyncExperiments:
                     f"v1/experiments/{experiment_id}/runs", params=params
                 )
                 response.raise_for_status()
-                data = response.json()
+                data: dict[str, Any] = response.json()
 
-                runs = data["data"]
+                runs: list[dict[str, Any]] = data["data"]
                 all_runs.extend(runs)
 
                 # Check if there are more pages
