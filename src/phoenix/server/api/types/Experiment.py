@@ -35,6 +35,7 @@ class Experiment(Node):
     metadata: JSON
     created_at: datetime
     updated_at: datetime
+    dataset_example_rowid: strawberry.Private[Optional[int]] = None
 
     @strawberry.field(
         description="Sequence number (1-based) of experiments belonging to the same dataset"
@@ -66,17 +67,23 @@ class Experiment(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         experiment_id = self.id_attr
+        dataset_example_id = self.dataset_example_rowid
+        query = (
+            select(models.ExperimentRun)
+            .select_from(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .order_by(
+                models.ExperimentRun.experiment_id.asc(),
+                models.ExperimentRun.dataset_example_id.asc(),
+                models.ExperimentRun.repetition_number.asc(),
+            )
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+        )
+        if dataset_example_id is not None:
+            query = query.where(models.ExperimentRun.dataset_example_id == dataset_example_id)
+
         async with info.context.db() as session:
-            runs = (
-                await session.scalars(
-                    select(models.ExperimentRun)
-                    .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .order_by(models.ExperimentRun.id.desc())
-                    .options(
-                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                    )
-                )
-            ).all()
+            runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
 
     @strawberry.field

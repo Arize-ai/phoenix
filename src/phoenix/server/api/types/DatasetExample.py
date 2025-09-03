@@ -110,10 +110,13 @@ class DatasetExample(Node):
                 experiment_id = str(GlobalID(Experiment.__name__, str(filter_rowid)))
                 raise NotFound(f"Could not find experiment with ID {experiment_id}")
 
-        return connection_from_list(
-            [to_gql_experiment(experiment) for experiment in experiments_by_id.values()],
-            connection_args,
-        )
+        gql_experiments = []
+        for db_experiment in experiments_by_id.values():
+            gql_experiment = to_gql_experiment(db_experiment)
+            gql_experiment.dataset_example_rowid = example_id
+            gql_experiments.append(gql_experiment)
+
+        return connection_from_list(gql_experiments, connection_args)
 
     @strawberry.field
     async def experiment_runs(
