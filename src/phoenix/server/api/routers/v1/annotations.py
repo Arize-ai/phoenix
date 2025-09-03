@@ -165,6 +165,35 @@ class TraceAnnotationsResponseBody(PaginatedResponseBody[TraceAnnotation]):
     pass
 
 
+class SessionAnnotationData(AnnotationData):
+    session_id: str = Field(description="Session ID")
+
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SessionAnnotation:
+        return Precursors.SessionAnnotation(
+            datetime.now(timezone.utc),
+            self.session_id,
+            models.ProjectSessionAnnotation(
+                name=self.name,
+                annotator_kind=self.annotator_kind,
+                score=self.result.score if self.result else None,
+                label=self.result.label if self.result else None,
+                explanation=self.result.explanation if self.result else None,
+                metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="API",
+                user_id=user_id,
+            ),
+        )
+
+
+class SessionAnnotation(SessionAnnotationData, Annotation):
+    pass
+
+
+class SessionAnnotationsResponseBody(PaginatedResponseBody[SessionAnnotation]):
+    pass
+
+
 @router.get(
     "/projects/{project_identifier}/span_annotations",
     operation_id="listSpanAnnotationsBySpanIds",
@@ -308,83 +337,6 @@ async def list_span_annotations(
         ]
 
     return SpanAnnotationsResponseBody(data=data, next_cursor=next_cursor)
-
-
-class SpanDocumentAnnotationData(AnnotationData):
-    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
-    document_position: int = Field(
-        description="A 0 based index of the document. E.x. the first document during retrieval is 0"
-    )
-
-    # Precursor here means a value to add to a queue for processing async
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.DocumentAnnotation:
-        return Precursors.DocumentAnnotation(
-            datetime.now(timezone.utc),
-            self.span_id,
-            self.document_position,
-            models.DocumentAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                document_position=self.document_position,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
-
-
-class TraceAnnotationData(AnnotationData):
-    trace_id: str = Field(description="OpenTelemetry Trace ID (hex format w/o 0x prefix)")
-
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.TraceAnnotation:
-        return Precursors.TraceAnnotation(
-            datetime.now(timezone.utc),
-            self.trace_id,
-            models.TraceAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
-
-
-class SessionAnnotationData(AnnotationData):
-    session_id: str = Field(description="Session ID")
-
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SessionAnnotation:
-        return Precursors.SessionAnnotation(
-            datetime.now(timezone.utc),
-            self.session_id,
-            models.ProjectSessionAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
-
-
-class SessionAnnotation(SessionAnnotationData, Annotation):
-    pass
-
-
-class SessionAnnotationsResponseBody(PaginatedResponseBody[SessionAnnotation]):
-    pass
 
 
 @router.get(
