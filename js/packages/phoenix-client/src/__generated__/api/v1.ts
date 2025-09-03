@@ -718,6 +718,24 @@ export interface components {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
         };
+        /** AnnotationResult */
+        AnnotationResult: {
+            /**
+             * Label
+             * @description The label assigned by the annotation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the annotation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the annotation result
+             */
+            explanation?: string | null;
+        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -2132,37 +2150,6 @@ export interface components {
         };
         /** SpanAnnotation */
         SpanAnnotation: {
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             * @default
-             */
-            identifier?: string;
             /** Id */
             id: string;
             /**
@@ -2182,14 +2169,6 @@ export interface components {
             source: "API" | "APP";
             /** User Id */
             user_id: string | null;
-        };
-        /** SpanAnnotationData */
-        SpanAnnotationData: {
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
             /**
              * Name
              * @description The name of the annotation
@@ -2202,7 +2181,7 @@ export interface components {
              */
             annotator_kind: "LLM" | "CODE" | "HUMAN";
             /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            result?: components["schemas"]["AnnotationResult"] | null;
             /**
              * Metadata
              * @description Metadata for the annotation
@@ -2216,24 +2195,45 @@ export interface components {
              * @default
              */
             identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
         };
-        /** SpanAnnotationResult */
-        SpanAnnotationResult: {
+        /** SpanAnnotationData */
+        SpanAnnotationData: {
             /**
-             * Label
-             * @description The label assigned by the annotation
+             * Name
+             * @description The name of the annotation
              */
-            label?: string | null;
+            name: string;
             /**
-             * Score
-             * @description The score assigned by the annotation
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
              */
-            score?: number | null;
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
             /**
-             * Explanation
-             * @description Explanation of the annotation result
+             * Metadata
+             * @description Metadata for the annotation
              */
-            explanation?: string | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
         };
         /** SpanAnnotationsResponseBody */
         SpanAnnotationsResponseBody: {
@@ -2258,41 +2258,41 @@ export interface components {
         /** SpanDocumentAnnotationData */
         SpanDocumentAnnotationData: {
             /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
              * Name
-             * @description The name of the document annotation. E.x. relevance
+             * @description The name of the annotation
              */
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator. E.g. llm judge, a heuristic piece of code, or a human
+             * @description The kind of annotator used for the annotation
              * @enum {string}
              */
             annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /**
-             * Document Position
-             * @description A 0 based index of the document. E.x. the first document during retrieval is 0
-             */
-            document_position: number;
-            /** @description The score and or label of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
             /**
              * Metadata
-             * @description Metadata for custom values of the annotation
+             * @description Metadata for the annotation
              */
             metadata?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Identifier
-             * @description An custom ID for the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
              * @default
              */
             identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Document Position
+             * @description A 0 based index of the document. E.x. the first document during retrieval is 0
+             */
+            document_position: number;
         };
         /** SpanEvent */
         SpanEvent: {
@@ -4704,13 +4704,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid request - non-empty identifier not supported */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
