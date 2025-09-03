@@ -456,6 +456,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "tokens",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const tokens = getValue() as TableRow["tokens"];
           return (
@@ -521,6 +522,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "latencyMs",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
@@ -586,6 +588,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "cost",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const cost = getValue() as TableRow["cost"];
           return (
@@ -689,6 +692,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "annotations",
         minSize: 200,
+        enableResizing: false,
         cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
           const annotations = getValue();
           const baseExperimentAnnotationValue = getAnnotationValue(
@@ -855,10 +859,7 @@ export function ExperimentCompareListPage() {
                             header.column.columnDef.header,
                             header.getContext()
                           )}
-                          {(header.id === "example" ||
-                            header.id === "input" ||
-                            header.id === "outputs" ||
-                            header.id === "referenceOutput") && (
+                          {header.column.getCanResize() && (
                             <div
                               {...{
                                 onMouseDown: header.getResizeHandler(),
