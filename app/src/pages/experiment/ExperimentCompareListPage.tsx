@@ -1002,6 +1002,12 @@ const textOverflowCSS = css`
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+
+  // prevent default behavior of title tooltip showing on safari
+  &::after {
+    content: "";
+    display: block;
+  }
 `;
 
 function TextOverflow({ children }: { children: React.ReactNode }) {
