@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
+import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
   intFormatter,
@@ -979,13 +980,19 @@ function ContentPreviewTooltip({
         {children}
       </TriggerWrap>
       <RichTooltip
+        placement="right"
         offset={3}
         css={css`
-          max-height: 300px !important;
           overflow-y: auto;
         `}
       >
-        <JSONText json={content} disableTitle />
+        {isObject(content) ? (
+          <JSONText json={content} disableTitle />
+        ) : (
+          <Text size="S" fontFamily="mono">
+            {String(content)}
+          </Text>
+        )}
       </RichTooltip>
     </TooltipTrigger>
   );
