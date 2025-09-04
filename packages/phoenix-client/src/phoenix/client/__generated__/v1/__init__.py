@@ -166,6 +166,7 @@ class ListDatasetsResponseBody(TypedDict):
 
 class ListExperimentRunsResponseBody(TypedDict):
     data: Sequence[ExperimentRunResponse]
+    next_cursor: Optional[str]
 
 
 class ListExperimentsResponseBody(TypedDict):

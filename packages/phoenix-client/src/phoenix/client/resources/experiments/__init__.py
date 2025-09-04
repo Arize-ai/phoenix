@@ -715,13 +715,7 @@ class Experiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = self._client.get(f"v1/experiments/{experiment['id']}/runs").json()["data"]
-            task_runs_from_db: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(run)
-            task_runs = task_runs_from_db
+            task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -766,6 +760,53 @@ class Experiments:
             )
 
         return ran_experiment
+
+    def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result
+                    break
+                else:
+                    raise
+
+        return all_runs
 
     def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
@@ -1631,14 +1672,7 @@ class AsyncExperiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs_response = await self._client.get(f"v1/experiments/{experiment['id']}/runs")
-            all_runs = all_runs_response.json()["data"]
-            async_task_runs: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(run)
-            task_runs = async_task_runs
+            task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -1684,6 +1718,53 @@ class AsyncExperiments:
             )
 
         return ran_experiment
+
+    async def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = await self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result for robustness
+                    break
+                else:
+                    raise
+
+        return all_runs
 
     async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
