@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de8b9afad44281cd10db8ca12b4ce303>>
+ * @generated SignedSource<<9a9e34ced9084af8adce581d3f87a55f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -265,7 +265,7 @@ return {
               ],
               "concreteType": "DatasetExampleConnection",
               "kind": "LinkedField",
-              "name": "__ExperimentCompareTable_compareExperiments__examples_connection",
+              "name": "__ExperimentCompareTable_examples_connection",
               "plural": false,
               "selections": [
                 {
@@ -667,6 +667,6 @@ return {
 };
 })();
 
-(node as any).hash = "8284b226c08c69c56479f04b85edb065";
+(node as any).hash = "ad202624c249dead690a132756796c97";
 
 export default node;

@@ -177,10 +177,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 after: $after
                 datasetVersionId: $datasetVersionId
                 filterCondition: $filterCondition
-              )
-                @connection(
-                  key: "ExperimentCompareTable_compareExperiments__examples"
-                ) {
+              ) @connection(key: "ExperimentCompareTable_examples") {
                 edges {
                   example: node {
                     id

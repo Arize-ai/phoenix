@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4bc1efd7ea44c3511d83c424da9e06cb>>
+ * @generated SignedSource<<a23ab5bae4f9f990c130973a81edda2c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -848,7 +848,7 @@ return {
                       "filterCondition"
                     ],
                     "handle": "connection",
-                    "key": "ExperimentCompareTable_compareExperiments__examples",
+                    "key": "ExperimentCompareTable_examples",
                     "kind": "LinkedHandle",
                     "name": "examples"
                   },

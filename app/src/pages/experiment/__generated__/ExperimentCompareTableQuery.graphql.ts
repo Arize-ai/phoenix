@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b025cf0a6447afc90d27197598d5785f>>
+ * @generated SignedSource<<2a0ac53f937ee77a224780eb3aa59715>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -520,7 +520,7 @@ return {
                   "filterCondition"
                 ],
                 "handle": "connection",
-                "key": "ExperimentCompareTable_compareExperiments__examples",
+                "key": "ExperimentCompareTable_examples",
                 "kind": "LinkedHandle",
                 "name": "examples"
               },
@@ -637,6 +637,6 @@ return {
 };
 })();
 
-(node as any).hash = "8284b226c08c69c56479f04b85edb065";
+(node as any).hash = "ad202624c249dead690a132756796c97";
 
 export default node;
