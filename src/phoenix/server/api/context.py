@@ -28,6 +28,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentErrorRatesDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
+    ExperimentsByDatasetExampleIdDataLoader,
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -92,6 +93,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiments_by_dataset_example_id: ExperimentsByDatasetExampleIdDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader

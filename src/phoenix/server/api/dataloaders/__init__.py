@@ -20,6 +20,7 @@ from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
+from .experiments_by_dataset_example_id import ExperimentsByDatasetExampleIdDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
@@ -72,6 +73,7 @@ __all__ = [
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
+    "ExperimentsByDatasetExampleIdDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunAnnotations",
     "ExperimentRunCountsDataLoader",

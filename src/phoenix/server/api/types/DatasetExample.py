@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import distinct, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
@@ -69,6 +69,16 @@ class DatasetExample(Node):
         before: Optional[CursorString] = UNSET,
         experiment_ids: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Experiment]:
+        experiment_rowids = []
+        for experiment_id in experiment_ids or []:
+            try:
+                experiment_rowid = from_global_id_with_expected_type(
+                    experiment_id, Experiment.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid experiment ID: {experiment_id}")
+            experiment_rowids.append(experiment_rowid)
+
         connection_args = ConnectionArgs(
             first=first,
             after=after if isinstance(after, CursorString) else None,
@@ -76,40 +86,10 @@ class DatasetExample(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         example_id = self.id_attr
-        experiment_ids_subquery = (
-            select(distinct(models.ExperimentRun.experiment_id))
-            .select_from(models.ExperimentRun)
-            .where(models.ExperimentRun.dataset_example_id == example_id)
-            .scalar_subquery()
+        db_experiments = await info.context.data_loaders.experiments_by_dataset_example_id.load(
+            (example_id, tuple(experiment_rowids))
         )
-        experiments_query = (
-            select(models.Experiment)
-            .where(models.Experiment.id.in_(experiment_ids_subquery))
-            .order_by(models.Experiment.id.asc())
-        )
-        if experiment_ids:
-            filter_rowids = []
-            for filter_id in experiment_ids:
-                try:
-                    experiment_rowid = from_global_id_with_expected_type(
-                        filter_id, Experiment.__name__
-                    )
-                except ValueError:
-                    raise BadRequest(f"Invalid filter ID: {filter_id}")
-                filter_rowids.append(experiment_rowid)
-
-            experiments_query = experiments_query.where(models.Experiment.id.in_(filter_rowids))
-
-        db_experiments = []
-        async with info.context.db() as session:
-            for experiment in await session.scalars(experiments_query):
-                db_experiments.append(experiment)
-
-        gql_experiments = []
-        for db_experiment in db_experiments:
-            gql_experiment = to_gql_experiment(db_experiment)
-            gql_experiments.append(gql_experiment)
-
+        gql_experiments = [to_gql_experiment(db_experiment) for db_experiment in db_experiments]
         return connection_from_list(gql_experiments, connection_args)
 
     @strawberry.field
