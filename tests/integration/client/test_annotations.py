@@ -1368,35 +1368,15 @@ class TestClientForTraceAnnotations:
             assert result is None, "Should not receive annotation ID when sync=False"
 
         # Verify annotation was created via GraphQL
-        query = """
-        query GetTraceAnnotations($id: ID!) {
-            node (id: $id) {
-                ... on Trace {
-                    traceAnnotations {
-                        id
-                        name
-                        source
-                        identifier
-                        annotatorKind
-                        metadata
-                        label
-                        score
-                        explanation
-                        user {
-                            id
-                        }
-                    }
-                }
-            }
-        }
-        """
 
         # Get trace GID from span data - use the existing trace GID from the span
         trace_gid = str(span1.trace.id)
 
         # Use _get() method to wait for annotation to be created and retrieved
         def get_trace_annotation() -> Optional[dict[str, Any]]:
-            gql_resp, _ = _gql(_app, _app.admin_secret, query=query, variables={"id": trace_gid})
+            gql_resp, _ = _gql(
+                _app, _app.admin_secret, query=self.query, variables={"id": trace_gid}
+            )
             annotations: list[dict[str, Any]] = gql_resp["data"]["node"]["traceAnnotations"]
 
             # Filter to find the annotation we just created
@@ -1474,30 +1454,6 @@ class TestClientForTraceAnnotations:
         identifiers = [token_hex(8), token_hex(8)]
         existing_gids: list[Optional[str]] = [None, None]
 
-        # GraphQL query for retrieving trace annotations
-        query = """
-        query GetTraceAnnotations($id: ID!) {
-            node (id: $id) {
-                ... on Trace {
-                    traceAnnotations {
-                        id
-                        name
-                        source
-                        identifier
-                        annotatorKind
-                        metadata
-                        label
-                        score
-                        explanation
-                        user {
-                            id
-                        }
-                    }
-                }
-            }
-        }
-        """
-
         # Two iterations: First creates annotations, second updates them
         for i in range(2):
             # Generate new random values for each iteration
@@ -1548,7 +1504,7 @@ class TestClientForTraceAnnotations:
                     res, _ = _gql(
                         _app,
                         u,
-                        query=query,
+                        query=self.query,
                         operation_name="GetTraceAnnotations",
                         variables={"id": str(trace_gids[j])},
                     )
@@ -1634,30 +1590,6 @@ class TestClientForTraceAnnotations:
 
         Client = AsyncClient if is_async else SyncClient
 
-        # GraphQL query for retrieving trace annotations
-        query = """
-        query GetTraceAnnotations($id: ID!) {
-            node (id: $id) {
-                ... on Trace {
-                    traceAnnotations {
-                        id
-                        name
-                        source
-                        identifier
-                        annotatorKind
-                        metadata
-                        label
-                        score
-                        explanation
-                        user {
-                            id
-                        }
-                    }
-                }
-            }
-        }
-        """
-
         # ============================================================================
         # Test Case 1: Using trace_id as column
         # ============================================================================
@@ -1703,7 +1635,7 @@ class TestClientForTraceAnnotations:
                 res, _ = _gql(
                     _app,
                     u,
-                    query=query,
+                    query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
                 )
@@ -1775,7 +1707,7 @@ class TestClientForTraceAnnotations:
                 res, _ = _gql(
                     _app,
                     u,
-                    query=query,
+                    query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
                 )
@@ -1849,7 +1781,7 @@ class TestClientForTraceAnnotations:
                 res, _ = _gql(
                     _app,
                     u,
-                    query=query,
+                    query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
                 )
@@ -2063,6 +1995,30 @@ class TestClientForSessionAnnotations:
     - Work in both regular and async mode
     """
 
+    # GraphQL query to retrieve session annotations
+    query = """
+        query GetSessionAnnotations($id: ID!) {
+            node(id: $id) {
+                ... on ProjectSession {
+                    sessionAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
+                        identifier
+                        source
+                        user {
+                            id
+                        }
+                    }
+                }
+            }
+        }
+    """
+
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize(
@@ -2113,30 +2069,6 @@ class TestClientForSessionAnnotations:
         # Test data
         annotation_name = token_hex(8)
 
-        # GraphQL query to retrieve session annotations
-        query = """
-            query GetSessionAnnotations($id: ID!) {
-                node(id: $id) {
-                    ... on ProjectSession {
-                        sessionAnnotations {
-                            id
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                            identifier
-                            source
-                            user {
-                                id
-                            }
-                        }
-                    }
-                }
-            }
-        """
-
         # ============================================================================
         # Test Case: Create New Session Annotation
         # ============================================================================
@@ -2165,7 +2097,7 @@ class TestClientForSessionAnnotations:
             res, _ = _gql(
                 _app,
                 u,
-                query=query,
+                query=self.query,
                 operation_name="GetSessionAnnotations",
                 variables={"id": str(session_gid1)},
             )
@@ -2341,25 +2273,7 @@ class TestClientForSessionAnnotations:
             res, _ = _gql(
                 _app,
                 u,
-                query="""
-                    query GetSessionAnnotations($id: ID!) {
-                        node(id: $id) {
-                            ... on ProjectSession {
-                                sessionAnnotations {
-                                    id
-                                    name
-                                    annotatorKind
-                                    label
-                                    score
-                                    explanation
-                                    metadata
-                                    identifier
-                                    source
-                                }
-                            }
-                        }
-                    }
-                """,
+                query=self.query,
                 variables={"id": str(session_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
@@ -2386,25 +2300,7 @@ class TestClientForSessionAnnotations:
                 res, _ = _gql(
                     _app,
                     u,
-                    query="""
-                        query GetSessionAnnotations($id: ID!) {
-                            node(id: $id) {
-                                ... on ProjectSession {
-                                    sessionAnnotations {
-                                        id
-                                        name
-                                        annotatorKind
-                                        label
-                                        score
-                                        explanation
-                                        metadata
-                                        identifier
-                                        source
-                                    }
-                                }
-                            }
-                        }
-                    """,
+                    query=self.query,
                     variables={"id": str(session_gid2)},
                 )
                 annotations = {
@@ -2625,25 +2521,7 @@ class TestClientForSessionAnnotations:
             res, _ = _gql(
                 _app,
                 u,
-                query="""
-                    query GetSessionAnnotations($id: ID!) {
-                        node(id: $id) {
-                            ... on ProjectSession {
-                                sessionAnnotations {
-                                    id
-                                    name
-                                    annotatorKind
-                                    label
-                                    score
-                                    explanation
-                                    metadata
-                                    identifier
-                                    source
-                                }
-                            }
-                        }
-                    }
-                """,
+                query=self.query,
                 variables={"id": str(session_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
@@ -2736,25 +2614,7 @@ class TestClientForSessionAnnotations:
             res, _ = _gql(
                 _app,
                 u,
-                query="""
-                    query GetSessionAnnotations($id: ID!) {
-                        node(id: $id) {
-                            ... on ProjectSession {
-                                sessionAnnotations {
-                                    id
-                                    name
-                                    annotatorKind
-                                    label
-                                    score
-                                    explanation
-                                    metadata
-                                    identifier
-                                    source
-                                }
-                            }
-                        }
-                    }
-                """,
+                query=self.query,
                 variables={"id": str(session_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
