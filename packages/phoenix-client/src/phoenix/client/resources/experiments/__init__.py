@@ -674,14 +674,15 @@ class Experiments:
         self,
         *,
         experiment_id: str,
-        page_size: int = 100,
+        page_size: int = 50,
     ) -> list[ExperimentRun]:
         """
         Fetch all experiment runs using pagination to handle large datasets.
-
+ 
         Args:
             experiment_id (str): The ID of the experiment.
-
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+ 
         Returns:
             list[ExperimentRun]: List of all experiment runs.
         """
@@ -1631,15 +1632,15 @@ class AsyncExperiments:
         self,
         *,
         experiment_id: str,
-        page_size: int = 100,
+        page_size: int = 50,
     ) -> list[ExperimentRun]:
         """
         Fetch all experiment runs using pagination to handle large datasets.
-
+ 
         Args:
             experiment_id (str): The ID of the experiment.
-            page_size (int): Number of runs to fetch per page. Defaults to 100.
-
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+ 
         Returns:
             list[ExperimentRun]: List of all experiment runs.
         """

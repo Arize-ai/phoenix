@@ -112,7 +112,7 @@ def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
 def _get_all_experiment_runs(
     client: httpx.Client,
     experiment_id: str,
-    page_size: int = 100,
+    page_size: int = 50,
 ) -> list[ExperimentRun]:
     """
     Fetch all experiment runs using pagination to handle large datasets.
@@ -120,7 +120,7 @@ def _get_all_experiment_runs(
     Args:
         client: The HTTP client to use for requests.
         experiment_id: The ID of the experiment.
-        page_size: Number of runs to fetch per page. Defaults to 100.
+        page_size: Number of runs to fetch per page. Defaults to 50.
 
     Returns:
         List of all experiment runs as ExperimentRun objects.
