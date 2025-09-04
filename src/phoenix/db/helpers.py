@@ -18,6 +18,7 @@ from sqlalchemy import (
     distinct,
     func,
     select,
+    util,
 )
 from sqlalchemy.orm import QueryableAttribute
 from typing_extensions import assert_never
@@ -355,3 +356,10 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
         )
     )
     return select(ancestors.c.id)
+
+
+def truncate_name(name: str, max_len: int = 63) -> str:
+    # https://github.com/sqlalchemy/sqlalchemy/blob/e263825e3c5060bf4f47eed0e833c6660a31658e/lib/sqlalchemy/sql/compiler.py#L7844-L7845
+    if len(name) > max_len:
+        return name[0 : max_len - 8] + "_" + util.md5_hex(name)[-4:]
+    return name
