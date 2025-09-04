@@ -32,7 +32,7 @@ class ProjectSessionAnnotation(Node):
     async def project_session_id(self) -> GlobalID:
         from phoenix.server.api.types.ProjectSession import ProjectSession
 
-        return GlobalID(type_name=ProjectSession.__name__, node_id=str(self.project_session_id))
+        return GlobalID(type_name=ProjectSession.__name__, node_id=str(self._project_session_id))
 
     @strawberry.field
     async def user(

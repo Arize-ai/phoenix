@@ -136,11 +136,19 @@ class GetExperimentResponseBody(TypedDict):
     data: Experiment
 
 
+class InsertedSessionAnnotation(TypedDict):
+    id: str
+
+
 class InsertedSpanAnnotation(TypedDict):
     id: str
 
 
 class InsertedSpanDocumentAnnotation(TypedDict):
+    id: str
+
+
+class InsertedTraceAnnotation(TypedDict):
     id: str
 
 
@@ -352,6 +360,34 @@ class PromptXAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
+class SessionAnnotation(TypedDict):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    session_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class SessionAnnotationData(TypedDict):
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    session_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class SessionAnnotationsResponseBody(TypedDict):
+    data: Sequence[SessionAnnotation]
+    next_cursor: Optional[str]
+
+
 class SpanAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -412,6 +448,34 @@ class ToolResultContentPart(TypedDict):
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
 
 
+class TraceAnnotation(TypedDict):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    trace_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class TraceAnnotationData(TypedDict):
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    trace_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class TraceAnnotationsResponseBody(TypedDict):
+    data: Sequence[TraceAnnotation]
+    next_cursor: Optional[str]
+
+
 class UpdateProjectRequestBody(TypedDict):
     description: NotRequired[str]
 
@@ -451,6 +515,14 @@ class ValidationError(TypedDict):
     type: str
 
 
+class AnnotateSessionsRequestBody(TypedDict):
+    data: Sequence[SessionAnnotationData]
+
+
+class AnnotateSessionsResponseBody(TypedDict):
+    data: Sequence[InsertedSessionAnnotation]
+
+
 class AnnotateSpanDocumentsRequestBody(TypedDict):
     data: Sequence[SpanDocumentAnnotationData]
 
@@ -465,6 +537,14 @@ class AnnotateSpansRequestBody(TypedDict):
 
 class AnnotateSpansResponseBody(TypedDict):
     data: Sequence[InsertedSpanAnnotation]
+
+
+class AnnotateTracesRequestBody(TypedDict):
+    data: Sequence[TraceAnnotationData]
+
+
+class AnnotateTracesResponseBody(TypedDict):
+    data: Sequence[InsertedTraceAnnotation]
 
 
 class CategoricalAnnotationConfig(TypedDict):

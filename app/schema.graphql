@@ -1848,6 +1848,7 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  sessionAnnotations: [ProjectSessionAnnotation!]!
 }
 
 type ProjectSessionAnnotation implements Node {
