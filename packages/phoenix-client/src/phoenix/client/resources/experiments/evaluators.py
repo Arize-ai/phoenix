@@ -86,7 +86,7 @@ def _convert_score_to_eval_result(score: Any) -> EvaluationResult:
 
 def _default_eval_scorer(result: Any) -> EvaluationResult:
     """Convert function result to EvaluationResult."""
-    try:
+    try:  # compatibility for 2.0 style eval scores
         if not isinstance(result, dict) and (
             hasattr(result, "score") or hasattr(result, "label") or hasattr(result, "explanation")
         ):
