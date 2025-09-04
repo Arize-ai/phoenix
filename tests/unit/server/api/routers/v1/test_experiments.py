@@ -1,7 +1,7 @@
 import datetime
 import json
 from io import StringIO
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 import pandas as pd
@@ -331,23 +331,23 @@ async def test_experiment_runs_pagination(
         ).json()["data"]
         created_runs.append(run["id"])
 
-    def get_numeric_ids(run_ids):
+    def get_numeric_ids(run_ids: list[str]) -> list[int]:
         """Helper to extract numeric IDs for comparison."""
         return [int(GlobalID.from_id(run_id).node_id) for run_id in run_ids]
 
     # Expected order: descending by numeric ID
     expected_ids = sorted(get_numeric_ids(created_runs), reverse=True)  # [5, 4, 3, 2, 1]
 
-    async def get_runs(limit=None, cursor=None):
+    async def get_runs(limit: Optional[int] = None, cursor: Optional[str] = None) -> dict[str, Any]:
         """Helper to fetch runs with optional pagination."""
-        params = {}
+        params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
             params["cursor"] = cursor
         response = await httpx_client.get(f"v1/experiments/{experiment['id']}/runs", params=params)
         assert response.status_code == 200
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     # Test: No pagination (backward compatibility)
     all_runs = await get_runs()
