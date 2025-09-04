@@ -10,6 +10,8 @@ from phoenix.client.resources.experiments.types import (
 
 if TYPE_CHECKING:
     from phoenix.client.resources.experiments.types import Evaluator
+    from phoenix.evals.preview.evaluators import Score as EvalsScore
+    from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
 
 
 def get_func_name(fn: Callable[..., Any]) -> str:
@@ -65,8 +67,33 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
     )
 
 
+def _convert_score_to_eval_result(score: Any) -> EvaluationResult:
+    score_val = getattr(score, "score", None)
+    label_val = getattr(score, "label", None)
+    explanation_val = getattr(score, "explanation", None)
+    eval_result: EvaluationResult = {}
+    if score_val is not None:
+        eval_result["score"] = float(score_val) if isinstance(score_val, bool) else score_val  # pyright: ignore[reportUnknownArgumentType]
+    if label_val is not None:
+        eval_result["label"] = str(label_val)
+    if explanation_val is not None:
+        eval_result["explanation"] = str(explanation_val)
+    if eval_result:
+        return eval_result
+    else:
+        raise TypeError(f"Cannot convert {type(score)} to EvaluationResult")
+
+
 def _default_eval_scorer(result: Any) -> EvaluationResult:
     """Convert function result to EvaluationResult."""
+    try:
+        if not isinstance(result, dict) and (
+            hasattr(result, "score") or hasattr(result, "label") or hasattr(result, "explanation")
+        ):
+            return _convert_score_to_eval_result(result)
+    except Exception:
+        pass  # fall through if duck typing fails
+
     if isinstance(result, dict):
         # Check if it looks like an EvaluationResult dict
         valid_keys = {"label", "score", "explanation"}
@@ -193,6 +220,28 @@ def create_evaluator(
             return _wrap_sync_evaluation_function(name, kind, wrapped_signature, scorer)(func)
 
     return wrapper
+
+
+def wrap_phoenix_evals_evaluator(evaluator: "EvalsEvaluator") -> "Evaluator":
+    from phoenix.client.resources.experiments.types import BaseEvaluator
+
+    class PhoenixEvalsEvaluator(BaseEvaluator):
+        def __init__(self) -> None:
+            self._name = evaluator.name
+            if evaluator.source == "llm":
+                self._kind = AnnotatorKind.LLM
+            else:
+                self._kind = AnnotatorKind.CODE
+
+        def evaluate(self, **kwargs: Any) -> EvaluationResult:
+            eval_score = evaluator.evaluate(kwargs)[0]
+            return _convert_score_to_eval_result(eval_score)
+
+        async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
+            eval_score = (await evaluator.aevaluate(kwargs))[0]
+            return _convert_score_to_eval_result(eval_score)
+
+    return PhoenixEvalsEvaluator()
 
 
 def _wrap_coroutine_evaluation_function(

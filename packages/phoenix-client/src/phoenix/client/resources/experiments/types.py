@@ -14,7 +14,7 @@ from typing_extensions import TYPE_CHECKING, Protocol, TypedDict, runtime_checka
 from phoenix.client.__generated__ import v1
 
 if TYPE_CHECKING:
-    from phoenix.evals.preview.evaluators import Score as EvalScore
+    from phoenix.evals.preview.evaluators import Score as EvalsScore
 
 # Type aliases
 JSONSerializable = Optional[Union[dict[str, Any], list[Any], str, int, float, bool]]
@@ -95,7 +95,7 @@ EvaluatorOutput = Union[
     str,
     tuple[Score, Label, Explanation],
     dict[str, Any],
-    EvalScore,
+    "EvalsScore",
 ]
 
 
@@ -127,7 +127,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, EvalScore]:
+    ) -> Union[EvaluationResult, "EvalsScore"]:
         """Evaluate the output synchronously."""
         ...
 
@@ -139,7 +139,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, EvalScore]:
+    ) -> Union[EvaluationResult, "EvalsScore"]:
         """Evaluate the output asynchronously."""
         ...
 
@@ -213,7 +213,7 @@ class BaseEvaluator(ABC, Evaluator):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, EvalScore]:
+    ) -> Union[EvaluationResult, "EvalsScore"]:
         """
         Evaluate the output synchronously.
 
@@ -230,7 +230,7 @@ class BaseEvaluator(ABC, Evaluator):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, EvalScore]:
+    ) -> Union[EvaluationResult, "EvalsScore"]:
         """
         Evaluate the output asynchronously.
 

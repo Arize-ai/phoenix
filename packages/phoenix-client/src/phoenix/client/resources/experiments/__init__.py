@@ -30,10 +30,14 @@ from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, u
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
+from typing_extensions import TYPE_CHECKING
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.client.resources.experiments.evaluators import create_evaluator
+from phoenix.client.resources.experiments.evaluators import (
+    create_evaluator,
+    wrap_phoenix_evals_evaluator,
+)
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
 
@@ -51,6 +55,9 @@ from .types import (
     RateLimitErrors,
     TestCase,
 )
+
+if TYPE_CHECKING:
+    from phoenix.evals.preview.evaluators import Score as EvalsScore
 
 logger = logging.getLogger(__name__)
 
@@ -229,24 +236,51 @@ def _str_trace_id(trace_id: Union[int, str]) -> str:
     return str(trace_id)
 
 
+@functools.cache
+def _evals_installed() -> bool:
+    try:
+        import phoenix.evals
+
+        return True
+    except ImportError:
+        return False
+
+
+def _is_evals_evaluator(obj: Any) -> bool:
+    from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
+
+    return isinstance(obj, EvalsEvaluator)
+
+
 def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[EvaluatorName, Evaluator]:
     """Convert evaluators input to mapping by name."""
     evaluators_by_name: dict[EvaluatorName, Evaluator] = {}
     if obj is None:
         return evaluators_by_name
 
-    if isinstance(obj, Mapping):
+    elif isinstance(obj, Mapping):
         for name, value in obj.items():
-            evaluator = (
-                create_evaluator(name=name)(value) if not isinstance(value, Evaluator) else value
-            )
+            if _evals_installed() and _is_evals_evaluator(value):
+                evaluator = wrap_phoenix_evals_evaluator(value)
+            else:
+                evaluator = (
+                    create_evaluator(name=name)(value)
+                    if not isinstance(value, Evaluator)
+                    else value
+                )
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
         for value in obj:
-            evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
+            if _evals_installed() and _is_evals_evaluator(value):
+                evaluator = wrap_phoenix_evals_evaluator(value)
+            else:
+                evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
             evaluators_by_name[evaluator.name] = evaluator
     else:
-        evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
+        if _evals_installed() and _is_evals_evaluator(obj):
+            evaluator = wrap_phoenix_evals_evaluator(obj)
+        else:
+            evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
         evaluators_by_name[evaluator.name] = evaluator
 
     return evaluators_by_name
@@ -1278,7 +1312,7 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[EvaluationResult] = None
+        result: Optional[Union[EvaluationResult, "EvalsScore"]] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)
@@ -1311,6 +1345,24 @@ class Experiments:
                     example_id=example["id"],
                     repetition_number=experiment_run.get("repetition_number", 1),
                     kind="evaluator",
+                )
+
+            # Handle Evals v2 Score objects with duck typing
+            if result and not isinstance(result, dict):
+                score_val = getattr(result, "score", None)
+                label_val = getattr(result, "label", None)
+                explanation_val = getattr(result, "explanation", None)
+                result = cast(
+                    EvaluationResult,
+                    {
+                        k: v
+                        for k, v in (
+                            ("score", score_val),
+                            ("label", label_val),
+                            ("explanation", explanation_val),
+                        )
+                        if v is not None
+                    },
                 )
 
             if result:
@@ -2236,7 +2288,7 @@ class AsyncExperiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[EvaluationResult] = None
+        result: Optional[Union[EvaluationResult, "EvalsScore"]] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)
@@ -2269,6 +2321,24 @@ class AsyncExperiments:
                     example_id=example["id"],
                     repetition_number=experiment_run.get("repetition_number", 1),
                     kind="evaluator",
+                )
+
+            # Handle Evals v2 Score objects with duck typing
+            if result and not isinstance(result, dict):
+                score_val = getattr(result, "score", None)
+                label_val = getattr(result, "label", None)
+                explanation_val = getattr(result, "explanation", None)
+                result = cast(
+                    EvaluationResult,
+                    {
+                        k: v
+                        for k, v in (
+                            ("score", score_val),
+                            ("label", label_val),
+                            ("explanation", explanation_val),
+                        )
+                        if v is not None
+                    },
                 )
 
             if result:
