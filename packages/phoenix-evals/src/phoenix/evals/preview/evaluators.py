@@ -28,6 +28,19 @@ InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]]
 # --- Score model ---
 @dataclass(frozen=True)
 class Score:
+    """Score dataclass for evaluator results.
+
+    Attributes:
+        name (Optional[str]): The name of the score.
+        score (Optional[Union[float, int]]): The score value if applicable.
+        label (Optional[str]): The label of the score if applicable.
+        explanation (Optional[str]): The explanation of the score if applicable.
+        metadata (Dict[str, Any]): Any metadata attached the score as key-value pairs.
+        source (Optional[SourceType]): The source of the score (human, llm, or heuristic).
+        direction (DirectionType): The optimization direction of the score (maximize or minimize).
+            Defaults to "maximize".
+    """
+
     name: Optional[str] = None
     score: Optional[Union[float, int]] = None
     label: Optional[str] = None
@@ -73,8 +86,24 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
 class Evaluator(ABC):
     """
     Core abstraction for evaluators.
-    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `aevaluate`).
-    Supports single-record (`evaluate`) mode with optional per-call field_mapping.
+
+    Evaluators support both synchronous and asynchronous evaluation:
+    - `evaluator.evaluate(eval_input)` or `evaluator(eval_input)`
+    - `evaluator.aevaluate(eval_input)`
+
+    Single record evaluations return a list of `Score` objects. Often, this will be a list of
+    length 1, but some evaluators may return multiple scores for a single `eval_input`
+    (e.g. precision, recall or multi-criteria evals).
+
+    Evaluators have a well-defined `input_schema` that, if not provided at instantiation, is
+    inferred from the evaluator's signature when possible.
+
+    Evaluators accept an arbitrary `eval_input` payload, and an optional `input_mapping` to
+    map/transform the `eval_input` to match the `input_schema`. Input remapping is handled by the
+    base `Evaluator` class.
+
+    Inheritors of the base class only have to implement `_evaluate` and the remaining methods come
+    for free unless explicitly overwritten.
     """
 
     def __init__(
@@ -140,10 +169,6 @@ class Evaluator(ABC):
         """Validate and remap `eval_input` using the evaluator's input fields before calling
         `_evaluate`.
 
-        Uses the evaluator's input fields (from `input_schema` when available, otherwise from
-        the provided `input_mapping`). An optional per-call `input_mapping` maps evaluator-required
-        field names to keys/paths in `eval_input`.
-
         Args:
             eval_input (EvalInput): The input data to evaluate.
             input_mapping (Optional[InputMappingType]): Optional mapping from evaluator-required
@@ -154,6 +179,14 @@ class Evaluator(ABC):
 
         Raises:
             ValueError: If input validation fails.
+
+        Notes:
+            - Uses the evaluator's input fields (from `input_schema` when available, otherwise from
+            the provided `input_mapping`). An optional per-call `input_mapping` maps
+            evaluator-required field names to keys/paths in `eval_input`.
+            - Mapping is optional per-field; unspecified fields are read directly from `eval_input`.
+            - Evaluators are also directly callable: `scores = evaluator(eval_input)` is equivalent
+            to `scores = evaluator.evaluate(eval_input)`.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
@@ -345,6 +378,9 @@ class ClassificationEvaluator(LLMEvaluator):
     """
     LLM-based evaluator for classification tasks. Supports label-only or label+score mappings,
     and returns explanations by default.
+
+    If no `input_schema` is provided, it is dynamically created from the `prompt_template` variables
+    (assuming all variables are strings and required).
     """
 
     def __init__(
@@ -526,7 +562,7 @@ def create_evaluator(
         - A boolean (converted to integer Score.score and string Score.label)
         - A short string (≤3 words, converted to Score.label)
         - A long string (≥4 words, converted to Score.explanation)
-        - A dictionary with keys "score", "label", or "explanation"
+        - A dictionary with keys "score", "label", and/or "explanation"
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
@@ -748,9 +784,11 @@ class BoundEvaluator:
         Args:
             evaluator (Evaluator): The evaluator to bind.
             mapping (InputMappingType): The input mapping to bind to the evaluator.
+
+        Notes:
+            - Mapping is optional per-field; unspecified fields will be read directly from
+              `eval_input` using their field name.
         """
-        # Mapping is optional per-field; unspecified fields will be read directly
-        # from eval_input using their field name. Static syntax checks happen later.
         self._evaluator = evaluator
         self._mapping = mapping
 
@@ -854,6 +892,8 @@ def evaluate_dataframe(
       they will write to the same column (e.g., 'same_name_score'). This can lead to
       data loss as later scores overwrite earlier ones.
     - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
+    - Do not use dot notation in the dataframe column names e.g. "input.query" because it will
+      interfere with the input mapping.
     - Failed evaluations: If an evaluation fails, the failure details will be recorded
       in the execution_details column and the score will be None.
     """

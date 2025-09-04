@@ -70,11 +70,7 @@ class LLM:
     This wrapper delegates API access to SDK/client libraries that are installed in the active
     Python environment. To show supported providers, use `show_provider_availability()`.
 
-    Args:
-        provider (str): The name of the provider to use.
-        model (str): The name of the model to use.
-        client (Optional[str]): Optionally, name of the client to use. If not specified, the first
-            available client for the provider will be used.
+    The LLM class provides both synchronous and asynchronous methods for all operations.
 
     Examples:
         >>> from phoenix.evals.llm import LLM, show_provider_availability
@@ -102,6 +98,16 @@ class LLM:
         client: Optional[str] = None,
         initial_per_second_request_rate: Optional[float] = None,
     ):
+        """Initialize the LLM wrapper.
+
+        Args:
+            provider (str): The name of the provider to use.
+            model (str): The name of the model to use.
+            client (Optional[str]): Optionally, name of the client to use. If not specified, the
+                first available client for the provider will be used.
+            initial_per_second_request_rate (Optional[float]): Optionally, the initial per-second
+                request rate. If not specified, the default rate limit will be used.
+        """
         self.provider = provider
         self.model = model
 
