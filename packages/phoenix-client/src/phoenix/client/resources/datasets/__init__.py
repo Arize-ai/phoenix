@@ -1104,7 +1104,7 @@ class Datasets:
 
         response = self._client.delete(
             url="v1/datasets/examples/delete",
-            content=json.dumps(payload),
+            data=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
@@ -1851,7 +1851,7 @@ class AsyncDatasets:
 
         response = await self._client.delete(
             url="v1/datasets/examples/delete",
-            content=json.dumps(payload),
+            data=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
