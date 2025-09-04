@@ -1102,9 +1102,10 @@ class Datasets:
         if version_metadata is not None:
             payload["version_metadata"] = version_metadata
 
-        response = self._client.delete(
+        response = self._client.request(
+            method="DELETE",
             url="v1/datasets/examples/delete",
-            data=json.dumps(payload),
+            content=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
@@ -1849,9 +1850,10 @@ class AsyncDatasets:
         if version_metadata is not None:
             payload["version_metadata"] = version_metadata
 
-        response = await self._client.delete(
+        response = await self._client.request(
+            method="DELETE",
             url="v1/datasets/examples/delete",
-            data=json.dumps(payload),
+            content=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
