@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9f80a55dc15f1cf09f14af665745dc0>>
+ * @generated SignedSource<<2a4a1059533b32a00a08a535637db759>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -116,7 +116,7 @@ return {
               "args": [
                 {
                   "kind": "Variable",
-                  "name": "filterIds",
+                  "name": "experimentIds",
                   "variableName": "experimentIds"
                 }
               ],
@@ -232,6 +232,6 @@ return {
 };
 })();
 
-(node as any).hash = "936b49e6b7825e3d4373cfb03daf53b2";
+(node as any).hash = "49e9e9a341e0df5eef7216a2c1d47891";
 
 export default node;

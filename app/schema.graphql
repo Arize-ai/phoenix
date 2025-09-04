@@ -545,7 +545,7 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, experimentIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experiments(first: Int = 50, last: Int, after: String, before: String, filterIds: [ID!]): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentConnection!
   experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
 
@@ -1081,12 +1081,12 @@ type Experiment implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   name: String!
-  datasetVersionId: ID!
   projectName: String
   description: String
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
+  datasetVersionId: ID!
 
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!

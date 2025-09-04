@@ -220,7 +220,7 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-        filter_ids: Optional[
+        experiment_ids: Optional[
             list[GlobalID]
         ] = UNSET,  # this is a stopgap until a query DSL is implemented
     ) -> Connection[Experiment]:
@@ -245,9 +245,9 @@ class Dataset(Node):
             )
             query = query.where(search_filter)
 
-        if filter_ids:
+        if experiment_ids:
             filter_rowids = []
-            for filter_id in filter_ids:
+            for filter_id in experiment_ids:
                 try:
                     filter_rowids.append(
                         from_global_id_with_expected_type(

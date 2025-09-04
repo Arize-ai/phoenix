@@ -67,7 +67,7 @@ class DatasetExample(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-        filter_ids: Optional[list[GlobalID]] = UNSET,
+        experiment_ids: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Experiment]:
         connection_args = ConnectionArgs(
             first=first,
@@ -87,9 +87,9 @@ class DatasetExample(Node):
             .where(models.Experiment.id.in_(experiment_ids_subquery))
             .order_by(models.Experiment.id.asc())
         )
-        if filter_ids:
+        if experiment_ids:
             filter_rowids = []
-            for filter_id in filter_ids:
+            for filter_id in experiment_ids:
                 try:
                     experiment_rowid = from_global_id_with_expected_type(
                         filter_id, Experiment.__name__

@@ -183,7 +183,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       input
                       referenceOutput: output
                     }
-                    experiments(filterIds: $experimentIds) {
+                    experiments(experimentIds: $experimentIds) {
                       edges {
                         experiment: node {
                           id
@@ -231,7 +231,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   }
                 }
               }
-              experiments(filterIds: $experimentIds) {
+              experiments(experimentIds: $experimentIds) {
                 edges {
                   experiment: node {
                     id

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad91fda5a3e61696de1bb91ca93e6702>>
+ * @generated SignedSource<<dd34d42ce6109bf0f254f55e6154971a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -68,7 +68,7 @@ const node: ReaderFragment = {
               "args": [
                 {
                   "kind": "Variable",
-                  "name": "filterIds",
+                  "name": "experimentIds",
                   "variableName": "experimentIds"
                 }
               ],
@@ -135,6 +135,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "3f48f25489a511f201875e2e75dd691f";
+(node as any).hash = "1b747d955f14ff23651534930fa4880e";
 
 export default node;

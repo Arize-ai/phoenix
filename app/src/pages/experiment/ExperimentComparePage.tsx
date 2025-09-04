@@ -164,7 +164,7 @@ export function SelectedCompareExperiments({
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
-              experiments(filterIds: $experimentIds) {
+              experiments(experimentIds: $experimentIds) {
                 edges {
                   experiment: node {
                     id
