@@ -62,7 +62,7 @@ export async function logSpanAnnotations({
 
   const { data, error } = await client.POST("/v1/span_annotations", {
     params: {
-      query: sync ? { sync: true } : undefined,
+      query: { sync },
     },
     body: {
       data: spanAnnotations.map(toSpanAnnotationData),

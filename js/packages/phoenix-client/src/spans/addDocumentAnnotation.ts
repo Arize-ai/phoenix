@@ -51,7 +51,7 @@ export async function addDocumentAnnotation({
 
   const { data, error } = await client.POST("/v1/document_annotations", {
     params: {
-      query: sync ? { sync: true } : undefined,
+      query: { sync },
     },
     body: {
       data: [toDocumentAnnotationData(documentAnnotation)],

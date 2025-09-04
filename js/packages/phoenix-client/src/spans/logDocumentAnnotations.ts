@@ -64,7 +64,7 @@ export async function logDocumentAnnotations({
 
   const { data, error } = await client.POST("/v1/document_annotations", {
     params: {
-      query: sync ? { sync: true } : undefined,
+      query: { sync },
     },
     body: {
       data: documentAnnotations.map(toDocumentAnnotationData),
