@@ -119,10 +119,8 @@ type ExperimentRun =
 type ExperimentRunAnnotation =
   ExperimentRun["annotations"]["edges"][number]["annotation"];
 
-type TableRow = DatasetExample & {
-  id: string;
-  input: unknown;
-  referenceOutput: unknown;
+type TableRow = {
+  example: DatasetExample;
   runsMap: Record<string, ExperimentRun[]>;
 };
 
@@ -284,10 +282,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           {} as Record<string, ExperimentRun[]>
         );
         return {
-          ...example,
-          id: example.id,
-          input: example.revision.input,
-          referenceOutput: example.revision.referenceOutput,
+          example,
           runsMap,
         };
       }) || [],
@@ -316,7 +311,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       size="S"
                       onPress={() => {
                         setDialog(
-                          <ExampleDetailsDialog exampleId={row.original.id} />
+                          <ExampleDetailsDialog
+                            exampleId={row.original.example.id}
+                          />
                         );
                       }}
                     >
@@ -332,13 +329,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <Text
                   size="S"
                   color="text-500"
-                >{`example ${row.original.id}`}</Text>
+                >{`example ${row.original.example.id}`}</Text>
               </CellTop>
 
               <PaddedCell>
                 <LargeTextWrap>
                   <JSONText
-                    json={row.original.input}
+                    json={row.original.example.revision.input}
                     disableTitle
                     space={displayFullText ? 2 : 0}
                   />
@@ -1074,13 +1071,19 @@ function SelectedExampleDialog({
                       {...defaultCardProps}
                       extra={
                         <CopyToClipboardButton
-                          text={JSON.stringify(selectedExample.input)}
+                          text={JSON.stringify(
+                            selectedExample.example.revision.input
+                          )}
                         />
                       }
                     >
                       <View maxHeight="300px" overflow="auto">
                         <JSONBlock
-                          value={JSON.stringify(selectedExample.input, null, 2)}
+                          value={JSON.stringify(
+                            selectedExample.example.revision.input,
+                            null,
+                            2
+                          )}
                         />
                       </View>
                     </Card>
@@ -1091,14 +1094,16 @@ function SelectedExampleDialog({
                       {...defaultCardProps}
                       extra={
                         <CopyToClipboardButton
-                          text={JSON.stringify(selectedExample.referenceOutput)}
+                          text={JSON.stringify(
+                            selectedExample.example.revision.referenceOutput
+                          )}
                         />
                       }
                     >
                       <View maxHeight="300px" overflow="auto">
                         <JSONBlock
                           value={JSON.stringify(
-                            selectedExample.referenceOutput,
+                            selectedExample.example.revision.referenceOutput,
                             null,
                             2
                           )}
