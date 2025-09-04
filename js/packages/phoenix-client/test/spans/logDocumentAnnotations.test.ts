@@ -41,6 +41,7 @@ describe("logDocumentAnnotations", () => {
           annotatorKind: "CODE",
         },
       ],
+      sync: true,
     });
 
     expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
@@ -71,6 +72,7 @@ describe("logDocumentAnnotations", () => {
           annotatorKind: "CODE",
         },
       ],
+      sync: true,
     });
 
     expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
@@ -98,6 +100,7 @@ describe("logDocumentAnnotations", () => {
           score: 0.8,
         },
       ],
+      sync: true,
     });
 
     expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
@@ -126,12 +129,12 @@ describe("logDocumentAnnotations", () => {
     );
   });
 
-  it("should handle empty array", async () => {
-    const result = await logDocumentAnnotations({
-      documentAnnotations: [],
-    });
-
-    expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
+  it("should throw error for empty array like Python client", async () => {
+    await expect(
+      logDocumentAnnotations({
+        documentAnnotations: [],
+      })
+    ).rejects.toThrow("documentAnnotations cannot be empty");
   });
 
   it("should trim whitespace from string fields", async () => {
@@ -145,8 +148,25 @@ describe("logDocumentAnnotations", () => {
           explanation: "  Good document  ",
         },
       ],
+      sync: true,
     });
 
     expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
+  });
+
+  it("should return null when sync=false (default)", async () => {
+    const result = await logDocumentAnnotations({
+      documentAnnotations: [
+        {
+          spanId: "123abc",
+          documentPosition: 0,
+          name: "relevance_score",
+          label: "relevant",
+        },
+      ],
+      // sync defaults to false
+    });
+
+    expect(result).toBeNull();
   });
 });

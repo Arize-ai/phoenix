@@ -10,6 +10,12 @@ export interface LogDocumentAnnotationsParams extends ClientFn {
    * The document annotations to log
    */
   documentAnnotations: DocumentAnnotation[];
+  /**
+   * If true, the request will be fulfilled synchronously and return the annotation IDs.
+   * If false, the request will be processed asynchronously and return null.
+   * @default false
+   */
+  sync?: boolean;
 }
 
 /**
@@ -52,10 +58,19 @@ export interface LogDocumentAnnotationsParams extends ClientFn {
 export async function logDocumentAnnotations({
   client: _client,
   documentAnnotations,
-}: LogDocumentAnnotationsParams): Promise<{ id: string }[]> {
+  sync = false,
+}: LogDocumentAnnotationsParams): Promise<{ id: string }[] | null> {
   const client = _client ?? createClient();
 
+  // Validate input like Python client
+  if (documentAnnotations.length === 0) {
+    throw new Error("documentAnnotations cannot be empty");
+  }
+
   const { data, error } = await client.POST("/v1/document_annotations", {
+    params: {
+      query: sync ? { sync: true } : undefined,
+    },
     body: {
       data: documentAnnotations.map(toDocumentAnnotationData),
     },
@@ -63,6 +78,11 @@ export async function logDocumentAnnotations({
 
   if (error) {
     throw new Error(`Failed to log document annotations: ${error}`);
+  }
+
+  // Return null for async mode (matches Python client behavior)
+  if (!sync) {
+    return null;
   }
 
   if (!data?.data?.length) {

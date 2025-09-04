@@ -31,6 +31,7 @@ describe("addDocumentAnnotation", () => {
         annotatorKind: "LLM",
         metadata: { model: "gpt-4" },
       },
+      sync: true,
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
@@ -44,6 +45,7 @@ describe("addDocumentAnnotation", () => {
         name: "relevance_score",
         label: "relevant",
       },
+      sync: true,
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
@@ -57,6 +59,7 @@ describe("addDocumentAnnotation", () => {
         name: "relevance_score",
         score: 0.8,
       },
+      sync: true,
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
@@ -70,6 +73,7 @@ describe("addDocumentAnnotation", () => {
         name: "relevance_score",
         explanation: "Document provides good context",
       },
+      sync: true,
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
@@ -116,8 +120,23 @@ describe("addDocumentAnnotation", () => {
         label: "relevant",
         // annotatorKind not specified
       },
+      sync: true,
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
+  });
+
+  it("should return null when sync=false (default)", async () => {
+    const result = await addDocumentAnnotation({
+      documentAnnotation: {
+        spanId: "123abc",
+        documentPosition: 0,
+        name: "relevance_score",
+        label: "relevant",
+      },
+      // sync defaults to false
+    });
+
+    expect(result).toBeNull();
   });
 });

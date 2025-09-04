@@ -37,8 +37,24 @@ describe("logSpanAnnotations", () => {
           annotatorKind: "CODE",
         },
       ],
+      sync: true,
     });
 
     expect(result).toEqual([{ id: "test-id-1" }, { id: "test-id-2" }]);
+  });
+
+  it("should return null when sync=false (default)", async () => {
+    const result = await logSpanAnnotations({
+      spanAnnotations: [
+        {
+          spanId: "123abc",
+          name: "quality_score",
+          label: "good",
+        },
+      ],
+      // sync defaults to false
+    });
+
+    expect(result).toBeNull();
   });
 });

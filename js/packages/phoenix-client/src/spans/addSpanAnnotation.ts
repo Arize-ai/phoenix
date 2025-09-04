@@ -7,6 +7,12 @@ import { SpanAnnotation, toSpanAnnotationData } from "./types";
  */
 export interface AddSpanAnnotationParams extends ClientFn {
   spanAnnotation: SpanAnnotation;
+  /**
+   * If true, the request will be fulfilled synchronously and return the annotation ID.
+   * If false, the request will be processed asynchronously and return null.
+   * @default false
+   */
+  sync?: boolean;
 }
 
 /**
@@ -38,10 +44,14 @@ export interface AddSpanAnnotationParams extends ClientFn {
 export async function addSpanAnnotation({
   client: _client,
   spanAnnotation,
-}: AddSpanAnnotationParams): Promise<{ id: string }> {
+  sync = false,
+}: AddSpanAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
 
   const { data, error } = await client.POST("/v1/span_annotations", {
+    params: {
+      query: sync ? { sync: true } : undefined,
+    },
     body: {
       data: [toSpanAnnotationData(spanAnnotation)],
     },
@@ -49,6 +59,11 @@ export async function addSpanAnnotation({
 
   if (error) {
     throw new Error(`Failed to add span annotation: ${error}`);
+  }
+
+  // Return null for async mode (matches Python client behavior)
+  if (!sync) {
+    return null;
   }
 
   if (!data?.data?.[0]?.id) {

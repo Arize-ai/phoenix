@@ -10,6 +10,12 @@ export interface LogSpanAnnotationsParams extends ClientFn {
    * The span annotations to log
    */
   spanAnnotations: SpanAnnotation[];
+  /**
+   * If true, the request will be fulfilled synchronously and return the annotation IDs.
+   * If false, the request will be processed asynchronously and return null.
+   * @default false
+   */
+  sync?: boolean;
 }
 
 /**
@@ -50,10 +56,14 @@ export interface LogSpanAnnotationsParams extends ClientFn {
 export async function logSpanAnnotations({
   client: _client,
   spanAnnotations,
-}: LogSpanAnnotationsParams): Promise<{ id: string }[]> {
+  sync = false,
+}: LogSpanAnnotationsParams): Promise<{ id: string }[] | null> {
   const client = _client ?? createClient();
 
   const { data, error } = await client.POST("/v1/span_annotations", {
+    params: {
+      query: sync ? { sync: true } : undefined,
+    },
     body: {
       data: spanAnnotations.map(toSpanAnnotationData),
     },
@@ -61,6 +71,11 @@ export async function logSpanAnnotations({
 
   if (error) {
     throw new Error(`Failed to log span annotations: ${error}`);
+  }
+
+  // Return null for async mode (matches Python client behavior)
+  if (!sync) {
+    return null;
   }
 
   if (!data?.data?.length) {

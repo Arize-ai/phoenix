@@ -7,6 +7,12 @@ import { DocumentAnnotation, toDocumentAnnotationData } from "./types";
  */
 export interface AddDocumentAnnotationParams extends ClientFn {
   documentAnnotation: DocumentAnnotation;
+  /**
+   * If true, the request will be fulfilled synchronously and return the annotation ID.
+   * If false, the request will be processed asynchronously and return null.
+   * @default false
+   */
+  sync?: boolean;
 }
 
 /**
@@ -39,10 +45,14 @@ export interface AddDocumentAnnotationParams extends ClientFn {
 export async function addDocumentAnnotation({
   client: _client,
   documentAnnotation,
-}: AddDocumentAnnotationParams): Promise<{ id: string }> {
+  sync = false,
+}: AddDocumentAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
 
   const { data, error } = await client.POST("/v1/document_annotations", {
+    params: {
+      query: sync ? { sync: true } : undefined,
+    },
     body: {
       data: [toDocumentAnnotationData(documentAnnotation)],
     },
@@ -50,6 +60,11 @@ export async function addDocumentAnnotation({
 
   if (error) {
     throw new Error(`Failed to add document annotation: ${error}`);
+  }
+
+  // Return null for async mode (matches Python client behavior)
+  if (!sync) {
+    return null;
   }
 
   if (!data?.data?.[0]?.id) {
