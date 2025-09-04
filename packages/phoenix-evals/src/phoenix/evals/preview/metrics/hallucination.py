@@ -1,27 +1,4 @@
 # ruff: noqa: W291
-"""
-Description:
-A specialized evaluator for detecting hallucinations in grounded LLM responses.
-Uses an LLM with a pre-defined prompt and schema to classify responses as factual or hallucinated.
-
-
-Usage:
-
->>> from phoenix.evals.metrics.hallucination import HallucinationEvaluator
->>> from phoenix.evals.llm import LLM
->>> llm = LLM(provider="openai", model="gpt-4o-mini", client="openai")
->>> hallucination_eval = HallucinationEvaluator(llm=llm)
->>> eval_input = {
-...     "input": "What is the capital of France?",
-...     "output": "Paris is the capital of France.",
-...     "context": "Paris is the capital and largest city of France."
-... }
->>> scores = hallucination_eval(eval_input)
->>> print(scores)
-[Score(name='hallucination', score=1.0, label='factual',
-explanation='Information is supported by context', metadata={'model': 'mock-model'},
-source="llm", direction="maximize")]
-"""
 
 from pydantic import BaseModel, Field
 
@@ -32,6 +9,33 @@ from ..templating import Template
 
 # --- Built-in LLM evaluator: hallucination ---
 class HallucinationEvaluator(ClassificationEvaluator):
+    """
+    A specialized evaluator for detecting hallucinations in grounded LLM responses.
+
+    Behavior:
+    - Evaluates whether the output to an input is factual or hallucinated based on the context.
+    - Returns one `Score` with `label` (factual or hallucinated), `score` (1.0 if factual, 0.0 if
+        hallucinated), and an `explanation` from the LLM judge.
+    - Requires an LLM that supports tool calling or structured output.
+
+    Examples::
+
+    >>> from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+    >>> from phoenix.evals.llm import LLM
+    >>> llm = LLM(provider="openai", model="gpt-4o-mini")
+    >>> hallucination_eval = HallucinationEvaluator(llm=llm)
+    >>> eval_input = {
+    ...     "input": "What is the capital of France?",
+    ...     "output": "Paris is the capital of France.",
+    ...     "context": "Paris is the capital and largest city of France."
+    ... }
+    >>> scores = hallucination_eval.evaluate(eval_input)
+    >>> print(scores)
+    [Score(name='hallucination', score=1.0, label='factual',
+    explanation='Information is supported by context', metadata={'model': 'gpt-4o-mini'},
+    source="llm", direction="maximize")]
+    """
+
     NAME = "hallucination"
     PROMPT = Template(
         template="""
@@ -73,6 +77,14 @@ class HallucinationEvaluator(ClassificationEvaluator):
         self,
         llm: LLM,
     ):
+        """Initialize the HallucinationEvaluator.
+
+        Args:
+            llm (LLM): The LLM instance to use for the evaluation.
+
+        Notes:
+            - Requires an LLM that supports tool calling or structured output.
+        """
         super().__init__(
             name=self.NAME,
             llm=llm,
