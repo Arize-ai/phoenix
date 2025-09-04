@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.0...arize-phoenix-v11.32.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* support pydantic&lt;2.6 ([#9387](https://github.com/Arize-ai/phoenix/issues/9387)) ([868448e](https://github.com/Arize-ai/phoenix/commit/868448e109a809b906999837e332f596e6be398b))
+
 ## [11.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.31.0...arize-phoenix-v11.32.0) (2025-09-04)
 
 
