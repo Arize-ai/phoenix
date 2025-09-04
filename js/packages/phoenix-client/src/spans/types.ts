@@ -27,6 +27,10 @@ export interface SpanAnnotation {
    */
   score?: number;
   /**
+   * Explanation of the annotation result
+   */
+  explanation?: string;
+  /**
    * The identifier of the annotation. If provided, the annotation will be updated if it already exists.
    */
   identifier?: string;
@@ -82,39 +86,25 @@ export interface DocumentAnnotation {
   annotatorKind?: SpanDocumentAnnotationData["annotator_kind"];
 }
 
-/**
- * Convert a SpanAnnotation to the API format
- */
-export function toSpanAnnotationData(
-  annotation: SpanAnnotation
-): SpanAnnotationData {
-  return {
-    span_id: annotation.spanId,
-    name: annotation.name,
-    annotator_kind: annotation.annotatorKind ?? "HUMAN",
-    result: {
-      label: annotation.label ?? null,
-      score: annotation.score ?? null,
-      explanation: null,
-    },
-    metadata: annotation.metadata ?? null,
-    identifier: annotation.identifier ?? "",
-  };
-}
+type AnnotationResult = {
+  label?: string | null;
+  score?: number | null;
+  explanation?: string | null;
+};
 
 /**
- * Convert a DocumentAnnotation to the API format
+ * Build and validate annotation result fields
  */
-export function toDocumentAnnotationData(
-  annotation: DocumentAnnotation
-): SpanDocumentAnnotationData {
-  // At least one of label, score, or explanation must be provided
-  const result: {
-    label?: string | null;
-    score?: number | null;
-    explanation?: string | null;
-  } = {};
+function buildAnnotationResult(
+  annotation: Pick<
+    SpanAnnotation | DocumentAnnotation,
+    "label" | "score" | "explanation"
+  >,
+  annotationType: "span" | "document"
+): AnnotationResult {
+  const result: AnnotationResult = {};
 
+  // Build result with trimming for string fields
   if (annotation.label !== undefined) {
     result.label = annotation.label.trim() || null;
   }
@@ -126,16 +116,47 @@ export function toDocumentAnnotationData(
   }
 
   // Validate that at least one result field is provided
-  if (!result.label && result.score === undefined && !result.explanation) {
+  const hasValidResult =
+    result.label || result.score !== undefined || result.explanation;
+  if (!hasValidResult) {
     throw new Error(
-      "At least one of label, score, or explanation must be provided for document annotation"
+      `At least one of label, score, or explanation must be provided for ${annotationType} annotation`
     );
   }
 
+  return result;
+}
+
+/**
+ * Convert a SpanAnnotation to the API format
+ */
+export function toSpanAnnotationData(
+  annotation: SpanAnnotation
+): SpanAnnotationData {
+  const result = buildAnnotationResult(annotation, "span");
+
   return {
-    span_id: annotation.spanId,
+    span_id: annotation.spanId.trim(),
+    name: annotation.name.trim(),
+    annotator_kind: annotation.annotatorKind ?? "HUMAN",
+    result,
+    metadata: annotation.metadata ?? null,
+    identifier: annotation.identifier?.trim() ?? "",
+  };
+}
+
+/**
+ * Convert a DocumentAnnotation to the API format
+ */
+export function toDocumentAnnotationData(
+  annotation: DocumentAnnotation
+): SpanDocumentAnnotationData {
+  const result = buildAnnotationResult(annotation, "document");
+
+  return {
+    span_id: annotation.spanId.trim(),
     document_position: annotation.documentPosition,
-    name: annotation.name,
+    name: annotation.name.trim(),
     annotator_kind: annotation.annotatorKind ?? "HUMAN",
     result,
     metadata: annotation.metadata ?? null,

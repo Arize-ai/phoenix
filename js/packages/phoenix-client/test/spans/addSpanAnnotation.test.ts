@@ -46,11 +46,26 @@ describe("addSpanAnnotation", () => {
     expect(result).toEqual({ id: "test-id-1" });
   });
 
-  it("should add a span annotation with only required fields", async () => {
+  it("should add a span annotation with explanation", async () => {
     const result = await addSpanAnnotation({
       spanAnnotation: {
         spanId: "123abc",
         name: "quality_score",
+        explanation: "This is a detailed explanation",
+        annotatorKind: "LLM",
+      },
+      sync: true,
+    });
+
+    expect(result).toEqual({ id: "test-id-1" });
+  });
+
+  it("should add a span annotation with minimum required fields", async () => {
+    const result = await addSpanAnnotation({
+      spanAnnotation: {
+        spanId: "123abc",
+        name: "quality_score",
+        label: "good", // Now required - at least one result field needed
       },
       sync: true,
     });
@@ -75,5 +90,19 @@ describe("addSpanAnnotation", () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it("should throw error when no result fields are provided", async () => {
+    await expect(
+      addSpanAnnotation({
+        spanAnnotation: {
+          spanId: "123abc",
+          name: "quality_score",
+          // No label, score, or explanation provided
+        },
+      })
+    ).rejects.toThrow(
+      "At least one of label, score, or explanation must be provided for span annotation"
+    );
   });
 });
