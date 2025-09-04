@@ -473,18 +473,20 @@ class TestDatasetDeleting:
         rest_response = Mock()
         rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = rest_response
+        mock_datasets_client._client.request.return_value = rest_response
 
         # Test default behavior (returns None)
         result = mock_datasets_client.delete_examples(example_ids="ex1")
 
         # Verify REST API was called correctly
-        mock_datasets_client._client.post.assert_called_once()
-        call_args = mock_datasets_client._client.post.call_args
+        mock_datasets_client._client.request.assert_called_once()
+        call_args = mock_datasets_client._client.request.call_args
+        assert call_args[1]["method"] == "DELETE"
         assert call_args[1]["url"] == "v1/datasets/examples/delete"
 
         # Verify payload structure (REST format)
-        payload = call_args[1]["json"]
+        import json
+        payload = json.loads(call_args[1]["content"])
         assert payload["example_ids"] == ["ex1"]
         assert "version_description" not in payload
         assert "version_metadata" not in payload
