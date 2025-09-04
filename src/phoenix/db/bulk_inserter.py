@@ -23,6 +23,7 @@ from phoenix.db.insertion.helpers import (
     DataManipulationEvent,
     should_calculate_span_cost,
 )
+from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
@@ -277,10 +278,12 @@ class _QueueInserters:
         self._span_annotations = SpanAnnotationQueueInserter(*args)
         self._trace_annotations = TraceAnnotationQueueInserter(*args)
         self._document_annotations = DocumentAnnotationQueueInserter(*args)
+        self._session_annotations = SessionAnnotationQueueInserter(*args)
         self._queues = (
             self._span_annotations,
             self._trace_annotations,
             self._document_annotations,
+            self._session_annotations,
         )
 
     async def insert(self) -> AsyncIterator[DmlEvent]:
@@ -316,6 +319,11 @@ class _QueueInserters:
     @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
+
+    @_enqueue.register(Precursors.SessionAnnotation)
+    @_enqueue.register(Insertables.SessionAnnotation)
+    async def _(self, item: Precursors.SessionAnnotation) -> None:
+        await self._session_annotations.enqueue(item)
 
 
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
