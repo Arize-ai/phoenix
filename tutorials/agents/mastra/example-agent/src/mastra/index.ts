@@ -25,7 +25,10 @@ export const mastra = new Mastra({
       type: "custom",
       tracerName: "mastra-weather-agent",
       exporter: new OpenInferenceOTLPTraceExporter({
-        url: "http://localhost:6006/v1/traces",
+        url: process.env.PHOENIX_COLLECTOR_ENDPOINT + "/v1/traces",
+        headers: {
+          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+        },
         spanFilter: isOpenInferenceSpan,
       }),    
     },
