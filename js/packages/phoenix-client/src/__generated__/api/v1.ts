@@ -3437,8 +3437,8 @@ export interface operations {
             query?: {
                 /** @description Cursor for pagination (base64-encoded experiment run ID) */
                 cursor?: string | null;
-                /** @description The max number of experiment runs to return at a time. */
-                limit?: number;
+                /** @description The max number of experiment runs to return at a time. If not specified, returns all results. */
+                limit?: number | null;
             };
             header?: never;
             path: {

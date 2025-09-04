@@ -1641,13 +1641,19 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "description": "The max number of experiment runs to return at a time.",
-              "default": 50,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The max number of experiment runs to return at a time. If not specified, returns all results.",
               "title": "Limit"
             },
-            "description": "The max number of experiment runs to return at a time."
+            "description": "The max number of experiment runs to return at a time. If not specified, returns all results."
           }
         ],
         "responses": {

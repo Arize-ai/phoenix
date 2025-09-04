@@ -109,27 +109,35 @@ def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     )
 
 
-def _get_all_experiment_runs(client: httpx.Client, experiment_id: str) -> list[dict[str, Any]]:
+def _get_all_experiment_runs(
+    client: httpx.Client,
+    experiment_id: str,
+    page_size: int = 100,
+) -> list[ExperimentRun]:
     """
-    Fetch all experiment runs using pagination to avoid timeouts.
+    Fetch all experiment runs using pagination to handle large datasets.
 
     Args:
         client: The HTTP client to use for requests.
         experiment_id: The ID of the experiment.
+        page_size: Number of runs to fetch per page. Defaults to 100.
 
     Returns:
-        List of all experiment runs.
+        List of all experiment runs as ExperimentRun objects.
     """
-    all_runs = []
+    all_runs: list[dict[str, Any]] = []
     cursor = None
 
     while True:
-        params: dict[str, str] = {}
+        params: dict[str, Any] = {"limit": page_size}
         if cursor:
             params["cursor"] = cursor
 
         try:
-            response = client.get(f"/v1/experiments/{experiment_id}/runs", params=params)
+            response = client.get(
+                f"v1/experiments/{experiment_id}/runs",
+                params=params,
+            )
             response.raise_for_status()
             data = response.json()
 
@@ -148,7 +156,15 @@ def _get_all_experiment_runs(client: httpx.Client, experiment_id: str) -> list[d
             else:
                 raise
 
-    return all_runs
+    # Convert dicts to ExperimentRun objects
+    experiment_runs: list[ExperimentRun] = []
+    for run in all_runs:
+        # Parse datetime strings
+        run["start_time"] = datetime.fromisoformat(run["start_time"])
+        run["end_time"] = datetime.fromisoformat(run["end_time"])
+        experiment_runs.append(ExperimentRun.from_dict(run))
+
+    return experiment_runs
 
 
 Evaluators: TypeAlias = Union[
@@ -273,7 +289,7 @@ def run_experiment(
     }
     if not dry_run:
         experiment_response = sync_client.post(
-            f"/v1/datasets/{normalized_dataset.id}/experiments",
+            f"v1/datasets/{normalized_dataset.id}/experiments",
             json=payload,
         )
         experiment_response.raise_for_status()
@@ -345,7 +361,7 @@ def run_experiment(
                 try:
                     # Try to create the run directly
                     resp = sync_client.post(
-                        f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                        f"v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
                     )
                     resp.raise_for_status()
                     exp_run = replace(exp_run, id=resp.json()["data"]["id"])
@@ -423,7 +439,7 @@ def run_experiment(
             try:
                 # Try to create the run directly
                 resp = sync_client.post(
-                    f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                    f"v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
                 )
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
@@ -462,7 +478,7 @@ def run_experiment(
                         None,
                         functools.partial(
                             sync_client.post,
-                            url=f"/v1/experiments/{experiment.id}/runs",
+                            url=f"v1/experiments/{experiment.id}/runs",
                             json=jsonify(exp_run),
                         ),
                     )
@@ -540,7 +556,7 @@ def run_experiment(
                     None,
                     functools.partial(
                         sync_client.post,
-                        url=f"/v1/experiments/{experiment.id}/runs",
+                        url=f"v1/experiments/{experiment.id}/runs",
                         json=jsonify(exp_run),
                     ),
                 )
@@ -590,13 +606,7 @@ def run_experiment(
 
     # Get the final state of runs from the database
     if not dry_run:
-        all_runs = _get_all_experiment_runs(sync_client, experiment.id)
-        task_runs = []
-        for run in all_runs:
-            # Parse datetime strings
-            run["start_time"] = datetime.fromisoformat(run["start_time"])
-            run["end_time"] = datetime.fromisoformat(run["end_time"])
-            task_runs.append(ExperimentRun.from_dict(run))
+        task_runs = _get_all_experiment_runs(sync_client, experiment.id)
 
         # Check if we got all expected runs
         expected_runs = len(normalized_dataset.examples) * repetitions
@@ -655,14 +665,14 @@ def evaluate_experiment(
     else:
         dataset = Dataset.from_dict(
             sync_client.get(
-                f"/v1/datasets/{dataset_id}/examples",
+                f"v1/datasets/{dataset_id}/examples",
                 params={"version_id": str(dataset_version_id)},
             ).json()["data"]
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
         all_runs = _get_all_experiment_runs(sync_client, experiment.id)
-        experiment_runs = {exp_run["id"]: ExperimentRun.from_dict(exp_run) for exp_run in all_runs}
+        experiment_runs = {exp_run.id: exp_run for exp_run in all_runs}
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
         params = ExperimentParameters(n_examples=len(dataset.examples))
@@ -755,7 +765,7 @@ def evaluate_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
+            resp = sync_client.post("v1/experiment_evaluations", json=jsonify(eval_run))
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
@@ -817,7 +827,7 @@ def evaluate_experiment(
                 None,
                 functools.partial(
                     sync_client.post,
-                    url="/v1/experiment_evaluations",
+                    url="v1/experiment_evaluations",
                     json=jsonify(eval_run),
                 ),
             )

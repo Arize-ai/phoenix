@@ -153,8 +153,11 @@ async def list_experiment_runs(
         default=None,
         description="Cursor for pagination (base64-encoded experiment run ID)",
     ),
-    limit: int = Query(
-        default=50, description="The max number of experiment runs to return at a time.", gt=0
+    limit: Optional[int] = Query(
+        default=None,
+        description="The max number of experiment runs to return at a time. "
+        "If not specified, returns all results.",
+        gt=0,
     ),
 ) -> ListExperimentRunsResponseBody:
     experiment_gid = GlobalID.from_id(experiment_id)
@@ -184,7 +187,10 @@ async def list_experiment_runs(
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 
-        stmt = stmt.limit(limit + 1)
+        # Apply limit only if specified for pagination
+        if limit is not None:
+            stmt = stmt.limit(limit + 1)
+
         experiment_runs = await session.execute(stmt)
         experiment_runs = experiment_runs.scalars().all()
 
@@ -192,7 +198,8 @@ async def list_experiment_runs(
             return ListExperimentRunsResponseBody(next_cursor=None, data=[])
 
         next_cursor = None
-        if len(experiment_runs) == limit + 1:
+        # Only check for next cursor if limit was specified
+        if limit is not None and len(experiment_runs) == limit + 1:
             last_run = experiment_runs[-1]
             next_cursor = str(GlobalID("ExperimentRun", str(last_run.id)))
             experiment_runs = experiment_runs[:-1]

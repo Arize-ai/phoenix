@@ -624,13 +624,7 @@ class Experiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
-            task_runs_from_db: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(cast(ExperimentRun, run))
-            task_runs = task_runs_from_db
+            task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -676,26 +670,34 @@ class Experiments:
 
         return ran_experiment
 
-    def _get_all_experiment_runs(self, *, experiment_id: str) -> list[dict[str, Any]]:
+    def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 100,
+    ) -> list[ExperimentRun]:
         """
-        Fetch all experiment runs using pagination to avoid timeouts.
+        Fetch all experiment runs using pagination to handle large datasets.
 
         Args:
             experiment_id (str): The ID of the experiment.
 
         Returns:
-            list[dict[str, Any]]: List of all experiment runs.
+            list[ExperimentRun]: List of all experiment runs.
         """
         all_runs: list[dict[str, Any]] = []
         cursor: Optional[str] = None
 
         while True:
-            params: dict[str, str] = {}
+            params: dict[str, Any] = {"limit": page_size}
             if cursor:
                 params["cursor"] = cursor
 
             try:
-                response = self._client.get(f"v1/experiments/{experiment_id}/runs", params=params)
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
                 response.raise_for_status()
                 data: dict[str, Any] = response.json()
 
@@ -714,7 +716,12 @@ class Experiments:
                 else:
                     raise
 
-        return all_runs
+        # Convert dicts to ExperimentRun objects
+        experiment_runs: list[ExperimentRun] = []
+        for run in all_runs:
+            experiment_runs.append(cast(ExperimentRun, run))
+
+        return experiment_runs
 
     def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
@@ -757,8 +764,16 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Get all experiment runs using pagination
-        runs_data = self._get_all_experiment_runs(experiment_id=experiment_id)
+        try:
+            runs_response = self._client.get(f"v1/experiments/{experiment_id}/runs")
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                runs_data = []
+            else:
+                raise
 
         try:
             json_response = self._client.get(f"v1/experiments/{experiment_id}/json")
@@ -809,7 +824,7 @@ class Experiments:
                 if eval_result is not None:
                     eval_run = ExperimentEvaluationRun(
                         id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # Generate temp ID
-                        experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        experiment_run_id=task_run["id"],  # pyright: ignore [reportUnknownArgumentType]
                         start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
@@ -1572,13 +1587,7 @@ class AsyncExperiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
-            async_task_runs: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(cast(ExperimentRun, run))
-            task_runs = async_task_runs
+            task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -1625,27 +1634,34 @@ class AsyncExperiments:
 
         return ran_experiment
 
-    async def _get_all_experiment_runs(self, *, experiment_id: str) -> list[dict[str, Any]]:
+    async def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 100,
+    ) -> list[ExperimentRun]:
         """
-        Fetch all experiment runs using pagination to avoid timeouts.
+        Fetch all experiment runs using pagination to handle large datasets.
 
         Args:
             experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 100.
 
         Returns:
-            list[dict[str, Any]]: List of all experiment runs.
+            list[ExperimentRun]: List of all experiment runs.
         """
         all_runs: list[dict[str, Any]] = []
         cursor: Optional[str] = None
 
         while True:
-            params: dict[str, str] = {}
+            params: dict[str, Any] = {"limit": page_size}
             if cursor:
                 params["cursor"] = cursor
 
             try:
                 response = await self._client.get(
-                    f"v1/experiments/{experiment_id}/runs", params=params
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
                 )
                 response.raise_for_status()
                 data: dict[str, Any] = response.json()
@@ -1665,7 +1681,12 @@ class AsyncExperiments:
                 else:
                     raise
 
-        return all_runs
+        # Convert dicts to ExperimentRun objects
+        experiment_runs: list[ExperimentRun] = []
+        for run in all_runs:
+            experiment_runs.append(cast(ExperimentRun, run))
+
+        return experiment_runs
 
     async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
@@ -1708,8 +1729,16 @@ class AsyncExperiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Get all experiment runs using pagination
-        runs_data = await self._get_all_experiment_runs(experiment_id=experiment_id)
+        try:
+            runs_response = await self._client.get(f"v1/experiments/{experiment_id}/runs")
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                runs_data = []
+            else:
+                raise
 
         try:
             json_response = await self._client.get(f"v1/experiments/{experiment_id}/json")
