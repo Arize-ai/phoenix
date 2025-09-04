@@ -63,6 +63,9 @@ const tableWrapCSS = css`
   }
 `;
 
+type Example =
+  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["example"];
+
 type ExperimentRun =
   ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
@@ -71,37 +74,35 @@ type Experiment = NonNullable<
 >["edges"][number]["experiment"];
 
 type TableRow = {
-  id: string;
-  example: string;
-  input: unknown;
-  referenceOutput: unknown;
+  id: Example["id"];
+  example: Example["id"];
+  input: Example["revision"]["input"];
+  referenceOutput: Example["revision"]["referenceOutput"];
   outputs: {
-    baseExperimentValue: unknown;
-    compareExperimentValues: unknown[];
+    baseExperimentValue: ExperimentRun["output"];
+    compareExperimentValues: (ExperimentRun["output"] | undefined)[];
   };
   tokens: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
+    baseExperimentValue: ExperimentRun["costSummary"]["total"]["tokens"];
+    compareExperimentValues: (
+      | ExperimentRun["costSummary"]["total"]["tokens"]
+      | undefined
+    )[];
   };
   latencyMs: {
     baseExperimentValue: number;
     compareExperimentValues: (number | null | undefined)[];
   };
   cost: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
+    baseExperimentValue: ExperimentRun["costSummary"]["total"]["cost"];
+    compareExperimentValues: (
+      | ExperimentRun["costSummary"]["total"]["cost"]
+      | undefined
+    )[];
   };
   annotations: {
-    baseExperimentValue: {
-      name: string;
-      score: number | null;
-      label: string | null;
-    }[];
-    compareExperimentValues: {
-      name: string;
-      score: number | null;
-      label: string | null;
-    }[][];
+    baseExperimentValue: ExperimentRun["annotations"]["edges"][number]["annotation"][];
+    compareExperimentValues: ExperimentRun["annotations"]["edges"][number]["annotation"][][];
   };
 };
 
