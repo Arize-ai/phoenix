@@ -151,7 +151,7 @@ def _get_all_experiment_runs(
 
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                # Experiment exists but has no runs
+                # Experiment doesn't exist - treat as empty result
                 break
             else:
                 raise
