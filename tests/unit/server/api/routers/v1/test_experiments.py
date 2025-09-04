@@ -298,95 +298,99 @@ async def test_experiment_runs_pagination(
     """Test pagination functionality for experiment runs endpoint."""
     dataset_gid = GlobalID("Dataset", "0")
 
-    # Create an experiment
-    created_experiment = (
+    # Create experiment and runs
+    experiment = (
         await httpx_client.post(
             f"v1/datasets/{dataset_gid}/experiments",
             json={"version_id": None, "repetitions": 1},
         )
     ).json()["data"]
 
-    experiment_gid = created_experiment["id"]
-    version_gid = created_experiment["dataset_version_id"]
-
-    # Get dataset examples
     dataset_examples = (
         await httpx_client.get(
             f"v1/datasets/{dataset_gid}/examples",
-            params={"version_id": str(version_gid)},
+            params={"version_id": str(experiment["dataset_version_id"])},
         )
     ).json()["data"]["examples"]
 
-    # Create multiple experiment runs (5 runs for testing pagination)
-    created_run_ids = []
+    # Create 5 runs for pagination testing
+    created_runs = []
     for i in range(5):
-        run_payload = {
-            "dataset_example_id": str(dataset_examples[0]["id"]),
-            "trace_id": f"trace-{i}",
-            "output": f"output-{i}",
-            "repetition_number": i + 1,
-            "start_time": datetime.datetime.now().isoformat(),
-            "end_time": datetime.datetime.now().isoformat(),
-        }
-        created_run = (
+        run = (
             await httpx_client.post(
-                f"v1/experiments/{experiment_gid}/runs",
-                json=run_payload,
+                f"v1/experiments/{experiment['id']}/runs",
+                json={
+                    "dataset_example_id": str(dataset_examples[0]["id"]),
+                    "trace_id": f"trace-{i}",
+                    "output": f"output-{i}",
+                    "repetition_number": i + 1,
+                    "start_time": datetime.datetime.now().isoformat(),
+                    "end_time": datetime.datetime.now().isoformat(),
+                },
             )
         ).json()["data"]
-        created_run_ids.append(created_run["id"])
+        created_runs.append(run["id"])
 
-    # Test 1: Get all runs without pagination (backward compatibility)
-    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/runs")
-    assert response.status_code == 200
-    all_runs = response.json()
+    def get_numeric_ids(run_ids):
+        """Helper to extract numeric IDs for comparison."""
+        return [int(GlobalID.from_id(run_id).node_id) for run_id in run_ids]
+
+    # Expected order: descending by numeric ID
+    expected_ids = sorted(get_numeric_ids(created_runs), reverse=True)  # [5, 4, 3, 2, 1]
+
+    async def get_runs(limit=None, cursor=None):
+        """Helper to fetch runs with optional pagination."""
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        if cursor is not None:
+            params["cursor"] = cursor
+        response = await httpx_client.get(f"v1/experiments/{experiment['id']}/runs", params=params)
+        assert response.status_code == 200
+        return response.json()
+
+    # Test: No pagination (backward compatibility)
+    all_runs = await get_runs()
     assert len(all_runs["data"]) == 5
-    assert all_runs["next_cursor"] is None  # No cursor when getting all results
+    assert all_runs["next_cursor"] is None
+    all_runs_ids = [run["id"] for run in all_runs["data"]]
+    assert get_numeric_ids(all_runs_ids) == expected_ids
 
-    # Test 2: Get runs with pagination (limit=2)
-    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/runs", params={"limit": 2})
-    assert response.status_code == 200
-    page1 = response.json()
+    # Test: Page-by-page pagination with exact content validation
+    page1 = await get_runs(limit=2)
     assert len(page1["data"]) == 2
-    assert page1["next_cursor"] is not None  # Should have cursor for next page
+    assert page1["next_cursor"] is not None
+    page1_ids = get_numeric_ids([run["id"] for run in page1["data"]])
+    assert page1_ids == expected_ids[:2]  # [5, 4]
+    assert GlobalID.from_id(page1["next_cursor"]).node_id == str(expected_ids[2])  # "3"
 
-    # Test 3: Get next page using cursor
-    response = await httpx_client.get(
-        f"v1/experiments/{experiment_gid}/runs", params={"limit": 2, "cursor": page1["next_cursor"]}
-    )
-    assert response.status_code == 200
-    page2 = response.json()
+    page2 = await get_runs(limit=2, cursor=page1["next_cursor"])
     assert len(page2["data"]) == 2
-    assert page2["next_cursor"] is not None  # Should have cursor for next page
+    assert page2["next_cursor"] is not None
+    page2_ids = get_numeric_ids([run["id"] for run in page2["data"]])
+    assert page2_ids == expected_ids[2:4]  # [3, 2]
+    assert GlobalID.from_id(page2["next_cursor"]).node_id == str(expected_ids[4])  # "1"
 
-    # Test 4: Get final page
+    page3 = await get_runs(limit=2, cursor=page2["next_cursor"])
+    assert len(page3["data"]) == 1
+    assert page3["next_cursor"] is None
+    page3_ids = get_numeric_ids([run["id"] for run in page3["data"]])
+    assert page3_ids == expected_ids[4:5]  # [1]
+
+    # Test: Aggregated pagination equals non-paginated
+    paginated_ids = page1_ids + page2_ids + page3_ids
+    assert paginated_ids == expected_ids
+    paginated_run_ids = [run["id"] for run in page1["data"] + page2["data"] + page3["data"]]
+    assert paginated_run_ids == all_runs_ids
+
+    # Test: Large limit (no pagination)
+    large_limit = await get_runs(limit=100)
+    assert len(large_limit["data"]) == 5
+    assert large_limit["next_cursor"] is None
+    assert get_numeric_ids([run["id"] for run in large_limit["data"]]) == expected_ids
+
+    # Test: Invalid cursor
     response = await httpx_client.get(
-        f"v1/experiments/{experiment_gid}/runs", params={"limit": 2, "cursor": page2["next_cursor"]}
+        f"v1/experiments/{experiment['id']}/runs", params={"limit": 2, "cursor": "invalid-cursor"}
     )
-    assert response.status_code == 200
-    page3 = response.json()
-    assert len(page3["data"]) == 1  # Last page has remaining 1 run
-    assert page3["next_cursor"] is None  # No more pages
-
-    # Test 5: Verify no duplicate runs across pages
-    all_paginated_ids = []
-    for page in [page1, page2, page3]:
-        all_paginated_ids.extend([run["id"] for run in page["data"]])
-
-    assert len(all_paginated_ids) == 5  # Total runs
-    assert len(set(all_paginated_ids)) == 5  # No duplicates
-
-    # Test 6: Test invalid cursor format
-    response = await httpx_client.get(
-        f"v1/experiments/{experiment_gid}/runs", params={"limit": 2, "cursor": "invalid-cursor"}
-    )
-    assert response.status_code == 422  # Unprocessable entity for invalid cursor
-
-    # Test 7: Test large limit (should return all runs)
-    response = await httpx_client.get(
-        f"v1/experiments/{experiment_gid}/runs", params={"limit": 100}
-    )
-    assert response.status_code == 200
-    large_limit_result = response.json()
-    assert len(large_limit_result["data"]) == 5
-    assert large_limit_result["next_cursor"] is None  # No more pages
+    assert response.status_code == 422
