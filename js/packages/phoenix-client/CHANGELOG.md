@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 3.2.0
+
+### Minor Changes
+
+- 4f43901: add support for logging document annotations
+
 ## 3.1.0
 
 ### Minor Changes
