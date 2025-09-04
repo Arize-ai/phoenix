@@ -70,41 +70,6 @@ type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type TableRow = {
-  id: string;
-  example: string;
-  input: unknown;
-  referenceOutput: unknown;
-  outputs: {
-    baseExperimentValue: unknown;
-    compareExperimentValues: unknown[];
-  };
-  tokens: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  latencyMs: {
-    baseExperimentValue: number;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  cost: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  annotations: {
-    baseExperimentValue: {
-      name: string;
-      score: number | null;
-      label: string | null;
-    }[];
-    compareExperimentValues: {
-      name: string;
-      score: number | null;
-      label: string | null;
-    }[][];
-  };
-};
-
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
@@ -233,7 +198,7 @@ export function ExperimentCompareListPage() {
     );
   }, [aggregateData?.dataset]);
 
-  const tableData: TableRow[] = useMemo(() => {
+  const tableData = useMemo(() => {
     return (
       data?.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
@@ -300,6 +265,8 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
+
+  type TableRow = (typeof tableData)[number];
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -680,6 +647,7 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} mean score`}
                       />
                     ) : (
                       <ProgressBarPlaceholder />
@@ -731,6 +699,7 @@ export function ExperimentCompareListPage() {
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
+                    aria-label={`${annotationSummary.annotationName} score`}
                   />
                 ) : (
                   <ProgressBarPlaceholder />
@@ -767,6 +736,7 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} score`}
                       />
                     ) : (
                       <ProgressBarPlaceholder />
