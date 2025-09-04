@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from enum import Enum
 from typing import Any, Literal, Mapping, Optional, Union
 
@@ -127,11 +125,6 @@ class PromptTemplateRootModel(RootModel[PromptTemplate]):
     root: PromptTemplate
 
 
-class PromptToolFunction(DBBaseModel):
-    type: Literal["function"]
-    function: PromptToolFunctionDefinition
-
-
 class PromptToolFunctionDefinition(DBBaseModel):
     name: str
     description: str = UNDEFINED
@@ -139,14 +132,12 @@ class PromptToolFunctionDefinition(DBBaseModel):
     strict: bool = UNDEFINED
 
 
+class PromptToolFunction(DBBaseModel):
+    type: Literal["function"]
+    function: PromptToolFunctionDefinition
+
+
 PromptTool: TypeAlias = Annotated[Union[PromptToolFunction], Field(..., discriminator="type")]
-
-
-class PromptTools(DBBaseModel):
-    type: Literal["tools"]
-    tools: Annotated[list[PromptTool], Field(..., min_length=1)]
-    tool_choice: PromptToolChoice = UNDEFINED
-    disable_parallel_tool_calls: bool = UNDEFINED
 
 
 class PromptToolChoiceNone(DBBaseModel):
@@ -177,6 +168,13 @@ PromptToolChoice: TypeAlias = Annotated[
 ]
 
 
+class PromptTools(DBBaseModel):
+    type: Literal["tools"]
+    tools: Annotated[list[PromptTool], Field(..., min_length=1)]
+    tool_choice: PromptToolChoice = UNDEFINED
+    disable_parallel_tool_calls: bool = UNDEFINED
+
+
 class PromptOpenAIJSONSchema(DBBaseModel):
     """
     Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L13
@@ -200,16 +198,16 @@ class PromptOpenAIResponseFormatJSONSchema(DBBaseModel):
     type: Literal["json_schema"]
 
 
-class PromptResponseFormatJSONSchema(DBBaseModel):
-    type: Literal["json_schema"]
-    json_schema: PromptResponseFormatJSONSchemaDefinition
-
-
 class PromptResponseFormatJSONSchemaDefinition(DBBaseModel):
     name: str
     description: str = UNDEFINED
     schema_: dict[str, Any] = Field(UNDEFINED, alias="schema")
     strict: bool = UNDEFINED
+
+
+class PromptResponseFormatJSONSchema(DBBaseModel):
+    type: Literal["json_schema"]
+    json_schema: PromptResponseFormatJSONSchemaDefinition
 
 
 PromptResponseFormat: TypeAlias = Annotated[
