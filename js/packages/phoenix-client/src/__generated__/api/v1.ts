@@ -223,9 +223,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post?: never;
         /** Delete examples from a dataset */
-        post: operations["deleteDatasetExamples"];
-        delete?: never;
+        delete: operations["deleteDatasetExamples"];
         options?: never;
         head?: never;
         patch?: never;
