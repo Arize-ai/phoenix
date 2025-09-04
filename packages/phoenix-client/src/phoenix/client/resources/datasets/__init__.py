@@ -1101,9 +1101,10 @@ class Datasets:
         if version_metadata is not None:
             payload["version_metadata"] = version_metadata
 
+        import json
         response = self._client.delete(
             url="v1/datasets/examples/delete",
-            json=payload,
+            content=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
