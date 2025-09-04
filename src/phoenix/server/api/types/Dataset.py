@@ -1,6 +1,5 @@
-from collections.abc import AsyncIterable
 from datetime import datetime
-from typing import ClassVar, Optional, cast
+from typing import ClassVar, Optional
 
 import strawberry
 from sqlalchemy import and_, func, or_, select
@@ -262,10 +261,7 @@ class Dataset(Node):
 
         experiments = []
         async with info.context.db() as session:
-            async for experiment, sequence_number in cast(
-                AsyncIterable[tuple[models.Experiment, int]],
-                await session.stream(query),
-            ):
+            async for experiment, sequence_number in await session.stream(query):
                 gql_experiment = to_gql_experiment(experiment)
                 gql_experiment.cached_sequence_number = sequence_number
                 experiments.append(gql_experiment)
