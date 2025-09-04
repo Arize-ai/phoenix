@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { addSpanAnnotation } from "../../src/spans/addSpanAnnotation";
 
+// Create mock POST function
+const mockPOST = vi.fn();
+
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({
   default: () => ({
-    POST: vi.fn().mockResolvedValue({
+    POST: mockPOST.mockResolvedValue({
       data: {
         data: [{ id: "test-id-1" }],
       },
@@ -17,6 +20,13 @@ describe("addSpanAnnotation", () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    // Reset default mock behavior
+    mockPOST.mockResolvedValue({
+      data: {
+        data: [{ id: "test-id-1" }],
+      },
+      error: null,
+    });
   });
 
   it("should add a span annotation with all fields", async () => {
@@ -49,6 +59,12 @@ describe("addSpanAnnotation", () => {
   });
 
   it("should return null when sync=false (default)", async () => {
+    // Mock server returns no data for async calls
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: undefined,
+    });
+
     const result = await addSpanAnnotation({
       spanAnnotation: {
         spanId: "123abc",

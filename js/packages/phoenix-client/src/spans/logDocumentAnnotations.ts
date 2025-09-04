@@ -59,13 +59,8 @@ export async function logDocumentAnnotations({
   client: _client,
   documentAnnotations,
   sync = false,
-}: LogDocumentAnnotationsParams): Promise<{ id: string }[] | null> {
+}: LogDocumentAnnotationsParams): Promise<{ id: string }[]> {
   const client = _client ?? createClient();
-
-  // Validate input like Python client
-  if (documentAnnotations.length === 0) {
-    throw new Error("documentAnnotations cannot be empty");
-  }
 
   const { data, error } = await client.POST("/v1/document_annotations", {
     params: {
@@ -80,13 +75,8 @@ export async function logDocumentAnnotations({
     throw new Error(`Failed to log document annotations: ${error}`);
   }
 
-  // Return null for async mode (matches Python client behavior)
-  if (!sync) {
-    return null;
-  }
-
   if (!data?.data?.length) {
-    throw new Error("No annotation IDs returned from server");
+    return [];
   }
 
   return data.data;

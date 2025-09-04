@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { addDocumentAnnotation } from "../../src/spans/addDocumentAnnotation";
 
+// Create mock POST function
+const mockPOST = vi.fn();
+
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({
   default: () => ({
-    POST: vi.fn().mockResolvedValue({
+    POST: mockPOST.mockResolvedValue({
       data: {
         data: [{ id: "test-doc-id-1" }],
       },
@@ -17,6 +20,13 @@ describe("addDocumentAnnotation", () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    // Reset default mock behavior
+    mockPOST.mockResolvedValue({
+      data: {
+        data: [{ id: "test-doc-id-1" }],
+      },
+      error: null,
+    });
   });
 
   it("should add a document annotation with all fields", async () => {
@@ -127,6 +137,12 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should return null when sync=false (default)", async () => {
+    // Mock server returns no data for async calls
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: undefined,
+    });
+
     const result = await addDocumentAnnotation({
       documentAnnotation: {
         spanId: "123abc",

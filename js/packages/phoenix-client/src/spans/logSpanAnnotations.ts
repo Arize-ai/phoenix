@@ -57,7 +57,7 @@ export async function logSpanAnnotations({
   client: _client,
   spanAnnotations,
   sync = false,
-}: LogSpanAnnotationsParams): Promise<{ id: string }[] | null> {
+}: LogSpanAnnotationsParams): Promise<{ id: string }[]> {
   const client = _client ?? createClient();
 
   const { data, error } = await client.POST("/v1/span_annotations", {
@@ -73,13 +73,8 @@ export async function logSpanAnnotations({
     throw new Error(`Failed to log span annotations: ${error}`);
   }
 
-  // Return null for async mode (matches Python client behavior)
-  if (!sync) {
-    return null;
-  }
-
   if (!data?.data?.length) {
-    throw new Error("No annotation IDs returned from server");
+    return [];
   }
 
   return data.data;

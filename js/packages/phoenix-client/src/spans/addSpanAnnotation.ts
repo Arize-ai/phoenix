@@ -61,13 +61,8 @@ export async function addSpanAnnotation({
     throw new Error(`Failed to add span annotation: ${error}`);
   }
 
-  // Return null for async mode (matches Python client behavior)
-  if (!sync) {
+  if (!data?.data?.length) {
     return null;
-  }
-
-  if (!data?.data?.[0]?.id) {
-    throw new Error("No annotation ID returned from server");
   }
 
   return data.data[0];

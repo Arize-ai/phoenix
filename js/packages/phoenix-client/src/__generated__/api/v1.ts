@@ -4,4876 +4,4971 @@
  */
 
 export interface paths {
-    "/v1/annotation_configs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List annotation configurations
-         * @description Retrieve a paginated list of all annotation configurations in the system.
-         */
-        get: operations["list_annotation_configs_v1_annotation_configs_get"];
-        put?: never;
-        /** Create an annotation configuration */
-        post: operations["create_annotation_config_v1_annotation_configs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/v1/annotation_configs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/annotation_configs/{config_identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get an annotation configuration by ID or name */
-        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List annotation configurations
+     * @description Retrieve a paginated list of all annotation configurations in the system.
+     */
+    get: operations["list_annotation_configs_v1_annotation_configs_get"];
+    put?: never;
+    /** Create an annotation configuration */
+    post: operations["create_annotation_config_v1_annotation_configs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/annotation_configs/{config_identifier}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/annotation_configs/{config_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update an annotation configuration */
-        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
-        post?: never;
-        /** Delete an annotation configuration */
-        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get an annotation configuration by ID or name */
+    get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/annotation_configs/{config_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/projects/{project_identifier}/span_annotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get span annotations for a list of span_ids. */
-        get: operations["listSpanAnnotationsBySpanIds"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Update an annotation configuration */
+    put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+    post?: never;
+    /** Delete an annotation configuration */
+    delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{project_identifier}/span_annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List datasets */
-        get: operations["listDatasets"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get span annotations for a list of span_ids. */
+    get: operations["listSpanAnnotationsBySpanIds"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get dataset by ID */
-        get: operations["getDataset"];
-        put?: never;
-        post?: never;
-        /** Delete dataset by ID */
-        delete: operations["deleteDatasetById"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List datasets */
+    get: operations["listDatasets"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List dataset versions */
-        get: operations["listDatasetVersionsByDatasetId"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get dataset by ID */
+    get: operations["getDataset"];
+    put?: never;
+    post?: never;
+    /** Delete dataset by ID */
+    delete: operations["deleteDatasetById"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Upload dataset from JSON, CSV, or PyArrow */
-        post: operations["uploadDataset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List dataset versions */
+    get: operations["listDatasetVersionsByDatasetId"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/upload": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}/examples": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get examples from a dataset */
-        get: operations["getDatasetExamples"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Upload dataset from JSON, CSV, or PyArrow */
+    post: operations["uploadDataset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}/examples": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download dataset examples as CSV file */
-        get: operations["getDatasetCsv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get examples from a dataset */
+    get: operations["getDatasetExamples"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}/csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}/jsonl/openai_ft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download dataset examples as OpenAI fine-tuning JSONL file */
-        get: operations["getDatasetJSONLOpenAIFineTuning"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Download dataset examples as CSV file */
+    get: operations["getDatasetCsv"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}/jsonl/openai_ft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{id}/jsonl/openai_evals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download dataset examples as OpenAI evals JSONL file */
-        get: operations["getDatasetJSONLOpenAIEvals"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Download dataset examples as OpenAI fine-tuning JSONL file */
+    get: operations["getDatasetJSONLOpenAIFineTuning"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{id}/jsonl/openai_evals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/datasets/{dataset_id}/experiments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List experiments by dataset */
-        get: operations["listExperiments"];
-        put?: never;
-        /** Create experiment on a dataset */
-        post: operations["createExperiment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Download dataset examples as OpenAI evals JSONL file */
+    get: operations["getDatasetJSONLOpenAIEvals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/datasets/{dataset_id}/experiments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/experiments/{experiment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get experiment by ID */
-        get: operations["getExperiment"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List experiments by dataset */
+    get: operations["listExperiments"];
+    put?: never;
+    /** Create experiment on a dataset */
+    post: operations["createExperiment"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/experiments/{experiment_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/experiments/{experiment_id}/json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download experiment runs as a JSON file */
-        get: operations["getExperimentJSON"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get experiment by ID */
+    get: operations["getExperiment"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/experiments/{experiment_id}/json": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/experiments/{experiment_id}/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download experiment runs as a CSV file */
-        get: operations["getExperimentCSV"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Download experiment runs as a JSON file */
+    get: operations["getExperimentJSON"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/experiments/{experiment_id}/csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/experiments/{experiment_id}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List runs for an experiment
-         * @description Retrieve a paginated list of runs for an experiment
-         */
-        get: operations["listExperimentRuns"];
-        put?: never;
-        /** Create run for an experiment */
-        post: operations["createExperimentRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Download experiment runs as a CSV file */
+    get: operations["getExperimentCSV"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/experiments/{experiment_id}/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/experiment_evaluations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create or update evaluation for an experiment run */
-        post: operations["upsertExperimentEvaluation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List runs for an experiment
+     * @description Retrieve a paginated list of runs for an experiment
+     */
+    get: operations["listExperimentRuns"];
+    put?: never;
+    /** Create run for an experiment */
+    post: operations["createExperimentRun"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/experiment_evaluations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/traces/{trace_identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a trace by identifier
-         * @description Delete an entire trace by its identifier. The identifier can be either:
-         *     1. A Relay node ID (base64-encoded)
-         *     2. An OpenTelemetry trace_id (hex string)
-         *
-         *     This will permanently remove all spans in the trace and their associated data.
-         */
-        delete: operations["deleteTrace"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Create or update evaluation for an experiment run */
+    post: operations["upsertExperimentEvaluation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/traces/{trace_identifier}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/projects/{project_identifier}/spans/otlpv1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
-         */
-        get: operations["spanSearch"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a trace by identifier
+     * @description Delete an entire trace by its identifier. The identifier can be either:
+     *     1. A Relay node ID (base64-encoded)
+     *     2. An OpenTelemetry trace_id (hex string)
+     *
+     *     This will permanently remove all spans in the trace and their associated data.
+     */
+    delete: operations["deleteTrace"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{project_identifier}/spans/otlpv1": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/projects/{project_identifier}/spans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
-         */
-        get: operations["getSpans"];
-        put?: never;
-        /**
-         * Create spans
-         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
-         */
-        post: operations["createSpans"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Search spans with simple filters (no DSL)
+     * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+     */
+    get: operations["spanSearch"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{project_identifier}/spans": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/span_annotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create span annotations */
-        post: operations["annotateSpans"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List spans with simple filters (no DSL)
+     * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+     */
+    get: operations["getSpans"];
+    put?: never;
+    /**
+     * Create spans
+     * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
+     */
+    post: operations["createSpans"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/span_annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/spans/{span_identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a span by span_identifier
-         * @description Delete a single span by identifier.
-         *
-         *             **Important**: This operation deletes ONLY the specified span itself and does NOT
-         *             delete its descendants/children. All child spans will remain in the trace and
-         *             become orphaned (their parent_id will point to a non-existent span).
-         *
-         *             Behavior:
-         *             - Deletes only the target span (preserves all descendant spans)
-         *             - If this was the last span in the trace, the trace record is also deleted
-         *             - If the deleted span had a parent, its cumulative metrics (error count, token counts)
-         *               are subtracted from all ancestor spans in the chain
-         *
-         *             **Note**: This operation is irreversible and may create orphaned spans.
-         */
-        delete: operations["deleteSpan"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Create span annotations */
+    post: operations["annotateSpans"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/spans/{span_identifier}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/evaluations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get span, trace, or document evaluations from a project */
-        get: operations["getEvaluations"];
-        put?: never;
-        /** Add span, trace, or document evaluations */
-        post: operations["addEvaluations"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a span by span_identifier
+     * @description Delete a single span by identifier.
+     *
+     *             **Important**: This operation deletes ONLY the specified span itself and does NOT
+     *             delete its descendants/children. All child spans will remain in the trace and
+     *             become orphaned (their parent_id will point to a non-existent span).
+     *
+     *             Behavior:
+     *             - Deletes only the target span (preserves all descendant spans)
+     *             - If this was the last span in the trace, the trace record is also deleted
+     *             - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+     *               are subtracted from all ancestor spans in the chain
+     *
+     *             **Note**: This operation is irreversible and may create orphaned spans.
+     */
+    delete: operations["deleteSpan"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all prompts
-         * @description Retrieve a paginated list of all prompts in the system. A prompt can have multiple versions.
-         */
-        get: operations["getPrompts"];
-        put?: never;
-        /**
-         * Create a new prompt
-         * @description Create a new prompt and its initial version. A prompt can have multiple versions.
-         */
-        post: operations["postPromptVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get span, trace, or document evaluations from a project */
+    get: operations["getEvaluations"];
+    put?: never;
+    /** Add span, trace, or document evaluations */
+    post: operations["addEvaluations"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompts/{prompt_identifier}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List prompt versions
-         * @description Retrieve all versions of a specific prompt with pagination support. Each prompt can have multiple versions with different configurations.
-         */
-        get: operations["listPromptVersions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List all prompts
+     * @description Retrieve a paginated list of all prompts in the system. A prompt can have multiple versions.
+     */
+    get: operations["getPrompts"];
+    put?: never;
+    /**
+     * Create a new prompt
+     * @description Create a new prompt and its initial version. A prompt can have multiple versions.
+     */
+    post: operations["postPromptVersion"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompts/{prompt_identifier}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompt_versions/{prompt_version_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get prompt version by ID
-         * @description Retrieve a specific prompt version using its unique identifier. A prompt version contains the actual template and configuration.
-         */
-        get: operations["getPromptVersionByPromptVersionId"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List prompt versions
+     * @description Retrieve all versions of a specific prompt with pagination support. Each prompt can have multiple versions with different configurations.
+     */
+    get: operations["listPromptVersions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompt_versions/{prompt_version_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get prompt version by tag
-         * @description Retrieve a specific prompt version using its tag name. Tags are used to identify specific versions of a prompt.
-         */
-        get: operations["getPromptVersionByTagName"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get prompt version by ID
+     * @description Retrieve a specific prompt version using its unique identifier. A prompt version contains the actual template and configuration.
+     */
+    get: operations["getPromptVersionByPromptVersionId"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompts/{prompt_identifier}/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get latest prompt version
-         * @description Retrieve the most recent version of a specific prompt.
-         */
-        get: operations["getPromptVersionLatest"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get prompt version by tag
+     * @description Retrieve a specific prompt version using its tag name. Tags are used to identify specific versions of a prompt.
+     */
+    get: operations["getPromptVersionByTagName"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompts/{prompt_identifier}/latest": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/prompt_versions/{prompt_version_id}/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List prompt version tags
-         * @description Retrieve all tags associated with a specific prompt version. Tags are used to identify and categorize different versions of a prompt.
-         */
-        get: operations["getPromptVersionTags"];
-        put?: never;
-        /**
-         * Add tag to prompt version
-         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
-         */
-        post: operations["createPromptVersionTag"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get latest prompt version
+     * @description Retrieve the most recent version of a specific prompt.
+     */
+    get: operations["getPromptVersionLatest"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompt_versions/{prompt_version_id}/tags": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all projects
-         * @description Retrieve a paginated list of all projects in the system.
-         */
-        get: operations["getProjects"];
-        put?: never;
-        /**
-         * Create a new project
-         * @description Create a new project with the specified configuration.
-         */
-        post: operations["createProject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List prompt version tags
+     * @description Retrieve all tags associated with a specific prompt version. Tags are used to identify and categorize different versions of a prompt.
+     */
+    get: operations["getPromptVersionTags"];
+    put?: never;
+    /**
+     * Add tag to prompt version
+     * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
+     */
+    post: operations["createPromptVersionTag"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/projects/{project_identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get project by ID or name
-         * @description Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
-         */
-        get: operations["getProject"];
-        /**
-         * Update a project by ID or name
-         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
-         */
-        put: operations["updateProject"];
-        post?: never;
-        /**
-         * Delete a project by ID or name
-         * @description Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
-         */
-        delete: operations["deleteProject"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List all projects
+     * @description Retrieve a paginated list of all projects in the system.
+     */
+    get: operations["getProjects"];
+    put?: never;
+    /**
+     * Create a new project
+     * @description Create a new project with the specified configuration.
+     */
+    post: operations["createProject"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{project_identifier}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/document_annotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Annotate Span Documents */
-        post: operations["annotateSpanDocuments"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get project by ID or name
+     * @description Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
+     */
+    get: operations["getProject"];
+    /**
+     * Update a project by ID or name
+     * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
+     */
+    put: operations["updateProject"];
+    post?: never;
+    /**
+     * Delete a project by ID or name
+     * @description Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
+     */
+    delete: operations["deleteProject"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/document_annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all users
-         * @description Retrieve a paginated list of all users in the system.
-         */
-        get: operations["getUsers"];
-        put?: never;
-        /**
-         * Create a new user
-         * @description Create a new user with the specified configuration.
-         */
-        post: operations["createUser"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Annotate Span Documents */
+    post: operations["annotateSpanDocuments"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a user by ID
-         * @description Delete an existing user by their unique GlobalID.
-         */
-        delete: operations["deleteUser"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List all users
+     * @description Retrieve a paginated list of all users in the system.
+     */
+    get: operations["getUsers"];
+    put?: never;
+    /**
+     * Create a new user
+     * @description Create a new user with the specified configuration.
+     */
+    post: operations["createUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/users/{user_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a user by ID
+     * @description Delete an existing user by their unique GlobalID.
+     */
+    delete: operations["deleteUser"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AnnotateSpanDocumentsRequestBody */
-        AnnotateSpanDocumentsRequestBody: {
-            /** Data */
-            data: components["schemas"]["SpanDocumentAnnotationData"][];
-        };
-        /** AnnotateSpanDocumentsResponseBody */
-        AnnotateSpanDocumentsResponseBody: {
-            /** Data */
-            data: components["schemas"]["InsertedSpanDocumentAnnotation"][];
-        };
-        /** AnnotateSpansRequestBody */
-        AnnotateSpansRequestBody: {
-            /** Data */
-            data: components["schemas"]["SpanAnnotationData"][];
-        };
-        /** AnnotateSpansResponseBody */
-        AnnotateSpansResponseBody: {
-            /** Data */
-            data: components["schemas"]["InsertedSpanAnnotation"][];
-        };
-        /** AnnotationResult */
-        AnnotationResult: {
-            /**
-             * Label
-             * @description The label assigned by the annotation
-             */
-            label?: string | null;
-            /**
-             * Score
-             * @description The score assigned by the annotation
-             */
-            score?: number | null;
-            /**
-             * Explanation
-             * @description Explanation of the annotation result
-             */
-            explanation?: string | null;
-        };
-        /** CategoricalAnnotationConfig */
-        CategoricalAnnotationConfig: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CATEGORICAL";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Values */
-            values: components["schemas"]["CategoricalAnnotationValue"][];
-            /** Id */
-            id: string;
-        };
-        /** CategoricalAnnotationConfigData */
-        CategoricalAnnotationConfigData: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CATEGORICAL";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Values */
-            values: components["schemas"]["CategoricalAnnotationValue"][];
-        };
-        /** CategoricalAnnotationValue */
-        CategoricalAnnotationValue: {
-            /** Label */
-            label: string;
-            /** Score */
-            score?: number | null;
-        };
-        /** ContinuousAnnotationConfig */
-        ContinuousAnnotationConfig: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CONTINUOUS";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Lower Bound */
-            lower_bound?: number | null;
-            /** Upper Bound */
-            upper_bound?: number | null;
-            /** Id */
-            id: string;
-        };
-        /** ContinuousAnnotationConfigData */
-        ContinuousAnnotationConfigData: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CONTINUOUS";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Lower Bound */
-            lower_bound?: number | null;
-            /** Upper Bound */
-            upper_bound?: number | null;
-        };
-        /** CreateAnnotationConfigData */
-        CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
-        /** CreateAnnotationConfigResponseBody */
-        CreateAnnotationConfigResponseBody: {
-            /** Data */
-            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
-        };
-        /**
-         * CreateExperimentRequestBody
-         * @description Details of the experiment to be created
-         */
-        CreateExperimentRequestBody: {
-            /**
-             * Name
-             * @description Name of the experiment (if omitted, a random name will be generated)
-             */
-            name?: string | null;
-            /**
-             * Description
-             * @description An optional description of the experiment
-             */
-            description?: string | null;
-            /**
-             * Metadata
-             * @description Metadata for the experiment
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Version Id
-             * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
-             */
-            version_id?: string | null;
-            /**
-             * Repetitions
-             * @description Number of times the experiment should be repeated for each example
-             * @default 1
-             */
-            repetitions?: number;
-        };
-        /** CreateExperimentResponseBody */
-        CreateExperimentResponseBody: {
-            data: components["schemas"]["Experiment"];
-        };
-        /** CreateExperimentRunRequestBody */
-        CreateExperimentRunRequestBody: {
-            /**
-             * Dataset Example Id
-             * @description The ID of the dataset example used in the experiment run
-             */
-            dataset_example_id: string;
-            /**
-             * Output
-             * @description The output of the experiment task
-             */
-            output: unknown;
-            /**
-             * Repetition Number
-             * @description The repetition number of the experiment run
-             */
-            repetition_number: number;
-            /**
-             * Start Time
-             * Format: date-time
-             * @description The start time of the experiment run
-             */
-            start_time: string;
-            /**
-             * End Time
-             * Format: date-time
-             * @description The end time of the experiment run
-             */
-            end_time: string;
-            /**
-             * Trace Id
-             * @description The ID of the corresponding trace (if one exists)
-             */
-            trace_id?: string | null;
-            /**
-             * Error
-             * @description Optional error message if the experiment run encountered an error
-             */
-            error?: string | null;
-        };
-        /** CreateExperimentRunResponseBody */
-        CreateExperimentRunResponseBody: {
-            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
-        };
-        /** CreateExperimentRunResponseBodyData */
-        CreateExperimentRunResponseBodyData: {
-            /**
-             * Id
-             * @description The ID of the newly created experiment run
-             */
-            id: string;
-        };
-        /** CreateProjectRequestBody */
-        CreateProjectRequestBody: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-        };
-        /** CreateProjectResponseBody */
-        CreateProjectResponseBody: {
-            data: components["schemas"]["Project"];
-        };
-        /** CreatePromptRequestBody */
-        CreatePromptRequestBody: {
-            prompt: components["schemas"]["PromptData"];
-            version: components["schemas"]["PromptVersionData"];
-        };
-        /** CreatePromptResponseBody */
-        CreatePromptResponseBody: {
-            data: components["schemas"]["PromptVersion"];
-        };
-        /** CreateSpansRequestBody */
-        CreateSpansRequestBody: {
-            /** Data */
-            data: components["schemas"]["Span"][];
-        };
-        /** CreateSpansResponseBody */
-        CreateSpansResponseBody: {
-            /**
-             * Total Received
-             * @description Total number of spans received
-             */
-            total_received: number;
-            /**
-             * Total Queued
-             * @description Number of spans successfully queued for insertion
-             */
-            total_queued: number;
-        };
-        /** CreateUserRequestBody */
-        CreateUserRequestBody: {
-            /** User */
-            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"];
-            /**
-             * Send Welcome Email
-             * @default true
-             */
-            send_welcome_email?: boolean;
-        };
-        /** CreateUserResponseBody */
-        CreateUserResponseBody: {
-            /** Data */
-            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"];
-        };
-        /** Dataset */
-        Dataset: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Description */
-            description: string | null;
-            /** Metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Example Count */
-            example_count: number;
-        };
-        /** DatasetExample */
-        DatasetExample: {
-            /** Id */
-            id: string;
-            /** Input */
-            input: {
-                [key: string]: unknown;
-            };
-            /** Output */
-            output: {
-                [key: string]: unknown;
-            };
-            /** Metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** DatasetVersion */
-        DatasetVersion: {
-            /** Version Id */
-            version_id: string;
-            /** Description */
-            description: string | null;
-            /** Metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** DatasetWithExampleCount */
-        DatasetWithExampleCount: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Description */
-            description: string | null;
-            /** Metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Example Count */
-            example_count: number;
-        };
-        /** DeleteAnnotationConfigResponseBody */
-        DeleteAnnotationConfigResponseBody: {
-            /** Data */
-            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
-        };
-        /** Experiment */
-        Experiment: {
-            /**
-             * Id
-             * @description The ID of the experiment
-             */
-            id: string;
-            /**
-             * Dataset Id
-             * @description The ID of the dataset associated with the experiment
-             */
-            dataset_id: string;
-            /**
-             * Dataset Version Id
-             * @description The ID of the dataset version associated with the experiment
-             */
-            dataset_version_id: string;
-            /**
-             * Repetitions
-             * @description Number of times the experiment is repeated
-             */
-            repetitions: number;
-            /**
-             * Metadata
-             * @description Metadata of the experiment
-             */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Project Name
-             * @description The name of the project associated with the experiment
-             */
-            project_name: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             * @description The creation timestamp of the experiment
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description The last update timestamp of the experiment
-             */
-            updated_at: string;
-        };
-        /** ExperimentEvaluationResult */
-        ExperimentEvaluationResult: {
-            /**
-             * Label
-             * @description The label assigned by the evaluation
-             */
-            label?: string | null;
-            /**
-             * Score
-             * @description The score assigned by the evaluation
-             */
-            score?: number | null;
-            /**
-             * Explanation
-             * @description Explanation of the evaluation result
-             */
-            explanation?: string | null;
-        };
-        /** ExperimentRunResponse */
-        ExperimentRunResponse: {
-            /**
-             * Dataset Example Id
-             * @description The ID of the dataset example used in the experiment run
-             */
-            dataset_example_id: string;
-            /**
-             * Output
-             * @description The output of the experiment task
-             */
-            output: unknown;
-            /**
-             * Repetition Number
-             * @description The repetition number of the experiment run
-             */
-            repetition_number: number;
-            /**
-             * Start Time
-             * Format: date-time
-             * @description The start time of the experiment run
-             */
-            start_time: string;
-            /**
-             * End Time
-             * Format: date-time
-             * @description The end time of the experiment run
-             */
-            end_time: string;
-            /**
-             * Trace Id
-             * @description The ID of the corresponding trace (if one exists)
-             */
-            trace_id?: string | null;
-            /**
-             * Error
-             * @description Optional error message if the experiment run encountered an error
-             */
-            error?: string | null;
-            /**
-             * Id
-             * @description The ID of the experiment run
-             */
-            id: string;
-            /**
-             * Experiment Id
-             * @description The ID of the experiment
-             */
-            experiment_id: string;
-        };
-        /** FreeformAnnotationConfig */
-        FreeformAnnotationConfig: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "FREEFORM";
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-        };
-        /** FreeformAnnotationConfigData */
-        FreeformAnnotationConfigData: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "FREEFORM";
-            /** Description */
-            description?: string | null;
-        };
-        /** GetAnnotationConfigResponseBody */
-        GetAnnotationConfigResponseBody: {
-            /** Data */
-            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
-        };
-        /** GetAnnotationConfigsResponseBody */
-        GetAnnotationConfigsResponseBody: {
-            /** Data */
-            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** GetDatasetResponseBody */
-        GetDatasetResponseBody: {
-            data: components["schemas"]["DatasetWithExampleCount"];
-        };
-        /** GetExperimentResponseBody */
-        GetExperimentResponseBody: {
-            data: components["schemas"]["Experiment"];
-        };
-        /** GetProjectResponseBody */
-        GetProjectResponseBody: {
-            data: components["schemas"]["Project"];
-        };
-        /** GetProjectsResponseBody */
-        GetProjectsResponseBody: {
-            /** Data */
-            data: components["schemas"]["Project"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** GetPromptResponseBody */
-        GetPromptResponseBody: {
-            data: components["schemas"]["PromptVersion"];
-        };
-        /** GetPromptVersionTagsResponseBody */
-        GetPromptVersionTagsResponseBody: {
-            /** Data */
-            data: components["schemas"]["PromptVersionTag"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** GetPromptVersionsResponseBody */
-        GetPromptVersionsResponseBody: {
-            /** Data */
-            data: components["schemas"]["PromptVersion"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** GetPromptsResponseBody */
-        GetPromptsResponseBody: {
-            /** Data */
-            data: components["schemas"]["Prompt"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** GetUsersResponseBody */
-        GetUsersResponseBody: {
-            /** Data */
-            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"])[];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** Identifier */
-        Identifier: string;
-        /** InsertedSpanAnnotation */
-        InsertedSpanAnnotation: {
-            /**
-             * Id
-             * @description The ID of the inserted span annotation
-             */
-            id: string;
-        };
-        /** InsertedSpanDocumentAnnotation */
-        InsertedSpanDocumentAnnotation: {
-            /**
-             * Id
-             * @description The ID of the inserted span document annotation
-             */
-            id: string;
-        };
-        /** ListDatasetExamplesData */
-        ListDatasetExamplesData: {
-            /** Dataset Id */
-            dataset_id: string;
-            /** Version Id */
-            version_id: string;
-            /** Examples */
-            examples: components["schemas"]["DatasetExample"][];
-        };
-        /** ListDatasetExamplesResponseBody */
-        ListDatasetExamplesResponseBody: {
-            data: components["schemas"]["ListDatasetExamplesData"];
-        };
-        /** ListDatasetVersionsResponseBody */
-        ListDatasetVersionsResponseBody: {
-            /** Data */
-            data: components["schemas"]["DatasetVersion"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** ListDatasetsResponseBody */
-        ListDatasetsResponseBody: {
-            /** Data */
-            data: components["schemas"]["Dataset"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** ListExperimentRunsResponseBody */
-        ListExperimentRunsResponseBody: {
-            /** Data */
-            data: components["schemas"]["ExperimentRunResponse"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** ListExperimentsResponseBody */
-        ListExperimentsResponseBody: {
-            /** Data */
-            data: components["schemas"]["Experiment"][];
-        };
-        /** LocalUser */
-        LocalUser: {
-            /** Id */
-            id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "LOCAL";
-            /** Password */
-            password?: string;
-            /** Password Needs Reset */
-            password_needs_reset: boolean;
-        };
-        /** LocalUserData */
-        LocalUserData: {
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "LOCAL";
-            /** Password */
-            password?: string;
-        };
-        /**
-         * ModelProvider
-         * @enum {string}
-         */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS";
-        /** OAuth2User */
-        OAuth2User: {
-            /** Id */
-            id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "OAUTH2";
-            /** Oauth2 Client Id */
-            oauth2_client_id?: string;
-            /** Oauth2 User Id */
-            oauth2_user_id?: string;
-            /** Profile Picture Url */
-            profile_picture_url?: string;
-        };
-        /** OAuth2UserData */
-        OAuth2UserData: {
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "OAUTH2";
-            /** Oauth2 Client Id */
-            oauth2_client_id?: string;
-            /** Oauth2 User Id */
-            oauth2_user_id?: string;
-        };
-        /**
-         * OptimizationDirection
-         * @enum {string}
-         */
-        OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
-        /** OtlpAnyValue */
-        OtlpAnyValue: {
-            array_value?: components["schemas"]["OtlpArrayValue"] | null;
-            /** Bool Value */
-            bool_value?: boolean | null;
-            /** Bytes Value */
-            bytes_value?: string | null;
-            /** Double Value */
-            double_value?: number | components["schemas"]["OtlpDoubleValue"] | string | null;
-            /** Int Value */
-            int_value?: number | string | null;
-            /** Kvlist Value */
-            kvlist_value?: null;
-            /** String Value */
-            string_value?: string | null;
-        };
-        /** OtlpArrayValue */
-        OtlpArrayValue: {
-            /**
-             * Values
-             * @description Array of values. The array may be empty (contain 0 elements).
-             */
-            values?: components["schemas"]["OtlpAnyValue"][] | null;
-        };
-        /**
-         * OtlpDoubleValue
-         * @enum {string}
-         */
-        OtlpDoubleValue: "Infinity" | "-Infinity" | "NaN";
-        /** OtlpEvent */
-        OtlpEvent: {
-            /**
-             * Attributes
-             * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
-             */
-            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
-            /**
-             * Dropped Attributes Count
-             * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
-             */
-            dropped_attributes_count?: number | null;
-            /**
-             * Name
-             * @description name of the event. This field is semantically required to be set to non-empty string.
-             */
-            name?: string | null;
-            /**
-             * Time Unix Nano
-             * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
-             */
-            time_unix_nano?: number | string | null;
-        };
-        /** OtlpKeyValue */
-        OtlpKeyValue: {
-            /** Key */
-            key?: string | null;
-            value?: components["schemas"]["OtlpAnyValue"] | null;
-        };
-        /**
-         * OtlpKind
-         * @enum {string}
-         */
-        OtlpKind: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
-        /** OtlpSpan */
-        OtlpSpan: {
-            /**
-             * Attributes
-             * @description attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:
-             *
-             *         "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
-             *         "/http/server_latency": 300
-             *         "example.com/myattribute": true
-             *         "example.com/score": 10.239
-             *
-             *     The OpenTelemetry API specification further restricts the allowed value types:
-             *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
-             *     Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
-             */
-            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
-            /**
-             * Dropped Attributes Count
-             * @description dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped.
-             */
-            dropped_attributes_count?: number | null;
-            /**
-             * Dropped Events Count
-             * @description dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped.
-             */
-            dropped_events_count?: number | null;
-            /**
-             * Dropped Links Count
-             * @description dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped.
-             */
-            dropped_links_count?: number | null;
-            /**
-             * End Time Unix Nano
-             * @description end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.
-             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
-             *
-             *     This field is semantically required and it is expected that end_time >= start_time.
-             */
-            end_time_unix_nano?: number | string | null;
-            /**
-             * Events
-             * @description events is a collection of Event items. A span with no events is valid.
-             */
-            events?: components["schemas"]["OtlpEvent"][] | null;
-            /**
-             * Flags
-             * @description Flags, a bit field.
-             *
-             *     Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
-             *
-             *     See https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.
-             *
-             *     Bits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).
-             *     To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
-             *     To read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
-             *
-             *     When creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.
-             *     Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
-             *
-             *     [Optional].
-             */
-            flags?: number | null;
-            /**
-             * Kind
-             * @description Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.
-             * @default SPAN_KIND_INTERNAL
-             */
-            kind?: components["schemas"]["OtlpKind"] | number | null;
-            /** Links */
-            links?: null;
-            /**
-             * Name
-             * @description A description of the span's operation.
-             *
-             *     For example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.
-             *
-             *     This field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.
-             *
-             *     This field is required.
-             */
-            name?: string | null;
-            /**
-             * Parent Span Id
-             * @description The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array.
-             */
-            parent_span_id?: string | null;
-            /**
-             * Span Id
-             * @description A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
-             *
-             *     This field is required.
-             */
-            span_id?: string | null;
-            /**
-             * Start Time Unix Nano
-             * @description start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.
-             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
-             *
-             *     This field is semantically required and it is expected that end_time >= start_time.
-             */
-            start_time_unix_nano?: number | string | null;
-            /** @description An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0). */
-            status?: components["schemas"]["OtlpStatus"] | null;
-            /**
-             * Trace Id
-             * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
-             *
-             *     This field is required.
-             */
-            trace_id?: string | null;
-            /**
-             * Trace State
-             * @description trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header
-             *     See also https://github.com/w3c/distributed-tracing for more details about this field.
-             */
-            trace_state?: string | null;
-        };
-        /**
-         * OtlpSpansResponseBody
-         * @description Paginated response where each span follows OTLP JSON structure.
-         */
-        OtlpSpansResponseBody: {
-            /** Data */
-            data: components["schemas"]["OtlpSpan"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** OtlpStatus */
-        OtlpStatus: {
-            /**
-             * Code
-             * @description The status code.
-             */
-            code?: number | null;
-            /**
-             * Message
-             * @description A developer-facing human readable error message.
-             */
-            message?: string | null;
-        };
-        /** Project */
-        Project: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-        };
-        /** Prompt */
-        Prompt: {
-            name: components["schemas"]["Identifier"];
-            /** Description */
-            description?: string | null;
-            /** Source Prompt Id */
-            source_prompt_id?: string | null;
-            /** Id */
-            id: string;
-        };
-        /** PromptAnthropicInvocationParameters */
-        PromptAnthropicInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "anthropic";
-            anthropic: components["schemas"]["PromptAnthropicInvocationParametersContent"];
-        };
-        /** PromptAnthropicInvocationParametersContent */
-        PromptAnthropicInvocationParametersContent: {
-            /** Max Tokens */
-            max_tokens: number;
-            /** Temperature */
-            temperature?: number;
-            /** Top P */
-            top_p?: number;
-            /** Stop Sequences */
-            stop_sequences?: string[];
-            /** Thinking */
-            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
-        };
-        /** PromptAnthropicThinkingConfigDisabled */
-        PromptAnthropicThinkingConfigDisabled: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "disabled";
-        };
-        /** PromptAnthropicThinkingConfigEnabled */
-        PromptAnthropicThinkingConfigEnabled: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "enabled";
-            /** Budget Tokens */
-            budget_tokens: number;
-        };
-        /** PromptAwsInvocationParameters */
-        PromptAwsInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "aws";
-            aws: components["schemas"]["PromptAwsInvocationParametersContent"];
-        };
-        /** PromptAwsInvocationParametersContent */
-        PromptAwsInvocationParametersContent: {
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Temperature */
-            temperature?: number;
-            /** Top P */
-            top_p?: number;
-        };
-        /** PromptAzureOpenAIInvocationParameters */
-        PromptAzureOpenAIInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "azure_openai";
-            azure_openai: components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
-        };
-        /** PromptAzureOpenAIInvocationParametersContent */
-        PromptAzureOpenAIInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Max Completion Tokens */
-            max_completion_tokens?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Seed */
-            seed?: number;
-            /**
-             * Reasoning Effort
-             * @enum {string}
-             */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
-        };
-        /** PromptChatTemplate */
-        PromptChatTemplate: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "chat";
-            /** Messages */
-            messages: components["schemas"]["PromptMessage"][];
-        };
-        /** PromptData */
-        PromptData: {
-            name: components["schemas"]["Identifier"];
-            /** Description */
-            description?: string | null;
-            /** Source Prompt Id */
-            source_prompt_id?: string | null;
-        };
-        /** PromptDeepSeekInvocationParameters */
-        PromptDeepSeekInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "deepseek";
-            deepseek: components["schemas"]["PromptDeepSeekInvocationParametersContent"];
-        };
-        /** PromptDeepSeekInvocationParametersContent */
-        PromptDeepSeekInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Max Completion Tokens */
-            max_completion_tokens?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Seed */
-            seed?: number;
-            /**
-             * Reasoning Effort
-             * @enum {string}
-             */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
-        };
-        /** PromptGoogleInvocationParameters */
-        PromptGoogleInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "google";
-            google: components["schemas"]["PromptGoogleInvocationParametersContent"];
-        };
-        /** PromptGoogleInvocationParametersContent */
-        PromptGoogleInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Output Tokens */
-            max_output_tokens?: number;
-            /** Stop Sequences */
-            stop_sequences?: string[];
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Top K */
-            top_k?: number;
-        };
-        /** PromptMessage */
-        PromptMessage: {
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
-            /** Content */
-            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
-        };
-        /** PromptOllamaInvocationParameters */
-        PromptOllamaInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "ollama";
-            ollama: components["schemas"]["PromptOllamaInvocationParametersContent"];
-        };
-        /** PromptOllamaInvocationParametersContent */
-        PromptOllamaInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Max Completion Tokens */
-            max_completion_tokens?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Seed */
-            seed?: number;
-            /**
-             * Reasoning Effort
-             * @enum {string}
-             */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
-        };
-        /** PromptOpenAIInvocationParameters */
-        PromptOpenAIInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "openai";
-            openai: components["schemas"]["PromptOpenAIInvocationParametersContent"];
-        };
-        /** PromptOpenAIInvocationParametersContent */
-        PromptOpenAIInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Max Completion Tokens */
-            max_completion_tokens?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Seed */
-            seed?: number;
-            /**
-             * Reasoning Effort
-             * @enum {string}
-             */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
-        };
-        /** PromptResponseFormatJSONSchema */
-        PromptResponseFormatJSONSchema: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "json_schema";
-            json_schema: components["schemas"]["PromptResponseFormatJSONSchemaDefinition"];
-        };
-        /** PromptResponseFormatJSONSchemaDefinition */
-        PromptResponseFormatJSONSchemaDefinition: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string;
-            /** Schema */
-            schema?: {
-                [key: string]: unknown;
-            };
-            /** Strict */
-            strict?: boolean;
-        };
-        /** PromptStringTemplate */
-        PromptStringTemplate: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "string";
-            /** Template */
-            template: string;
-        };
-        /**
-         * PromptTemplateFormat
-         * @enum {string}
-         */
-        PromptTemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
-        /**
-         * PromptTemplateType
-         * @enum {string}
-         */
-        PromptTemplateType: "STR" | "CHAT";
-        /** PromptToolChoiceNone */
-        PromptToolChoiceNone: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "none";
-        };
-        /** PromptToolChoiceOneOrMore */
-        PromptToolChoiceOneOrMore: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "one_or_more";
-        };
-        /** PromptToolChoiceSpecificFunctionTool */
-        PromptToolChoiceSpecificFunctionTool: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "specific_function";
-            /** Function Name */
-            function_name: string;
-        };
-        /** PromptToolChoiceZeroOrMore */
-        PromptToolChoiceZeroOrMore: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "zero_or_more";
-        };
-        /** PromptToolFunction */
-        PromptToolFunction: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "function";
-            function: components["schemas"]["PromptToolFunctionDefinition"];
-        };
-        /** PromptToolFunctionDefinition */
-        PromptToolFunctionDefinition: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string;
-            /** Parameters */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /** Strict */
-            strict?: boolean;
-        };
-        /** PromptTools */
-        PromptTools: {
-            /**
-             * Type
-             * @constant
-             */
-            type: "tools";
-            /** Tools */
-            tools: components["schemas"]["PromptToolFunction"][];
-            /** Tool Choice */
-            tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
-            /** Disable Parallel Tool Calls */
-            disable_parallel_tool_calls?: boolean;
-        };
-        /** PromptVersion */
-        PromptVersion: {
-            /** Description */
-            description?: string | null;
-            model_provider: components["schemas"]["ModelProvider"];
-            /** Model Name */
-            model_name: string;
-            /** Template */
-            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
-            template_type: components["schemas"]["PromptTemplateType"];
-            template_format: components["schemas"]["PromptTemplateFormat"];
-            /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
-            tools?: components["schemas"]["PromptTools"] | null;
-            /** Response Format */
-            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
-            /** Id */
-            id: string;
-        };
-        /** PromptVersionData */
-        PromptVersionData: {
-            /** Description */
-            description?: string | null;
-            model_provider: components["schemas"]["ModelProvider"];
-            /** Model Name */
-            model_name: string;
-            /** Template */
-            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
-            template_type: components["schemas"]["PromptTemplateType"];
-            template_format: components["schemas"]["PromptTemplateFormat"];
-            /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
-            tools?: components["schemas"]["PromptTools"] | null;
-            /** Response Format */
-            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
-        };
-        /** PromptVersionTag */
-        PromptVersionTag: {
-            name: components["schemas"]["Identifier"];
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-        };
-        /** PromptVersionTagData */
-        PromptVersionTagData: {
-            name: components["schemas"]["Identifier"];
-            /** Description */
-            description?: string | null;
-        };
-        /** PromptXAIInvocationParameters */
-        PromptXAIInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "xai";
-            xai: components["schemas"]["PromptXAIInvocationParametersContent"];
-        };
-        /** PromptXAIInvocationParametersContent */
-        PromptXAIInvocationParametersContent: {
-            /** Temperature */
-            temperature?: number;
-            /** Max Tokens */
-            max_tokens?: number;
-            /** Max Completion Tokens */
-            max_completion_tokens?: number;
-            /** Frequency Penalty */
-            frequency_penalty?: number;
-            /** Presence Penalty */
-            presence_penalty?: number;
-            /** Top P */
-            top_p?: number;
-            /** Seed */
-            seed?: number;
-            /**
-             * Reasoning Effort
-             * @enum {string}
-             */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
-        };
-        /** Span */
-        Span: {
-            /**
-             * Id
-             * @description Span Global ID, distinct from the OpenTelemetry span ID
-             * @default
-             */
-            id?: string;
-            /**
-             * Name
-             * @description Name of the span operation
-             */
-            name: string;
-            /** @description Span context containing trace_id and span_id */
-            context: components["schemas"]["SpanContext"];
-            /**
-             * Span Kind
-             * @description Type of work that the span encapsulates
-             */
-            span_kind: string;
-            /**
-             * Parent Id
-             * @description OpenTelemetry span ID of the parent span
-             */
-            parent_id?: string | null;
-            /**
-             * Start Time
-             * Format: date-time
-             * @description Start time of the span
-             */
-            start_time: string;
-            /**
-             * End Time
-             * Format: date-time
-             * @description End time of the span
-             */
-            end_time: string;
-            /**
-             * Status Code
-             * @description Status code of the span
-             */
-            status_code: string;
-            /**
-             * Status Message
-             * @description Status message
-             * @default
-             */
-            status_message?: string;
-            /**
-             * Attributes
-             * @description Span attributes
-             */
-            attributes?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Events
-             * @description Span events
-             */
-            events?: components["schemas"]["SpanEvent"][];
-        };
-        /** SpanAnnotation */
-        SpanAnnotation: {
-            /** Id */
-            id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * Source
-             * @enum {string}
-             */
-            source: "API" | "APP";
-            /** User Id */
-            user_id: string | null;
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["AnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             * @default
-             */
-            identifier?: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-        };
-        /** SpanAnnotationData */
-        SpanAnnotationData: {
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["AnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             * @default
-             */
-            identifier?: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-        };
-        /** SpanAnnotationsResponseBody */
-        SpanAnnotationsResponseBody: {
-            /** Data */
-            data: components["schemas"]["SpanAnnotation"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** SpanContext */
-        SpanContext: {
-            /**
-             * Trace Id
-             * @description OpenTelemetry trace ID
-             */
-            trace_id: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry span ID
-             */
-            span_id: string;
-        };
-        /** SpanDocumentAnnotationData */
-        SpanDocumentAnnotationData: {
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["AnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             * @default
-             */
-            identifier?: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
-             * Document Position
-             * @description A 0 based index of the document. E.x. the first document during retrieval is 0
-             */
-            document_position: number;
-        };
-        /** SpanEvent */
-        SpanEvent: {
-            /**
-             * Name
-             * @description Name of the event
-             */
-            name: string;
-            /**
-             * Timestamp
-             * Format: date-time
-             * @description When the event occurred
-             */
-            timestamp: string;
-            /**
-             * Attributes
-             * @description Event attributes
-             */
-            attributes?: {
-                [key: string]: unknown;
-            };
-        };
-        /** SpansResponseBody */
-        SpansResponseBody: {
-            /** Data */
-            data: components["schemas"]["Span"][];
-            /** Next Cursor */
-            next_cursor: string | null;
-        };
-        /** TextContentPart */
-        TextContentPart: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "text";
-            /** Text */
-            text: string;
-        };
-        /** ToolCallContentPart */
-        ToolCallContentPart: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool_call";
-            /** Tool Call Id */
-            tool_call_id: string;
-            /** Tool Call */
-            tool_call: components["schemas"]["ToolCallFunction"];
-        };
-        /** ToolCallFunction */
-        ToolCallFunction: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "function";
-            /** Name */
-            name: string;
-            /** Arguments */
-            arguments: string;
-        };
-        /** ToolResultContentPart */
-        ToolResultContentPart: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool_result";
-            /** Tool Call Id */
-            tool_call_id: string;
-            /** Tool Result */
-            tool_result: boolean | number | string | {
-                [key: string]: unknown;
-            } | unknown[] | null;
-        };
-        /** UpdateAnnotationConfigResponseBody */
-        UpdateAnnotationConfigResponseBody: {
-            /** Data */
-            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
-        };
-        /** UpdateProjectRequestBody */
-        UpdateProjectRequestBody: {
-            /** Description */
-            description?: string | null;
-        };
-        /** UpdateProjectResponseBody */
-        UpdateProjectResponseBody: {
-            data: components["schemas"]["Project"];
-        };
-        /** UploadDatasetData */
-        UploadDatasetData: {
-            /** Dataset Id */
-            dataset_id: string;
-            /** Version Id */
-            version_id: string;
-        };
-        /** UploadDatasetResponseBody */
-        UploadDatasetResponseBody: {
-            data: components["schemas"]["UploadDatasetData"];
-        };
-        /** UpsertExperimentEvaluationRequestBody */
-        UpsertExperimentEvaluationRequestBody: {
-            /**
-             * Experiment Run Id
-             * @description The ID of the experiment run being evaluated
-             */
-            experiment_run_id: string;
-            /**
-             * Name
-             * @description The name of the evaluation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the evaluation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /**
-             * Start Time
-             * Format: date-time
-             * @description The start time of the evaluation in ISO format
-             */
-            start_time: string;
-            /**
-             * End Time
-             * Format: date-time
-             * @description The end time of the evaluation in ISO format
-             */
-            end_time: string;
-            /** @description The result of the evaluation. Either result or error must be provided. */
-            result?: components["schemas"]["ExperimentEvaluationResult"] | null;
-            /**
-             * Error
-             * @description Error message if the evaluation encountered an error. Either result or error must be provided.
-             */
-            error?: string | null;
-            /**
-             * Metadata
-             * @description Metadata for the evaluation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Trace Id
-             * @description Optional trace ID for tracking
-             */
-            trace_id?: string | null;
-        };
-        /** UpsertExperimentEvaluationResponseBody */
-        UpsertExperimentEvaluationResponseBody: {
-            data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
-        };
-        /** UpsertExperimentEvaluationResponseBodyData */
-        UpsertExperimentEvaluationResponseBodyData: {
-            /**
-             * Id
-             * @description The ID of the upserted experiment evaluation
-             */
-            id: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
+  schemas: {
+    /** AnnotateSpanDocumentsRequestBody */
+    AnnotateSpanDocumentsRequestBody: {
+      /** Data */
+      data: components["schemas"]["SpanDocumentAnnotationData"][];
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AnnotateSpanDocumentsResponseBody */
+    AnnotateSpanDocumentsResponseBody: {
+      /** Data */
+      data: components["schemas"]["InsertedSpanDocumentAnnotation"][];
+    };
+    /** AnnotateSpansRequestBody */
+    AnnotateSpansRequestBody: {
+      /** Data */
+      data: components["schemas"]["SpanAnnotationData"][];
+    };
+    /** AnnotateSpansResponseBody */
+    AnnotateSpansResponseBody: {
+      /** Data */
+      data: components["schemas"]["InsertedSpanAnnotation"][];
+    };
+    /** AnnotationResult */
+    AnnotationResult: {
+      /**
+       * Label
+       * @description The label assigned by the annotation
+       */
+      label?: string | null;
+      /**
+       * Score
+       * @description The score assigned by the annotation
+       */
+      score?: number | null;
+      /**
+       * Explanation
+       * @description Explanation of the annotation result
+       */
+      explanation?: string | null;
+    };
+    /** CategoricalAnnotationConfig */
+    CategoricalAnnotationConfig: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "CATEGORICAL";
+      /** Description */
+      description?: string | null;
+      optimization_direction: components["schemas"]["OptimizationDirection"];
+      /** Values */
+      values: components["schemas"]["CategoricalAnnotationValue"][];
+      /** Id */
+      id: string;
+    };
+    /** CategoricalAnnotationConfigData */
+    CategoricalAnnotationConfigData: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "CATEGORICAL";
+      /** Description */
+      description?: string | null;
+      optimization_direction: components["schemas"]["OptimizationDirection"];
+      /** Values */
+      values: components["schemas"]["CategoricalAnnotationValue"][];
+    };
+    /** CategoricalAnnotationValue */
+    CategoricalAnnotationValue: {
+      /** Label */
+      label: string;
+      /** Score */
+      score?: number | null;
+    };
+    /** ContinuousAnnotationConfig */
+    ContinuousAnnotationConfig: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "CONTINUOUS";
+      /** Description */
+      description?: string | null;
+      optimization_direction: components["schemas"]["OptimizationDirection"];
+      /** Lower Bound */
+      lower_bound?: number | null;
+      /** Upper Bound */
+      upper_bound?: number | null;
+      /** Id */
+      id: string;
+    };
+    /** ContinuousAnnotationConfigData */
+    ContinuousAnnotationConfigData: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "CONTINUOUS";
+      /** Description */
+      description?: string | null;
+      optimization_direction: components["schemas"]["OptimizationDirection"];
+      /** Lower Bound */
+      lower_bound?: number | null;
+      /** Upper Bound */
+      upper_bound?: number | null;
+    };
+    /** CreateAnnotationConfigData */
+    CreateAnnotationConfigData:
+      | components["schemas"]["CategoricalAnnotationConfigData"]
+      | components["schemas"]["ContinuousAnnotationConfigData"]
+      | components["schemas"]["FreeformAnnotationConfigData"];
+    /** CreateAnnotationConfigResponseBody */
+    CreateAnnotationConfigResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["CategoricalAnnotationConfig"]
+        | components["schemas"]["ContinuousAnnotationConfig"]
+        | components["schemas"]["FreeformAnnotationConfig"];
+    };
+    /**
+     * CreateExperimentRequestBody
+     * @description Details of the experiment to be created
+     */
+    CreateExperimentRequestBody: {
+      /**
+       * Name
+       * @description Name of the experiment (if omitted, a random name will be generated)
+       */
+      name?: string | null;
+      /**
+       * Description
+       * @description An optional description of the experiment
+       */
+      description?: string | null;
+      /**
+       * Metadata
+       * @description Metadata for the experiment
+       */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Version Id
+       * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
+       */
+      version_id?: string | null;
+      /**
+       * Repetitions
+       * @description Number of times the experiment should be repeated for each example
+       * @default 1
+       */
+      repetitions?: number;
+    };
+    /** CreateExperimentResponseBody */
+    CreateExperimentResponseBody: {
+      data: components["schemas"]["Experiment"];
+    };
+    /** CreateExperimentRunRequestBody */
+    CreateExperimentRunRequestBody: {
+      /**
+       * Dataset Example Id
+       * @description The ID of the dataset example used in the experiment run
+       */
+      dataset_example_id: string;
+      /**
+       * Output
+       * @description The output of the experiment task
+       */
+      output: unknown;
+      /**
+       * Repetition Number
+       * @description The repetition number of the experiment run
+       */
+      repetition_number: number;
+      /**
+       * Start Time
+       * Format: date-time
+       * @description The start time of the experiment run
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       * @description The end time of the experiment run
+       */
+      end_time: string;
+      /**
+       * Trace Id
+       * @description The ID of the corresponding trace (if one exists)
+       */
+      trace_id?: string | null;
+      /**
+       * Error
+       * @description Optional error message if the experiment run encountered an error
+       */
+      error?: string | null;
+    };
+    /** CreateExperimentRunResponseBody */
+    CreateExperimentRunResponseBody: {
+      data: components["schemas"]["CreateExperimentRunResponseBodyData"];
+    };
+    /** CreateExperimentRunResponseBodyData */
+    CreateExperimentRunResponseBodyData: {
+      /**
+       * Id
+       * @description The ID of the newly created experiment run
+       */
+      id: string;
+    };
+    /** CreateProjectRequestBody */
+    CreateProjectRequestBody: {
+      /** Name */
+      name: string;
+      /** Description */
+      description?: string | null;
+    };
+    /** CreateProjectResponseBody */
+    CreateProjectResponseBody: {
+      data: components["schemas"]["Project"];
+    };
+    /** CreatePromptRequestBody */
+    CreatePromptRequestBody: {
+      prompt: components["schemas"]["PromptData"];
+      version: components["schemas"]["PromptVersionData"];
+    };
+    /** CreatePromptResponseBody */
+    CreatePromptResponseBody: {
+      data: components["schemas"]["PromptVersion"];
+    };
+    /** CreateSpansRequestBody */
+    CreateSpansRequestBody: {
+      /** Data */
+      data: components["schemas"]["Span"][];
+    };
+    /** CreateSpansResponseBody */
+    CreateSpansResponseBody: {
+      /**
+       * Total Received
+       * @description Total number of spans received
+       */
+      total_received: number;
+      /**
+       * Total Queued
+       * @description Number of spans successfully queued for insertion
+       */
+      total_queued: number;
+    };
+    /** CreateUserRequestBody */
+    CreateUserRequestBody: {
+      /** User */
+      user:
+        | components["schemas"]["LocalUserData"]
+        | components["schemas"]["OAuth2UserData"];
+      /**
+       * Send Welcome Email
+       * @default true
+       */
+      send_welcome_email?: boolean;
+    };
+    /** CreateUserResponseBody */
+    CreateUserResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["LocalUser"]
+        | components["schemas"]["OAuth2User"];
+    };
+    /** Dataset */
+    Dataset: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string | null;
+      /** Metadata */
+      metadata: {
+        [key: string]: unknown;
+      };
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Example Count */
+      example_count: number;
+    };
+    /** DatasetExample */
+    DatasetExample: {
+      /** Id */
+      id: string;
+      /** Input */
+      input: {
+        [key: string]: unknown;
+      };
+      /** Output */
+      output: {
+        [key: string]: unknown;
+      };
+      /** Metadata */
+      metadata: {
+        [key: string]: unknown;
+      };
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** DatasetVersion */
+    DatasetVersion: {
+      /** Version Id */
+      version_id: string;
+      /** Description */
+      description: string | null;
+      /** Metadata */
+      metadata: {
+        [key: string]: unknown;
+      };
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** DatasetWithExampleCount */
+    DatasetWithExampleCount: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string | null;
+      /** Metadata */
+      metadata: {
+        [key: string]: unknown;
+      };
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Example Count */
+      example_count: number;
+    };
+    /** DeleteAnnotationConfigResponseBody */
+    DeleteAnnotationConfigResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["CategoricalAnnotationConfig"]
+        | components["schemas"]["ContinuousAnnotationConfig"]
+        | components["schemas"]["FreeformAnnotationConfig"];
+    };
+    /** Experiment */
+    Experiment: {
+      /**
+       * Id
+       * @description The ID of the experiment
+       */
+      id: string;
+      /**
+       * Dataset Id
+       * @description The ID of the dataset associated with the experiment
+       */
+      dataset_id: string;
+      /**
+       * Dataset Version Id
+       * @description The ID of the dataset version associated with the experiment
+       */
+      dataset_version_id: string;
+      /**
+       * Repetitions
+       * @description Number of times the experiment is repeated
+       */
+      repetitions: number;
+      /**
+       * Metadata
+       * @description Metadata of the experiment
+       */
+      metadata: {
+        [key: string]: unknown;
+      };
+      /**
+       * Project Name
+       * @description The name of the project associated with the experiment
+       */
+      project_name: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       * @description The creation timestamp of the experiment
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       * @description The last update timestamp of the experiment
+       */
+      updated_at: string;
+    };
+    /** ExperimentEvaluationResult */
+    ExperimentEvaluationResult: {
+      /**
+       * Label
+       * @description The label assigned by the evaluation
+       */
+      label?: string | null;
+      /**
+       * Score
+       * @description The score assigned by the evaluation
+       */
+      score?: number | null;
+      /**
+       * Explanation
+       * @description Explanation of the evaluation result
+       */
+      explanation?: string | null;
+    };
+    /** ExperimentRunResponse */
+    ExperimentRunResponse: {
+      /**
+       * Dataset Example Id
+       * @description The ID of the dataset example used in the experiment run
+       */
+      dataset_example_id: string;
+      /**
+       * Output
+       * @description The output of the experiment task
+       */
+      output: unknown;
+      /**
+       * Repetition Number
+       * @description The repetition number of the experiment run
+       */
+      repetition_number: number;
+      /**
+       * Start Time
+       * Format: date-time
+       * @description The start time of the experiment run
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       * @description The end time of the experiment run
+       */
+      end_time: string;
+      /**
+       * Trace Id
+       * @description The ID of the corresponding trace (if one exists)
+       */
+      trace_id?: string | null;
+      /**
+       * Error
+       * @description Optional error message if the experiment run encountered an error
+       */
+      error?: string | null;
+      /**
+       * Id
+       * @description The ID of the experiment run
+       */
+      id: string;
+      /**
+       * Experiment Id
+       * @description The ID of the experiment
+       */
+      experiment_id: string;
+    };
+    /** FreeformAnnotationConfig */
+    FreeformAnnotationConfig: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "FREEFORM";
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+    };
+    /** FreeformAnnotationConfigData */
+    FreeformAnnotationConfigData: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "FREEFORM";
+      /** Description */
+      description?: string | null;
+    };
+    /** GetAnnotationConfigResponseBody */
+    GetAnnotationConfigResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["CategoricalAnnotationConfig"]
+        | components["schemas"]["ContinuousAnnotationConfig"]
+        | components["schemas"]["FreeformAnnotationConfig"];
+    };
+    /** GetAnnotationConfigsResponseBody */
+    GetAnnotationConfigsResponseBody: {
+      /** Data */
+      data: (
+        | components["schemas"]["CategoricalAnnotationConfig"]
+        | components["schemas"]["ContinuousAnnotationConfig"]
+        | components["schemas"]["FreeformAnnotationConfig"]
+      )[];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** GetDatasetResponseBody */
+    GetDatasetResponseBody: {
+      data: components["schemas"]["DatasetWithExampleCount"];
+    };
+    /** GetExperimentResponseBody */
+    GetExperimentResponseBody: {
+      data: components["schemas"]["Experiment"];
+    };
+    /** GetProjectResponseBody */
+    GetProjectResponseBody: {
+      data: components["schemas"]["Project"];
+    };
+    /** GetProjectsResponseBody */
+    GetProjectsResponseBody: {
+      /** Data */
+      data: components["schemas"]["Project"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** GetPromptResponseBody */
+    GetPromptResponseBody: {
+      data: components["schemas"]["PromptVersion"];
+    };
+    /** GetPromptVersionTagsResponseBody */
+    GetPromptVersionTagsResponseBody: {
+      /** Data */
+      data: components["schemas"]["PromptVersionTag"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** GetPromptVersionsResponseBody */
+    GetPromptVersionsResponseBody: {
+      /** Data */
+      data: components["schemas"]["PromptVersion"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** GetPromptsResponseBody */
+    GetPromptsResponseBody: {
+      /** Data */
+      data: components["schemas"]["Prompt"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** GetUsersResponseBody */
+    GetUsersResponseBody: {
+      /** Data */
+      data: (
+        | components["schemas"]["LocalUser"]
+        | components["schemas"]["OAuth2User"]
+      )[];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /** Identifier */
+    Identifier: string;
+    /** InsertedSpanAnnotation */
+    InsertedSpanAnnotation: {
+      /**
+       * Id
+       * @description The ID of the inserted span annotation
+       */
+      id: string;
+    };
+    /** InsertedSpanDocumentAnnotation */
+    InsertedSpanDocumentAnnotation: {
+      /**
+       * Id
+       * @description The ID of the inserted span document annotation
+       */
+      id: string;
+    };
+    /** ListDatasetExamplesData */
+    ListDatasetExamplesData: {
+      /** Dataset Id */
+      dataset_id: string;
+      /** Version Id */
+      version_id: string;
+      /** Examples */
+      examples: components["schemas"]["DatasetExample"][];
+    };
+    /** ListDatasetExamplesResponseBody */
+    ListDatasetExamplesResponseBody: {
+      data: components["schemas"]["ListDatasetExamplesData"];
+    };
+    /** ListDatasetVersionsResponseBody */
+    ListDatasetVersionsResponseBody: {
+      /** Data */
+      data: components["schemas"]["DatasetVersion"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** ListDatasetsResponseBody */
+    ListDatasetsResponseBody: {
+      /** Data */
+      data: components["schemas"]["Dataset"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** ListExperimentRunsResponseBody */
+    ListExperimentRunsResponseBody: {
+      /** Data */
+      data: components["schemas"]["ExperimentRunResponse"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** ListExperimentsResponseBody */
+    ListExperimentsResponseBody: {
+      /** Data */
+      data: components["schemas"]["Experiment"][];
+    };
+    /** LocalUser */
+    LocalUser: {
+      /** Id */
+      id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Email */
+      email: string;
+      /** Username */
+      username: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "SYSTEM" | "ADMIN" | "MEMBER";
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      auth_method: "LOCAL";
+      /** Password */
+      password?: string;
+      /** Password Needs Reset */
+      password_needs_reset: boolean;
+    };
+    /** LocalUserData */
+    LocalUserData: {
+      /** Email */
+      email: string;
+      /** Username */
+      username: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "SYSTEM" | "ADMIN" | "MEMBER";
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      auth_method: "LOCAL";
+      /** Password */
+      password?: string;
+    };
+    /**
+     * ModelProvider
+     * @enum {string}
+     */
+    ModelProvider:
+      | "OPENAI"
+      | "AZURE_OPENAI"
+      | "ANTHROPIC"
+      | "GOOGLE"
+      | "DEEPSEEK"
+      | "XAI"
+      | "OLLAMA"
+      | "AWS";
+    /** OAuth2User */
+    OAuth2User: {
+      /** Id */
+      id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Email */
+      email: string;
+      /** Username */
+      username: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "SYSTEM" | "ADMIN" | "MEMBER";
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      auth_method: "OAUTH2";
+      /** Oauth2 Client Id */
+      oauth2_client_id?: string;
+      /** Oauth2 User Id */
+      oauth2_user_id?: string;
+      /** Profile Picture Url */
+      profile_picture_url?: string;
+    };
+    /** OAuth2UserData */
+    OAuth2UserData: {
+      /** Email */
+      email: string;
+      /** Username */
+      username: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "SYSTEM" | "ADMIN" | "MEMBER";
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      auth_method: "OAUTH2";
+      /** Oauth2 Client Id */
+      oauth2_client_id?: string;
+      /** Oauth2 User Id */
+      oauth2_user_id?: string;
+    };
+    /**
+     * OptimizationDirection
+     * @enum {string}
+     */
+    OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
+    /** OtlpAnyValue */
+    OtlpAnyValue: {
+      array_value?: components["schemas"]["OtlpArrayValue"] | null;
+      /** Bool Value */
+      bool_value?: boolean | null;
+      /** Bytes Value */
+      bytes_value?: string | null;
+      /** Double Value */
+      double_value?:
+        | number
+        | components["schemas"]["OtlpDoubleValue"]
+        | string
+        | null;
+      /** Int Value */
+      int_value?: number | string | null;
+      /** Kvlist Value */
+      kvlist_value?: null;
+      /** String Value */
+      string_value?: string | null;
+    };
+    /** OtlpArrayValue */
+    OtlpArrayValue: {
+      /**
+       * Values
+       * @description Array of values. The array may be empty (contain 0 elements).
+       */
+      values?: components["schemas"]["OtlpAnyValue"][] | null;
+    };
+    /**
+     * OtlpDoubleValue
+     * @enum {string}
+     */
+    OtlpDoubleValue: "Infinity" | "-Infinity" | "NaN";
+    /** OtlpEvent */
+    OtlpEvent: {
+      /**
+       * Attributes
+       * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+       */
+      attributes?: components["schemas"]["OtlpKeyValue"][] | null;
+      /**
+       * Dropped Attributes Count
+       * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
+       */
+      dropped_attributes_count?: number | null;
+      /**
+       * Name
+       * @description name of the event. This field is semantically required to be set to non-empty string.
+       */
+      name?: string | null;
+      /**
+       * Time Unix Nano
+       * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+       */
+      time_unix_nano?: number | string | null;
+    };
+    /** OtlpKeyValue */
+    OtlpKeyValue: {
+      /** Key */
+      key?: string | null;
+      value?: components["schemas"]["OtlpAnyValue"] | null;
+    };
+    /**
+     * OtlpKind
+     * @enum {string}
+     */
+    OtlpKind:
+      | "SPAN_KIND_UNSPECIFIED"
+      | "SPAN_KIND_INTERNAL"
+      | "SPAN_KIND_SERVER"
+      | "SPAN_KIND_CLIENT"
+      | "SPAN_KIND_PRODUCER"
+      | "SPAN_KIND_CONSUMER";
+    /** OtlpSpan */
+    OtlpSpan: {
+      /**
+       * Attributes
+       * @description attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:
+       *
+       *         "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+       *         "/http/server_latency": 300
+       *         "example.com/myattribute": true
+       *         "example.com/score": 10.239
+       *
+       *     The OpenTelemetry API specification further restricts the allowed value types:
+       *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
+       *     Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+       */
+      attributes?: components["schemas"]["OtlpKeyValue"][] | null;
+      /**
+       * Dropped Attributes Count
+       * @description dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped.
+       */
+      dropped_attributes_count?: number | null;
+      /**
+       * Dropped Events Count
+       * @description dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped.
+       */
+      dropped_events_count?: number | null;
+      /**
+       * Dropped Links Count
+       * @description dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped.
+       */
+      dropped_links_count?: number | null;
+      /**
+       * End Time Unix Nano
+       * @description end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.
+       *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+       *
+       *     This field is semantically required and it is expected that end_time >= start_time.
+       */
+      end_time_unix_nano?: number | string | null;
+      /**
+       * Events
+       * @description events is a collection of Event items. A span with no events is valid.
+       */
+      events?: components["schemas"]["OtlpEvent"][] | null;
+      /**
+       * Flags
+       * @description Flags, a bit field.
+       *
+       *     Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+       *
+       *     See https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.
+       *
+       *     Bits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).
+       *     To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
+       *     To read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
+       *
+       *     When creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.
+       *     Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
+       *
+       *     [Optional].
+       */
+      flags?: number | null;
+      /**
+       * Kind
+       * @description Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.
+       * @default SPAN_KIND_INTERNAL
+       */
+      kind?: components["schemas"]["OtlpKind"] | number | null;
+      /** Links */
+      links?: null;
+      /**
+       * Name
+       * @description A description of the span's operation.
+       *
+       *     For example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.
+       *
+       *     This field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.
+       *
+       *     This field is required.
+       */
+      name?: string | null;
+      /**
+       * Parent Span Id
+       * @description The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array.
+       */
+      parent_span_id?: string | null;
+      /**
+       * Span Id
+       * @description A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+       *
+       *     This field is required.
+       */
+      span_id?: string | null;
+      /**
+       * Start Time Unix Nano
+       * @description start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.
+       *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+       *
+       *     This field is semantically required and it is expected that end_time >= start_time.
+       */
+      start_time_unix_nano?: number | string | null;
+      /** @description An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0). */
+      status?: components["schemas"]["OtlpStatus"] | null;
+      /**
+       * Trace Id
+       * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+       *
+       *     This field is required.
+       */
+      trace_id?: string | null;
+      /**
+       * Trace State
+       * @description trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header
+       *     See also https://github.com/w3c/distributed-tracing for more details about this field.
+       */
+      trace_state?: string | null;
+    };
+    /**
+     * OtlpSpansResponseBody
+     * @description Paginated response where each span follows OTLP JSON structure.
+     */
+    OtlpSpansResponseBody: {
+      /** Data */
+      data: components["schemas"]["OtlpSpan"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** OtlpStatus */
+    OtlpStatus: {
+      /**
+       * Code
+       * @description The status code.
+       */
+      code?: number | null;
+      /**
+       * Message
+       * @description A developer-facing human readable error message.
+       */
+      message?: string | null;
+    };
+    /** Project */
+    Project: {
+      /** Name */
+      name: string;
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+    };
+    /** Prompt */
+    Prompt: {
+      name: components["schemas"]["Identifier"];
+      /** Description */
+      description?: string | null;
+      /** Source Prompt Id */
+      source_prompt_id?: string | null;
+      /** Id */
+      id: string;
+    };
+    /** PromptAnthropicInvocationParameters */
+    PromptAnthropicInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "anthropic";
+      anthropic: components["schemas"]["PromptAnthropicInvocationParametersContent"];
+    };
+    /** PromptAnthropicInvocationParametersContent */
+    PromptAnthropicInvocationParametersContent: {
+      /** Max Tokens */
+      max_tokens: number;
+      /** Temperature */
+      temperature?: number;
+      /** Top P */
+      top_p?: number;
+      /** Stop Sequences */
+      stop_sequences?: string[];
+      /** Thinking */
+      thinking?:
+        | components["schemas"]["PromptAnthropicThinkingConfigDisabled"]
+        | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
+    };
+    /** PromptAnthropicThinkingConfigDisabled */
+    PromptAnthropicThinkingConfigDisabled: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "disabled";
+    };
+    /** PromptAnthropicThinkingConfigEnabled */
+    PromptAnthropicThinkingConfigEnabled: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "enabled";
+      /** Budget Tokens */
+      budget_tokens: number;
+    };
+    /** PromptAwsInvocationParameters */
+    PromptAwsInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "aws";
+      aws: components["schemas"]["PromptAwsInvocationParametersContent"];
+    };
+    /** PromptAwsInvocationParametersContent */
+    PromptAwsInvocationParametersContent: {
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Temperature */
+      temperature?: number;
+      /** Top P */
+      top_p?: number;
+    };
+    /** PromptAzureOpenAIInvocationParameters */
+    PromptAzureOpenAIInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "azure_openai";
+      azure_openai: components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+    };
+    /** PromptAzureOpenAIInvocationParametersContent */
+    PromptAzureOpenAIInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?: "minimal" | "low" | "medium" | "high";
+    };
+    /** PromptChatTemplate */
+    PromptChatTemplate: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "chat";
+      /** Messages */
+      messages: components["schemas"]["PromptMessage"][];
+    };
+    /** PromptData */
+    PromptData: {
+      name: components["schemas"]["Identifier"];
+      /** Description */
+      description?: string | null;
+      /** Source Prompt Id */
+      source_prompt_id?: string | null;
+    };
+    /** PromptDeepSeekInvocationParameters */
+    PromptDeepSeekInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "deepseek";
+      deepseek: components["schemas"]["PromptDeepSeekInvocationParametersContent"];
+    };
+    /** PromptDeepSeekInvocationParametersContent */
+    PromptDeepSeekInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?: "minimal" | "low" | "medium" | "high";
+    };
+    /** PromptGoogleInvocationParameters */
+    PromptGoogleInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "google";
+      google: components["schemas"]["PromptGoogleInvocationParametersContent"];
+    };
+    /** PromptGoogleInvocationParametersContent */
+    PromptGoogleInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Output Tokens */
+      max_output_tokens?: number;
+      /** Stop Sequences */
+      stop_sequences?: string[];
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Top K */
+      top_k?: number;
+    };
+    /** PromptMessage */
+    PromptMessage: {
+      /**
+       * Role
+       * @enum {string}
+       */
+      role:
+        | "user"
+        | "assistant"
+        | "model"
+        | "ai"
+        | "tool"
+        | "system"
+        | "developer";
+      /** Content */
+      content:
+        | string
+        | (
+            | components["schemas"]["TextContentPart"]
+            | components["schemas"]["ToolCallContentPart"]
+            | components["schemas"]["ToolResultContentPart"]
+          )[];
+    };
+    /** PromptOllamaInvocationParameters */
+    PromptOllamaInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "ollama";
+      ollama: components["schemas"]["PromptOllamaInvocationParametersContent"];
+    };
+    /** PromptOllamaInvocationParametersContent */
+    PromptOllamaInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?: "minimal" | "low" | "medium" | "high";
+    };
+    /** PromptOpenAIInvocationParameters */
+    PromptOpenAIInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "openai";
+      openai: components["schemas"]["PromptOpenAIInvocationParametersContent"];
+    };
+    /** PromptOpenAIInvocationParametersContent */
+    PromptOpenAIInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?: "minimal" | "low" | "medium" | "high";
+    };
+    /** PromptResponseFormatJSONSchema */
+    PromptResponseFormatJSONSchema: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "json_schema";
+      json_schema: components["schemas"]["PromptResponseFormatJSONSchemaDefinition"];
+    };
+    /** PromptResponseFormatJSONSchemaDefinition */
+    PromptResponseFormatJSONSchemaDefinition: {
+      /** Name */
+      name: string;
+      /** Description */
+      description?: string;
+      /** Schema */
+      schema?: {
+        [key: string]: unknown;
+      };
+      /** Strict */
+      strict?: boolean;
+    };
+    /** PromptStringTemplate */
+    PromptStringTemplate: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "string";
+      /** Template */
+      template: string;
+    };
+    /**
+     * PromptTemplateFormat
+     * @enum {string}
+     */
+    PromptTemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
+    /**
+     * PromptTemplateType
+     * @enum {string}
+     */
+    PromptTemplateType: "STR" | "CHAT";
+    /** PromptToolChoiceNone */
+    PromptToolChoiceNone: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "none";
+    };
+    /** PromptToolChoiceOneOrMore */
+    PromptToolChoiceOneOrMore: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "one_or_more";
+    };
+    /** PromptToolChoiceSpecificFunctionTool */
+    PromptToolChoiceSpecificFunctionTool: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "specific_function";
+      /** Function Name */
+      function_name: string;
+    };
+    /** PromptToolChoiceZeroOrMore */
+    PromptToolChoiceZeroOrMore: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "zero_or_more";
+    };
+    /** PromptToolFunction */
+    PromptToolFunction: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "function";
+      function: components["schemas"]["PromptToolFunctionDefinition"];
+    };
+    /** PromptToolFunctionDefinition */
+    PromptToolFunctionDefinition: {
+      /** Name */
+      name: string;
+      /** Description */
+      description?: string;
+      /** Parameters */
+      parameters?: {
+        [key: string]: unknown;
+      };
+      /** Strict */
+      strict?: boolean;
+    };
+    /** PromptTools */
+    PromptTools: {
+      /**
+       * Type
+       * @constant
+       */
+      type: "tools";
+      /** Tools */
+      tools: components["schemas"]["PromptToolFunction"][];
+      /** Tool Choice */
+      tool_choice?:
+        | components["schemas"]["PromptToolChoiceNone"]
+        | components["schemas"]["PromptToolChoiceZeroOrMore"]
+        | components["schemas"]["PromptToolChoiceOneOrMore"]
+        | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
+      /** Disable Parallel Tool Calls */
+      disable_parallel_tool_calls?: boolean;
+    };
+    /** PromptVersion */
+    PromptVersion: {
+      /** Description */
+      description?: string | null;
+      model_provider: components["schemas"]["ModelProvider"];
+      /** Model Name */
+      model_name: string;
+      /** Template */
+      template:
+        | components["schemas"]["PromptChatTemplate"]
+        | components["schemas"]["PromptStringTemplate"];
+      template_type: components["schemas"]["PromptTemplateType"];
+      template_format: components["schemas"]["PromptTemplateFormat"];
+      /** Invocation Parameters */
+      invocation_parameters:
+        | components["schemas"]["PromptOpenAIInvocationParameters"]
+        | components["schemas"]["PromptAzureOpenAIInvocationParameters"]
+        | components["schemas"]["PromptAnthropicInvocationParameters"]
+        | components["schemas"]["PromptGoogleInvocationParameters"]
+        | components["schemas"]["PromptDeepSeekInvocationParameters"]
+        | components["schemas"]["PromptXAIInvocationParameters"]
+        | components["schemas"]["PromptOllamaInvocationParameters"]
+        | components["schemas"]["PromptAwsInvocationParameters"];
+      tools?: components["schemas"]["PromptTools"] | null;
+      /** Response Format */
+      response_format?:
+        | components["schemas"]["PromptResponseFormatJSONSchema"]
+        | null;
+      /** Id */
+      id: string;
+    };
+    /** PromptVersionData */
+    PromptVersionData: {
+      /** Description */
+      description?: string | null;
+      model_provider: components["schemas"]["ModelProvider"];
+      /** Model Name */
+      model_name: string;
+      /** Template */
+      template:
+        | components["schemas"]["PromptChatTemplate"]
+        | components["schemas"]["PromptStringTemplate"];
+      template_type: components["schemas"]["PromptTemplateType"];
+      template_format: components["schemas"]["PromptTemplateFormat"];
+      /** Invocation Parameters */
+      invocation_parameters:
+        | components["schemas"]["PromptOpenAIInvocationParameters"]
+        | components["schemas"]["PromptAzureOpenAIInvocationParameters"]
+        | components["schemas"]["PromptAnthropicInvocationParameters"]
+        | components["schemas"]["PromptGoogleInvocationParameters"]
+        | components["schemas"]["PromptDeepSeekInvocationParameters"]
+        | components["schemas"]["PromptXAIInvocationParameters"]
+        | components["schemas"]["PromptOllamaInvocationParameters"]
+        | components["schemas"]["PromptAwsInvocationParameters"];
+      tools?: components["schemas"]["PromptTools"] | null;
+      /** Response Format */
+      response_format?:
+        | components["schemas"]["PromptResponseFormatJSONSchema"]
+        | null;
+    };
+    /** PromptVersionTag */
+    PromptVersionTag: {
+      name: components["schemas"]["Identifier"];
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+    };
+    /** PromptVersionTagData */
+    PromptVersionTagData: {
+      name: components["schemas"]["Identifier"];
+      /** Description */
+      description?: string | null;
+    };
+    /** PromptXAIInvocationParameters */
+    PromptXAIInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "xai";
+      xai: components["schemas"]["PromptXAIInvocationParametersContent"];
+    };
+    /** PromptXAIInvocationParametersContent */
+    PromptXAIInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?: "minimal" | "low" | "medium" | "high";
+    };
+    /** Span */
+    Span: {
+      /**
+       * Id
+       * @description Span Global ID, distinct from the OpenTelemetry span ID
+       * @default
+       */
+      id?: string;
+      /**
+       * Name
+       * @description Name of the span operation
+       */
+      name: string;
+      /** @description Span context containing trace_id and span_id */
+      context: components["schemas"]["SpanContext"];
+      /**
+       * Span Kind
+       * @description Type of work that the span encapsulates
+       */
+      span_kind: string;
+      /**
+       * Parent Id
+       * @description OpenTelemetry span ID of the parent span
+       */
+      parent_id?: string | null;
+      /**
+       * Start Time
+       * Format: date-time
+       * @description Start time of the span
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       * @description End time of the span
+       */
+      end_time: string;
+      /**
+       * Status Code
+       * @description Status code of the span
+       */
+      status_code: string;
+      /**
+       * Status Message
+       * @description Status message
+       * @default
+       */
+      status_message?: string;
+      /**
+       * Attributes
+       * @description Span attributes
+       */
+      attributes?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Events
+       * @description Span events
+       */
+      events?: components["schemas"]["SpanEvent"][];
+    };
+    /** SpanAnnotation */
+    SpanAnnotation: {
+      /** Id */
+      id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: "API" | "APP";
+      /** User Id */
+      user_id: string | null;
+      /**
+       * Name
+       * @description The name of the annotation
+       */
+      name: string;
+      /**
+       * Annotator Kind
+       * @description The kind of annotator used for the annotation
+       * @enum {string}
+       */
+      annotator_kind: "LLM" | "CODE" | "HUMAN";
+      /** @description The result of the annotation */
+      result?: components["schemas"]["AnnotationResult"] | null;
+      /**
+       * Metadata
+       * @description Metadata for the annotation
+       */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Identifier
+       * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+       * @default
+       */
+      identifier?: string;
+      /**
+       * Span Id
+       * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+       */
+      span_id: string;
+    };
+    /** SpanAnnotationData */
+    SpanAnnotationData: {
+      /**
+       * Name
+       * @description The name of the annotation
+       */
+      name: string;
+      /**
+       * Annotator Kind
+       * @description The kind of annotator used for the annotation
+       * @enum {string}
+       */
+      annotator_kind: "LLM" | "CODE" | "HUMAN";
+      /** @description The result of the annotation */
+      result?: components["schemas"]["AnnotationResult"] | null;
+      /**
+       * Metadata
+       * @description Metadata for the annotation
+       */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Identifier
+       * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+       * @default
+       */
+      identifier?: string;
+      /**
+       * Span Id
+       * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+       */
+      span_id: string;
+    };
+    /** SpanAnnotationsResponseBody */
+    SpanAnnotationsResponseBody: {
+      /** Data */
+      data: components["schemas"]["SpanAnnotation"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** SpanContext */
+    SpanContext: {
+      /**
+       * Trace Id
+       * @description OpenTelemetry trace ID
+       */
+      trace_id: string;
+      /**
+       * Span Id
+       * @description OpenTelemetry span ID
+       */
+      span_id: string;
+    };
+    /** SpanDocumentAnnotationData */
+    SpanDocumentAnnotationData: {
+      /**
+       * Name
+       * @description The name of the annotation
+       */
+      name: string;
+      /**
+       * Annotator Kind
+       * @description The kind of annotator used for the annotation
+       * @enum {string}
+       */
+      annotator_kind: "LLM" | "CODE" | "HUMAN";
+      /** @description The result of the annotation */
+      result?: components["schemas"]["AnnotationResult"] | null;
+      /**
+       * Metadata
+       * @description Metadata for the annotation
+       */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Identifier
+       * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+       * @default
+       */
+      identifier?: string;
+      /**
+       * Span Id
+       * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+       */
+      span_id: string;
+      /**
+       * Document Position
+       * @description A 0 based index of the document. E.x. the first document during retrieval is 0
+       */
+      document_position: number;
+    };
+    /** SpanEvent */
+    SpanEvent: {
+      /**
+       * Name
+       * @description Name of the event
+       */
+      name: string;
+      /**
+       * Timestamp
+       * Format: date-time
+       * @description When the event occurred
+       */
+      timestamp: string;
+      /**
+       * Attributes
+       * @description Event attributes
+       */
+      attributes?: {
+        [key: string]: unknown;
+      };
+    };
+    /** SpansResponseBody */
+    SpansResponseBody: {
+      /** Data */
+      data: components["schemas"]["Span"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** TextContentPart */
+    TextContentPart: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "text";
+      /** Text */
+      text: string;
+    };
+    /** ToolCallContentPart */
+    ToolCallContentPart: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "tool_call";
+      /** Tool Call Id */
+      tool_call_id: string;
+      /** Tool Call */
+      tool_call: components["schemas"]["ToolCallFunction"];
+    };
+    /** ToolCallFunction */
+    ToolCallFunction: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "function";
+      /** Name */
+      name: string;
+      /** Arguments */
+      arguments: string;
+    };
+    /** ToolResultContentPart */
+    ToolResultContentPart: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "tool_result";
+      /** Tool Call Id */
+      tool_call_id: string;
+      /** Tool Result */
+      tool_result:
+        | boolean
+        | number
+        | string
+        | {
+            [key: string]: unknown;
+          }
+        | unknown[]
+        | null;
+    };
+    /** UpdateAnnotationConfigResponseBody */
+    UpdateAnnotationConfigResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["CategoricalAnnotationConfig"]
+        | components["schemas"]["ContinuousAnnotationConfig"]
+        | components["schemas"]["FreeformAnnotationConfig"];
+    };
+    /** UpdateProjectRequestBody */
+    UpdateProjectRequestBody: {
+      /** Description */
+      description?: string | null;
+    };
+    /** UpdateProjectResponseBody */
+    UpdateProjectResponseBody: {
+      data: components["schemas"]["Project"];
+    };
+    /** UploadDatasetData */
+    UploadDatasetData: {
+      /** Dataset Id */
+      dataset_id: string;
+      /** Version Id */
+      version_id: string;
+    };
+    /** UploadDatasetResponseBody */
+    UploadDatasetResponseBody: {
+      data: components["schemas"]["UploadDatasetData"];
+    };
+    /** UpsertExperimentEvaluationRequestBody */
+    UpsertExperimentEvaluationRequestBody: {
+      /**
+       * Experiment Run Id
+       * @description The ID of the experiment run being evaluated
+       */
+      experiment_run_id: string;
+      /**
+       * Name
+       * @description The name of the evaluation
+       */
+      name: string;
+      /**
+       * Annotator Kind
+       * @description The kind of annotator used for the evaluation
+       * @enum {string}
+       */
+      annotator_kind: "LLM" | "CODE" | "HUMAN";
+      /**
+       * Start Time
+       * Format: date-time
+       * @description The start time of the evaluation in ISO format
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       * @description The end time of the evaluation in ISO format
+       */
+      end_time: string;
+      /** @description The result of the evaluation. Either result or error must be provided. */
+      result?: components["schemas"]["ExperimentEvaluationResult"] | null;
+      /**
+       * Error
+       * @description Error message if the evaluation encountered an error. Either result or error must be provided.
+       */
+      error?: string | null;
+      /**
+       * Metadata
+       * @description Metadata for the evaluation
+       */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Trace Id
+       * @description Optional trace ID for tracking
+       */
+      trace_id?: string | null;
+    };
+    /** UpsertExperimentEvaluationResponseBody */
+    UpsertExperimentEvaluationResponseBody: {
+      data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
+    };
+    /** UpsertExperimentEvaluationResponseBodyData */
+    UpsertExperimentEvaluationResponseBodyData: {
+      /**
+       * Id
+       * @description The ID of the upserted experiment evaluation
+       */
+      id: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_annotation_configs_v1_annotation_configs_get: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded annotation config ID) */
-                cursor?: string | null;
-                /** @description Maximum number of configs to return */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A list of annotation configurations with pagination information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetAnnotationConfigsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  list_annotation_configs_v1_annotation_configs_get: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded annotation config ID) */
+        cursor?: string | null;
+        /** @description Maximum number of configs to return */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    create_annotation_config_v1_annotation_configs_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description A list of annotation configurations with pagination information */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAnnotationConfigData"];
-            };
+        content: {
+          "application/json": components["schemas"]["GetAnnotationConfigsResponseBody"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateAnnotationConfigResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID or name of the annotation configuration */
-                config_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetAnnotationConfigResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  create_annotation_config_v1_annotation_configs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    update_annotation_config_v1_annotation_configs__config_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the annotation configuration */
-                config_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAnnotationConfigData"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpdateAnnotationConfigResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateAnnotationConfigData"];
+      };
     };
-    delete_annotation_config_v1_annotation_configs__config_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the annotation configuration */
-                config_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeleteAnnotationConfigResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["CreateAnnotationConfigResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    listSpanAnnotationsBySpanIds: {
-        parameters: {
-            query: {
-                /** @description One or more span id to fetch annotations for */
-                span_ids: string[];
-                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
-                include_annotation_names?: string[] | null;
-                /** @description Optional list of annotation names to exclude from results. */
-                exclude_annotation_names?: string[] | null;
-                /** @description A cursor for pagination */
-                cursor?: string | null;
-                /** @description The maximum number of annotations to return in a single request */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SpanAnnotationsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Project or spans not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid parameters */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID or name of the annotation configuration */
+        config_identifier: string;
+      };
+      cookie?: never;
     };
-    listDatasets: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination */
-                cursor?: string | null;
-                /** @description An optional dataset name to filter by */
-                name?: string | null;
-                /** @description The max number of datasets to return at a time. */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListDatasetsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["GetAnnotationConfigResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    getDataset: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetDatasetResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  update_annotation_config_v1_annotation_configs__config_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the annotation configuration */
+        config_id: string;
+      };
+      cookie?: never;
     };
-    deleteDatasetById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the dataset to delete. */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Dataset not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid dataset ID */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateAnnotationConfigData"];
+      };
     };
-    listDatasetVersionsByDatasetId: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination */
-                cursor?: string | null;
-                /** @description The max number of dataset versions to return at a time */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListDatasetVersionsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["UpdateAnnotationConfigResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    uploadDataset: {
-        parameters: {
-            query?: {
-                /** @description If true, fulfill request synchronously and return JSON containing dataset_id. */
-                sync?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    action?: "create" | "append";
-                    name: string;
-                    description?: string;
-                    inputs: Record<string, unknown>[];
-                    outputs?: Record<string, unknown>[];
-                    metadata?: Record<string, unknown>[];
-                };
-                "multipart/form-data": {
-                    /** @enum {string} */
-                    action?: "create" | "append";
-                    name: string;
-                    description?: string;
-                    "input_keys[]": string[];
-                    "output_keys[]": string[];
-                    "metadata_keys[]"?: string[];
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UploadDatasetResponseBody"] | null;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Dataset of the same name already exists */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  delete_annotation_config_v1_annotation_configs__config_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the annotation configuration */
+        config_id: string;
+      };
+      cookie?: never;
     };
-    getDatasetExamples: {
-        parameters: {
-            query?: {
-                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
-                version_id?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListDatasetExamplesResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["DeleteAnnotationConfigResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    getDatasetCsv: {
-        parameters: {
-            query?: {
-                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
-                version_id?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  listSpanAnnotationsBySpanIds: {
+    parameters: {
+      query: {
+        /** @description One or more span id to fetch annotations for */
+        span_ids: string[];
+        /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+        include_annotation_names?: string[] | null;
+        /** @description Optional list of annotation names to exclude from results. */
+        exclude_annotation_names?: string[] | null;
+        /** @description A cursor for pagination */
+        cursor?: string | null;
+        /** @description The maximum number of annotations to return in a single request */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
     };
-    getDatasetJSONLOpenAIFineTuning: {
-        parameters: {
-            query?: {
-                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
-                version_id?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid dataset or version ID */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["SpanAnnotationsResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Project or spans not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid parameters */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    getDatasetJSONLOpenAIEvals: {
-        parameters: {
-            query?: {
-                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
-                version_id?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the dataset */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid dataset or version ID */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  listDatasets: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination */
+        cursor?: string | null;
+        /** @description An optional dataset name to filter by */
+        name?: string | null;
+        /** @description The max number of datasets to return at a time. */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listExperiments: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dataset_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Experiments retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListExperimentsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ListDatasetsResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    createExperiment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dataset_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateExperimentRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Experiment retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateExperimentResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Dataset or DatasetVersion not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  getDataset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    getExperiment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Experiment retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetExperimentResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Experiment not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["GetDatasetResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    getExperimentJSON: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Experiment not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  deleteDatasetById: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the dataset to delete. */
+        id: string;
+      };
+      cookie?: never;
     };
-    getExperimentCSV: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                    "text/csv": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Dataset not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid dataset ID */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    listExperimentRuns: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded experiment run ID) */
-                cursor?: string | null;
-                /** @description The max number of experiment runs to return at a time. If not specified, returns all results. */
-                limit?: number | null;
-            };
-            header?: never;
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Experiment runs retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Experiment not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid cursor format */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  listDatasetVersionsByDatasetId: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination */
+        cursor?: string | null;
+        /** @description The max number of dataset versions to return at a time */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    createExperimentRun: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
-            };
+        content: {
+          "application/json": components["schemas"]["ListDatasetVersionsResponseBody"];
         };
-        responses: {
-            /** @description Experiment run created successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Experiment or dataset example not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description This experiment run has already been submitted */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    upsertExperimentEvaluation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Experiment run not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  uploadDataset: {
+    parameters: {
+      query?: {
+        /** @description If true, fulfill request synchronously and return JSON containing dataset_id. */
+        sync?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    deleteTrace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
-                trace_identifier: string;
-            };
-            cookie?: never;
+    requestBody?: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          action?: "create" | "append";
+          name: string;
+          description?: string;
+          inputs: Record<string, unknown>[];
+          outputs?: Record<string, unknown>[];
+          metadata?: Record<string, unknown>[];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        "multipart/form-data": {
+          /** @enum {string} */
+          action?: "create" | "append";
+          name: string;
+          description?: string;
+          "input_keys[]": string[];
+          "output_keys[]": string[];
+          "metadata_keys[]"?: string[];
+          /** Format: binary */
+          file: string;
         };
+      };
     };
-    spanSearch: {
-        parameters: {
-            query?: {
-                /** @description Pagination cursor (Span Global ID) */
-                cursor?: string | null;
-                /** @description Maximum number of spans to return */
-                limit?: number;
-                /** @description Inclusive lower bound time */
-                start_time?: string | null;
-                /** @description Exclusive upper bound time */
-                end_time?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OtlpSpansResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json":
+            | components["schemas"]["UploadDatasetResponseBody"]
+            | null;
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Dataset of the same name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    getSpans: {
-        parameters: {
-            query?: {
-                /** @description Pagination cursor (Span Global ID) */
-                cursor?: string | null;
-                /** @description Maximum number of spans to return */
-                limit?: number;
-                /** @description Inclusive lower bound time */
-                start_time?: string | null;
-                /** @description Exclusive upper bound time */
-                end_time?: string | null;
-            };
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SpansResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  getDatasetExamples: {
+    parameters: {
+      query?: {
+        /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+        version_id?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    createSpans: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSpansRequestBody"];
-            };
+        content: {
+          "application/json": components["schemas"]["ListDatasetExamplesResponseBody"];
         };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateSpansResponseBody"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    annotateSpans: {
-        parameters: {
-            query?: {
-                /** @description If true, fulfill request synchronously. */
-                sync?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnnotateSpansRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Span annotations inserted successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotateSpansResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Span not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  getDatasetCsv: {
+    parameters: {
+      query?: {
+        /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+        version_id?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    deleteSpan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
-                span_identifier: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "text/csv": string;
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    getEvaluations: {
-        parameters: {
-            query?: {
-                /** @description The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project) */
-                project_name?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  getDatasetJSONLOpenAIFineTuning: {
+    parameters: {
+      query?: {
+        /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+        version_id?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    addEvaluations: {
-        parameters: {
-            query?: never;
-            header?: {
-                "content-type"?: string | null;
-                "content-encoding"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/x-protobuf": string;
-                "application/x-pandas-arrow": string;
-            };
+        content: {
+          "text/plain": string;
         };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
-            415: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid dataset or version ID */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    getPrompts: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded prompt ID) */
-                cursor?: string | null;
-                /** @description The max number of prompts to return at a time. */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A list of prompts with pagination information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  getDatasetJSONLOpenAIEvals: {
+    parameters: {
+      query?: {
+        /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+        version_id?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the dataset */
+        id: string;
+      };
+      cookie?: never;
     };
-    postPromptVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreatePromptRequestBody"];
-            };
+        content: {
+          "text/plain": string;
         };
-        responses: {
-            /** @description The newly created prompt version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreatePromptResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid dataset or version ID */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    listPromptVersions: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded promptVersion ID) */
-                cursor?: string | null;
-                /** @description The max number of prompt versions to return at a time. */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description The identifier of the prompt, i.e. name or ID. */
-                prompt_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A list of prompt versions with pagination information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  listExperiments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+      };
+      cookie?: never;
     };
-    getPromptVersionByPromptVersionId: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the prompt version. */
-                prompt_version_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Experiments retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The requested prompt version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ListExperimentsResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    getPromptVersionByTagName: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The identifier of the prompt, i.e. name or ID. */
-                prompt_identifier: string;
-                /** @description The tag of the prompt version */
-                tag_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The prompt version with the specified tag */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  createExperiment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+      };
+      cookie?: never;
     };
-    getPromptVersionLatest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The identifier of the prompt, i.e. name or ID. */
-                prompt_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The latest version of the specified prompt */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateExperimentRequestBody"];
+      };
     };
-    getPromptVersionTags: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded promptVersionTag ID) */
-                cursor?: string | null;
-                /** @description The max number of tags to return at a time. */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the prompt version. */
-                prompt_version_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Experiment retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description A list of tags associated with the prompt version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPromptVersionTagsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["CreateExperimentResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Dataset or DatasetVersion not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    createPromptVersionTag: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the prompt version. */
-                prompt_version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptVersionTagData"];
-            };
-        };
-        responses: {
-            /** @description No content returned on successful tag creation */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  getExperiment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
     };
-    getProjects: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (project ID) */
-                cursor?: string | null;
-                /** @description The max number of projects to return at a time. */
-                limit?: number;
-                /** @description Include experiment projects in the response. Experiment projects are created from running experiments. */
-                include_experiment_projects?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Experiment retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description A list of projects with pagination information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetProjectsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["GetExperimentResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Experiment not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    createProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateProjectRequestBody"];
-            };
-        };
-        responses: {
-            /** @description The newly created project */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateProjectResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  getExperimentJSON: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
     };
-    getProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The requested project */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetProjectResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "text/plain": string;
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Experiment not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    updateProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateProjectRequestBody"];
-            };
-        };
-        responses: {
-            /** @description The updated project */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpdateProjectResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  getExperimentCSV: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
     };
-    deleteProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
-                project_identifier: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description No content returned on successful deletion */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": unknown;
+          "text/csv": string;
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    annotateSpanDocuments: {
-        parameters: {
-            query?: {
-                /** @description If set to true, the annotations are inserted synchronously. */
-                sync?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnnotateSpanDocumentsRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Span document annotation inserted successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotateSpanDocumentsResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Span not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Invalid request - non-empty identifier not supported */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  listExperimentRuns: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded experiment run ID) */
+        cursor?: string | null;
+        /** @description The max number of experiment runs to return at a time. If not specified, returns all results. */
+        limit?: number | null;
+      };
+      header?: never;
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
     };
-    getUsers: {
-        parameters: {
-            query?: {
-                /** @description Cursor for pagination (base64-encoded user ID) */
-                cursor?: string;
-                /** @description The max number of users to return at a time. */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Experiment runs retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description A list of users. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetUsersResponseBody"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
         };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Experiment not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid cursor format */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
     };
-    createUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateUserRequestBody"];
-            };
-        };
-        responses: {
-            /** @description The newly created user. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreateUserResponseBody"];
-                };
-            };
-            /** @description Role not found. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Username or email already exists. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+  };
+  createExperimentRun: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
     };
-    deleteUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content returned on successful deletion. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Cannot delete the default admin or system user */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description User not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
+      };
     };
+    responses: {
+      /** @description Experiment run created successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Experiment or dataset example not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description This experiment run has already been submitted */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  upsertExperimentEvaluation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Experiment run not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  deleteTrace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+        trace_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  spanSearch: {
+    parameters: {
+      query?: {
+        /** @description Pagination cursor (Span Global ID) */
+        cursor?: string | null;
+        /** @description Maximum number of spans to return */
+        limit?: number;
+        /** @description Inclusive lower bound time */
+        start_time?: string | null;
+        /** @description Exclusive upper bound time */
+        end_time?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OtlpSpansResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getSpans: {
+    parameters: {
+      query?: {
+        /** @description Pagination cursor (Span Global ID) */
+        cursor?: string | null;
+        /** @description Maximum number of spans to return */
+        limit?: number;
+        /** @description Inclusive lower bound time */
+        start_time?: string | null;
+        /** @description Exclusive upper bound time */
+        end_time?: string | null;
+      };
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SpansResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  createSpans: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateSpansRequestBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateSpansResponseBody"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  annotateSpans: {
+    parameters: {
+      query?: {
+        /** @description If true, fulfill request synchronously. */
+        sync?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AnnotateSpansRequestBody"];
+      };
+    };
+    responses: {
+      /** @description Span annotations inserted successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnnotateSpansResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Span not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  deleteSpan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+        span_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  getEvaluations: {
+    parameters: {
+      query?: {
+        /** @description The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project) */
+        project_name?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  addEvaluations: {
+    parameters: {
+      query?: never;
+      header?: {
+        "content-type"?: string | null;
+        "content-encoding"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/x-protobuf": string;
+        "application/x-pandas-arrow": string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getPrompts: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded prompt ID) */
+        cursor?: string | null;
+        /** @description The max number of prompts to return at a time. */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A list of prompts with pagination information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptsResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  postPromptVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePromptRequestBody"];
+      };
+    };
+    responses: {
+      /** @description The newly created prompt version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreatePromptResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  listPromptVersions: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded promptVersion ID) */
+        cursor?: string | null;
+        /** @description The max number of prompt versions to return at a time. */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description The identifier of the prompt, i.e. name or ID. */
+        prompt_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A list of prompt versions with pagination information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getPromptVersionByPromptVersionId: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the prompt version. */
+        prompt_version_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The requested prompt version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getPromptVersionByTagName: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The identifier of the prompt, i.e. name or ID. */
+        prompt_identifier: string;
+        /** @description The tag of the prompt version */
+        tag_name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The prompt version with the specified tag */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getPromptVersionLatest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The identifier of the prompt, i.e. name or ID. */
+        prompt_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The latest version of the specified prompt */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getPromptVersionTags: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded promptVersionTag ID) */
+        cursor?: string | null;
+        /** @description The max number of tags to return at a time. */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description The ID of the prompt version. */
+        prompt_version_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A list of tags associated with the prompt version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetPromptVersionTagsResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  createPromptVersionTag: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the prompt version. */
+        prompt_version_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PromptVersionTagData"];
+      };
+    };
+    responses: {
+      /** @description No content returned on successful tag creation */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getProjects: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (project ID) */
+        cursor?: string | null;
+        /** @description The max number of projects to return at a time. */
+        limit?: number;
+        /** @description Include experiment projects in the response. Experiment projects are created from running experiments. */
+        include_experiment_projects?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A list of projects with pagination information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetProjectsResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  createProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateProjectRequestBody"];
+      };
+    };
+    responses: {
+      /** @description The newly created project */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateProjectResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The requested project */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetProjectResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  updateProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProjectRequestBody"];
+      };
+    };
+    responses: {
+      /** @description The updated project */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UpdateProjectResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  deleteProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description No content returned on successful deletion */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  annotateSpanDocuments: {
+    parameters: {
+      query?: {
+        /** @description If set to true, the annotations are inserted synchronously. */
+        sync?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AnnotateSpanDocumentsRequestBody"];
+      };
+    };
+    responses: {
+      /** @description Span document annotation inserted successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnnotateSpanDocumentsResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Span not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Invalid request - non-empty identifier not supported */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  getUsers: {
+    parameters: {
+      query?: {
+        /** @description Cursor for pagination (base64-encoded user ID) */
+        cursor?: string;
+        /** @description The max number of users to return at a time. */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A list of users. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetUsersResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  createUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUserRequestBody"];
+      };
+    };
+    responses: {
+      /** @description The newly created user. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateUserResponseBody"];
+        };
+      };
+      /** @description Role not found. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Username or email already exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  deleteUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description No content returned on successful deletion. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Cannot delete the default admin or system user */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
 }

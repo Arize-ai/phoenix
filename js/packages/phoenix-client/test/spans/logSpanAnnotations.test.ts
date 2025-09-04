@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { logSpanAnnotations } from "../../src/spans/logSpanAnnotations";
 
+// Create mock POST function
+const mockPOST = vi.fn();
+
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({
   default: () => ({
-    POST: vi.fn().mockResolvedValue({
+    POST: mockPOST.mockResolvedValue({
       data: {
         data: [{ id: "test-id-1" }, { id: "test-id-2" }],
       },
@@ -17,6 +20,13 @@ describe("logSpanAnnotations", () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    // Reset default mock behavior
+    mockPOST.mockResolvedValue({
+      data: {
+        data: [{ id: "test-id-1" }, { id: "test-id-2" }],
+      },
+      error: null,
+    });
   });
 
   it("should log multiple span annotations", async () => {
@@ -43,7 +53,13 @@ describe("logSpanAnnotations", () => {
     expect(result).toEqual([{ id: "test-id-1" }, { id: "test-id-2" }]);
   });
 
-  it("should return null when sync=false (default)", async () => {
+  it("should return empty array when sync=false (default)", async () => {
+    // Mock server returns no data for async calls
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: undefined,
+    });
+
     const result = await logSpanAnnotations({
       spanAnnotations: [
         {
@@ -55,6 +71,6 @@ describe("logSpanAnnotations", () => {
       // sync defaults to false
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual([]);
   });
 });

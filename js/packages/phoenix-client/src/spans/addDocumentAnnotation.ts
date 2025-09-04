@@ -62,13 +62,9 @@ export async function addDocumentAnnotation({
     throw new Error(`Failed to add document annotation: ${error}`);
   }
 
-  // Return null for async mode (matches Python client behavior)
-  if (!sync) {
+  // Return null if no data, otherwise return the ID
+  if (!data?.data?.length) {
     return null;
-  }
-
-  if (!data?.data?.[0]?.id) {
-    throw new Error("No annotation ID returned from server");
   }
 
   return data.data[0];

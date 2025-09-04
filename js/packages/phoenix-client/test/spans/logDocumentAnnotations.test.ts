@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { logDocumentAnnotations } from "../../src/spans/logDocumentAnnotations";
 
+// Create mock POST function
+const mockPOST = vi.fn();
+
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({
   default: () => ({
-    POST: vi.fn().mockResolvedValue({
+    POST: mockPOST.mockResolvedValue({
       data: {
         data: [{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }],
       },
@@ -17,6 +20,13 @@ describe("logDocumentAnnotations", () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    // Reset default mock behavior
+    mockPOST.mockResolvedValue({
+      data: {
+        data: [{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }],
+      },
+      error: null,
+    });
   });
 
   it("should log multiple document annotations", async () => {
@@ -129,14 +139,6 @@ describe("logDocumentAnnotations", () => {
     );
   });
 
-  it("should throw error for empty array like Python client", async () => {
-    await expect(
-      logDocumentAnnotations({
-        documentAnnotations: [],
-      })
-    ).rejects.toThrow("documentAnnotations cannot be empty");
-  });
-
   it("should trim whitespace from string fields", async () => {
     const result = await logDocumentAnnotations({
       documentAnnotations: [
@@ -154,7 +156,13 @@ describe("logDocumentAnnotations", () => {
     expect(result).toEqual([{ id: "test-doc-id-1" }, { id: "test-doc-id-2" }]);
   });
 
-  it("should return null when sync=false (default)", async () => {
+  it("should return empty array when sync=false (default)", async () => {
+    // Mock server returns no data for async calls
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: undefined,
+    });
+
     const result = await logDocumentAnnotations({
       documentAnnotations: [
         {
@@ -167,6 +175,6 @@ describe("logDocumentAnnotations", () => {
       // sync defaults to false
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual([]);
   });
 });
