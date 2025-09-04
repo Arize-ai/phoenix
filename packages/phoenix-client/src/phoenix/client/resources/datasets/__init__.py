@@ -1,5 +1,6 @@
 import csv
 import gzip
+import json
 import logging
 import re
 from collections import Counter
@@ -10,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, List, Literal, Optional, Union
 from urllib.parse import quote
-import json
+
 import httpx
 
 if TYPE_CHECKING:
