@@ -133,7 +133,7 @@ class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
 async def annotate_traces(
     request: Request,
     request_body: AnnotateTracesRequestBody,
-    sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
+    sync: bool = Query(default=False, description="If true, fulfill request synchronously."),
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
