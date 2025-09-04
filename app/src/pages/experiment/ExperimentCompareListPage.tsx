@@ -63,48 +63,12 @@ const tableWrapCSS = css`
   }
 `;
 
-type Example =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["example"];
-
 type ExperimentRun =
   ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
-
-type TableRow = {
-  id: Example["id"];
-  example: Example["id"];
-  input: Example["revision"]["input"];
-  referenceOutput: Example["revision"]["referenceOutput"];
-  outputs: {
-    baseExperimentValue: ExperimentRun["output"];
-    compareExperimentValues: (ExperimentRun["output"] | undefined)[];
-  };
-  tokens: {
-    baseExperimentValue: ExperimentRun["costSummary"]["total"]["tokens"];
-    compareExperimentValues: (
-      | ExperimentRun["costSummary"]["total"]["tokens"]
-      | undefined
-    )[];
-  };
-  latencyMs: {
-    baseExperimentValue: number;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  cost: {
-    baseExperimentValue: ExperimentRun["costSummary"]["total"]["cost"];
-    compareExperimentValues: (
-      | ExperimentRun["costSummary"]["total"]["cost"]
-      | undefined
-    )[];
-  };
-  annotations: {
-    baseExperimentValue: ExperimentRun["annotations"]["edges"][number]["annotation"][];
-    compareExperimentValues: ExperimentRun["annotations"]["edges"][number]["annotation"][][];
-  };
-};
 
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
@@ -234,7 +198,7 @@ export function ExperimentCompareListPage() {
     );
   }, [aggregateData?.dataset]);
 
-  const tableData: TableRow[] = useMemo(() => {
+  const tableData = useMemo(() => {
     return (
       data?.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
@@ -301,6 +265,8 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
+
+  type TableRow = (typeof tableData)[number];
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
