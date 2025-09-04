@@ -293,7 +293,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [
       {
         header: "input",
-        accessorKey: "input",
         enableSorting: false,
         cell: ({ row }) => {
           return (
@@ -347,7 +346,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       },
       {
         header: "reference output",
-        accessorKey: "referenceOutput",
+        accessorFn: (row) => row.example.revision.referenceOutput,
         enableSorting: false,
         cell: (props) => (
           <>
@@ -1043,11 +1042,11 @@ function SelectedExampleDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Comparing Experiments for Example: ${selectedExample.id}`}</DialogTitle>
+          <DialogTitle>{`Comparing Experiments for Example: ${selectedExample.example.id}`}</DialogTitle>
           <DialogTitleExtra>
             <ExperimentRowActionMenu
               datasetId={datasetId}
-              exampleId={selectedExample.id}
+              exampleId={selectedExample.example.id}
             />
             <DialogCloseButton />
           </DialogTitleExtra>
