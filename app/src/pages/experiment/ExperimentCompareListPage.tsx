@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useRef } from "react";
-import { graphql, useFragment, usePaginationFragment } from "react-relay";
+import { memo, useMemo, useRef } from "react";
+import { graphql, useFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
   ColumnDef,
@@ -45,11 +45,10 @@ import type {
   ExperimentCompareListPage_comparisons$data,
   ExperimentCompareListPage_comparisons$key,
 } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
-import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
 import type { experimentCompareLoader } from "./experimentCompareLoader";
 import { calculateAnnotationScorePercentile } from "./utils";
 
-const PAGE_SIZE = 50;
+// const PAGE_SIZE = 50;
 
 const tableWrapCSS = css`
   flex: 1 1 auto;
@@ -63,8 +62,12 @@ const tableWrapCSS = css`
   }
 `;
 
-type ExperimentRun =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+type ExperimentRun = NonNullable<
+  ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
+>["edges"][number]["run"];
+
+type CompareExperimentRun =
+  ExperimentRun["example"]["experiments"]["edges"][number]["experiment"]["runs"]["edges"][number]["run"];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -118,36 +121,19 @@ export function ExperimentCompareListPage() {
       `,
       loaderData
     );
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    ExperimentCompareListPageQuery,
-    ExperimentCompareListPage_comparisons$key
-  >(
+  const data = useFragment<ExperimentCompareListPage_comparisons$key>(
     graphql`
       fragment ExperimentCompareListPage_comparisons on Query
-      @refetchable(queryName: "ExperimentCompareListPageQuery")
       @argumentDefinitions(
-        first: { type: "Int", defaultValue: 50 }
-        after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
+        compareExperimentIds: { type: "[ID!]!" }
       ) {
-        compareExperiments(
-          first: $first
-          after: $after
-          baseExperimentId: $baseExperimentId
-          compareExperimentIds: $compareExperimentIds
-        ) @connection(key: "ExperimentCompareListPage_compareExperiments") {
-          edges {
-            comparison: node {
-              example {
-                id
-                revision {
-                  input
-                  referenceOutput: output
-                }
-              }
-              runComparisonItems {
-                experimentId
-                runs {
+        experiment: node(id: $baseExperimentId) {
+          ... on Experiment {
+            runs(first: 50) {
+              edges {
+                run: node {
+                  id
                   output
                   startTime
                   endTime
@@ -163,6 +149,44 @@ export function ExperimentCompareListPage() {
                         name
                         score
                         label
+                      }
+                    }
+                  }
+                  example {
+                    id
+                    revision {
+                      input
+                      referenceOutput: output
+                    }
+                    experiments(experimentIds: $compareExperimentIds) {
+                      edges {
+                        experiment: node {
+                          id
+                          runs(first: 5) {
+                            edges {
+                              run: node {
+                                output
+                                startTime
+                                endTime
+                                costSummary {
+                                  total {
+                                    tokens
+                                    cost
+                                  }
+                                }
+                                annotations {
+                                  edges {
+                                    annotation: node {
+                                      name
+                                      score
+                                      label
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -199,91 +223,102 @@ export function ExperimentCompareListPage() {
   }, [aggregateData?.dataset]);
 
   const tableData = useMemo(() => {
+    const compareExperimentIds = experimentIds.slice(1);
     return (
-      data?.compareExperiments.edges.map((edge) => {
-        const comparison = edge.comparison;
-        const example = comparison.example;
-        const runItems = comparison.runComparisonItems;
+      data?.experiment.runs?.edges.map((edge) => {
+        const experimentRun = edge.run;
+        const example = experimentRun.example;
+        const compareExperimentRunItems = example.experiments.edges;
 
-        const baseExperimentRun: ExperimentRun = runItems[0].runs[0];
-        const compareExperimentRuns: (ExperimentRun | undefined)[] = runItems
-          .slice(1)
-          .map((item) => item.runs[0]);
+        const compareExperimentRunsByExperimentId: Record<
+          string,
+          CompareExperimentRun | undefined
+        > = {};
+        compareExperimentRunItems.forEach((item) => {
+          compareExperimentRunsByExperimentId[item.experiment.id] =
+            item.experiment.runs.edges[0]?.run;
+        });
+
         const tableData = {
           id: example.id,
           example: example.id,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
           outputs: {
-            baseExperimentValue: baseExperimentRun.output,
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) => run?.output
+            baseExperimentValue: experimentRun.output,
+            compareExperimentValues: compareExperimentIds.map(
+              (id) => compareExperimentRunsByExperimentId[id]?.output
             ),
           },
           tokens: {
-            baseExperimentValue: baseExperimentRun.costSummary.total.tokens,
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) => run?.costSummary.total.tokens
+            baseExperimentValue: experimentRun.costSummary.total.tokens,
+            compareExperimentValues: compareExperimentIds.map(
+              (id) =>
+                compareExperimentRunsByExperimentId[id]?.costSummary.total
+                  .tokens
             ),
           },
           latencyMs: {
             baseExperimentValue:
-              new Date(baseExperimentRun.endTime).getTime() -
-              new Date(baseExperimentRun.startTime).getTime(),
-            compareExperimentValues: compareExperimentRuns.map((run) =>
-              run
-                ? new Date(run.endTime).getTime() -
-                  new Date(run.startTime).getTime()
+              new Date(experimentRun.endTime).getTime() -
+              new Date(experimentRun.startTime).getTime(),
+            compareExperimentValues: compareExperimentIds.map((id) =>
+              compareExperimentRunsByExperimentId[id]
+                ? new Date(
+                    compareExperimentRunsByExperimentId[id].endTime
+                  ).getTime() -
+                  new Date(
+                    compareExperimentRunsByExperimentId[id].startTime
+                  ).getTime()
                 : undefined
             ),
           },
           cost: {
-            baseExperimentValue: baseExperimentRun.costSummary.total.cost,
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) => run?.costSummary.total.cost
+            baseExperimentValue: experimentRun.costSummary.total.cost,
+            compareExperimentValues: compareExperimentIds.map(
+              (id) =>
+                compareExperimentRunsByExperimentId[id]?.costSummary.total.cost
             ),
           },
           annotations: {
-            baseExperimentValue: baseExperimentRun.annotations.edges.map(
+            baseExperimentValue: experimentRun.annotations.edges.map(
               (edge) => ({
-                name: edge.annotation.name,
-                score: edge.annotation.score,
-                label: edge.annotation.label,
+                ...edge.annotation,
               })
             ),
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) =>
-                run?.annotations.edges.map((edge) => ({
-                  name: edge.annotation.name,
-                  score: edge.annotation.score,
-                  label: edge.annotation.label,
-                })) ?? []
+            compareExperimentValues: compareExperimentIds.map(
+              (id) =>
+                compareExperimentRunsByExperimentId[id]?.annotations.edges.map(
+                  (edge) => ({
+                    ...edge.annotation,
+                  })
+                ) ?? []
             ),
           },
         };
         return tableData;
       }) ?? []
     );
-  }, [data]);
+  }, [data, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
 
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  // const fetchMoreOnBottomReached = useCallback(
+  //   (containerRefElement?: HTMLDivElement | null) => {
+  //     if (containerRefElement) {
+  //       const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+  //       //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+  //       if (
+  //         scrollHeight - scrollTop - clientHeight < 300 &&
+  //         !isLoadingNext &&
+  //         hasNext
+  //       ) {
+  //         loadNext(PAGE_SIZE);
+  //       }
+  //     }
+  //   },
+  //   [hasNext, isLoadingNext, loadNext]
+  // );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
@@ -799,7 +834,7 @@ export function ExperimentCompareListPage() {
       <Flex direction="column" height="100%">
         <div
           css={tableWrapCSS}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          // onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
           ref={tableContainerRef}
         >
           <table
