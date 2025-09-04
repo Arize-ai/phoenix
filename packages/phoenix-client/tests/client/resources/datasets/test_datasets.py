@@ -500,7 +500,7 @@ class TestDatasetDeleting:
         rest_response = Mock()
         rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = rest_response
+        mock_datasets_client._client.request.return_value = rest_response
 
         result = mock_datasets_client.delete_examples(example_ids="ex1")
 
@@ -513,13 +513,14 @@ class TestDatasetDeleting:
         rest_response = Mock()
         rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = rest_response
+        mock_datasets_client._client.request.return_value = rest_response
 
         result = mock_datasets_client.delete_examples(example_ids=["ex1", "ex2", "ex3"])
 
         # Verify payload structure (REST format)
-        call_args = mock_datasets_client._client.post.call_args
-        payload = call_args[1]["json"]
+        call_args = mock_datasets_client._client.request.call_args
+        import json
+        payload = json.loads(call_args[1]["content"])
         assert payload["example_ids"] == ["ex1", "ex2", "ex3"]
 
         # Verify method returns None
@@ -540,7 +541,7 @@ class TestDatasetDeleting:
             "404 Not Found", request=Mock(), response=Mock(status_code=404)
         )
 
-        mock_datasets_client._client.post.return_value = rest_response
+        mock_datasets_client._client.request.return_value = rest_response
 
         with pytest.raises(httpx.HTTPStatusError):
             mock_datasets_client.delete_examples(example_ids=["nonexistent"])
@@ -551,7 +552,7 @@ class TestDatasetDeleting:
         rest_response = Mock()
         rest_response.raise_for_status.return_value = None
 
-        mock_datasets_client._client.post.return_value = rest_response
+        mock_datasets_client._client.request.return_value = rest_response
 
         result = mock_datasets_client.delete_examples(
             example_ids=["ex1"],
@@ -560,8 +561,9 @@ class TestDatasetDeleting:
         )
 
         # Verify version fields were included (REST format)
-        call_args = mock_datasets_client._client.post.call_args
-        payload = call_args[1]["json"]
+        call_args = mock_datasets_client._client.request.call_args
+        import json
+        payload = json.loads(call_args[1]["content"])
         assert payload["example_ids"] == ["ex1"]
         assert payload["version_description"] == "Removed example"
         assert payload["version_metadata"] == {"operation": "delete"}
