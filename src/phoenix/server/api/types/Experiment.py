@@ -36,14 +36,12 @@ class Experiment(Node):
     metadata: JSON
     created_at: datetime
     updated_at: datetime
+    dataset_version_rowid: strawberry.Private[int]
     dataset_example_rowid: strawberry.Private[Optional[int]] = None
-    dataset_version_rowid: strawberry.Private[Optional[int]] = None
 
     @strawberry.field
     async def dataset_version_id(self) -> GlobalID:
         dataset_version_rowid = self.dataset_version_rowid
-        if dataset_version_rowid is None:
-            raise NotImplementedError
         return GlobalID(DatasetVersion.__name__, str(dataset_version_rowid))
 
     @strawberry.field(
