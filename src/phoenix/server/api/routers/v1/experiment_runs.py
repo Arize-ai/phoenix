@@ -171,8 +171,7 @@ async def list_experiment_runs(
 
     stmt = (
         select(models.ExperimentRun)
-        .where(models.ExperimentRun.experiment_id == experiment_rowid)
-        # order by id for consistent cursor-based pagination
+        .filter_by(experiment_id=experiment_rowid)
         .order_by(models.ExperimentRun.id.desc())
     )
 
