@@ -225,6 +225,23 @@ class Precursors(ABC):
                 span_rowid=span_rowid,
             )
 
+    @dataclass(frozen=True)
+    class SessionAnnotation:
+        updated_at: datetime
+        session_id: str
+        obj: models.ProjectSessionAnnotation
+
+        def as_insertable(
+            self,
+            project_session_rowid: int,
+        ) -> Insertables.SessionAnnotation:
+            return Insertables.SessionAnnotation(
+                updated_at=self.updated_at,
+                session_id=self.session_id,
+                obj=self.obj,
+                project_session_rowid=project_session_rowid,
+            )
+
 
 class Insertables(ABC):
     @dataclass(frozen=True)
@@ -263,5 +280,18 @@ class Insertables(ABC):
         def row(self) -> models.DocumentAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
+            obj.updated_at = self.updated_at
+            return obj
+
+    @dataclass(frozen=True)
+    class SessionAnnotation(Precursors.SessionAnnotation):
+        updated_at: datetime
+        project_session_rowid: int
+        identifier: str = ""
+
+        @property
+        def row(self) -> models.ProjectSessionAnnotation:
+            obj = copy(self.obj)
+            obj.project_session_id = self.project_session_rowid
             obj.updated_at = self.updated_at
             return obj

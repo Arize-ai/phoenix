@@ -1260,6 +1260,1380 @@ class TestClientForSpanDocumentAnnotations:
             )
 
 
+class TestClientForTraceAnnotations:
+    """Tests the Phoenix trace annotation client functionality.
+
+    Verifies that the client can:
+    - Create and update single trace annotations
+    - Handle multiple trace annotations at once
+    - Work with different user roles
+    - Work in both regular and async mode
+    - Retrieve trace annotations
+    """
+
+    # GraphQL query to retrieve trace annotations for a given trace ID
+    query = """
+    query GetTraceAnnotations($id: ID!) {
+        node (id: $id) {
+            ... on Trace {
+                traceAnnotations {
+                    id
+                    name
+                    source
+                    identifier
+                    annotatorKind
+                    metadata
+                    label
+                    score
+                    explanation
+                    user {
+                        id
+                    }
+                }
+            }
+        }
+    }
+    """
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize(
+        "role_or_user, api_key_kind",
+        [
+            (_MEMBER, "User"),
+            (_ADMIN, "User"),
+            (_ADMIN, "System"),
+        ],
+    )
+    async def test_add_trace_annotation(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        api_key_kind: Literal["User", "System"],
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests creating and updating single trace annotations.
+
+        Verifies that:
+        - New trace annotations can be created with all fields
+        - Existing trace annotations can be updated
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # Setup
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        trace_id1 = span1.trace.trace_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app, api_key_kind))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # Test UPSERT functionality by adding multiple annotations with the same name
+        annotation_name = token_hex(8)
+
+        # Create initial annotation
+        score = 0.75
+        label = "good"
+        explanation = "Test trace annotation"
+        metadata = {"test": "metadata"}
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.add_trace_annotation(
+                annotation_name=annotation_name,
+                trace_id=trace_id1,
+                annotator_kind="HUMAN",
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata=metadata,
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result is not None, "Should receive annotation ID when sync=True"
+            assert result["id"], "Should have valid annotation ID"
+        else:
+            assert result is None, "Should not receive annotation ID when sync=False"
+
+        # Verify annotation was created via GraphQL
+
+        # Get trace GID from span data - use the existing trace GID from the span
+        trace_gid = str(span1.trace.id)
+
+        # Use _get() method to wait for annotation to be created and retrieved
+        def get_trace_annotation() -> Optional[dict[str, Any]]:
+            gql_resp, _ = _gql(
+                _app, _app.admin_secret, query=self.query, variables={"id": trace_gid}
+            )
+            annotations: list[dict[str, Any]] = gql_resp["data"]["node"]["traceAnnotations"]
+
+            # Filter to find the annotation we just created
+            our_annotations = [anno for anno in annotations if anno["name"] == annotation_name]
+            if len(our_annotations) == 1:
+                return our_annotations[0]
+            return None
+
+        anno = await _get(
+            query_fn=get_trace_annotation,
+            error_msg=f"Should have exactly one trace annotation with name {annotation_name}",
+            no_wait=sync,
+        )
+        assert anno["name"] == annotation_name
+        assert anno["label"] == label
+        assert anno["score"] == score
+        assert anno["explanation"] == explanation
+        assert anno["annotatorKind"] == "HUMAN"
+        assert anno["metadata"] == metadata
+        assert anno["source"] == "API"
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_log_trace_annotations(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling multiple trace annotations at once.
+
+        Verifies that:
+        - Multiple trace annotations can be created in one call
+        - Multiple trace annotations can be updated at once
+        - Works with annotations across different traces
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL trace IDs and graphql Global IDs from the fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        span1, span2, *_ = _existing_spans
+        trace_id1 = span1.trace.trace_id
+        trace_id2 = span2.trace.trace_id
+        trace_gid1 = span1.trace.id
+        trace_gid2 = span2.trace.id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Batch Annotation Test
+        # ============================================================================
+        # Test batch annotation creation and updates using log_trace_annotations
+        # Create annotations for both traces in a single batch operation
+
+        # Setup test data for batch operations
+        trace_ids = [trace_id1, trace_id2]
+        trace_gids = [trace_gid1, trace_gid2]
+        annotation_names = [token_hex(8), token_hex(8)]
+        identifiers = [token_hex(8), token_hex(8)]
+        existing_gids: list[Optional[str]] = [None, None]
+
+        # Two iterations: First creates annotations, second updates them
+        for i in range(2):
+            # Generate new random values for each iteration
+            labels = [token_hex(8), token_hex(8)]
+            scores = [
+                int.from_bytes(token_bytes(4), byteorder="big"),
+                int.from_bytes(token_bytes(4), byteorder="big"),
+            ]
+            explanations = [token_hex(8), token_hex(8)]
+            metadata = [{token_hex(8): token_hex(8)} for _ in range(2)]
+
+            # Create annotation data for both traces
+            trace_annotations: list[v1.TraceAnnotationData] = [
+                {
+                    "name": annotation_names[i],
+                    "trace_id": trace_ids[i],
+                    "annotator_kind": "CODE",  # Test non-default annotator_kind
+                    "identifier": identifiers[i],
+                    "metadata": metadata[i],
+                    "result": {
+                        "label": labels[i],
+                        "score": scores[i],
+                        "explanation": explanations[i],
+                    },
+                }
+                for i in range(len(trace_ids))
+            ]
+
+            # Log the batch annotations
+            result = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations(
+                    trace_annotations=trace_annotations,
+                    sync=sync,
+                ),
+            )
+
+            if sync:
+                # Verify the batch operation returned the expected number of results
+                assert result
+                assert len(result) == 2, (
+                    "Batch operation should return results for both annotations"
+                )
+
+            # Verify each annotation in the batch
+            for j in range(2):
+
+                def get_batch_annotation() -> Optional[dict[str, Any]]:
+                    res, _ = _gql(
+                        _app,
+                        u,
+                        query=self.query,
+                        operation_name="GetTraceAnnotations",
+                        variables={"id": str(trace_gids[j])},
+                    )
+                    annotations = {
+                        (anno["label"], anno["score"], anno["explanation"]): anno
+                        for anno in res["data"]["node"]["traceAnnotations"]
+                    }
+                    return annotations.get((labels[j], scores[j], explanations[j]))
+
+                anno = await _get(
+                    query_fn=get_batch_annotation,
+                    error_msg=f"Batch annotation {j + 1} should be present in trace annotations",
+                    no_wait=sync,
+                )
+
+                # Verify annotation exists with correct values
+                assert anno["name"] == annotation_names[j], (
+                    f"Batch annotation {j + 1} name should match input"
+                )
+                assert anno["source"] == "API", f"Batch annotation {j + 1} source should be API"
+                assert anno["annotatorKind"] == "CODE", (
+                    f"Batch annotation {j + 1} annotator_kind should be CODE"
+                )
+                assert anno["metadata"] == metadata[j], (
+                    f"Batch annotation {j + 1} metadata should match input"
+                )
+                assert anno["identifier"] == identifiers[j], (
+                    f"Batch annotation {j + 1} identifier should match input"
+                )
+
+                # Verify ID persistence across updates
+                if i == 0:
+                    existing_gids[j] = anno["id"]
+                else:
+                    assert anno["id"] == existing_gids[j], (
+                        f"Batch annotation {j + 1} ID should remain the same after update"
+                    )
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_log_trace_annotations_dataframe(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests using DataFrames for trace annotations.
+
+        Tests three ways to use DataFrames:
+        1. With trace_id as a column
+        2. With trace_id as the index
+        3. With a shared annotator type
+
+        Verifies that:
+        - Trace annotations can be read from DataFrames
+        - Different DataFrame layouts are handled correctly
+        - Shared settings work properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL trace IDs and graphql Global IDs from the fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        span1, span2, *_ = _existing_spans
+        trace_id1 = span1.trace.trace_id
+        trace_id2 = span2.trace.trace_id
+        trace_gid1 = span1.trace.id
+        trace_gid2 = span2.trace.id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case 1: Using trace_id as column
+        # ============================================================================
+        # This test case demonstrates standard DataFrame usage with trace_id as a column
+        # All fields are provided as columns in the DataFrame
+        df1_annotation_names = [token_hex(8), token_hex(8)]
+        df1_trace_ids = [trace_id1, trace_id2]
+        df1_annotator_kinds = ["HUMAN", "CODE"]
+        df1_labels = [token_hex(8), token_hex(8)]
+        df1_scores = [
+            int.from_bytes(token_bytes(4), byteorder="big"),
+            int.from_bytes(token_bytes(4), byteorder="big"),
+        ]
+        df1_explanations = [token_hex(8), token_hex(8)]
+        df1_metadata = [{token_hex(8): token_hex(8)} for _ in range(2)]
+        df1 = pd.DataFrame(
+            {
+                "name": df1_annotation_names,
+                "trace_id": df1_trace_ids,
+                "annotator_kind": df1_annotator_kinds,
+                "label": df1_labels,
+                "score": df1_scores,
+                "explanation": df1_explanations,
+                "metadata": df1_metadata,
+            }
+        )
+
+        # Log annotations from DataFrame
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations_dataframe(
+                dataframe=df1,
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify annotations were created correctly
+        for i, trace_gid in enumerate([trace_gid1, trace_gid2]):
+
+            def get_df_annotation() -> Optional[dict[str, Any]]:
+                res, _ = _gql(
+                    _app,
+                    u,
+                    query=self.query,
+                    operation_name="GetTraceAnnotations",
+                    variables={"id": str(trace_gid)},
+                )
+                annotations = {
+                    (anno["label"], anno["score"], anno["explanation"]): anno
+                    for anno in res["data"]["node"]["traceAnnotations"]
+                }
+                return annotations.get((df1_labels[i], df1_scores[i], df1_explanations[i]))
+
+            anno = await _get(
+                query_fn=get_df_annotation,
+                error_msg=f"DataFrame annotation {i + 1} should be present in trace annotations",
+                no_wait=sync,
+            )
+
+            # Verify annotation exists with correct values
+            assert anno["name"] == df1_annotation_names[i], (
+                f"DataFrame annotation {i + 1} name should match input"
+            )
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
+            assert anno["metadata"] == df1_metadata[i], (
+                f"DataFrame annotation {i + 1} metadata should match input"
+            )
+            assert anno["annotatorKind"] == df1_annotator_kinds[i], (
+                f"DataFrame annotation {i + 1} annotator_kind should match input"
+            )
+
+        # ============================================================================
+        # Test Case 2: Using trace_id as index
+        # ============================================================================
+        # This test case demonstrates using trace_id as the DataFrame index
+        # This is an alternative way to specify trace IDs without a dedicated column
+        df2_annotation_names = [token_hex(8), token_hex(8)]
+        df2_annotator_kinds = ["HUMAN", "CODE"]
+        df2_labels = [token_hex(8), token_hex(8)]
+        df2_scores = [
+            int.from_bytes(token_bytes(4), byteorder="big"),
+            int.from_bytes(token_bytes(4), byteorder="big"),
+        ]
+        df2_explanations = [token_hex(8), token_hex(8)]
+        df2_metadata = [{token_hex(8): token_hex(8)} for _ in range(2)]
+        df2 = pd.DataFrame(
+            {
+                "name": df2_annotation_names,
+                "annotator_kind": df2_annotator_kinds,
+                "label": df2_labels,
+                "score": df2_scores,
+                "explanation": df2_explanations,
+                "metadata": df2_metadata,
+            },
+            index=[trace_id1, trace_id2],
+        )
+
+        # Log annotations from DataFrame
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations_dataframe(
+                dataframe=df2,
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify annotations were created correctly
+        for i, trace_gid in enumerate([trace_gid1, trace_gid2]):
+
+            def get_df2_annotation() -> Optional[dict[str, Any]]:
+                res, _ = _gql(
+                    _app,
+                    u,
+                    query=self.query,
+                    operation_name="GetTraceAnnotations",
+                    variables={"id": str(trace_gid)},
+                )
+                annotations = {
+                    (anno["label"], anno["score"], anno["explanation"]): anno
+                    for anno in res["data"]["node"]["traceAnnotations"]
+                }
+                return annotations.get((df2_labels[i], df2_scores[i], df2_explanations[i]))
+
+            anno = await _get(
+                query_fn=get_df2_annotation,
+                error_msg=f"DataFrame annotation {i + 1} should be present in trace annotations",
+                no_wait=sync,
+            )
+
+            # Verify annotation exists with correct values
+            assert anno["name"] == df2_annotation_names[i], (
+                f"DataFrame annotation {i + 1} name should match input"
+            )
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
+            assert anno["metadata"] == df2_metadata[i], (
+                f"DataFrame annotation {i + 1} metadata should match input"
+            )
+            assert anno["annotatorKind"] == df2_annotator_kinds[i], (
+                f"DataFrame annotation {i + 1} annotator_kind should match input"
+            )
+
+        # ============================================================================
+        # Test Case 3: Using global annotator_kind
+        # ============================================================================
+        # This test case demonstrates using a global annotator_kind parameter
+        # The DataFrame does not include an annotator_kind column, and the value is
+        # provided as a parameter to the API call.
+        global_annotator_kind: Literal["CODE"] = "CODE"
+        df3_annotation_names = [token_hex(8), token_hex(8)]
+        df3_trace_ids = [trace_id1, trace_id2]
+        df3_labels = [token_hex(8), token_hex(8)]
+        df3_scores = [
+            int.from_bytes(token_bytes(4), byteorder="big"),
+            int.from_bytes(token_bytes(4), byteorder="big"),
+        ]
+        df3_explanations = [token_hex(8), token_hex(8)]
+        df3_metadata = [{token_hex(8): token_hex(8)} for _ in range(2)]
+        df3 = pd.DataFrame(
+            {
+                "name": df3_annotation_names,
+                "trace_id": df3_trace_ids,
+                "label": df3_labels,
+                "score": df3_scores,
+                "explanation": df3_explanations,
+                "metadata": df3_metadata,
+            }
+        )
+
+        # Log annotations from DataFrame with global annotator_kind
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations_dataframe(
+                dataframe=df3,
+                annotator_kind=global_annotator_kind,
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify annotations were created correctly
+        for i, trace_gid in enumerate([trace_gid1, trace_gid2]):
+
+            def get_df3_annotation() -> Optional[dict[str, Any]]:
+                res, _ = _gql(
+                    _app,
+                    u,
+                    query=self.query,
+                    operation_name="GetTraceAnnotations",
+                    variables={"id": str(trace_gid)},
+                )
+                annotations = {
+                    (anno["label"], anno["score"], anno["explanation"]): anno
+                    for anno in res["data"]["node"]["traceAnnotations"]
+                }
+                return annotations.get((df3_labels[i], df3_scores[i], df3_explanations[i]))
+
+            anno = await _get(
+                query_fn=get_df3_annotation,
+                error_msg=f"DataFrame annotation {i + 1} should be present in trace annotations",
+                no_wait=sync,
+            )
+
+            # Verify annotation exists with correct values
+            assert anno["name"] == df3_annotation_names[i], (
+                f"DataFrame annotation {i + 1} name should match input"
+            )
+            assert anno["source"] == "API", f"DataFrame annotation {i + 1} source should be API"
+            assert anno["metadata"] == df3_metadata[i], (
+                f"DataFrame annotation {i + 1} metadata should match input"
+            )
+            assert anno["annotatorKind"] == global_annotator_kind, (
+                f"DataFrame annotation {i + 1} annotator_kind should match global value"
+            )
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling trace annotations with zero scores.
+
+        Verifies that:
+        - Zero scores are saved and loaded correctly
+        - Missing optional fields are handled properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL trace ID and graphql Global ID from the fixture
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        trace_gid1 = span1.trace.id
+        trace_id1 = span1.trace.trace_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score
+        # ============================================================================
+        # Test that a score of 0 is properly recorded and not treated as falsey
+        zero_score_annotation_name = token_hex(8)
+
+        # Create annotation with score of 0
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.add_trace_annotation(
+                annotation_name=zero_score_annotation_name,
+                trace_id=trace_id1,
+                annotator_kind="LLM",
+                score=0,  # Explicitly test score of 0
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify the annotation was created correctly by querying the GraphQL API
+        def get_zero_score_annotation() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                operation_name="GetTraceAnnotations",
+                variables={"id": str(trace_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["traceAnnotations"]}
+            return annotations.get(zero_score_annotation_name)
+
+        anno = await _get(
+            query_fn=get_zero_score_annotation,
+            error_msg="Annotation with score of 0 should be present in trace annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation exists and has score of 0
+        assert anno["score"] == 0, "Annotation score should be exactly 0"
+        assert anno["label"] is None, "Annotation label should be None"
+        assert anno["explanation"] is None, "Annotation explanation should be None"
+        assert anno["source"] == "API", "Annotation source should be API"
+        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation_dataframe(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling zero scores in trace annotation DataFrames.
+
+        Verifies that:
+        - Zero scores can be read from DataFrames
+        - Zero scores are saved and loaded correctly
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL trace ID and graphql Global ID from the fixture
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        trace_gid1 = span1.trace.id
+        trace_id1 = span1.trace.trace_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score in DataFrame
+        # ============================================================================
+        # Test that zero scores work correctly when provided via DataFrame
+        import pandas as pd
+
+        zero_score_annotation_name = token_hex(8)
+
+        df = pd.DataFrame(
+            {
+                "name": [zero_score_annotation_name],
+                "trace_id": [trace_id1],
+                "annotator_kind": ["CODE"],
+                "score": [0],  # Test zero score
+                # Omit label and explanation to test None handling
+            }
+        )
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations_dataframe(
+                dataframe=df, sync=sync
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify the annotation was created correctly
+        def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                operation_name="GetTraceAnnotations",
+                variables={"id": str(trace_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["traceAnnotations"]}
+            return annotations.get(zero_score_annotation_name)
+
+        anno = await _get(
+            query_fn=get_zero_score_df_annotation,
+            error_msg="Zero score DataFrame annotation should be present in trace annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation exists and has score of 0
+        assert anno["score"] == 0, "DataFrame annotation score should be exactly 0"
+        assert anno["label"] is None, "DataFrame annotation label should be None"
+        assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
+        assert anno["source"] == "API", "DataFrame annotation source should be API"
+        assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
+
+
+class TestClientForSessionAnnotations:
+    """Tests the Phoenix session annotation client functionality.
+
+    Verifies that the client can:
+    - Create and update single session annotations
+    - Handle multiple session annotations at once
+    - Work with different user roles
+    - Work in both regular and async mode
+    """
+
+    # GraphQL query to retrieve session annotations
+    query = """
+        query GetSessionAnnotations($id: ID!) {
+            node(id: $id) {
+                ... on ProjectSession {
+                    sessionAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
+                        identifier
+                        source
+                        user {
+                            id
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize(
+        "role_or_user, api_key_kind",
+        [
+            (_MEMBER, "User"),
+            (_ADMIN, "User"),
+            (_ADMIN, "System"),
+        ],
+    )
+    async def test_add_session_annotation(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        api_key_kind: Literal["User", "System"],
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests creating and updating single session annotations.
+
+        Verifies that:
+        - New session annotations can be created with all fields
+        - Existing session annotations can be updated
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # Setup
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        session1 = span1.trace.session
+        assert session1 is not None, "Session is required for this test"
+        session_id1 = session1.session_id
+        session_gid1 = session1.id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app, api_key_kind))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # Test data
+        annotation_name = token_hex(8)
+
+        # ============================================================================
+        # Test Case: Create New Session Annotation
+        # ============================================================================
+        # Create a new session annotation with all fields
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).sessions.add_session_annotation(
+                annotation_name=annotation_name,
+                session_id=session_id1,
+                annotator_kind="CODE",
+                label="helpful",
+                score=0.9,
+                explanation="This session was very helpful to the user",
+                metadata={"model_name": "gpt-4", "version": "2024-01"},
+                identifier="test-id-123",
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+            assert isinstance(result["id"], str)
+
+        # Verify the annotation was created correctly by querying the GraphQL API
+
+        def get_session_annotation() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                operation_name="GetSessionAnnotations",
+                variables={"id": str(session_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
+            return annotations.get(annotation_name)
+
+        anno = await _get(
+            query_fn=get_session_annotation,
+            error_msg="Session annotation should be present in session annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation exists and has the expected values
+        assert anno["name"] == annotation_name
+        assert anno["annotatorKind"] == "CODE"
+        assert anno["label"] == "helpful"
+        assert anno["score"] == 0.9
+        assert anno["explanation"] == "This session was very helpful to the user"
+        assert anno["metadata"] == {"model_name": "gpt-4", "version": "2024-01"}
+        assert anno["identifier"] == "test-id-123"
+        assert anno["source"] == "API"
+
+        # Store the annotation ID for the update test
+        original_annotation_id = anno["id"]
+
+        # ============================================================================
+        # Test Case: Update Existing Session Annotation
+        # ============================================================================
+        # Update the annotation by sending it again with the same name, session_id, and identifier
+        updated_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).sessions.add_session_annotation(
+                annotation_name=annotation_name,
+                session_id=session_id1,
+                annotator_kind="HUMAN",  # Changed
+                label="extremely_helpful",  # Changed
+                score=1.0,  # Changed
+                explanation="This session was extremely helpful after review",  # Changed
+                metadata={"model_name": "gpt-4", "version": "2024-02", "reviewed": True},  # Changed
+                identifier="test-id-123",  # Same identifier - should update
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert updated_result
+            assert isinstance(updated_result["id"], str)
+
+        # Verify the annotation was updated correctly
+        updated_anno = await _get(
+            query_fn=get_session_annotation,
+            error_msg="Updated session annotation should be present in session annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation was updated (same ID, different values)
+        assert updated_anno["id"] == original_annotation_id  # ID should remain the same
+        assert updated_anno["name"] == annotation_name
+        assert updated_anno["annotatorKind"] == "HUMAN"  # Updated
+        assert updated_anno["label"] == "extremely_helpful"  # Updated
+        assert updated_anno["score"] == 1.0  # Updated
+        assert (
+            updated_anno["explanation"] == "This session was extremely helpful after review"
+        )  # Updated
+        assert updated_anno["metadata"] == {
+            "model_name": "gpt-4",
+            "version": "2024-02",
+            "reviewed": True,
+        }  # Updated
+        assert updated_anno["identifier"] == "test-id-123"
+        assert updated_anno["source"] == "API"
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_log_session_annotations(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling multiple session annotations at once.
+
+        Verifies that:
+        - Multiple session annotations can be created in one call
+        - Multiple session annotations can be updated at once
+        - Works with annotations across different sessions
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract session IDs from the fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        span1, span2, *_ = _existing_spans
+        assert span1.trace.session is not None, "Session is required for this test"
+        assert span2.trace.session is not None, "Session is required for this test"
+        session_id1 = span1.trace.session.session_id
+        session_id2 = span2.trace.session.session_id
+
+        # Ensure we have different sessions for a more robust test
+        unique_sessions = {session_id1, session_id2}
+        if len(unique_sessions) < 2:
+            pytest.skip("Test requires at least two different sessions")
+
+        session_ids = [session_id1, session_id2]
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app, "User"))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Data Setup
+        # ============================================================================
+        # Create annotation data for both sessions
+        annotation_names = [token_hex(8), token_hex(8)]
+        labels = ["helpful", "relevant"]
+        scores = [0.8, 0.9]
+        explanations = ["First session annotation", "Second session annotation"]
+        identifiers = ["batch-test-1", "batch-test-2"]
+        metadata = [{"model": "gpt-4", "batch": 1}, {"model": "claude", "batch": 2}]
+
+        # Create annotation data for both sessions
+        session_annotations: list[v1.SessionAnnotationData] = [
+            {
+                "name": annotation_names[i],
+                "session_id": session_ids[i],
+                "annotator_kind": "CODE",  # Test non-default annotator_kind
+                "identifier": identifiers[i],
+                "metadata": metadata[i],
+                "result": {
+                    "label": labels[i],
+                    "score": scores[i],
+                    "explanation": explanations[i],
+                },
+            }
+            for i in range(len(session_ids))
+        ]
+
+        # ============================================================================
+        # Test Case: Create Multiple Session Annotations
+        # ============================================================================
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).sessions.log_session_annotations(
+                session_annotations=session_annotations, sync=sync
+            ),
+        )
+
+        if sync:
+            assert result
+            assert len(result) == 2
+            for r in result:
+                assert isinstance(r["id"], str)
+
+        # Wait for annotations to be inserted and verify them
+        assert span1.trace.session is not None, "Session is required for this test"
+        assert span2.trace.session is not None, "Session is required for this test"
+        session_gid1 = span1.trace.session.id
+        session_gid2 = span2.trace.session.id
+
+        # Retrieve and verify first session annotation
+        def get_session_annotation_1() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                variables={"id": str(session_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
+            return annotations.get(annotation_names[0])
+
+        anno1 = await _get(
+            query_fn=get_session_annotation_1,
+            error_msg="First session annotation should be present",
+            no_wait=sync,
+        )
+        assert anno1["name"] == annotation_names[0]
+        assert anno1["annotatorKind"] == "CODE"
+        assert anno1["label"] == labels[0]
+        assert anno1["score"] == scores[0]
+        assert anno1["explanation"] == explanations[0]
+        assert anno1["metadata"] == metadata[0]
+        assert anno1["identifier"] == identifiers[0]
+        assert anno1["source"] == "API"
+
+        # Retrieve and verify second session annotation (if different session)
+        if session_gid1 != session_gid2:
+
+            def get_session_annotation_2() -> Optional[dict[str, Any]]:
+                res, _ = _gql(
+                    _app,
+                    u,
+                    query=self.query,
+                    variables={"id": str(session_gid2)},
+                )
+                annotations = {
+                    anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]
+                }
+                return annotations.get(annotation_names[1])
+
+            anno2 = await _get(
+                query_fn=get_session_annotation_2,
+                error_msg="Second session annotation should be present",
+                no_wait=sync,
+            )
+            assert anno2["name"] == annotation_names[1]
+            assert anno2["annotatorKind"] == "CODE"
+            assert anno2["label"] == labels[1]
+            assert anno2["score"] == scores[1]
+            assert anno2["explanation"] == explanations[1]
+            assert anno2["metadata"] == metadata[1]
+            assert anno2["identifier"] == identifiers[1]
+            assert anno2["source"] == "API"
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_log_session_annotations_dataframe(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests using DataFrames for session annotations.
+
+        Tests three ways to use DataFrames:
+        1. With session_id as a column
+        2. With session_id as the index
+        3. With a shared annotator type
+
+        Verifies that:
+        - DataFrames are processed correctly in chunks
+        - Both individual and global parameters work
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract session IDs from fixtures (use the first two)
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        span1, span2, *_ = _existing_spans
+        assert span1.trace.session is not None, "Session is required for this test"
+        assert span2.trace.session is not None, "Session is required for this test"
+        session_id1 = span1.trace.session.session_id
+        session_id2 = span2.trace.session.session_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app, "User"))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case 1: session_id as a column
+        # ============================================================================
+        import pandas as pd
+
+        df_with_session_column = pd.DataFrame(
+            {
+                "name": ["helpfulness", "clarity"],
+                "session_id": [session_id1, session_id2],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["helpful", "clear"],
+                "score": [0.8, 0.9],
+                "explanation": ["Session was helpful", "Session was clear"],
+                "metadata": [{"test": "case1a"}, {"test": "case1b"}],
+                "identifier": ["df-test-1", "df-test-2"],
+            }
+        )
+
+        result = await _await_or_return(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).sessions.log_session_annotations_dataframe(
+                dataframe=df_with_session_column, sync=sync
+            ),
+        )
+
+        if sync:
+            assert result
+            assert len(result) == 2
+
+        # ============================================================================
+        # Test Case 2: session_id as index
+        # ============================================================================
+        df_with_session_index = pd.DataFrame(
+            {
+                "name": ["relevance", "accuracy"],
+                "annotator_kind": ["CODE", "HUMAN"],
+                "label": ["relevant", "accurate"],
+                "score": [0.7, 0.95],
+                "explanation": ["Session was relevant", "Session was accurate"],
+                "metadata": [{"test": "case2a"}, {"test": "case2b"}],
+                "identifier": ["df-index-1", "df-index-2"],
+            },
+            index=[session_id1, session_id2],
+        )
+
+        result = await _await_or_return(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).sessions.log_session_annotations_dataframe(
+                dataframe=df_with_session_index, sync=sync
+            ),
+        )
+
+        if sync:
+            assert result
+            assert len(result) == 2
+
+        # ============================================================================
+        # Test Case 3: Global annotator_kind
+        # ============================================================================
+        df_global_annotator = pd.DataFrame(
+            {
+                "name": ["engagement", "satisfaction"],
+                "session_id": [session_id1, session_id2],
+                "label": ["engaged", "satisfied"],
+                "score": [0.6, 0.85],
+                "explanation": ["Session showed engagement", "Session was satisfying"],
+                "identifier": ["global-1", "global-2"],
+            }
+        )
+
+        result = await _await_or_return(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).sessions.log_session_annotations_dataframe(
+                dataframe=df_global_annotator,
+                annotator_kind="LLM",  # Global parameter
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+            assert len(result) == 2
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling session annotations with zero scores.
+
+        Verifies that:
+        - Zero scores are saved and loaded correctly
+        - Missing optional fields are handled properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract session ID from the fixture
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        assert span1.trace.session is not None, "Session is required for this test"
+        session_id1 = span1.trace.session.session_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score
+        # ============================================================================
+        # Test that a score of 0 is properly recorded and not treated as falsey
+        zero_score_annotation_name = token_hex(8)
+
+        # Create annotation with score of 0
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).sessions.add_session_annotation(
+                annotation_name=zero_score_annotation_name,
+                session_id=session_id1,
+                annotator_kind="LLM",
+                score=0,  # Explicitly test score of 0
+                sync=sync,
+            ),
+        )
+
+        if sync:
+            assert result
+
+        # Verify the annotation was created correctly by querying the GraphQL API
+        assert span1.trace.session is not None, "Session is required for this test"
+        session_gid1 = span1.trace.session.id
+
+        def get_zero_score_annotation() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                variables={"id": str(session_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
+            return annotations.get(zero_score_annotation_name)
+
+        anno = await _get(
+            query_fn=get_zero_score_annotation,
+            error_msg="Annotation with score of 0 should be present in session annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation exists and has score of 0
+        assert anno["score"] == 0, "Annotation score should be exactly 0"
+        assert anno["label"] is None, "Annotation label should be None"
+        assert anno["explanation"] is None, "Annotation explanation should be None"
+        assert anno["source"] == "API", "Annotation source should be API"
+        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation_dataframe(
+        self,
+        sync: bool,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests handling zero scores in session annotation DataFrames.
+
+        Verifies that:
+        - Zero scores can be read from DataFrames
+        - Zero scores are saved and loaded correctly
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract session ID from the fixture
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        assert span1.trace.session is not None, "Session is required for this test"
+        session_id1 = span1.trace.session.session_id
+
+        # Set up test environment with logged-in user
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score in DataFrame
+        # ============================================================================
+        # Test that zero scores work correctly when provided via DataFrame
+        import pandas as pd
+
+        zero_score_annotation_name = token_hex(8)
+
+        df = pd.DataFrame(
+            {
+                "name": [zero_score_annotation_name],
+                "session_id": [session_id1],
+                "annotator_kind": ["CODE"],
+                "score": [0],  # Test zero score
+                # Omit label and explanation to test None handling
+            }
+        )
+
+        result = await _await_or_return(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).sessions.log_session_annotations_dataframe(dataframe=df, sync=sync),
+        )
+
+        if sync:
+            assert result
+
+        # Verify the annotation was created correctly
+        assert span1.trace.session is not None, "Session is required for this test"
+        session_gid1 = span1.trace.session.id
+
+        def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _app,
+                u,
+                query=self.query,
+                variables={"id": str(session_gid1)},
+            )
+            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
+            return annotations.get(zero_score_annotation_name)
+
+        anno = await _get(
+            query_fn=get_zero_score_df_annotation,
+            error_msg="Zero score DataFrame annotation should be present in session annotations",
+            no_wait=sync,
+        )
+
+        # Verify the annotation exists and has score of 0
+        assert anno["score"] == 0, "DataFrame annotation score should be exactly 0"
+        assert anno["label"] is None, "DataFrame annotation label should be None"
+        assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
+        assert anno["source"] == "API", "DataFrame annotation source should be API"
+        assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
+
+
 class TestSendingAnnotationsBeforeSpan:
     """Tests sending annotations before spans exist.
 
@@ -1300,6 +2674,24 @@ class TestSendingAnnotationsBeforeSpan:
             node (id: $id) {
                 ... on Trace {
                     traceAnnotations {
+                        id
+                        name
+                        source
+                        identifier
+                        annotatorKind
+                        metadata
+                        label
+                        score
+                        explanation
+                    }
+                }
+            }
+        }
+
+        query GetSessionAnnotations($id: ID!) {
+            node (id: $id) {
+                ... on ProjectSession {
+                    sessionAnnotations {
                         id
                         name
                         source
@@ -1424,6 +2816,7 @@ class TestSendingAnnotationsBeforeSpan:
             self._get_span_trace_gid(_app, _app.admin_secret, span_id=span_id, trace_id=trace_id)
             is None
         )
+        assert (session_id := str((_span.attributes or {})["session.id"]))
 
         # Set up the client
         api_key = str(_app.admin_secret)
@@ -1433,11 +2826,15 @@ class TestSendingAnnotationsBeforeSpan:
 
         # Make test data
         span_annotation_name = token_hex(8)
+        trace_annotation_name = token_hex(8)
+        session_annotation_name = token_hex(8)
         document_annotation_name = token_hex(8)
         span_eval_name = token_hex(8)
         trace_eval_name = token_hex(8)
         doc_eval_name = token_hex(8)
         span_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
+        trace_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
+        session_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
         document_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
 
         # Set up initial test data
@@ -1445,6 +2842,16 @@ class TestSendingAnnotationsBeforeSpan:
         span_anno_labels: list[str] = []
         span_anno_explanations: list[str] = []
         span_anno_metadatas: list[dict[str, Any]] = []
+
+        trace_anno_scores: list[int] = []
+        trace_anno_labels: list[str] = []
+        trace_anno_explanations: list[str] = []
+        trace_anno_metadatas: list[dict[str, Any]] = []
+
+        session_anno_scores: list[int] = []
+        session_anno_labels: list[str] = []
+        session_anno_explanations: list[str] = []
+        session_anno_metadatas: list[dict[str, Any]] = []
 
         document_anno_scores: list[int] = []
         document_anno_labels: list[str] = []
@@ -1475,6 +2882,16 @@ class TestSendingAnnotationsBeforeSpan:
             span_anno_explanations.append(token_hex(8))
             span_anno_metadatas.append({token_hex(8): token_hex(8)})
 
+            trace_anno_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            trace_anno_labels.append(token_hex(8))
+            trace_anno_explanations.append(token_hex(8))
+            trace_anno_metadatas.append({token_hex(8): token_hex(8)})
+
+            session_anno_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            session_anno_labels.append(token_hex(8))
+            session_anno_explanations.append(token_hex(8))
+            session_anno_metadatas.append({token_hex(8): token_hex(8)})
+
             document_anno_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
             document_anno_labels.append(token_hex(8))
             document_anno_explanations.append(token_hex(8))
@@ -1501,6 +2918,28 @@ class TestSendingAnnotationsBeforeSpan:
                 score=span_anno_scores[-1],
                 explanation=span_anno_explanations[-1],
                 metadata=span_anno_metadatas[-1],
+                sync=False,
+            )
+
+            client.traces.add_trace_annotation(
+                annotation_name=trace_annotation_name,
+                trace_id=trace_id,
+                annotator_kind=trace_annotator_kind,
+                label=trace_anno_labels[-1],
+                score=trace_anno_scores[-1],
+                explanation=trace_anno_explanations[-1],
+                metadata=trace_anno_metadatas[-1],
+                sync=False,
+            )
+
+            client.sessions.add_session_annotation(
+                annotation_name=session_annotation_name,
+                session_id=session_id,
+                annotator_kind=session_annotator_kind,
+                label=session_anno_labels[-1],
+                score=session_anno_scores[-1],
+                explanation=session_anno_explanations[-1],
+                metadata=session_anno_metadatas[-1],
                 sync=False,
             )
 
@@ -1662,6 +3101,42 @@ class TestSendingAnnotationsBeforeSpan:
         # Retain the gid for the UPSERT test
         span_eval_gid = anno["id"]
 
+        # Check the trace annotations
+        trace_anno_label = trace_anno_labels[-1]
+        trace_anno_score = trace_anno_scores[-1]
+        trace_anno_explanation = trace_anno_explanations[-1]
+
+        anno = await _get(
+            query_fn=get_trace_anno,
+            args=((trace_anno_label, trace_anno_score, trace_anno_explanation),),
+            error_msg="Trace annotation should be present",
+        )
+        assert anno["name"] == trace_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == trace_annotator_kind
+        assert anno["metadata"] == trace_anno_metadatas[-1]
+
+        # Retain the gid for the UPSERT test
+        trace_anno_gid = anno["id"]
+
+        # Check the session annotations
+        session_anno_label = session_anno_labels[-1]
+        session_anno_score = session_anno_scores[-1]
+        session_anno_explanation = session_anno_explanations[-1]
+
+        anno = await _get(
+            query_fn=get_session_anno,
+            args=((session_anno_label, session_anno_score, session_anno_explanation),),
+            error_msg="Session annotation should be present",
+        )
+        assert anno["name"] == session_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == session_annotator_kind
+        assert anno["metadata"] == session_anno_metadatas[-1]
+
+        # Retain the gid for the UPSERT test
+        session_anno_gid = anno["id"]
+
         # Check the trace evaluations
         trace_eval_label = trace_eval_labels[-1]
         trace_eval_score = trace_eval_scores[-1]
@@ -1719,6 +3194,18 @@ class TestSendingAnnotationsBeforeSpan:
         new_span_anno_explanation = token_hex(8)
         new_span_anno_metadata = {token_hex(8): token_hex(8)}
 
+        new_trace_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
+        new_trace_anno_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_trace_anno_label = token_hex(8)
+        new_trace_anno_explanation = token_hex(8)
+        new_trace_anno_metadata = {token_hex(8): token_hex(8)}
+
+        new_session_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
+        new_session_anno_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_session_anno_label = token_hex(8)
+        new_session_anno_explanation = token_hex(8)
+        new_session_anno_metadata = {token_hex(8): token_hex(8)}
+
         new_document_annotator_kind: Any = choice(_ANNOTATOR_KINDS)
         new_document_anno_score = int.from_bytes(token_bytes(4), byteorder="big")
         new_document_anno_label = token_hex(8)
@@ -1746,6 +3233,28 @@ class TestSendingAnnotationsBeforeSpan:
             score=new_span_anno_score,
             explanation=new_span_anno_explanation,
             metadata=new_span_anno_metadata,
+            sync=False,
+        )
+
+        client.traces.add_trace_annotation(
+            annotation_name=trace_annotation_name,
+            trace_id=trace_id,
+            annotator_kind=new_trace_annotator_kind,
+            label=new_trace_anno_label,
+            score=new_trace_anno_score,
+            explanation=new_trace_anno_explanation,
+            metadata=new_trace_anno_metadata,
+            sync=False,
+        )
+
+        client.sessions.add_session_annotation(
+            annotation_name=session_annotation_name,
+            session_id=session_id,
+            annotator_kind=new_session_annotator_kind,
+            label=new_session_anno_label,
+            score=new_session_anno_score,
+            explanation=new_session_anno_explanation,
+            metadata=new_session_anno_metadata,
             sync=False,
         )
 
@@ -1826,6 +3335,39 @@ class TestSendingAnnotationsBeforeSpan:
 
         # Old version should no longer exist
         assert get_span_anno((span_eval_label, span_eval_score, span_eval_explanation)) is None
+
+        # Check updated trace annotations
+        anno = await _get(
+            query_fn=get_trace_anno,
+            args=((new_trace_anno_label, new_trace_anno_score, new_trace_anno_explanation),),
+            error_msg="Updated trace annotation should be present",
+        )
+        assert anno["name"] == trace_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == new_trace_annotator_kind
+        assert anno["metadata"] == new_trace_anno_metadata
+        assert anno["id"] == trace_anno_gid
+
+        # Old version should no longer exist
+        assert get_trace_anno((trace_anno_label, trace_anno_score, trace_anno_explanation)) is None
+
+        # Check updated session annotations
+        anno = await _get(
+            query_fn=get_session_anno,
+            args=((new_session_anno_label, new_session_anno_score, new_session_anno_explanation),),
+            error_msg="Updated session annotation should be present",
+        )
+        assert anno["name"] == session_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == new_session_annotator_kind
+        assert anno["metadata"] == new_session_anno_metadata
+        assert anno["id"] == session_anno_gid
+
+        # Old version should no longer exist
+        assert (
+            get_session_anno((session_anno_label, session_anno_score, session_anno_explanation))
+            is None
+        )
 
         # Check updated document annotations
         anno = await _get(
