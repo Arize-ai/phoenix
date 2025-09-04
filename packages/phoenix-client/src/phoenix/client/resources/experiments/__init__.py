@@ -685,7 +685,7 @@ class Experiments:
         Returns:
             list[ExperimentRun]: List of all experiment runs.
         """
-        all_runs: list[dict[str, Any]] = []
+        all_runs: list[ExperimentRun] = []
         cursor: Optional[str] = None
 
         while True:
@@ -699,13 +699,11 @@ class Experiments:
                     params=params,
                 )
                 response.raise_for_status()
-                data: dict[str, Any] = response.json()
-
-                runs: list[dict[str, Any]] = data["data"]
-                all_runs.extend(runs)
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
 
                 # Check if there are more pages
-                cursor = data.get("next_cursor")
+                cursor = body.get("next_cursor")
                 if not cursor:
                     break
 
@@ -716,12 +714,7 @@ class Experiments:
                 else:
                     raise
 
-        # Convert dicts to ExperimentRun objects
-        experiment_runs: list[ExperimentRun] = []
-        for run in all_runs:
-            experiment_runs.append(cast(ExperimentRun, run))
-
-        return experiment_runs
+        return all_runs
 
     def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
@@ -1650,7 +1643,7 @@ class AsyncExperiments:
         Returns:
             list[ExperimentRun]: List of all experiment runs.
         """
-        all_runs: list[dict[str, Any]] = []
+        all_runs: list[ExperimentRun] = []
         cursor: Optional[str] = None
 
         while True:
@@ -1664,13 +1657,11 @@ class AsyncExperiments:
                     params=params,
                 )
                 response.raise_for_status()
-                data: dict[str, Any] = response.json()
-
-                runs: list[dict[str, Any]] = data["data"]
-                all_runs.extend(runs)
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
 
                 # Check if there are more pages
-                cursor = data.get("next_cursor")
+                cursor = body.get("next_cursor")
                 if not cursor:
                     break
 
@@ -1681,12 +1672,7 @@ class AsyncExperiments:
                 else:
                     raise
 
-        # Convert dicts to ExperimentRun objects
-        experiment_runs: list[ExperimentRun] = []
-        for run in all_runs:
-            experiment_runs.append(cast(ExperimentRun, run))
-
-        return experiment_runs
+        return all_runs
 
     async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
