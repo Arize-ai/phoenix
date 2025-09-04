@@ -146,6 +146,11 @@ PROVIDER_REGISTRY = ProviderRegistry()
 
 
 def adapter_availability_table() -> str:
+    """Generate a formatted table showing provider availability.
+
+    Returns:
+        str: A formatted string table showing available and disabled providers.
+    """
     all_providers: List[ProviderInfo] = []
     output: List[str] = []
 
@@ -254,13 +259,15 @@ def register_adapter(
     identifier: Callable[[Any], bool],
     name: str = "",
 ) -> Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]:
-    """
-    Decorator to register an adapter in the global registry.
+    """Decorator to register an adapter in the global registry.
 
     Args:
-        identifier: Function that returns True if the client is compatible with this adapter
-        priority: Priority for adapter selection (higher = checked first)
-        name: Optional name for the adapter (defaults to class name)
+        identifier (Callable[[Any], bool]): Function that returns True if the client is compatible
+            with this adapter.
+        name (str): Optional name for the adapter (defaults to class name).
+
+    Returns:
+        Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]: A decorator function.
 
     Example:
         @register_adapter(
@@ -284,14 +291,17 @@ def register_provider(
     get_rate_limit_errors: Optional[Callable[..., List[Type[Exception]]]] = None,
     dependencies: Optional[List[str]] = None,
 ) -> Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]:
-    """
-    Decorator to register a provider with an adapter.
+    """Decorator to register a provider with an adapter.
 
     Args:
-        provider: Provider name (e.g., "openai", "anthropic")
-        client_factory: Factory function to create clients for this provider
-        get_rate_limit_errors: Optional function to get rate limit errors for this client/provider
-        dependencies: Optional list of required packages
+        provider (str): Provider name (e.g., "openai", "anthropic").
+        client_factory (Callable[..., Any]): Factory function to create clients for this provider.
+        get_rate_limit_errors (Optional[Callable[..., List[Type[Exception]]]]): Optional function
+            to get rate limit errors for this client/provider.
+        dependencies (Optional[List[str]]): Optional list of required packages.
+
+    Returns:
+        Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]: A decorator function.
 
     Example:
         @register_provider(
