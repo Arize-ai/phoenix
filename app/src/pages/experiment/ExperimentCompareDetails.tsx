@@ -3,15 +3,15 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  ColorSwatch,
   CopyToClipboardButton,
   Flex,
   Heading,
   View,
-  ViewSummaryAside,
 } from "@phoenix/components";
-import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONBlock } from "@phoenix/components/code";
-import { SequenceNumberToken } from "@phoenix/components/experiment";
+import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 
 import type { ExperimentInfoMap, TableRow } from "./ExperimentCompareTable";
@@ -41,20 +41,44 @@ export function ExperimentCompareDetails({
               <View width="50%">
                 <Card
                   title="Input"
-                  extra={<CopyToClipboardButton text={JSON.stringify({})} />}
+                  extra={
+                    <CopyToClipboardButton
+                      text={JSON.stringify(
+                        selectedExample.example.revision.input
+                      )}
+                    />
+                  }
                 >
                   <View maxHeight="300px" overflow="auto">
-                    <JSONBlock value={JSON.stringify({})} />
+                    <JSONBlock
+                      value={JSON.stringify(
+                        selectedExample.example.revision.input,
+                        null,
+                        2
+                      )}
+                    />
                   </View>
                 </Card>
               </View>
               <View width="50%">
                 <Card
                   title="Reference Output"
-                  extra={<CopyToClipboardButton text={JSON.stringify({})} />}
+                  extra={
+                    <CopyToClipboardButton
+                      text={JSON.stringify(
+                        selectedExample.example.revision.referenceOutput
+                      )}
+                    />
+                  }
                 >
                   <View maxHeight="300px" overflow="auto">
-                    <JSONBlock value={JSON.stringify({}, null, 2)} />
+                    <JSONBlock
+                      value={JSON.stringify(
+                        selectedExample.example.revision.referenceOutput,
+                        null,
+                        2
+                      )}
+                    />
                   </View>
                 </Card>
               </View>
@@ -91,63 +115,21 @@ export function ExperimentCompareDetails({
                 gap: var(--ac-global-dimension-static-size-200);
               `}
             >
-              {selectedExample.runComparisonItems.map((runItem) => {
+              {selectedExample.runComparisonItems.map((runItem, index) => {
                 const experiment = experimentInfoById[runItem.experimentId];
                 return (
-                  <li key={runItem.experimentId}>
-                    <View
-                      borderWidth="thin"
-                      borderColor="light"
-                      borderRadius="medium"
-                    >
-                      <Flex direction="row" gap="size-100">
-                        <Heading>{experiment?.name ?? ""}</Heading>{" "}
-                        <SequenceNumberToken
-                          sequenceNumber={experiment?.sequenceNumber ?? 0}
-                        />
-                      </Flex>
-                      <ul>
-                        {runItem.runs.map((run, index) => (
-                          <li key={index}>
-                            <Flex direction="row">
-                              <View flex>
-                                {run.error ? (
-                                  <View padding="size-200">{run.error}</View>
-                                ) : (
-                                  <JSONBlock
-                                    value={JSON.stringify(run.output, null, 2)}
-                                  />
-                                )}
-                              </View>
-                              <ViewSummaryAside width="size-3000">
-                                <ul
-                                  css={css`
-                                    margin-top: var(
-                                      --ac-global-dimension-static-size-100
-                                    );
-                                    display: flex;
-                                    flex-direction: column;
-                                    justify-content: flex-start;
-                                    align-items: flex-end;
-                                    gap: var(
-                                      --ac-global-dimension-static-size-100
-                                    );
-                                  `}
-                                >
-                                  {run.annotations?.edges.map((edge) => (
-                                    <li key={edge.annotation.id}>
-                                      <AnnotationLabel
-                                        annotation={edge.annotation}
-                                      />
-                                    </li>
-                                  ))}
-                                </ul>
-                              </ViewSummaryAside>
-                            </Flex>
-                          </li>
-                        ))}
-                      </ul>
-                    </View>
+                  <li
+                    key={runItem.experimentId}
+                    css={css`
+                      // Make them all the same size
+                      flex: 1 1 0px;
+                    `}
+                  >
+                    <ExperimentItem
+                      experiment={experiment}
+                      runItem={runItem}
+                      index={index}
+                    />
                   </li>
                 );
               })}
@@ -156,5 +138,89 @@ export function ExperimentCompareDetails({
         </Flex>
       </Panel>
     </PanelGroup>
+  );
+}
+
+const experimentItemCSS = css`
+  border: 1px solid var(--ac-global-border-color-dark);
+  border-radius: var(--ac-global-rounding-small);
+  box-shadow: 0px 8px 16px rgba(0 0 0 / 0.1);
+  min-width: 500px;
+`;
+function ExperimentItem({
+  experiment,
+  runItem,
+  index,
+}: {
+  experiment: ExperimentInfoMap[string];
+  runItem: TableRow["runComparisonItems"][number];
+  index: number;
+}) {
+  const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+  const color =
+    index === 0 ? baseExperimentColor : getExperimentColor(index - 1);
+  return (
+    <div css={experimentItemCSS}>
+      <View paddingX="size-200" paddingTop="size-200">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <ColorSwatch color={color} shape="circle" />
+          <Heading level={3}>{experiment?.name ?? ""}</Heading>{" "}
+        </Flex>
+      </View>
+      <ul>
+        {runItem.runs.map((run, index) => (
+          <li key={index}>
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-size-100)
+                  var(--ac-global-dimension-size-200);
+                border-bottom: 1px solid var(--ac-global-border-color-default);
+              `}
+            >
+              {run.annotations?.edges.map((edge) => (
+                <li key={edge.annotation.id}>
+                  <AnnotationNameAndValue
+                    annotation={edge.annotation}
+                    displayPreference="score"
+                  />
+                </li>
+              ))}
+            </ul>
+
+            <View>
+              {run.error ? (
+                <View padding="size-200">{run.error}</View>
+              ) : (
+                <JSONBlockWithCopy value={run.output} />
+              )}
+            </View>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function JSONBlockWithCopy({ value }: { value: unknown }) {
+  const strValue = JSON.stringify(value, null, 2);
+  return (
+    <div
+      css={css`
+        position: relative;
+        & button {
+          position: absolute;
+          top: var(--ac-global-dimension-size-100);
+          right: var(--ac-global-dimension-size-100);
+          z-index: 10000;
+          display: none;
+        }
+        &:hover button {
+          display: block;
+        }
+      `}
+    >
+      <CopyToClipboardButton text={strValue} />
+      <JSONBlock value={strValue} />
+    </div>
   );
 }
