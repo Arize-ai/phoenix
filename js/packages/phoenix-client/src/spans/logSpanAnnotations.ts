@@ -73,9 +73,5 @@ export async function logSpanAnnotations({
     throw new Error(`Failed to log span annotations: ${error}`);
   }
 
-  if (!data?.data?.length) {
-    return [];
-  }
-
-  return data.data;
+  return data?.data || [];
 }

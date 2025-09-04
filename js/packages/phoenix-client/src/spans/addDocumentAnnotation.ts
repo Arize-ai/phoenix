@@ -62,10 +62,5 @@ export async function addDocumentAnnotation({
     throw new Error(`Failed to add document annotation: ${error}`);
   }
 
-  // Return null if no data, otherwise return the ID
-  if (!data?.data?.length) {
-    return null;
-  }
-
-  return data.data[0];
+  return data?.data?.[0] || null;
 }

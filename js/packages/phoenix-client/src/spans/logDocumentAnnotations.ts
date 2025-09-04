@@ -75,9 +75,5 @@ export async function logDocumentAnnotations({
     throw new Error(`Failed to log document annotations: ${error}`);
   }
 
-  if (!data?.data?.length) {
-    return [];
-  }
-
-  return data.data;
+  return data?.data || [];
 }

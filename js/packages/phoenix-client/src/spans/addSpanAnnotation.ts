@@ -61,9 +61,5 @@ export async function addSpanAnnotation({
     throw new Error(`Failed to add span annotation: ${error}`);
   }
 
-  if (!data?.data?.length) {
-    return null;
-  }
-
-  return data.data[0];
+  return data?.data?.[0] || null;
 }
