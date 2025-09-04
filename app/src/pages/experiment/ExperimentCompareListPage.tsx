@@ -681,6 +681,7 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} mean score`}
                       />
                     ) : (
                       <ProgressBarPlaceholder />
@@ -732,6 +733,7 @@ export function ExperimentCompareListPage() {
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
+                    aria-label={`${annotationSummary.annotationName} score`}
                   />
                 ) : (
                   <ProgressBarPlaceholder />
@@ -768,6 +770,7 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} score`}
                       />
                     ) : (
                       <ProgressBarPlaceholder />
