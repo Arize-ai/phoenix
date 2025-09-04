@@ -10,7 +10,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, List, Literal, Optional, Union
 from urllib.parse import quote
-
+import json
 import httpx
 
 if TYPE_CHECKING:
@@ -1101,7 +1101,6 @@ class Datasets:
         if version_metadata is not None:
             payload["version_metadata"] = version_metadata
 
-        import json
         response = self._client.delete(
             url="v1/datasets/examples/delete",
             content=json.dumps(payload),
@@ -1849,9 +1848,9 @@ class AsyncDatasets:
         if version_metadata is not None:
             payload["version_metadata"] = version_metadata
 
-        response = await self._client.post(
+        response = await self._client.delete(
             url="v1/datasets/examples/delete",
-            json=payload,
+            content=json.dumps(payload),
             headers={"Content-Type": "application/json"},
             timeout=timeout,
         )
