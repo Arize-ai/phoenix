@@ -19,6 +19,7 @@ from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoad
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
+from .experiment_runs_by_experiment_id import ExperimentRunsByExperimentIdDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .experiments_by_dataset_example_id import ExperimentsByDatasetExampleIdDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
@@ -73,6 +74,7 @@ __all__ = [
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
+    "ExperimentRunsByExperimentIdDataLoader",
     "ExperimentsByDatasetExampleIdDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunAnnotations",

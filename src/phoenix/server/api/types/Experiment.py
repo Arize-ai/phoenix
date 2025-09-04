@@ -3,7 +3,6 @@ from typing import ClassVar, Optional
 
 import strawberry
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -75,22 +74,9 @@ class Experiment(Node):
         )
         experiment_id = self.id_attr
         dataset_example_id = self.dataset_example_rowid
-        query = (
-            select(models.ExperimentRun)
-            .select_from(models.ExperimentRun)
-            .where(models.ExperimentRun.experiment_id == experiment_id)
-            .order_by(
-                models.ExperimentRun.experiment_id.asc(),
-                models.ExperimentRun.dataset_example_id.asc(),
-                models.ExperimentRun.repetition_number.asc(),
-            )
-            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+        runs = await info.context.data_loaders.experiment_runs_by_experiment_id.load(
+            (experiment_id, dataset_example_id)
         )
-        if dataset_example_id is not None:
-            query = query.where(models.ExperimentRun.dataset_example_id == dataset_example_id)
-
-        async with info.context.db() as session:
-            runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
 
     @strawberry.field
