@@ -316,7 +316,11 @@ class _ExampleProxy(Mapping[str, Any]):
     @property
     def updated_at(self) -> datetime:
         """Access to updated_at field."""
-        return datetime.fromisoformat(self.__wrapped__["updated_at"])  # type: ignore[attr-defined]
+        timestamp_str = self.__wrapped__["updated_at"]  # type: ignore[attr-defined]
+        # Convert Z suffix to +00:00 for Python 3.9 compatibility
+        if timestamp_str.endswith("Z"):
+            timestamp_str = timestamp_str[:-1] + "+00:00"
+        return datetime.fromisoformat(timestamp_str)
 
     @property
     def input(self) -> Mapping[str, Any]:

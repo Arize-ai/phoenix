@@ -71,7 +71,7 @@ class TestExampleProxyProperties:
         proxy = _ExampleProxy(sample_dataset_example)
 
         assert proxy.id == "test-example-123"
-        expected_datetime = datetime.fromisoformat("2024-01-15T10:30:00Z")
+        expected_datetime = datetime.fromisoformat("2024-01-15T10:30:00+00:00")
         assert proxy.updated_at == expected_datetime
         assert proxy.input == {"question": "What is the capital of France?", "context": "Geography"}
         assert proxy.output == {"answer": "Paris", "confidence": 0.95}
@@ -113,15 +113,19 @@ class TestExampleProxyEquivalence:
     """Test suite for ensuring _ExampleProxy behaves equivalently to direct dict access."""
 
     def test_equivalent_access_patterns(self, sample_dataset_example: v1.DatasetExample) -> None:
-        """Test that object-style and dict-style access return the same values."""
+        """Test that object-style and dict-style access return equivalent values."""
         proxy = _ExampleProxy(sample_dataset_example)
 
-        # Both access patterns should return identical values
+        # Most fields should return identical values
         assert proxy.id == proxy["id"]
         assert proxy.input == proxy["input"]
         assert proxy.output == proxy["output"]
         assert proxy.metadata == proxy["metadata"]
-        assert proxy.updated_at == proxy["updated_at"]
+
+        # updated_at is special: property returns datetime, dict access returns string
+        assert isinstance(proxy.updated_at, datetime)
+        assert isinstance(proxy["updated_at"], str)
+        assert proxy["updated_at"] == "2024-01-15T10:30:00Z"
 
     def test_data_consistency(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that proxy data remains consistent with wrapped object."""
