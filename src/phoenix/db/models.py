@@ -1232,8 +1232,27 @@ class Experiment(Base):
         nullable=True,
     )
     dataset_split: Mapped[Optional["DatasetSplit"]] = relationship("DatasetSplit")
-
+    experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
+        "ExperimentDatasetSplit",
+        back_populates="experiment",
+    )
     user: Mapped[Optional["User"]] = relationship("User")
+
+
+class ExperimentDatasetSplit(Base):
+    __tablename__ = "experiment_dataset_splits"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_split_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+        index=True,
+    )
+    experiment: Mapped["Experiment"] = relationship(
+        "Experiment", back_populates="experiment_dataset_splits"
+    )
+    dataset_split: Mapped["DatasetSplit"] = relationship("DatasetSplit")
 
 
 class ExperimentRun(Base):

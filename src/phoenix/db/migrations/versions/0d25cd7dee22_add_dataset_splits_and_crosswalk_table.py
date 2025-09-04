@@ -51,6 +51,26 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Create experiment_dataset_splits table
+    op.create_table(
+        "experiment_dataset_splits",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "experiment_id",
+            _Integer,
+            sa.ForeignKey("experiments.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "dataset_split_id",
+            _Integer,
+            sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+
     # Create dataset_splits table
     op.create_table(
         "dataset_splits",
@@ -114,5 +134,6 @@ def downgrade() -> None:
         batch_op.drop_column(
             "dataset_split_id",
         )
+    op.drop_table("experiment_dataset_splits")
     op.drop_table("dataset_splits_dataset_examples")
     op.drop_table("dataset_splits")
