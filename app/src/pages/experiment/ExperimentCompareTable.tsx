@@ -123,7 +123,7 @@ type TableRow = DatasetExample & {
   id: string;
   input: unknown;
   referenceOutput: unknown;
-  runComparisonMap: Record<string, ExperimentRun[]>;
+  runsMap: Record<string, ExperimentRun[]>;
 };
 
 const defaultCardProps: Partial<CardProps> = {
@@ -274,7 +274,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     () =>
       data.dataset.examples?.edges.map((edge) => {
         const example = edge.example;
-        const runComparisonMap = example.experiments.edges.reduce(
+        const runsMap = example.experiments.edges.reduce(
           (acc, item) => {
             acc[item.experiment.id] = item.experiment.runs.edges.map(
               (edge) => edge.run
@@ -288,7 +288,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           id: example.id,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
-          runComparisonMap,
+          runsMap,
         };
       }) || [],
     [data]
@@ -418,7 +418,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
-          const runs = row.original.runComparisonMap[experimentId];
+          const runs = row.original.runsMap[experimentId];
           const numRuns = runs?.length || 0;
           if (numRuns === 0) {
             return (
@@ -1138,7 +1138,7 @@ function SelectedExampleDialog({
                     gap: var(--ac-global-dimension-static-size-200);
                   `}
                 >
-                  {Object.entries(selectedExample.runComparisonMap).map(
+                  {Object.entries(selectedExample.runsMap).map(
                     ([experimentId, runs]) => {
                       const experiment = experimentInfoById[experimentId];
                       return (
