@@ -7,11 +7,11 @@ import pandas as pd
 from openai import OpenAI
 
 from phoenix.client import Client
+from phoenix.client.experiments import create_evaluator
 from phoenix.evals.models import OpenAIModel
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsAnyKeyword,
-    create_evaluator,
 )
 from phoenix.experiments.types import ExampleInput
 from phoenix.otel import register
@@ -155,6 +155,18 @@ def accuracy(input: dict[str, Any], output: str, expected: dict[str, Any]) -> fl
     return 1.0 if response_message_content == "accurate" else 0.0
 
 
+@create_evaluator(kind="llm")  # need the decorator or the kind will default to "code"
+def accuracy_label(input: dict[str, Any], output: str, expected: dict[str, Any]) -> str:
+    message_content = eval_prompt_template.format(
+        question=input["question"], reference_answer=expected["answer"], answer=output
+    )
+    response = openai_client.chat.completions.create(
+        model="gpt-4o", messages=[{"role": "user", "content": message_content}]
+    )
+    response_message_content = (response.choices[0].message.content or "").lower().strip()
+    return response_message_content
+
+
 task_prompt_template = "Answer in a few words: {question}"
 experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
@@ -163,7 +175,8 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
@@ -177,7 +190,8 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
@@ -230,7 +244,8 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
