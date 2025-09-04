@@ -18,6 +18,7 @@ from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
     from phoenix.server.api.types.Trace import Trace
 
 
@@ -164,6 +165,23 @@ class ProjectSession(Node):
             )
             for entry in summary
         ]
+
+    @strawberry.field
+    async def session_annotations(
+        self,
+        info: Info[Context, None],
+    ) -> list[Annotated["ProjectSessionAnnotation", lazy(".ProjectSessionAnnotation")]]:
+        """Get all annotations for this session."""
+        from phoenix.server.api.types.ProjectSessionAnnotation import (
+            to_gql_project_session_annotation,
+        )
+
+        stmt = select(models.ProjectSessionAnnotation).filter_by(project_session_id=self.id_attr)
+        async with info.context.db() as session:
+            annotations = await session.stream_scalars(stmt)
+            return [
+                to_gql_project_session_annotation(annotation) async for annotation in annotations
+            ]
 
 
 def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:
