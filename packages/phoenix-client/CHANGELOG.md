@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.0...arize-phoenix-client-v1.17.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* experiment task function backward compatibility for the example argument ([#9374](https://github.com/Arize-ai/phoenix/issues/9374)) ([9dd3b8c](https://github.com/Arize-ai/phoenix/commit/9dd3b8cf09198fc611fb4ce1c6781afdfd07a0dc))
+
 ## [1.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.16.0...arize-phoenix-client-v1.17.0) (2025-09-03)
 
 
