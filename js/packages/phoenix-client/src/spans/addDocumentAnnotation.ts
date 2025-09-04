@@ -42,7 +42,7 @@ export async function addDocumentAnnotation({
 }: AddDocumentAnnotationParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
 
-  const { data, error } = await client.POST("/v1/span_documents", {
+  const { data, error } = await client.POST("/v1/document_annotations", {
     body: {
       data: [toDocumentAnnotationData(documentAnnotation)],
     },

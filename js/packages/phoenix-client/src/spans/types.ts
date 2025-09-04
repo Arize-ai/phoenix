@@ -4,7 +4,7 @@ type SpanAnnotationData =
   paths["/v1/span_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];
 
 type SpanDocumentAnnotationData =
-  paths["/v1/span_documents"]["post"]["requestBody"]["content"]["application/json"]["data"][0];
+  paths["/v1/document_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];
 
 /**
  * Parameters for a single span annotation
