@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.1...arize-phoenix-client-v1.18.0) (2025-09-04)
+
+
+### Features
+
+* paginate get experiment runs inside run_experiment ([#9370](https://github.com/Arize-ai/phoenix/issues/9370)) ([8882afc](https://github.com/Arize-ai/phoenix/commit/8882afc2eb1901ffaad0bc9057eb65e1ec3bc337))
+
 ## [1.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.0...arize-phoenix-client-v1.17.1) (2025-09-04)
 
 
