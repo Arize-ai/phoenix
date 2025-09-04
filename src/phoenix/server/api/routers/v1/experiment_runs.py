@@ -169,57 +169,56 @@ async def list_experiment_runs(
             status_code=HTTP_404_NOT_FOUND,
         )
 
-    async with request.app.state.db() as session:
-        stmt = (
-            select(models.ExperimentRun)
-            .where(models.ExperimentRun.experiment_id == experiment_rowid)
-            # order by id for consistent cursor-based pagination
-            .order_by(models.ExperimentRun.id.desc())
-        )
+    stmt = (
+        select(models.ExperimentRun)
+        .where(models.ExperimentRun.experiment_id == experiment_rowid)
+        # order by id for consistent cursor-based pagination
+        .order_by(models.ExperimentRun.id.desc())
+    )
 
-        if cursor:
-            try:
-                cursor_id = GlobalID.from_id(cursor).node_id
-                stmt = stmt.where(models.ExperimentRun.id <= int(cursor_id))
-            except ValueError:
-                raise HTTPException(
-                    detail=f"Invalid cursor format: {cursor}",
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                )
-
-        # Apply limit only if specified for pagination
-        if limit is not None:
-            stmt = stmt.limit(limit + 1)
-
-        experiment_runs = await session.execute(stmt)
-        experiment_runs = experiment_runs.scalars().all()
-
-        if not experiment_runs:
-            return ListExperimentRunsResponseBody(next_cursor=None, data=[])
-
-        next_cursor = None
-        # Only check for next cursor if limit was specified
-        if limit is not None and len(experiment_runs) == limit + 1:
-            last_run = experiment_runs[-1]
-            next_cursor = str(GlobalID("ExperimentRun", str(last_run.id)))
-            experiment_runs = experiment_runs[:-1]
-
-        runs = []
-        for exp_run in experiment_runs:
-            run_gid = GlobalID("ExperimentRun", str(exp_run.id))
-            experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
-            example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
-            runs.append(
-                ExperimentRunResponse(
-                    start_time=exp_run.start_time,
-                    end_time=exp_run.end_time,
-                    experiment_id=str(experiment_gid),
-                    dataset_example_id=str(example_gid),
-                    repetition_number=exp_run.repetition_number,
-                    output=exp_run.output.get("task_output"),
-                    error=exp_run.error,
-                    id=str(run_gid),
-                    trace_id=exp_run.trace_id,
-                )
+    if cursor:
+        try:
+            cursor_id = GlobalID.from_id(cursor).node_id
+            stmt = stmt.where(models.ExperimentRun.id <= int(cursor_id))
+        except ValueError:
+            raise HTTPException(
+                detail=f"Invalid cursor format: {cursor}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
+
+    # Apply limit only if specified for pagination
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    async with request.app.state.db() as session:
+        experiment_runs = (await session.scalars(stmt)).all()
+
+    if not experiment_runs:
+        return ListExperimentRunsResponseBody(next_cursor=None, data=[])
+
+    next_cursor = None
+    # Only check for next cursor if limit was specified
+    if limit is not None and len(experiment_runs) == limit + 1:
+        last_run = experiment_runs[-1]
+        next_cursor = str(GlobalID("ExperimentRun", str(last_run.id)))
+        experiment_runs = experiment_runs[:-1]
+
+    runs = []
+    for exp_run in experiment_runs:
+        run_gid = GlobalID("ExperimentRun", str(exp_run.id))
+        experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
+        example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
+        runs.append(
+            ExperimentRunResponse(
+                start_time=exp_run.start_time,
+                end_time=exp_run.end_time,
+                experiment_id=str(experiment_gid),
+                dataset_example_id=str(example_gid),
+                repetition_number=exp_run.repetition_number,
+                output=exp_run.output.get("task_output"),
+                error=exp_run.error,
+                id=str(run_gid),
+                trace_id=exp_run.trace_id,
+            )
+        )
     return ListExperimentRunsResponseBody(data=runs, next_cursor=next_cursor)
