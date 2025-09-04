@@ -10,7 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
@@ -100,20 +100,14 @@ class DatasetExample(Node):
 
             experiments_query = experiments_query.where(models.Experiment.id.in_(filter_rowids))
 
-        experiments_by_id = {}
+        db_experiments = []
         async with info.context.db() as session:
             for experiment in await session.scalars(experiments_query):
-                experiments_by_id[experiment.id] = experiment
-
-        for filter_rowid in filter_rowids:
-            if filter_rowid not in experiments_by_id:
-                experiment_id = str(GlobalID(Experiment.__name__, str(filter_rowid)))
-                raise NotFound(f"Could not find experiment with ID {experiment_id}")
+                db_experiments.append(experiment)
 
         gql_experiments = []
-        for db_experiment in experiments_by_id.values():
+        for db_experiment in db_experiments:
             gql_experiment = to_gql_experiment(db_experiment)
-            gql_experiment.dataset_example_rowid = example_id
             gql_experiments.append(gql_experiment)
 
         return connection_from_list(gql_experiments, connection_args)

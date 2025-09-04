@@ -129,6 +129,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
@@ -259,14 +260,15 @@ class Dataset(Node):
                     raise BadRequest(f"Invalid filter ID: {filter_id}")
             query = query.where(models.Experiment.id.in_(filter_rowids))
 
+        experiments = []
         async with info.context.db() as session:
-            experiments = [
-                to_gql_experiment(experiment, sequence_number)
-                async for experiment, sequence_number in cast(
-                    AsyncIterable[tuple[models.Experiment, int]],
-                    await session.stream(query),
-                )
-            ]
+            async for experiment, sequence_number in cast(
+                AsyncIterable[tuple[models.Experiment, int]],
+                await session.stream(query),
+            ):
+                gql_experiment = to_gql_experiment(experiment)
+                gql_experiment.cached_sequence_number = sequence_number
+                experiments.append(gql_experiment)
         return connection_from_list(data=experiments, args=args)
 
     @strawberry.field

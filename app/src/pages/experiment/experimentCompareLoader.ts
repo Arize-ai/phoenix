@@ -7,6 +7,7 @@ import type {
   experimentCompareLoaderQuery,
   experimentCompareLoaderQuery$data,
 } from "./__generated__/experimentCompareLoaderQuery.graphql";
+import { experimentCompareLoadery_datasetVersionQuery } from "./__generated__/experimentCompareLoadery_datasetVersionQuery.graphql";
 
 /**
  * Loads in the necessary page data for the compare experiment page
@@ -23,11 +24,35 @@ export async function experimentCompareLoader(
     url.searchParams.getAll("experimentId");
   const view = url.searchParams.get("view") || "grid";
 
+  let datasetVersionId: string | undefined = undefined;
+  if (baseExperimentId) {
+    const response =
+      await fetchQuery<experimentCompareLoadery_datasetVersionQuery>(
+        RelayEnvironment,
+        graphql`
+          query experimentCompareLoadery_datasetVersionQuery(
+            $baseExperimentId: ID!
+          ) {
+            baseExperiment: node(id: $baseExperimentId) {
+              ... on Experiment {
+                datasetVersionId
+              }
+            }
+          }
+        `,
+        {
+          baseExperimentId,
+        }
+      ).toPromise();
+    datasetVersionId = response?.baseExperiment.datasetVersionId;
+  }
+
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentCompareLoaderQuery(
         $datasetId: ID!
+        $datasetVersionId: ID!
         $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
         $experimentIds: [ID!]!
@@ -48,8 +73,7 @@ export async function experimentCompareLoader(
           @include(if: $includeGridView)
           @arguments(
             datasetId: $datasetId
-            baseExperimentId: $baseExperimentId
-            compareExperimentIds: $compareExperimentIds
+            datasetVersionId: $datasetVersionId
             experimentIds: $experimentIds
           )
         ...ExperimentCompareListPage_comparisons
@@ -71,6 +95,7 @@ export async function experimentCompareLoader(
     `,
     {
       datasetId,
+      datasetVersionId: datasetVersionId ?? "",
       baseExperimentId: baseExperimentId ?? "",
       compareExperimentIds,
       experimentIds: [

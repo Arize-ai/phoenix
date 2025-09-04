@@ -5,13 +5,14 @@ import strawberry
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
@@ -36,6 +37,14 @@ class Experiment(Node):
     created_at: datetime
     updated_at: datetime
     dataset_example_rowid: strawberry.Private[Optional[int]] = None
+    dataset_version_rowid: strawberry.Private[Optional[int]] = None
+
+    @strawberry.field
+    async def dataset_version_id(self) -> GlobalID:
+        dataset_version_rowid = self.dataset_version_rowid
+        if dataset_version_rowid is None:
+            raise NotImplementedError
+        return GlobalID(DatasetVersion.__name__, str(dataset_version_rowid))
 
     @strawberry.field(
         description="Sequence number (1-based) of experiments belonging to the same dataset"
@@ -197,15 +206,14 @@ class Experiment(Node):
 
 def to_gql_experiment(
     experiment: models.Experiment,
-    sequence_number: Optional[int] = None,
 ) -> Experiment:
     """
     Converts an ORM experiment to a GraphQL Experiment.
     """
     return Experiment(
-        cached_sequence_number=sequence_number,
         id_attr=experiment.id,
         name=experiment.name,
+        dataset_version_rowid=experiment.dataset_version_id,
         project_name=experiment.project_name,
         description=experiment.description,
         metadata=experiment.metadata_,

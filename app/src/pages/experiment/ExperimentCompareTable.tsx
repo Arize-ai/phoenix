@@ -111,19 +111,20 @@ type Experiment = NonNullable<
 
 type ExperimentInfoMap = Record<string, Experiment | null>;
 
-type TableRow =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
-    id: string;
-    input: unknown;
-    referenceOutput: unknown;
-    runComparisonMap: Record<
-      string,
-      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-    >;
-  };
-
+type DatasetExample = NonNullable<
+  ExperimentCompareTable_comparisons$data["dataset"]["examples"]
+>["edges"][number]["example"];
 type ExperimentRun =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+  DatasetExample["experiments"]["edges"][number]["experiment"]["runs"]["edges"][number]["run"];
+type ExperimentRunAnnotation =
+  ExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type TableRow = DatasetExample & {
+  id: string;
+  input: unknown;
+  referenceOutput: unknown;
+  runComparisonMap: Record<string, ExperimentRun[]>;
+};
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -163,58 +164,71 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         @argumentDefinitions(
           first: { type: "Int", defaultValue: 50 }
           after: { type: "String", defaultValue: null }
-          baseExperimentId: { type: "ID!" }
-          compareExperimentIds: { type: "[ID!]!" }
           experimentIds: { type: "[ID!]!" }
           datasetId: { type: "ID!" }
+          datasetVersionId: { type: "ID!" }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          compareExperiments(
-            first: $first
-            after: $after
-            baseExperimentId: $baseExperimentId
-            compareExperimentIds: $compareExperimentIds
-            filterCondition: $filterCondition
-          ) @connection(key: "ExperimentCompareTable_compareExperiments") {
-            edges {
-              comparison: node {
-                example {
-                  id
-                  revision {
-                    input
-                    referenceOutput: output
-                  }
-                }
-                runComparisonItems {
-                  experimentId
-                  runs {
+          dataset: node(id: $datasetId) {
+            id
+            ... on Dataset {
+              examples(
+                first: $first
+                after: $after
+                datasetVersionId: $datasetVersionId
+                filterCondition: $filterCondition
+              )
+                @connection(
+                  key: "ExperimentCompareTable_compareExperiments__examples"
+                ) {
+                edges {
+                  example: node {
                     id
-                    output
-                    error
-                    startTime
-                    endTime
-                    trace {
-                      traceId
-                      projectId
+                    revision {
+                      input
+                      referenceOutput: output
                     }
-                    costSummary {
-                      total {
-                        tokens
-                        cost
-                      }
-                    }
-                    annotations {
+                    experiments(filterIds: $experimentIds) {
                       edges {
-                        annotation: node {
+                        experiment: node {
                           id
-                          name
-                          score
-                          label
-                          annotatorKind
-                          explanation
-                          trace {
-                            traceId
-                            projectId
+                          runCount
+                          runs(first: 5) {
+                            edges {
+                              run: node {
+                                id
+                                output
+                                error
+                                startTime
+                                endTime
+                                trace {
+                                  traceId
+                                  projectId
+                                }
+                                costSummary {
+                                  total {
+                                    tokens
+                                    cost
+                                  }
+                                }
+                                annotations {
+                                  edges {
+                                    annotation: node {
+                                      id
+                                      name
+                                      score
+                                      label
+                                      annotatorKind
+                                      explanation
+                                      trace {
+                                        traceId
+                                        projectId
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
                           }
                         }
                       }
@@ -222,11 +236,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   }
                 }
               }
-            }
-          }
-          dataset: node(id: $datasetId) {
-            id
-            ... on Dataset {
               experiments(filterIds: $experimentIds) {
                 edges {
                   experiment: node {
@@ -266,26 +275,25 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [data]);
   const tableData: TableRow[] = useMemo(
     () =>
-      data.compareExperiments.edges.map((edge) => {
-        const comparison = edge.comparison;
-        const runComparisonMap = comparison.runComparisonItems.reduce(
+      data.dataset.examples?.edges.map((edge) => {
+        const example = edge.example;
+        const runComparisonMap = example.experiments.edges.reduce(
           (acc, item) => {
-            acc[item.experimentId] = item;
+            acc[item.experiment.id] = item.experiment.runs.edges.map(
+              (edge) => edge.run
+            );
             return acc;
           },
-          {} as Record<
-            string,
-            ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-          >
+          {} as Record<string, ExperimentRun[]>
         );
         return {
-          ...comparison,
-          id: comparison.example.id,
-          input: comparison.example.revision.input,
-          referenceOutput: comparison.example.revision.referenceOutput,
+          ...example,
+          id: example.id,
+          input: example.revision.input,
+          referenceOutput: example.revision.referenceOutput,
           runComparisonMap,
         };
-      }),
+      }) || [],
     [data]
   );
 
@@ -311,9 +319,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       size="S"
                       onPress={() => {
                         setDialog(
-                          <ExampleDetailsDialog
-                            exampleId={row.original.example.id}
-                          />
+                          <ExampleDetailsDialog exampleId={row.original.id} />
                         );
                       }}
                     >
@@ -329,7 +335,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <Text
                   size="S"
                   color="text-500"
-                >{`example ${row.original.example.id}`}</Text>
+                >{`example ${row.original.id}`}</Text>
               </CellTop>
 
               <PaddedCell>
@@ -415,8 +421,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
-          const runComparisonItem = row.original.runComparisonMap[experimentId];
-          const numRuns = runComparisonItem?.runs.length || 0;
+          const runs = row.original.runComparisonMap[experimentId];
+          const numRuns = runs?.length || 0;
           if (numRuns === 0) {
             return (
               <PaddedCell>
@@ -428,11 +434,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             return <Text color="warning">{`${numRuns} runs`}</Text>;
           }
           // Only show the first run
-          const run = runComparisonItem?.runs[0];
+          const run = runs[0];
 
           let traceButton = null;
-          const traceId = run?.trace?.traceId;
-          const projectId = run?.trace?.projectId;
+          const traceId = run.trace?.traceId;
+          const projectId = run.trace?.projectId;
           if (traceId && projectId) {
             traceButton = (
               <TooltipTrigger>
@@ -577,8 +583,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           after: null,
           first: PAGE_SIZE,
           filterCondition,
-          baseExperimentId,
-          compareExperimentIds,
+          experimentIds: [baseExperimentId, ...compareExperimentIds],
           datasetId,
         },
         { fetchPolicy: "store-and-network" }
@@ -1136,74 +1141,76 @@ function SelectedExampleDialog({
                     gap: var(--ac-global-dimension-static-size-200);
                   `}
                 >
-                  {selectedExample.runComparisonItems.map((runItem) => {
-                    const experiment = experimentInfoById[runItem.experimentId];
-                    return (
-                      <li key={runItem.experimentId}>
-                        <Card
-                          {...defaultCardProps}
-                          title={experiment?.name ?? ""}
-                          titleExtra={
-                            <SequenceNumberToken
-                              sequenceNumber={experiment?.sequenceNumber ?? 0}
-                            />
-                          }
-                        >
-                          <ul>
-                            {runItem.runs.map((run, index) => (
-                              <li key={index}>
-                                <Flex direction="row">
-                                  <View flex>
-                                    {run.error ? (
-                                      <View padding="size-200">
-                                        <RunError error={run.error} />
-                                      </View>
-                                    ) : (
-                                      <JSONBlock
-                                        value={JSON.stringify(
-                                          run.output,
-                                          null,
-                                          2
-                                        )}
+                  {Object.entries(selectedExample.runComparisonMap).map(
+                    ([experimentId, runs]) => {
+                      const experiment = experimentInfoById[experimentId];
+                      return (
+                        <li key={experimentId}>
+                          <Card
+                            {...defaultCardProps}
+                            title={experiment?.name ?? ""}
+                            titleExtra={
+                              <SequenceNumberToken
+                                sequenceNumber={experiment?.sequenceNumber ?? 0}
+                              />
+                            }
+                          >
+                            <ul>
+                              {runs.map((run, index) => (
+                                <li key={index}>
+                                  <Flex direction="row">
+                                    <View flex>
+                                      {run.error ? (
+                                        <View padding="size-200">
+                                          <RunError error={run.error} />
+                                        </View>
+                                      ) : (
+                                        <JSONBlock
+                                          value={JSON.stringify(
+                                            run.output,
+                                            null,
+                                            2
+                                          )}
+                                        />
+                                      )}
+                                    </View>
+                                    <ViewSummaryAside width="size-3000">
+                                      <RunLatency
+                                        startTime={run.startTime}
+                                        endTime={run.endTime}
                                       />
-                                    )}
-                                  </View>
-                                  <ViewSummaryAside width="size-3000">
-                                    <RunLatency
-                                      startTime={run.startTime}
-                                      endTime={run.endTime}
-                                    />
-                                    <ul
-                                      css={css`
-                                        margin-top: var(
-                                          --ac-global-dimension-static-size-100
-                                        );
-                                        display: flex;
-                                        flex-direction: column;
-                                        justify-content: flex-start;
-                                        align-items: flex-end;
-                                        gap: var(
-                                          --ac-global-dimension-static-size-100
-                                        );
-                                      `}
-                                    >
-                                      {run.annotations?.edges.map((edge) => (
-                                        <li key={edge.annotation.id}>
-                                          <AnnotationLabel
-                                            annotation={edge.annotation}
-                                          />
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </ViewSummaryAside>
-                                </Flex>
-                              </li>
-                            ))}
-                          </ul>
-                        </Card>
-                      </li>
-                    );
-                  })}
+                                      <ul
+                                        css={css`
+                                          margin-top: var(
+                                            --ac-global-dimension-static-size-100
+                                          );
+                                          display: flex;
+                                          flex-direction: column;
+                                          justify-content: flex-start;
+                                          align-items: flex-end;
+                                          gap: var(
+                                            --ac-global-dimension-static-size-100
+                                          );
+                                        `}
+                                      >
+                                        {run.annotations?.edges.map((edge) => (
+                                          <li key={edge.annotation.id}>
+                                            <AnnotationLabel
+                                              annotation={edge.annotation}
+                                            />
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </ViewSummaryAside>
+                                  </Flex>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        </li>
+                      );
+                    }
+                  )}
                 </ul>
               </div>
             </Flex>
@@ -1257,8 +1264,6 @@ function PaddedCell({ children }: { children: ReactNode }) {
   );
 }
 
-type ExperimentRunAnnotation =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number]["annotations"]["edges"][number]["annotation"];
 export type ExperimentRunCellAnnotationsListProps = {
   annotations: ExperimentRunAnnotation[];
   onTraceClick: ({

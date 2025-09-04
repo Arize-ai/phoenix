@@ -539,7 +539,7 @@ type Dataset implements Node {
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
   exampleCount(datasetVersionId: ID): Int!
-  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String, filterCondition: String): DatasetExampleConnection!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
@@ -1081,6 +1081,7 @@ type Experiment implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   name: String!
+  datasetVersionId: ID!
   projectName: String
   description: String
   metadata: JSON!
