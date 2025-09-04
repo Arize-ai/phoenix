@@ -1061,7 +1061,7 @@ class DeleteDatasetExamplesRequest(V1RoutesBaseModel):
     version_metadata: Optional[dict[str, Any]] = None
 
 
-@router.post(
+@router.delete(
     "/datasets/examples/delete",
     dependencies=[Depends(is_not_locked)],
     operation_id="deleteDatasetExamples",

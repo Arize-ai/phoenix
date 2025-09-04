@@ -1219,7 +1219,7 @@
       }
     },
     "/v1/datasets/examples/delete": {
-      "post": {
+      "delete": {
         "tags": [
           "datasets"
         ],
