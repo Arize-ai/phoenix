@@ -1278,8 +1278,16 @@ class ExperimentTag(Base):
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
     name: Mapped[str]
+    description: Mapped[Optional[str]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
     experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
+    user: Mapped[Optional["User"]] = relationship("User")
 
     __table_args__ = (UniqueConstraint("dataset_id", "name"),)
 
