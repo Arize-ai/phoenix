@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
+import inspect
+from typing import Any, Callable, Dict, Mapping, Optional, Set, Union, cast
 
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
@@ -7,6 +8,37 @@ InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]]
 
 
 # --- Input Map/Transform Helpers ---
+def _bind_mapping_function(
+    mapping_function: Callable[..., Any],
+    eval_input: Mapping[str, Any],
+) -> Any:
+    """
+    Bind eval_input values to a mapping_function's parameters by name when possible.
+
+    - If the function has 0 or 1 parameters, call it with the entire eval_input
+      for backward compatibility.
+    - If the function has >1 parameters, attempt to bind by matching parameter names to keys
+      in eval_input. Required parameters not present cause a fallback to legacy behavior.
+    - *args/**kwargs are ignored for explicit binding.
+    """
+    try:
+        sig = inspect.signature(mapping_function)
+    except (ValueError, TypeError):
+        # Non-inspectable callables (e.g., builtins) -> legacy behavior
+        return mapping_function(eval_input)
+
+    parameters = sig.parameters
+    if len(parameters) <= 1:
+        return mapping_function(eval_input)
+
+    provided_kwargs: Dict[str, Any] = {
+        name: eval_input[name] for name in parameters.keys() if name in eval_input
+    }
+    bound = sig.bind_partial(**provided_kwargs)
+    bound.apply_defaults()
+    return mapping_function(**bound.arguments)
+
+
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
@@ -41,7 +73,7 @@ def remap_eval_input(
         value: Any = None
 
         if callable(extractor):
-            value = extractor(eval_input)
+            value = _bind_mapping_function(extractor, eval_input)
             found = True
         elif isinstance(extractor, str):
             path = extractor
