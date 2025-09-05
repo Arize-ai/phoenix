@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.1...arize-phoenix-v11.33.0) (2025-09-05)
+
+
+### Features
+
+* **experiments:** minimal refactoring of experiment compare details ([#9373](https://github.com/Arize-ai/phoenix/issues/9373)) ([f4924af](https://github.com/Arize-ai/phoenix/commit/f4924af73efb857965c6273605e34ead1c1ef75c))
+
 ## [11.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.0...arize-phoenix-v11.32.1) (2025-09-04)
 
 
