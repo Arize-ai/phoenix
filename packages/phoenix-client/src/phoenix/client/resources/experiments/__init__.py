@@ -58,6 +58,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from phoenix.evals.preview.evaluators import Score as EvalsScore
+    ScoreResult = Union["EvalsScore", list["EvalsScore"]]
 
 logger = logging.getLogger(__name__)
 
@@ -1312,7 +1313,7 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[Union[EvaluationResult, "EvalsScore"]] = None
+        result: Optional[Union[EvaluationResult, "ScoreResult"]] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)
@@ -2288,7 +2289,7 @@ class AsyncExperiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[Union[EvaluationResult, "EvalsScore"]] = None
+        result: Optional[Union[EvaluationResult, "ScoreResult"]] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)

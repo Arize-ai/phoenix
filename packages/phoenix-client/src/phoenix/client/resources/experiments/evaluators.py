@@ -233,11 +233,13 @@ def wrap_phoenix_evals_evaluator(evaluator: "EvalsEvaluator") -> "Evaluator":
                 self._kind = AnnotatorKind.CODE
 
         def evaluate(self, **kwargs: Any) -> EvaluationResult:
-            eval_score = evaluator.evaluate(kwargs)[0]
+            scores = evaluator.evaluate(kwargs)
+            eval_score = scores[0]
             return _convert_score_to_eval_result(eval_score)
 
         async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
-            eval_score = (await evaluator.aevaluate(kwargs))[0]
+            scores = (await evaluator.aevaluate(kwargs))
+            eval_score = scores[0]
             return _convert_score_to_eval_result(eval_score)
 
     return PhoenixEvalsEvaluator()
