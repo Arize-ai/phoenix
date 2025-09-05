@@ -1,4 +1,4 @@
-"""drop single indices from traces and project_sessions
+"""drop single indices from traces, project_sessions, and experiment_runs
 
 Revision ID: 272b66ff50f8
 Revises: a20694b15f82
@@ -24,6 +24,8 @@ def upgrade() -> None:
     op.drop_index("ix_project_sessions_project_id", table_name="project_sessions")
     op.drop_index("ix_project_sessions_start_time", table_name="project_sessions")
 
+    op.drop_index("ix_experiment_runs_experiment_id", table_name="experiment_runs")
+
 
 def downgrade() -> None:
     op.create_index("ix_traces_project_rowid", "traces", ["project_rowid"])
@@ -31,3 +33,5 @@ def downgrade() -> None:
 
     op.create_index("ix_project_sessions_project_id", "project_sessions", ["project_id"])
     op.create_index("ix_project_sessions_start_time", "project_sessions", ["start_time"])
+
+    op.create_index("ix_experiment_runs_experiment_id", "experiment_runs", ["experiment_id"])
