@@ -31,14 +31,13 @@ class Score:
     """Score dataclass for evaluator results.
 
     Attributes:
-        name (Optional[str]): The name of the score.
-        score (Optional[Union[float, int]]): The score value if applicable.
-        label (Optional[str]): The label of the score if applicable.
-        explanation (Optional[str]): The explanation of the score if applicable.
-        metadata (Dict[str, Any]): Any metadata attached the score as key-value pairs.
-        source (Optional[SourceType]): The source of the score (human, llm, or heuristic).
-        direction (DirectionType): The optimization direction of the score (maximize or minimize).
-            Defaults to "maximize".
+        name: The name of the score.
+        score: The score value if applicable.
+        label: The label of the score if applicable.
+        explanation: The explanation of the score if applicable.
+        metadata: Any metadata attached to the score as key-value pairs.
+        source: The source of the score (human, llm, or heuristic).
+        direction: The optimization direction of the score (maximize or minimize).
     """
 
     name: Optional[str] = None
@@ -88,6 +87,7 @@ class Evaluator(ABC):
     Core abstraction for evaluators.
 
     Evaluators support both synchronous and asynchronous evaluation:
+
     - `evaluator.evaluate(eval_input)` or `evaluator(eval_input)`
     - `evaluator.aevaluate(eval_input)`
 
@@ -104,6 +104,15 @@ class Evaluator(ABC):
 
     Inheritors of the base class only have to implement `_evaluate` and the remaining methods come
     for free unless explicitly overwritten.
+
+    Args:
+        name (str): The name of this evaluator, used for identification and Score naming.
+        source (SourceType): The source of this evaluator (human, llm, or heuristic).
+        direction (DirectionType): The direction for score optimization ("maximize"
+            or "minimize"). Defaults to "maximize".
+        input_schema (Optional[type[BaseModel]]): Optional Pydantic BaseModel for input typing
+            and validation. If None, subclasses infer fields from prompts or function signatures
+            and may construct a model dynamically.
     """
 
     def __init__(
@@ -113,17 +122,6 @@ class Evaluator(ABC):
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
-        """Initialize the evaluator with a required name, source, and optional input schema.
-
-        Args:
-            name (str): The name of this evaluator, used for identification and Score naming.
-            source (SourceType): The source of this evaluator (human, llm, or heuristic).
-            direction (DirectionType): The direction for score optimization ("maximize"
-                or "minimize"). Defaults to "maximize".
-            input_schema (Optional[type[BaseModel]]): Optional Pydantic BaseModel for input typing
-                and validation. If None, subclasses infer fields from prompts or function signatures
-                and may construct a model dynamically.
-        """
         self._name = name
         self._source = source
         self._direction = direction
@@ -182,11 +180,11 @@ class Evaluator(ABC):
 
         Notes:
             - Uses the evaluator's input fields (from `input_schema` when available, otherwise from
-            the provided `input_mapping`). An optional per-call `input_mapping` maps
-            evaluator-required field names to keys/paths in `eval_input`.
+              the provided `input_mapping`). An optional per-call `input_mapping` maps
+              evaluator-required field names to keys/paths in `eval_input`.
             - Mapping is optional per-field; unspecified fields are read directly from `eval_input`.
             - Evaluators are also directly callable: `scores = evaluator(eval_input)` is equivalent
-            to `scores = evaluator.evaluate(eval_input)`.
+              to `scores = evaluator.evaluate(eval_input)`.
         """
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
@@ -306,6 +304,19 @@ class LLMEvaluator(Evaluator):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
+
+    Args:
+        name (str): Identifier for this evaluator and the name used in produced Scores.
+        llm (LLM): The LLM instance to use for evaluation.
+        prompt_template (Union[str, Template]): The prompt template (string or Template) with
+            placeholders for required fields; used to infer required variables.
+        schema (Optional[ToolSchema]): Optional tool/JSON schema for structured output when
+            supported by the LLM.
+        input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
+            inputs. If not provided, a model is dynamically created from the prompt variables
+            (assuming all variables are strings and required).
+        direction (DirectionType): The score optimization direction ("maximize" or "minimize").
+            Defaults to "maximize".
     """
 
     def __init__(
@@ -317,21 +328,6 @@ class LLMEvaluator(Evaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """Initialize the LLM evaluator.
-
-        Args:
-            name (str): Identifier for this evaluator and the name used in produced Scores.
-            llm (LLM): The LLM instance to use for evaluation.
-            prompt_template (Union[str, Template]): The prompt template (string or Template) with
-                placeholders for required fields; used to infer required variables.
-            schema (Optional[ToolSchema]): Optional tool/JSON schema for structured output when
-                supported by the LLM.
-            input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
-                inputs. If not provided, a model is dynamically created from the prompt variables
-                (assuming all variables are strings and required).
-            direction (DirectionType): The score optimization direction ("maximize" or "minimize").
-                Defaults to "maximize".
-        """
         # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
@@ -381,6 +377,22 @@ class ClassificationEvaluator(LLMEvaluator):
 
     If no `input_schema` is provided, it is dynamically created from the `prompt_template` variables
     (assuming all variables are strings and required).
+
+    Args:
+        name (str): Identifier for this evaluator and the name used in produced Scores.
+        llm (LLM): The LLM instance to use for evaluation.
+        prompt_template (Union[str, Template]): The prompt template (string or Template) with
+            placeholders for inputs.
+        choices: One of:
+            - List[str]: set of label names; scores will be None.
+            - Dict[str, Union[float, int]]: map label -> score.
+            - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
+        include_explanation (bool): If True, request an explanation in addition to the label.
+        input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
+            inputs. If not provided, a model is dynamically created from the prompt variables
+            (assuming all variables are strings and required).
+        direction (DirectionType): The score optimization direction ("maximize" or "minimize").
+            Defaults to "maximize".
     """
 
     def __init__(
@@ -395,24 +407,6 @@ class ClassificationEvaluator(LLMEvaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """Initialize the LLM evaluator.
-
-        Args:
-            name (str): Identifier for this evaluator and the name used in produced Scores.
-            llm (LLM): The LLM instance to use for evaluation.
-            prompt_template (Union[str, Template]): The prompt template (string or Template) with
-                placeholders for inputs.
-            choices: One of:
-                - List[str]: set of label names; scores will be None.
-                - Dict[str, Union[float, int]]: map label -> score.
-                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
-            include_explanation (bool): If True, request an explanation in addition to the label.
-            input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
-                inputs. If not provided, a model is dynamically created from the prompt variables
-                (assuming all variables are strings and required).
-            direction (DirectionType): The score optimization direction ("maximize" or "minimize").
-                Defaults to "maximize".
-        """
         super().__init__(
             name=name,
             llm=llm,
@@ -557,6 +551,7 @@ def create_evaluator(
 
     Notes:
         The decorated function can return:
+
         - A Score object (no conversion needed)
         - A number (converted to Score.score)
         - A boolean (converted to integer Score.score and string Score.label)
@@ -566,7 +561,8 @@ def create_evaluator(
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
-        input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
+        input fields, their types, and any defaults. For best results, do not use `*args` or
+        `**kwargs`.
 
         The decorator automatically handles conversion to a valid Score object.
         Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
@@ -772,6 +768,14 @@ class BoundEvaluator:
     """A prepared evaluator with a fixed mapping specification.
 
     Evaluates payloads without requiring per-call mapping arguments.
+
+    Args:
+        evaluator (Evaluator): The evaluator to bind.
+        mapping (InputMappingType): The input mapping to bind to the evaluator.
+
+    Notes:
+        - Mapping is optional per-field; unspecified fields will be read directly from
+          `eval_input` using their field name.
     """
 
     def __init__(
@@ -779,16 +783,6 @@ class BoundEvaluator:
         evaluator: Evaluator,
         mapping: InputMappingType,
     ) -> None:
-        """Initialize a BoundEvaluator.
-
-        Args:
-            evaluator (Evaluator): The evaluator to bind.
-            mapping (InputMappingType): The input mapping to bind to the evaluator.
-
-        Notes:
-            - Mapping is optional per-field; unspecified fields will be read directly from
-              `eval_input` using their field name.
-        """
         self._evaluator = evaluator
         self._mapping = mapping
 
@@ -883,19 +877,22 @@ def evaluate_dataframe(
     Returns:
         pd.DataFrame: A copy of the input dataframe with added columns for scores and exceptions.
         For each evaluator, columns are added for:
-        - "{evaluator.name}_execution_details": Details about any exceptions encountered, execution
-            time, and status.
-        - "{score.name}_score": JSON-serialized Score objects for each score returned
+
+            - "{evaluator.name}_execution_details": Details about any exceptions encountered,
+              execution time, and status.
+            - "{score.name}_score": JSON-serialized Score objects for each score returned
 
     Notes:
-    - Score name collisions: If multiple evaluators return scores with the same name,
-      they will write to the same column (e.g., 'same_name_score'). This can lead to
-      data loss as later scores overwrite earlier ones.
-    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
-    - Do not use dot notation in the dataframe column names e.g. "input.query" because it will
-      interfere with the input mapping.
-    - Failed evaluations: If an evaluation fails, the failure details will be recorded
-      in the execution_details column and the score will be None.
+        - Score name collisions: If multiple evaluators return scores with the same name,
+          they will write to the same column (e.g., 'same_name_score'). This can lead to
+          data loss as later scores overwrite earlier ones.
+        - Similarly, evaluator names should be unique to ensure execution_details columns don't
+          collide.
+        - Do not use dot notation in the dataframe column names e.g. "input.query" because it will
+          interfere with the input mapping.
+        - Failed evaluations: If an evaluation fails, the failure details will be recorded
+          in the execution_details column and the score will be None.
+
     """
     # Create a copy to avoid modifying the original dataframe
     result_df = dataframe.copy()
@@ -1013,17 +1010,20 @@ async def async_evaluate_dataframe(
     Returns:
         pd.DataFrame: A copy of the input dataframe with added columns for scores and exceptions.
         For each evaluator, columns are added for:
-        - "{evaluator.name}_execution_details": Details about any exceptions encountered, execution
-            time, and status.
-        - "{score.name}_score": JSON-serialized Score objects for each score returned
+
+            - "{evaluator.name}_execution_details": Details about any exceptions encountered,
+              execution time, and status.
+            - "{score.name}_score": JSON-serialized Score objects for each score returned
 
     Notes:
-    - Score name collisions: If multiple evaluators return scores with the same name,
-      they will write to the same column (e.g., 'same_name_score'). This can lead to
-      data loss as later scores overwrite earlier ones.
-    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
-    - Failed evaluations: If an evaluation fails, the failure details will be recorded
-      in the execution_details column and the score will be None.
+        - Score name collisions: If multiple evaluators return scores with the same name,
+          they will write to the same column (e.g., 'same_name_score'). This can lead to
+          data loss as later scores overwrite earlier ones.
+        - Similarly, evaluator names should be unique to ensure execution_details columns don't
+          collide.
+        - Failed evaluations: If an evaluation fails, the failure details will be recorded
+          in the execution_details column and the score will be None.
+
     """
     # Create a copy to avoid modifying the original dataframe
     result_df = dataframe.copy()
