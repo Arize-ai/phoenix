@@ -1227,12 +1227,7 @@ class Experiment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    dataset_split_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("dataset_splits.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    dataset_split: Mapped[Optional["DatasetSplit"]] = relationship("DatasetSplit")
-    experiment_dataset_splits: Mapped[list["ExperimentsDatasetSplit"]] = relationship(
+    experiments_dataset_splits: Mapped[list["ExperimentsDatasetSplit"]] = relationship(
         "ExperimentsDatasetSplit",
         back_populates="experiment",
     )
@@ -1250,9 +1245,16 @@ class ExperimentsDatasetSplit(Base):
         index=True,
     )
     experiment: Mapped["Experiment"] = relationship(
-        "Experiment", back_populates="experiment_dataset_splits"
+        "Experiment", back_populates="experiments_dataset_splits"
     )
     dataset_split: Mapped["DatasetSplit"] = relationship("DatasetSplit")
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_id",
+            "dataset_split_id",
+        ),
+    )
+
 
 
 class ExperimentRun(Base):
