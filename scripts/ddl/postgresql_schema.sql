@@ -45,40 +45,6 @@ alter table public.dataset_versions
 create index ix_dataset_versions_dataset_id
     on public.dataset_versions (dataset_id);
 
-create table public.experiments
-(
-    id                 serial
-        constraint pk_experiments
-            primary key,
-    dataset_id         integer                                not null
-        constraint fk_experiments_dataset_id_datasets
-            references public.datasets
-            on delete cascade,
-    dataset_version_id integer                                not null
-        constraint fk_experiments_dataset_version_id_dataset_versions
-            references public.dataset_versions
-            on delete cascade,
-    name               varchar                                not null,
-    description        varchar,
-    repetitions        integer                                not null,
-    metadata           jsonb                                  not null,
-    project_name       varchar,
-    created_at         timestamp with time zone default now() not null,
-    updated_at         timestamp with time zone default now() not null
-);
-
-alter table public.experiments
-    owner to postgres;
-
-create index ix_experiments_dataset_id
-    on public.experiments (dataset_id);
-
-create index ix_experiments_project_name
-    on public.experiments (project_name);
-
-create index ix_experiments_dataset_version_id
-    on public.experiments (dataset_version_id);
-
 create table public.user_roles
 (
     id   serial
@@ -115,7 +81,7 @@ create table public.users
     auth_method         varchar                                not null
         constraint "ck_users_`valid_auth_method`"
             check ((auth_method)::text = ANY
-        ((ARRAY ['LOCAL'::character varying, 'OAUTH2'::character varying])::text[])),
+                   ((ARRAY ['LOCAL'::character varying, 'OAUTH2'::character varying])::text[])),
     constraint uq_users_oauth2_client_id_oauth2_user_id
         unique (oauth2_client_id, oauth2_user_id),
     constraint "ck_users_`local_auth_has_password_no_oauth`"
@@ -129,14 +95,52 @@ create table public.users
 alter table public.users
     owner to postgres;
 
+create table public.experiments
+(
+    id                 serial
+        constraint pk_experiments
+            primary key,
+    dataset_id         integer                                not null
+        constraint fk_experiments_dataset_id_datasets
+            references public.datasets
+            on delete cascade,
+    dataset_version_id integer                                not null
+        constraint fk_experiments_dataset_version_id_dataset_versions
+            references public.dataset_versions
+            on delete cascade,
+    name               varchar                                not null,
+    description        varchar,
+    repetitions        integer                                not null,
+    metadata           jsonb                                  not null,
+    project_name       varchar,
+    created_at         timestamp with time zone default now() not null,
+    updated_at         timestamp with time zone default now() not null,
+    user_id            integer
+        constraint fk_experiments_user_id_users
+            references public.users
+            on delete set null
+);
+
+alter table public.experiments
+    owner to postgres;
+
+create index ix_experiments_project_name
+    on public.experiments (project_name);
+
+create index ix_experiments_dataset_version_id
+    on public.experiments (dataset_version_id);
+
+create index ix_experiments_dataset_id
+    on public.experiments (dataset_id);
+
 create unique index ix_users_username
     on public.users (username);
 
-create index ix_users_user_role_id
-    on public.users (user_role_id);
-
 create unique index ix_users_email
     on public.users (email);
+
+create index ix_users_user_role_id
+    on public.users (user_role_id);
 
 create table public.password_reset_tokens
 (
@@ -176,11 +180,11 @@ create table public.refresh_tokens
 alter table public.refresh_tokens
     owner to postgres;
 
-create index ix_refresh_tokens_expires_at
-    on public.refresh_tokens (expires_at);
-
 create index ix_refresh_tokens_user_id
     on public.refresh_tokens (user_id);
+
+create index ix_refresh_tokens_expires_at
+    on public.refresh_tokens (expires_at);
 
 create table public.access_tokens
 (
@@ -205,11 +209,11 @@ alter table public.access_tokens
 create index ix_access_tokens_user_id
     on public.access_tokens (user_id);
 
-create index ix_access_tokens_expires_at
-    on public.access_tokens (expires_at);
-
 create unique index ix_access_tokens_refresh_token_id
     on public.access_tokens (refresh_token_id);
+
+create index ix_access_tokens_expires_at
+    on public.access_tokens (expires_at);
 
 create table public.api_keys
 (
@@ -229,11 +233,11 @@ create table public.api_keys
 alter table public.api_keys
     owner to postgres;
 
-create index ix_api_keys_expires_at
-    on public.api_keys (expires_at);
-
 create index ix_api_keys_user_id
     on public.api_keys (user_id);
+
+create index ix_api_keys_expires_at
+    on public.api_keys (expires_at);
 
 create table public.prompt_labels
 (
@@ -296,11 +300,11 @@ create table public.prompts_prompt_labels
 alter table public.prompts_prompt_labels
     owner to postgres;
 
-create index ix_prompts_prompt_labels_prompt_id
-    on public.prompts_prompt_labels (prompt_id);
-
 create index ix_prompts_prompt_labels_prompt_label_id
     on public.prompts_prompt_labels (prompt_label_id);
+
+create index ix_prompts_prompt_labels_prompt_id
+    on public.prompts_prompt_labels (prompt_id);
 
 create table public.prompt_versions
 (
@@ -336,11 +340,11 @@ create table public.prompt_versions
 alter table public.prompt_versions
     owner to postgres;
 
-create index ix_prompt_versions_user_id
-    on public.prompt_versions (user_id);
-
 create index ix_prompt_versions_prompt_id
     on public.prompt_versions (prompt_id);
+
+create index ix_prompt_versions_user_id
+    on public.prompt_versions (user_id);
 
 create table public.prompt_version_tags
 (
@@ -471,14 +475,11 @@ create table public.traces
 alter table public.traces
     owner to postgres;
 
-create index ix_traces_project_rowid
-    on public.traces (project_rowid);
-
-create index ix_traces_start_time
-    on public.traces (start_time);
-
 create index ix_traces_project_session_rowid
     on public.traces (project_session_rowid);
+
+create index ix_traces_project_rowid_start_time
+    on public.traces (project_rowid asc, start_time desc);
 
 create table public.spans
 (
@@ -514,11 +515,11 @@ create table public.spans
 alter table public.spans
     owner to postgres;
 
-create index ix_spans_start_time
-    on public.spans (start_time);
-
 create index ix_spans_parent_id
     on public.spans (parent_id);
+
+create index ix_spans_start_time
+    on public.spans (start_time);
 
 create index ix_spans_trace_rowid
     on public.spans (trace_rowid);
@@ -546,7 +547,7 @@ create table public.span_annotations
     annotator_kind varchar                                                not null
         constraint "ck_span_annotations_`valid_annotator_kind`"
             check ((annotator_kind)::text = ANY
-        ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
+                   ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
     created_at     timestamp with time zone default now()                 not null,
     updated_at     timestamp with time zone default now()                 not null,
     user_id        integer
@@ -584,7 +585,7 @@ create table public.trace_annotations
     annotator_kind varchar                                                not null
         constraint "ck_trace_annotations_`valid_annotator_kind`"
             check ((annotator_kind)::text = ANY
-        ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
+                   ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
     created_at     timestamp with time zone default now()                 not null,
     updated_at     timestamp with time zone default now()                 not null,
     user_id        integer
@@ -623,7 +624,7 @@ create table public.document_annotations
     annotator_kind    varchar                                                not null
         constraint "ck_document_annotations_`valid_annotator_kind`"
             check ((annotator_kind)::text = ANY
-        ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
+                   ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
     created_at        timestamp with time zone default now()                 not null,
     updated_at        timestamp with time zone default now()                 not null,
     user_id           integer
@@ -663,11 +664,11 @@ create table public.dataset_examples
 alter table public.dataset_examples
     owner to postgres;
 
-create index ix_dataset_examples_dataset_id
-    on public.dataset_examples (dataset_id);
-
 create index ix_dataset_examples_span_rowid
     on public.dataset_examples (span_rowid);
+
+create index ix_dataset_examples_dataset_id
+    on public.dataset_examples (dataset_id);
 
 create table public.dataset_example_revisions
 (
@@ -688,7 +689,7 @@ create table public.dataset_example_revisions
     revision_kind      varchar                                not null
         constraint "ck_dataset_example_revisions_`valid_revision_kind`"
             check ((revision_kind)::text = ANY
-        ((ARRAY ['CREATE'::character varying, 'PATCH'::character varying, 'DELETE'::character varying])::text[])),
+                   ((ARRAY ['CREATE'::character varying, 'PATCH'::character varying, 'DELETE'::character varying])::text[])),
     created_at         timestamp with time zone default now() not null,
     constraint uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
         unique (dataset_example_id, dataset_version_id)
@@ -731,11 +732,11 @@ create table public.experiment_runs
 alter table public.experiment_runs
     owner to postgres;
 
-create index ix_experiment_runs_dataset_example_id
-    on public.experiment_runs (dataset_example_id);
-
 create index ix_experiment_runs_experiment_id
     on public.experiment_runs (experiment_id);
+
+create index ix_experiment_runs_dataset_example_id
+    on public.experiment_runs (dataset_example_id);
 
 create table public.experiment_run_annotations
 (
@@ -750,7 +751,7 @@ create table public.experiment_run_annotations
     annotator_kind    varchar                  not null
         constraint "ck_experiment_run_annotations_`valid_annotator_kind`"
             check ((annotator_kind)::text = ANY
-        ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
+                   ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
     label             varchar,
     score             double precision,
     explanation       varchar,
@@ -769,14 +770,11 @@ alter table public.experiment_run_annotations
 create index ix_experiment_run_annotations_experiment_run_id
     on public.experiment_run_annotations (experiment_run_id);
 
-create index ix_project_sessions_start_time
-    on public.project_sessions (start_time);
-
 create index ix_project_sessions_end_time
     on public.project_sessions (end_time);
 
-create index ix_project_sessions_project_id
-    on public.project_sessions (project_id);
+create index ix_project_sessions_project_id_start_time
+    on public.project_sessions (project_id asc, start_time desc);
 
 create table public.project_annotation_configs
 (
@@ -882,14 +880,14 @@ create table public.span_costs
 alter table public.span_costs
     owner to postgres;
 
+create index ix_span_costs_span_rowid
+    on public.span_costs (span_rowid);
+
 create index ix_span_costs_span_start_time
     on public.span_costs (span_start_time);
 
 create index ix_span_costs_trace_rowid
     on public.span_costs (trace_rowid);
-
-create index ix_span_costs_span_rowid
-    on public.span_costs (span_rowid);
 
 create index ix_span_costs_model_id_span_start_time
     on public.span_costs (model_id, span_start_time);
@@ -915,9 +913,117 @@ create table public.span_cost_details
 alter table public.span_cost_details
     owner to postgres;
 
-create index ix_span_cost_details_token_type
-    on public.span_cost_details (token_type);
-
 create index ix_span_cost_details_span_cost_id
     on public.span_cost_details (span_cost_id);
 
+create index ix_span_cost_details_token_type
+    on public.span_cost_details (token_type);
+
+create table public.project_session_annotations
+(
+    id                 bigserial
+        constraint pk_project_session_annotations
+            primary key,
+    project_session_id bigint                                                 not null
+        constraint fk_project_session_annotations_project_session_id_proje_ea96
+            references public.project_sessions
+            on delete cascade,
+    name               varchar                                                not null,
+    label              varchar,
+    score              double precision,
+    explanation        varchar,
+    metadata           jsonb                                                  not null,
+    annotator_kind     varchar                                                not null
+        constraint "ck_project_session_annotations_`valid_annotator_kind`"
+            check ((annotator_kind)::text = ANY
+                   ((ARRAY ['LLM'::character varying, 'CODE'::character varying, 'HUMAN'::character varying])::text[])),
+    user_id            bigint
+        constraint fk_project_session_annotations_user_id_users
+            references public.users
+            on delete set null,
+    identifier         varchar                  default ''::character varying not null,
+    source             varchar                                                not null
+        constraint "ck_project_session_annotations_`valid_source`"
+            check ((source)::text = ANY ((ARRAY ['API'::character varying, 'APP'::character varying])::text[])),
+    created_at         timestamp with time zone default now()                 not null,
+    updated_at         timestamp with time zone default now()                 not null,
+    constraint uq_project_session_annotations_name_project_session_id__6b58
+        unique (name, project_session_id, identifier)
+);
+
+alter table public.project_session_annotations
+    owner to postgres;
+
+create index ix_project_session_annotations_project_session_id
+    on public.project_session_annotations (project_session_id);
+
+create table public.dataset_splits
+(
+    id          bigserial
+        constraint pk_dataset_splits
+            primary key,
+    name        varchar                                not null,
+    description varchar,
+    color       varchar,
+    metadata    jsonb                                  not null,
+    created_at  timestamp with time zone default now() not null,
+    updated_at  timestamp with time zone default now() not null
+);
+
+alter table public.dataset_splits
+    owner to postgres;
+
+create unique index ix_dataset_splits_name
+    on public.dataset_splits (name);
+
+create table public.dataset_splits_dataset_examples
+(
+    id                 bigserial
+        constraint pk_dataset_splits_dataset_examples
+            primary key,
+    dataset_split_id   bigint not null
+        constraint fk_dataset_splits_dataset_examples_dataset_split_id_dat_a90c
+            references public.dataset_splits
+            on delete cascade,
+    dataset_example_id bigint not null
+        constraint fk_dataset_splits_dataset_examples_dataset_example_id_d_63b2
+            references public.dataset_examples
+            on delete cascade,
+    constraint uq_dataset_splits_dataset_examples_dataset_split_id_dat_9586
+        unique (dataset_split_id, dataset_example_id)
+);
+
+alter table public.dataset_splits_dataset_examples
+    owner to postgres;
+
+create index ix_dataset_splits_dataset_examples_dataset_example_id
+    on public.dataset_splits_dataset_examples (dataset_example_id);
+
+create index ix_dataset_splits_dataset_examples_dataset_split_id
+    on public.dataset_splits_dataset_examples (dataset_split_id);
+
+create table public.experiment_dataset_splits
+(
+    id               bigserial
+        constraint pk_experiment_dataset_splits
+            primary key,
+    experiment_id    bigint not null
+        constraint fk_experiment_dataset_splits_experiment_id_experiments
+            references public.experiments
+            on delete cascade,
+    dataset_split_id bigint not null
+        constraint fk_experiment_dataset_splits_dataset_split_id_dataset_splits
+            references public.dataset_splits
+            on delete cascade,
+    constraint uq_experiment_dataset_splits_experiment_id_dataset_split_id
+        unique (experiment_id, dataset_split_id)
+);
+
+alter table public.experiment_dataset_splits
+    owner to postgres;
+
+create index ix_experiment_dataset_splits_dataset_split_id
+    on public.experiment_dataset_splits (dataset_split_id);
+
+create index ix_experiment_dataset_splits_experiment_id
+    on public.experiment_dataset_splits (experiment_id);
