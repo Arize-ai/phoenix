@@ -57,8 +57,9 @@ df = df.sample(10, random_state=42)
 ```
 
 ```python
-dataset = px.Client().upload_dataset(
-    dataset_name=f"{dataset_name}{datetime.now(timezone.utc)}",
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
+    name=f"{dataset_name}{datetime.now(timezone.utc)}",
     inputs=df.inputs,
     outputs=df.outputs.map(lambda obj: obj["output"]),
 )
