@@ -29,7 +29,14 @@ def _bind_mapping_function(
 
     parameters = sig.parameters
     if len(parameters) <= 1:
-        return mapping_function(eval_input)
+        if len(parameters) == 1:
+            parameter_name = next(iter(parameters.keys()))
+            if parameter_name in eval_input:
+                pass
+            else:
+                return mapping_function(eval_input)
+        else:
+            return mapping_function(eval_input)
 
     provided_kwargs: Dict[str, Any] = {
         name: eval_input[name] for name in parameters.keys() if name in eval_input
