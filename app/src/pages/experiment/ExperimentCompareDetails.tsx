@@ -5,6 +5,7 @@ import {
   Card,
   ColorSwatch,
   CopyToClipboardButton,
+  Empty,
   Flex,
   Heading,
   View,
@@ -144,9 +145,13 @@ export function ExperimentCompareDetails({
 const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
   border-radius: var(--ac-global-rounding-small);
-  box-shadow: 0px 8px 16px rgba(0 0 0 / 0.1);
+  box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   min-width: 500px;
 `;
+
+/**
+ * Shows a single experiment's output and annotations
+ */
 function ExperimentItem({
   experiment,
   runItem,
@@ -159,14 +164,19 @@ function ExperimentItem({
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
     index === 0 ? baseExperimentColor : getExperimentColor(index - 1);
+
+  const hasExperimentResult = runItem.runs.length > 0;
   return (
     <div css={experimentItemCSS}>
       <View paddingX="size-200" paddingTop="size-200">
         <Flex direction="row" gap="size-100" alignItems="center">
           <ColorSwatch color={color} shape="circle" />
-          <Heading level={3}>{experiment?.name ?? ""}</Heading>{" "}
+          <Heading weight="heavy" level={3}>
+            {experiment?.name ?? ""}
+          </Heading>{" "}
         </Flex>
       </View>
+      {!hasExperimentResult ? <Empty message="No Run" /> : null}
       <ul>
         {runItem.runs.map((run, index) => (
           <li key={index}>

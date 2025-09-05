@@ -35,8 +35,7 @@ import {
   Icon,
   IconButton,
   Icons,
-  ListBox,
-  ListBoxItem,
+  LinkButton,
   Loading,
   Modal,
   ModalOverlay,
@@ -77,7 +76,6 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { TraceDetails } from "../trace";
@@ -785,74 +783,6 @@ export const MemoizedTableBody = React.memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-enum ExperimentRowAction {
-  GO_TO_EXAMPLE = "gotoExample",
-}
-function ExperimentRowActionMenu(props: {
-  datasetId: string;
-  exampleId: string;
-}) {
-  const { datasetId, exampleId } = props;
-  const navigate = useNavigate();
-  return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <DialogTrigger>
-        <TooltipTrigger>
-          <Button
-            size="S"
-            leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-          />
-          <Tooltip>
-            <TooltipArrow />
-            More actions
-          </Tooltip>
-        </TooltipTrigger>
-        <Popover>
-          <Dialog>
-            {({ close }) => (
-              <ListBox
-                style={{ minHeight: "auto" }}
-                onAction={(firedAction) => {
-                  const action = firedAction as ExperimentRowAction;
-                  switch (action) {
-                    case ExperimentRowAction.GO_TO_EXAMPLE: {
-                      navigate(`/datasets/${datasetId}/examples/${exampleId}`);
-                      break;
-                    }
-                    default: {
-                      assertUnreachable(action);
-                    }
-                  }
-                  close();
-                }}
-              >
-                <ListBoxItem id={ExperimentRowAction.GO_TO_EXAMPLE}>
-                  <Flex
-                    direction="row"
-                    gap="size-75"
-                    justifyContent="start"
-                    alignItems="center"
-                  >
-                    <Icon svg={<Icons.ExternalLinkOutline />} />
-                    <Text>Go to example</Text>
-                  </Flex>
-                </ListBoxItem>
-              </ListBox>
-            )}
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-    </div>
-  );
-}
-
 function ExperimentMetadata(props: { experiment: Experiment }) {
   const { experiment } = props;
   const averageRunLatencyMs = experiment.averageRunLatencyMs;
@@ -1034,10 +964,12 @@ function SelectedExampleDialog({
         <DialogHeader>
           <DialogTitle>{`Comparing Experiments for Example: ${selectedExample.id}`}</DialogTitle>
           <DialogTitleExtra>
-            <ExperimentRowActionMenu
-              datasetId={datasetId}
-              exampleId={selectedExample.id}
-            />
+            <LinkButton
+              size="S"
+              to={`/datasets/${datasetId}/examples/${selectedExample.id}`}
+            >
+              View Example
+            </LinkButton>
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
