@@ -1058,6 +1058,9 @@ class Dataset(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="dataset"
+    )
 
     @hybrid_property
     def example_count(self) -> Optional[int]:
@@ -1184,6 +1187,9 @@ class Experiment(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     user: Mapped[Optional["User"]] = relationship("User")
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="experiment"
+    )
 
 
 class ExperimentRun(Base):
