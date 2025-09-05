@@ -34,7 +34,6 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.UniqueConstraint("dataset_id", "name"),

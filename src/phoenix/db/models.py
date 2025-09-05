@@ -1276,18 +1276,12 @@ class ExperimentTag(Base):
     )
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     name: Mapped[str]
     experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
 
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "dataset_id",
-        ),
-    )
+    __table_args__ = (UniqueConstraint("dataset_id", "name"),)
 
 
 class UserRole(Base):
