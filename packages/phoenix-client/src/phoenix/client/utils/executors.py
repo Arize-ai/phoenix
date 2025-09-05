@@ -30,6 +30,12 @@ from phoenix.client.utils.rate_limiters import RateLimitError
 logger = logging.getLogger(__name__)
 
 
+try:
+    from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
+except ImportError:
+    EvalsRateLimitError = None
+
+
 class Unset:
     pass
 
@@ -342,7 +348,13 @@ class AsyncExecutor(Executor):
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
                 details.log_runtime(task_start_time)
-                is_rate_limit_error = isinstance(exc, RateLimitError)
+
+                is_client_rate_limit_error = isinstance(exc, RateLimitError)
+                is_evals_rate_limit_error = False
+                if EvalsRateLimitError is not None:
+                    is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
+                is_rate_limit_error = is_client_rate_limit_error or is_evals_rate_limit_error
+
                 is_phoenix_exception = isinstance(exc, PhoenixException) and not is_rate_limit_error
                 bypass_retries = is_phoenix_exception and not is_rate_limit_error
                 if (retry_count := abs(priority)) < self.max_retries and not bypass_retries:
