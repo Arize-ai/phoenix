@@ -695,8 +695,6 @@ CREATE TABLE public.experiment_runs (
 
 CREATE INDEX ix_experiment_runs_dataset_example_id ON public.experiment_runs
     USING btree (dataset_example_id);
-CREATE INDEX ix_experiment_runs_experiment_id ON public.experiment_runs
-    USING btree (experiment_id);
 
 
 -- Table: experiment_run_annotations
