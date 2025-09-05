@@ -514,7 +514,7 @@ class SyncExecutor(Executor):
             self.termination_signal
             if threading.current_thread() is threading.main_thread()
             else None
-        ):
+        )
         with self._executor_signal_handling(signal_to_use):
             outputs = [self.fallback_return_value] * len(inputs)
             execution_details: List[ExecutionDetails] = [
