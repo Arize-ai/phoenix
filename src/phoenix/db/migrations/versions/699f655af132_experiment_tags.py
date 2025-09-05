@@ -37,7 +37,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("name", sa.String, nullable=False),
-        sa.UniqueConstraint("name", "dataset_id"),
+        sa.UniqueConstraint("dataset_id", "name"),
     )
 
 
