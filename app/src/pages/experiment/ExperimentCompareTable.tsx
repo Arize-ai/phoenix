@@ -30,6 +30,7 @@ import {
   Dialog,
   DialogCloseButton,
   DialogTrigger,
+  Empty,
   Flex,
   Heading,
   Icon,
@@ -56,8 +57,6 @@ import {
 } from "@phoenix/components/dialog";
 import {
   ExperimentAverageRunTokenCosts,
-  ExperimentRunTokenCosts,
-  ExperimentRunTokenCount,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
@@ -71,7 +70,6 @@ import {
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
@@ -87,6 +85,7 @@ import type {
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
+import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 type ExampleCompareTableProps = {
   query: ExperimentCompareTable_comparisons$key;
@@ -114,7 +113,8 @@ export type TableRow =
     >;
   };
 
-type ExperimentRun =
+// TODO - switch to a fragment and don't export
+export type ExperimentRun =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 const tableWrapCSS = css`
@@ -406,7 +406,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           if (numRuns === 0) {
             return (
               <PaddedCell>
-                <NotRunText />
+                <Empty message="No Run" />
               </PaddedCell>
             );
           } else if (numRuns > 1) {
@@ -486,7 +486,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </Flex>
           ) : (
             <PaddedCell>
-              <NotRunText />
+              <Empty message="No Run" />
             </PaddedCell>
           );
         },
@@ -817,32 +817,6 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
   );
 }
 
-function ExperimentRunMetadata(props: ExperimentRun) {
-  const { id, startTime, endTime, costSummary } = props;
-  const tokenCountTotal = costSummary.total.tokens;
-  const costTotal = costSummary.total.cost;
-  return (
-    <Flex direction="row" gap="size-100">
-      <RunLatency startTime={startTime} endTime={endTime} />
-      {tokenCountTotal != null && id ? (
-        <ExperimentRunTokenCount
-          tokenCountTotal={tokenCountTotal}
-          experimentRunId={id}
-          size="S"
-        />
-      ) : (
-        <TokenCount size="S">{tokenCountTotal}</TokenCount>
-      )}
-      {costTotal != null && id ? (
-        <ExperimentRunTokenCosts
-          costTotal={costTotal}
-          experimentRunId={id}
-          size="S"
-        />
-      ) : null}
-    </Flex>
-  );
-}
 /**
  * Display the output of an experiment run.
  */
@@ -892,34 +866,6 @@ function RunError({ error }: { error: string }) {
     <Flex direction="row" gap="size-50" alignItems="center">
       <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
       <Text color="danger">{error}</Text>
-    </Flex>
-  );
-}
-
-function RunLatency({
-  startTime,
-  endTime,
-}: {
-  startTime: string;
-  endTime: string;
-}) {
-  const latencyMs = useMemo(() => {
-    let latencyMs: number | null = null;
-    if (startTime && endTime) {
-      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-    }
-    return latencyMs;
-  }, [startTime, endTime]);
-  if (latencyMs === null) {
-    return null;
-  }
-  return <LatencyText size="S" latencyMs={latencyMs} />;
-}
-function NotRunText() {
-  return (
-    <Flex direction="row" gap="size-50">
-      <Icon svg={<Icons.MinusCircleOutline />} color="grey-800" />
-      <Text color="text-700">not run</Text>
     </Flex>
   );
 }

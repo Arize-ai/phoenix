@@ -16,6 +16,7 @@ import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 
 import type { ExperimentInfoMap, TableRow } from "./ExperimentCompareTable";
+import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 // TODO: this is an anti-pattern but right now the components are coupled.
 // This will be re-factored to encapsulated.
@@ -180,23 +181,30 @@ function ExperimentItem({
       <ul>
         {runItem.runs.map((run, index) => (
           <li key={index}>
-            <ul
+            <div
               css={css`
-                padding: var(--ac-global-dimension-size-100)
+                padding: var(--ac-global-dimension-size-50)
+                  var(--ac-global-dimension-size-200)
+                  var(--ac-global-dimension-size-100)
                   var(--ac-global-dimension-size-200);
                 border-bottom: 1px solid var(--ac-global-border-color-default);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-100);
               `}
             >
-              {run.annotations?.edges.map((edge) => (
-                <li key={edge.annotation.id}>
-                  <AnnotationNameAndValue
-                    annotation={edge.annotation}
-                    displayPreference="score"
-                  />
-                </li>
-              ))}
-            </ul>
-
+              <ExperimentRunMetadata {...run} />
+              <ul>
+                {run.annotations?.edges.map((edge) => (
+                  <li key={edge.annotation.id}>
+                    <AnnotationNameAndValue
+                      annotation={edge.annotation}
+                      displayPreference="score"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
             <View>
               {run.error ? (
                 <View padding="size-200">{run.error}</View>
