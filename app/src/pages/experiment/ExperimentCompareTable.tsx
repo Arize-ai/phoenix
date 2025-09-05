@@ -9,7 +9,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Pressable } from "react-aria-components";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -47,7 +46,6 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
-import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   DialogContent,
@@ -83,6 +81,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
@@ -1017,27 +1016,7 @@ export function ExperimentRunCellAnnotationsList(
             `}
           >
             <DialogTrigger>
-              <Pressable>
-                <button
-                  className="button--reset"
-                  css={css`
-                    cursor: pointer;
-                    padding: var(--ac-global-dimension-size-50)
-                      var(--ac-global-dimension-size-100);
-                    flex: 1 1 auto;
-                    border-radius: var(--ac-global-rounding-small);
-                    width: 100%;
-                    &:hover {
-                      background-color: var(--ac-global-color-grey-200);
-                    }
-                  `}
-                >
-                  <AnnotationNameAndValue
-                    annotation={annotation}
-                    displayPreference="score"
-                  />
-                </button>
-              </Pressable>
+              <ExperimentAnnotationButton annotation={annotation} />
               <Popover placement="top">
                 <PopoverArrow />
                 <Dialog style={{ width: 400 }}>
