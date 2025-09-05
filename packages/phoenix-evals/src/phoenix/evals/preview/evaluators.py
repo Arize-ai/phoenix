@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
-from pydantic import BaseModel, ValidationError, create_model
-from typing_extensions import Mapping
+from pydantic import AfterValidator, BaseModel, ValidationError, create_model
+from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
@@ -23,6 +23,13 @@ ToolSchema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
+
+
+def _coerce_to_str(value: Any) -> str:
+    return value if isinstance(value, str) else str(value)
+
+
+EnforcedString = Annotated[str, AfterValidator(_coerce_to_str)]
 
 
 # --- Score model ---
@@ -187,7 +194,7 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
         return await self._aevaluate(remapped_eval_input)
-    
+
     def bind_input_mapping(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
@@ -276,7 +283,9 @@ class LLMEvaluator(Evaluator):
         # If no explicit input_schema, create a Pydantic model with all fields as required str
         if input_schema is None:
             model_name = f"{name.capitalize()}Input"
-            field_defs: Dict[str, Tuple[Any, Any]] = {var: (str, ...) for var in required_fields}
+            field_defs: Dict[str, Tuple[Any, Any]] = {
+                var: (EnforcedString, ...) for var in required_fields
+            }
             input_schema = create_model(
                 model_name,
                 **cast(Any, field_defs),
