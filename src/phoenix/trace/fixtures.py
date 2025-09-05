@@ -139,21 +139,27 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
-demo_toolcalling_fixture = TracesFixture(
-    name="demo_toolcalling",
+demo_tool_calling_fixture = TracesFixture(
+    name="demo_tool_calling",
     project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
+    evaluation_fixtures=(
+        EvaluationFixture(
+            evaluation_name="Tool Calling Eval",
+            file_name="demo_toolcalling_evals_root_idx.parquet",
+        ),
+    ),
     dataset_fixtures=(
         DatasetFixture(
-            file_name="questions.csv.gz",
+            file_name="questions.csv",
             input_keys=("query",),
             output_keys=("responses",),
             name="Valid Queries",
             description="Valid queries for the demo agent",
         ),
         DatasetFixture(
-            file_name="invalid_questions.csv.gz",
+            file_name="invalid_questions.csv",
             input_keys=("query",),
             output_keys=("responses",),
             name="Invalid Queries",
@@ -321,7 +327,7 @@ TRACES_FIXTURES: list[TracesFixture] = [
     vision_fixture,
     anthropic_tools_fixture,
     project_sessions_llama_index_rag_arize_docs_fixture,
-    demo_toolcalling_fixture,
+    demo_tool_calling_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
