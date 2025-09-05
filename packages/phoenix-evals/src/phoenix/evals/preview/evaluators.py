@@ -195,7 +195,7 @@ class Evaluator(ABC):
                 raise ValueError(f"Input validation failed: {e}")
         return await self._aevaluate(remapped_eval_input)
 
-    def bind_input_mapping(self, input_mapping: InputMappingType) -> None:
+    def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
 
@@ -677,7 +677,7 @@ def bind_evaluator(
     mapping: InputMappingType,
 ) -> Evaluator:
     """Helper to bind an evaluator with a fixed input mapping."""
-    evaluator.bind_input_mapping(mapping)
+    evaluator.bind(mapping)
     return evaluator
 
 
