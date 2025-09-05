@@ -674,10 +674,10 @@ def create_classifier(
 # --- Bound Evaluator ---
 def bind_evaluator(
     evaluator: Evaluator,
-    mapping: InputMappingType,
+    input_mapping: InputMappingType,
 ) -> Evaluator:
     """Helper to bind an evaluator with a fixed input mapping."""
-    evaluator.bind(mapping)
+    evaluator.bind(input_mapping=input_mapping)
     return evaluator
 
 
