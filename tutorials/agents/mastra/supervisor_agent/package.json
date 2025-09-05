@@ -1,16 +1,19 @@
 {
-  "name": "example-agent",
+  "name": "mastra_instrumentation_audit",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "mastra dev",
     "dev": "mastra dev",
-    "build": "mastra build"
+    "build": "mastra build",
+    "verify": "node verify-setup.js",
+    "setup": "npm install && node verify-setup.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Mastra weather activity planner demo showcasing orchestrator/worker pattern with AI agents",
   "type": "module",
   "engines": {
     "node": ">=20.9.0"
@@ -27,6 +30,7 @@
   "devDependencies": {
     "@types/node": "^24.3.0",
     "mastra": "^0.11.2",
+    "tsx": "^4.0.0",
     "typescript": "^5.9.2"
   }
 }
