@@ -10,7 +10,6 @@ from phoenix.client.resources.experiments.types import (
 
 if TYPE_CHECKING:
     from phoenix.client.resources.experiments.types import Evaluator
-    from phoenix.evals.preview.evaluators import Score as EvalsScore
     from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
 
 

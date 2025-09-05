@@ -102,6 +102,7 @@ class Evaluator(ABC):
         self._source = source
         self._direction = direction
         self._input_schema: Optional[type[BaseModel]] = input_schema
+        self._input_mapping: Optional[InputMappingType] = None
 
     @property
     def name(self) -> str:
@@ -148,6 +149,7 @@ class Evaluator(ABC):
         Returns:
             A list of Score objects.
         """
+        input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
             eval_input,
@@ -171,6 +173,7 @@ class Evaluator(ABC):
         Returns:
             A list of Score objects.
         """
+        input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
             eval_input,
@@ -184,6 +187,10 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
         return await self._aevaluate(remapped_eval_input)
+    
+    def bind_input_mapping(self, input_mapping: InputMappingType) -> None:
+        """Binds an evaluator with a fixed input mapping."""
+        self._input_mapping = input_mapping
 
     # allow instances to be called directly: `evaluator(eval_input)`
     __call__ = evaluate
@@ -656,51 +663,13 @@ def create_classifier(
 
 
 # --- Bound Evaluator ---
-class BoundEvaluator:
-    """
-    A prepared evaluator with a fixed mapping specification. Evaluates payloads without
-    requiring per-call mapping arguments.
-    """
-
-    def __init__(
-        self,
-        evaluator: Evaluator,
-        mapping: InputMappingType,
-    ) -> None:
-        # Mapping is optional per-field; unspecified fields will be read directly
-        # from eval_input using their field name. Static syntax checks happen later.
-        self._evaluator = evaluator
-        self._mapping = mapping
-
-    @property
-    def input_schema(self) -> Optional[type[BaseModel]]:
-        return self._evaluator.input_schema
-
-    @property
-    def name(self) -> str:
-        return self._evaluator.name
-
-    def evaluate(self, payload: EvalInput) -> List[Score]:
-        return self._evaluator.evaluate(payload, input_mapping=self._mapping)
-
-    async def aevaluate(self, payload: EvalInput) -> List[Score]:
-        return await self._evaluator.aevaluate(payload, input_mapping=self._mapping)
-
-    def mapping_description(self) -> Dict[str, Any]:
-        keys = list(self._mapping.keys()) if self._mapping is not None else []
-        return {"evaluator": self._evaluator.name, "mapping_keys": keys}
-
-    # Introspection passthroughs
-    def describe(self) -> Dict[str, Any]:
-        return self._evaluator.describe()
-
-
 def bind_evaluator(
     evaluator: Evaluator,
     mapping: InputMappingType,
-) -> BoundEvaluator:
-    """Helper to create a `BoundEvaluator` with a fixed input mapping."""
-    return BoundEvaluator(evaluator, mapping)
+) -> Evaluator:
+    """Helper to bind an evaluator with a fixed input mapping."""
+    evaluator.bind_input_mapping(mapping)
+    return evaluator
 
 
 def evaluate_dataframe(
