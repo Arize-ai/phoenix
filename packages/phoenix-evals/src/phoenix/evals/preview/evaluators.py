@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
-from pydantic import AfterValidator, BaseModel, ValidationError, create_model
+from pydantic import BeforeValidator, BaseModel, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
@@ -29,7 +29,7 @@ def _coerce_to_str(value: Any) -> str:
     return value if isinstance(value, str) else str(value)
 
 
-EnforcedString = Annotated[str, AfterValidator(_coerce_to_str)]
+EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
 # --- Score model ---
