@@ -1012,6 +1012,43 @@ class DocumentAnnotation(Base):
     )
 
 
+class ProjectSessionAnnotation(Base):
+    __tablename__ = "project_session_annotations"
+    project_session_id: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    label: Mapped[Optional[str]] = mapped_column(String, index=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "name",
+            "project_session_id",
+            "identifier",
+        ),
+    )
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
     name: Mapped[str] = mapped_column(unique=True)
@@ -1020,6 +1057,9 @@ class Dataset(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="dataset"
     )
 
     @hybrid_property
@@ -1141,9 +1181,14 @@ class Experiment(Base):
     repetitions: Mapped[int]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="experiment"
     )
 
 
@@ -1221,6 +1266,30 @@ class ExperimentRunAnnotation(Base):
             "name",
         ),
     )
+
+
+class ExperimentTag(Base):
+    __tablename__ = "experiment_tags"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
+    user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("dataset_id", "name"),)
 
 
 class UserRole(Base):

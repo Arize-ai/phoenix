@@ -12,7 +12,7 @@ from sqlalchemy.sql.elements import KeyedColumnElement
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
 from phoenix.trace.attributes import get_attribute_value
 
@@ -53,7 +53,7 @@ def insert_on_conflict(
             unique_records.append(v)
             seen.add(k)
         records = tuple(reversed(unique_records))
-    constraint = constraint_name or "_".join(("uq", table.__tablename__, *unique_by))
+    constraint = constraint_name or truncate_name("_".join(("uq", table.__tablename__, *unique_by)))
     if dialect is SupportedSQLDialect.POSTGRESQL:
         stmt_postgresql = insert_postgresql(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:

@@ -1128,16 +1128,10 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
-# LEGACY: Regex for backward compatibility with host:port parsing in PHOENIX_POSTGRES_HOST
-_HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
-
-
 def get_env_postgres_connection_str() -> Optional[str]:
     """
     Build PostgreSQL connection string from environment variables.
-
-    LEGACY: Supports host:port parsing in PHOENIX_POSTGRES_HOST for backward compatibility.
-    """  # noqa: E501
+    """
     if not (
         (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
         and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
@@ -1146,10 +1140,6 @@ def get_env_postgres_connection_str() -> Optional[str]:
         return None
     pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
     pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
-
-    if _HOST_PORT_REGEX.match(pg_host):  # maintain backward compatibility
-        pg_host, parsed_port = pg_host.split(":")
-        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
     encoded_user = quote(pg_user)
     encoded_password = quote(pg_password)
