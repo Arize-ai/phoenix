@@ -91,7 +91,7 @@ class AdaptiveTokenBucket:
 
         self.rate = original_rate * self.rate_reduction_factor
         if verbose:
-            print(f"Reducing rate from {original_rate} to {self.rate} after rate limit error")
+            print(f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error")
 
         self.rate = max(self.rate, self.minimum_rate)
 
@@ -146,14 +146,26 @@ class AdaptiveTokenBucket:
                 continue
 
 
-class RateLimitError(PhoenixException): ...
+class RateLimitError(PhoenixException):
+    def __init__(
+        self,
+        message: str = "Exceeded rate limit retries",
+        *,
+        current_rate_tokens_per_sec: Optional[float] = None,
+        initial_rate_tokens_per_sec: Optional[float] = None,
+        enforcement_window_seconds: Optional[float] = None,
+    ) -> None:
+        super().__init__(message)
+        self.current_rate_tokens_per_sec = current_rate_tokens_per_sec
+        self.initial_rate_tokens_per_sec = initial_rate_tokens_per_sec
+        self.enforcement_window_seconds = enforcement_window_seconds
 
 
 class RateLimiter:
     def __init__(
         self,
         rate_limit_error: Optional[Type[BaseException]] = None,
-        max_rate_limit_retries: int = 3,
+        max_rate_limit_retries: int = 0,
         initial_per_second_request_rate: float = 1.0,
         maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
@@ -184,9 +196,9 @@ class RateLimiter:
     ) -> Callable[ParameterSpec, GenericType]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            request_start_time = time.time()
             try:
                 self._throttler.wait_until_ready()
+                request_start_time = time.time()
                 return fn(*args, **kwargs)
             except self._rate_limit_error:
                 self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
@@ -200,9 +212,14 @@ class RateLimiter:
                             request_start_time, verbose=self._verbose
                         )
                         continue
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+            raise RateLimitError(
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
+                current_rate_tokens_per_sec=self._throttler.rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                enforcement_window_seconds=self._throttler.enforcement_window,
+            )
 
-        return wrapper  # type: ignore[unused-ignore]
+        return wrapper
 
     def _initialize_async_primitives(self) -> None:
         """
@@ -228,13 +245,13 @@ class RateLimiter:
             assert self._rate_limit_handling is not None and isinstance(
                 self._rate_limit_handling, asyncio.Event
             )
-            request_start_time = time.time()
             try:
                 try:
                     await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
                 except asyncio.TimeoutError:
                     self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
+                request_start_time = time.time()
                 return await fn(*args, **kwargs)
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
@@ -253,6 +270,11 @@ class RateLimiter:
                                 continue
                     finally:
                         self._rate_limit_handling.set()  # allow new requests to start
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+            raise RateLimitError(
+                f"Rate limited: throttling requests to {self._throttler.rate} RPS",
+                current_rate_tokens_per_sec=self._throttler.rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                enforcement_window_seconds=self._throttler.enforcement_window,
+            )
 
-        return wrapper  # type: ignore[unused-ignore]
+        return wrapper
