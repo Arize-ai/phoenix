@@ -89,7 +89,11 @@ class DatasetExample(Node):
         db_experiments = await info.context.data_loaders.experiments_by_dataset_example_id.load(
             (example_id, tuple(experiment_rowids))
         )
-        gql_experiments = [to_gql_experiment(db_experiment) for db_experiment in db_experiments]
+        gql_experiments = []
+        for db_experiment in db_experiments:
+            gql_experiment = to_gql_experiment(db_experiment)
+            gql_experiment.dataset_example_rowid = example_id
+            gql_experiments.append(gql_experiment)
         return connection_from_list(gql_experiments, connection_args)
 
     @strawberry.field
