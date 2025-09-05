@@ -75,7 +75,10 @@ type Experiment = NonNullable<
 
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
+  const experimentIds = useMemo(
+    () => searchParams.getAll("experimentId"),
+    [searchParams]
+  );
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
