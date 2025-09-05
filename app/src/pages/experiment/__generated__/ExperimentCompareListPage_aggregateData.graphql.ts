@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9f80a55dc15f1cf09f14af665745dc0>>
+ * @generated SignedSource<<8c7cb065ff6de092e21c747221cecda8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,7 @@ export type ExperimentCompareListPage_aggregateData$data = {
             };
           };
           readonly id: string;
+          readonly runCount: number;
         };
       }>;
     };
@@ -158,6 +159,13 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "kind": "ScalarField",
+                          "name": "runCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -232,6 +240,6 @@ return {
 };
 })();
 
-(node as any).hash = "936b49e6b7825e3d4373cfb03daf53b2";
+(node as any).hash = "f1246fb93cb4a81bcfa7df072d69bea7";
 
 export default node;
