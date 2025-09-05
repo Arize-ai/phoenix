@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.29.0...arize-phoenix-evals-v0.30.0) (2025-09-05)
+
+
+### Features
+
+* **evals:** add rate limiting to llm methods ([#9271](https://github.com/Arize-ai/phoenix/issues/9271)) ([67ca56b](https://github.com/Arize-ai/phoenix/commit/67ca56b3293812cbf4ec96e9c2a57afd516ae73c))
+* **evals:** async version of evaluate dataframe ([#9315](https://github.com/Arize-ai/phoenix/issues/9315)) ([da6d88f](https://github.com/Arize-ai/phoenix/commit/da6d88f70907223257aeb08c903afc44f6c3b765))
+
+
+### Bug Fixes
+
+* **evals:** unify sync and async llm ([#9287](https://github.com/Arize-ai/phoenix/issues/9287)) ([21b8dfe](https://github.com/Arize-ai/phoenix/commit/21b8dfee05c71ce9b614aca8def32ffda821862b))
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+* **client:** fix python client docs ([#9317](https://github.com/Arize-ai/phoenix/issues/9317)) ([d94835a](https://github.com/Arize-ai/phoenix/commit/d94835aad129216fdb7d480a70aa2a501e615a8e))
+* consistent docstrings ([#9324](https://github.com/Arize-ai/phoenix/issues/9324)) ([00dcea9](https://github.com/Arize-ai/phoenix/commit/00dcea97aac7a8165395bfaefe52f771feadca2d))
+
 ## [0.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.1...arize-phoenix-evals-v0.29.0) (2025-08-26)
 
 
