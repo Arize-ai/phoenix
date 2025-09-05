@@ -100,7 +100,7 @@ def upgrade() -> None:
 
     # Create experiments_dataset_splits table
     op.create_table(
-        "experiments_dataset_splits",
+        "experiment_dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "experiment_id",
@@ -124,6 +124,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("experiments_dataset_splits")
+    op.drop_table("experiment_dataset_splits")
     op.drop_table("dataset_splits_dataset_examples")
     op.drop_table("dataset_splits")

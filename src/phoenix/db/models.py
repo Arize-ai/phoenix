@@ -1181,6 +1181,10 @@ class DatasetSplit(Base):
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",
     )
+    experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
+        "ExperimentDatasetSplit",
+        back_populates="dataset_split",
+    )
 
 
 class DatasetSplitDatasetExample(Base):
@@ -1227,15 +1231,15 @@ class Experiment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    experiments_dataset_splits: Mapped[list["ExperimentsDatasetSplit"]] = relationship(
-        "ExperimentsDatasetSplit",
+    experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
+        "ExperimentDatasetSplit",
         back_populates="experiment",
     )
     user: Mapped[Optional["User"]] = relationship("User")
 
 
-class ExperimentsDatasetSplit(Base):
-    __tablename__ = "experiments_dataset_splits"
+class ExperimentDatasetSplit(Base):
+    __tablename__ = "experiment_dataset_splits"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
         index=True,
@@ -1245,9 +1249,11 @@ class ExperimentsDatasetSplit(Base):
         index=True,
     )
     experiment: Mapped["Experiment"] = relationship(
-        "Experiment", back_populates="experiments_dataset_splits"
+        "Experiment", back_populates="experiment_dataset_splits"
     )
-    dataset_split: Mapped["DatasetSplit"] = relationship("DatasetSplit")
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        "DatasetSplit", back_populates="experiment_dataset_splits"
+    )
     __table_args__ = (
         UniqueConstraint(
             "experiment_id",
