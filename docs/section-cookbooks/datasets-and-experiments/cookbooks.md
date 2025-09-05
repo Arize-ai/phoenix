@@ -7,3 +7,4 @@ Iteratively improve your LLM task by building datasets, running experiments, and
 * [Answer and Context Relevancy Evals](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/answer_and_context_relevancy.ipynb)
 * [RAG with Reranker](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/run_experiments_with_llama_index.ipynb)
 * [Response Guideline Evals](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/llama-index/guideline_eval.ipynb)
+* [Multilingual Text2Cypher Evaluation](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/multilingual_text2cypher_evals.ipynb)
