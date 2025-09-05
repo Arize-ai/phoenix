@@ -116,6 +116,10 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.UniqueConstraint(
+            "experiment_id",
+            "dataset_split_id",
+        ),
     )
 
 
