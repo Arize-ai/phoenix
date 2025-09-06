@@ -29,6 +29,8 @@ from phoenix.server.api.dataloaders import (
     ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
+    ExperimentRunGroupRunCountsDataLoader,
+    ExperimentRunsByExperimentRunGroupDataLoader,
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -96,6 +98,8 @@ class DataLoaders:
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
+    experiment_run_group_run_counts: ExperimentRunGroupRunCountsDataLoader
+    experiment_runs_by_experiment_run_group: ExperimentRunsByExperimentRunGroupDataLoader
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader

@@ -59,6 +59,7 @@ from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
+from phoenix.server.api.types.ExperimentRunGroup import ExperimentRunGroup
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
@@ -536,6 +537,126 @@ class Query:
                 run_comparison_items=run_comparison_items,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def compare_experiment_run_groups(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> Connection[ExperimentRunGroup]:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        experiment_rowids = [base_experiment_rowid, *compare_experiment_rowids]
+
+        cursor = Cursor.from_string(after) if after else None
+        page_size = first or 50
+
+        async with info.context.db() as session:
+            experiments = (
+                await session.scalars(
+                    select(
+                        models.Experiment,
+                    )
+                    .where(models.Experiment.id.in_(experiment_rowids))
+                    .options(
+                        load_only(
+                            models.Experiment.dataset_id, models.Experiment.dataset_version_id
+                        )
+                    )
+                )
+            ).all()
+            if not experiments or len(experiments) < len(experiment_rowids):
+                raise NotFound("Unable to resolve one or more experiment IDs.")
+            num_datasets = len(set(experiment.dataset_id for experiment in experiments))
+            if num_datasets > 1:
+                raise BadRequest("Experiments must belong to the same dataset.")
+            base_experiment = next(
+                experiment for experiment in experiments if experiment.id == base_experiment_rowid
+            )
+            revision_ids = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+                )
+                .where(
+                    and_(
+                        models.DatasetExampleRevision.dataset_version_id
+                        <= base_experiment.dataset_version_id,
+                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
+                    )
+                )
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
+                .scalar_subquery()
+            )
+            examples_query = (
+                select(models.DatasetExample)
+                .distinct(models.DatasetExample.id)
+                .join(
+                    models.DatasetExampleRevision,
+                    onclause=and_(
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
+                    ),
+                )
+                .order_by(models.DatasetExample.id.desc())
+                .limit(page_size + 1)
+            )
+            if cursor is not None:
+                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
+
+            if filter_condition:
+                examples_query = update_examples_query_with_filter_condition(
+                    query=examples_query,
+                    filter_condition=filter_condition,
+                    experiment_ids=experiment_rowids,
+                )
+
+            examples = (await session.scalars(examples_query)).all()
+            has_next_page = len(examples) > page_size
+            examples = examples[:page_size]
+
+        cursors_and_nodes = []
+        for example in examples:
+            for experiment_rowid in experiment_rowids:
+                run_group = ExperimentRunGroup(
+                    experiment_rowid=experiment_rowid,
+                    dataset_example_rowid=example.id,
+                )
+            cursors_and_nodes.append((run_group.resolve_id(), run_group))
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes=cursors_and_nodes,
