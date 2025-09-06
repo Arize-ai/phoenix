@@ -33,19 +33,30 @@ ClassificationEvaluator
    :members:
    :show-inheritance:
 
-BoundEvaluator
-~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.preview.BoundEvaluator
-   :members:
-   :show-inheritance:
-
-
-Decorators
-----------
+Core Functions
+--------------
 
 create_evaluator
 ~~~~~~~~~~~~~~~~
 .. autofunction:: phoenix.evals.preview.create_evaluator
+
+create_classifier
+~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.preview.create_classifier
+
+
+bind_evaluator
+~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.preview.bind_evaluator
+
+evaluate_dataframe
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.preview.evaluate_dataframe
+
+async_evaluate_dataframe
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.preview.async_evaluate_dataframe
+
 
 LLM Interfaces
 ----------
@@ -86,7 +97,7 @@ PrecisionRecallFScore
    :show-inheritance:
 
 Utilities
------
+---------
 
 remap_eval_input
 ~~~~~~~~~~~~~~~~
@@ -95,14 +106,3 @@ remap_eval_input
 extract_with_jsonpath
 ~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: phoenix.evals.preview.utils.extract_with_jsonpath  
-
-bind_evaluator
-~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.preview.bind_evaluator
-
-Module Contents
----------------
-
-.. automodule:: phoenix.evals.preview
-   :members:
-   :no-undoc-members: 

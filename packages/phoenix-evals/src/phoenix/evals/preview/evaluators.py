@@ -375,24 +375,44 @@ class ClassificationEvaluator(LLMEvaluator):
     LLM-based evaluator for classification tasks. Supports label-only or label+score mappings,
     and returns explanations by default.
 
-    If no `input_schema` is provided, it is dynamically created from the `prompt_template` variables
-    (assuming all variables are strings and required).
-
     Args:
         name (str): Identifier for this evaluator and the name used in produced Scores.
         llm (LLM): The LLM instance to use for evaluation.
         prompt_template (Union[str, Template]): The prompt template (string or Template) with
             placeholders for inputs.
-        choices: One of:
+        choices: One of
+
             - List[str]: set of label names; scores will be None.
             - Dict[str, Union[float, int]]: map label -> score.
             - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
+
         include_explanation (bool): If True, request an explanation in addition to the label.
         input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
             inputs. If not provided, a model is dynamically created from the prompt variables
             (assuming all variables are strings and required).
         direction (DirectionType): The score optimization direction ("maximize" or "minimize").
             Defaults to "maximize".
+
+    Notes:
+        - The `choices` argument can be one of
+            - A list of labels: `["positive", "negative", "neutral"]`
+            - A label mapped to a score: `{"positive": 1.0, "negative": 0.0, "neutral": 0.5}`
+              (recommended)
+            - A label mapped to a tuple of (score, description): `{"positive": (1.0, "Positive"),
+              "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
+              tool calling consistency issues across models)
+
+    Examples::
+
+        >>> from phoenix.evals.preview import ClassificationEvaluator
+        >>> from phoenix.evals.preview.llm import LLM
+        >>> llm = LLM(provider="openai", model="gpt-4o")
+        >>> evaluator = ClassificationEvaluator(name="sentiment", llm=llm,
+        ...     prompt_template="What is the sentiment of the following document: {document}?",
+        ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
+        >>> evaluator.evaluate({"document": "I love this product!"})
+        [Score(name='sentiment', score=1.0, label='positive')]
+
     """
 
     def __init__(
@@ -560,12 +580,42 @@ def create_evaluator(
         - A dictionary with keys "score", "label", and/or "explanation"
         - A tuple of values (only bool, number, str types allowed)
 
+        The decorator automatically handles conversion to a valid Score object.
+
         An input_schema is automatically created from the function signature, capturing the required
         input fields, their types, and any defaults. For best results, do not use `*args` or
-        `**kwargs`.
+        `**kwargs`
 
-        The decorator automatically handles conversion to a valid Score object.
-        Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
+    Examples:
+
+    Function returns a Score object + uses the default source and direction.
+        >>> from phoenix.evals.preview import Score, create_evaluator
+        >>> @create_evaluator(name="test_evaluator")
+        ... def test_func(input_text: str, input_int: int) -> Score:
+        ...     return Score(score=0.8, label="good", explanation="test explanation")
+        ...
+        >>> test_func({"input_text": "test", "input_int": 5})
+        [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
+
+    Function that returns a tuple of a number and a short string label.
+        >>> from phoenix.evals.preview import create_evaluator
+        >>> @create_evaluator(name="test_evaluator")
+        ... def test_func(input_text: str) -> tuple[float, str]:
+        ...     return 0.8, "short label"
+        ...
+        >>> test_func({"input_text": "test"})
+        [Score(name='test_evaluator', score=0.8, label='short label')]
+
+    Function that returns a dictionary with keys "score", "label", and "explanation".
+        >>> from phoenix.evals.preview import create_evaluator
+        >>> @create_evaluator(name="test_evaluator")
+        ... def test_func(input_text: str) -> dict:
+        ...     return {"score": 0.8, "label": "short label", "explanation": "test explanation"}
+        ...
+        >>> test_func({"input_text": "test"})
+        [Score(name='test_evaluator', score=0.8, label='short label',
+        ... explanation='test explanation')]
+
     """
 
     def _convert_to_score(
@@ -737,22 +787,47 @@ def create_classifier(
     ],
     direction: DirectionType = "maximize",
 ) -> ClassificationEvaluator:
-    """Factory to create a `ClassificationEvaluator`.
+    """Factory to create a ClassificationEvaluator (an LLM-based single-criteria classifier).
+    Supports label-only or label+score mappings, and returns explanations by default.
 
     Args:
-            name (str): Identifier for this evaluator and the name used in produced Scores.
-            llm (LLM): The LLM instance to use for evaluation.
-            prompt_template (Union[str, Template]): The prompt template (string or Template) with
-                placeholders for inputs.
-            choices: One of:
-                - List[str]: set of label names; scores will be None.
-                - Dict[str, Union[float, int]]: map label -> score.
-                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
-            direction (DirectionType): The score optimization direction ("maximize" or "minimize").
-                Defaults to "maximize".
+        name (str): Identifier for this evaluator and the name used in produced Scores.
+        llm (LLM): The LLM instance to use for evaluation.
+        prompt_template (Union[str, Template]): The prompt template (string or Template) with
+            placeholders for inputs.
+        choices: One of
 
-    Returns:
-        ClassificationEvaluator: A `ClassificationEvaluator` instance.
+            - List[str]: set of label names; scores will be None.
+            - Dict[str, Union[float, int]]: map label -> score.
+            - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
+
+        include_explanation (bool): If True, request an explanation in addition to the label.
+        input_schema (Optional[type[BaseModel]]): Optional Pydantic model describing/validating
+            inputs. If not provided, a model is dynamically created from the prompt variables
+            (assuming all variables are strings and required).
+        direction (DirectionType): The score optimization direction ("maximize" or "minimize").
+            Defaults to "maximize".
+
+    Notes:
+        - The `choices` argument can be one of
+            - A list of labels: `["positive", "negative", "neutral"]`
+            - A label mapped to a score: `{"positive": 1.0, "negative": 0.0, "neutral": 0.5}`
+              (recommended)
+            - A label mapped to a tuple of (score, description): `{"positive": (1.0, "Positive"),
+              "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
+              tool calling consistency issues across models)
+
+    Examples::
+
+        >>> from phoenix.evals.preview import create_classifier
+        >>> from phoenix.evals.preview.llm import LLM
+        >>> llm = LLM(provider="openai", model="gpt-4o")
+        >>> evaluator = create_classifier(name="sentiment", llm=llm,
+        ...     prompt_template="What is the sentiment of the following document: {document}?",
+        ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
+        >>> evaluator.evaluate({"document": "I love this product!"})
+        [Score(name='sentiment', score=1.0, label='positive')]
+
     """
     return ClassificationEvaluator(
         name=name,
@@ -847,6 +922,16 @@ def bind_evaluator(
 
     Returns:
         BoundEvaluator: A bound evaluator with fixed input mapping.
+
+    Examples:
+        >>> from phoenix.evals.preview import create_evaluator, bind_evaluator
+        >>> @create_evaluator(name="test_evaluator")
+        ... def test_func(input_text: str) -> Score:
+        ...     return Score(score=0.8, label="good", explanation="test explanation")
+        ...
+        >>> bound_evaluator = bind_evaluator(test_func, mapping={"input_text": "input.text"})
+        >>> bound_evaluator({"input": {"text": "test"}})
+        [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
     """
     return BoundEvaluator(evaluator, mapping)
 
