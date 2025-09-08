@@ -31,6 +31,7 @@ import {
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
+  floatFormatter,
   intFormatter,
   latencyMsFormatter,
   numberFormatter,
@@ -99,6 +100,7 @@ export function ExperimentCompareListPage() {
                   experiment: node {
                     id
                     averageRunLatencyMs
+                    runCount
                     costSummary {
                       total {
                         tokens
@@ -405,6 +407,10 @@ export function ExperimentCompareListPage() {
               `}
             >
               {experiments.map((experiment) => {
+                const averageTotalTokens = calculateAverage(
+                  experiment.costSummary.total.tokens,
+                  experiment.runCount
+                );
                 return (
                   <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -412,7 +418,7 @@ export function ExperimentCompareListPage() {
                         AVG
                       </Text>
                       <Text size="S" fontFamily="mono">
-                        {intFormatter(experiment.costSummary.total.tokens)}
+                        {floatFormatter(averageTotalTokens)}
                       </Text>
                     </Flex>
                   </li>
@@ -538,18 +544,24 @@ export function ExperimentCompareListPage() {
                 gap: var(--ac-global-dimension-size-50);
               `}
             >
-              {experiments.map((experiment) => (
-                <li key={experiment.id}>
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
-                      AVG
-                    </Text>
-                    <Text size="S" fontFamily="mono">
-                      {costFormatter(experiment.costSummary.total.cost)}
-                    </Text>
-                  </Flex>
-                </li>
-              ))}
+              {experiments.map((experiment) => {
+                const averageTotalCost = calculateAverage(
+                  experiment.costSummary.total.cost,
+                  experiment.runCount
+                );
+                return (
+                  <li key={experiment.id}>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <Text size="S" fontFamily="mono" color="grey-500">
+                        AVG
+                      </Text>
+                      <Text size="S" fontFamily="mono">
+                        {costFormatter(averageTotalCost)}
+                      </Text>
+                    </Flex>
+                  </li>
+                );
+              })}
             </ul>
           </Flex>
         ),
@@ -936,6 +948,13 @@ const getAnnotationValue = (
     (annotation) => annotation.name === annotationName
   );
   return annotation?.score ?? annotation?.label ?? "--";
+};
+
+const calculateAverage = (
+  total: number | null,
+  runCount: number
+): number | null => {
+  return total === null || runCount === 0 ? null : total / runCount;
 };
 
 function ContentPreviewTooltip({
