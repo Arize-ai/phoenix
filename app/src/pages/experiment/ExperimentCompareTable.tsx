@@ -113,8 +113,11 @@ export type TableRow =
   };
 
 // TODO - switch to a fragment and don't export
-export type ExperimentRun =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+type RunComparisonItem =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number];
+export type ExperimentRun = RunComparisonItem["runs"][number];
+type ExperimentRunAnnotation =
+  ExperimentRun["annotations"]["edges"][number]["annotation"];
 
 const tableWrapCSS = css`
   flex: 1 1 auto;
@@ -400,93 +403,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
-          const runComparisonItem = row.original.runComparisonMap[experimentId];
-          const numRuns = runComparisonItem?.runs.length || 0;
-          if (numRuns === 0) {
-            return (
-              <PaddedCell>
-                <Empty message="No Run" />
-              </PaddedCell>
-            );
-          } else if (numRuns > 1) {
-            // TODO: Support repetitions
-            return <Text color="warning">{`${numRuns} runs`}</Text>;
-          }
-          // Only show the first run
-          const run = runComparisonItem?.runs[0];
-
-          let traceButton = null;
-          const traceId = run?.trace?.traceId;
-          const projectId = run?.trace?.projectId;
-          if (traceId && projectId) {
-            traceButton = (
-              <TooltipTrigger>
-                <IconButton
-                  className="trace-button"
-                  size="S"
-                  aria-label="View run trace"
-                  onPress={() => {
-                    setDialog(
-                      <TraceDetailsDialog
-                        traceId={traceId}
-                        projectId={projectId}
-                        title={`Experiment Run Trace`}
-                      />
-                    );
-                  }}
-                >
-                  <Icon svg={<Icons.Trace />} />
-                </IconButton>
-                <Tooltip>
-                  <TooltipArrow />
-                  view run trace
-                </Tooltip>
-              </TooltipTrigger>
-            );
-          }
-          const runControls = (
-            <>
-              <TooltipTrigger>
-                <IconButton
-                  className="expand-button"
-                  size="S"
-                  aria-label="View example run details"
-                  onPress={() => {
-                    setDialog(
-                      <SelectedExampleDialog
-                        selectedExample={row.original}
-                        datasetId={datasetId}
-                        experimentInfoById={experimentInfoById}
-                      />
-                    );
-                  }}
-                >
-                  <Icon svg={<Icons.ExpandOutline />} />
-                </IconButton>
-                <Tooltip>
-                  <TooltipArrow />
-                  view experiment run
-                </Tooltip>
-              </TooltipTrigger>
-              {traceButton}
-            </>
-          );
-
-          return run ? (
-            <Flex direction="column" height="100%">
-              <CellTop extra={runControls}>
-                <ExperimentRunMetadata {...run} />
-              </CellTop>
-              <ExperimentRunOutput
-                {...run}
-                displayFullText={displayFullText}
-                setDialog={setDialog}
-              />
-            </Flex>
-          ) : (
-            <PaddedCell>
-              <Empty message="No Run" />
-            </PaddedCell>
+          return (
+            <ExperimentRunOutputCell
+              datasetId={datasetId}
+              runComparisonItem={row.original.runComparisonMap[experimentId]}
+              displayFullText={displayFullText}
+              setDialog={setDialog}
+              experimentInfoById={experimentInfoById}
+              tableRow={row.original}
+            />
           );
         },
       })
@@ -970,8 +895,6 @@ function PaddedCell({ children }: { children: ReactNode }) {
   );
 }
 
-type ExperimentRunAnnotation =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number]["annotations"]["edges"][number]["annotation"];
 export type ExperimentRunCellAnnotationsListProps = {
   annotations: ExperimentRunAnnotation[];
   onTraceClick: ({
@@ -1061,5 +984,109 @@ export function ExperimentRunCellAnnotationsList(
         );
       })}
     </ul>
+  );
+}
+
+function ExperimentRunOutputCell({
+  datasetId,
+  runComparisonItem,
+  displayFullText,
+  setDialog,
+  experimentInfoById,
+  tableRow,
+}: {
+  datasetId: string;
+  runComparisonItem: RunComparisonItem;
+  displayFullText: boolean;
+  setDialog: (dialog: ReactNode) => void;
+  experimentInfoById: ExperimentInfoMap;
+  tableRow: TableRow;
+}) {
+  const numRuns = runComparisonItem?.runs.length || 0;
+  if (numRuns === 0) {
+    return (
+      <PaddedCell>
+        <Empty message="No Run" />
+      </PaddedCell>
+    );
+  } else if (numRuns > 1) {
+    // TODO: Support repetitions
+    return <Text color="warning">{`${numRuns} runs`}</Text>;
+  }
+  // Only show the first run
+  const run = runComparisonItem?.runs[0];
+
+  let traceButton = null;
+  const traceId = run?.trace?.traceId;
+  const projectId = run?.trace?.projectId;
+  if (traceId && projectId) {
+    traceButton = (
+      <TooltipTrigger>
+        <IconButton
+          className="trace-button"
+          size="S"
+          aria-label="View run trace"
+          onPress={() => {
+            setDialog(
+              <TraceDetailsDialog
+                traceId={traceId}
+                projectId={projectId}
+                title={`Experiment Run Trace`}
+              />
+            );
+          }}
+        >
+          <Icon svg={<Icons.Trace />} />
+        </IconButton>
+        <Tooltip>
+          <TooltipArrow />
+          view run trace
+        </Tooltip>
+      </TooltipTrigger>
+    );
+  }
+  const runControls = (
+    <>
+      <TooltipTrigger>
+        <IconButton
+          className="expand-button"
+          size="S"
+          aria-label="View example run details"
+          onPress={() => {
+            setDialog(
+              <SelectedExampleDialog
+                selectedExample={tableRow}
+                datasetId={datasetId}
+                experimentInfoById={experimentInfoById}
+              />
+            );
+          }}
+        >
+          <Icon svg={<Icons.ExpandOutline />} />
+        </IconButton>
+        <Tooltip>
+          <TooltipArrow />
+          view experiment run
+        </Tooltip>
+      </TooltipTrigger>
+      {traceButton}
+    </>
+  );
+
+  return run ? (
+    <Flex direction="column" height="100%">
+      <CellTop extra={runControls}>
+        <ExperimentRunMetadata {...run} />
+      </CellTop>
+      <ExperimentRunOutput
+        {...run}
+        displayFullText={displayFullText}
+        setDialog={setDialog}
+      />
+    </Flex>
+  ) : (
+    <PaddedCell>
+      <Empty message="No Run" />
+    </PaddedCell>
   );
 }
