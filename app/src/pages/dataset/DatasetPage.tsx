@@ -85,6 +85,30 @@ const mainCSS = css`
   }
 `;
 
+const TABS_CONFIG = {
+  0: "experiments",
+  1: "examples",
+  2: "versions",
+  3: "evaluators",
+} as const;
+
+const TABS_LIST = Object.values(TABS_CONFIG);
+
+type TabName = (typeof TABS_LIST)[number];
+
+function isTabName(name: unknown): name is TabName {
+  return typeof name === "string" && (TABS_LIST as string[]).includes(name);
+}
+
+function getTabIndexFromPathname(pathname: string): number {
+  // We only need the last part of the path
+  const path = pathname.split("/").at(-1);
+  if (isTabName(path)) {
+    return TABS_LIST.indexOf(path);
+  }
+  return 0;
+}
+
 function DatasetPageContent({
   dataset,
 }: {
@@ -115,11 +139,7 @@ function DatasetPageContent({
 
   // Set the initial tab
   const location = useLocation();
-  const initialIndex = location.pathname.includes("versions")
-    ? 2
-    : location.pathname.includes("examples")
-      ? 1
-      : 0;
+  const initialIndex = getTabIndexFromPathname(location.pathname);
   return (
     <main css={mainCSS}>
       <View
@@ -217,16 +237,8 @@ function DatasetPageContent({
               : "versions"
         }
         onSelectionChange={(key) => {
-          switch (key) {
-            case "experiments":
-              onTabChange(0);
-              break;
-            case "examples":
-              onTabChange(1);
-              break;
-            case "versions":
-              onTabChange(2);
-              break;
+          if (isTabName(key)) {
+            onTabChange(TABS_LIST.indexOf(key));
           }
         }}
       >
