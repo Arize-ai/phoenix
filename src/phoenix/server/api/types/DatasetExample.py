@@ -65,6 +65,7 @@ class DatasetExample(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        experiment_ids: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[ExperimentRun]:
         args = ConnectionArgs(
             first=first,
@@ -78,8 +79,17 @@ class DatasetExample(Node):
             .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
             .join(models.Experiment, models.Experiment.id == models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
-            .order_by(models.Experiment.id.desc())
         )
+        if experiment_ids is not UNSET:
+            experiment_db_ids = [
+                from_global_id_with_expected_type(
+                    global_id=experiment_id,
+                    expected_type_name=models.Experiment.__name__,
+                )
+                for experiment_id in experiment_ids or []
+            ]
+            query = query.where(models.ExperimentRun.experiment_id.in_(experiment_db_ids))
+        query = query.order_by(models.Experiment.id.desc())
         async with info.context.db() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)

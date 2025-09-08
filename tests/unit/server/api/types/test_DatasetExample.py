@@ -149,6 +149,58 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
     }
 
 
+async def test_dataset_example_experiment_runs_resolver_filters_by_experiment_ids(
+    gql_client: AsyncGraphQLClient,
+    example_with_experiment_runs: Any,
+) -> None:
+    query = """
+      query ($exampleId: ID!, $experimentIds: [ID!]) {
+        example: node(id: $exampleId) {
+          ... on DatasetExample {
+            experimentRuns(experimentIds: $experimentIds) {
+              edges {
+                run: node {
+                  id
+                  traceId
+                  output
+                  startTime
+                  endTime
+                  error
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "exampleId": str(GlobalID("DatasetExample", str(1))),
+            "experimentIds": [str(GlobalID("Experiment", str(1)))],
+        },
+    )
+    assert not response.errors
+    assert response.data == {
+        "example": {
+            "experimentRuns": {
+                "edges": [
+                    {
+                        "run": {
+                            "id": str(GlobalID("ExperimentRun", str(1))),
+                            "traceId": None,
+                            "output": "experiment-1-run-1-output",
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:01:00+00:00",
+                            "error": None,
+                        }
+                    },
+                ]
+            }
+        }
+    }
+
+
 @pytest.fixture
 async def dataset_with_span_and_nonspan_examples(
     db: DbSessionFactory,
