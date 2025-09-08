@@ -407,12 +407,10 @@ export function ExperimentCompareListPage() {
               `}
             >
               {experiments.map((experiment) => {
-                const totalTokens = experiment.costSummary.total.tokens;
-                const runCount = experiment.runCount;
-                const averageTotalTokens =
-                  totalTokens === null || runCount === 0
-                    ? null
-                    : totalTokens / runCount;
+                const averageTotalTokens = calculateAverage(
+                  experiment.costSummary.total.tokens,
+                  experiment.runCount
+                );
                 return (
                   <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -547,12 +545,10 @@ export function ExperimentCompareListPage() {
               `}
             >
               {experiments.map((experiment) => {
-                const totalCost = experiment.costSummary.total.cost;
-                const runCount = experiment.runCount;
-                const averageTotalCost =
-                  totalCost === null || runCount === 0
-                    ? null
-                    : totalCost / runCount;
+                const averageTotalCost = calculateAverage(
+                  experiment.costSummary.total.cost,
+                  experiment.runCount
+                );
                 return (
                   <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -952,6 +948,13 @@ const getAnnotationValue = (
     (annotation) => annotation.name === annotationName
   );
   return annotation?.score ?? annotation?.label ?? "--";
+};
+
+const calculateAverage = (
+  total: number | null,
+  runCount: number
+): number | null => {
+  return total === null || runCount === 0 ? null : total / runCount;
 };
 
 function ContentPreviewTooltip({
