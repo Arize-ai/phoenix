@@ -370,8 +370,6 @@ CREATE TABLE public.dataset_example_revisions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_dataset_example_revisions_dataset_example_id ON public.dataset_example_revisions
-    USING btree (dataset_example_id);
 CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_example_revisions
     USING btree (dataset_version_id);
 
@@ -434,8 +432,6 @@ CREATE TABLE public.span_cost_details (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_span_cost_details_span_cost_id ON public.span_cost_details
-    USING btree (span_cost_id);
 CREATE INDEX ix_span_cost_details_token_type ON public.span_cost_details
     USING btree (token_type);
 
@@ -655,9 +651,6 @@ CREATE TABLE public.experiment_run_annotations (
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_experiment_run_annotations_experiment_run_id ON public.experiment_run_annotations
-    USING btree (experiment_run_id);
 
 
 -- Table: experiment_tags
