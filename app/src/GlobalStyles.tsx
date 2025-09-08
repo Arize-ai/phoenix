@@ -1255,17 +1255,6 @@ const codeMirrorOverridesCSS = css`
   }
 `;
 
-const ReactGridLayoutCSS = css`
-  .react-grid-item.react-grid-placeholder {
-    // the placeholder doesn't look good
-    background: var(--ac-global-color-blue-500);
-    opacity: 0.1;
-  }
-  .ac-theme--dark .react-resizable-handle {
-    filter: invert(1);
-  }
-`;
-
 const chartCSS = css`
   .ac-theme {
     --chart-cartesian-grid-stroke-color: var(--ac-global-color-grey-300);
@@ -1308,7 +1297,6 @@ export function GlobalStyles() {
         opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
-        ReactGridLayoutCSS,
         chartCSS,
         fontFamilyCSS
       )}
