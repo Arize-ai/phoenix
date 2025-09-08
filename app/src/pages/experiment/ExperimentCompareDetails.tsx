@@ -5,16 +5,21 @@ import {
   Card,
   ColorSwatch,
   CopyToClipboardButton,
+  Dialog,
+  DialogTrigger,
   Empty,
   Flex,
   Heading,
+  Popover,
+  PopoverArrow,
   View,
 } from "@phoenix/components";
-import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
+import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 
+import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import type { ExperimentInfoMap, TableRow } from "./ExperimentCompareTable";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
@@ -183,24 +188,39 @@ function ExperimentItem({
           <li key={index}>
             <div
               css={css`
-                padding: var(--ac-global-dimension-size-50)
-                  var(--ac-global-dimension-size-200)
-                  var(--ac-global-dimension-size-100)
-                  var(--ac-global-dimension-size-200);
                 border-bottom: 1px solid var(--ac-global-border-color-default);
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-size-100);
               `}
             >
-              <ExperimentRunMetadata {...run} />
-              <ul>
+              <View paddingX="size-200" paddingTop="size-100">
+                <ExperimentRunMetadata {...run} />
+              </View>
+              <ul
+                css={css`
+                  padding: 0 var(--ac-global-dimension-size-100)
+                    var(--ac-global-dimension-size-100)
+                    var(--ac-global-dimension-size-100);
+                `}
+              >
                 {run.annotations?.edges.map((edge) => (
                   <li key={edge.annotation.id}>
-                    <AnnotationNameAndValue
-                      annotation={edge.annotation}
-                      displayPreference="score"
-                    />
+                    <DialogTrigger>
+                      <ExperimentAnnotationButton
+                        annotation={edge.annotation}
+                      />
+                      <Popover placement="top">
+                        <PopoverArrow />
+                        <Dialog style={{ width: 400 }}>
+                          <View padding="size-200">
+                            <AnnotationDetailsContent
+                              annotation={edge.annotation}
+                            />
+                          </View>
+                        </Dialog>
+                      </Popover>
+                    </DialogTrigger>
                   </li>
                 ))}
               </ul>
