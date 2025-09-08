@@ -234,6 +234,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     }
                     averageRunLatencyMs
                     runCount
+                    repetitionCount
                   }
                 }
               }
@@ -407,6 +408,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <ExperimentRunOutputCell
               datasetId={datasetId}
+              experimentRepetitionCount={
+                experimentInfoById[experimentId]?.repetitionCount ?? 0
+              }
               runComparisonItem={row.original.runComparisonMap[experimentId]}
               displayFullText={displayFullText}
               setDialog={setDialog}
@@ -749,8 +753,6 @@ function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
-    selectedRepetitionNumber: number;
-    maxRepetitionNumber: number;
   }
 ) {
   const { output, error, annotations, displayFullText, setDialog } = props;
@@ -772,21 +774,6 @@ function ExperimentRunOutput(
           />
         </LargeTextWrap>
       </View>
-      <Flex justifyContent="end">
-      <Flex direction="row" alignItems="center" css={css`background-color: var(--ac-global-color-white);`}>
-        <IconButton>
-          <Icon svg={<Icons.ChevronLeft />} />
-        </IconButton>
-        <Icon svg={<Icons.RepeatOutline />} />
-        <Text css={css`margin-inline-start: var(--ac-global-dimension-size-100);`}>
-          {`${props.selectedRepetitionNumber} / ${props.maxRepetitionNumber}`}
-        </Text>
-        <IconButton>
-          <Icon svg={<Icons.ChevronRight />} />
-        </IconButton>
-      </Flex>
-
-      </Flex>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         onTraceClick={({ traceId, projectId, annotationName }) => {
@@ -1007,6 +994,7 @@ export function ExperimentRunCellAnnotationsList(
 
 function ExperimentRunOutputCell({
   datasetId,
+  experimentRepetitionCount,
   runComparisonItem,
   displayFullText,
   setDialog,
@@ -1014,6 +1002,7 @@ function ExperimentRunOutputCell({
   tableRow,
 }: {
   datasetId: string;
+  experimentRepetitionCount: number;
   runComparisonItem: RunComparisonItem;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
@@ -1023,24 +1012,26 @@ function ExperimentRunOutputCell({
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
-    const runsByRepetitionNumber = runComparisonItem.runs.reduce((acc, run) => {
-      acc[run.repetitionNumber] = run;
-      return acc;
-    }, {} as Record<number, ExperimentRun>);
+    const runsByRepetitionNumber = runComparisonItem.runs.reduce(
+      (acc, run) => {
+        acc[run.repetitionNumber] = run;
+        return acc;
+      },
+      {} as Record<number, ExperimentRun>
+    );
     return runsByRepetitionNumber;
   }, [runComparisonItem.runs]);
 
-  if (runComparisonItem.runs.length === 0) {
+  const run: ExperimentRun | null =
+    runsByRepetitionNumber[selectedRepetitionNumber];
+
+  if (run == null) {
     return (
       <PaddedCell>
         <Empty message="No Run" />
       </PaddedCell>
     );
   }
-
-  const maxRepetitionNumber = runComparisonItem.runs[runComparisonItem.runs.length - 1].repetitionNumber;
-
-  const run = runsByRepetitionNumber[selectedRepetitionNumber];
 
   let traceButton = null;
   const traceId = run?.trace?.traceId;
@@ -1095,7 +1086,6 @@ function ExperimentRunOutputCell({
           view experiment run
         </Tooltip>
       </TooltipTrigger>
-      {traceButton}
     </>
   );
 
@@ -1104,12 +1094,52 @@ function ExperimentRunOutputCell({
       <CellTop extra={runControls}>
         <ExperimentRunMetadata {...run} />
       </CellTop>
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        css={css`
+          padding: var(--ac-global-dimension-static-size-100)
+            var(--ac-global-dimension-static-size-100) 0
+            var(--ac-global-dimension-static-size-200);
+        `}
+      >
+        <Flex
+          direction="row"
+          alignItems="center"
+          css={css`
+            background-color: var(--ac-global-color-white);
+          `}
+        >
+          <Icon svg={<Icons.RepeatOutline />} />
+          <Text
+            css={css`
+              margin-inline-start: var(--ac-global-dimension-size-100);
+              margin-inline-end: var(--ac-global-dimension-size-100);
+            `}
+          >
+            {`${selectedRepetitionNumber} / ${experimentRepetitionCount}`}
+          </Text>
+          <IconButton
+            size="S"
+            isDisabled={selectedRepetitionNumber === 1}
+            onPress={() => setSelectedRepetitionNumber((prev) => prev - 1)}
+          >
+            <Icon svg={<Icons.ChevronLeft />} />
+          </IconButton>
+          <IconButton
+            size="S"
+            isDisabled={selectedRepetitionNumber === experimentRepetitionCount}
+            onPress={() => setSelectedRepetitionNumber((prev) => prev + 1)}
+          >
+            <Icon svg={<Icons.ChevronRight />} />
+          </IconButton>
+        </Flex>
+        {traceButton}
+      </Flex>
       <ExperimentRunOutput
         {...run}
         displayFullText={displayFullText}
         setDialog={setDialog}
-        selectedRepetitionNumber={selectedRepetitionNumber}
-        maxRepetitionNumber={maxRepetitionNumber}
       />
     </Flex>
   ) : (

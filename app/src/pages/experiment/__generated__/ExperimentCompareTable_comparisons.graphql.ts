@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ac89873ab182b81f8d3bab66471098d>>
+ * @generated SignedSource<<4b2f6186ac29b20d485b5595ac764278>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -79,6 +79,7 @@ export type ExperimentCompareTable_comparisons$data = {
           readonly project: {
             readonly id: string;
           } | null;
+          readonly repetitionCount: number;
           readonly runCount: number;
           readonly sequenceNumber: number;
         };
@@ -618,6 +619,13 @@ return {
                           "kind": "ScalarField",
                           "name": "runCount",
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionCount",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -641,6 +649,6 @@ return {
 };
 })();
 
-(node as any).hash = "7f61777c077560af0747531e998d150f";
+(node as any).hash = "5fd37fda192f7e2b43a59d0b23917e43";
 
 export default node;
