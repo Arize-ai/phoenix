@@ -24,6 +24,7 @@ import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -84,11 +85,36 @@ const mainCSS = css`
   }
 `;
 
+const TABS_CONFIG = {
+  0: "experiments",
+  1: "examples",
+  2: "versions",
+  3: "evaluators",
+} as const;
+
+const TABS_LIST = Object.values(TABS_CONFIG);
+
+type TabName = (typeof TABS_LIST)[number];
+
+function isTabName(name: unknown): name is TabName {
+  return typeof name === "string" && (TABS_LIST as string[]).includes(name);
+}
+
+function getTabIndexFromPathname(pathname: string): number {
+  // We only need the last part of the path
+  const path = pathname.split("/").at(-1);
+  if (isTabName(path)) {
+    return TABS_LIST.indexOf(path);
+  }
+  return 0;
+}
+
 function DatasetPageContent({
   dataset,
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
@@ -98,12 +124,9 @@ function DatasetPageContent({
   const navigate = useNavigate();
   const onTabChange = useCallback(
     (tabIndex: number) => {
-      if (tabIndex === 0) {
-        navigate(`/datasets/${datasetId}/experiments`);
-      } else if (tabIndex === 1) {
-        navigate(`/datasets/${datasetId}/examples`);
-      } else if (tabIndex === 2) {
-        navigate(`/datasets/${datasetId}/versions`);
+      if (TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG]) {
+        const path = TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG];
+        navigate(`/datasets/${datasetId}/${path}`);
       }
     },
     [navigate, datasetId]
@@ -111,11 +134,7 @@ function DatasetPageContent({
 
   // Set the initial tab
   const location = useLocation();
-  const initialIndex = location.pathname.includes("versions")
-    ? 2
-    : location.pathname.includes("examples")
-      ? 1
-      : 0;
+  const initialIndex = getTabIndexFromPathname(location.pathname);
   return (
     <main css={mainCSS}>
       <View
@@ -213,16 +232,8 @@ function DatasetPageContent({
               : "versions"
         }
         onSelectionChange={(key) => {
-          switch (key) {
-            case "experiments":
-              onTabChange(0);
-              break;
-            case "examples":
-              onTabChange(1);
-              break;
-            case "versions":
-              onTabChange(2);
-              break;
+          if (isTabName(key)) {
+            onTabChange(TABS_LIST.indexOf(key));
           }
         }}
       >
@@ -234,6 +245,11 @@ function DatasetPageContent({
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
           <Tab id="versions">Versions</Tab>
+          {isEvaluatorsEnabled ? (
+            <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
+              Evaluators
+            </Tab>
+          ) : null}
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -246,6 +262,11 @@ function DatasetPageContent({
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="versions">
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="evaluators">
           <Suspense>
             <Outlet />
           </Suspense>
