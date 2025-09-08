@@ -1,6 +1,8 @@
 # /// script
 # dependencies = [
-#   "psycopg",
+#   "psycopg[binary]",
+#   "testing.postgresql",
+#   "arize-phoenix",
 # ]
 # ///
 # ruff: noqa: E501
@@ -9,52 +11,37 @@
 Extracts DDL from a PostgreSQL database and outputs it to a file,
 grouped by table and sorted deterministically.
 
+Creates an ephemeral PostgreSQL instance, runs Alembic migrations,
+extracts DDL, and cleans up automatically. No external PostgreSQL server needed.
+
 Usage:
-    # Use all defaults (database: postgres, output: postgresql_schema.sql in script directory)
+    # Create ephemeral PostgreSQL, run migrations, extract DDL
     python generate_ddl_postgresql.py
 
-    # Using PostgreSQL environment variables (recommended)
-    PGHOST=prod-server PGDATABASE=myapp python generate_ddl_postgresql.py
-
-    # Specify a different database via command line
-    python generate_ddl_postgresql.py --database mydb
-
     # Specify custom output file
-    python generate_ddl_postgresql.py --database mydb --output /path/to/schema.sql
-
-    # Full example with all options
-    python generate_ddl_postgresql.py --host localhost --port 5432 --database mydb --user postgres --schema public --output schema.sql
-
-Environment Variables (PostgreSQL standard):
-    PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
-    These are used as defaults when command-line arguments are not provided.
+    python generate_ddl_postgresql.py --output /path/to/schema.sql
 
 Requirements:
-    pip install psycopg[binary]
+    pip install psycopg[binary] testing.postgresql arize-phoenix
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import psycopg
+import testing.postgresql
+from alembic import command
+from alembic.config import Config
 from psycopg.rows import dict_row
+from sqlalchemy import URL, create_engine
 
-
-@dataclass
-class ConnectionParams:
-    """Database connection parameters."""
-
-    host: str = "localhost"
-    port: int = 5432
-    database: str = "postgres"
-    user: str = "postgres"
-    password: str = "phoenix"
+import phoenix.db
 
 
 @dataclass
@@ -73,8 +60,8 @@ class TableInfo:
 class PostgreSQLDDLExtractor:
     """Extract DDL from PostgreSQL databases."""
 
-    def __init__(self, connection_params: ConnectionParams) -> None:
-        self.conn_params = connection_params
+    def __init__(self, url: URL) -> None:
+        self.url = url
         self.conn: psycopg.Connection[Any] | None = None
 
     def __enter__(self) -> PostgreSQLDDLExtractor:
@@ -92,14 +79,9 @@ class PostgreSQLDDLExtractor:
     def connect(self) -> bool:
         """Establish database connection."""
         try:
-            conn_dict = {
-                "host": self.conn_params.host,
-                "port": self.conn_params.port,
-                "dbname": self.conn_params.database,
-                "user": self.conn_params.user,
-                "password": self.conn_params.password,
-            }
-            self.conn = psycopg.connect(**conn_dict)
+            # Convert URL to plain postgresql for psycopg (remove driver suffix)
+            psycopg_url = self.url.set(drivername="postgresql")
+            self.conn = psycopg.connect(str(psycopg_url))
             return True
         except psycopg.Error as e:
             print(f"Error connecting to database: {e}", file=sys.stderr)
@@ -479,7 +461,7 @@ class PostgreSQLDDLExtractor:
             fk_split = remaining.split(" FOREIGN KEY ", 1)
             constraint_part = fk_split[0] + " FOREIGN KEY"
 
-            # Always break long constraint names
+            # Break long constraint names (>70 chars)
             if len(constraint_part) > 70 and "CONSTRAINT " in constraint_part:
                 constraint_name_split = constraint_part.split(" FOREIGN KEY", 1)
                 parts.append(constraint_name_split[0])
@@ -551,7 +533,7 @@ class PostgreSQLDDLExtractor:
 
         before_array = check_part[:array_start]
         array_content = check_part[array_start + 6 : array_end]  # Skip "ARRAY["
-        after_array = check_part[array_end + 1 :]  # Everything after "]": )::text[]
+        after_array = check_part[array_end + 1 :]  # Skip "]" to get ")::text[]"
 
         if ", " not in array_content:
             return None
@@ -577,7 +559,7 @@ class PostgreSQLDDLExtractor:
 
     def _wrap_index_definition(self, index_def: str, max_length: int = 90) -> str:
         """Apply consistent formatting to CREATE INDEX statements."""
-        # For CREATE INDEX statements, always break before USING for consistency
+        # For CREATE INDEX statements with USING clause, break before USING for consistency
         if "CREATE " in index_def and " ON " in index_def and " USING " in index_def:
             # Break before USING clause for consistent formatting
             using_split = index_def.split(" USING ", 1)
@@ -778,81 +760,128 @@ class PostgreSQLDDLExtractor:
         return self._wrap_line(fk_def)
 
 
+@contextmanager
+def ephemeral_postgresql() -> Iterator[URL]:
+    """Create an ephemeral PostgreSQL instance for DDL extraction.
+
+    Creates a temporary PostgreSQL server that automatically cleans up when done.
+    Returns a SQLAlchemy URL object.
+    """
+    # Create ephemeral PostgreSQL server
+    with testing.postgresql.Postgresql() as postgresql:
+        # Build SQLAlchemy URL (testing.postgresql doesn't use passwords)
+        dsn = postgresql.dsn()
+        url = URL.create(
+            drivername="postgresql+psycopg",
+            username=dsn["user"],
+            host=dsn["host"],
+            port=dsn["port"],
+            database=dsn["database"],
+        )
+        yield url
+
+
+def run_alembic_migrations(url: URL) -> None:
+    """Run Alembic migrations against the database.
+
+    Uses the same pattern as Phoenix's integration tests - pass connection directly to Alembic.
+
+    Args:
+        url: SQLAlchemy URL for the database
+    """
+    try:
+        # Set up Alembic config
+        phoenix_db_path = Path(phoenix.db.__path__[0])
+        alembic_ini = phoenix_db_path / "alembic.ini"
+
+        if not alembic_ini.exists():
+            print(
+                f"Warning: Alembic config not found at {alembic_ini}, skipping migrations",
+                file=sys.stderr,
+            )
+            return
+
+        config = Config(str(alembic_ini))
+        config.set_main_option("script_location", str(phoenix_db_path / "migrations"))
+
+        # Create engine directly from URL (already has psycopg driver)
+        engine = create_engine(url)
+
+        # Run migrations using Phoenix's integration test pattern
+        print("Running Alembic migrations...")
+        with engine.connect() as conn:
+            config.attributes["connection"] = conn  # Pass connection directly like Phoenix tests
+            command.upgrade(config, "head")
+        engine.dispose()
+        print("Migrations completed successfully")
+
+    except Exception as e:
+        print(f"Warning: Failed to run migrations: {e}", file=sys.stderr)
+        print("Proceeding with DDL extraction from empty database", file=sys.stderr)
+
+
+def _write_ddl_to_file(
+    tables_ddl: list[TableInfo], extractor: PostgreSQLDDLExtractor, output_path: Path
+) -> None:
+    """Write DDL to output file.
+
+    Args:
+        tables_ddl: List of table information
+        extractor: DDL extractor instance
+        output_path: Path to output file
+
+    Raises:
+        OSError: If file cannot be written
+    """
+    try:
+        with output_path.open("w", encoding="utf-8") as f:
+            # Write each table's DDL
+            for i, table_info in enumerate(tables_ddl):
+                if i > 0:  # Add extra spacing between tables
+                    f.write("\n\n")
+
+                ddl = extractor.generate_ddl(table_info)
+                f.write(ddl)
+                f.write("\n")
+    except (OSError, IOError) as e:
+        print(f"Error writing to {output_path}: {e}", file=sys.stderr)
+        raise
+
+    print(f"DDL exported to: {output_path}")
+    print(f"Processed {len(tables_ddl)} tables")
+
+
 def main() -> int:
     """Main entry point."""
     # Default output file in the same directory as this script
     script_dir = Path(__file__).parent
     default_output = script_dir / "postgresql_schema.sql"
 
-    # Use PostgreSQL standard environment variables as defaults
-    # https://www.postgresql.org/docs/current/libpq-envars.html
-    default_host = os.getenv("PGHOST", "localhost")
-
-    # Validate PGPORT environment variable
-    try:
-        default_port = int(os.getenv("PGPORT", "5432"))
-    except ValueError:
-        print("Warning: Invalid PGPORT value, using default 5432", file=sys.stderr)
-        default_port = 5432
-
-    default_database = os.getenv("PGDATABASE", "postgres")
-    default_user = os.getenv("PGUSER", "postgres")
-    default_password = os.getenv("PGPASSWORD", "phoenix")
-
     parser = argparse.ArgumentParser(
-        description="Extract DDL from PostgreSQL database",
+        description="Extract DDL from ephemeral PostgreSQL database with Phoenix migrations",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--host", default=default_host, help="Database host (env: PGHOST)")
-    parser.add_argument(
-        "--port", type=int, default=default_port, help="Database port (env: PGPORT)"
-    )
-    parser.add_argument(
-        "--database", default=default_database, help="Database name (env: PGDATABASE)"
-    )
-    parser.add_argument("--user", default=default_user, help="Database user (env: PGUSER)")
-    parser.add_argument(
-        "--password", default=default_password, help="Database password (env: PGPASSWORD)"
-    )
-    parser.add_argument("--schema", default="public", help="Schema to extract")
+
     parser.add_argument("--output", type=Path, default=default_output, help="Output file path")
 
     args = parser.parse_args()
 
-    # Connection parameters
-    conn_params = ConnectionParams(
-        host=args.host,
-        port=args.port,
-        database=args.database,
-        user=args.user,
-        password=args.password,
-    )
-
-    # Extract DDL using context manager
+    # Extract DDL using ephemeral PostgreSQL
     try:
-        with PostgreSQLDDLExtractor(conn_params) as extractor:
-            print(f"Connected to {args.database} on {args.host}:{args.port}")
-            print(f"Extracting DDL for schema: {args.schema}")
+        with ephemeral_postgresql() as url:
+            print("Created ephemeral PostgreSQL instance")
+            print(f"Connection: {url}")
 
-            tables_ddl = extractor.extract_all_tables_ddl(args.schema)
+            # Always run migrations
+            run_alembic_migrations(url)
 
-            # Write DDL to file
-            try:
-                with args.output.open("w", encoding="utf-8") as f:
-                    # Write each table's DDL
-                    for i, table_info in enumerate(tables_ddl):
-                        if i > 0:  # Add extra spacing between tables
-                            f.write("\n\n")
+            # Extract DDL
+            with PostgreSQLDDLExtractor(url) as extractor:
+                print("Extracting DDL for schema: public")
+                tables_ddl = extractor.extract_all_tables_ddl("public")
+                _write_ddl_to_file(tables_ddl, extractor, args.output)
 
-                        ddl = extractor.generate_ddl(table_info)
-                        f.write(ddl)
-                        f.write("\n")
-            except (OSError, IOError) as e:
-                print(f"Error writing to {args.output}: {e}", file=sys.stderr)
-                return 1
-
-            print(f"DDL exported to: {args.output}")
-            print(f"Processed {len(tables_ddl)} tables")
+        print("Ephemeral PostgreSQL instance cleaned up")
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
