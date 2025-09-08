@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36aab213bb1e425b1b59e337e7c6a6c9>>
+ * @generated SignedSource<<8ac89873ab182b81f8d3bab66471098d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,6 +51,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly error: string | null;
             readonly id: string;
             readonly output: any | null;
+            readonly repetitionNumber: number;
             readonly startTime: string;
             readonly trace: {
               readonly projectId: string;
@@ -315,6 +316,13 @@ return {
                       "plural": true,
                       "selections": [
                         (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionNumber",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -633,6 +641,6 @@ return {
 };
 })();
 
-(node as any).hash = "d94346bf96bd527ddb757879eded860a";
+(node as any).hash = "7f61777c077560af0747531e998d150f";
 
 export default node;

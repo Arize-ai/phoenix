@@ -177,6 +177,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   experimentId
                   runs {
                     id
+                    repetitionNumber
                     output
                     error
                     startTime
@@ -748,6 +749,8 @@ function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
+    selectedRepetitionNumber: number;
+    maxRepetitionNumber: number;
   }
 ) {
   const { output, error, annotations, displayFullText, setDialog } = props;
@@ -769,6 +772,21 @@ function ExperimentRunOutput(
           />
         </LargeTextWrap>
       </View>
+      <Flex justifyContent="end">
+      <Flex direction="row" alignItems="center" css={css`background-color: var(--ac-global-color-white);`}>
+        <IconButton>
+          <Icon svg={<Icons.ChevronLeft />} />
+        </IconButton>
+        <Icon svg={<Icons.RepeatOutline />} />
+        <Text css={css`margin-inline-start: var(--ac-global-dimension-size-100);`}>
+          {`${props.selectedRepetitionNumber} / ${props.maxRepetitionNumber}`}
+        </Text>
+        <IconButton>
+          <Icon svg={<Icons.ChevronRight />} />
+        </IconButton>
+      </Flex>
+
+      </Flex>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         onTraceClick={({ traceId, projectId, annotationName }) => {
@@ -1002,19 +1020,27 @@ function ExperimentRunOutputCell({
   experimentInfoById: ExperimentInfoMap;
   tableRow: TableRow;
 }) {
-  const numRuns = runComparisonItem?.runs.length || 0;
-  if (numRuns === 0) {
+  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
+
+  const runsByRepetitionNumber = useMemo(() => {
+    const runsByRepetitionNumber = runComparisonItem.runs.reduce((acc, run) => {
+      acc[run.repetitionNumber] = run;
+      return acc;
+    }, {} as Record<number, ExperimentRun>);
+    return runsByRepetitionNumber;
+  }, [runComparisonItem.runs]);
+
+  if (runComparisonItem.runs.length === 0) {
     return (
       <PaddedCell>
         <Empty message="No Run" />
       </PaddedCell>
     );
-  } else if (numRuns > 1) {
-    // TODO: Support repetitions
-    return <Text color="warning">{`${numRuns} runs`}</Text>;
   }
-  // Only show the first run
-  const run = runComparisonItem?.runs[0];
+
+  const maxRepetitionNumber = runComparisonItem.runs[runComparisonItem.runs.length - 1].repetitionNumber;
+
+  const run = runsByRepetitionNumber[selectedRepetitionNumber];
 
   let traceButton = null;
   const traceId = run?.trace?.traceId;
@@ -1082,6 +1108,8 @@ function ExperimentRunOutputCell({
         {...run}
         displayFullText={displayFullText}
         setDialog={setDialog}
+        selectedRepetitionNumber={selectedRepetitionNumber}
+        maxRepetitionNumber={maxRepetitionNumber}
       />
     </Flex>
   ) : (

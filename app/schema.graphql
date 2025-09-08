@@ -1159,6 +1159,7 @@ type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
+  repetitionNumber: Int!
   traceId: String
   output: JSON
   startTime: DateTime!
