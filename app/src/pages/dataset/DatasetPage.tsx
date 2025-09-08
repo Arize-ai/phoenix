@@ -24,6 +24,7 @@ import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -89,6 +90,7 @@ function DatasetPageContent({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
@@ -104,6 +106,8 @@ function DatasetPageContent({
         navigate(`/datasets/${datasetId}/examples`);
       } else if (tabIndex === 2) {
         navigate(`/datasets/${datasetId}/versions`);
+      } else if (tabIndex === 3) {
+        navigate(`/datasets/${datasetId}/evaluators`);
       }
     },
     [navigate, datasetId]
@@ -234,6 +238,11 @@ function DatasetPageContent({
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
           <Tab id="versions">Versions</Tab>
+          {isEvaluatorsEnabled ? (
+            <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
+              Evaluators
+            </Tab>
+          ) : null}
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -246,6 +255,11 @@ function DatasetPageContent({
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="versions">
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="evaluators">
           <Suspense>
             <Outlet />
           </Suspense>
