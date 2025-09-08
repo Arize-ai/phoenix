@@ -11,18 +11,18 @@
   * [LangGraph](agent-workflow-patterns/langgraph.md)
   * [Smolagents](agent-workflow-patterns/smolagents.md)
 
-## Tracing & Annotations
+## Tracing
 
-* [Agentic RAG Tracing](tracing-and-annotations/agentic-rag-tracing.md)
-* [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing-and-annotations/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
-* [Structured Data Extraction](tracing-and-annotations/structured-data-extraction.md)
-* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph.md)
-* [More Cookbooks](tracing-and-annotations/cookbooks.md)
+* [Agentic RAG Tracing](tracing/agentic-rag-tracing.md)
+* [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
+* [Structured Data Extraction](tracing/structured-data-extraction.md)
+* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing/product-recommendation-agent-google-agent-engine-and-langgraph.md)
+* [More Cookbooks](tracing/cookbooks.md)
 
-## Human-in-the-loop Workflows
+## Human-in-the-loop Workflows (Annotations)
 
-* [Using Human Annotations for Eval-Driven Development](human-in-the-loop-workflows/using-human-annotations-for-eval-driven-development.md)
-* [Creating a Custom LLM Evaluator with a Benchmark Dataset](human-in-the-loop-workflows/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
+* [Using Human Annotations for Eval-Driven Development](human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development.md)
+* [Creating a Custom LLM Evaluator with a Benchmark Dataset](human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 
 ## Prompt Engineering
 
