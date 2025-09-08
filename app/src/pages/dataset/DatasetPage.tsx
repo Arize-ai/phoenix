@@ -124,14 +124,9 @@ function DatasetPageContent({
   const navigate = useNavigate();
   const onTabChange = useCallback(
     (tabIndex: number) => {
-      if (tabIndex === 0) {
-        navigate(`/datasets/${datasetId}/experiments`);
-      } else if (tabIndex === 1) {
-        navigate(`/datasets/${datasetId}/examples`);
-      } else if (tabIndex === 2) {
-        navigate(`/datasets/${datasetId}/versions`);
-      } else if (tabIndex === 3) {
-        navigate(`/datasets/${datasetId}/evaluators`);
+      if (TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG]) {
+        const path = TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG];
+        navigate(`/datasets/${datasetId}/${path}`);
       }
     },
     [navigate, datasetId]
