@@ -11,7 +11,7 @@ class GeminiModel:
     project: Optional[str] = None
     location: Optional[str] = None
     credentials: Optional["Credentials"] = None
-    model: str = "gemini-pro"
+    model: str = "gemini-2.5-flash"
     default_concurrency: int = 5
     temperature: float = 0.0
     max_tokens: int = 256

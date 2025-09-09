@@ -95,6 +95,14 @@ ANTHROPIC_MODEL_TOKEN_LIMIT_MAPPING = {
 GEMINI_MODEL_TOKEN_LIMIT_MAPPING = {
     "gemini-pro": 32760,
     "gemini-pro-vision": 16384,
+    "gemini-1.5-flash": 1048576,
+    "gemini-1.5-pro": 2097152,
+    "gemini-2.0-flash": 1048576,
+    "gemini-2.0-flash-001": 1048576,
+    "gemini-2.0-flash-lite": 1048576,
+    "gemini-2.5-flash": 1048576,
+    "gemini-2.5-flash-lite": 1048576,
+    "gemini-2.5-pro": 2097152,
 }
 
 BEDROCK_MODEL_TOKEN_LIMIT_MAPPING = {
