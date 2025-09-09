@@ -11,7 +11,7 @@ Key: TypeAlias = tuple[ExperimentID, DatasetExampleID]
 Result: TypeAlias = int
 
 
-class ExperimentRunGroupRunCountsDataLoader(DataLoader[Key, Result]):
+class ExperimentRepeatedRunGroupRunCountsDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
         db: DbSessionFactory,

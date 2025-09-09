@@ -1156,6 +1156,33 @@ type ExperimentMutationPayload {
   experiments: [Experiment!]!
 }
 
+type ExperimentRepeatedRunGroup implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experimentId: ID!
+  example: DatasetExample!
+  runs(first: Int = 3, last: Int, after: ID, before: ID): ExperimentRunConnection!
+  runCount: Int!
+}
+
+"""A connection to a list of items."""
+type ExperimentRepeatedRunGroupConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRepeatedRunGroupEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRepeatedRunGroupEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRepeatedRunGroup!
+}
+
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1229,33 +1256,6 @@ type ExperimentRunEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRun!
-}
-
-type ExperimentRunGroup implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  experimentId: ID!
-  example: DatasetExample!
-  runs(first: Int = 3, last: Int, after: ID, before: ID): ExperimentRunConnection!
-  runCount: Int!
-}
-
-"""A connection to a list of items."""
-type ExperimentRunGroupConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExperimentRunGroupEdge!]!
-}
-
-"""An edge in a connection."""
-type ExperimentRunGroupEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ExperimentRunGroup!
 }
 
 type ExperimentRunMetricComparison {
@@ -2149,7 +2149,7 @@ type Query {
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
-  compareExperimentRunGroups(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentRunGroupConnection!
+  compareExperimentRepeatedRunGroups(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentRepeatedRunGroupConnection!
   experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!

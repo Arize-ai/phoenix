@@ -20,7 +20,7 @@ Key: TypeAlias = tuple[ExperimentID, DatasetExampleID, First]
 Result: TypeAlias = ExperimentRunsPage
 
 
-class ExperimentRunsByExperimentRunGroupDataLoader(DataLoader[Key, Result]):
+class ExperimentRunsByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
         db: DbSessionFactory,

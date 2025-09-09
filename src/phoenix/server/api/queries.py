@@ -58,8 +58,8 @@ from phoenix.server.api.types.EmbeddingDimension import (
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import ExperimentRepeatedRunGroup
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.ExperimentRunGroup import ExperimentRunGroup
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
@@ -545,7 +545,7 @@ class Query:
         )
 
     @strawberry.field
-    async def compare_experiment_run_groups(
+    async def compare_experiment_repeated_run_groups(
         self,
         info: Info[Context, None],
         base_experiment_id: GlobalID,
@@ -553,7 +553,7 @@ class Query:
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> Connection[ExperimentRunGroup]:
+    ) -> Connection[ExperimentRepeatedRunGroup]:
         if base_experiment_id in compare_experiment_ids:
             raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
         if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
@@ -652,7 +652,7 @@ class Query:
         cursors_and_nodes = []
         for example in examples:
             for experiment_rowid in experiment_rowids:
-                run_group = ExperimentRunGroup(
+                run_group = ExperimentRepeatedRunGroup(
                     experiment_rowid=experiment_rowid,
                     dataset_example_rowid=example.id,
                 )

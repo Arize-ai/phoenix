@@ -26,11 +26,11 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRepeatedRunGroupRunCountsDataLoader,
     ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
-    ExperimentRunGroupRunCountsDataLoader,
-    ExperimentRunsByExperimentRunGroupDataLoader,
+    ExperimentRunsByExperimentRepeatedRunGroupDataLoader,
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -96,10 +96,12 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_repeated_run_group_run_counts: ExperimentRepeatedRunGroupRunCountsDataLoader
     experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
-    experiment_run_group_run_counts: ExperimentRunGroupRunCountsDataLoader
-    experiment_runs_by_experiment_run_group: ExperimentRunsByExperimentRunGroupDataLoader
+    experiment_runs_by_experiment_repeated_run_group: (
+        ExperimentRunsByExperimentRepeatedRunGroupDataLoader
+    )
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader

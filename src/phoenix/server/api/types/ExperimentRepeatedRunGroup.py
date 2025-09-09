@@ -26,7 +26,7 @@ _DEFAULT_FIRST_EXPERIMENT_RUNS_PAGE_SIZE = 3
 
 
 @strawberry.type
-class ExperimentRunGroup(Node):
+class ExperimentRepeatedRunGroup(Node):
     experiment_rowid: strawberry.Private[ExperimentRowId]
     dataset_example_rowid: strawberry.Private[DatasetExampleRowId]
 
@@ -152,29 +152,29 @@ class ExperimentRunGroup(Node):
         self,
         info: Info,
     ) -> int:
-        return await info.context.data_loaders.experiment_run_group_run_counts.load(
+        return await info.context.data_loaders.experiment_repeated_run_group_run_counts.load(
             (self.experiment_rowid, self.dataset_example_rowid)
         )
 
 
-_EXPERIMENT_RUN_GROUP_NODE_ID_PATTERN = re.compile(
-    r"ExperimentRunGroup:experiment_id=(\d+):dataset_example_id=(\d+)"
+_EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN = re.compile(
+    r"ExperimentRepeatedRunGroup:experiment_id=(\d+):dataset_example_id=(\d+)"
 )
 
 
-def get_experiment_run_group_node_id(
+def get_experiment_repeated_run_group_node_id(
     experiment_rowid: ExperimentRowId, dataset_example_rowid: DatasetExampleRowId
 ) -> str:
     return _base64_encode(
-        f"ExperimentRunGroup:experiment_id={experiment_rowid}:dataset_example_id={dataset_example_rowid}"
+        f"ExperimentRepeatedRunGroup:experiment_id={experiment_rowid}:dataset_example_id={dataset_example_rowid}"
     )
 
 
-def parse_experiment_run_group_node_id(
+def parse_experiment_repeated_run_group_node_id(
     node_id: str,
 ) -> tuple[ExperimentRowId, DatasetExampleRowId]:
     decoded_node_id = _base64_decode(node_id)
-    match = re.match(_EXPERIMENT_RUN_GROUP_NODE_ID_PATTERN, decoded_node_id)
+    match = re.match(_EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN, decoded_node_id)
     if not match:
         raise ValueError(f"Invalid node ID format: {node_id}")
 

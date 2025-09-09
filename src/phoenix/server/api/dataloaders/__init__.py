@@ -17,11 +17,13 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
+from .experiment_repeated_run_group_run_count import ExperimentRepeatedRunGroupRunCountsDataLoader
 from .experiment_repetition_counts import ExperimentRepetitionCountsDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
-from .experiment_run_group_run_count import ExperimentRunGroupRunCountsDataLoader
-from .experiment_runs_by_experiment_run_group import ExperimentRunsByExperimentRunGroupDataLoader
+from .experiment_runs_by_experiment_repeated_run_group import (
+    ExperimentRunsByExperimentRepeatedRunGroupDataLoader,
+)
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
@@ -76,10 +78,10 @@ __all__ = [
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
+    "ExperimentRepeatedRunGroupRunCountsDataLoader",
     "ExperimentRepetitionCountsDataLoader",
     "ExperimentRunAnnotations",
-    "ExperimentRunGroupRunCountsDataLoader",
-    "ExperimentRunsByExperimentRunGroupDataLoader",
+    "ExperimentRunsByExperimentRepeatedRunGroupDataLoader",
     "ExperimentRunCountsDataLoader",
     "ExperimentSequenceNumberDataLoader",
     "LastUsedTimesByGenerativeModelIdDataLoader",
