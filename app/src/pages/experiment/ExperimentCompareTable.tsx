@@ -67,6 +67,7 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
+  TriggerWrap,
 } from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -1135,19 +1136,29 @@ function ExperimentRepetitionSelector({
 }) {
   return (
     <Flex direction="row" alignItems="center">
-      <Icon svg={<Icons.RepeatOutline />} />
-      <Text
-        css={css`
-          margin-inline-start: var(--ac-global-dimension-size-100);
-          margin-inline-end: var(--ac-global-dimension-size-100);
-        `}
-      >
-        {`${repetitionNumber} / ${totalRepetitions}`}
-      </Text>
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center">
+            <Icon svg={<Icons.RepeatOutline />} />
+            <Text
+              css={css`
+                margin-inline-start: var(--ac-global-dimension-size-100);
+                margin-inline-end: var(--ac-global-dimension-size-100);
+              `}
+            >
+              {`${repetitionNumber} / ${totalRepetitions}`}
+            </Text>
+          </Flex>
+        </TriggerWrap>
+        <Tooltip>
+          {`Repetition ${repetitionNumber} of ${totalRepetitions}`}
+        </Tooltip>
+      </TooltipTrigger>
       <IconButton
         size="S"
         isDisabled={repetitionNumber === 1}
         onPress={() => setRepetitionNumber((prev) => prev - 1)}
+        aria-label="Previous repetition"
       >
         <Icon svg={<Icons.ChevronLeft />} />
       </IconButton>
@@ -1155,6 +1166,7 @@ function ExperimentRepetitionSelector({
         size="S"
         isDisabled={repetitionNumber === totalRepetitions}
         onPress={() => setRepetitionNumber((prev) => prev + 1)}
+        aria-label="Next repetition"
       >
         <Icon svg={<Icons.ChevronRight />} />
       </IconButton>
