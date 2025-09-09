@@ -1064,36 +1064,34 @@ function ExperimentRunOutputCell({
       </TooltipTrigger>
     );
   }
-  const runControls = (
-    <>
-      <TooltipTrigger>
-        <IconButton
-          className="expand-button"
-          size="S"
-          aria-label="View example run details"
-          onPress={() => {
-            setDialog(
-              <SelectedExampleDialog
-                selectedExample={tableRow}
-                datasetId={datasetId}
-                experimentInfoById={experimentInfoById}
-              />
-            );
-          }}
-        >
-          <Icon svg={<Icons.ExpandOutline />} />
-        </IconButton>
-        <Tooltip>
-          <TooltipArrow />
-          view experiment run
-        </Tooltip>
-      </TooltipTrigger>
-    </>
+  const runDetailControls = (
+    <TooltipTrigger>
+      <IconButton
+        className="expand-button"
+        size="S"
+        aria-label="View example run details"
+        onPress={() => {
+          setDialog(
+            <SelectedExampleDialog
+              selectedExample={tableRow}
+              datasetId={datasetId}
+              experimentInfoById={experimentInfoById}
+            />
+          );
+        }}
+      >
+        <Icon svg={<Icons.ExpandOutline />} />
+      </IconButton>
+      <Tooltip>
+        <TooltipArrow />
+        view experiment run
+      </Tooltip>
+    </TooltipTrigger>
   );
 
   return (
     <Flex direction="column" height="100%">
-      <CellTop extra={runControls}>
+      <CellTop extra={runDetailControls}>
         {run && <ExperimentRunMetadata {...run} />}
       </CellTop>
       <Flex
