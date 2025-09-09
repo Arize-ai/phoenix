@@ -108,9 +108,7 @@ export function ExperimentRunMetadata(props: {
             AVG
           </Text>
         </TriggerWrap>
-        <Tooltip>
-          Averaged over repeated runs in this experiment for this example
-        </Tooltip>
+        <Tooltip>Averaged over repeated runs for this example</Tooltip>
       </TooltipTrigger>
       <ExperimentRunLatency latencyMs={latencyMs} />
       {tokenCountTotal != null && run.id ? (
