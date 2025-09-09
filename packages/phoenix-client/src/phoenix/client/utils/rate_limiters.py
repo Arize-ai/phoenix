@@ -196,6 +196,7 @@ class RateLimiter:
     ) -> Callable[ParameterSpec, GenericType]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            request_start_time = time.time()  # fallback in case of early exception
             try:
                 self._throttler.wait_until_ready()
                 request_start_time = time.time()
@@ -215,7 +216,7 @@ class RateLimiter:
             raise RateLimitError(
                 f"Rate limited: throttling requests to {self._throttler.rate} RPS",
                 current_rate_tokens_per_sec=self._throttler.rate,
-                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,  # pyright: ignore[reportPrivateUsage]
                 enforcement_window_seconds=self._throttler.enforcement_window,
             )
 
@@ -245,6 +246,7 @@ class RateLimiter:
             assert self._rate_limit_handling is not None and isinstance(
                 self._rate_limit_handling, asyncio.Event
             )
+            request_start_time = time.time()  # fallback in case of early exception
             try:
                 try:
                     await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
@@ -273,7 +275,7 @@ class RateLimiter:
             raise RateLimitError(
                 f"Rate limited: throttling requests to {self._throttler.rate} RPS",
                 current_rate_tokens_per_sec=self._throttler.rate,
-                initial_rate_tokens_per_sec=self._throttler._initial_rate,
+                initial_rate_tokens_per_sec=self._throttler._initial_rate,  # pyright: ignore[reportPrivateUsage]
                 enforcement_window_seconds=self._throttler.enforcement_window,
             )
 
