@@ -2296,15 +2296,15 @@ class AsyncExperiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
-            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
+            stack.enter_context(capture_spans(resource))
             try:
-                result = evaluator.evaluate(
+                result = await evaluator.async_evaluate(
                     output=experiment_run["output"],
                     expected=example["output"],
                     reference=example["output"],
