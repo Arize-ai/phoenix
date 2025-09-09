@@ -1,6 +1,7 @@
 import React, {
   ReactNode,
   RefObject,
+  SetStateAction,
   startTransition,
   Suspense,
   useCallback,
@@ -1103,37 +1104,11 @@ function ExperimentRunOutputCell({
             var(--ac-global-dimension-static-size-200);
         `}
       >
-        <Flex
-          direction="row"
-          alignItems="center"
-          css={css`
-            background-color: var(--ac-global-color-white);
-          `}
-        >
-          <Icon svg={<Icons.RepeatOutline />} />
-          <Text
-            css={css`
-              margin-inline-start: var(--ac-global-dimension-size-100);
-              margin-inline-end: var(--ac-global-dimension-size-100);
-            `}
-          >
-            {`${selectedRepetitionNumber} / ${experimentRepetitionCount}`}
-          </Text>
-          <IconButton
-            size="S"
-            isDisabled={selectedRepetitionNumber === 1}
-            onPress={() => setSelectedRepetitionNumber((prev) => prev - 1)}
-          >
-            <Icon svg={<Icons.ChevronLeft />} />
-          </IconButton>
-          <IconButton
-            size="S"
-            isDisabled={selectedRepetitionNumber === experimentRepetitionCount}
-            onPress={() => setSelectedRepetitionNumber((prev) => prev + 1)}
-          >
-            <Icon svg={<Icons.ChevronRight />} />
-          </IconButton>
-        </Flex>
+        <ExperimentRepetitionSelector
+          repetitionNumber={selectedRepetitionNumber}
+          totalRepetitions={experimentRepetitionCount}
+          setRepetitionNumber={setSelectedRepetitionNumber}
+        />
         {traceButton}
       </Flex>
       <ExperimentRunOutput
@@ -1146,5 +1121,43 @@ function ExperimentRunOutputCell({
     <PaddedCell>
       <Empty message="No Run" />
     </PaddedCell>
+  );
+}
+
+function ExperimentRepetitionSelector({
+  repetitionNumber,
+  totalRepetitions,
+  setRepetitionNumber,
+}: {
+  repetitionNumber: number;
+  totalRepetitions: number;
+  setRepetitionNumber: (n: SetStateAction<number>) => void;
+}) {
+  return (
+    <Flex direction="row" alignItems="center">
+      <Icon svg={<Icons.RepeatOutline />} />
+      <Text
+        css={css`
+          margin-inline-start: var(--ac-global-dimension-size-100);
+          margin-inline-end: var(--ac-global-dimension-size-100);
+        `}
+      >
+        {`${repetitionNumber} / ${totalRepetitions}`}
+      </Text>
+      <IconButton
+        size="S"
+        isDisabled={repetitionNumber === 1}
+        onPress={() => setRepetitionNumber((prev) => prev - 1)}
+      >
+        <Icon svg={<Icons.ChevronLeft />} />
+      </IconButton>
+      <IconButton
+        size="S"
+        isDisabled={repetitionNumber === totalRepetitions}
+        onPress={() => setRepetitionNumber((prev) => prev + 1)}
+      >
+        <Icon svg={<Icons.ChevronRight />} />
+      </IconButton>
+    </Flex>
   );
 }
