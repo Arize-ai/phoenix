@@ -11,6 +11,7 @@ import {
   type generateText,
   type ToolSet,
   type Tool,
+  type ModelMessage,
 } from "ai";
 import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
@@ -55,7 +56,7 @@ export const toAI = <V extends Variables>({
       );
     }
 
-    const messages = formattedMessages.map((message) => {
+    const messages: ModelMessage[] = formattedMessages.map((message) => {
       const vercelAIMessage = safelyConvertMessageToProvider({
         message,
         targetProvider: "VERCEL_AI",
@@ -74,7 +75,8 @@ export const toAI = <V extends Variables>({
         targetProvider: "VERCEL_AI",
       });
       invariant(vercelAIToolDefinition, "Tool definition is not valid");
-      acc[tool.function.name] = vercelAIToolDefinition satisfies Tool;
+      // TODO: get the symbol working here for validators
+      acc[tool.function.name] = vercelAIToolDefinition as unknown as Tool;
       return acc;
     }, {} as ToolSet);
     const hasTools = Object.keys(tools ?? {}).length > 0;
