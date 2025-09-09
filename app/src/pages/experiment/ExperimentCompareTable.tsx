@@ -21,6 +21,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
@@ -99,11 +100,9 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-// TODO - do not do this. This is exported until the data can be fetched independently in the detail view
-export type ExperimentInfoMap = Record<string, Experiment | null>;
+type ExperimentInfoMap = Record<string, Experiment | null>;
 
-// TODO - do not do this. This is exported until the data can be fetched independently in the detail view
-export type TableRow =
+type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
     id: string;
     input: unknown;
@@ -114,10 +113,9 @@ export type TableRow =
     >;
   };
 
-// TODO - switch to a fragment and don't export
 type RunComparisonItem =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number];
-export type ExperimentRun = RunComparisonItem["runs"][number];
+type ExperimentRun = RunComparisonItem["runs"][number];
 type ExperimentRunAnnotation =
   ExperimentRun["annotations"]["edges"][number]["annotation"];
 
@@ -225,6 +223,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     name
                     sequenceNumber
                     metadata
+                    datasetVersionId
                     project {
                       id
                     }
@@ -358,6 +357,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
+    const baseExperiment = experimentInfoById[baseExperimentId];
+    invariant(baseExperiment, "baseExperiment not found");
+    const datasetVersionId = baseExperiment.datasetVersionId;
+
     return [baseExperimentId, ...compareExperimentIds].map(
       (experimentId, experimentIndex) => ({
         header: () => {
@@ -410,6 +413,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <ExperimentRunOutputCell
               datasetId={datasetId}
+              datasetVersionId={datasetVersionId}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitionCount ?? 0
               }
@@ -834,23 +838,25 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
 }
 
 function SelectedExampleDialog({
-  selectedExample,
+  selectedExampleId,
   datasetId,
-  experimentInfoById,
+  datasetVersionId,
+  experimentIds,
 }: {
-  selectedExample: TableRow;
+  selectedExampleId: string;
   datasetId: string;
-  experimentInfoById: ExperimentInfoMap;
+  datasetVersionId: string;
+  experimentIds: string[];
 }) {
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Comparing Experiments for Example: ${selectedExample.id}`}</DialogTitle>
+          <DialogTitle>{`Comparing Experiments for Example: ${selectedExampleId}`}</DialogTitle>
           <DialogTitleExtra>
             <LinkButton
               size="S"
-              to={`/datasets/${datasetId}/examples/${selectedExample.id}`}
+              to={`/datasets/${datasetId}/examples/${selectedExampleId}`}
             >
               View Example
             </LinkButton>
@@ -858,8 +864,10 @@ function SelectedExampleDialog({
           </DialogTitleExtra>
         </DialogHeader>
         <ExperimentCompareDetails
-          selectedExample={selectedExample}
-          experimentInfoById={experimentInfoById}
+          datasetId={datasetId}
+          datasetExampleId={selectedExampleId}
+          datasetVersionId={datasetVersionId}
+          experimentIds={experimentIds}
         />
       </DialogContent>
     </Dialog>
@@ -1003,6 +1011,7 @@ export function ExperimentRunCellAnnotationsList(
 
 function ExperimentRunOutputCell({
   datasetId,
+  datasetVersionId,
   experimentRepetitionCount,
   runComparisonItem,
   displayFullText,
@@ -1011,6 +1020,7 @@ function ExperimentRunOutputCell({
   tableRow,
 }: {
   datasetId: string;
+  datasetVersionId: string;
   experimentRepetitionCount: number;
   runComparisonItem: RunComparisonItem;
   displayFullText: boolean;
@@ -1080,9 +1090,10 @@ function ExperimentRunOutputCell({
         onPress={() => {
           setDialog(
             <SelectedExampleDialog
-              selectedExample={tableRow}
               datasetId={datasetId}
-              experimentInfoById={experimentInfoById}
+              datasetVersionId={datasetVersionId}
+              experimentIds={Object.keys(experimentInfoById)}
+              selectedExampleId={tableRow.id}
             />
           );
         }}
