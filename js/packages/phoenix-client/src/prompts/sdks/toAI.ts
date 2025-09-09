@@ -7,18 +7,23 @@ import {
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
 import {
-  type streamText,
-  type generateText,
   type ToolSet,
   type Tool,
   type ModelMessage,
+  type ToolChoice,
 } from "ai";
 import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
-export type PartialStreamTextParams = Omit<
-  Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],
-  "model" | "prompt" | "onStepFinish"
-> & { messages: ModelMessage[] };
+export type PartialAIParams = {
+  messages: ModelMessage[] /**
+The tools that the model can call. The model needs to support calling tools.
+    */;
+  tools?: ToolSet;
+  /**
+The tool choice strategy. Default: 'auto'.
+     */
+  toolChoice?: ToolChoice<ToolSet>;
+};
 
 export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
 
@@ -31,16 +36,16 @@ export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
 export const toAI = <V extends Variables>({
   prompt,
   variables,
-}: ToAIParams<V>): PartialStreamTextParams | null => {
+}: ToAIParams<V>): PartialAIParams | null => {
   // eslint-disable-next-line no-console
   console.warn(
     "Prompt invocation parameters not currently supported in AI SDK, falling back to default invocation parameters"
   );
   try {
     // parts of the prompt that can be directly converted to OpenAI params
-    const baseCompletionParams = {
+    const baseCompletionParams: Partial<PartialAIParams> = {
       // Invocation parameters are validated on the phoenix-side
-    } satisfies Partial<PartialStreamTextParams>;
+    };
 
     if (!("messages" in prompt.template)) {
       return null;
@@ -90,12 +95,12 @@ export const toAI = <V extends Variables>({
     toolChoice = hasTools ? toolChoice : undefined;
 
     // combine base and computed params
-    const completionParams = {
+    const completionParams: PartialAIParams = {
       ...baseCompletionParams,
       messages,
       tools,
       toolChoice,
-    } satisfies Partial<PartialStreamTextParams>;
+    };
 
     return completionParams;
   } catch (error) {

@@ -10,10 +10,7 @@ import {
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
-import {
-  toAI,
-  type PartialStreamTextParams,
-} from "../../../src/prompts/sdks/toAI";
+import { toAI, type PartialAIParams } from "../../../src/prompts/sdks/toAI";
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
 import { generateObject, generateText, streamObject, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
@@ -53,7 +50,7 @@ describe("toAI type compatibility", () => {
     expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
-    assertType<PartialStreamTextParams>(result);
+    assertType<PartialAIParams>(result);
   });
 
   it("toSDK with ai should be assignable to AI message params", () => {
@@ -69,7 +66,7 @@ describe("toAI type compatibility", () => {
     expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
-    assertType<PartialStreamTextParams>(result);
+    assertType<PartialAIParams>(result);
   });
 
   it("should handle typed variables", () => {
@@ -190,7 +187,7 @@ describe("toAI type compatibility", () => {
     expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
-    assertType<PartialStreamTextParams>(result);
+    assertType<PartialAIParams>(result);
 
     expect(result).toMatchObject({
       messages: [
@@ -279,7 +276,7 @@ describe("toAI type compatibility", () => {
     expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
-    assertType<PartialStreamTextParams>(result);
+    assertType<PartialAIParams>(result);
 
     const model = openai("gpt-4o");
 
@@ -293,17 +290,16 @@ describe("toAI type compatibility", () => {
       ...result,
     });
 
-    // These are too recursive
-    // streamObject({
-    //   schema: z.object({ test: z.string() }),
-    //   model,
-    //   ...result,
-    // });
+    streamObject({
+      schema: z.object({ test: z.string() }),
+      model,
+      ...result,
+    });
 
-    // generateObject({
-    //   schema: z.object({ test: z.string() }),
-    //   model,
-    //   ...result,
-    // });
+    generateObject({
+      schema: z.object({ test: z.string() }),
+      model,
+      ...result,
+    });
   });
 });
