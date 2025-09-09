@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 4.0.0
+
+### Major Changes
+
+- 7732f99: Breaking change for AI SDK users. Support for messages conversion for the AI SDK 5
+
 ## 3.2.0
 
 ### Minor Changes
