@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from strawberry import UNSET
 from strawberry.relay import GlobalID, Node
 from strawberry.relay.types import Connection
@@ -17,6 +17,7 @@ from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import connection_from_cursors_and_nodes
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 if TYPE_CHECKING:
@@ -188,6 +189,40 @@ class ExperimentRepeatedRunGroup(Node):
                 cost=summary.total.cost,
             ),
         )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        run_id = self.id_attr
+        example_id = self.dataset_example_rowid
+        stmt = (
+            select(
+                models.SpanCostDetail.token_type,
+                models.SpanCostDetail.is_prompt,
+                func.sum(models.SpanCostDetail.cost).label("cost"),
+                func.sum(models.SpanCostDetail.tokens).label("tokens"),
+            )
+            .select_from(models.SpanCostDetail)
+            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .where(models.ExperimentRun.id == run_id)
+            .where(models.ExperimentRun.dataset_example_id == example_id)
+            .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
+        )
+
+        async with info.context.db() as session:
+            data = await session.stream(stmt)
+            return [
+                SpanCostDetailSummaryEntry(
+                    token_type=token_type,
+                    is_prompt=is_prompt,
+                    value=CostBreakdown(tokens=tokens, cost=cost),
+                )
+                async for token_type, is_prompt, cost, tokens in data
+            ]
 
 
 _EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN = re.compile(
