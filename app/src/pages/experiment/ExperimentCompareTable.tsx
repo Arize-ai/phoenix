@@ -728,7 +728,14 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
       : tokenCountTotal / runCount;
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
-      <Text size="S">avg:</Text>
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Text size="S" fontFamily="mono" color="grey-500">
+            AVG
+          </Text>
+        </TriggerWrap>
+        <Tooltip>Averages computed over all runs in the experiment</Tooltip>
+      </TooltipTrigger>
       {averageRunLatencyMs != null && (
         <LatencyText size="S" latencyMs={averageRunLatencyMs} />
       )}
