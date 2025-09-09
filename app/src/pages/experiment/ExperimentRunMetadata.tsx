@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
+import {
+  Flex,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import {
   ExperimentRunTokenCosts,
   ExperimentRunTokenCount,
@@ -96,6 +102,16 @@ export function ExperimentRunMetadata(props: {
 
   return (
     <Flex direction="row" gap="size-100">
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Text size="S" fontFamily="mono" color="grey-500">
+            AVG
+          </Text>
+        </TriggerWrap>
+        <Tooltip>
+          Averaged over repeated runs in this experiment for this example
+        </Tooltip>
+      </TooltipTrigger>
       <ExperimentRunLatency latencyMs={latencyMs} />
       {tokenCountTotal != null && run.id ? (
         <ExperimentRunTokenCount
