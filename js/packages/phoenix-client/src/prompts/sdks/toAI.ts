@@ -2,22 +2,17 @@ import invariant from "tiny-invariant";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
-  safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
-import {
-  type ToolSet,
-  type Tool,
-  type ModelMessage,
-  type ToolChoice,
-} from "ai";
+import { type ToolSet, type ModelMessage, type ToolChoice } from "ai";
 import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
 export type PartialAIParams = {
-  messages: ModelMessage[] /**
+  messages: ModelMessage[];
+  /**
 The tools that the model can call. The model needs to support calling tools.
-    */;
+    */
   tools?: ToolSet;
   /**
 The tool choice strategy. Default: 'auto'.
