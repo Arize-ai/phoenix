@@ -71,22 +71,30 @@ export const toAI = <V extends Variables>({
     });
 
     // convert tools to Vercel AI tool set, which is a map of tool name to tool
-    let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
-      if (!tool.function.parameters) {
-        return acc;
-      }
-      const vercelAIToolDefinition = safelyConvertToolDefinitionToProvider({
-        toolDefinition: tool,
-        targetProvider: "VERCEL_AI",
-      });
-      invariant(vercelAIToolDefinition, "Tool definition is not valid");
-      // TODO: get the symbol working here for validators
-      acc[tool.function.name] = vercelAIToolDefinition as unknown as Tool;
-      return acc;
-    }, {} as ToolSet);
-    const hasTools = Object.keys(tools ?? {}).length > 0;
-    tools = hasTools ? tools : undefined;
-
+    // TODO: Vercel AI SDK 5 has complex tool schema
+    // let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
+    //   if (!tool.function.parameters) {
+    //     return acc;
+    //   }
+    //   const vercelAIToolDefinition = safelyConvertToolDefinitionToProvider({
+    //     toolDefinition: tool,
+    //     targetProvider: "VERCEL_AI",
+    //   });
+    //   invariant(vercelAIToolDefinition, "Tool definition is not valid");
+    //   // TODO: get the symbol working here for validators
+    //   acc[tool.function.name] = vercelAIToolDefinition as unknown as Tool;
+    //   return acc;
+    // }, {} as ToolSet);
+    // const hasTools = Object.keys(tools ?? {}).length > 0;
+    // tools = hasTools ? tools : undefined;
+    const hasTools = false;
+    const tools = undefined;
+    if (prompt.tools?.tools && prompt.tools?.tools.length) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Prompt tools not currently supported in the AI SDK, falling back to no tools"
+      );
+    }
     let toolChoice: VercelAIToolChoice | undefined =
       safelyConvertToolChoiceToProvider({
         toolChoice: prompt.tools?.tool_choice,
