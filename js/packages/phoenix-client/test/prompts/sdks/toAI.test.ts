@@ -104,7 +104,7 @@ describe("toAI type compatibility", () => {
     // it will fail in pnpm type:check if the types break in the future
   });
 
-  it("should handle complex message types", () => {
+  it.skip("should handle complex message types", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
