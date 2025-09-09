@@ -1151,7 +1151,7 @@ function ExperimentRepetitionSelector({
           </Flex>
         </TriggerWrap>
         <Tooltip>
-          {`Repetition ${repetitionNumber} of ${totalRepetitions}`}
+          {`repetition ${repetitionNumber} of ${totalRepetitions}`}
         </Tooltip>
       </TooltipTrigger>
       <IconButton
