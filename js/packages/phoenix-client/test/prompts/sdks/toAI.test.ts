@@ -14,7 +14,6 @@ import { toAI, type PartialAIParams } from "../../../src/prompts/sdks/toAI";
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
 import { generateText, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import z from "zod";
 
 describe("toAI type compatibility", () => {
   beforeEach(() => {
