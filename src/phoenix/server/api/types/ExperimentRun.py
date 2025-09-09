@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 class ExperimentRun(Node):
     id_attr: NodeID[int]
     experiment_id: GlobalID
+    repetition_number: int
     trace_id: Optional[str]
     output: Optional[JSON]
     start_time: datetime
@@ -165,6 +166,7 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
     return ExperimentRun(
         id_attr=run.id,
         experiment_id=GlobalID(Experiment.__name__, str(run.experiment_id)),
+        repetition_number=run.repetition_number,
         trace_id=run.trace.trace_id if run.trace else None,
         output=run.output.get("task_output"),
         start_time=run.start_time,
