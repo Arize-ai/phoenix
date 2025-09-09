@@ -224,7 +224,7 @@ class Client(TraceDataExtractor):
             return None if df.shape == (0, 0) else df
         return results
 
-    @deprecated("migrate to using client.spans.get_span_annotations via arize-phoenix-client")
+    @deprecated("Migrate to using client.spans.get_span_annotations via arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
@@ -279,7 +279,7 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
-    @deprecated("migrate to using client.spans.log_span_annotations via arize-phoenix-client")
+    @deprecated("Migrate to using client.spans.log_span_annotations via arize-phoenix-client")
     def log_evaluations(
         self,
         *evals: Evaluations,
