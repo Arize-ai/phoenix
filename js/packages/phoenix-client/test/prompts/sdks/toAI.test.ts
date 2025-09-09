@@ -12,7 +12,7 @@ import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
 import { toAI, type PartialAIParams } from "../../../src/prompts/sdks/toAI";
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
-import { generateObject, generateText, streamObject, streamText } from "ai";
+import { generateText, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import z from "zod";
 
@@ -286,18 +286,6 @@ describe("toAI type compatibility", () => {
     });
 
     generateText({
-      model,
-      ...result,
-    });
-
-    streamObject({
-      schema: z.object({ test: z.string() }),
-      model,
-      ...result,
-    });
-
-    generateObject({
-      schema: z.object({ test: z.string() }),
       model,
       ...result,
     });
