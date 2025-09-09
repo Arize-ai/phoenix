@@ -24,9 +24,7 @@ class ExperimentRepetitionCountsDataLoader(DataLoader[Key, Result]):
         repetition_counts_query = (
             select(
                 models.ExperimentRun.experiment_id,
-                func.coalesce(func.max(models.ExperimentRun.repetition_number), 0).label(
-                    "repetition_count"
-                ),
+                func.max(models.ExperimentRun.repetition_number).label("repetition_count"),
             )
             .group_by(models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
