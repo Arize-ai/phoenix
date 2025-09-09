@@ -55,6 +55,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostDetailSummaryEntriesBySpanDataLoader,
     SpanCostDetailSummaryEntriesByTraceDataLoader,
     SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
     SpanCostSummaryByExperimentRunDataLoader,
     SpanCostSummaryByGenerativeModelDataLoader,
     SpanCostSummaryByProjectDataLoader,
@@ -136,6 +137,9 @@ class DataLoaders:
     span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
     span_cost_fields: TableFieldsDataLoader
     span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_repeated_run_group: (
+        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader
+    )
     span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
     span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader

@@ -49,6 +49,9 @@ from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntri
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
 from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
 from .span_cost_summary_by_experiment import SpanCostSummaryByExperimentDataLoader
+from .span_cost_summary_by_experiment_repeated_run_group import (
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
+)
 from .span_cost_summary_by_experiment_run import SpanCostSummaryByExperimentRunDataLoader
 from .span_cost_summary_by_generative_model import SpanCostSummaryByGenerativeModelDataLoader
 from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, SpanCostSummaryCache
@@ -107,6 +110,7 @@ __all__ = [
     "SpanCostDetailSummaryEntriesByTraceDataLoader",
     "SpanCostDetailsBySpanCostDataLoader",
     "SpanCostSummaryByExperimentDataLoader",
+    "SpanCostSummaryByExperimentRepeatedRunGroupDataLoader",
     "SpanCostSummaryByExperimentRunDataLoader",
     "SpanCostSummaryByGenerativeModelDataLoader",
     "SpanCostSummaryByProjectDataLoader",

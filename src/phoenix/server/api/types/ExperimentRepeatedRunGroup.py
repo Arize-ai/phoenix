@@ -12,9 +12,12 @@ from strawberry.types import Info
 from typing_extensions import Self, TypeAlias
 
 from phoenix.db import models
+from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import connection_from_cursors_and_nodes
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -154,6 +157,30 @@ class ExperimentRepeatedRunGroup(Node):
     ) -> int:
         return await info.context.data_loaders.experiment_repeated_run_group_run_counts.load(
             (self.experiment_rowid, self.dataset_example_rowid)
+        )
+
+    @strawberry.field
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+        run_id = self.id_attr
+        example_id = self.dataset_example_rowid
+        summary = (
+            await info.context.data_loaders.span_cost_summary_by_experiment_repeated_run_group.load(
+                (run_id, example_id)
+            )
+        )
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
         )
 
 

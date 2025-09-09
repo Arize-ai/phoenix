@@ -1163,6 +1163,7 @@ type ExperimentRepeatedRunGroup implements Node {
   example: DatasetExample!
   runs(first: Int = 3, last: Int, after: ID, before: ID): ExperimentRunConnection!
   runCount: Int!
+  costSummary: SpanCostSummary!
 }
 
 """A connection to a list of items."""
