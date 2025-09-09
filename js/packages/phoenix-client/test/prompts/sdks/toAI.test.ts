@@ -210,7 +210,7 @@ describe("toAI type compatibility", () => {
               type: "text",
             },
             {
-              args: '{"image_url":"test.jpg","edit_type":"blur"}',
+              input: '{"image_url":"test.jpg","edit_type":"blur"}',
               toolCallId: "123",
               toolName: "edit_image",
               type: "tool-call",
@@ -221,7 +221,10 @@ describe("toAI type compatibility", () => {
         {
           content: [
             {
-              result: '{"new_image_url":"test_edited.jpg"}',
+              output: {
+                type: "text",
+                value: '{"new_image_url":"test_edited.jpg"}',
+              },
               toolCallId: "123",
               toolName: "",
               type: "tool-result",
@@ -237,7 +240,7 @@ describe("toAI type compatibility", () => {
       tools: {
         edit_image: {
           description: "edit an image",
-          parameters: {
+          inputSchema: {
             _type: undefined,
             jsonSchema: {
               properties: {

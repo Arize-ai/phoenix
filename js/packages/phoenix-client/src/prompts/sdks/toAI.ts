@@ -17,8 +17,8 @@ import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
 export type PartialStreamTextParams = Omit<
   Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],
-  "model"
->;
+  "model" | "prompt" | "onStepFinish"
+> & { messages: ModelMessage[] };
 
 export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
 
