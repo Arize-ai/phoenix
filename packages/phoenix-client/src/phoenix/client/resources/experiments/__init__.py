@@ -60,6 +60,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from phoenix.evals.preview.evaluators import Score as EvalsScore
+
     ScoreResult = Union["EvalsScore", list["EvalsScore"]]
 
 logger = logging.getLogger(__name__)
