@@ -137,6 +137,7 @@ const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [displayFullText, setDisplayFullText] = useState(false);
+  const [displayAverageMetrics, setDisplayAverageMetrics] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -419,6 +420,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               experimentInfoById={experimentInfoById}
               tableRow={row.original}
+              displayAverageMetrics={displayAverageMetrics}
             />
           );
         },
@@ -429,6 +431,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentColor,
     compareExperimentIds,
     datasetId,
+    displayAverageMetrics,
     displayFullText,
     experimentInfoById,
     getExperimentColor,
@@ -735,7 +738,7 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
             AVG
           </Text>
         </TriggerWrap>
-        <Tooltip>Averages computed over all runs in the experiment</Tooltip>
+        <Tooltip>Averaged over runs in the experiment</Tooltip>
       </TooltipTrigger>
       {averageRunLatencyMs != null && (
         <LatencyText size="S" latencyMs={averageRunLatencyMs} />
@@ -759,13 +762,25 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
 /**
  * Display the output of an experiment run.
  */
-function ExperimentRunOutput(
-  props: ExperimentRun & {
-    displayFullText: boolean;
-    setDialog: (dialog: ReactNode) => void;
+function ExperimentRunOutput(props: {
+  runs: readonly ExperimentRun[];
+  repetitionNumber: number;
+  displayFullText: boolean;
+  displayAverageMetrics: boolean;
+  setDialog: (dialog: ReactNode) => void;
+}) {
+  const { runs, displayFullText, setDialog } = props;
+  const run: ExperimentRun | null = runs[props.repetitionNumber];
+
+  if (run == null) {
+    return (
+      <PaddedCell>
+        <Empty message="Missing Repetition" />
+      </PaddedCell>
+    );
   }
-) {
-  const { output, error, annotations, displayFullText, setDialog } = props;
+
+  const { output, error, annotations } = run;
   if (error) {
     return <RunError error={error} />;
   }
@@ -1010,6 +1025,7 @@ function ExperimentRunOutputCell({
   setDialog,
   experimentInfoById,
   tableRow,
+  displayAverageMetrics,
 }: {
   datasetId: string;
   experimentRepetitionCount: number;
@@ -1018,8 +1034,9 @@ function ExperimentRunOutputCell({
   setDialog: (dialog: ReactNode) => void;
   experimentInfoById: ExperimentInfoMap;
   tableRow: TableRow;
+  displayAverageMetrics: boolean;
 }) {
-  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
+  const [repetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
     const runsByRepetitionNumber = runComparisonItem.runs.reduce(
@@ -1040,8 +1057,7 @@ function ExperimentRunOutputCell({
     );
   }
 
-  const run: ExperimentRun | null =
-    runsByRepetitionNumber[selectedRepetitionNumber];
+  const run: ExperimentRun | null = runsByRepetitionNumber[repetitionNumber];
 
   let traceButton = null;
   const traceId = run?.trace?.traceId;
@@ -1100,12 +1116,11 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runDetailControls}>
-        {run && (
-          <ExperimentRunMetadata
-            fragmentKey={runComparisonItem}
-            repetitionNumber={selectedRepetitionNumber}
-          />
-        )}
+        <ExperimentRunMetadata
+          fragmentKey={runComparisonItem}
+          repetitionNumber={repetitionNumber}
+          displayAverageMetrics={displayAverageMetrics}
+        />
       </CellTop>
       <Flex
         alignItems="center"
@@ -1117,23 +1132,19 @@ function ExperimentRunOutputCell({
         `}
       >
         <ExperimentRepetitionSelector
-          repetitionNumber={selectedRepetitionNumber}
+          repetitionNumber={repetitionNumber}
           totalRepetitions={experimentRepetitionCount}
           setRepetitionNumber={setSelectedRepetitionNumber}
         />
         {traceButton}
       </Flex>
-      {run ? (
-        <ExperimentRunOutput
-          {...run}
-          displayFullText={displayFullText}
-          setDialog={setDialog}
-        />
-      ) : (
-        <PaddedCell>
-          <Empty message="Missing Repetition" />
-        </PaddedCell>
-      )}
+      <ExperimentRunOutput
+        runs={runComparisonItem.runs}
+        repetitionNumber={repetitionNumber}
+        displayFullText={displayFullText}
+        setDialog={setDialog}
+        displayAverageMetrics={displayAverageMetrics}
+      />
     </Flex>
   );
 }

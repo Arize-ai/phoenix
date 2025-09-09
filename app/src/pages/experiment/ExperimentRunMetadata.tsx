@@ -19,6 +19,7 @@ type ExperimentRun = ExperimentRunMetadata_runs$data["runs"][number];
 export function ExperimentRunMetadata(props: {
   fragmentKey: ExperimentRunMetadata_runs$key;
   repetitionNumber: number;
+  displayAverageMetrics: boolean;
 }) {
   const data = useFragment(
     graphql`
@@ -40,8 +41,11 @@ export function ExperimentRunMetadata(props: {
     props.fragmentKey
   );
 
-  const runsByRepetitionNumber = useMemo(() => {
-    return data.runs.reduce(
+  const { latencyMs, tokenCountTotal, costTotal, run } = useMemo(() => {
+    let costTotal = null;
+    let tokenCountTotal = null;
+    let latencyMs = null;
+    const runsByRepetitionNumber = data.runs.reduce(
       (acc, run) => {
         const repetitionNumber = run.repetitionNumber;
         acc[repetitionNumber] = run;
@@ -49,31 +53,74 @@ export function ExperimentRunMetadata(props: {
       },
       {} as Record<number, ExperimentRun>
     );
-  }, [data.runs]);
 
-  const run = runsByRepetitionNumber[props.repetitionNumber];
+    const selectedRun = runsByRepetitionNumber[props.repetitionNumber];
+    if (props.displayAverageMetrics) {
+      let totalCost = 0;
+      let numRunsWithCost = 0;
+      let totalTokenCount = 0;
+      let numRunsWithTokenCount = 0;
+      let totalLatencyMs = 0;
+      let numRunsWithLatencyMs = 0;
+      data.runs.forEach((run) => {
+        if (run.costSummary.total.cost != null) {
+          totalCost += run.costSummary.total.cost;
+          numRunsWithCost++;
+        }
+        if (run.costSummary.total.tokens != null) {
+          totalTokenCount += run.costSummary.total.tokens;
+          numRunsWithTokenCount++;
+        }
+        if (run.endTime && run.startTime) {
+          totalLatencyMs +=
+            new Date(run.endTime).getTime() - new Date(run.startTime).getTime();
+          numRunsWithLatencyMs++;
+        }
+      });
+      costTotal = numRunsWithCost > 0 ? totalCost / numRunsWithCost : null;
+      tokenCountTotal =
+        numRunsWithTokenCount > 0
+          ? totalTokenCount / numRunsWithTokenCount
+          : null;
+      latencyMs =
+        numRunsWithLatencyMs > 0 ? totalLatencyMs / numRunsWithLatencyMs : null;
+    } else {
+      costTotal = selectedRun.costSummary.total.cost;
+      tokenCountTotal = selectedRun.costSummary.total.tokens;
+      latencyMs =
+        selectedRun.endTime && selectedRun.startTime
+          ? new Date(selectedRun.endTime).getTime() -
+            new Date(selectedRun.startTime).getTime()
+          : null;
+    }
+    return {
+      costTotal,
+      tokenCountTotal,
+      latencyMs,
+      run: selectedRun,
+    };
+  }, [data.runs, props.displayAverageMetrics, props.repetitionNumber]);
+
   if (run == null) {
     return null;
   }
-  const { id, startTime, endTime, costSummary } = run;
-  const tokenCountTotal = costSummary.total.tokens;
-  const costTotal = costSummary.total.cost;
+
   return (
     <Flex direction="row" gap="size-100">
-      <ExperimentRunLatency startTime={startTime} endTime={endTime} />
-      {tokenCountTotal != null && id ? (
+      <ExperimentRunLatency latencyMs={latencyMs} />
+      {tokenCountTotal != null && run.id ? (
         <ExperimentRunTokenCount
           tokenCountTotal={tokenCountTotal}
-          experimentRunId={id}
+          experimentRunId={run.id}
           size="S"
         />
       ) : (
         <TokenCount size="S">{tokenCountTotal}</TokenCount>
       )}
-      {costTotal != null && id ? (
+      {costTotal != null && run.id ? (
         <ExperimentRunTokenCosts
           costTotal={costTotal}
-          experimentRunId={id}
+          experimentRunId={run.id}
           size="S"
         />
       ) : null}
