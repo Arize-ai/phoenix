@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Dict, Mapping, Optional, Set, Union, cast
+from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore

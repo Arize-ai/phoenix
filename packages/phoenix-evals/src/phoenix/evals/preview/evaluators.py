@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
-from pydantic import BeforeValidator, BaseModel, ValidationError, create_model
+from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
@@ -623,10 +623,9 @@ def create_evaluator(
                 result = self._fn(**eval_input)
                 score = _convert_to_score(result, name, source, direction)
                 return [score]
-            
+
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return self._fn(*args, **kwargs)
-
 
         evaluator_instance = _FunctionEvaluator()
         # Keep registry compatibility by storing a callable with expected signature
