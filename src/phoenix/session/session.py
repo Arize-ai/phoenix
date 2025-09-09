@@ -48,6 +48,7 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.utilities.deprecation import deprecated
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -138,6 +139,7 @@ class Session(TraceDataExtractor, ABC):
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
         )
 
+    @deprecated("Migrate to using client.spans.get_spans_dataframe via arize-phoenix-client")
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -192,6 +194,7 @@ class Session(TraceDataExtractor, ABC):
             project_name=project_name,
         )
 
+    @deprecated("Migrate to using client.spans.get_span_annotations via arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,

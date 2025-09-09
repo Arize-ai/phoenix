@@ -35,6 +35,7 @@ from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
+from phoenix.utilities.deprecation import deprecated
 from phoenix.utilities.json import decode_df_from_json_string
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ class Client(TraceDataExtractor):
             return session.url
         return str(self._client.base_url)
 
+    @deprecated("Migrate to using client.spans.get_spans_dataframe via arize-phoenix-client")
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -222,6 +224,7 @@ class Client(TraceDataExtractor):
             return None if df.shape == (0, 0) else df
         return results
 
+    @deprecated("migrate to using client.spans.get_span_annotations via arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
@@ -276,6 +279,7 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
+    @deprecated("migrate to using client.spans.log_span_annotations via arize-phoenix-client")
     def log_evaluations(
         self,
         *evals: Evaluations,
@@ -309,6 +313,7 @@ class Client(TraceDataExtractor):
                 timeout=timeout,
             ).raise_for_status()
 
+    @deprecated("Migrate to using client.spans.log_spans via arize-phoenix-client")
     def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
         """
         Logs traces from a TraceDataset to the Phoenix server.
@@ -379,6 +384,7 @@ class Client(TraceDataExtractor):
         dataset = records[0]
         return str(dataset["id"])
 
+    @deprecated("Migrate to using client.datasets.get_dataset via arize-phoenix-client")
     def get_dataset(
         self,
         *,
@@ -433,6 +439,7 @@ class Client(TraceDataExtractor):
             examples=examples,
         )
 
+    @deprecated("Migrate to using client.datasets.get_dataset_versions via arize-phoenix-client")
     def get_dataset_versions(
         self,
         dataset_id: str,
@@ -459,6 +466,7 @@ class Client(TraceDataExtractor):
         df["created_at"] = df["created_at"].apply(datetime.fromisoformat)
         return df
 
+    @deprecated("Migrate to using client.datasets.create_dataset via arize-phoenix-client")
     def upload_dataset(
         self,
         *,
@@ -535,6 +543,7 @@ class Client(TraceDataExtractor):
             dataset_description=dataset_description,
         )
 
+    @deprecated("Migrate to using client.datasets.add_examples_to_dataset via arize-phoenix-client")
     def append_to_dataset(
         self,
         *,
@@ -609,6 +618,7 @@ class Client(TraceDataExtractor):
             action="append",
         )
 
+    @deprecated("Migrate to using client.experiments.get_experiment via arize-phoenix-client")
     def get_experiment(self, *, experiment_id: str) -> Experiment:
         """
         Get an experiment by ID.
