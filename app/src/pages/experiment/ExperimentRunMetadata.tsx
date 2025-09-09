@@ -19,7 +19,6 @@ type ExperimentRun = ExperimentRunMetadata_runs$data["runs"][number];
 export function ExperimentRunMetadata(props: {
   fragmentKey: ExperimentRunMetadata_runs$key;
   repetitionNumber: number;
-  displayAverageMetrics: boolean;
 }) {
   const data = useFragment(
     graphql`
@@ -55,51 +54,41 @@ export function ExperimentRunMetadata(props: {
     );
 
     const selectedRun = runsByRepetitionNumber[props.repetitionNumber];
-    if (props.displayAverageMetrics) {
-      let totalCost = 0;
-      let numRunsWithCost = 0;
-      let totalTokenCount = 0;
-      let numRunsWithTokenCount = 0;
-      let totalLatencyMs = 0;
-      let numRunsWithLatencyMs = 0;
-      data.runs.forEach((run) => {
-        if (run.costSummary.total.cost != null) {
-          totalCost += run.costSummary.total.cost;
-          numRunsWithCost++;
-        }
-        if (run.costSummary.total.tokens != null) {
-          totalTokenCount += run.costSummary.total.tokens;
-          numRunsWithTokenCount++;
-        }
-        if (run.endTime && run.startTime) {
-          totalLatencyMs +=
-            new Date(run.endTime).getTime() - new Date(run.startTime).getTime();
-          numRunsWithLatencyMs++;
-        }
-      });
-      costTotal = numRunsWithCost > 0 ? totalCost / numRunsWithCost : null;
-      tokenCountTotal =
-        numRunsWithTokenCount > 0
-          ? totalTokenCount / numRunsWithTokenCount
-          : null;
-      latencyMs =
-        numRunsWithLatencyMs > 0 ? totalLatencyMs / numRunsWithLatencyMs : null;
-    } else {
-      costTotal = selectedRun.costSummary.total.cost;
-      tokenCountTotal = selectedRun.costSummary.total.tokens;
-      latencyMs =
-        selectedRun.endTime && selectedRun.startTime
-          ? new Date(selectedRun.endTime).getTime() -
-            new Date(selectedRun.startTime).getTime()
-          : null;
-    }
+    let totalCost = 0;
+    let numRunsWithCost = 0;
+    let totalTokenCount = 0;
+    let numRunsWithTokenCount = 0;
+    let totalLatencyMs = 0;
+    let numRunsWithLatencyMs = 0;
+    data.runs.forEach((run) => {
+      if (run.costSummary.total.cost != null) {
+        totalCost += run.costSummary.total.cost;
+        numRunsWithCost++;
+      }
+      if (run.costSummary.total.tokens != null) {
+        totalTokenCount += run.costSummary.total.tokens;
+        numRunsWithTokenCount++;
+      }
+      if (run.endTime && run.startTime) {
+        totalLatencyMs +=
+          new Date(run.endTime).getTime() - new Date(run.startTime).getTime();
+        numRunsWithLatencyMs++;
+      }
+    });
+    costTotal = numRunsWithCost > 0 ? totalCost / numRunsWithCost : null;
+    tokenCountTotal =
+      numRunsWithTokenCount > 0
+        ? totalTokenCount / numRunsWithTokenCount
+        : null;
+    latencyMs =
+      numRunsWithLatencyMs > 0 ? totalLatencyMs / numRunsWithLatencyMs : null;
     return {
       costTotal,
       tokenCountTotal,
       latencyMs,
       run: selectedRun,
     };
-  }, [data.runs, props.displayAverageMetrics, props.repetitionNumber]);
+  }, [data.runs, props.repetitionNumber]);
 
   if (run == null) {
     return null;

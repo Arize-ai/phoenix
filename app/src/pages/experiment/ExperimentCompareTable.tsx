@@ -137,7 +137,6 @@ const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [displayFullText, setDisplayFullText] = useState(false);
-  const [displayAverageMetrics, setDisplayAverageMetrics] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -420,7 +419,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               experimentInfoById={experimentInfoById}
               tableRow={row.original}
-              displayAverageMetrics={displayAverageMetrics}
             />
           );
         },
@@ -431,7 +429,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentColor,
     compareExperimentIds,
     datasetId,
-    displayAverageMetrics,
     displayFullText,
     experimentInfoById,
     getExperimentColor,
@@ -766,7 +763,6 @@ function ExperimentRunOutput(props: {
   runs: readonly ExperimentRun[];
   repetitionNumber: number;
   displayFullText: boolean;
-  displayAverageMetrics: boolean;
   setDialog: (dialog: ReactNode) => void;
 }) {
   const { runs, displayFullText, setDialog } = props;
@@ -1025,7 +1021,6 @@ function ExperimentRunOutputCell({
   setDialog,
   experimentInfoById,
   tableRow,
-  displayAverageMetrics,
 }: {
   datasetId: string;
   experimentRepetitionCount: number;
@@ -1034,7 +1029,6 @@ function ExperimentRunOutputCell({
   setDialog: (dialog: ReactNode) => void;
   experimentInfoById: ExperimentInfoMap;
   tableRow: TableRow;
-  displayAverageMetrics: boolean;
 }) {
   const [repetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1119,7 +1113,6 @@ function ExperimentRunOutputCell({
         <ExperimentRunMetadata
           fragmentKey={runComparisonItem}
           repetitionNumber={repetitionNumber}
-          displayAverageMetrics={displayAverageMetrics}
         />
       </CellTop>
       <Flex
@@ -1143,7 +1136,6 @@ function ExperimentRunOutputCell({
         repetitionNumber={repetitionNumber}
         displayFullText={displayFullText}
         setDialog={setDialog}
-        displayAverageMetrics={displayAverageMetrics}
       />
     </Flex>
   );
