@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b2f6186ac29b20d485b5595ac764278>>
+ * @generated SignedSource<<eb18535cde896cf80146a26ec465bdb1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,6 +58,7 @@ export type ExperimentCompareTable_comparisons$data = {
               readonly traceId: string;
             } | null;
           }>;
+          readonly " $fragmentSpreads": FragmentRefs<"ExperimentRunMetadata_runs">;
         }>;
       };
     }>;
@@ -301,6 +302,11 @@ return {
                   "name": "runComparisonItems",
                   "plural": true,
                   "selections": [
+                    {
+                      "args": null,
+                      "kind": "FragmentSpread",
+                      "name": "ExperimentRunMetadata_runs"
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -649,6 +655,6 @@ return {
 };
 })();
 
-(node as any).hash = "5fd37fda192f7e2b43a59d0b23917e43";
+(node as any).hash = "4483d1680310f070d71a8a79d280909e";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ebb2d0d1de53a175dee333ab2d1a471>>
+ * @generated SignedSource<<18336cc84c5a1e2fdda864f8e6ea5837>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -107,6 +107,20 @@ v7 = {
 v8 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cost",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Trace",
   "kind": "LinkedField",
   "name": "trace",
@@ -128,20 +142,6 @@ v8 = {
     },
     (v7/*: any*/)
   ],
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokens",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cost",
   "storageKey": null
 },
 v11 = {
@@ -268,19 +268,11 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "experimentId",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
                         "concreteType": "ExperimentRun",
                         "kind": "LinkedField",
                         "name": "runs",
                         "plural": true,
                         "selections": [
-                          (v7/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -288,20 +280,7 @@ return {
                             "name": "repetitionNumber",
                             "storageKey": null
                           },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "output",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "error",
-                            "storageKey": null
-                          },
+                          (v7/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -316,7 +295,6 @@ return {
                             "name": "endTime",
                             "storageKey": null
                           },
-                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -333,14 +311,29 @@ return {
                                 "name": "total",
                                 "plural": false,
                                 "selections": [
-                                  (v9/*: any*/),
-                                  (v10/*: any*/)
+                                  (v8/*: any*/),
+                                  (v9/*: any*/)
                                 ],
                                 "storageKey": null
                               }
                             ],
                             "storageKey": null
                           },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "output",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "error",
+                            "storageKey": null
+                          },
+                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -395,7 +388,7 @@ return {
                                         "name": "explanation",
                                         "storageKey": null
                                       },
-                                      (v8/*: any*/)
+                                      (v10/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -406,6 +399,13 @@ return {
                             "storageKey": null
                           }
                         ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "experimentId",
                         "storageKey": null
                       }
                     ],
@@ -572,8 +572,8 @@ return {
                                 "name": "total",
                                 "plural": false,
                                 "selections": [
-                                  (v10/*: any*/),
-                                  (v9/*: any*/)
+                                  (v9/*: any*/),
+                                  (v8/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -620,16 +620,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1e98e67534305e3b27b2bbd5e2335b7b",
+    "cacheID": "cbc5226ef0d677e01906ad18e994badb",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            repetitionNumber\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n            repetitionCount\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          ...ExperimentRunMetadata_runs\n          experimentId\n          runs {\n            id\n            repetitionNumber\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n            repetitionCount\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentRunMetadata_runs on RunComparisonItem {\n  runs {\n    repetitionNumber\n    id\n    startTime\n    endTime\n    costSummary {\n      total {\n        tokens\n        cost\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5fd37fda192f7e2b43a59d0b23917e43";
+(node as any).hash = "4483d1680310f070d71a8a79d280909e";
 
 export default node;

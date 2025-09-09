@@ -176,6 +176,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   }
                 }
                 runComparisonItems {
+                  ...ExperimentRunMetadata_runs
                   experimentId
                   runs {
                     id
@@ -1099,7 +1100,12 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runDetailControls}>
-        {run && <ExperimentRunMetadata {...run} />}
+        {run && (
+          <ExperimentRunMetadata
+            fragmentKey={runComparisonItem}
+            repetitionNumber={selectedRepetitionNumber}
+          />
+        )}
       </CellTop>
       <Flex
         alignItems="center"

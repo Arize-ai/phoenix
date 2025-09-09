@@ -195,7 +195,10 @@ function ExperimentItem({
               `}
             >
               <View paddingX="size-200" paddingTop="size-100">
-                <ExperimentRunMetadata {...run} />
+                <ExperimentRunMetadata
+                  fragmentKey={runItem}
+                  repetitionNumber={run.repetitionNumber}
+                />
               </View>
               <ul
                 css={css`
