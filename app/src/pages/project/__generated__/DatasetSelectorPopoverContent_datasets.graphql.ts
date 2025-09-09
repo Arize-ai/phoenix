@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5886b2d3225558ed3b42506e73ff388e>>
+ * @generated SignedSource<<048d0a9018a8ef149b190ddfa81c018f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,7 +29,13 @@ export type DatasetSelectorPopoverContent_datasets$key = {
 import DatasetSelectorPopoverContentDatasetsQuery_graphql from './DatasetSelectorPopoverContentDatasetsQuery.graphql';
 
 const node: ReaderFragment = {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "search"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
@@ -42,7 +48,24 @@ const node: ReaderFragment = {
   "selections": [
     {
       "alias": null,
-      "args": null,
+      "args": [
+        {
+          "fields": [
+            {
+              "kind": "Literal",
+              "name": "col",
+              "value": "name"
+            },
+            {
+              "kind": "Variable",
+              "name": "value",
+              "variableName": "search"
+            }
+          ],
+          "kind": "ObjectValue",
+          "name": "filter"
+        }
+      ],
       "concreteType": "DatasetConnection",
       "kind": "LinkedField",
       "name": "datasets",
@@ -92,6 +115,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "40d5267ad0ec2335a73ff2a4d05bbed1";
+(node as any).hash = "60d20faa9c3d4bbb03be15dec748af49";
 
 export default node;
