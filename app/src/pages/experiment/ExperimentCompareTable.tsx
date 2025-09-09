@@ -1,7 +1,6 @@
 import React, {
   ReactNode,
   RefObject,
-  SetStateAction,
   startTransition,
   Suspense,
   useCallback,
@@ -88,6 +87,10 @@ import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
+type ExperimentId = string;
+type ExampleId = string;
+type RepetitionNumber = number;
+
 type ExampleCompareTableProps = {
   query: ExperimentCompareTable_comparisons$key;
   datasetId: string;
@@ -138,6 +141,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
+  const [repetitionNumbers, setRepetitionNumbers] = useState<
+    Record<ExperimentId, Record<ExampleId, RepetitionNumber>>
+  >({});
   const [filterCondition, setFilterCondition] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -407,6 +413,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
+          const exampleId = row.original.id;
+          const selectedRepetitionNumber =
+            repetitionNumbers[experimentId]?.[exampleId] || 1;
           return (
             <ExperimentRunOutputCell
               datasetId={datasetId}
@@ -418,6 +427,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               experimentInfoById={experimentInfoById}
               tableRow={row.original}
+              repetitionNumber={selectedRepetitionNumber}
+              setRepetitionNumber={(value) => {
+                setRepetitionNumbers((prev) => ({
+                  ...prev,
+                  [experimentId]: {
+                    ...prev[experimentId],
+                    [exampleId]: value,
+                  },
+                }));
+              }}
             />
           );
         },
@@ -431,6 +450,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     displayFullText,
     experimentInfoById,
     getExperimentColor,
+    repetitionNumbers,
   ]);
 
   const columns = useMemo(() => {
@@ -1002,6 +1022,8 @@ function ExperimentRunOutputCell({
   setDialog,
   experimentInfoById,
   tableRow,
+  repetitionNumber,
+  setRepetitionNumber,
 }: {
   datasetId: string;
   experimentRepetitionCount: number;
@@ -1010,9 +1032,9 @@ function ExperimentRunOutputCell({
   setDialog: (dialog: ReactNode) => void;
   experimentInfoById: ExperimentInfoMap;
   tableRow: TableRow;
+  repetitionNumber: number;
+  setRepetitionNumber: (value: number) => void;
 }) {
-  const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
-
   const runsByRepetitionNumber = useMemo(() => {
     const runsByRepetitionNumber = runComparisonItem.runs.reduce(
       (acc, run) => {
@@ -1024,8 +1046,7 @@ function ExperimentRunOutputCell({
     return runsByRepetitionNumber;
   }, [runComparisonItem.runs]);
 
-  const run: ExperimentRun | null =
-    runsByRepetitionNumber[selectedRepetitionNumber];
+  const run: ExperimentRun | null = runsByRepetitionNumber[repetitionNumber];
 
   if (run == null) {
     return (
@@ -1106,9 +1127,9 @@ function ExperimentRunOutputCell({
         `}
       >
         <ExperimentRepetitionSelector
-          repetitionNumber={selectedRepetitionNumber}
+          repetitionNumber={repetitionNumber}
           totalRepetitions={experimentRepetitionCount}
-          setRepetitionNumber={setSelectedRepetitionNumber}
+          setRepetitionNumber={setRepetitionNumber}
         />
         {traceButton}
       </Flex>
@@ -1132,7 +1153,7 @@ function ExperimentRepetitionSelector({
 }: {
   repetitionNumber: number;
   totalRepetitions: number;
-  setRepetitionNumber: (n: SetStateAction<number>) => void;
+  setRepetitionNumber: (n: number) => void;
 }) {
   return (
     <Flex direction="row" alignItems="center">
@@ -1157,7 +1178,7 @@ function ExperimentRepetitionSelector({
       <IconButton
         size="S"
         isDisabled={repetitionNumber === 1}
-        onPress={() => setRepetitionNumber((prev) => prev - 1)}
+        onPress={() => setRepetitionNumber(repetitionNumber - 1)}
         aria-label="Previous repetition"
       >
         <Icon svg={<Icons.ChevronLeft />} />
@@ -1165,7 +1186,7 @@ function ExperimentRepetitionSelector({
       <IconButton
         size="S"
         isDisabled={repetitionNumber === totalRepetitions}
-        onPress={() => setRepetitionNumber((prev) => prev + 1)}
+        onPress={() => setRepetitionNumber(repetitionNumber + 1)}
         aria-label="Next repetition"
       >
         <Icon svg={<Icons.ChevronRight />} />
