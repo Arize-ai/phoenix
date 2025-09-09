@@ -26,7 +26,7 @@ export const vercelAIChatPartToolCallSchema = z.object({
   type: z.literal("tool-call"),
   toolCallId: z.string(),
   toolName: z.string(),
-  args: jsonLiteralSchema, // json serializable parameters
+  input: jsonLiteralSchema, // json serializable parameters
 });
 
 export type VercelAIChatPartToolCall = z.infer<
@@ -37,7 +37,10 @@ export const vercelAIChatPartToolResultSchema = z.object({
   type: z.literal("tool-result"),
   toolCallId: z.string(),
   toolName: z.string(),
-  result: jsonLiteralSchema, // json serializable result
+  output: z.object({
+    type: z.literal("text"), // TODO: extend to support other output types
+    value: z.string(),
+  }),
 });
 
 export type VercelAIChatPartToolResult = z.infer<
