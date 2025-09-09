@@ -49,6 +49,12 @@ class ExperimentRepeatedRunGroup(Node):
         return strawberry.ID(str(GlobalID("Experiment", str(self.experiment_rowid))))
 
     @strawberry.field
+    async def average_latency_ms(self, info: Info[Context, None]) -> Optional[float]:
+        return await info.context.data_loaders.average_experiment_repeated_run_group_latency.load(
+            (self.experiment_rowid, self.dataset_example_rowid)
+        )
+
+    @strawberry.field
     async def example(
         self, info: Info
     ) -> Annotated[

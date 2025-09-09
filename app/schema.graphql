@@ -1160,6 +1160,7 @@ type ExperimentRepeatedRunGroup implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
+  averageLatencyMs: Float
   example: DatasetExample!
   runs(first: Int = 3, last: Int, after: ID, before: ID): ExperimentRunConnection!
   runCount: Int!
