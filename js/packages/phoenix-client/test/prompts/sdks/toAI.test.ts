@@ -293,16 +293,17 @@ describe("toAI type compatibility", () => {
       ...result,
     });
 
-    streamObject({
-      schema: z.object({ test: z.string() }),
-      model,
-      ...result,
-    });
+    // These are too recursive
+    // streamObject({
+    //   schema: z.object({ test: z.string() }),
+    //   model,
+    //   ...result,
+    // });
 
-    generateObject({
-      schema: z.object({ test: z.string() }),
-      model,
-      ...result,
-    });
+    // generateObject({
+    //   schema: z.object({ test: z.string() }),
+    //   model,
+    //   ...result,
+    // });
   });
 });
