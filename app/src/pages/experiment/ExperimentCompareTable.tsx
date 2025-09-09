@@ -1024,16 +1024,16 @@ function ExperimentRunOutputCell({
     return runsByRepetitionNumber;
   }, [runComparisonItem.runs]);
 
-  const run: ExperimentRun | null =
-    runsByRepetitionNumber[selectedRepetitionNumber];
-
-  if (run == null) {
+  if (runComparisonItem.runs.length === 0) {
     return (
       <PaddedCell>
         <Empty message="No Run" />
       </PaddedCell>
     );
   }
+
+  const run: ExperimentRun | null =
+    runsByRepetitionNumber[selectedRepetitionNumber];
 
   let traceButton = null;
   const traceId = run?.trace?.traceId;
@@ -1091,10 +1091,10 @@ function ExperimentRunOutputCell({
     </>
   );
 
-  return run ? (
+  return (
     <Flex direction="column" height="100%">
       <CellTop extra={runControls}>
-        <ExperimentRunMetadata {...run} />
+        {run && <ExperimentRunMetadata {...run} />}
       </CellTop>
       <Flex
         alignItems="center"
@@ -1112,16 +1112,18 @@ function ExperimentRunOutputCell({
         />
         {traceButton}
       </Flex>
-      <ExperimentRunOutput
-        {...run}
-        displayFullText={displayFullText}
-        setDialog={setDialog}
-      />
+      {run ? (
+        <ExperimentRunOutput
+          {...run}
+          displayFullText={displayFullText}
+          setDialog={setDialog}
+        />
+      ) : (
+        <PaddedCell>
+          <Empty message="Missing Repetition" />
+        </PaddedCell>
+      )}
     </Flex>
-  ) : (
-    <PaddedCell>
-      <Empty message="No Run" />
-    </PaddedCell>
   );
 }
 
