@@ -597,7 +597,7 @@ class Span(Base):
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
     )
-    span_id: Mapped[str] = mapped_column(index=True)
+    span_id: Mapped[str]
     parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     span_kind: Mapped[str]
@@ -901,8 +901,8 @@ class SpanAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -941,8 +941,8 @@ class TraceAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -979,8 +979,8 @@ class DocumentAnnotation(Base):
     )
     document_position: Mapped[int]
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -1019,8 +1019,8 @@ class ProjectSessionAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -1181,7 +1181,6 @@ class DatasetExampleRevision(Base):
     __tablename__ = "dataset_example_revisions"
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_version_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
@@ -1307,7 +1306,6 @@ class ExperimentRun(Base):
     __tablename__ = "experiment_runs"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
@@ -1352,7 +1350,6 @@ class ExperimentRunAnnotation(Base):
     __tablename__ = "experiment_run_annotations"
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
-        index=True,
     )
     name: Mapped[str]
     annotator_kind: Mapped[str] = mapped_column(
@@ -1827,10 +1824,12 @@ class SpanCost(Base):
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     span_start_time: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
@@ -1938,9 +1937,8 @@ class SpanCostDetail(Base):
     span_cost_id: Mapped[int] = mapped_column(
         ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    token_type: Mapped[str]
+    token_type: Mapped[str] = mapped_column(index=True)
     is_prompt: Mapped[bool]
 
     cost: Mapped[Optional[float]]
