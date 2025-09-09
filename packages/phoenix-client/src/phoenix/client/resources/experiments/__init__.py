@@ -36,6 +36,8 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.evaluators import (
     create_evaluator,
+    is_evals_evaluator,
+    is_evals_score,
     wrap_phoenix_evals_evaluator,
 )
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
@@ -237,22 +239,6 @@ def _str_trace_id(trace_id: Union[int, str]) -> str:
     return str(trace_id)
 
 
-@functools.cache
-def _evals_installed() -> bool:
-    try:
-        import phoenix.evals
-
-        return True
-    except ImportError:
-        return False
-
-
-def _is_evals_evaluator(obj: Any) -> bool:
-    from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
-
-    return isinstance(obj, EvalsEvaluator)
-
-
 def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[EvaluatorName, Evaluator]:
     """Convert evaluators input to mapping by name."""
     evaluators_by_name: dict[EvaluatorName, Evaluator] = {}
@@ -261,7 +247,7 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
 
     elif isinstance(obj, Mapping):
         for name, value in obj.items():
-            if _evals_installed() and _is_evals_evaluator(value):
+            if is_evals_evaluator(value):
                 evaluator = wrap_phoenix_evals_evaluator(value)
             else:
                 evaluator = (
@@ -272,13 +258,13 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
         for value in obj:
-            if _evals_installed() and _is_evals_evaluator(value):
+            if is_evals_evaluator(value):
                 evaluator = wrap_phoenix_evals_evaluator(value)
             else:
                 evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
             evaluators_by_name[evaluator.name] = evaluator
     else:
-        if _evals_installed() and _is_evals_evaluator(obj):
+        if is_evals_evaluator(obj):
             evaluator = wrap_phoenix_evals_evaluator(obj)
         else:
             evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
@@ -1348,33 +1334,40 @@ class Experiments:
                     kind="evaluator",
                 )
 
-            # Handle Evals v2 Score objects with duck typing
-            if result and not isinstance(result, dict):
-                score_val = getattr(result, "score", None)
-                label_val = getattr(result, "label", None)
-                explanation_val = getattr(result, "explanation", None)
-                result = cast(
+            if result and is_evals_score(result):
+                if isinstance(result, list):
+                    result = result[0]
+                score = result.score
+                label = result.label
+                explanation = result.explanation
+                eval_name = result.name or evaluator.name
+                evaluation_result = cast(
                     EvaluationResult,
                     {
                         k: v
                         for k, v in (
-                            ("score", score_val),
-                            ("label", label_val),
-                            ("explanation", explanation_val),
+                            ("score", score),
+                            ("label", label),
+                            ("explanation", explanation),
                         )
                         if v is not None
                     },
                 )
+            elif result:
+                evaluation_result = cast(EvaluationResult, result)
+            else:
+                evaluation_result = None
 
-            if result:
+            if evaluation_result:
                 # Filter out None values for OpenTelemetry attributes
                 attributes: dict[str, Any] = {}
-                if (score := result.get("score")) is not None:
+                if (score := evaluation_result.get("score")) is not None:
                     attributes["evaluation.score"] = score
-                if (label := result.get("label")) is not None:
+                if (label := evaluation_result.get("label")) is not None:
                     attributes["evaluation.label"] = label
                 if attributes:
                     span.set_attributes(attributes)
+
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
@@ -1387,14 +1380,18 @@ class Experiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
+        if is_evals_score(result):
+            eval_name: str = result.name or evaluator.name
+        else:
+            eval_name: str = evaluator.name
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
             start_time=start_time,
             end_time=end_time,
-            name=evaluator.name,
+            name=eval_name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
-            result=result,
+            result=evaluation_result,
             trace_id=trace_id,
         )
 
@@ -2298,15 +2295,15 @@ class AsyncExperiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
-                result = await evaluator.async_evaluate(
+                result = evaluator.evaluate(
                     output=experiment_run["output"],
                     expected=example["output"],
                     reference=example["output"],
@@ -2324,33 +2321,40 @@ class AsyncExperiments:
                     kind="evaluator",
                 )
 
-            # Handle Evals v2 Score objects with duck typing
-            if result and not isinstance(result, dict):
-                score_val = getattr(result, "score", None)
-                label_val = getattr(result, "label", None)
-                explanation_val = getattr(result, "explanation", None)
-                result = cast(
+            if result and is_evals_score(result):
+                if isinstance(result, list):
+                    result = result[0]
+                score = result.score
+                label = result.label
+                explanation = result.explanation
+                eval_name = result.name or evaluator.name
+                evaluation_result = cast(
                     EvaluationResult,
                     {
                         k: v
                         for k, v in (
-                            ("score", score_val),
-                            ("label", label_val),
-                            ("explanation", explanation_val),
+                            ("score", score),
+                            ("label", label),
+                            ("explanation", explanation),
                         )
                         if v is not None
                     },
                 )
+            elif result:
+                evaluation_result = cast(EvaluationResult, result)
+            else:
+                evaluation_result = None
 
-            if result:
+            if evaluation_result:
                 # Filter out None values for OpenTelemetry attributes
                 attributes: dict[str, Any] = {}
-                if (score := result.get("score")) is not None:
+                if (score := evaluation_result.get("score")) is not None:
                     attributes["evaluation.score"] = score
-                if (label := result.get("label")) is not None:
+                if (label := evaluation_result.get("label")) is not None:
                     attributes["evaluation.label"] = label
                 if attributes:
                     span.set_attributes(attributes)
+
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
@@ -2363,14 +2367,18 @@ class AsyncExperiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
+        if is_evals_score(result):
+            eval_name: str = result.name or evaluator.name
+        else:
+            eval_name: str = evaluator.name
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
             start_time=start_time,
             end_time=end_time,
-            name=evaluator.name,
+            name=eval_name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
-            result=result,
+            result=evaluation_result,
             trace_id=trace_id,
         )
 

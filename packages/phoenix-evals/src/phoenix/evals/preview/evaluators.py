@@ -199,11 +199,6 @@ class Evaluator(ABC):
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
 
-    # allow instances to be called directly: `evaluator(eval_input)`
-    __call__ = evaluate
-    # ensure the callable inherits evaluate's docs for IDE support
-    __call__.__doc__ = evaluate.__doc__
-
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
         Determine required field names for mapping/validation.
@@ -628,6 +623,10 @@ def create_evaluator(
                 result = self._fn(**eval_input)
                 score = _convert_to_score(result, name, source, direction)
                 return [score]
+            
+            def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                return self._fn(*args, **kwargs)
+
 
         evaluator_instance = _FunctionEvaluator()
         # Keep registry compatibility by storing a callable with expected signature

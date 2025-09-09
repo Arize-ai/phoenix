@@ -1,4 +1,5 @@
 import functools
+import importlib.util
 import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
@@ -11,6 +12,62 @@ from phoenix.client.resources.experiments.types import (
 if TYPE_CHECKING:
     from phoenix.client.resources.experiments.types import Evaluator
     from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
+    from phoenix.evals.preview.evaluators import Score as EvalsScore
+
+    ScoreResult = Union["EvalsScore", list["EvalsScore"]]
+
+
+@functools.cache
+def _evals_installed() -> bool:
+    return importlib.util.find_spec("phoenix.evals") is not None
+
+
+def is_evals_evaluator(obj: Any) -> bool:
+    def _is_duck_typed_evaluator(obj: Any) -> bool:
+        # for forwards compatibility
+        # TODO: delete this once evals 2.0 is out of preview
+        has_bind = hasattr(obj, "bind")
+        has_direction = hasattr(obj, "direction")
+        has_schema = hasattr(obj, "input_schema")
+        has_source = hasattr(obj, "source")
+        return all([has_bind, has_direction, has_schema, has_source])
+
+    if not _evals_installed():
+        return False
+
+    try:
+        from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
+        return isinstance(obj, EvalsEvaluator)
+    except ImportError:
+        return _is_duck_typed_evaluator(obj)
+
+
+def is_evals_score(obj: Any) -> bool:
+    def _is_duck_typed_score(obj: Any) -> bool:
+        # for forwards compatibility
+        # TODO: delete this once evals 2.0 is out of preview
+        has_score = hasattr(obj, "score")
+        has_label = hasattr(obj, "label")
+        has_explanation = hasattr(obj, "explanation")
+        has_name = hasattr(obj, "name")
+        has_direction = hasattr(obj, "direction")
+        has_source = hasattr(obj, "source")
+        return all([has_score, has_label, has_explanation, has_name, has_direction, has_source])
+
+    if not _evals_installed():
+        return False
+
+    try:
+        from phoenix.evals.preview.evaluators import Score as EvalsScore
+
+        if isinstance(obj, EvalsScore):
+            return True
+        elif isinstance(obj, list):
+            return all(isinstance(item, EvalsScore) for item in cast(list[object], obj))
+        else:
+            return False
+    except ImportError:
+        return _is_duck_typed_score(obj)
 
 
 def get_func_name(fn: Callable[..., Any]) -> str:
@@ -66,32 +123,11 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
     )
 
 
-def _convert_score_to_eval_result(score: Any) -> EvaluationResult:
-    score_val = getattr(score, "score", None)
-    label_val = getattr(score, "label", None)
-    explanation_val = getattr(score, "explanation", None)
-    eval_result: EvaluationResult = {}
-    if score_val is not None:
-        eval_result["score"] = float(score_val) if isinstance(score_val, bool) else score_val  # pyright: ignore[reportUnknownArgumentType]
-    if label_val is not None:
-        eval_result["label"] = str(label_val)
-    if explanation_val is not None:
-        eval_result["explanation"] = str(explanation_val)
-    if eval_result:
-        return eval_result
-    else:
-        raise TypeError(f"Cannot convert {type(score)} to EvaluationResult")
-
-
-def _default_eval_scorer(result: Any) -> EvaluationResult:
+def _default_eval_scorer(result: Any) -> Union[EvaluationResult, "ScoreResult"]:
     """Convert function result to EvaluationResult."""
-    try:  # compatibility for 2.0 style eval scores
-        if not isinstance(result, dict) and (
-            hasattr(result, "score") or hasattr(result, "label") or hasattr(result, "explanation")
-        ):
-            return _convert_score_to_eval_result(result)
-    except Exception:
-        pass  # fall through if duck typing fails
+    if is_evals_score(result):
+        # compatbility for 2.0 style eval scores
+        return result
 
     if isinstance(result, dict):
         # Check if it looks like an EvaluationResult dict
@@ -130,7 +166,7 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
 def create_evaluator(
     kind: Union[str, AnnotatorKind] = AnnotatorKind.CODE,
     name: Optional[str] = None,
-    scorer: Optional[Callable[[Any], EvaluationResult]] = None,
+    scorer: Optional[Callable[[Any], Union[EvaluationResult, "ScoreResult"]]] = None,
 ) -> Callable[[Callable[..., Any]], Any]:
     """
     A decorator that configures a sync or async function to be used as an experiment evaluator.
@@ -232,15 +268,15 @@ def wrap_phoenix_evals_evaluator(evaluator: "EvalsEvaluator") -> "Evaluator":
             else:
                 self._kind = AnnotatorKind.CODE
 
-        def evaluate(self, **kwargs: Any) -> EvaluationResult:
+        def evaluate(self, **kwargs: Any) -> "ScoreResult":
             scores = evaluator.evaluate(kwargs)
             eval_score = scores[0]
-            return _convert_score_to_eval_result(eval_score)
+            return eval_score
 
-        async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
+        async def async_evaluate(self, **kwargs: Any) -> "ScoreResult":
             scores = (await evaluator.aevaluate(kwargs))
             eval_score = scores[0]
-            return _convert_score_to_eval_result(eval_score)
+            return eval_score
 
     return PhoenixEvalsEvaluator()
 
@@ -249,7 +285,7 @@ def _wrap_coroutine_evaluation_function(
     name: str,
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
-    convert_to_score: Callable[[Any], EvaluationResult],
+    convert_to_score: Callable[[Any], Union[EvaluationResult, "ScoreResult"]],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         # Import here to avoid circular import
@@ -264,10 +300,10 @@ def _wrap_coroutine_evaluation_function(
             async def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return await func(*args, **kwargs)
 
-            def evaluate(self, **kwargs: Any) -> EvaluationResult:
+            def evaluate(self, **kwargs: Any) -> Union[EvaluationResult, "ScoreResult"]:
                 raise NotImplementedError("Async evaluator must use async_evaluate")
 
-            async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
+            async def async_evaluate(self, **kwargs: Any) -> Union[EvaluationResult, "ScoreResult"]:
                 bound_signature = _bind_evaluator_signature(sig, **kwargs)
                 result = await func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
@@ -281,7 +317,7 @@ def _wrap_sync_evaluation_function(
     name: str,
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
-    convert_to_score: Callable[[Any], EvaluationResult],
+    convert_to_score: Callable[[Any], Union[EvaluationResult, "ScoreResult"]],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         # Import here to avoid circular import
@@ -296,12 +332,12 @@ def _wrap_sync_evaluation_function(
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return func(*args, **kwargs)
 
-            def evaluate(self, **kwargs: Any) -> EvaluationResult:
+            def evaluate(self, **kwargs: Any) -> Union[EvaluationResult, "ScoreResult"]:
                 bound_signature = _bind_evaluator_signature(sig, **kwargs)
                 result = func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
 
-            async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
+            async def async_evaluate(self, **kwargs: Any) -> Union[EvaluationResult, "ScoreResult"]:
                 return self.evaluate(**kwargs)
 
         return SyncEvaluator()
