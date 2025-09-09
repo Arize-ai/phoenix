@@ -15,6 +15,7 @@ from phoenix.client.__generated__ import v1
 
 if TYPE_CHECKING:
     from phoenix.evals.preview.evaluators import Score as EvalsScore
+
     ScoreResult = Union["EvalsScore", list["EvalsScore"]]
 
 # Type aliases

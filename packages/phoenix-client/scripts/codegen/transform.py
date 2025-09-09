@@ -317,9 +317,9 @@ def remove_inherited_fields(
 
         # Collect all ancestor field names.
         ancestor_field_names: set[str] = get_ancestor_fields(class_name, class_nodes, parent_map)
-        assert ancestor_field_names < child_field_names, (
-            "Ancestor fields must be a subset of child fields"
-        )
+        assert (
+            ancestor_field_names < child_field_names
+        ), "Ancestor fields must be a subset of child fields"
 
         # Remove any inherited field from the class body.
         inherited_fields: set[str] = ancestor_field_names.intersection(child_field_names)

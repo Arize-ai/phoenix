@@ -37,6 +37,7 @@ def is_evals_evaluator(obj: Any) -> bool:
 
     try:
         from phoenix.evals.preview.evaluators import Evaluator as EvalsEvaluator
+
         return isinstance(obj, EvalsEvaluator)
     except ImportError:
         return _is_duck_typed_evaluator(obj)
@@ -274,7 +275,7 @@ def wrap_phoenix_evals_evaluator(evaluator: "EvalsEvaluator") -> "Evaluator":
             return eval_score
 
         async def async_evaluate(self, **kwargs: Any) -> "ScoreResult":
-            scores = (await evaluator.aevaluate(kwargs))
+            scores = await evaluator.aevaluate(kwargs)
             eval_score = scores[0]
             return eval_score
 
