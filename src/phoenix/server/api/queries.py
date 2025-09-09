@@ -56,7 +56,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     to_gql_embedding_dimension,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
@@ -943,15 +943,7 @@ class Query:
                 )
             if not experiment:
                 raise NotFound(f"Unknown experiment: {id}")
-            return Experiment(
-                id_attr=experiment.id,
-                name=experiment.name,
-                project_name=experiment.project_name,
-                description=experiment.description,
-                created_at=experiment.created_at,
-                updated_at=experiment.updated_at,
-                metadata=experiment.metadata_,
-            )
+            return to_gql_experiment(experiment)
         elif type_name == ExperimentRun.__name__:
             async with info.context.db() as session:
                 if not (

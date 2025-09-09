@@ -1082,6 +1082,7 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+  datasetVersionId: ID!
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
