@@ -145,8 +145,9 @@ def log_evaluations(
     port: Optional[int] = None,
 ) -> None:
     """
-    Deprecated:
-        Use client.spans.log_span_annotations via arize-phoenix-client instead.
+    .. deprecated::
+        This function is deprecated. Use ``client.spans.log_span_annotations()`` via
+        arize-phoenix-client instead.
         See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
     """
     host = host or get_env_host()
