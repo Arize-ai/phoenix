@@ -35,7 +35,6 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.evaluators import (
     create_evaluator,
-    wrap_phoenix_evals_evaluator,
 )
 from phoenix.client.resources.experiments.types import (
     DRY_RUN,
@@ -49,9 +48,7 @@ from phoenix.client.resources.experiments.types import (
     ExperimentTask,
     RanExperiment,
     RateLimitErrors,
-    ScoreResult,
     TestCase,
-    is_evals_evaluator,
 )
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
