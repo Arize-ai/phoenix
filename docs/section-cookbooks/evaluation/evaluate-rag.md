@@ -483,12 +483,23 @@ As we can see from the above numbers, our RAG system is not perfect, there are t
 We have now evaluated our RAG system's retrieval performance. Let's send these evaluations to Phoenix for visualization. By sending the evaluations to Phoenix, you will be able to view the evaluations alongside the traces that were captured earlier.
 
 ```python
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(
-    SpanEvaluations(dataframe=ndcg_at_2, eval_name="ndcg@2"),
-    SpanEvaluations(dataframe=precision_at_2, eval_name="precision@2"),
-    DocumentEvaluations(dataframe=retrieved_documents_relevance_df, eval_name="relevance"),
+px_client = Client()
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=ndcg_at_2,
+    annotation_name="ndcg@2",
+    annotator_kind="LLM",
+)
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=precision_at_2,
+    annotation_name="precision@2",
+    annotator_kind="LLM",
+)
+px_client.spans.log_document_annotations_dataframe(
+    dataframe=retrieved_documents_relevance_df,
+    annotation_name="relevance",
+    annotator_kind="LLM",
 )
 ```
 

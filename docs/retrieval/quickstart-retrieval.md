@@ -81,7 +81,7 @@ Once the data is in a dataframe, evaluations can be run on the data. Evaluations
 This example shows how to run Q\&A and Hallucination Evals with OpenAI (many other [models](../evaluation/how-to-evals/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
 
 ```python
-from phoenix.trace import SpanEvaluations, DocumentEvaluations
+from phoenix.client import Client
 from phoenix.evals import (
   HALLUCINATION_PROMPT_RAILS_MAP,
   HALLUCINATION_PROMPT_TEMPLATE,
@@ -157,7 +157,12 @@ retrieved_documents_eval["score"] = (
     retrieved_documents_eval.label[~retrieved_documents_eval.label.isna()] == "relevant"
 ).astype(int)
 
-px.Client().log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe=retrieved_documents_eval))
+px_client = Client()
+px_client.spans.log_document_annotations_dataframe(
+    dataframe=retrieved_documents_eval,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
+)
 
 ```
 
