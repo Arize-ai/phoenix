@@ -32,6 +32,7 @@ vi.mock("openapi-fetch", () => ({
       },
       error: null,
     }),
+    use: () => {},
   }),
 }));
 

@@ -6,6 +6,7 @@ const mockDelete = vi.fn();
 vi.mock("openapi-fetch", () => ({
   default: () => ({
     DELETE: mockDelete,
+    use: () => {},
   }),
 }));
 

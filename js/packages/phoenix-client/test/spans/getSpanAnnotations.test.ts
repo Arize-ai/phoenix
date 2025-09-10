@@ -6,6 +6,7 @@ const mockGet = vi.fn();
 vi.mock("openapi-fetch", () => ({
   default: () => ({
     GET: mockGet,
+    use: () => {},
   }),
 }));
 
