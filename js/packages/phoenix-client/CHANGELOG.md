@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 4.0.1
+
+### Patch Changes
+
+- e72a9ad: don't swallow errors, allow for incomplete datasets (e.g. just imputs)
+
 ## 4.0.0
 
 ### Major Changes
