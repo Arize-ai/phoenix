@@ -19,7 +19,7 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid, Table
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never, deprecated
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -35,7 +35,6 @@ from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
-from phoenix.utilities.deprecation import deprecated
 from phoenix.utilities.json import decode_df_from_json_string
 
 logger = logging.getLogger(__name__)

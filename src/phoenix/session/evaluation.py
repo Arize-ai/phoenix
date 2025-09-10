@@ -19,6 +19,7 @@ from typing import (
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from typing_extensions import deprecated
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
@@ -30,7 +31,6 @@ from phoenix.trace.dsl.helpers import (
 )
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
-from phoenix.utilities.deprecation import deprecated
 
 __all__ = [
     "get_retrieved_documents",

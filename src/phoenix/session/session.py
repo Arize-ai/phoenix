@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
+from typing_extensions import deprecated
 
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
@@ -48,7 +49,6 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.utilities.deprecation import deprecated
 
 try:
     from IPython.display import IFrame  # type: ignore
