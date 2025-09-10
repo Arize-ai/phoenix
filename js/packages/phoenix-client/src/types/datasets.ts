@@ -47,8 +47,8 @@ export interface DatasetExamples {
  */
 export interface Example {
   input: Record<string, unknown>;
-  output: Record<string, unknown> | null;
-  metadata: Record<string, unknown>;
+  output?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /**
