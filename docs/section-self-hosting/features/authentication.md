@@ -29,6 +29,22 @@ By default Phoenix will create an admin user account. To get started:
 
 Re-deploy your application with the API key created above and you will see traces stream in as before.
 
+{% hint style="warning" %}
+Initial admin password: You can set the initial password via the `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` environment variable. It is only read on first startup when the default admin account is created; subsequent changes have no effect if the account already exists. If you need to change the admin password later, do so from the UI or via an admin password reset.
+
+Docker example:
+
+```bash
+docker run \
+  -e PHOENIX_ENABLE_AUTH=true \
+  -e PHOENIX_SECRET=change-me-32chars-min1digit1lower \
+  -e PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD='strong-admin-password' \
+  -p 6006:6006 arizephoenix/phoenix:latest
+```
+
+Helm users can set `auth.defaultAdminPassword` or provide the secret key `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` in the chart's Secret.
+{% endhint %}
+
 The following environment variables are optional but recommended:
 
 ## User Management
