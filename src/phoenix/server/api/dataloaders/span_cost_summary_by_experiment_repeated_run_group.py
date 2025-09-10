@@ -9,9 +9,9 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
 from phoenix.server.types import DbSessionFactory
 
-ExperimentRunId: TypeAlias = int
+ExperimentId: TypeAlias = int
 DatasetExampleId: TypeAlias = int
-Key: TypeAlias = tuple[ExperimentRunId, DatasetExampleId]
+Key: TypeAlias = tuple[ExperimentId, DatasetExampleId]
 Result: TypeAlias = SpanCostSummary
 
 
@@ -23,7 +23,7 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         stmt = (
             select(
-                models.ExperimentRun.id,
+                models.ExperimentRun.experiment_id,
                 models.ExperimentRun.dataset_example_id,
                 coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
                 coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
@@ -38,14 +38,14 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
             .where(
                 tuple_(models.ExperimentRun.id, models.ExperimentRun.dataset_example_id).in_(keys)
             )
-            .group_by(models.ExperimentRun.id, models.ExperimentRun.dataset_example_id)
+            .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
         )
 
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)
         async with self._db() as session:
             data = await session.stream(stmt)
             async for (
-                run_id,
+                experiment_id,
                 dataset_example_id,
                 prompt_cost,
                 completion_cost,
@@ -59,5 +59,5 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
                     total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                 )
-                results[(run_id, dataset_example_id)] = summary
-        return list(map(results.__getitem__, keys))
+                results[(experiment_id, dataset_example_id)] = summary
+        return [results.get(key, SpanCostSummary()) for key in keys]

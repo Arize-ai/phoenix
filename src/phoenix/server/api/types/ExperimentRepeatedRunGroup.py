@@ -46,11 +46,11 @@ class ExperimentRepeatedRunGroup:
 
     @strawberry.field
     async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
-        run_id = self.id_attr
+        experiment_id = self.experiment_rowid
         example_id = self.dataset_example_rowid
         summary = (
             await info.context.data_loaders.span_cost_summary_by_experiment_repeated_run_group.load(
-                (run_id, example_id)
+                (experiment_id, example_id)
             )
         )
         return SpanCostSummary(
