@@ -426,7 +426,7 @@ function runTaskWithExamples({
     .flatMap((example) =>
       Array.from({ length: repetitions }, (_, index) => ({
         example,
-        repetitionNumber: index + 1,
+        repetitionNumber: index,
       }))
     )
     .forEach((exampleWithRepetition) =>
