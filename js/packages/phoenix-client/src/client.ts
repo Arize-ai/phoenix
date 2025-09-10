@@ -1,5 +1,5 @@
 import createOpenApiClient, {
-  Middleware,
+  type Middleware,
   type ClientOptions,
 } from "openapi-fetch";
 import type {
