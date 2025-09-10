@@ -9,7 +9,7 @@ import { z } from "zod";
 export const vercelAIToolDefinitionSchema = z.object({
   type: z.literal("function"),
   description: z.string().optional(),
-  parameters: z.object({
+  inputSchema: z.object({
     _type: z.unknown().optional().default(undefined),
     validate: z.unknown().optional().default(undefined),
     jsonSchema: z.record(z.string(), z.unknown()).optional(),

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36aab213bb1e425b1b59e337e7c6a6c9>>
+ * @generated SignedSource<<4b2f6186ac29b20d485b5595ac764278>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,6 +51,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly error: string | null;
             readonly id: string;
             readonly output: any | null;
+            readonly repetitionNumber: number;
             readonly startTime: string;
             readonly trace: {
               readonly projectId: string;
@@ -78,6 +79,7 @@ export type ExperimentCompareTable_comparisons$data = {
           readonly project: {
             readonly id: string;
           } | null;
+          readonly repetitionCount: number;
           readonly runCount: number;
           readonly sequenceNumber: number;
         };
@@ -315,6 +317,13 @@ return {
                       "plural": true,
                       "selections": [
                         (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionNumber",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -610,6 +619,13 @@ return {
                           "kind": "ScalarField",
                           "name": "runCount",
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionCount",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -633,6 +649,6 @@ return {
 };
 })();
 
-(node as any).hash = "d94346bf96bd527ddb757879eded860a";
+(node as any).hash = "5fd37fda192f7e2b43a59d0b23917e43";
 
 export default node;

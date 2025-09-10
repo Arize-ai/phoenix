@@ -8,6 +8,12 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class AnnotationResult(TypedDict):
+    label: NotRequired[str]
+    score: NotRequired[float]
+    explanation: NotRequired[str]
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -160,6 +166,7 @@ class ListDatasetsResponseBody(TypedDict):
 
 class ListExperimentRunsResponseBody(TypedDict):
     data: Sequence[ExperimentRunResponse]
+    next_cursor: Optional[str]
 
 
 class ListExperimentsResponseBody(TypedDict):
@@ -345,10 +352,26 @@ class PromptXAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
 
 
-class SpanAnnotationResult(TypedDict):
-    label: NotRequired[str]
-    score: NotRequired[float]
-    explanation: NotRequired[str]
+class SpanAnnotationData(TypedDict):
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    span_id: str
+    result: NotRequired[AnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class SpanAnnotation(SpanAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
+
+
+class SpanAnnotationsResponseBody(TypedDict):
+    data: Sequence[SpanAnnotation]
+    next_cursor: Optional[str]
 
 
 class SpanContext(TypedDict):
@@ -357,11 +380,11 @@ class SpanContext(TypedDict):
 
 
 class SpanDocumentAnnotationData(TypedDict):
-    span_id: str
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    span_id: str
     document_position: int
-    result: NotRequired[SpanAnnotationResult]
+    result: NotRequired[AnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
     identifier: NotRequired[str]
 
@@ -434,6 +457,10 @@ class AnnotateSpanDocumentsRequestBody(TypedDict):
 
 class AnnotateSpanDocumentsResponseBody(TypedDict):
     data: Sequence[InsertedSpanDocumentAnnotation]
+
+
+class AnnotateSpansRequestBody(TypedDict):
+    data: Sequence[SpanAnnotationData]
 
 
 class AnnotateSpansResponseBody(TypedDict):
@@ -627,28 +654,6 @@ class Span(TypedDict):
     events: NotRequired[Sequence[SpanEvent]]
 
 
-class SpanAnnotationData(TypedDict):
-    span_id: str
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    result: NotRequired[SpanAnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
-class SpanAnnotation(SpanAnnotationData):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-
-
-class SpanAnnotationsResponseBody(TypedDict):
-    data: Sequence[SpanAnnotation]
-    next_cursor: Optional[str]
-
-
 class SpansResponseBody(TypedDict):
     data: Sequence[Span]
     next_cursor: Optional[str]
@@ -666,10 +671,6 @@ class UpdateAnnotationConfigResponseBody(TypedDict):
 
 class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
-
-
-class AnnotateSpansRequestBody(TypedDict):
-    data: Sequence[SpanAnnotationData]
 
 
 class CreateSpansRequestBody(TypedDict):

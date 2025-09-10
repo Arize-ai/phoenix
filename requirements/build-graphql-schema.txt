@@ -1,1 +1,2 @@
 strawberry-graphql[cli]==0.270.1
+pydantic<2.6

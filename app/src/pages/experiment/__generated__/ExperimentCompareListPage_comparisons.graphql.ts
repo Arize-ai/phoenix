@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a91c76ecb2c27c673d34a95666d8bba>>
+ * @generated SignedSource<<68e885ad75fabece894f17c8a0149ed5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,7 @@ export type ExperimentCompareListPage_comparisons$data = {
             readonly annotations: {
               readonly edges: ReadonlyArray<{
                 readonly annotation: {
+                  readonly label: string | null;
                   readonly name: string;
                   readonly score: number | null;
                 };
@@ -301,6 +302,13 @@ return {
                                       "kind": "ScalarField",
                                       "name": "score",
                                       "storageKey": null
+                                    },
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "label",
+                                      "storageKey": null
                                     }
                                   ],
                                   "storageKey": null
@@ -382,6 +390,6 @@ return {
 };
 })();
 
-(node as any).hash = "cf13cff08fc63c5db0426e51c42585fd";
+(node as any).hash = "f3335f76cb2dfb773cd5e57b31cc6a33";
 
 export default node;

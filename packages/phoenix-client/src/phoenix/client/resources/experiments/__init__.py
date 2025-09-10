@@ -278,6 +278,97 @@ def _validate_task_signature(sig: inspect.Signature) -> None:
             )
 
 
+class _ExampleProxy(Mapping[str, Any]):
+    """Immutable proxy for backward compatibility with legacy Example dataclass interface.
+
+    This proxy bridges the gap between the new v1.DatasetExample TypedDict format
+    and the legacy Example dataclass that user code expects. It provides both
+    object-style attribute access (example.input) and dictionary-style access
+    (example["input"]) while maintaining immutability.
+
+    The proxy performs necessary type conversions to match the legacy interface:
+    - updated_at: str (from API) → datetime (legacy interface)
+    - Maintains Mapping[str, Any] interface for dictionary operations
+    - Provides typed properties for id, updated_at, input, output, metadata
+
+    This enables a seamless migration from the legacy Example dataclass to the
+    new TypedDict-based API responses without breaking existing user code.
+
+    Args:
+        wrapped: The v1.DatasetExample TypedDict to wrap with legacy interface.
+
+    Note:
+        This class is immutable - all attempts to modify attributes will raise
+        AttributeError. The wrapped data remains unchanged throughout the proxy's
+        lifetime.
+    """
+
+    __slots__ = ("__wrapped__",)
+
+    def __init__(self, wrapped: v1.DatasetExample) -> None:
+        object.__setattr__(self, "__wrapped__", wrapped)
+
+    @property
+    def id(self) -> str:
+        """Access to id field."""
+        return self.__wrapped__["id"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def updated_at(self) -> datetime:
+        """Access to updated_at field."""
+        timestamp_str = self.__wrapped__["updated_at"]  # type: ignore[attr-defined]
+        # Convert Z suffix to +00:00 for Python 3.9 compatibility
+        if timestamp_str.endswith("Z"):
+            timestamp_str = timestamp_str[:-1] + "+00:00"
+        return datetime.fromisoformat(timestamp_str)
+
+    @property
+    def input(self) -> Mapping[str, Any]:
+        """Access to input field."""
+        return self.__wrapped__["input"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def output(self) -> Mapping[str, Any]:
+        """Access to output field."""
+        return self.__wrapped__["output"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        """Access to metadata field."""
+        return self.__wrapped__["metadata"]  # type: ignore[no-any-return, attr-defined]
+
+    def __getitem__(self, key: str) -> Any:
+        """Support dictionary-style access."""
+        return self.__wrapped__[key]  # type: ignore[attr-defined]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dictionary-style get method with default value."""
+        try:
+            return self.__wrapped__[key]  # type: ignore[attr-defined]
+        except KeyError:
+            return default
+
+    def __iter__(self) -> Iterator[str]:
+        """Support iteration over dictionary keys."""
+        return iter(self.__wrapped__)  # type: ignore[attr-defined]
+
+    def __len__(self) -> int:
+        """Support len() function for dictionary-style length."""
+        return len(self.__wrapped__)  # type: ignore[attr-defined]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Prevent attribute assignment to maintain immutability."""
+        raise AttributeError(f"'{type(self).__name__}' object is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        """Prevent attribute deletion to maintain immutability."""
+        raise AttributeError(f"'{type(self).__name__}' object is immutable")
+
+    def __repr__(self) -> str:
+        """Developer representation showing it's an immutable proxy."""
+        return f"_ExampleProxy({self.__wrapped__!r})"  # type: ignore[attr-defined]
+
+
 def _bind_task_signature(
     sig: inspect.Signature, example: v1.DatasetExample
 ) -> inspect.BoundArguments:
@@ -287,7 +378,7 @@ def _bind_task_signature(
         "expected": example["output"],
         "reference": example["output"],
         "metadata": example["metadata"],
-        "example": example,
+        "example": _ExampleProxy(example),
     }
     params = sig.parameters
     if len(params) == 1:
@@ -624,13 +715,7 @@ class Experiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = self._client.get(f"v1/experiments/{experiment['id']}/runs").json()["data"]
-            task_runs_from_db: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(run)
-            task_runs = task_runs_from_db
+            task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -675,6 +760,53 @@ class Experiments:
             )
 
         return ran_experiment
+
+    def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result
+                    break
+                else:
+                    raise
+
+        return all_runs
 
     def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
@@ -1540,14 +1672,7 @@ class AsyncExperiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs_response = await self._client.get(f"v1/experiments/{experiment['id']}/runs")
-            all_runs = all_runs_response.json()["data"]
-            async_task_runs: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(run)
-            task_runs = async_task_runs
+            task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -1593,6 +1718,53 @@ class AsyncExperiments:
             )
 
         return ran_experiment
+
+    async def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = await self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result for robustness
+                    break
+                else:
+                    raise
+
+        return all_runs
 
     async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
