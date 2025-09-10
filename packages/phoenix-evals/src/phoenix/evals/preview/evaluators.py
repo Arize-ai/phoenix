@@ -769,6 +769,8 @@ def create_evaluator(
                 return [score]
 
         evaluator_instance = _FunctionEvaluator()
+        # Preserve the original function's docstring
+        evaluator_instance.__doc__ = fn.__doc__
         # Keep registry compatibility by storing a callable with expected signature
         _registry[name] = evaluator_instance.evaluate
         return evaluator_instance

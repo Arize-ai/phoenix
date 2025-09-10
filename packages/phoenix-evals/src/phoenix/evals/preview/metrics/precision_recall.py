@@ -92,10 +92,9 @@ class PrecisionRecallFScore(Evaluator):
     Notes:
         - Supports labels as strings or integers (must be hashable)
         - Supports both binary and multi-class classification via averaging strategies
-
-    Score Naming:
-        - Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
-        - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
+        - Score Naming:
+            - Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
+            - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
 
     Examples:
         1) Multi-class (macro):
