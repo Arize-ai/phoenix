@@ -402,7 +402,7 @@ class ClassificationEvaluator(LLMEvaluator):
               "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
               tool calling consistency issues across models)
 
-    Examples::
+    Examples:
 
         >>> from phoenix.evals.preview import ClassificationEvaluator
         >>> from phoenix.evals.preview.llm import LLM
@@ -411,7 +411,8 @@ class ClassificationEvaluator(LLMEvaluator):
         ...     prompt_template="What is the sentiment of the following document: {document}?",
         ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
         >>> evaluator.evaluate({"document": "I love this product!"})
-        [Score(name='sentiment', score=1.0, label='positive')]
+        [Score(name='sentiment', score=1.0, label='positive',
+        explanation="The sentiment is positive", direction='maximize', source='llm', metadata={})]
 
     """
 
@@ -594,7 +595,8 @@ def create_evaluator(
             ...     return Score(score=0.8, label="good", explanation="test explanation")
             ...
             >>> test_func({"input_text": "test", "input_int": 5})
-            [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
+            [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation',
+             direction='maximize', source='heuristic', metadata={})]
 
         2) Function that returns a tuple of a number and a short string label:
             >>> from phoenix.evals.preview import create_evaluator
@@ -603,7 +605,8 @@ def create_evaluator(
             ...     return 0.8, "short label"
             ...
             >>> test_func({"input_text": "test"})
-            [Score(name='test_evaluator', score=0.8, label='short label')]
+            [Score(name='test_evaluator', score=0.8, label='short label', explanation=None,
+             direction='maximize', source='heuristic', metadata={})]
 
         3) Function that returns a dictionary with keys "score", "label", and "explanation":
             >>> from phoenix.evals.preview import create_evaluator
@@ -613,8 +616,18 @@ def create_evaluator(
             ...
             >>> test_func({"input_text": "test"})
             [Score(name='test_evaluator', score=0.8, label='short label',
-                   explanation='test explanation')]
+                   explanation='test explanation', direction='maximize', source='heuristic',
+                   metadata={})]
 
+        4) Function that returns a score to be minimized:
+            >>> from phoenix.evals.preview import create_evaluator
+            >>> @create_evaluator(name="test_evaluator", direction="minimize")
+            ... def test_func(input_text: str) -> float:
+            ...     return 0.8
+            ...
+            >>> test_func({"input_text": "test"})
+            [Score(name='test_evaluator', score=0.8, label=None, explanation=None,
+             direction='minimize', source='heuristic', metadata={})]
     """
 
     def _convert_to_score(
@@ -826,7 +839,8 @@ def create_classifier(
         ...     prompt_template="What is the sentiment of the following document: {document}?",
         ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
         >>> evaluator.evaluate({"document": "I love this product!"})
-        [Score(name='sentiment', score=1.0, label='positive')]
+        [Score(name='sentiment', score=1.0, label='positive',
+         explanation="The sentiment is positive", direction='maximize', source='llm', metadata={})]
 
     """
     return ClassificationEvaluator(
@@ -931,7 +945,8 @@ def bind_evaluator(
         ...
         >>> bound_evaluator = bind_evaluator(test_func, mapping={"input_text": "input.text"})
         >>> bound_evaluator({"input": {"text": "test"}})
-        [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
+        [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation',
+         direction='maximize', source='heuristic', metadata={})]
     """
     return BoundEvaluator(evaluator, mapping)
 
