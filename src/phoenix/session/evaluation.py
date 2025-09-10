@@ -30,6 +30,7 @@ from phoenix.trace.dsl.helpers import (
 )
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
+from phoenix.utils.deprecation import deprecated
 
 __all__ = [
     "get_retrieved_documents",
@@ -136,16 +137,18 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     )
 
 
+@deprecated("Migrate to using client.spans.log_span_annotations via arize-phoenix-client")
 def log_evaluations(
     *evals: Evaluations,
     endpoint: Optional[str] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
 ) -> None:
-    logger.warning(
-        "This `log_evaluations` function is deprecated and will be removed in a future release. "
-        "Please use `px.Client().log_evaluations(*evaluations)` instead."
-    )
+    """
+    Deprecated:
+        Use client.spans.log_span_annotations via arize-phoenix-client instead.
+        See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+    """
     host = host or get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
