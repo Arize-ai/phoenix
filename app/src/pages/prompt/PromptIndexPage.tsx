@@ -2,6 +2,7 @@ import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
@@ -87,6 +88,7 @@ function PromptIndexPageAside({
         description
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
+        ...PromptLabels
       }
     `,
     prompt
@@ -112,6 +114,10 @@ function PromptIndexPageAside({
         <Text color={hasDescription ? "text-900" : "text-700"}>
           {data.description || "No Description"}
         </Text>
+        <section>
+          <Heading level={3}>Labels</Heading>
+          <PromptLabels prompt={data} />
+        </section>
         <section>
           <Heading level={3}>Latest Versions</Heading>
           <PromptLatestVersionsList prompt={data} />

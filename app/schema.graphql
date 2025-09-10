@@ -1936,6 +1936,7 @@ type Prompt implements Node {
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
+  labels: [PromptLabel!]!
 }
 
 type PromptChatTemplate {
@@ -1979,7 +1980,7 @@ type PromptLabel implements Node {
   id: ID!
   name: Identifier!
   description: String
-  prompts: [Prompt!]!
+  color: String!
 }
 
 """A connection to a list of items."""
