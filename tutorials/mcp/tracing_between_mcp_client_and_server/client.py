@@ -31,8 +31,6 @@ async def run(mcp_server: MCPServer):
     )
     while True:
         message = input("\n\nEnter your question (or 'exit' to quit or blank for default): ")
-        if not message:
-            message = "What is the effect of tariffs on canada"
         if message.lower() == "exit" or message.lower() == "q":
             break
         print(f"\n\nRunning: {message}")
