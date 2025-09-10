@@ -28,7 +28,7 @@ LLMEvaluator
    :show-inheritance:
 
 ClassificationEvaluator
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: phoenix.evals.preview.ClassificationEvaluator
    :members:
    :show-inheritance:
@@ -51,15 +51,15 @@ bind_evaluator
 
 evaluate_dataframe
 ~~~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.preview.evaluate_dataframe
+.. autofunction:: phoenix.evals.preview.evaluators.evaluate_dataframe
 
 async_evaluate_dataframe
 ~~~~~~~~~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.preview.async_evaluate_dataframe
+.. autofunction:: phoenix.evals.preview.evaluators.async_evaluate_dataframe
 
 
 LLM Interfaces
-----------
+------------------
 
 LLM Wrapper
 ~~~~~~~~~~~
@@ -76,7 +76,7 @@ Prompt Template
 
 
 Built-in Metrics
--------
+------------------
 
 HallucinationEvaluator
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -84,11 +84,9 @@ HallucinationEvaluator
    :members:
    :show-inheritance:
 
-ExactMatchEvaluator
-~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.preview.metrics.ExactMatchEvaluator
-   :members:
-   :show-inheritance:
+exact_match
+~~~~~~~~~~~
+.. autofunction:: phoenix.evals.preview.metrics.exact_match
 
 PrecisionRecallFScore
 ~~~~~~~~~~~~~~~~~~~~~

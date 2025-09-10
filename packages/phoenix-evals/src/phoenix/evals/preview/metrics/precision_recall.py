@@ -69,14 +69,14 @@ class PrecisionRecallFScore(Evaluator):
     and output labels.
 
     Parameters:
-    - beta (float): Weight of recall relative to precision. Must be > 0. Defaults to 1.0 (F1).
-    - average: Aggregation strategy across classes. One of {'macro','micro','weighted'}.
-               Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
-               average is used.
-    - positive_label: When set, compute binary precision/recall/F exclusively for this label
-                (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
-                positive label defaults to 1. Otherwise, multi-class averaging is used.
-    - zero_division: Value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
+        - beta (float): Weight of recall relative to precision. Must be > 0. Defaults to 1.0 (F1).
+        - average: Aggregation strategy across classes. One of {'macro','micro','weighted'}.
+          Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
+          average is used.
+        - positive_label: When set, compute binary precision/recall/F exclusively for this label
+          (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
+          positive label defaults to 1. Otherwise, multi-class averaging is used.
+        - zero_division: Value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
 
     Args:
         eval_input (Mapping[str, Any]): Two lists of hashable labels:
@@ -90,29 +90,29 @@ class PrecisionRecallFScore(Evaluator):
         ValueError: If input validation fails.
 
     Notes:
-    - Supports labels as strings or integers (must be hashable)
-    - Supports both binary and multi-class classification via averaging strategies
+        - Supports labels as strings or integers (must be hashable)
+        - Supports both binary and multi-class classification via averaging strategies
 
     Score Naming:
-    - Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
-    - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
+        - Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
+        - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
 
     Examples:
-    1) Multi-class (macro):
-        >>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
-        >>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
-        ...               "output": ["cat", "cat", "cat", "bird"]}
-        >>> scores = evaluator(eval_input)
-        >>> [s.name for s in scores]
-        ['precision', 'recall', 'f1']
+        1) Multi-class (macro):
+            >>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
+            >>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
+            ...               "output": ["cat", "cat", "cat", "bird"]}
+            >>> scores = evaluator(eval_input)
+            >>> [s.name for s in scores]
+            ['precision', 'recall', 'f1']
 
-    2) Binary with explicit positive label:
-        >>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
-        >>> eval_input = {"expected": ["spam", "ham", "spam"],
-        ...               "output": ["spam", "spam", "ham"]}
-        >>> scores = evaluator(eval_input)
-        >>> [s.name for s in scores]
-        ['precision', 'recall', 'f0_5']
+        2) Binary with explicit positive label:
+            >>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
+            >>> eval_input = {"expected": ["spam", "ham", "spam"],
+            ...               "output": ["spam", "spam", "ham"]}
+            >>> scores = evaluator(eval_input)
+            >>> [s.name for s in scores]
+            ['precision', 'recall', 'f0_5']
     """
 
     class InputSchema(BaseModel):

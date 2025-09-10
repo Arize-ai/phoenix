@@ -587,34 +587,33 @@ def create_evaluator(
         `**kwargs`
 
     Examples:
+        1) Function returns a Score object + uses the default source and direction:
+            >>> from phoenix.evals.preview import Score, create_evaluator
+            >>> @create_evaluator(name="test_evaluator")
+            ... def test_func(input_text: str, input_int: int) -> Score:
+            ...     return Score(score=0.8, label="good", explanation="test explanation")
+            ...
+            >>> test_func({"input_text": "test", "input_int": 5})
+            [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
 
-    Function returns a Score object + uses the default source and direction.
-        >>> from phoenix.evals.preview import Score, create_evaluator
-        >>> @create_evaluator(name="test_evaluator")
-        ... def test_func(input_text: str, input_int: int) -> Score:
-        ...     return Score(score=0.8, label="good", explanation="test explanation")
-        ...
-        >>> test_func({"input_text": "test", "input_int": 5})
-        [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation')]
+        2) Function that returns a tuple of a number and a short string label:
+            >>> from phoenix.evals.preview import create_evaluator
+            >>> @create_evaluator(name="test_evaluator")
+            ... def test_func(input_text: str) -> tuple[float, str]:
+            ...     return 0.8, "short label"
+            ...
+            >>> test_func({"input_text": "test"})
+            [Score(name='test_evaluator', score=0.8, label='short label')]
 
-    Function that returns a tuple of a number and a short string label.
-        >>> from phoenix.evals.preview import create_evaluator
-        >>> @create_evaluator(name="test_evaluator")
-        ... def test_func(input_text: str) -> tuple[float, str]:
-        ...     return 0.8, "short label"
-        ...
-        >>> test_func({"input_text": "test"})
-        [Score(name='test_evaluator', score=0.8, label='short label')]
-
-    Function that returns a dictionary with keys "score", "label", and "explanation".
-        >>> from phoenix.evals.preview import create_evaluator
-        >>> @create_evaluator(name="test_evaluator")
-        ... def test_func(input_text: str) -> dict:
-        ...     return {"score": 0.8, "label": "short label", "explanation": "test explanation"}
-        ...
-        >>> test_func({"input_text": "test"})
-        [Score(name='test_evaluator', score=0.8, label='short label',
-        ... explanation='test explanation')]
+        3) Function that returns a dictionary with keys "score", "label", and "explanation":
+            >>> from phoenix.evals.preview import create_evaluator
+            >>> @create_evaluator(name="test_evaluator")
+            ... def test_func(input_text: str) -> dict:
+            ...     return {"score": 0.8, "label": "short label", "explanation": "test explanation"}
+            ...
+            >>> test_func({"input_text": "test"})
+            [Score(name='test_evaluator', score=0.8, label='short label',
+                   explanation='test explanation')]
 
     """
 
@@ -817,8 +816,7 @@ def create_classifier(
               "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
               tool calling consistency issues across models)
 
-    Examples::
-
+    Examples:
         >>> from phoenix.evals.preview import create_classifier
         >>> from phoenix.evals.preview.llm import LLM
         >>> llm = LLM(provider="openai", model="gpt-4o")

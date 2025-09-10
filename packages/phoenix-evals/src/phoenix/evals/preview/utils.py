@@ -128,7 +128,7 @@ def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = 
         JsonPathParserError: If the path is not parseable (invalid syntax).
         ValueError: If the path is invalid or not found (missing key, index out of bounds, etc).
 
-    Examples::
+    Examples:
         >>> extract_with_jsonpath({"a": {"b": "c"}}, "a.b")
         "c"
         >>> extract_with_jsonpath({"a": {"b": "c"}}, "a.b", match_all=True)
