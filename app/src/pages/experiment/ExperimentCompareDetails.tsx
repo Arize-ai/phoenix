@@ -39,10 +39,9 @@ type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentRuns = NonNullable<
+type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
->["edges"];
-type ExperimentRun = ExperimentRuns[number]["run"];
+>["edges"][number]["run"];
 
 export function ExperimentCompareDetails({
   datasetId,

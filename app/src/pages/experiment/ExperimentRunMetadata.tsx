@@ -7,7 +7,7 @@ import { TokenCount } from "@phoenix/components/trace";
 
 import { ExperimentRunLatency } from "./ExperimentRunLatency";
 
-type Props = {
+type ExperimentRunMetadataProps = {
   id: string;
   startTime: string;
   endTime: string;
@@ -19,7 +19,7 @@ type Props = {
   };
 };
 
-export function ExperimentRunMetadata(props: Props) {
+export function ExperimentRunMetadata(props: ExperimentRunMetadataProps) {
   const { id, startTime, endTime, costSummary } = props;
   const tokenCountTotal = costSummary.total.tokens;
   const costTotal = costSummary.total.cost;
