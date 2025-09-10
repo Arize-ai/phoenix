@@ -1,6 +1,6 @@
 # Part of the Phoenix PromptHub feature set
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from sqlalchemy import func, select
@@ -118,7 +118,7 @@ class Prompt(Node):
             return to_gql_prompt_from_orm(source_prompt)
 
     @strawberry.field
-    async def labels(self, info: Info[Context, None]) -> List["PromptLabel"]:
+    async def labels(self, info: Info[Context, None]) -> list["PromptLabel"]:
         async with info.context.db() as session:
             labels = await session.scalars(
                 select(models.PromptLabel)
