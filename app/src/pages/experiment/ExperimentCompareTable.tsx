@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -135,6 +136,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
+
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
@@ -412,10 +414,62 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         accessorKey: experimentId,
         minSize: 500,
         enableSorting: false,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
+
+          const selectNextExample = (currentExampleId: string) => {
+            const currentRow = table
+              .getRowModel()
+              .rows.find((r) => r.original.id === currentExampleId);
+            if (!currentRow) {
+              return null;
+            }
+            const nextExampleId =
+              table.getRowModel().rows[currentRow.index + 1]?.original.id;
+            if (nextExampleId) {
+              setDialog(
+                <SelectedExampleDialog
+                  datasetId={datasetId}
+                  datasetVersionId={datasetVersionId}
+                  selectedExampleId={nextExampleId}
+                  baseExperimentId={baseExperimentId}
+                  compareExperimentIds={compareExperimentIds}
+                  selectNextExample={() => selectNextExample(nextExampleId)}
+                  selectPreviousExample={() =>
+                    selectPreviousExample(nextExampleId)
+                  }
+                />
+              );
+            }
+          };
+          const selectPreviousExample = (currentExampleId: string) => {
+            const currentRow = table
+              .getRowModel()
+              .rows.find((r) => r.original.id === currentExampleId);
+            if (!currentRow) {
+              return null;
+            }
+            const previousExampleId =
+              table.getRowModel().rows[currentRow.index - 1]?.original.id;
+            if (previousExampleId) {
+              setDialog(
+                <SelectedExampleDialog
+                  datasetId={datasetId}
+                  datasetVersionId={datasetVersionId}
+                  selectedExampleId={previousExampleId}
+                  baseExperimentId={baseExperimentId}
+                  compareExperimentIds={compareExperimentIds}
+                  selectNextExample={() => selectNextExample(previousExampleId)}
+                  selectPreviousExample={() =>
+                    selectPreviousExample(previousExampleId)
+                  }
+                />
+              );
+            }
+          };
+
           return (
             <ExperimentRunOutputCell
               datasetId={datasetId}
@@ -430,6 +484,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
               annotationSummaries={annotationSummaries}
+              selectNextExample={() => selectNextExample(row.original.id)}
+              selectPreviousExample={() =>
+                selectPreviousExample(row.original.id)
+              }
             />
           );
         },
@@ -648,8 +706,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {/* TODO: move this into the dialogs so the loading state is contained */}
-          <Suspense>{dialog}</Suspense>
+          {dialog}
         </Modal>
       </ModalOverlay>
     </View>
@@ -856,13 +913,27 @@ function SelectedExampleDialog({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
+  selectNextExample,
+  selectPreviousExample,
 }: {
   selectedExampleId: string;
   datasetId: string;
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
+  selectNextExample: () => void;
+  selectPreviousExample: () => void;
 }) {
+  const NEXT_EXAMPLE_HOTKEY = "j";
+  const PREVIOUS_EXAMPLE_HOTKEY = "k";
+
+  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
+    selectNextExample();
+  });
+
+  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
+    selectPreviousExample();
+  });
   return (
     <Dialog>
       <DialogContent>
@@ -1064,6 +1135,8 @@ function ExperimentRunOutputCell({
   compareExperimentIds,
   tableRow,
   annotationSummaries,
+  selectNextExample,
+  selectPreviousExample,
 }: {
   datasetId: string;
   datasetVersionId: string;
@@ -1075,6 +1148,8 @@ function ExperimentRunOutputCell({
   compareExperimentIds: string[];
   tableRow: TableRow;
   annotationSummaries: readonly AnnotationSummary[];
+  selectNextExample: () => void;
+  selectPreviousExample: () => void;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1125,6 +1200,8 @@ function ExperimentRunOutputCell({
                 baseExperimentId={baseExperimentId}
                 compareExperimentIds={compareExperimentIds}
                 selectedExampleId={tableRow.id}
+                selectNextExample={selectNextExample}
+                selectPreviousExample={selectPreviousExample}
               />
             );
           }}
