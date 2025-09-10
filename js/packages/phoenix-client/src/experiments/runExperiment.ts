@@ -699,7 +699,7 @@ async function runEvaluator({
         input: example.input,
         output: run.output ?? null,
         expected: example.output,
-        metadata: example.metadata,
+        metadata: example?.metadata,
       });
       thisEval.result = result;
       logger.info(

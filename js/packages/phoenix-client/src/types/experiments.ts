@@ -67,7 +67,7 @@ export type EvaluatorParams = {
   /**
    * Metadata associated with the Dataset Example
    */
-  metadata?: Record<string, unknown>;
+  metadata?: Example["metadata"];
 };
 
 export type Evaluator = {
