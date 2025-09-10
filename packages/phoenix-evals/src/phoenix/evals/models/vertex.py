@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gemini-pro": 32760,
     "gemini-pro-vision": 16384,
+    "gemini-1.5-flash": 1048576,
+    "gemini-1.5-pro": 2097152,
+    "gemini-2.0-flash": 1048576,
+    "gemini-2.0-flash-001": 1048576,
+    "gemini-2.0-flash-lite": 1048576,
+    "gemini-2.5-flash": 1048576,
+    "gemini-2.5-flash-lite": 1048576,
+    "gemini-2.5-pro": 2097152,
 }
 
 
@@ -35,7 +43,7 @@ class GeminiModel(BaseModel):
         If possible, makes LLM calls concurrently.
 
     Args:
-        model (str, optional): The model name to use. Defaults to "gemini-pro".
+        model (str, optional): The model name to use. Defaults to "gemini-2.5-flash".
         temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
         max_tokens (int, optional): Maximum number of tokens to generate in the completion.
             Defaults to 256.
@@ -67,7 +75,7 @@ class GeminiModel(BaseModel):
             from phoenix.evals import GeminiModel
             # if necessary, use the "project" kwarg to specify the project_id to use
             # project_id = "your-project-id"
-            model = GeminiModel(model="gemini-pro", project=project_id)
+            model = GeminiModel(model="gemini-2.5-flash", project=project_id)
     """
 
     # The vertex SDK runs into connection pool limits at high concurrency
@@ -77,7 +85,7 @@ class GeminiModel(BaseModel):
 
     default_concurrency: int = 5
 
-    model: str = "gemini-pro"
+    model: str = "gemini-2.5-flash"
     temperature: float = 0.0
     max_tokens: int = 1024
     top_p: float = 1
