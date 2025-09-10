@@ -3,26 +3,38 @@
 #   "psycopg[binary]",
 #   "testing.postgresql",
 #   "arize-phoenix",
+#   "pglast",
 # ]
 # ///
 # ruff: noqa: E501
 """PostgreSQL DDL Extractor.
 
 Extracts DDL from a PostgreSQL database and outputs it to a file,
-grouped by table and sorted deterministically.
+grouped by table and sorted deterministically. The generated schema
+is automatically validated for syntax correctness using pglast.
 
-Creates an ephemeral PostgreSQL instance, runs Alembic migrations,
-extracts DDL, and cleans up automatically. No external PostgreSQL server needed.
+Supports both ephemeral and external PostgreSQL connections:
+- Ephemeral mode: Creates temporary PostgreSQL instance with migrations (default)
+- External mode: Connects to existing PostgreSQL database (no migrations)
 
 Usage:
-    # Create ephemeral PostgreSQL, run migrations, extract DDL
+    # Create ephemeral PostgreSQL, run migrations, extract DDL (default behavior)
     python generate_ddl_postgresql.py
 
-    # Specify custom output file
+    # Connect to external PostgreSQL database (no migrations run)
+    python generate_ddl_postgresql.py --external --host localhost --port 5432 --user postgres --database mydb
+
+    # Specify custom output file with ephemeral mode (default)
     python generate_ddl_postgresql.py --output /path/to/schema.sql
 
+    # External database with custom password (no migrations run)
+    python generate_ddl_postgresql.py --external --host prod.db.com --user readonly --password mypass --database phoenix
+
+    # Using PostgreSQL environment variables (for external mode)
+    PGHOST=dbhost PGDATABASE=dbname python generate_ddl_postgresql.py --external
+
 Requirements:
-    pip install psycopg[binary] testing.postgresql arize-phoenix
+    pip install psycopg[binary] pglast testing.postgresql arize-phoenix
 """
 
 from __future__ import annotations
@@ -34,6 +46,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
+import pglast
 import psycopg
 import testing.postgresql
 from alembic import command
@@ -42,6 +55,26 @@ from psycopg.rows import dict_row
 from sqlalchemy import URL, create_engine
 
 import phoenix.db
+
+# Configuration constants
+DEFAULT_SCHEMA = "public"
+DEFAULT_PORT = 5432
+DEFAULT_HOST = "localhost"
+DEFAULT_USER = "postgres"
+DEFAULT_DATABASE = "postgres"
+TABLE_INDENT = "    "  # Consistent 4-space indentation for readability
+STATEMENT_PREVIEW_LENGTH = 200  # Limit error message length for console output
+
+
+@dataclass
+class ConnectionParams:
+    """Database connection parameters."""
+
+    host: str = DEFAULT_HOST
+    port: int = DEFAULT_PORT
+    database: str = DEFAULT_DATABASE
+    user: str = DEFAULT_USER
+    password: str = DEFAULT_USER  # Default password same as user for simplicity
 
 
 @dataclass
@@ -57,11 +90,20 @@ class TableInfo:
     triggers: list[dict[str, Any]]
 
 
+@dataclass
+class TypeInfo:
+    """User-defined type (enum) information."""
+
+    type_name: str
+    type_type: str  # 'e' for enum, etc.
+    enum_values: list[str]
+
+
 class PostgreSQLDDLExtractor:
     """Extract DDL from PostgreSQL databases."""
 
-    def __init__(self, url: URL) -> None:
-        self.url = url
+    def __init__(self, connection_params: ConnectionParams) -> None:
+        self.conn_params = connection_params
         self.conn: psycopg.Connection[Any] | None = None
 
     def __enter__(self) -> PostgreSQLDDLExtractor:
@@ -79,9 +121,14 @@ class PostgreSQLDDLExtractor:
     def connect(self) -> bool:
         """Establish database connection."""
         try:
-            # Convert URL to plain postgresql for psycopg (remove driver suffix)
-            psycopg_url = self.url.set(drivername="postgresql")
-            self.conn = psycopg.connect(str(psycopg_url))
+            conn_dict = {
+                "host": self.conn_params.host,
+                "port": self.conn_params.port,
+                "dbname": self.conn_params.database,
+                "user": self.conn_params.user,
+                "password": self.conn_params.password,
+            }
+            self.conn = psycopg.connect(**conn_dict)
             return True
         except psycopg.Error as e:
             print(f"Error connecting to database: {e}", file=sys.stderr)
@@ -95,7 +142,11 @@ class PostgreSQLDDLExtractor:
     def _execute_query(
         self, query: str, params: tuple[Any, ...], operation_name: str
     ) -> list[dict[str, Any]]:
-        """Execute database query with standardized error handling."""
+        """Execute database query with standardized error handling.
+
+        Returns empty list on error to allow graceful degradation.
+        Errors are logged to stderr with context.
+        """
         if not self.conn:
             raise RuntimeError("No database connection")
 
@@ -107,7 +158,39 @@ class PostgreSQLDDLExtractor:
             print(f"Error {operation_name}: {e}", file=sys.stderr)
             return []
 
-    def extract_all_tables_ddl(self, schema: str = "public") -> list[TableInfo]:
+    def extract_all_types_ddl(self, schema: str = DEFAULT_SCHEMA) -> list[TypeInfo]:
+        """Extract DDL for all user-defined types (enums, etc.) in the specified schema."""
+        query = """
+            SELECT
+                t.typname as type_name,
+                t.typtype as type_type,
+                array_agg(e.enumlabel ORDER BY e.enumsortorder) as enum_values
+            FROM pg_type t
+            LEFT JOIN pg_enum e ON t.oid = e.enumtypid
+            LEFT JOIN pg_namespace n ON t.typnamespace = n.oid
+            WHERE t.typtype = 'e'  -- enum types
+            AND n.nspname = %s
+            AND t.typname NOT LIKE 'pg_%%'  -- exclude system types
+            GROUP BY t.typname, t.typtype
+            ORDER BY t.typname
+        """
+        results = self._execute_query(
+            query, (schema,), f"getting user-defined types for schema {schema}"
+        )
+
+        type_infos: list[TypeInfo] = []
+        for result in results:
+            type_infos.append(
+                TypeInfo(
+                    type_name=result["type_name"],
+                    type_type=result["type_type"],
+                    enum_values=[str(val) for val in result["enum_values"] if val is not None],
+                )
+            )
+
+        return type_infos
+
+    def extract_all_tables_ddl(self, schema: str = DEFAULT_SCHEMA) -> list[TableInfo]:
         """Extract DDL for all tables in the specified schema."""
         tables = self._get_all_tables(schema)
         table_ddls: list[TableInfo] = []
@@ -151,14 +234,10 @@ class PostgreSQLDDLExtractor:
                 ]:
                     dependencies[table_name].add(referenced_table)
 
-        # Perform topological sort using Kahn's algorithm:
-        # 1. Start with nodes that have no dependencies (in-degree = 0)
-        # 2. Remove each node and update in-degrees of neighbors
-        # 3. Add newly independent nodes to queue
-        # 4. Repeat until all nodes processed or cycle detected
+        # Apply Kahn's algorithm for topological sort
         sorted_tables: list[TableInfo] = []
         in_degree = {table: len(deps) for table, deps in dependencies.items()}
-        queue = [table for table, degree in in_degree.items() if degree == 0]
+        queue = [table for table, degree in in_degree.items() if degree == 0]  # Independent tables
 
         while queue:
             # Sort queue to ensure deterministic output across runs
@@ -231,19 +310,28 @@ class PostgreSQLDDLExtractor:
         """Get column information for a table."""
         query = """
             SELECT
-                column_name,
-                data_type,
-                character_maximum_length,
-                numeric_precision,
-                numeric_scale,
-                is_nullable,
-                column_default,
-                is_identity,
-                identity_generation,
-                ordinal_position
-            FROM information_schema.columns
-            WHERE table_schema = %s AND table_name = %s
-            ORDER BY ordinal_position
+                c.column_name,
+                CASE
+                    WHEN c.data_type = 'ARRAY' THEN
+                        -- Handle array types: _text -> TEXT[]
+                        UPPER(SUBSTRING(c.udt_name FROM 2)) || '[]'
+                    WHEN c.data_type = 'USER-DEFINED' THEN
+                        -- Regular user-defined types (enums, etc.)
+                        c.udt_name
+                    ELSE c.data_type
+                END as data_type,
+                c.character_maximum_length,
+                c.numeric_precision,
+                c.numeric_scale,
+                c.is_nullable,
+                c.column_default,
+                c.is_identity,
+                c.identity_generation,
+                c.ordinal_position,
+                c.udt_name
+            FROM information_schema.columns c
+            WHERE c.table_schema = %s AND c.table_name = %s
+            ORDER BY c.ordinal_position
         """
         return self._execute_query(
             query, (schema, table_name), f"getting columns for {schema}.{table_name}"
@@ -278,23 +366,24 @@ class PostgreSQLDDLExtractor:
             SELECT
                 tc.constraint_name,
                 array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
-                ccu.table_schema AS foreign_table_schema,
-                ccu.table_name AS foreign_table_name,
-                array_agg(ccu.column_name ORDER BY kcu.ordinal_position) as foreign_columns,
+                kcu2.table_schema AS foreign_table_schema,
+                kcu2.table_name AS foreign_table_name,
+                array_agg(kcu2.column_name ORDER BY kcu2.ordinal_position) as foreign_columns,
                 rc.update_rule,
                 rc.delete_rule
             FROM information_schema.table_constraints AS tc
                      JOIN information_schema.key_column_usage AS kcu
                           ON tc.constraint_name = kcu.constraint_name
                               AND tc.table_schema = kcu.table_schema
-                     JOIN information_schema.constraint_column_usage AS ccu
-                          ON ccu.constraint_name = tc.constraint_name
                      JOIN information_schema.referential_constraints AS rc
                           ON tc.constraint_name = rc.constraint_name
+                     JOIN information_schema.key_column_usage AS kcu2
+                          ON rc.unique_constraint_name = kcu2.constraint_name
+                              AND kcu.ordinal_position = kcu2.ordinal_position
             WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_schema = %s
               AND tc.table_name = %s
-            GROUP BY tc.constraint_name, ccu.table_schema, ccu.table_name,
+            GROUP BY tc.constraint_name, kcu2.table_schema, kcu2.table_name,
                      rc.update_rule, rc.delete_rule
             ORDER BY tc.constraint_name
         """
@@ -303,13 +392,13 @@ class PostgreSQLDDLExtractor:
         )
 
     def _get_indexes(self, schema: str, table_name: str) -> list[dict[str, Any]]:
-        """Get indexes for a table (excluding those created by constraints).
+        """Get standalone indexes for a table.
 
-        We only want standalone indexes, not those automatically created by:
-        - PRIMARY KEY constraints (ix.indisprimary = true)
-        - UNIQUE constraints (linked via pg_constraint.conindid)
+        Excludes constraint-created indexes to avoid DDL duplication:
+        - PRIMARY KEY indexes (automatically created)
+        - UNIQUE constraint indexes (handled separately)
 
-        This avoids duplicating constraint definitions in the DDL output.
+        Returns index metadata including name, uniqueness, and definition.
         """
         query = """
             SELECT DISTINCT
@@ -360,10 +449,13 @@ class PostgreSQLDDLExtractor:
         ddl_parts: list[str] = []
         table_name = table_info.table_name
         schema = table_info.schema
-        full_name = f"{schema}.{table_name}" if schema != "public" else table_name
 
         # === Table Definition ===
-        header_line = f"Table: {full_name}"
+        quoted_table_name = self._quote_identifier_if_needed(table_name)
+        full_name_for_header = (
+            f"{schema}.{quoted_table_name}" if schema != "public" else quoted_table_name
+        )
+        header_line = f"Table: {full_name_for_header}"
         ddl_parts.append(f"-- {header_line}")
         ddl_parts.append(f"-- {'-' * len(header_line)}")
 
@@ -388,11 +480,25 @@ class PostgreSQLDDLExtractor:
 
         return "\n".join(ddl_parts)
 
+    def generate_type_ddl(self, type_info: TypeInfo) -> str:
+        """Generate DDL string for a user-defined type (enum)."""
+        if type_info.type_type == "e":  # enum type
+            values = "', '".join(type_info.enum_values)
+            return f"CREATE TYPE {type_info.type_name} AS ENUM ('{values}');"
+        else:
+            # Future: handle other user-defined types
+            return f"-- Unsupported type: {type_info.type_name} (type: {type_info.type_type})"
+
     def _build_create_table(self, table_info: TableInfo) -> str:
         """Build the CREATE TABLE statement."""
         table_name = table_info.table_name
         schema = table_info.schema
-        full_table_name = f"public.{table_name}" if schema == "public" else f"{schema}.{table_name}"
+
+        # Quote table name if it contains mixed case or special characters
+        quoted_table_name = self._quote_identifier_if_needed(table_name)
+        full_table_name = (
+            f"public.{quoted_table_name}" if schema == "public" else f"{schema}.{quoted_table_name}"
+        )
 
         ddl_parts = [f"CREATE TABLE {full_table_name} ("]
 
@@ -400,7 +506,7 @@ class PostgreSQLDDLExtractor:
         column_defs: list[str] = []
         for col in table_info.columns:
             col_def = self._format_column(col)
-            column_defs.append(f"    {col_def}")
+            column_defs.append(f"{TABLE_INDENT}{col_def}")
 
         # Table-level constraints - sorted by type priority, then name
         constraint_defs: list[str] = []
@@ -439,16 +545,20 @@ class PostgreSQLDDLExtractor:
 
     def _wrap_line(self, line: str | None) -> str:
         """Apply consistent formatting to constraints for visual consistency."""
-        if line is None:
+        if not line:
             return ""
 
-        # Delegate to specific formatting methods
-        if "FOREIGN KEY" in line and "REFERENCES" in line:
-            return self._wrap_foreign_key_constraint(line)
-        elif "UNIQUE (" in line and "CONSTRAINT " in line:
-            return self._wrap_unique_constraint(line)
-        elif "ARRAY[" in line and ("CHECK (" in line or "])::text[]" in line):
-            return self._wrap_check_constraint(line)
+        # Apply specific formatting based on constraint type
+        constraint_formatters = [
+            ("FOREIGN KEY", "REFERENCES", self._wrap_foreign_key_constraint),
+            ("UNIQUE (", "CONSTRAINT ", self._wrap_unique_constraint),
+            ("ARRAY[", "CHECK (", self._wrap_check_constraint),
+            ("ARRAY[", "])::text[]", self._wrap_check_constraint),
+        ]
+
+        for pattern1, pattern2, formatter in constraint_formatters:
+            if pattern1 in line and pattern2 in line:
+                return formatter(line)
 
         return line
 
@@ -461,7 +571,7 @@ class PostgreSQLDDLExtractor:
             fk_split = remaining.split(" FOREIGN KEY ", 1)
             constraint_part = fk_split[0] + " FOREIGN KEY"
 
-            # Break long constraint names (>70 chars)
+            # Always break long constraint names
             if len(constraint_part) > 70 and "CONSTRAINT " in constraint_part:
                 constraint_name_split = constraint_part.split(" FOREIGN KEY", 1)
                 parts.append(constraint_name_split[0])
@@ -533,7 +643,7 @@ class PostgreSQLDDLExtractor:
 
         before_array = check_part[:array_start]
         array_content = check_part[array_start + 6 : array_end]  # Skip "ARRAY["
-        after_array = check_part[array_end + 1 :]  # Skip "]" to get ")::text[]"
+        after_array = check_part[array_end + 1 :]  # Everything after "]": )::text[]
 
         if ", " not in array_content:
             return None
@@ -559,7 +669,7 @@ class PostgreSQLDDLExtractor:
 
     def _wrap_index_definition(self, index_def: str, max_length: int = 90) -> str:
         """Apply consistent formatting to CREATE INDEX statements."""
-        # For CREATE INDEX statements with USING clause, break before USING for consistency
+        # For CREATE INDEX statements, always break before USING for consistency
         if "CREATE " in index_def and " ON " in index_def and " USING " in index_def:
             # Break before USING clause for consistent formatting
             using_split = index_def.split(" USING ", 1)
@@ -606,10 +716,12 @@ class PostgreSQLDDLExtractor:
     def _parse_postgresql_array_string(self, array_str: str) -> list[str]:
         """Parse PostgreSQL array string format into Python list.
 
-        Handles formats like:
+        PostgreSQL arrays can contain quoted elements with embedded commas,
+        requiring careful parsing to avoid incorrect splits.
+
+        Examples:
         - "{col1,col2}" -> ["col1", "col2"]
         - "{\"user id\",name}" -> ["user id", "name"]
-        - "{\"order,total\",qty}" -> ["order,total", "qty"]
         """
         if not (array_str.startswith("{") and array_str.endswith("}")):
             return [array_str.strip()]
@@ -618,20 +730,15 @@ class PostgreSQLDDLExtractor:
         if not inner:
             return []
 
-        return self._split_quoted_array_elements(inner)
-
-    def _split_quoted_array_elements(self, content: str) -> list[str]:
-        """Split array content respecting quoted elements with commas/spaces."""
+        # Simple parser for PostgreSQL array format
         result = []
         current_item = ""
         in_quotes = False
 
-        for i, char in enumerate(content):
-            if char == '"' and (i == 0 or content[i - 1] != "\\"):
-                # Toggle quote state (ignore escaped quotes)
+        for i, char in enumerate(inner):
+            if char == '"' and (i == 0 or inner[i - 1] != "\\"):
                 in_quotes = not in_quotes
             elif char == "," and not in_quotes:
-                # Split on commas outside quotes
                 if current_item.strip():
                     result.append(current_item.strip().strip('"'))
                 current_item = ""
@@ -646,21 +753,25 @@ class PostgreSQLDDLExtractor:
 
     def _format_column(self, col: dict[str, Any]) -> str:
         """Format a single column definition."""
-        parts: list[str] = [col["column_name"]]
+        # Quote column name if it contains mixed case or special characters
+        column_name = self._quote_identifier_if_needed(col["column_name"])
+        parts: list[str] = [column_name]
 
         # === Data Type Processing ===
-        data_type = col["data_type"].lower()
+        # Keep original case for user-defined types, lowercase for system types
+        original_data_type = col["data_type"]
+        data_type_lower = original_data_type.lower()
 
         # Handle PostgreSQL serial types and identity columns
         if col.get("column_default") and "nextval(" in col["column_default"]:
-            if data_type == "integer":
+            if data_type_lower == "integer":
                 parts.append("serial")
-            elif data_type == "bigint":
+            elif data_type_lower == "bigint":
                 parts.append("bigserial")
             else:
-                parts.append(self._format_data_type(col, data_type))
+                parts.append(self._format_data_type(col, original_data_type))
         else:
-            parts.append(self._format_data_type(col, data_type))
+            parts.append(self._format_data_type(col, original_data_type))
 
         # === Column Attributes ===
         if col["is_nullable"] == "NO":
@@ -668,43 +779,78 @@ class PostgreSQLDDLExtractor:
 
         # Add default for non-serial columns
         if col["column_default"] and "nextval(" not in col["column_default"]:
-            default_val = col["column_default"]
+            default_val = self._format_default_value(col["column_default"], original_data_type)
             parts.append(f"DEFAULT {default_val}")
 
         return " ".join(parts)
 
     def _format_data_type(self, col: dict[str, Any], data_type: str) -> str:
-        """Format the data type portion of a column definition.
+        """Format column data type with proper casing and parameters.
 
-        PostgreSQL stores type names in lowercase with underscores, but DDL
-        convention is to use uppercase SQL standard names where possible.
+        Handles arrays, user-defined types, and standard SQL types.
+        Preserves custom type names while normalizing built-in types.
         """
-        # Normalize PostgreSQL type names to SQL standard equivalents
-        if data_type == "character varying":
-            data_type = "VARCHAR"
-        elif data_type == "timestamp with time zone":
-            data_type = "TIMESTAMP WITH TIME ZONE"
-        elif data_type == "timestamp without time zone":
-            data_type = "TIMESTAMP"
-        elif data_type == "double precision":
-            data_type = "DOUBLE PRECISION"
-        else:
-            data_type = data_type.upper()
+        # Handle array types first
+        if data_type.endswith("[]"):
+            base_type = data_type[:-2]  # Remove '[]' suffix
+            formatted_base = self._format_single_data_type(col, base_type)
+            return f"{formatted_base}[]"
 
-        # PostgreSQL integer types don't accept precision/scale parameters
-        # e.g., "INTEGER(10)" is invalid - PostgreSQL always uses fixed sizes:
-        # - SMALLINT: 2 bytes, INTEGER: 4 bytes, BIGINT: 8 bytes
-        # - DOUBLE PRECISION: IEEE 754 standard (no precision parameter)
-        # - BOOLEAN, BYTEA: fixed-size types
-        if data_type in ("INTEGER", "BIGINT", "SMALLINT", "DOUBLE PRECISION", "BOOLEAN", "BYTEA"):
+        return self._format_single_data_type(col, data_type)
+
+    def _format_single_data_type(self, col: dict[str, Any], data_type: str) -> str:
+        """Format a single (non-array) data type with proper length/precision."""
+        # Handle user-defined types (enums, custom types) first
+        udt_name = col.get("udt_name", "")
+        standard_types = {
+            "character varying",
+            "timestamp with time zone",
+            "timestamp without time zone",
+            "double precision",
+            "integer",
+            "bigint",
+            "smallint",
+            "boolean",
+            "bytea",
+            "text",
+            "varchar",
+            "char",
+            "numeric",
+            "decimal",
+            "real",
+            "json",
+            "jsonb",
+            "uuid",
+            "date",
+            "time",
+            "interval",
+        }
+
+        if data_type.lower() not in standard_types and udt_name and data_type == udt_name:
+            # This is likely a user-defined type (enum, etc.) - return as-is
             return data_type
+
+        # Format base type name
+        formatted_type = self._format_base_type(data_type)
+
+        # Add length/precision parameters for standard types
+        # PostgreSQL integer types don't accept precision/scale parameters
+        if formatted_type in (
+            "INTEGER",
+            "BIGINT",
+            "SMALLINT",
+            "DOUBLE PRECISION",
+            "BOOLEAN",
+            "BYTEA",
+        ):
+            return formatted_type
         elif col["character_maximum_length"]:
             # Character types: VARCHAR(255), CHAR(10)
-            return f"{data_type}({col['character_maximum_length']})"
+            return f"{formatted_type}({col['character_maximum_length']})"
         elif col["numeric_precision"] and col["numeric_scale"] is not None:
             # Decimal types: NUMERIC(10,2), DECIMAL(5,0)
-            return f"{data_type}({col['numeric_precision']},{col['numeric_scale']})"
-        elif col["numeric_precision"] and data_type not in (
+            return f"{formatted_type}({col['numeric_precision']},{col['numeric_scale']})"
+        elif col["numeric_precision"] and formatted_type not in (
             "INTEGER",
             "BIGINT",
             "SMALLINT",
@@ -713,9 +859,45 @@ class PostgreSQLDDLExtractor:
             "BYTEA",
         ):
             # Other numeric types that take precision: FLOAT(7)
-            return f"{data_type}({col['numeric_precision']})"
+            return f"{formatted_type}({col['numeric_precision']})"
         else:
-            return data_type
+            return formatted_type
+
+    def _format_base_type(self, data_type: str) -> str:
+        """Format base PostgreSQL data types with proper length/precision handling."""
+        # This method should only be called with the base type name
+        # Length and precision handling is done in the calling method
+
+        # Normalize PostgreSQL type names to SQL standard equivalents
+        if data_type == "character varying":
+            return "VARCHAR"
+        elif data_type == "timestamp with time zone":
+            return "TIMESTAMP WITH TIME ZONE"
+        elif data_type == "timestamp without time zone":
+            return "TIMESTAMP"
+        elif data_type == "double precision":
+            return "DOUBLE PRECISION"
+        else:
+            return data_type.upper()
+
+    def _format_default_value(self, default_value: str, data_type: str) -> str:
+        """Format default values, handling special cases for arrays and enums."""
+        if not default_value:
+            return default_value
+
+        # Handle array defaults like "ARRAY[]::text[]" -> "'{}'"
+        if "ARRAY[]" in default_value and "::" in default_value:
+            return "'{}'"
+
+        # Handle enum defaults that may have improper casting
+        # e.g., 'PENDING'::"AnnotationQueueItemStatus" -> 'PENDING'
+        if "::" in default_value and '"' in default_value:
+            # Extract the value part before the cast
+            value_part = default_value.split("::")[0].strip()
+            if value_part.startswith("'") and value_part.endswith("'"):
+                return value_part
+
+        return default_value
 
     def _format_constraint(self, constraint: dict[str, Any]) -> str | None:
         """Format table-level constraints."""
@@ -743,8 +925,12 @@ class PostgreSQLDDLExtractor:
         ref_schema = fk["foreign_table_schema"]
         ref_columns = self._normalize_column_array(fk["foreign_columns"])
 
+        # Quote referenced table name if needed
+        quoted_ref_table = self._quote_identifier_if_needed(ref_table)
         full_ref_table = (
-            f"public.{ref_table}" if ref_schema == "public" else f"{ref_schema}.{ref_table}"
+            f"public.{quoted_ref_table}"
+            if ref_schema == "public"
+            else f"{ref_schema}.{quoted_ref_table}"
         )
         column_list = ", ".join(columns)
         ref_column_list = ", ".join(ref_columns)
@@ -758,6 +944,202 @@ class PostgreSQLDDLExtractor:
             fk_def += f" ON DELETE {fk['delete_rule']}"
 
         return self._wrap_line(fk_def)
+
+    def _quote_identifier_if_needed(self, identifier: str) -> str:
+        """Quote PostgreSQL identifier if it contains mixed case or special characters."""
+        # Check if identifier needs quotes to preserve case/special chars
+        if (
+            identifier != identifier.lower()  # Contains uppercase
+            or not identifier.replace("_", "").isalnum()  # Contains special chars beyond underscore
+            or identifier in self._get_postgresql_keywords()
+        ):  # Is a reserved keyword
+            return f'"{identifier}"'
+        return identifier
+
+    def _get_postgresql_keywords(self) -> set[str]:
+        """Get PostgreSQL reserved keywords that require quoting.
+
+        Based on PostgreSQL 15+ reserved keywords that would conflict with identifiers.
+        """
+        return {
+            # SQL standard reserved keywords
+            "all",
+            "analyse",
+            "analyze",
+            "and",
+            "any",
+            "array",
+            "as",
+            "asc",
+            "asymmetric",
+            "both",
+            "case",
+            "cast",
+            "check",
+            "collate",
+            "column",
+            "constraint",
+            "create",
+            "current_catalog",
+            "current_date",
+            "current_role",
+            "current_time",
+            "current_timestamp",
+            "current_user",
+            "default",
+            "deferrable",
+            "desc",
+            "distinct",
+            "do",
+            "else",
+            "end",
+            "except",
+            "false",
+            "fetch",
+            "for",
+            "foreign",
+            "from",
+            "grant",
+            "group",
+            "having",
+            "in",
+            "initially",
+            "intersect",
+            "into",
+            "lateral",
+            "leading",
+            "limit",
+            "localtime",
+            "localtimestamp",
+            "not",
+            "null",
+            "only",
+            "or",
+            "order",
+            "placing",
+            "primary",
+            "references",
+            "returning",
+            "select",
+            "session_user",
+            "some",
+            "symmetric",
+            "table",
+            "then",
+            "to",
+            "trailing",
+            "true",
+            "union",
+            "unique",
+            "user",
+            "using",
+            "variadic",
+            "when",
+            "where",
+            "window",
+            "with",
+            # PostgreSQL-specific reserved keywords
+            "authorization",
+            "binary",
+            "concurrently",
+            "cross",
+            "freeze",
+            "full",
+            "ilike",
+            "inner",
+            "is",
+            "isnull",
+            "join",
+            "left",
+            "like",
+            "natural",
+            "notnull",
+            "outer",
+            "overlaps",
+            "right",
+            "similar",
+            "verbose",
+        }
+
+
+def validate_schema_syntax(schema_file: Path) -> bool:
+    """Validate the syntax of the generated schema file using pglast.
+
+    Returns True if all statements are syntactically valid, False otherwise.
+    Prints detailed error information for any invalid statements.
+    """
+    try:
+        with schema_file.open("r", encoding="utf-8") as f:
+            content = f.read()
+    except (OSError, IOError) as e:
+        print(f"Error reading schema file {schema_file}: {e}", file=sys.stderr)
+        return False
+
+    if not content.strip():
+        print("Warning: Schema file is empty", file=sys.stderr)
+        return True
+
+    # Split content into individual statements
+    # Remove comments and empty lines for parsing
+    statements = []
+    current_statement = []
+
+    for line in content.split("\n"):
+        line = line.strip()
+        # Skip comment lines and empty lines
+        if not line or line.startswith("--"):
+            continue
+
+        current_statement.append(line)
+
+        # Check if line ends with semicolon (end of statement)
+        if line.endswith(";"):
+            statement = " ".join(current_statement).strip()
+            if statement:
+                statements.append(statement)
+            current_statement = []
+
+    # Add any remaining statement without semicolon
+    if current_statement:
+        statement = " ".join(current_statement).strip()
+        if statement:
+            statements.append(statement)
+
+    if not statements:
+        print("Warning: No SQL statements found in schema file", file=sys.stderr)
+        return True
+
+    print(f"Validating {len(statements)} SQL statements...")
+
+    validation_errors = []
+    for i, statement in enumerate(statements, 1):
+        try:
+            # Parse statement for syntax validation
+            pglast.parse_sql(statement)  # type: ignore (pglast typing incomplete)
+        except pglast.Error as e:
+            error_msg = f"Statement {i} syntax error: {e}"
+            validation_errors.append(error_msg)
+            print(f"ERROR: {error_msg}", file=sys.stderr)
+
+            # Show the problematic statement (truncated if too long)
+            if len(statement) > STATEMENT_PREVIEW_LENGTH:
+                preview = statement[:STATEMENT_PREVIEW_LENGTH] + "..."
+            else:
+                preview = statement
+            print(f"Statement: {preview}", file=sys.stderr)
+        except Exception as e:
+            error_msg = f"Statement {i} unexpected error: {e}"
+            validation_errors.append(error_msg)
+            print(f"ERROR: {error_msg}", file=sys.stderr)
+
+    if validation_errors:
+        print(
+            f"\n❌ Schema validation failed with {len(validation_errors)} errors", file=sys.stderr
+        )
+        return False
+    else:
+        print("✅ Schema validation passed - all statements are syntactically valid")
+        return True
 
 
 @contextmanager
@@ -781,13 +1163,40 @@ def ephemeral_postgresql() -> Iterator[URL]:
         yield url
 
 
-def run_alembic_migrations(url: URL) -> None:
+def create_external_url(host: str, port: int, user: str, database: str, password: str) -> URL:
+    """Create SQLAlchemy URL for external PostgreSQL connection.
+
+    Args:
+        host: Database host
+        port: Database port
+        user: Database username
+        database: Database name
+        password: Database password
+
+    Returns:
+        SQLAlchemy URL object
+    """
+    return URL.create(
+        drivername="postgresql+psycopg",
+        username=user,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+    )
+
+
+def run_alembic_migrations(url: URL, skip_if_failed: bool = False) -> bool:
     """Run Alembic migrations against the database.
 
     Uses the same pattern as Phoenix's integration tests - pass connection directly to Alembic.
 
     Args:
         url: SQLAlchemy URL for the database
+        skip_if_failed: If True, return False on failure instead of printing warnings
+
+    Returns:
+        True if migrations succeeded, False otherwise
     """
     try:
         # Set up Alembic config
@@ -795,11 +1204,12 @@ def run_alembic_migrations(url: URL) -> None:
         alembic_ini = phoenix_db_path / "alembic.ini"
 
         if not alembic_ini.exists():
-            print(
-                f"Warning: Alembic config not found at {alembic_ini}, skipping migrations",
-                file=sys.stderr,
-            )
-            return
+            if not skip_if_failed:
+                print(
+                    f"Warning: Alembic config not found at {alembic_ini}, skipping migrations",
+                    file=sys.stderr,
+                )
+            return False
 
         config = Config(str(alembic_ini))
         config.set_main_option("script_location", str(phoenix_db_path / "migrations"))
@@ -814,41 +1224,13 @@ def run_alembic_migrations(url: URL) -> None:
             command.upgrade(config, "head")
         engine.dispose()
         print("Migrations completed successfully")
+        return True
 
     except Exception as e:
-        print(f"Warning: Failed to run migrations: {e}", file=sys.stderr)
-        print("Proceeding with DDL extraction from empty database", file=sys.stderr)
-
-
-def _write_ddl_to_file(
-    tables_ddl: list[TableInfo], extractor: PostgreSQLDDLExtractor, output_path: Path
-) -> None:
-    """Write DDL to output file.
-
-    Args:
-        tables_ddl: List of table information
-        extractor: DDL extractor instance
-        output_path: Path to output file
-
-    Raises:
-        OSError: If file cannot be written
-    """
-    try:
-        with output_path.open("w", encoding="utf-8") as f:
-            # Write each table's DDL
-            for i, table_info in enumerate(tables_ddl):
-                if i > 0:  # Add extra spacing between tables
-                    f.write("\n\n")
-
-                ddl = extractor.generate_ddl(table_info)
-                f.write(ddl)
-                f.write("\n")
-    except (OSError, IOError) as e:
-        print(f"Error writing to {output_path}: {e}", file=sys.stderr)
-        raise
-
-    print(f"DDL exported to: {output_path}")
-    print(f"Processed {len(tables_ddl)} tables")
+        if not skip_if_failed:
+            print(f"Warning: Failed to run migrations: {e}", file=sys.stderr)
+            print("Proceeding with DDL extraction from database as-is", file=sys.stderr)
+        return False
 
 
 def main() -> int:
@@ -858,34 +1240,149 @@ def main() -> int:
     default_output = script_dir / "postgresql_schema.sql"
 
     parser = argparse.ArgumentParser(
-        description="Extract DDL from ephemeral PostgreSQL database with Phoenix migrations",
+        description="Extract DDL from PostgreSQL database (ephemeral by default, --external for existing database)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
+    # Connection mode
+    parser.add_argument(
+        "--external",
+        action="store_true",
+        help="Connect to external PostgreSQL database (default: create ephemeral instance)",
+    )
+
+    # External database connection options
+    parser.add_argument("--host", default="localhost", help="Database host (external mode)")
+    parser.add_argument("--port", type=int, default=5432, help="Database port (external mode)")
+    parser.add_argument("--user", default="postgres", help="Database username (external mode)")
+    parser.add_argument("--password", default="postgres", help="Database password (external mode)")
+    parser.add_argument("--database", default="postgres", help="Database name (external mode)")
+
+    # Common options
     parser.add_argument("--output", type=Path, default=default_output, help="Output file path")
+    parser.add_argument("--schema", default="public", help="Database schema to extract")
 
     args = parser.parse_args()
 
-    # Extract DDL using ephemeral PostgreSQL
+    # Validate external mode arguments (when using external)
+    if args.external and not all([args.host, args.user, args.database]):
+        print("Error: External mode requires --host, --user, and --database", file=sys.stderr)
+        return 1
+
     try:
-        with ephemeral_postgresql() as url:
-            print("Created ephemeral PostgreSQL instance")
-            print(f"Connection: {url}")
-
-            # Always run migrations
-            run_alembic_migrations(url)
-
-            # Extract DDL
-            with PostgreSQLDDLExtractor(url) as extractor:
-                print("Extracting DDL for schema: public")
-                tables_ddl = extractor.extract_all_tables_ddl("public")
-                _write_ddl_to_file(tables_ddl, extractor, args.output)
-
-        print("Ephemeral PostgreSQL instance cleaned up")
-
+        if args.external:
+            return _extract_ddl_external(args)
+        else:
+            return _extract_ddl_ephemeral(args)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+
+
+def _extract_ddl_ephemeral(args: argparse.Namespace) -> int:
+    """Extract DDL using ephemeral PostgreSQL instance."""
+    print("Creating ephemeral PostgreSQL instance...")
+
+    with ephemeral_postgresql() as url:
+        print(f"Connection: {url}")
+
+        # Always run migrations for ephemeral instances
+        run_alembic_migrations(url)
+
+        # Extract DDL using URL directly
+        return _extract_ddl_with_url(url, args)
+
+
+def _extract_ddl_external(args: argparse.Namespace) -> int:
+    """Extract DDL from external PostgreSQL database."""
+    print(f"Connecting to external PostgreSQL: {args.user}@{args.host}:{args.port}/{args.database}")
+
+    # Create connection URL
+    url = create_external_url(
+        host=args.host,
+        port=args.port,
+        user=args.user,
+        database=args.database,
+        password=args.password,
+    )
+
+    # Test connection
+    try:
+        conn_params = ConnectionParams(
+            host=args.host,
+            port=args.port,
+            database=args.database,
+            user=args.user,
+            password=args.password,
+        )
+        with PostgreSQLDDLExtractor(conn_params) as _:
+            pass  # Just test the connection
+        print("Connection successful")
+    except Exception as e:
+        print(f"Failed to connect to database: {e}", file=sys.stderr)
+        return 1
+
+    # Extract DDL (no migrations for external databases)
+    return _extract_ddl_with_url(url, args)
+
+
+def _extract_ddl_with_url(url: URL, args: argparse.Namespace) -> int:
+    """Extract DDL using the provided database URL."""
+    # Convert URL to ConnectionParams for the extractor
+    conn_params = ConnectionParams(
+        host=url.host or "localhost",
+        port=url.port or 5432,
+        database=url.database or "postgres",
+        user=url.username or "postgres",
+        password=url.password or "postgres",
+    )
+
+    with PostgreSQLDDLExtractor(conn_params) as extractor:
+        print(f"Extracting DDL for schema: {args.schema}")
+
+        # Extract user-defined types (enums, etc.)
+        types_ddl = extractor.extract_all_types_ddl(args.schema)
+
+        # Extract tables
+        tables_ddl = extractor.extract_all_tables_ddl(args.schema)
+
+        # Write DDL to file
+        try:
+            with args.output.open("w", encoding="utf-8") as f:
+                # Write user-defined types first
+                if types_ddl:
+                    f.write("-- User-Defined Types (Enums)\n")
+                    f.write("-- " + "=" * 30 + "\n\n")
+
+                    for type_info in types_ddl:
+                        type_ddl = extractor.generate_type_ddl(type_info)
+                        f.write(type_ddl)
+                        f.write("\n")
+
+                    f.write("\n\n")
+
+                # Write each table's DDL
+                for i, table_info in enumerate(tables_ddl):
+                    if i > 0:  # Add extra spacing between tables
+                        f.write("\n\n")
+
+                    ddl = extractor.generate_ddl(table_info)
+                    f.write(ddl)
+                    f.write("\n")
+        except (OSError, IOError) as e:
+            print(f"Error writing to {args.output}: {e}", file=sys.stderr)
+            return 1
+
+        print(f"DDL exported to: {args.output}")
+        print(f"Processed {len(types_ddl)} user-defined types and {len(tables_ddl)} tables")
+
+        # Validate the generated schema syntax
+        print("\nValidating schema syntax...")
+        if not validate_schema_syntax(args.output):
+            print(
+                "Warning: Schema contains syntax errors - please review the output",
+                file=sys.stderr,
+            )
 
     return 0
 
