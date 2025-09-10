@@ -32,7 +32,8 @@ type ExperimentCompareDetailsProps = {
   datasetId: string;
   datasetExampleId: string;
   datasetVersionId: string;
-  experimentIds: string[];
+  baseExperimentId: string;
+  compareExperimentIds: string[];
 };
 
 type Experiment = NonNullable<
@@ -47,8 +48,10 @@ export function ExperimentCompareDetails({
   datasetId,
   datasetExampleId,
   datasetVersionId,
-  experimentIds,
+  baseExperimentId,
+  compareExperimentIds,
 }: ExperimentCompareDetailsProps) {
+  const experimentIds = [baseExperimentId, ...compareExperimentIds];
   const exampleData = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
     graphql`
       query ExperimentCompareDetailsQuery(

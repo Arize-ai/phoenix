@@ -420,8 +420,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               runComparisonItem={row.original.runComparisonMap[experimentId]}
               displayFullText={displayFullText}
               setDialog={setDialog}
-              experimentInfoById={experimentInfoById}
               tableRow={row.original}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
             />
           );
         },
@@ -841,12 +842,14 @@ function SelectedExampleDialog({
   selectedExampleId,
   datasetId,
   datasetVersionId,
-  experimentIds,
+  baseExperimentId,
+  compareExperimentIds,
 }: {
   selectedExampleId: string;
   datasetId: string;
   datasetVersionId: string;
-  experimentIds: string[];
+  baseExperimentId: string;
+  compareExperimentIds: string[];
 }) {
   return (
     <Dialog>
@@ -867,7 +870,8 @@ function SelectedExampleDialog({
           datasetId={datasetId}
           datasetExampleId={selectedExampleId}
           datasetVersionId={datasetVersionId}
-          experimentIds={experimentIds}
+          baseExperimentId={baseExperimentId}
+          compareExperimentIds={compareExperimentIds}
         />
       </DialogContent>
     </Dialog>
@@ -1016,7 +1020,8 @@ function ExperimentRunOutputCell({
   runComparisonItem,
   displayFullText,
   setDialog,
-  experimentInfoById,
+  baseExperimentId,
+  compareExperimentIds,
   tableRow,
 }: {
   datasetId: string;
@@ -1025,7 +1030,8 @@ function ExperimentRunOutputCell({
   runComparisonItem: RunComparisonItem;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  experimentInfoById: ExperimentInfoMap;
+  baseExperimentId: string;
+  compareExperimentIds: string[];
   tableRow: TableRow;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1092,7 +1098,8 @@ function ExperimentRunOutputCell({
             <SelectedExampleDialog
               datasetId={datasetId}
               datasetVersionId={datasetVersionId}
-              experimentIds={Object.keys(experimentInfoById)}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
               selectedExampleId={tableRow.id}
             />
           );
