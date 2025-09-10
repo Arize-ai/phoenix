@@ -5,6 +5,6 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 
 
 @strawberry.type
-class RunComparisonItem:
+class ExperimentRepeatedRunGroup:
     experiment_id: GlobalID
     runs: list[ExperimentRun]

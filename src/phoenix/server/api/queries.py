@@ -57,7 +57,10 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
+from phoenix.server.api.types.ExperimentComparison import (
+    ExperimentComparison,
+    ExperimentRepeatedRunGroup,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
@@ -516,7 +519,7 @@ class Query:
             run_comparison_items = []
             for experiment_id in experiment_rowids:
                 run_comparison_items.append(
-                    RunComparisonItem(
+                    ExperimentRepeatedRunGroup(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
                         runs=[
                             to_gql_experiment_run(run)
