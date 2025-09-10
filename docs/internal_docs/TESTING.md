@@ -4,7 +4,7 @@
 
 Hot take: your software source code is not the asset that you might think it is. It is a liability. More code means more liability.
 
-“Technical debt” is not like a loan. Loans have known repayment schedules and amounts. Bugs arise from code at unknown times with unknown quantities of effort that must be paid to correct them. This is not like a loan. “Tech debt” is a misnomer - it is actually an un-hedged call option, a kind of contingent liability that must be paid at an unknown time at an unbounded cost.
+“Technical debt” is not like a loan. Loans have known repayment schedules and amounts. Bugs arise from code at unknown times with unknown quantities of effort that must be paid to correct them. This is not like a loan. “Tech debt” is a misnomer - it is actually an unhedged call option, a kind of contingent liability that must be paid at an unknown time at an unbounded cost.
 
 In the world of software, the goal is working features, not lines of source code. Working tests that prove the continued existence of those features behave like assets. Code that produces those features is a liability.
 

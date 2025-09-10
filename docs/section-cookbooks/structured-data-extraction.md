@@ -2,7 +2,7 @@
 
 | Framework         | Example notebook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Open AI Functions | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb) |
+| OpenAI Functions | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb) |
 
 ## Overview
 
@@ -40,7 +40,7 @@ With the above extracted attributes, your downstream application can now constru
 
 ## Implementing a structured extraction application
 
-Structured extraction is a place where it’s simplest to work directly with the [OpenAI function calling API](https://openai.com/blog/function-calling-and-other-api-updates). Open AI functions for structured data extraction recommends providing the following JSON schema object in the form of`parameters_schema`(the desired fields for structured data output).
+Structured extraction is a place where it's simplest to work directly with the [OpenAI function calling API](https://openai.com/blog/function-calling-and-other-api-updates). OpenAI functions for structured data extraction recommends providing the following JSON schema object in the form of`parameters_schema`(the desired fields for structured data output).
 
 <pre class="language-json"><code class="lang-json"><strong>parameters_schema = {
 </strong>    "type": "object",
@@ -72,7 +72,7 @@ system_message = (
 )
 </code></pre>
 
-The `ChatCompletion` call to Open AI would look like
+The `ChatCompletion` call to OpenAI would look like
 
 ```
 response = openai.ChatCompletion.create(
@@ -92,8 +92,8 @@ response = openai.ChatCompletion.create(
 
 You can use phoenix spans and traces to inspect the invocation parameters of the function to
 
-1. verify the inputs to the model in form of the the user message
-2. verify your request to Open AI
+1. verify the inputs to the model in form of the user message
+2. verify your request to OpenAI
 3. verify the corresponding generated outputs from the model match what's expected from the schema and are correct
 
 <figure><img src=".gitbook/assets/Screenshot 2023-10-13 at 5.40.56 PM.png" alt=""><figcaption><p>Verifying an individual trace invocation parameters</p></figcaption></figure>

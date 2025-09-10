@@ -614,14 +614,14 @@ const meta: Meta<typeof SimpleExperimentTable> = {
         component: `
 A realistic experiment table showing SQL generation experiment results:
 - **CellTop Components**: Structured cell headers with controls and metadata
-- **TokenCount Component**: Display token usage with proper formatting  
+- **TokenCount Component**: Display token usage with proper formatting
 - **TokenCosts Component**: Show experiment costs with price formatting
 - **Column Resizing**: Drag column borders to adjust widths
 - **Real Experiment Data**: Uses actual text-to-SQL generation experiment results
 - **Annotation Display**: Show evaluation scores (has_results, qa_correctness) with explanations
 - **SQL Query Rendering**: Display input questions and generated SQL queries with results
 
-This table demonstrates realistic experiment tracking for LLM-based SQL generation tasks, 
+This table demonstrates realistic experiment tracking for LLM-based SQL generation tasks,
 including performance metrics, cost tracking, and quality annotations.
         `,
       },

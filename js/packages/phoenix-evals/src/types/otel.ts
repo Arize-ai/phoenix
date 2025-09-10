@@ -1,6 +1,6 @@
 import { Tracer } from "@opentelemetry/api";
 
-export interface WithTelemetry {
+export type WithTelemetry = {
   telemetry?: {
     /**
      * Whether OpenTelemetry is enabled on the call.
@@ -14,4 +14,4 @@ export interface WithTelemetry {
      */
     tracer?: Tracer;
   };
-}
+};

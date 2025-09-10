@@ -16,4 +16,9 @@ export interface ProgressBarProps extends ReactAriaProgressBarProps {
    * @default '192px'
    */
   width?: StyleProps["width"];
+  /**
+   * The height of the progress bar (e.g. '6px', '100%')
+   * @default '6px'
+   */
+  height?: StyleProps["height"];
 }

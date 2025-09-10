@@ -807,6 +807,8 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
         stmt = stmt.where(models.Span.start_time < end_time)
+    # Default newest-first ordering by start_time, with id as a stable tiebreaker
+    stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)

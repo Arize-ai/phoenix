@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from enum import Enum
 from secrets import token_urlsafe
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 import pandas as pd
 import sqlalchemy as sa
@@ -27,8 +27,8 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
-from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -469,26 +469,26 @@ async def query_spans_handler(
             detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
     async with request.app.state.db() as session:
-        results = []
+        results: list[pd.DataFrame] = []
         for query in span_queries:
-            results.append(
-                await session.run_sync(
-                    query,
-                    project_name=project_name,
-                    start_time=normalize_datetime(
-                        request_body.start_time,
-                        timezone.utc,
-                    ),
-                    end_time=normalize_datetime(
-                        end_time,
-                        timezone.utc,
-                    ),
-                    limit=request_body.limit,
-                    root_spans_only=request_body.root_spans_only,
-                    orphan_span_as_root_span=request_body.orphan_span_as_root_span,
-                )
+            df = await session.run_sync(
+                query,
+                project_name=project_name,
+                start_time=normalize_datetime(
+                    request_body.start_time,
+                    timezone.utc,
+                ),
+                end_time=normalize_datetime(
+                    end_time,
+                    timezone.utc,
+                ),
+                limit=request_body.limit,
+                root_spans_only=request_body.root_spans_only,
+                orphan_span_as_root_span=request_body.orphan_span_as_root_span,
             )
+            results.append(df)
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
@@ -850,51 +850,6 @@ async def get_spans_handler(
     return await query_spans_handler(request, request_body, project_name)
 
 
-class SpanAnnotationResult(V1RoutesBaseModel):
-    label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
-    score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
-    explanation: Optional[str] = Field(
-        default=None, description="Explanation of the annotation result"
-    )
-
-
-class SpanAnnotationData(V1RoutesBaseModel):
-    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
-    name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
-        description="The kind of annotator used for the annotation"
-    )
-    result: Optional[SpanAnnotationResult] = Field(
-        default=None, description="The result of the annotation"
-    )
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None, description="Metadata for the annotation"
-    )
-    identifier: str = Field(
-        default="",
-        description=(
-            "The identifier of the annotation. "
-            "If provided, the annotation will be updated if it already exists."
-        ),
-    )
-
-    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
-        return Precursors.SpanAnnotation(
-            self.span_id,
-            models.SpanAnnotation(
-                name=self.name,
-                annotator_kind=self.annotator_kind,
-                score=self.result.score if self.result else None,
-                label=self.result.label if self.result else None,
-                explanation=self.result.explanation if self.result else None,
-                metadata_=self.metadata or {},
-                identifier=self.identifier,
-                source="API",
-                user_id=user_id,
-            ),
-        )
-
-
 class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotationData]]):
     data: list[SpanAnnotationData]
 
@@ -948,9 +903,11 @@ async def annotate_spans(
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
         existing_spans = {
-            span.span_id: span.id
-            async for span in await session.stream_scalars(
-                select(models.Span).filter(models.Span.span_id.in_(span_ids))
+            span_id: id_
+            async for span_id, id_ in await session.stream(
+                select(models.Span.span_id, models.Span.id).filter(
+                    models.Span.span_id.in_(span_ids)
+                )
             )
         }
 

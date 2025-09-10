@@ -17,10 +17,9 @@ from dotenv import load_dotenv
 from judgy import estimate_success_rate
 from rich.console import Console
 
-import phoenix as px
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import OpenAIModel, llm_generate
-from phoenix.trace import SpanEvaluations
-from phoenix.trace.dsl import SpanQuery
 
 load_dotenv()
 
@@ -34,8 +33,8 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        client = px.Client()
-        trace_df = client.query_spans(query, project_name="recipe-agent")
+        client = Client()
+        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
 
         if trace_df.empty:
             console.print("[red]No traces found in Phoenix!")
@@ -101,8 +100,11 @@ def run_judge_on_traces(
 
     predictions.set_index(traces_df.index)
 
-    px.Client().log_evaluations(
-        SpanEvaluations(eval_name="LLM-as-Judge Evaluation", dataframe=predictions)
+    px_client = Client()
+    px_client.annotations.log_span_annotations_dataframe(
+        dataframe=predictions,
+        annotation_name="LLM-as-Judge Evaluation",
+        annotator_kind="LLM",
     )
 
     predictions.rename(

@@ -149,7 +149,7 @@ Embedding features consist of vector data in addition to any unstructured data i
 {% endhint %}
 
 {% hint style="info" %}
-The example in this section contain low-dimensional embeddings for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
+The example in this section contains low-dimensional embeddings for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
 {% endhint %}
 
 ### Embedding Vectors

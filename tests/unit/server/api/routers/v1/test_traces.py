@@ -105,7 +105,7 @@ async def test_rest_trace_annotation(
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
     assert orm_annotation.identifier == "identifier-name"
-    assert orm_annotation.source == "APP"
+    assert orm_annotation.source == "API"
     assert orm_annotation.user_id is None
 
 

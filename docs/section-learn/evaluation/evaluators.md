@@ -15,7 +15,7 @@ Note that many of these evaluation criteria DO NOT require ground-truth labels. 
 
 LLM Evals supports the following response evaluation criteria:
 
-* **QA Correctness** - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
+* **QA Correctness** - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q&A.
 * **Hallucinations** **-** Designed to detect LLM hallucinations relative to retrieved context
 * **Toxicity** - Identify if the AI response is racist, biased, or toxic
 
@@ -71,7 +71,7 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 
-By following the above steps, you will have a full end-to-end flow for troubleshooting, evaluating, and root-causing an LLM application. By using LLM Evals in conjunction with Traces, you will be able to surface up problematic queries, get an explanation as to why the the generation is problematic (e.x. **hallucinated** because ...), and be able to identify which step of your generative app requires improvement (e.x. did the LLM hallucinate or was the LLM fed bad context?).\\
+By following the above steps, you will have a full end-to-end flow for troubleshooting, evaluating, and root-causing an LLM application. By using LLM Evals in conjunction with Traces, you will be able to surface up problematic queries, get an explanation as to why the generation is problematic (e.g. **hallucinated** because ...), and be able to identify which step of your generative app requires improvement (e.g. did the LLM hallucinate or was the LLM fed bad context?).
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/screenshots/document_evals_on_traces.png?raw=true" alt=""><figcaption><p>In the above screenshot you can see how poor retrieval directly correlates with hallucinations</p></figcaption></figure>
 

@@ -26,6 +26,7 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
@@ -93,6 +94,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader

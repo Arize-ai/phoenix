@@ -97,7 +97,7 @@ html_show_sphinx = False
 
 html_theme_options = {
     "logo": {
-        "text": "Phoenix OTEL API",
+        "text": "Phoenix OTEL",
         "image_light": "logo.png",
         "image_dark": "logo.png",
     },

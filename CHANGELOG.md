@@ -1,5 +1,121 @@
 # Changelog
 
+## [11.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.0...arize-phoenix-v11.32.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* support pydantic&lt;2.6 ([#9387](https://github.com/Arize-ai/phoenix/issues/9387)) ([868448e](https://github.com/Arize-ai/phoenix/commit/868448e109a809b906999837e332f596e6be398b))
+
+## [11.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.31.0...arize-phoenix-v11.32.0) (2025-09-04)
+
+
+### Features
+
+* **experiments:** experiment lists page frontend improvements ([#9353](https://github.com/Arize-ai/phoenix/issues/9353)) ([526f721](https://github.com/Arize-ai/phoenix/commit/526f7216d6db9eacfcc9b623c53eafecb5fbdb92))
+* paginate get experiment runs inside run_experiment ([#9370](https://github.com/Arize-ai/phoenix/issues/9370)) ([8882afc](https://github.com/Arize-ai/phoenix/commit/8882afc2eb1901ffaad0bc9057eb65e1ec3bc337))
+
+## [11.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.30.0...arize-phoenix-v11.31.0) (2025-09-03)
+
+
+### Features
+
+* add methods to log document annotations ([#9352](https://github.com/Arize-ai/phoenix/issues/9352)) ([26808b7](https://github.com/Arize-ai/phoenix/commit/26808b795a1333c40e79a62742a9ff0b631cd064))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#9343](https://github.com/Arize-ai/phoenix/issues/9343)) ([1e29092](https://github.com/Arize-ai/phoenix/commit/1e290928060e35b196ac39c92d6a64ad267c54f8))
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+
+## [11.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.29.0...arize-phoenix-v11.30.0) (2025-08-28)
+
+
+### Features
+
+* **api:** span document annotations API ([#9293](https://github.com/Arize-ai/phoenix/issues/9293)) ([37f3b15](https://github.com/Arize-ai/phoenix/commit/37f3b15393cae97a6ac1b237b957deddfceb4a81))
+* **experiments:** show missing percentage for experiment evaluations ([#9210](https://github.com/Arize-ai/phoenix/issues/9210)) ([c865c1a](https://github.com/Arize-ai/phoenix/commit/c865c1a950ffe06cea07e72b53a570dde73d51d0))
+
+
+### Bug Fixes
+
+* check bound on num docs for annotations ([#9305](https://github.com/Arize-ai/phoenix/issues/9305)) ([32388b8](https://github.com/Arize-ai/phoenix/commit/32388b8aed744e8ebf357602651ced1c361c436f))
+
+## [11.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.28.0...arize-phoenix-v11.29.0) (2025-08-27)
+
+
+### Features
+
+* **experiments:** experiments compare list page styling improvements ([#9281](https://github.com/Arize-ai/phoenix/issues/9281)) ([8554ac5](https://github.com/Arize-ai/phoenix/commit/8554ac5dadcc921a466e4444398adc5afed48d0c))
+
+
+### Bug Fixes
+
+* upper bound on version of sqlean.py for windows ([#9282](https://github.com/Arize-ai/phoenix/issues/9282)) ([feef88c](https://github.com/Arize-ai/phoenix/commit/feef88c16228838b0bc68bbf66afdc968f724815))
+
+## [11.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.27.0...arize-phoenix-v11.28.0) (2025-08-26)
+
+
+### Features
+
+* **experiments:** experiment list page frontend ([#9217](https://github.com/Arize-ai/phoenix/issues/9217)) ([bd331a5](https://github.com/Arize-ai/phoenix/commit/bd331a57abee0bda145c70af765b76f6d33f0bd1))
+
+
+### Bug Fixes
+
+* preserve chronological order based on received time during deferred annotation processing ([#9110](https://github.com/Arize-ai/phoenix/issues/9110)) ([e2d9f19](https://github.com/Arize-ai/phoenix/commit/e2d9f199d7e7709bddd1738025a61384ea9e693f))
+
+
+### Documentation
+
+* migrate client ([#9245](https://github.com/Arize-ai/phoenix/issues/9245)) ([f1f2aea](https://github.com/Arize-ai/phoenix/commit/f1f2aea1ab781534bb6baca503f183d5c1da3ffe))
+
+## [11.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.26.0...arize-phoenix-v11.27.0) (2025-08-25)
+
+
+### Features
+
+* extra volumes/volume mounts in helm ([#9212](https://github.com/Arize-ai/phoenix/issues/9212)) ([12d4f8a](https://github.com/Arize-ai/phoenix/commit/12d4f8addbfab64f14ebf43703b67d31c0d116ce))
+
+
+### Bug Fixes
+
+* **helm:** self-hosted database environment variable templating ([#9220](https://github.com/Arize-ai/phoenix/issues/9220)) ([a0038a0](https://github.com/Arize-ai/phoenix/commit/a0038a0a362abfa7edd8e28e1d1211f998a9d7c4))
+
+## [11.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.25.0...arize-phoenix-v11.26.0) (2025-08-22)
+
+
+### Features
+
+* **tracing:** timeline view ([#9186](https://github.com/Arize-ai/phoenix/issues/9186)) ([d019a0b](https://github.com/Arize-ai/phoenix/commit/d019a0b795f8f25e99dcf74ca7a5f6bf1d1068f7))
+
+## [11.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.1...arize-phoenix-v11.25.0) (2025-08-22)
+
+
+### Features
+
+* `get_spans_dataframe` sorts by newst/oldest spans ([#9173](https://github.com/Arize-ai/phoenix/issues/9173)) ([2bf5819](https://github.com/Arize-ai/phoenix/commit/2bf58194ae6be3e63d08c64ccf71a96b1e20dfdf))
+* cc support email in disk usage notification ([#9151](https://github.com/Arize-ai/phoenix/issues/9151)) ([8a5a612](https://github.com/Arize-ai/phoenix/commit/8a5a6129ec8d007c476abbd5197c7259d2e871d2))
+* **experiments:** eval / annotation quick filters ([#9182](https://github.com/Arize-ai/phoenix/issues/9182)) ([e8c3a29](https://github.com/Arize-ai/phoenix/commit/e8c3a29884a8dc4b4fe8c85efcc75a2e6c9d7d71))
+* **experiments:** hydrate data in experiment compare list page ([#9148](https://github.com/Arize-ai/phoenix/issues/9148)) ([2920a91](https://github.com/Arize-ai/phoenix/commit/2920a916959149306c10f1f71cc78166a39c67a2))
+* special case sqlite:///:memory: in helm ([#9056](https://github.com/Arize-ai/phoenix/issues/9056)) ([a1dfde5](https://github.com/Arize-ai/phoenix/commit/a1dfde5e33c9e670b13a0b33d529de1429f1d9d7))
+
+
+### Bug Fixes
+
+* Add OpenAI timeout to playground client ([#9158](https://github.com/Arize-ai/phoenix/issues/9158)) ([dcd333a](https://github.com/Arize-ai/phoenix/commit/dcd333a013d3df29dbd749fb2c11aeaceff50844))
+* **annotations:** remove redundant id field in annotation object during bulk insert ([#9108](https://github.com/Arize-ai/phoenix/issues/9108)) ([76502d8](https://github.com/Arize-ai/phoenix/commit/76502d854cbad58f2853d303f3dd07919cf26066))
+* default sqlite usage when postgresql.enabled false ([#9176](https://github.com/Arize-ai/phoenix/issues/9176)) ([de79bd1](https://github.com/Arize-ai/phoenix/commit/de79bd15f5e47eac2162ddab32f4b035d1d6eb04))
+* **metrics:** handle null score ([#9169](https://github.com/Arize-ai/phoenix/issues/9169)) ([8a3d8c4](https://github.com/Arize-ai/phoenix/commit/8a3d8c417e22aafc9a1b32161fd384aa5e39aead))
+* **metrics:** make query errors scrollable ([#9122](https://github.com/Arize-ai/phoenix/issues/9122)) ([a38b6a8](https://github.com/Arize-ai/phoenix/commit/a38b6a814182c522c3e6600b620dcea93e2a06c6))
+* **playground:** [#8940](https://github.com/Arize-ai/phoenix/issues/8940) allow bounded slider fields to be unset ([#9111](https://github.com/Arize-ai/phoenix/issues/9111)) ([9cecc6f](https://github.com/Arize-ai/phoenix/commit/9cecc6f8cb8f53ed75b06f9adcb6f1faf14bf560))
+* restore numpy array handling for orjson serialization ([#9154](https://github.com/Arize-ai/phoenix/issues/9154)) ([1fb6b71](https://github.com/Arize-ai/phoenix/commit/1fb6b716d53ffc2ebdd5bc4f82a1341b8e4bb99b))
+* update legacy `phoenix.trace.openai` comment ([#9167](https://github.com/Arize-ai/phoenix/issues/9167)) ([b499243](https://github.com/Arize-ai/phoenix/commit/b49924317004e532bf38cf4b43fcb43820f94897))
+
 ## [11.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.24.0...arize-phoenix-v11.24.1) (2025-08-15)
 
 

@@ -26,3 +26,5 @@ export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotationConfig: T;
   onSubmitExplanation?: (explanation: string) => void;
 };
+
+export type AnnotationDisplayPreference = "label" | "score" | "none";

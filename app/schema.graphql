@@ -546,7 +546,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
-  experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
 
@@ -620,6 +620,12 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+type DatasetExperimentAnnotationSummary {
+  annotationName: String!
+  minScore: Float
+  maxScore: Float
 }
 
 """A filter for datasets"""
@@ -867,7 +873,10 @@ type DimensionWithValue {
   value: String
 }
 
-type DocumentEvaluation implements Annotation {
+type DocumentAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
@@ -889,11 +898,13 @@ type DocumentEvaluation implements Annotation {
 
   """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
-
-  """
-  The zero-based index among retrieved documents, which is collected as a list (even when ordering is not inherently meaningful).
-  """
+  annotatorKind: AnnotatorKind!
+  metadata: JSON!
   documentPosition: Int!
+  identifier: String!
+  source: AnnotationSource!
+  span: Span!
+  user: User
 }
 
 """
@@ -1086,6 +1097,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  repetitionCount: Int!
 }
 
 type ExperimentAnnotationSummary {
@@ -1148,6 +1160,7 @@ type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
+  repetitionNumber: Int!
   traceId: String
   output: JSON
   startTime: DateTime!
@@ -1722,14 +1735,14 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount(timeRange: TimeRange, filterCondition: String): Int!
-  traceCount(timeRange: TimeRange): Int!
+  recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+  traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
-  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
-  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
-  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
+  costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
@@ -1746,8 +1759,8 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
-  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
+  traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -2289,7 +2302,7 @@ type Span implements Node {
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
   """
-  documentEvaluations: [DocumentEvaluation!]!
+  documentEvaluations: [DocumentAnnotation!]!
 
   """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
   documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
@@ -2714,7 +2727,7 @@ type TraceAnnotation implements Node {
   metadata: JSON!
   identifier: String!
   source: AnnotationSource!
-  traceId: ID!
+  trace: Trace!
   user: User
 }
 

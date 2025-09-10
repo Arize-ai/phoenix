@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-import phoenix as px
+from phoenix.client import Client
 
-phoenix_client = px.Client()
+phoenix_client = Client()
 
 
 def load_labeled_traces(csv_path: str) -> List[Dict[str, Any]]:

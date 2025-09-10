@@ -566,6 +566,7 @@ def _start_span(
     project_name: Optional[str] = None,
     span_name: Optional[str] = None,
     attributes: Optional[Mapping[str, AttributeValue]] = None,
+    start_time: Optional[int] = None,
 ) -> Span:
     return _get_tracer(
         project_name=project_name or token_hex(16),
@@ -573,6 +574,7 @@ def _start_span(
     ).start_span(
         name=span_name or token_hex(16),
         attributes=attributes,
+        start_time=start_time,
     )
 
 
@@ -1527,7 +1529,7 @@ async def _get(
     kwargs: Mapping[str, Any] = MappingProxyType({}),
     error_msg: str = "",
     no_wait: bool = False,
-    retries: int = 200,
+    retries: int = 20,
     initial_wait_time: float = 0.1,
     max_wait_time: float = 1,
 ) -> T:
@@ -1567,25 +1569,33 @@ async def _get(
 
 _SpanId: TypeAlias = str
 _TraceId: TypeAlias = str
+_SessionId: TypeAlias = str
 
-_SpanGlobalID: TypeAlias = GlobalID
+_SpanGlobalId: TypeAlias = GlobalID
 _TraceGlobalId: TypeAlias = GlobalID
+_SessionGlobalId: TypeAlias = GlobalID
 _ProjectGlobalId: TypeAlias = GlobalID
 
 
 class _ExistingProject(NamedTuple):
-    id: GlobalID
-    name: str
+    id: _ProjectGlobalId
+    name: _ProjectName
+
+
+class _ExistingSession(NamedTuple):
+    id: _SessionGlobalId
+    session_id: _SessionId
 
 
 class _ExistingTrace(NamedTuple):
-    id: GlobalID
+    id: _TraceGlobalId
     trace_id: _TraceId
     project: _ExistingProject
+    session: Optional[_ExistingSession]
 
 
 class _ExistingSpan(NamedTuple):
-    id: GlobalID
+    id: _SpanGlobalId
     span_id: _SpanId
     trace: _ExistingTrace
 
@@ -1595,7 +1605,16 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
     memory = InMemorySpanExporter()
     project_name = token_hex(16)
     for _ in range(n):
-        _start_span(project_name=project_name, exporter=memory).end()
+        _start_span(
+            project_name=project_name,
+            attributes={
+                "session.id": token_hex(8),
+                "retrieval.documents.0.document.id": token_hex(8),
+                "retrieval.documents.1.document.id": token_hex(8),
+                "retrieval.documents.2.document.id": token_hex(8),
+            },
+            exporter=memory,
+        ).end()
     assert len(spans := memory.get_finished_spans()) == n
 
     headers = {"authorization": f"Bearer {app.admin_secret}"}
@@ -1636,6 +1655,10 @@ def _get_existing_spans(
                     trace {
                       id
                       traceId
+                      session {
+                        id
+                        sessionId
+                      }
                     }
                   }
                 }
@@ -1661,6 +1684,14 @@ def _get_existing_spans(
                 project=_ExistingProject(
                     id=GlobalID.from_id(project["node"]["id"]),
                     name=project["node"]["name"],
+                ),
+                session=(
+                    _ExistingSession(
+                        id=GlobalID.from_id(span["node"]["trace"]["session"]["id"]),
+                        session_id=span["node"]["trace"]["session"]["sessionId"],
+                    )
+                    if span["node"]["trace"]["session"] is not None
+                    else None
                 ),
             ),
         )

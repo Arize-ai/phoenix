@@ -10,7 +10,7 @@ Embeddings can be extremely useful for fine-tuning. There are two ways to export
 
 ## Export Selected Clusters
 
-To export a cluster (either selected via the lasso tool or via a the cluster list on the right hand panel), click on the export button on the top left of the bottom slide-out.
+To export a cluster (either selected via the lasso tool or via the cluster list on the right hand panel), click on the export button on the top left of the bottom slide-out.
 
 ## Export All Clusters
 

@@ -1,12 +1,13 @@
-from . import llm, metrics, templating
+from . import llm, metrics, templating, tracing
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
     Evaluator,
     LLMEvaluator,
-    Schema,
     Score,
     SourceType,
+    ToolSchema,
+    bind_evaluator,
     create_classifier,
     create_evaluator,
     list_evaluators,
@@ -18,7 +19,7 @@ __all__ = [
     "Evaluator",
     "LLMEvaluator",
     "Score",
-    "Schema",
+    "ToolSchema",
     "SourceType",
     "create_classifier",
     "list_evaluators",
@@ -26,4 +27,6 @@ __all__ = [
     "metrics",
     "templating",
     "llm",
+    "bind_evaluator",
+    "tracing",
 ]

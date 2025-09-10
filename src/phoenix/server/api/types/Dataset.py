@@ -15,9 +15,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
+    DatasetExperimentAnnotationSummary,
+)
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -270,17 +272,15 @@ class Dataset(Node):
     @strawberry.field
     async def experiment_annotation_summaries(
         self, info: Info[Context, None]
-    ) -> list[ExperimentAnnotationSummary]:
+    ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id_attr
         query = (
             select(
-                models.ExperimentRunAnnotation.name,
-                func.min(models.ExperimentRunAnnotation.score),
-                func.max(models.ExperimentRunAnnotation.score),
-                func.avg(models.ExperimentRunAnnotation.score),
-                func.count(),
-                func.count(models.ExperimentRunAnnotation.error),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_score"),
             )
+            .select_from(models.ExperimentRunAnnotation)
             .join(
                 models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
@@ -295,22 +295,12 @@ class Dataset(Node):
         )
         async with info.context.db() as session:
             return [
-                ExperimentAnnotationSummary(
-                    annotation_name=annotation_name,
-                    min_score=min_score,
-                    max_score=max_score,
-                    mean_score=mean_score,
-                    count=count_,
-                    error_count=error_count,
+                DatasetExperimentAnnotationSummary(
+                    annotation_name=scores_tuple.annotation_name,
+                    min_score=scores_tuple.min_score,
+                    max_score=scores_tuple.max_score,
                 )
-                async for (
-                    annotation_name,
-                    min_score,
-                    max_score,
-                    mean_score,
-                    count_,
-                    error_count,
-                ) in await session.stream(query)
+                async for scores_tuple in await session.stream(query)
             ]
 
     @strawberry.field

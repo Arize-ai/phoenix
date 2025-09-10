@@ -19,7 +19,7 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid, Table
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never, deprecated
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -110,6 +110,7 @@ class Client(TraceDataExtractor):
             return session.url
         return str(self._client.base_url)
 
+    @deprecated("Migrate to using client.spans.get_spans_dataframe via arize-phoenix-client")
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -124,6 +125,11 @@ class Client(TraceDataExtractor):
         orphan_span_as_root_span: bool = True,
     ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.get_spans_dataframe()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Queries spans from the Phoenix server or active session based on specified criteria.
 
         Args:
@@ -222,6 +228,7 @@ class Client(TraceDataExtractor):
             return None if df.shape == (0, 0) else df
         return results
 
+    @deprecated("Migrate to using client.spans.get_span_annotations via arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
@@ -229,6 +236,11 @@ class Client(TraceDataExtractor):
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[Evaluations]:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.get_span_annotations()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Retrieves evaluations for a given project from the Phoenix server or active session.
 
         Args:
@@ -276,6 +288,7 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
+    @deprecated("Migrate to using client.spans.log_span_annotations via arize-phoenix-client")
     def log_evaluations(
         self,
         *evals: Evaluations,
@@ -283,6 +296,11 @@ class Client(TraceDataExtractor):
         **kwargs: Any,
     ) -> None:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.log_span_annotations()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Logs evaluation data to the Phoenix server.
 
         Args:
@@ -309,8 +327,14 @@ class Client(TraceDataExtractor):
                 timeout=timeout,
             ).raise_for_status()
 
+    @deprecated("Migrate to using client.spans.log_spans via arize-phoenix-client")
     def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.log_spans()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Logs traces from a TraceDataset to the Phoenix server.
 
         Args:
@@ -379,6 +403,7 @@ class Client(TraceDataExtractor):
         dataset = records[0]
         return str(dataset["id"])
 
+    @deprecated("Migrate to using client.datasets.get_dataset via arize-phoenix-client")
     def get_dataset(
         self,
         *,
@@ -387,6 +412,11 @@ class Client(TraceDataExtractor):
         version_id: Optional[str] = None,
     ) -> Dataset:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.datasets.get_dataset()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Gets the dataset for a specific version, or gets the latest version of
         the dataset if no version is specified.
 
@@ -433,6 +463,7 @@ class Client(TraceDataExtractor):
             examples=examples,
         )
 
+    @deprecated("Migrate to using client.datasets.get_dataset_versions via arize-phoenix-client")
     def get_dataset_versions(
         self,
         dataset_id: str,
@@ -440,6 +471,11 @@ class Client(TraceDataExtractor):
         limit: Optional[int] = 100,
     ) -> pd.DataFrame:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.datasets.get_dataset_versions()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Get dataset versions as pandas DataFrame.
 
         Args:
@@ -459,6 +495,7 @@ class Client(TraceDataExtractor):
         df["created_at"] = df["created_at"].apply(datetime.fromisoformat)
         return df
 
+    @deprecated("Migrate to using client.datasets.create_dataset via arize-phoenix-client")
     def upload_dataset(
         self,
         *,
@@ -474,6 +511,11 @@ class Client(TraceDataExtractor):
         dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.datasets.create_dataset()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Upload examples as dataset to the Phoenix server. If `dataframe` or
         `csv_file_path` are provided, must also provide `input_keys` (and
         optionally with `output_keys` or `metadata_keys` or both), which is a
@@ -535,6 +577,7 @@ class Client(TraceDataExtractor):
             dataset_description=dataset_description,
         )
 
+    @deprecated("Migrate to using client.datasets.add_examples_to_dataset via arize-phoenix-client")
     def append_to_dataset(
         self,
         *,
@@ -549,6 +592,11 @@ class Client(TraceDataExtractor):
         metadata: Iterable[Mapping[str, Any]] = (),
     ) -> Dataset:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.datasets.add_examples_to_dataset()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Append examples to dataset on the Phoenix server. If `dataframe` or
         `csv_file_path` are provided, must also provide `input_keys` (and
         optionally with `output_keys` or `metadata_keys` or both), which is a
@@ -609,8 +657,14 @@ class Client(TraceDataExtractor):
             action="append",
         )
 
+    @deprecated("Migrate to using client.experiments.get_experiment via arize-phoenix-client")
     def get_experiment(self, *, experiment_id: str) -> Experiment:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.experiments.get_experiment()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Get an experiment by ID.
 
         Retrieve an Experiment object by ID, enables running `evaluate_experiment` after finishing

@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.1...arize-phoenix-evals-v0.29.0) (2025-08-26)
+
+
+### Features
+
+* Add evals 2.0 tracing ([#9163](https://github.com/Arize-ai/phoenix/issues/9163)) ([aee7edf](https://github.com/Arize-ai/phoenix/commit/aee7edf7fdf8fb37a243166589fdb92615067bad))
+* **evals:** add evaluate_dataframe function ([#9197](https://github.com/Arize-ai/phoenix/issues/9197)) ([47c562c](https://github.com/Arize-ai/phoenix/commit/47c562c5b434828152bc5199ca7a3a913e0f36c6))
+
+
+### Bug Fixes
+
+* **evals:** switch from glom to jsonpath-ng for input mapping ([#9199](https://github.com/Arize-ai/phoenix/issues/9199)) ([5daaada](https://github.com/Arize-ai/phoenix/commit/5daaadac605269d96a17fb5cce68b773619e6abc))
+
+
+### Documentation
+
+* **evals:** docs for evals preview module ([#9159](https://github.com/Arize-ai/phoenix/issues/9159)) ([8f38e06](https://github.com/Arize-ai/phoenix/commit/8f38e066edc8659478a40a4b3d99db8b555b8f06))
+
+## [0.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.28.0...arize-phoenix-evals-v0.28.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* **evals:** make evaluator input schema more explicit and discoverable  ([#9109](https://github.com/Arize-ai/phoenix/issues/9109)) ([b5c7170](https://github.com/Arize-ai/phoenix/commit/b5c71702a1e634c8ac6df130f2b5ea0355e9e7e2))
+* **evals:** update `create_evaluator` decorator handle casting function outputs to valid Scores ([#9143](https://github.com/Arize-ai/phoenix/issues/9143)) ([b51b677](https://github.com/Arize-ai/phoenix/commit/b51b677c90e6379f427db3120604113b2813f4b8))
+
+## [0.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.27.0...arize-phoenix-evals-v0.28.0) (2025-08-19)
+
+
+### Features
+
+* Dynamic concurrency ([#8992](https://github.com/Arize-ai/phoenix/issues/8992)) ([3e48611](https://github.com/Arize-ai/phoenix/commit/3e48611896011e820c628b73f592aaa2f5c53889))
+
+
+### Bug Fixes
+
+* [evals] drop batch evaluation methods ([#9052](https://github.com/Arize-ai/phoenix/issues/9052)) ([38df753](https://github.com/Arize-ai/phoenix/commit/38df753a1916ca970c6288cd81e00efa25beb2e1))
+* [evals] raise exceptions as-is ([#9066](https://github.com/Arize-ai/phoenix/issues/9066)) ([f8703b5](https://github.com/Arize-ai/phoenix/commit/f8703b511b41feb47eb1f43b08a06d0b8158286e))
+
 ## [0.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.26.1...arize-phoenix-evals-v0.27.0) (2025-08-13)
 
 

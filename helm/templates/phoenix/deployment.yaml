@@ -118,6 +118,9 @@ spec:
             {{- end }}
             - name: data
               mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
 
       volumes:
         {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
@@ -130,7 +133,8 @@ spec:
         - name: home-volume
           emptyDir: {}
         {{- end }}
-        {{- if .Values.persistence.enabled | toString | eq "true" }}
+        {{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }} 
+        {{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
@@ -138,10 +142,26 @@ spec:
         - name: data
           emptyDir: {}
         {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
 
       {{- if .Values.serviceAccount.imagePullSecrets }}
       imagePullSecrets:
         {{- range .Values.serviceAccount.imagePullSecrets }}
         - name: {{ . | quote }}
         {{- end }}
+      {{- end }}
+
+      {{- with .Values.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
       {{- end }}

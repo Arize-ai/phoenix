@@ -1,9 +1,10 @@
-import { CreateClassificationEvaluatorArgs, Evaluator } from "../types/evals";
+import { CreateClassificationEvaluatorArgs } from "../types/evals";
 import {
   HALLUCINATION_TEMPLATE,
   HALLUCINATION_CHOICES,
 } from "../default_templates/HALLUCINATION_TEMPLATE";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
+import { ClassificationEvaluator } from "./ClassificationEvaluator";
 
 export interface HallucinationEvaluatorArgs
   extends Omit<
@@ -33,7 +34,7 @@ export type HallucinationExample = {
  */
 export function createHallucinationEvaluator(
   args: HallucinationEvaluatorArgs
-): Evaluator<HallucinationExample> {
+): ClassificationEvaluator<HallucinationExample> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,

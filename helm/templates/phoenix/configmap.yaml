@@ -47,11 +47,14 @@ data:
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
 
   # Database configuration
+  {{- if .Values.database.url }}
   PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
+  {{- else if and .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.user .Values.database.postgres.db }}
   PHOENIX_POSTGRES_HOST: {{ .Values.database.postgres.host | quote }}
   PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
   PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
   PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
+  {{- end }}
   PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
   PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
   PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}

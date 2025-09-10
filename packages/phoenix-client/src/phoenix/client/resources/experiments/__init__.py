@@ -58,9 +58,7 @@ DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
 class SpanModifier:
-    """
-    A class that modifies spans with the specified resource attributes.
-    """
+    """A class that modifies spans with the specified resource attributes."""
 
     __slots__ = ("_resource",)
 
@@ -68,11 +66,10 @@ class SpanModifier:
         self._resource = resource
 
     def modify_resource(self, span: ReadableSpan) -> None:
-        """
-        Takes a span and merges in the resource attributes specified in the constructor.
+        """Takes a span and merges in the resource attributes specified in the constructor.
 
         Args:
-          span: ReadableSpan: the span to modify
+            span (ReadableSpan): The span to modify.
         """
         if (ctx := span._context) is None or ctx.span_id == INVALID_SPAN_ID:  # pyright: ignore[reportPrivateUsage]
             return
@@ -123,14 +120,13 @@ def _monkey_patch_span_init() -> Iterator[None]:
 
 @contextmanager
 def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
-    """
-    A context manager that captures spans and modifies them with the specified resources.
+    """A context manager that captures spans and modifies them with the specified resources.
 
     Args:
-      resource: Resource: The resource to merge into the spans created within the context.
+        resource (Resource): The resource to merge into the spans created within the context.
 
-    Returns:
-        modifier: Iterator[SpanModifier]: The span modifier that is active within the context.
+    Yields:
+        SpanModifier: The span modifier that is active within the context.
     """
     modifier = SpanModifier(resource)
     with _monkey_patch_span_init():
@@ -186,7 +182,14 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
 
 
 def get_func_name(func: Callable[..., Any]) -> str:
-    """Get the name of a function."""
+    """Get the name of a function.
+
+    Args:
+        func (Callable[..., Any]): The function to get the name of.
+
+    Returns:
+        str: The name of the function.
+    """
     if isinstance(func, functools.partial):
         return get_func_name(func.func)
     is_not_lambda = hasattr(func, "__qualname__") and not func.__qualname__.endswith("<lambda>")
@@ -196,7 +199,14 @@ def get_func_name(func: Callable[..., Any]) -> str:
 
 
 def jsonify(obj: Any) -> Any:
-    """Convert object to JSON-serializable format."""
+    """Convert object to JSON-serializable format.
+
+    Args:
+        obj (Any): The object to convert to JSON-serializable format.
+
+    Returns:
+        Any: The JSON-serializable representation of the object.
+    """
     if obj is None:
         return None
     elif isinstance(obj, (str, int, float, bool)):
@@ -268,6 +278,97 @@ def _validate_task_signature(sig: inspect.Signature) -> None:
             )
 
 
+class _ExampleProxy(Mapping[str, Any]):
+    """Immutable proxy for backward compatibility with legacy Example dataclass interface.
+
+    This proxy bridges the gap between the new v1.DatasetExample TypedDict format
+    and the legacy Example dataclass that user code expects. It provides both
+    object-style attribute access (example.input) and dictionary-style access
+    (example["input"]) while maintaining immutability.
+
+    The proxy performs necessary type conversions to match the legacy interface:
+    - updated_at: str (from API) → datetime (legacy interface)
+    - Maintains Mapping[str, Any] interface for dictionary operations
+    - Provides typed properties for id, updated_at, input, output, metadata
+
+    This enables a seamless migration from the legacy Example dataclass to the
+    new TypedDict-based API responses without breaking existing user code.
+
+    Args:
+        wrapped: The v1.DatasetExample TypedDict to wrap with legacy interface.
+
+    Note:
+        This class is immutable - all attempts to modify attributes will raise
+        AttributeError. The wrapped data remains unchanged throughout the proxy's
+        lifetime.
+    """
+
+    __slots__ = ("__wrapped__",)
+
+    def __init__(self, wrapped: v1.DatasetExample) -> None:
+        object.__setattr__(self, "__wrapped__", wrapped)
+
+    @property
+    def id(self) -> str:
+        """Access to id field."""
+        return self.__wrapped__["id"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def updated_at(self) -> datetime:
+        """Access to updated_at field."""
+        timestamp_str = self.__wrapped__["updated_at"]  # type: ignore[attr-defined]
+        # Convert Z suffix to +00:00 for Python 3.9 compatibility
+        if timestamp_str.endswith("Z"):
+            timestamp_str = timestamp_str[:-1] + "+00:00"
+        return datetime.fromisoformat(timestamp_str)
+
+    @property
+    def input(self) -> Mapping[str, Any]:
+        """Access to input field."""
+        return self.__wrapped__["input"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def output(self) -> Mapping[str, Any]:
+        """Access to output field."""
+        return self.__wrapped__["output"]  # type: ignore[no-any-return, attr-defined]
+
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        """Access to metadata field."""
+        return self.__wrapped__["metadata"]  # type: ignore[no-any-return, attr-defined]
+
+    def __getitem__(self, key: str) -> Any:
+        """Support dictionary-style access."""
+        return self.__wrapped__[key]  # type: ignore[attr-defined]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dictionary-style get method with default value."""
+        try:
+            return self.__wrapped__[key]  # type: ignore[attr-defined]
+        except KeyError:
+            return default
+
+    def __iter__(self) -> Iterator[str]:
+        """Support iteration over dictionary keys."""
+        return iter(self.__wrapped__)  # type: ignore[attr-defined]
+
+    def __len__(self) -> int:
+        """Support len() function for dictionary-style length."""
+        return len(self.__wrapped__)  # type: ignore[attr-defined]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Prevent attribute assignment to maintain immutability."""
+        raise AttributeError(f"'{type(self).__name__}' object is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        """Prevent attribute deletion to maintain immutability."""
+        raise AttributeError(f"'{type(self).__name__}' object is immutable")
+
+    def __repr__(self) -> str:
+        """Developer representation showing it's an immutable proxy."""
+        return f"_ExampleProxy({self.__wrapped__!r})"  # type: ignore[attr-defined]
+
+
 def _bind_task_signature(
     sig: inspect.Signature, example: v1.DatasetExample
 ) -> inspect.BoundArguments:
@@ -277,7 +378,7 @@ def _bind_task_signature(
         "expected": example["output"],
         "reference": example["output"],
         "metadata": example["metadata"],
-        "example": example,
+        "example": _ExampleProxy(example),
     }
     params = sig.parameters
     if len(params) == 1:
@@ -350,42 +451,46 @@ class Experiments:
     - `metadata`: Metadata associated with the dataset example
 
     Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+        Basic usage::
 
-        With evaluators:
-            >>> def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+            from phoenix.client import Client
+            client = Client()
+            dataset = client.datasets.get_dataset(dataset="my-dataset")
 
-        Using dynamic binding for tasks:
-            >>> def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+            def my_task(input):
+                return f"Hello {input['name']}"
 
-        Using dynamic binding for evaluators:
-            >>> def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+            experiment = client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment"
+            )
+
+        With evaluators::
+
+            def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected['text'] else 0.0
+
+            experiment = client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment"
+            )
+
+        Using dynamic binding for tasks::
+
+            def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+        Using dynamic binding for evaluators::
+
+            def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -412,6 +517,7 @@ class Experiments:
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        dangerously_set_repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
@@ -453,26 +559,32 @@ class Experiments:
 
 
         Args:
-            dataset: The dataset on which to run the experiment.
-            task: The task to run on each example in the dataset.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment. Defaults to None.
-            experiment_name: The name of the experiment. Defaults to None.
-            experiment_description: A description of the experiment. Defaults to None.
-            experiment_metadata: Metadata to associate with the experiment. Defaults to None.
-            rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
-                Defaults to None.
-            dry_run: Run the experiment in dry-run mode. When set, experiment results will
-                not be recorded in Phoenix. If True, the experiment will run on a random dataset
-                example. If an integer, the experiment will run on a random sample of the dataset
-                examples of the given size. Defaults to False.
-            print_summary: Whether to print a summary of the experiment and evaluation results.
-                Defaults to True.
-            timeout: The timeout for the task execution in seconds. Use this to run
+            dataset (Dataset): The dataset on which to run the experiment.
+            task (ExperimentTask): The task to run on each example in the dataset.
+            evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
+                evaluators used to evaluate the results of the experiment. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
+                adaptively throttle on. Defaults to None.
+            dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
+                experiment results will not be recorded in Phoenix. If True, the experiment will run
+                on a random
+                dataset example. If an integer, the experiment will run on a random sample of the
+                dataset examples of the given size. Defaults to False.
+            print_summary (bool): Whether to print a summary of the experiment and evaluation
+                results. Defaults to True.
+            timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
+            dangerously_set_repetitions (int): The number of times the task will be run on each
+                example. Defaults to 1. This argument is currently for internal testing purposes
+                only.
 
         Returns:
-            A dictionary containing the experiment results.
+            RanExperiment: A dictionary containing the experiment results.
 
         Raises:
             ValueError: If dataset format is invalid or has no examples.
@@ -484,7 +596,7 @@ class Experiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        repetitions = 1
+        repetitions = dangerously_set_repetitions
 
         payload = {
             "version_id": dataset.version_id,
@@ -603,13 +715,7 @@ class Experiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = self._client.get(f"v1/experiments/{experiment['id']}/runs").json()["data"]
-            task_runs_from_db: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(run)
-            task_runs = task_runs_from_db
+            task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -655,6 +761,53 @@ class Experiments:
 
         return ran_experiment
 
+    def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result
+                    break
+                else:
+                    raise
+
+        return all_runs
+
     def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
         Get a completed experiment by ID.
@@ -664,25 +817,27 @@ class Experiments:
         additional evaluations.
 
         Args:
-            experiment_id: The ID of the experiment to retrieve.
+            experiment_id (str): The ID of the experiment to retrieve.
 
         Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+            RanExperiment: A RanExperiment object containing the experiment data, task runs,
+                and evaluation runs.
 
         Raises:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example:
-            >>> client = Client()
-            >>> experiment = client.experiments.get_experiment(experiment_id="123")
-            >>> client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[
-            ...         correctness,
-            ...     ],
-            ...     print_summary=True,
-            ... )
+        Examples::
+
+            client = Client()
+            experiment = client.experiments.get_experiment(experiment_id="123")
+            client.experiments.evaluate_experiment(
+                experiment=experiment,
+                evaluators=[
+                    correctness,
+                ],
+                print_summary=True,
+            )
         """
         # Get experiment metadata using existing endpoint
         try:
@@ -801,17 +956,22 @@ class Experiments:
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
 
         Args:
-            experiment: The experiment to evaluate, returned from `run_experiment`.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment.
-            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+            experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                used to evaluate the results of the experiment.
+            dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
-            print_summary: Whether to print a summary of the evaluation results.
+            print_summary (bool): Whether to print a summary of the evaluation results.
                 Defaults to True.
-            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+            timeout (Optional[int]): The timeout for the evaluation execution in seconds.
+                Defaults to 60.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on.
+                Defaults to None.
 
         Returns:
-            A dictionary containing the evaluation results with the same format as run_experiment.
+            RanExperiment: A dictionary containing the evaluation results with the same format
+                as run_experiment.
 
         Raises:
             ValueError: If no evaluators are provided or experiment has no runs.
@@ -1245,42 +1405,46 @@ class AsyncExperiments:
     - `metadata`: Metadata associated with the dataset example
 
     Example:
-        Basic usage:
-            >>> from phoenix.client import AsyncClient
-            >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset(dataset="my-dataset")
-            >>>
-            >>> async def my_task(input):
-            ...     return f"Hello {input['name']}"
-            >>>
-            >>> experiment = await client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     experiment_name="greeting-experiment"
-            ... )
+        Basic usage::
 
-        With evaluators:
-            >>> async def accuracy_evaluator(output, expected):
-            ...     return 1.0 if output == expected['text'] else 0.0
-            >>>
-            >>> experiment = await client.experiments.run_experiment(
-            ...     dataset=dataset,
-            ...     task=my_task,
-            ...     evaluators=[accuracy_evaluator],
-            ...     experiment_name="evaluated-experiment"
-            ... )
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+            dataset = await client.datasets.get_dataset(dataset="my-dataset")
 
-        Using dynamic binding for tasks:
-            >>> async def my_task(input, metadata, expected):
-            ...     # Task can access multiple fields from the dataset example
-            ...     context = metadata.get("context", "")
-            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+            async def my_task(input):
+                return f"Hello {input['name']}"
 
-        Using dynamic binding for evaluators:
-            >>> async def my_evaluator(output, input, expected, metadata):
-            ...     # Evaluator can access task output and example fields
-            ...     score = await calculate_similarity(output, expected)
-            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
+            experiment = await client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                experiment_name="greeting-experiment"
+            )
+
+        With evaluators::
+
+            async def accuracy_evaluator(output, expected):
+                return 1.0 if output == expected['text'] else 0.0
+
+            experiment = await client.experiments.run_experiment(
+                dataset=dataset,
+                task=my_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name="evaluated-experiment"
+            )
+
+        Using dynamic binding for tasks::
+
+            async def my_task(input, metadata, expected):
+                # Task can access multiple fields from the dataset example
+                context = metadata.get("context", "")
+                return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+        Using dynamic binding for evaluators::
+
+            async def my_evaluator(output, input, expected, metadata):
+                # Evaluator can access task output and example fields
+                score = await calculate_similarity(output, expected)
+                return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -1308,6 +1472,7 @@ class AsyncExperiments:
         print_summary: bool = True,
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        dangerously_set_repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
@@ -1348,24 +1513,33 @@ class AsyncExperiments:
         - `metadata`: Metadata associated with the dataset example
 
         Args:
-            dataset: The dataset on which to run the experiment.
-            task: The task to run on each example in the dataset.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment. Defaults to None.
-            experiment_name: The name of the experiment. Defaults to None.
-            experiment_description: A description of the experiment. Defaults to None.
-            experiment_metadata: Metadata to associate with the experiment. Defaults to None.
-            rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
-                Defaults to None.
-            dry_run: Run the experiment in dry-run mode. Defaults to False.
-            print_summary: Whether to print a summary of the experiment and evaluation results.
-                Defaults to True.
-            concurrency: Specifies the concurrency for task execution. Defaults to 3.
-            timeout: The timeout for the task execution in seconds. Use this to run
+            dataset (Dataset): The dataset on which to run the experiment.
+            task (ExperimentTask): The task to run on each example in the dataset.
+            evaluators (Optional[ExperimentEvaluators]): A single evaluator or sequence of
+                evaluators used to evaluate the results of the experiment. Defaults to None.
+            experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+            experiment_description (Optional[str]): A description of the experiment. Defaults to
+                None.
+            experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+                experiment. Defaults to None.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
+                adaptively throttle on. Defaults to None.
+            dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
+                experiment results will not be recorded in Phoenix. If True, the experiment will run
+                on a random
+                dataset example. If an integer, the experiment will run on a random sample of the
+                dataset examples of the given size. Defaults to False.
+            print_summary (bool): Whether to print a summary of the experiment and evaluation
+                results. Defaults to True.
+            concurrency (int): Specifies the concurrency for task execution. Defaults to 3.
+            timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
+            dangerously_set_repetitions (int): The number of times the task will be run on each
+                example. Defaults to 1. This argument is currently for internal testing purposes
+                only.
 
         Returns:
-            A dictionary containing the experiment results.
+            RanExperiment: A dictionary containing the experiment results.
 
         Raises:
             ValueError: If dataset format is invalid or has no examples.
@@ -1377,7 +1551,7 @@ class AsyncExperiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        repetitions = 1
+        repetitions = dangerously_set_repetitions
 
         payload = {
             "version_id": dataset.version_id,
@@ -1498,14 +1672,7 @@ class AsyncExperiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs_response = await self._client.get(f"v1/experiments/{experiment['id']}/runs")
-            all_runs = all_runs_response.json()["data"]
-            async_task_runs: list[ExperimentRun] = []
-            for run in all_runs:
-                run["start_time"] = datetime.fromisoformat(run["start_time"])
-                run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(run)
-            task_runs = async_task_runs
+            task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -1552,6 +1719,53 @@ class AsyncExperiments:
 
         return ran_experiment
 
+    async def _get_all_experiment_runs(
+        self,
+        *,
+        experiment_id: str,
+        page_size: int = 50,
+    ) -> list[ExperimentRun]:
+        """
+        Fetch all experiment runs using pagination to handle large datasets.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            page_size (int): Number of runs to fetch per page. Defaults to 50.
+
+        Returns:
+            list[ExperimentRun]: List of all experiment runs.
+        """
+        all_runs: list[ExperimentRun] = []
+        cursor: Optional[str] = None
+
+        while True:
+            params: dict[str, Any] = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+
+            try:
+                response = await self._client.get(
+                    f"v1/experiments/{experiment_id}/runs",
+                    params=params,
+                )
+                response.raise_for_status()
+                body = cast(v1.ListExperimentRunsResponseBody, response.json())
+                all_runs.extend(body["data"])
+
+                # Check if there are more pages
+                cursor = body.get("next_cursor")
+                if not cursor:
+                    break
+
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Experiment doesn't exist - treat as empty result for robustness
+                    break
+                else:
+                    raise
+
+        return all_runs
+
     async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
         """
         Get a completed experiment by ID (async version).
@@ -1561,25 +1775,27 @@ class AsyncExperiments:
         additional evaluations.
 
         Args:
-            experiment_id: The ID of the experiment to retrieve.
+            experiment_id (str): The ID of the experiment to retrieve.
 
         Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+            RanExperiment: A RanExperiment object containing the experiment data, task runs,
+                and evaluation runs.
 
         Raises:
             ValueError: If the experiment is not found.
             httpx.HTTPStatusError: If the API returns an error response.
 
-        Example:
-            >>> client = AsyncClient()
-            >>> experiment = await client.experiments.get_experiment(experiment_id="123")
-            >>> await client.experiments.evaluate_experiment(
-            ...     experiment=experiment,
-            ...     evaluators=[
-            ...         correctness,
-            ...     ],
-            ...     print_summary=True,
-            ... )
+        Examples::
+
+            client = AsyncClient()
+            experiment = await client.experiments.get_experiment(experiment_id="123")
+            await client.experiments.evaluate_experiment(
+                experiment=experiment,
+                evaluators=[
+                    correctness,
+                ],
+                print_summary=True,
+            )
         """
         # Get experiment metadata using existing endpoint
         try:
@@ -1698,17 +1914,23 @@ class AsyncExperiments:
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
 
         Args:
-            experiment: The experiment to evaluate, returned from `run_experiment`.
-            evaluators: A single evaluator or sequence of evaluators used to
-                evaluate the results of the experiment.
-            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+            experiment (RanExperiment): The experiment to evaluate, returned from `run_experiment`.
+            evaluators (ExperimentEvaluators): A single evaluator or sequence of evaluators
+                used to evaluate the results of the experiment.
+            dry_run (bool): Run the evaluation in dry-run mode. When set, evaluation results will
                 not be recorded in Phoenix. Defaults to False.
-            print_summary: Whether to print a summary of the evaluation results.
+            print_summary (bool): Whether to print a summary of the evaluation results.
                 Defaults to True.
-            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+            timeout (Optional[int]): The timeout for the evaluation execution in seconds.
+                Defaults to 60.
+            concurrency (int): Specifies the concurrency for evaluation execution. Defaults to 3.
+            rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions
+                to adaptively throttle on.
+                Defaults to None.
 
         Returns:
-            A dictionary containing the evaluation results with the same format as run_experiment.
+            RanExperiment: A dictionary containing the evaluation results with the same format
+                as run_experiment.
 
         Raises:
             ValueError: If no evaluators are provided or experiment has no runs.

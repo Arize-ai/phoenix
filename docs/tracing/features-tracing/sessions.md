@@ -23,5 +23,5 @@ This feature is particularly valuable for applications where context builds over
 
 ## Next Steps
 
-* Check out how to [setup-sessions.md](../how-to-tracing/setup-tracing/setup-sessions.md "mention")
+* Check out how to [setup sessions](../how-to-tracing/setup-tracing/setup-sessions.md "mention")
 

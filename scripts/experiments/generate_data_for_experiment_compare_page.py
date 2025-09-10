@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 from typing import Any
 
@@ -6,11 +7,11 @@ import pandas as pd
 from openai import OpenAI
 
 from phoenix.client import Client
+from phoenix.client.experiments import create_evaluator
 from phoenix.evals.models import OpenAIModel
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsAnyKeyword,
-    create_evaluator,
 )
 from phoenix.experiments.types import ExampleInput
 from phoenix.otel import register
@@ -39,9 +40,55 @@ df = pd.DataFrame(
             "answer": "Through Y Combinator's accelerator program and his influential essays about technology startups.",  # noqa: E501
             "metadata": {"topic": "tech"},
         },
+        {
+            "question": (
+                "In the context of modern technology startups, particularly those that have "
+                "emerged in the last two decades, can you provide a comprehensive and detailed "
+                "analysis of the various ways in which Paul Graham's essays, public talks, and "
+                "direct involvement with Y Combinator have influenced not only the operational "
+                "strategies of early-stage companies but also the broader cultural and "
+                "philosophical approaches to entrepreneurship, including but not limited to "
+                "topics such as funding models, founder psychology, product-market fit, and "
+                "the evolution of startup ecosystems across different continents? Please "
+                "include specific examples, references to notable essays, and a discussion "
+                "of the long-term impact on both successful and failed startups."
+            ),
+            "answer": (
+                "Paul Graham's influence on the startup world is vast and multifaceted, "
+                "stemming from his prolific writing, public speaking, and hands-on "
+                "mentorship through Y Combinator (YC). His essays, such as 'How to Start "
+                "a Startup,' 'Do Things that Don't Scale,' and 'Maker's Schedule, "
+                "Manager's Schedule,' have become foundational reading for aspiring "
+                "entrepreneurs. Through these writings, Graham has shaped how founders "
+                "think about product-market fit, emphasizing the importance of building "
+                "something people want and iterating quickly based on user feedback. "
+                "His advocacy for the 'ramen profitable' mindset encouraged startups to "
+                "focus on sustainability and independence from early on. At YC, Graham "
+                "pioneered the accelerator model, providing seed funding, mentorship, "
+                "and a powerful network, which has since been replicated globally. This "
+                "model democratized access to capital and advice, lowering barriers for "
+                "diverse founders. Graham's focus on founder psychology—addressing "
+                "topics like impostor syndrome, resilience, and the value of small, "
+                "focused teams—has helped normalize the emotional challenges of "
+                "entrepreneurship. Notable YC alumni, such as Airbnb, Dropbox, and "
+                "Stripe, have cited Graham's guidance as instrumental in their early "
+                "growth. His insistence on 'doing things that don't scale' encouraged "
+                "startups to engage deeply with their first users, leading to better "
+                "products and stronger communities. The long-term impact of Graham's "
+                "work is evident in the proliferation of accelerators worldwide, the "
+                "widespread adoption of lean startup principles, and a cultural shift "
+                "toward embracing failure as a learning opportunity. Even startups "
+                "that did not succeed often credit Graham's frameworks for helping "
+                "them pivot or approach future ventures with greater insight. In "
+                "summary, Paul Graham's contributions have fundamentally altered the "
+                "landscape of technology entrepreneurship, fostering a more "
+                "experimental, user-focused, and resilient startup culture."
+            ),
+            "metadata": {"topic": "long-text-test"},
+        },
     ]
 )
-dataset_name = "experiment-compare-dataset"
+dataset_name = "experiment-compare-dataset" + str(uuid.uuid4())
 dataset = phoenix_client.datasets.create_dataset(
     name=dataset_name,
     dataframe=df,
@@ -108,6 +155,18 @@ def accuracy(input: dict[str, Any], output: str, expected: dict[str, Any]) -> fl
     return 1.0 if response_message_content == "accurate" else 0.0
 
 
+@create_evaluator(kind="llm")  # need the decorator or the kind will default to "code"
+def accuracy_label(input: dict[str, Any], output: str, expected: dict[str, Any]) -> str:
+    message_content = eval_prompt_template.format(
+        question=input["question"], reference_answer=expected["answer"], answer=output
+    )
+    response = openai_client.chat.completions.create(
+        model="gpt-4o", messages=[{"role": "user", "content": message_content}]
+    )
+    response_message_content = (response.choices[0].message.content or "").lower().strip()
+    return response_message_content
+
+
 task_prompt_template = "Answer in a few words: {question}"
 experiment = phoenix_client.experiments.run_experiment(
     dataset=dataset,
@@ -116,10 +175,12 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
+    dangerously_set_repetitions=1,
 )
 
 task_prompt_template = "Answer verbosely: {question}"
@@ -130,10 +191,12 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
+    dangerously_set_repetitions=3,
 )
 
 
@@ -183,8 +246,10 @@ experiment = phoenix_client.experiments.run_experiment(
     evaluators=[
         jaccard_similarity,
         jaccard_similarity2,
-        # accuracy,
+        accuracy,
+        accuracy_label,
         # contains_keyword,
         # conciseness,
     ],
+    dangerously_set_repetitions=5,
 )

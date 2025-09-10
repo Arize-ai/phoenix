@@ -172,6 +172,11 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
+ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS = "PHOENIX_MASK_INTERNAL_SERVER_ERRORS"
+"""
+Whether to mask internal server errors from the GraphQL and REST APIs. Defaults to true.
+"""
+
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
@@ -1608,6 +1613,10 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 def get_env_disable_migrations() -> bool:
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
+
+
+def get_env_mask_internal_server_errors() -> bool:
+    return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
 
 DEFAULT_PROJECT_NAME = "default"

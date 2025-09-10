@@ -13,6 +13,7 @@ import {
   DebouncedSearch,
   Dialog,
   DialogTrigger,
+  Flex,
   Heading,
   Icon,
   Icons,
@@ -164,9 +165,7 @@ function ProjectsList({
 
   const onSearchChange = (search: string) => {
     startTransition(() => {
-      refetch({
-        search: search,
-      });
+      refetch({ search });
     });
   };
   return (
@@ -174,24 +173,20 @@ function ProjectsList({
       <View
         padding="size-100"
         borderBottomWidth="thin"
-        borderBottomColor="light"
+        borderColor="dark"
         minWidth={300}
       >
-        <Heading
-          level={4}
-          weight="heavy"
-          css={css`
-            padding-bottom: var(--ac-global-dimension-size-100);
-          `}
-        >
-          Transfer Traces to Project
-        </Heading>
-        <DebouncedSearch
-          autoFocus
-          aria-label="Search projects"
-          placeholder="Search projects..."
-          onChange={onSearchChange}
-        />
+        <Flex direction="column" gap="size-50">
+          <Heading level={4} weight="heavy">
+            Transfer Traces to Project
+          </Heading>
+          <DebouncedSearch
+            autoFocus
+            aria-label="Search projects"
+            placeholder="Search projects..."
+            onChange={onSearchChange}
+          />
+        </Flex>
       </View>
       <ListBox
         aria-label="projects"
@@ -209,6 +204,7 @@ function ProjectsList({
             onProjectSelect(projectId);
           }
         }}
+        renderEmptyState={() => "No projects found"}
       >
         {(item) => (
           <ListBoxItem

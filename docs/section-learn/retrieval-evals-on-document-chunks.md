@@ -2,7 +2,7 @@
 
 Retrieval Evals are designed to evaluate the effectiveness of retrieval systems. The retrieval systems typically return list of chunks of length _k_ ordered by relevancy. The most common retrieval systems in the LLM ecosystem are vector DBs.
 
-The retrieval Eval is designed to asses the relevance of each chunk and its ability to answer the question. More information on the Retrieval Eval can be found here
+The retrieval Eval is designed to assess the relevance of each chunk and its ability to answer the question. More information on the Retrieval Eval can be found here
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_retrieval_overview_diagram.png" %}
 

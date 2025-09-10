@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { useTheme } from "@phoenix/contexts";
+import { useSpanKindColor } from "./useSpanKindColor";
 
 const ToolSVG = () => (
   <svg
@@ -548,66 +548,35 @@ export function SpanKindIcon({
   spanKind: string;
   variant?: "fill" | "outline";
 }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const isFilled = variant === "fill";
   let icon = isFilled ? <UnknownFilledSVG /> : <UnknownSVG />;
-  let color = isDark
-    ? "--ac-global-color-grey-600"
-    : "--ac-global-color-grey-200";
+  const color = useSpanKindColor({ spanKind });
   switch (spanKind) {
     case "llm":
-      color = isDark
-        ? "--ac-global-color-orange-1000"
-        : "--ac-global-color-orange-500";
       icon = isFilled ? <LLMFilledSVG /> : <LLMSVG />;
       break;
     case "chain":
-      color = isDark
-        ? "--ac-global-color-blue-1000"
-        : "--ac-global-color-blue-500";
       icon = isFilled ? <ChainFilledSVG /> : <ChainSVG />;
       break;
     case "retriever":
-      color = isDark
-        ? "--ac-global-color-seafoam-1000"
-        : "--ac-global-color-seafoam-500";
       icon = isFilled ? <RetrieverFilledSVG /> : <RetrieverSVG />;
       break;
     case "embedding":
-      color = isDark
-        ? "--ac-global-color-indigo-1000"
-        : "--ac-global-color-indigo-500";
       icon = isFilled ? <EmbeddingFilledSVG /> : <EmbeddingSVG />;
       break;
     case "agent":
-      color = isDark
-        ? "--ac-global-color-grey-600"
-        : "--ac-global-color-grey-300";
       icon = isFilled ? <AgentFilledSVG /> : <AgentSVG />;
       break;
     case "tool":
-      color = isDark
-        ? "--ac-global-color-yellow-1200"
-        : "--ac-global-color-yellow-500";
       icon = isFilled ? <ToolFilledSVG /> : <ToolSVG />;
       break;
     case "reranker":
-      color = isDark
-        ? "--ac-global-color-celery-1000"
-        : "--ac-global-color-celery-500";
       icon = isFilled ? <RerankerFilledSVG /> : <RerankerSVG />;
       break;
     case "evaluator":
-      color = isDark
-        ? "--ac-global-color-indigo-1000"
-        : "--ac-global-color-indigo-500";
       icon = isFilled ? <EvaluatorFilledSVG /> : <EvaluatorSVG />;
       break;
     case "guardrail":
-      color = isDark
-        ? "--ac-global-color-fuchsia-1200"
-        : "--ac-global-color-fuchsia-500";
       icon = isFilled ? <GuardrailFilledSVG /> : <GuardrailSVG />;
       break;
   }
@@ -615,7 +584,7 @@ export function SpanKindIcon({
   return (
     <div
       css={css`
-        color: var(${color});
+        color: ${color};
         width: 20px;
         height: 20px;
       `}

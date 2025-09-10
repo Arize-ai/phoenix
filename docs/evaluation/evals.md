@@ -12,9 +12,9 @@ pip install -q openai nest_asyncio
 
 ## Prepare your dataset
 
-The first thing you'll need is a dataset to evaluate. This could be your own collect or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
+The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
 
-For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to sub this with your own data, just be sure it includes the following columns:
+For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
 
 * reference
 * query
@@ -91,7 +91,7 @@ Explanation of the parameters used in run\_evals above:
 
 * `dataframe` - a pandas dataframe that includes the data you want to evaluate. This could be spans exported from Phoenix, or data you've brought in from elsewhere. This dataframe must include the columns expected by the evaluators you are using. To see the columns expected by each built-in evaluator, check the corresponding page in the Using Phoenix Evaluators section.
 * `evaluators` - a list of built-in Phoenix evaluators to use.
-* `provide_explanations` - a binary flag that instructs the evaluators to generate explanations for their choices.
+* `provide_explanation` - a binary flag that instructs the evaluators to generate explanations for their choices.
 
 ## Analyze Your Evaluations
 

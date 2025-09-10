@@ -1,5 +1,13 @@
+import functools
+import json
+from inspect import BoundArguments
 from typing import Any, Dict, List, Optional, Union
 
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.trace import Tracer
+
+from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.preview.tracing import trace
 from phoenix.evals.templates import MultimodalPrompt
 
 from .adapters import register_adapters
@@ -8,15 +16,90 @@ from .registries import PROVIDER_REGISTRY, adapter_availability_table
 register_adapters()
 
 
-class LLMBase:
+def _get_llm_model_name(bound: BoundArguments) -> str:
+    """Extract model name from bound function arguments.
+
+    Args:
+        bound (BoundArguments): Bound arguments from function call inspection.
+
+    Returns:
+        str: Model name from the 'self.model' attribute, or empty string if not found.
+    """
+    return bound.arguments["self"].model or ""
+
+
+def _get_prompt(bound: BoundArguments) -> str:
+    """Extract prompt text from bound function arguments.
+
+    Args:
+        bound (BoundArguments): Bound arguments from function call inspection.
+
+    Returns:
+        str: Prompt text from arguments, or empty string if not found.
+    """
+    return bound.arguments.get("prompt", "") or ""
+
+
+def _get_output(result: Any) -> Any:
+    """Pass-through function for output processing in tracing.
+
+    Args:
+        result (Any): The raw result from function execution.
+
+    Returns:
+        Any: The unmodified result.
+    """
+    return result
+
+
+def _jsonify_output(result: Any) -> str:
+    """Convert result to JSON string representation.
+
+    Args:
+        result (Any): The result to convert to JSON.
+
+    Returns:
+        str: JSON string representation of the result.
+    """
+    return json.dumps(result)
+
+
+class LLM:
+    """
+    An LLM wrapper that simplifies the API for generating text and objects.
+    This wrapper delegates API access to SDK/client libraries that are installed in the active
+    Python environment. To show supported providers, use `show_provider_availability()`.
+    Args:
+        provider: The name of the provider to use.
+        model: The name of the model to use.
+        client: Optionally, name of the client to use. If not specified, the first available client
+            for the provider will be used.
+    Examples:
+        >>> from phoenix.evals.llm import LLM, show_provider_availability
+        >>> show_provider_availability()
+        >>> llm = LLM(provider="openai", model="gpt-4o")
+        >>> llm.generate_text(prompt="Hello, world!")
+        "Hello, world!"
+        >>> llm.generate_object(
+        ...     prompt="Hello, world!",
+        ...     schema={
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "text": {"type": "string"}
+        ...     },
+        ...     "required": ["text"]
+        ... })
+        {"text": "Hello, world!"}
+    """
+
     def __init__(
         self,
         *,
         provider: Optional[str] = None,
         model: Optional[str] = None,
         client: Optional[str] = None,
+        initial_per_second_request_rate: Optional[float] = None,
     ):
-        self._is_async: bool = getattr(self, "_is_async", False)
         self.provider = provider
         self.model = model
 
@@ -48,7 +131,13 @@ class LLMBase:
                 registration = provider_registrations[0]
 
             try:
-                client = registration.client_factory(model=model, is_async=self._is_async)
+                sync_client = registration.client_factory(model=model, is_async=False)
+                async_client = registration.client_factory(model=model, is_async=True)
+                rate_limit_errors = (
+                    registration.get_rate_limit_errors()
+                    if registration.get_rate_limit_errors
+                    else []
+                )
                 adapter_class = registration.adapter_class
             except Exception as e:
                 raise ValueError(f"Failed to create client for provider '{provider}': {e}") from e
@@ -57,46 +146,33 @@ class LLMBase:
             # This should never happen due to the initial validation
             raise ValueError("Internal error: cannot initialize LLM wrapper.")
 
-        self._client = client
-        self._adapter = adapter_class(client)
+        self._sync_client = sync_client
+        self._async_client = async_client
+        self._sync_adapter = adapter_class(sync_client)
+        self._async_adapter = adapter_class(async_client)
+        self._rate_limit_errors = rate_limit_errors
+        rate_limit_args: Dict[str, Any] = {}
+        if initial_per_second_request_rate is not None:
+            rate_limit_args["initial_per_second_request_rate"] = initial_per_second_request_rate
+        self._rate_limiters = [
+            RateLimiter(
+                rate_limit_error=error,
+                **rate_limit_args,
+            )
+            for error in rate_limit_errors
+        ]
 
-
-class LLM(LLMBase):
-    """
-    An LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import LLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = False
-        super().__init__(*args, **kwargs)
-
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
+    )
+    def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
+    ) -> str:
         """
         Generate text given a prompt.
 
@@ -107,10 +183,26 @@ class LLM(LLMBase):
         Returns:
             The generated text.
         """
-        return self._adapter.generate_text(prompt, **kwargs)
+        fn = self._sync_adapter.generate_text
+        rate_limited_generate = functools.reduce(
+            lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
+        )
+        return rate_limited_generate(prompt, **kwargs)
 
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
     def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Generate an object given a prompt and a schema.
@@ -123,7 +215,11 @@ class LLM(LLMBase):
         Returns:
             The generated object.
         """
-        return self._adapter.generate_object(prompt, schema, **kwargs)
+        fn = self._sync_adapter.generate_object
+        rate_limited_generate = functools.reduce(
+            lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
+        )
+        return rate_limited_generate(prompt, schema, **kwargs)
 
     def generate_classification(
         self,
@@ -165,60 +261,54 @@ class LLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
+        result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
+        return result
 
-        return self.generate_object(prompt, schema, **kwargs)
-
-
-class AsyncLLM(LLMBase):
-    """
-    An asynchronous LLM wrapper that simplifies the API for generating text and objects.
-
-    This wrapper delegates API access to SDK/client libraries that are installed in the active
-    Python environment. To show supported providers, use `show_provider_availability()`.
-
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-
-    Examples:
-        >>> from phoenix.evals.llm import AsyncLLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = AsyncLLM(provider="openai", model="gpt-4o")
-        >>> await llm.generate_text(prompt="Hello, world!")
-        "Hello, world!"
-        >>> await llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
-        {"text": "Hello, world!"}
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._is_async = True
-        super().__init__(*args, **kwargs)
-
-    async def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
+    )
+    async def agenerate_text(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
+    ) -> str:
         """
         Asynchronously generate text given a prompt.
 
         Args:
             prompt: The prompt to generate text from.
+            tracer: The tracer to use for tracing.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
             The generated text.
         """
-        return await self._adapter.agenerate_text(prompt, **kwargs)
+        fn = self._async_adapter.agenerate_text
+        rate_limited_generate = functools.reduce(
+            lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
+        )
+        return await rate_limited_generate(prompt, **kwargs)
 
-    async def generate_object(
-        self, prompt: Union[str, MultimodalPrompt], schema: Dict[str, Any], **kwargs: Any
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.LLM,
+        process_input={
+            SpanAttributes.LLM_MODEL_NAME: _get_llm_model_name,
+            SpanAttributes.INPUT_VALUE: _get_prompt,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
+    async def agenerate_object(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        tracer: Optional[Tracer] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Asynchronously generate an object given a prompt and a schema.
@@ -231,9 +321,13 @@ class AsyncLLM(LLMBase):
         Returns:
             The generated object.
         """
-        return await self._adapter.agenerate_object(prompt, schema, **kwargs)
+        fn = self._async_adapter.agenerate_object
+        rate_limited_generate = functools.reduce(
+            lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
+        )
+        return await rate_limited_generate(prompt, schema, **kwargs)
 
-    async def generate_classification(
+    async def agenerate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
         labels: Union[List[str], Dict[str, str]],
@@ -258,7 +352,8 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        return await self.generate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = await self.agenerate_object(prompt, schema, **kwargs)
+        return result
 
 
 def show_provider_availability() -> None:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f76c870b6b0dcc366713f0a3ce3c8511>>
+ * @generated SignedSource<<a5fdba71030cc6f6b8f43088da65e5a2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,13 @@ const node: ConcreteRequest = {
     "name": "DatasetSelectorPopoverContentQuery",
     "selections": [
       {
-        "args": null,
+        "args": [
+          {
+            "kind": "Literal",
+            "name": "search",
+            "value": ""
+          }
+        ],
         "kind": "FragmentSpread",
         "name": "DatasetSelectorPopoverContent_datasets"
       }
@@ -43,7 +49,24 @@ const node: ConcreteRequest = {
     "selections": [
       {
         "alias": null,
-        "args": null,
+        "args": [
+          {
+            "fields": [
+              {
+                "kind": "Literal",
+                "name": "col",
+                "value": "name"
+              },
+              {
+                "kind": "Literal",
+                "name": "value",
+                "value": ""
+              }
+            ],
+            "kind": "ObjectValue",
+            "name": "filter"
+          }
+        ],
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -86,20 +109,20 @@ const node: ConcreteRequest = {
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "datasets(filter:{\"col\":\"name\",\"value\":\"\"})"
       }
     ]
   },
   "params": {
-    "cacheID": "5fb28a402f330dd235295da21efea58b",
+    "cacheID": "02fcced29ddf37dbf2220d4d94ec7a44",
     "id": null,
     "metadata": {},
     "name": "DatasetSelectorPopoverContentQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectorPopoverContentQuery {\n  ...DatasetSelectorPopoverContent_datasets\n}\n\nfragment DatasetSelectorPopoverContent_datasets on Query {\n  datasets {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetSelectorPopoverContentQuery {\n  ...DatasetSelectorPopoverContent_datasets_1oCkZB\n}\n\nfragment DatasetSelectorPopoverContent_datasets_1oCkZB on Query {\n  datasets(filter: {col: name, value: \"\"}) {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "7cd8a13144d97d2b5294f2a09c9e1351";
+(node as any).hash = "ed6b4586cff4c203c56ae2f5f5ce6a8e";
 
 export default node;

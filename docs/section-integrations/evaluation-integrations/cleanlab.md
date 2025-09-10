@@ -14,7 +14,7 @@ Specifically, this tutorial will walk through:
 
 ### Key Implementation Steps for generating evals w/ TLM
 
-1. Install Dependencies, Set up API Keys, Obtain LLM Reponses + Trace in Phoenix
+1. Install Dependencies, Set up API Keys, Obtain LLM Responses + Trace in Phoenix
 2. Download Trace Dataset
 
 ```python

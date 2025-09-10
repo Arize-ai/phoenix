@@ -88,21 +88,24 @@ class SimpleEmailSender:
         allocated_storage_gibibytes: float,
         notification_threshold_percentage: float,
     ) -> None:
-        subject = "[Phoenix] Database Usage Threshold Exceeded"
+        subject = "[Phoenix] Database Disk Space Usage Threshold Exceeded"
         template_name = "db_disk_usage_notification.html"
 
+        support_email = get_env_support_email()
         template = self.env.get_template(template_name)
         html_content = template.render(
             current_usage_gibibytes=current_usage_gibibytes,
             allocated_storage_gibibytes=allocated_storage_gibibytes,
             notification_threshold_percentage=notification_threshold_percentage,
-            support_email=get_env_support_email(),
+            support_email=support_email,
         )
 
         msg = EmailMessage()
         msg["Subject"] = subject
         msg["From"] = self.sender_email
         msg["To"] = email
+        if support_email:
+            msg["Cc"] = support_email
         msg.set_content(html_content, subtype="html")
 
         await to_thread.run_sync(self._send_email, msg)

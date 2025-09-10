@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -100,4 +100,5 @@ class ProviderRegistration:
     adapter_class: Type["BaseLLMAdapter"]
     client_name: str
     client_factory: Callable[..., Any]
+    get_rate_limit_errors: Optional[Callable[..., List[Type[Exception]]]]
     dependencies: List[str]

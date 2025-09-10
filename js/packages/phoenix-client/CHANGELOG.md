@@ -1,5 +1,23 @@
 # @arizeai/phoenix-client
 
+## 4.0.0
+
+### Major Changes
+
+- 7732f99: Breaking change for AI SDK users. Support for messages conversion for the AI SDK 5
+
+## 3.2.0
+
+### Minor Changes
+
+- 4f43901: add support for logging document annotations
+
+## 3.1.0
+
+### Minor Changes
+
+- ee0c829: switch to batch span processor by default and make it configurable
+
 ## 3.0.0
 
 ### Major Changes
@@ -127,7 +145,6 @@
   Phoenix can now manage Prompts, and the `@arizeai/phoenix-client` package has been updated to support this.
 
   In this initial release, we support the following:
-
   - Fully typed Prompt REST endpoints
   - Prompt Pulling
   - Converting a Prompt to invocation parameters for the following LLM SDKs:

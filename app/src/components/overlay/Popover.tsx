@@ -20,7 +20,7 @@ const popoverSlideKeyframes = keyframes`
 
 const popoverCSS = css`
   box-sizing: border-box;
-  --background-color: var(--ac-global-background-color-light);
+  --background-color: var(--ac-global-popover-background-color);
   transition:
     transform 200ms,
     opacity 200ms;
@@ -39,7 +39,7 @@ const popoverCSS = css`
 
   .react-aria-OverlayArrow svg {
     display: block;
-    fill: var(--ac-global-background-color-light);
+    fill: var(--background-color);
     stroke: var(--ac-global-border-color-light);
     stroke-width: 1px;
   }

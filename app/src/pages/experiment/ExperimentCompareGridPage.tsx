@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useLoaderData, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -12,8 +12,11 @@ export function ExperimentCompareGridPage() {
   const [searchParams] = useSearchParams();
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required");
-  const [baseExperimentId, ...compareExperimentIds] =
-    searchParams.getAll("experimentId");
+  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
+    const [baseExperimentId, ...compareExperimentIds] =
+      searchParams.getAll("experimentId");
+    return { baseExperimentId, compareExperimentIds };
+  }, [searchParams]);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   return (

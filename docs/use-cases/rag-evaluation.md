@@ -10,7 +10,7 @@ description: Building a RAG pipeline and evaluating it with Phoenix Evals.
 
 In this tutorial we will look into building a RAG pipeline and evaluating it with Phoenix Evals.
 
-It has the the following sections:
+It has the following sections:
 
 1. Understanding Retrieval Augmented Generation (RAG).
 2. Building RAG (with the help of a framework such as LlamaIndex).
@@ -22,7 +22,7 @@ LLMs are trained on vast amounts of data, but these will not include your specif
 
 In RAG, your data is loaded and prepared for queries. This process is called indexing. User queries act on this index, which filters your data down to the most relevant context. This context and your query then are sent to the LLM along with a prompt, and the LLM provides a response.
 
-RAG is a critical component for building applications such a chatbots or agents and you will want to know RAG techniques on how to get data into your application.
+RAG is a critical component for building applications such as chatbots or agents and you will want to know RAG techniques on how to get data into your application.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_Pipeline.png" alt=""><figcaption></figcaption></figure>
 
@@ -347,7 +347,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
     print(f"Question: {question}\nAnswer: {response_vector.response}\n")
 ```
 
-Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](https://arize.com/docs/phoenix/how-to/extract-data-from-spans)).
+Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to Phoenix. (For an in-depth explanation of how to export trace data from the Phoenix runtime, consult the [docs](https://arize.com/docs/phoenix/how-to/extract-data-from-spans)).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -373,7 +373,7 @@ retrieved_documents_df
 
 348 rows × 4 columns
 
-Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
+Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain its reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
 from phoenix.evals import (
@@ -406,7 +406,7 @@ documents_with_relevance_df
 
 348 rows × 7 columns
 
-Let's compute Normalized Discounted Cumulative Gain [NCDG](https://en.wikipedia.org/wiki/Discounted\_cumulative\_gain) at 2 for all our retrieval steps. In information retrieval, this metric is often used to measure effectiveness of search engine algorithms and related applications.
+Let's compute Normalized Discounted Cumulative Gain [NDCG](https://en.wikipedia.org/wiki/Discounted\_cumulative\_gain) at 2 for all our retrieval steps. In information retrieval, this metric is often used to measure effectiveness of search engine algorithms and related applications.
 
 ```python
 import numpy as np
@@ -580,7 +580,7 @@ score    0.051724
 dtype: float64
 ```
 
-Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies that the generated answers are correct \~91% of the time and that the responses contain hallucinations 5% of the time - there is room for improvement. This could be due to the retrieval strategy or the LLM itself. We will need to investigate further to determine the root cause.
+Our QA Correctness score of `0.93` and a Hallucinations score `0.05` signifies that the generated answers are correct ~93% of the time and that the responses contain hallucinations 5% of the time - there is room for improvement. This could be due to the retrieval strategy or the LLM itself. We will need to investigate further to determine the root cause.
 
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 

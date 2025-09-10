@@ -416,6 +416,27 @@ def get_executor_on_sync_context(
     fallback_return_value: Union[Unset, Any] = _unset,
     timeout: Optional[int] = None,
 ) -> Executor:
+    """
+    Creates an appropriate executor (sync or async) based on the current context.
+
+    Args:
+        sync_fn (Callable[[Any], Any]): Synchronous function to execute.
+        async_fn (Callable[[Any], Coroutine[Any, Any, Any]]): Asynchronous function to execute.
+        run_sync (bool, optional): Force synchronous execution. Defaults to False.
+        concurrency (int, optional): Number of concurrent workers for async execution.
+            Defaults to 3.
+        tqdm_bar_format (Optional[str]): Progress bar format string. None disables progress bar.
+        max_retries (int, optional): Maximum number of retry attempts on failure. Defaults to 10.
+        exit_on_error (bool, optional): Whether to stop all execution on first error.
+            Defaults to True.
+        fallback_return_value (Union[Unset, Any], optional): Value to return when execution fails.
+            Defaults to _unset.
+        timeout (Optional[int]): Timeout in seconds for individual tasks. Defaults to None.
+
+    Returns:
+        Executor: An executor instance (AsyncExecutor or SyncExecutor) appropriate for the
+            current context.
+    """
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
 

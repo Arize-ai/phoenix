@@ -8,6 +8,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { Cell, Pie, PieChart } from "recharts";
 import { css } from "@emotion/react";
 
 import {
@@ -40,6 +41,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
   floatFormatter,
   formatPercent,
@@ -177,6 +179,8 @@ export function ExperimentsTable({
                 annotationSummaries {
                   annotationName
                   meanScore
+                  count
+                  errorCount
                 }
               }
             }
@@ -191,12 +195,24 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            acc[summary.annotationName] = summary;
+            const totalRunCount = edge.experiment.runCount;
+            const annotatedCount = summary.count - summary.errorCount;
+            acc[summary.annotationName] = {
+              ...summary,
+              annotatedCount,
+              totalRunCount,
+            };
             return acc;
           },
           {} as Record<
             string,
-            { annotationName: string; meanScore: number | null } | undefined
+            | {
+                annotationName: string;
+                meanScore: number | null;
+                annotatedCount: number;
+                totalRunCount: number;
+              }
+            | undefined
           >
         );
         return {
@@ -303,6 +319,8 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
+              annotatedCount={annotation.annotatedCount}
+              totalRunCount={annotation.totalRunCount}
             />
           );
         },
@@ -553,84 +571,146 @@ export function ExperimentsTable({
   );
 }
 
+function MissingAnnotationPieChart({
+  unannotatedRatio,
+}: {
+  unannotatedRatio: number;
+}) {
+  const size = 16;
+
+  const chartData = useMemo(
+    () => [
+      { name: "hasAnnotation", value: 1 - unannotatedRatio },
+      { name: "missingAnnotation", value: unannotatedRatio },
+    ],
+    [unannotatedRatio]
+  );
+
+  return (
+    <PieChart width={size} height={size}>
+      <Pie
+        data={chartData}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        innerRadius={6}
+        outerRadius={8}
+        strokeWidth={0}
+        stroke="transparent"
+        startAngle={90}
+        endAngle={-270}
+      >
+        {chartData.map((entry) => (
+          <Cell
+            key={entry.name}
+            fill={
+              entry.name === "missingAnnotation"
+                ? "var(--ac-global-color-warning)"
+                : "var(--ac-global-color-grey-300)"
+            }
+            opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
+          />
+        ))}
+      </Pie>
+    </PieChart>
+  );
+}
+
 function AnnotationAggregationCell({
   annotationName,
   value,
   min,
   max,
+  annotatedCount,
+  totalRunCount,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
+  annotatedCount: number;
+  totalRunCount: number;
 }) {
   const color = useWordColor(annotationName);
-  const percentile = useMemo(() => {
-    // Assume a 0 to 1 range if min and max are not provided
-    const correctedMin = typeof min === "number" ? min : 0;
-    const correctedMax = typeof max === "number" ? max : 1;
-    if (correctedMin === correctedMax && correctedMax === value) {
-      // All the values are the same, so we want to display it as full rather than empty
-      return 100;
-    }
-    // Avoid division by zero
-    const range = correctedMax - correctedMin || 1;
-    return ((value - correctedMin) / range) * 100;
-  }, [value, min, max]);
+  const percentile = useMemo(
+    () => calculateAnnotationScorePercentile(value, min, max),
+    [value, min, max]
+  );
+  const unannotatedRatio =
+    totalRunCount > 0 ? 1 - annotatedCount / totalRunCount : 0;
   return (
-    <TooltipTrigger>
-      <TriggerWrap>
-        <div
-          css={css`
-            float: right;
-            --mod-barloader-fill-color: ${color};
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: var(--ac-global-dimension-size-100);
-          `}
-        >
-          {floatFormatter(value)}
-          <ProgressBar
-            width="40px"
-            value={percentile}
-            aria-label="where the mean score lands between overall min max"
-          />
-        </div>
-      </TriggerWrap>
-      <RichTooltip>
-        <View width="size-2400">
-          <Heading level={3} weight="heavy">
-            {annotationName}
-          </Heading>
-          <Flex direction="column">
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score
+    <div
+      css={css`
+        float: right;
+        --mod-barloader-fill-color: ${color};
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {unannotatedRatio > 0.0 && (
+        <TooltipTrigger>
+          <TriggerWrap>
+            <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
+          </TriggerWrap>
+          <RichTooltip>
+            <View width="size-2000">
+              <Text size="XS">
+                {formatPercent(unannotatedRatio * 100)} (
+                {totalRunCount - annotatedCount}/{totalRunCount}) missing{" "}
+                {annotationName}
               </Text>
-              <Text size="XS">{floatFormatter(value)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Min
-              </Text>
-              <Text size="XS">{floatFormatter(min)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Max
-              </Text>
-              <Text size="XS">{floatFormatter(max)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score Percentile
-              </Text>
-              <Text size="XS">{formatPercent(percentile)}</Text>
-            </Flex>
+            </View>
+          </RichTooltip>
+        </TooltipTrigger>
+      )}
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            {floatFormatter(value)}
+            <ProgressBar
+              width="40px"
+              value={percentile}
+              aria-label="where the mean score lands between overall min max"
+            />
           </Flex>
-        </View>
-      </RichTooltip>
-    </TooltipTrigger>
+        </TriggerWrap>
+        <RichTooltip>
+          <View width="size-2400">
+            <Heading level={3} weight="heavy">
+              {annotationName}
+            </Heading>
+            <Flex direction="column">
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score
+                </Text>
+                <Text size="XS">{floatFormatter(value)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Min
+                </Text>
+                <Text size="XS">{floatFormatter(min)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Max
+                </Text>
+                <Text size="XS">{floatFormatter(max)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score Percentile
+                </Text>
+                <Text size="XS">{formatPercent(percentile)}</Text>
+              </Flex>
+            </Flex>
+          </View>
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
   );
 }

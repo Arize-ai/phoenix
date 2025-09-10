@@ -13,9 +13,9 @@ from typing import Any, Dict
 import pandas as pd
 from dotenv import load_dotenv
 
-import phoenix as px
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import OpenAIModel, llm_generate
-from phoenix.trace.dsl import SpanQuery
 
 load_dotenv()
 
@@ -69,7 +69,8 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        trace_df = px.Client().query_spans(query, project_name="recipe-agent")
+        client = Client()
+        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
         print("Loaded traces from Phoenix")
         return trace_df
     except Exception as e:
@@ -118,10 +119,11 @@ def generate_phoenix_labels(
 
     test_results.set_index(sampled_df.index)
 
-    from phoenix.trace import SpanEvaluations
-
-    px.Client().log_evaluations(
-        SpanEvaluations(eval_name="Ground Truth Labels", dataframe=test_results)
+    px_client = Client()
+    px_client.annotations.log_span_annotations_dataframe(
+        dataframe=test_results,
+        annotation_name="Ground Truth Labels",
+        annotator_kind="LLM",
     )
 
     test_results.rename(

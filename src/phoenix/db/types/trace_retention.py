@@ -199,7 +199,7 @@ class TraceRetentionCronExpression(RootModel[str]):
 
 def _parse_field(field: str, min_val: int, max_val: int) -> set[int]:
     """
-    Parse a cron field and return the set of matching values.
+    Parses a cron field and returns the set of matching values.
 
     Args:
         field (str): The cron field to parse

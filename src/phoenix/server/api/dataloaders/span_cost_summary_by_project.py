@@ -12,32 +12,38 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 
-Segment: TypeAlias = tuple[TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[
+    TimeInterval,
+    FilterCondition,
+    SessionFilterCondition,
+]
 Param: TypeAlias = ProjectRowId
 
-Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition]
+Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilterCondition]
 Result: TypeAlias = SpanCostSummary
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = SpanCostSummary()
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    project_rowid, time_range, filter_condition = key
+    project_rowid, time_range, filter_condition, session_filter_condition = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (interval, filter_condition), project_rowid
+    return (interval, filter_condition, session_filter_condition), project_rowid
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class SpanCostSummaryCache(
@@ -53,8 +59,8 @@ class SpanCostSummaryCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (interval, filter_condition), project_rowid = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition)
+        (interval, filter_condition, session_filter_condition), project_rowid = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, session_filter_condition)
 
 
 class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
@@ -106,12 +112,12 @@ def _get_stmt(
     segment: Segment,
     *params: Param,
 ) -> Select[Any]:
-    (start_time, end_time), filter_condition = segment
-    pid = models.Trace.project_rowid
+    project_rowids = params
+    (start_time, end_time), filter_condition, session_filter_condition = segment
 
     stmt: Select[Any] = (
         select(
-            pid,
+            models.Trace.project_rowid,
             coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
             coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
             coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
@@ -119,8 +125,10 @@ def _get_stmt(
             coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
             coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         )
-        .join_from(models.SpanCost, models.Trace)
-        .group_by(pid)
+        .select_from(models.Trace)
+        .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
+        .where(models.Trace.project_rowid.in_(project_rowids))
+        .group_by(models.Trace.project_rowid)
     )
 
     if start_time:
@@ -132,7 +140,13 @@ def _get_stmt(
         sf = SpanFilter(filter_condition)
         stmt = sf(stmt.join_from(models.SpanCost, models.Span))
 
-    project_ids = [rowid for rowid in params]
-    stmt = stmt.where(pid.in_(project_ids))
+    if session_filter_condition:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition=session_filter_condition,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
 
     return stmt

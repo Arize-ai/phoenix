@@ -69,7 +69,9 @@ async def test_annotating_a_trace(
                 createTraceAnnotations(input: $input) {
                     traceAnnotations {
                         id
-                        traceId
+                        trace {
+                            traceId
+                        }
                         name
                         annotatorKind
                         label
