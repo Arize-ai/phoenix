@@ -3,10 +3,11 @@ export {
   FieldError,
   Input,
   Label,
-  Dialog,
   DialogTrigger,
   Form,
   I18nProvider,
+  Autocomplete,
+  useFilter,
 } from "react-aria-components";
 export type {
   InputProps,
@@ -27,6 +28,7 @@ export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./exception";
 export * from "./KeyboardToken";
+export * from "./ColorSwatch";
 
 // design system based components
 export * from "./alert";
@@ -52,3 +54,10 @@ export * from "./loading";
 export * from "./alert";
 export * from "./select";
 export * from "./media";
+export * from "./dialog";
+export * from "./tooltip";
+export * from "./breadcrumbs";
+export * from "./progress";
+export * from "./list";
+export * from "./toolbar";
+export * from "./card";

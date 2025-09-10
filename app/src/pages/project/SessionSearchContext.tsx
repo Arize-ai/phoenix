@@ -8,8 +8,8 @@ import {
 } from "react";
 
 export type SessionSearchContextType = {
-  filterIoSubstring: string;
-  setFilterIoSubstring: (condition: string) => void;
+  filterIoSubstringOrSessionId: string;
+  setFilterIoSubstringOrSessionId: (condition: string) => void;
 };
 
 export const SessionSearchContext =
@@ -35,8 +35,8 @@ export function SessionSearchProvider(props: PropsWithChildren) {
   return (
     <SessionSearchContext.Provider
       value={{
-        filterIoSubstring: substring,
-        setFilterIoSubstring: setSubstring,
+        filterIoSubstringOrSessionId: substring,
+        setFilterIoSubstringOrSessionId: setSubstring,
       }}
     >
       {props.children}

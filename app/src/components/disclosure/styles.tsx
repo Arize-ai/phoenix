@@ -52,7 +52,7 @@ export const disclosureCSS = css`
     outline: none;
     background-color: transparent;
     &:hover:not([disabled]) {
-      background-color: var(--ac-global-input-field-background-color-active);
+      background-color: var(--ac-global-disclosure-background-color-active);
     }
     &[data-focus-visible] {
       outline: 1px solid var(--ac-global-input-field-border-color-active);

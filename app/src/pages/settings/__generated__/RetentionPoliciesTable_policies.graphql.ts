@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28d8f8e109ecc4d30c216058bab9986c>>
+ * @generated SignedSource<<1d2e2ace0c26ace14641b447a6152247>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,34 +12,10 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type RetentionPoliciesTable_policies$data = {
   readonly projectTraceRetentionPolicies: {
+    readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly cronExpression: string;
-        readonly id: string;
-        readonly name: string;
-        readonly projects: {
-          readonly edges: ReadonlyArray<{
-            readonly node: {
-              readonly id: string;
-              readonly name: string;
-            };
-          }>;
-        };
-        readonly rule: {
-          readonly __typename: "TraceRetentionRuleMaxCount";
-          readonly maxCount: number;
-        } | {
-          readonly __typename: "TraceRetentionRuleMaxDays";
-          readonly maxDays: number;
-        } | {
-          readonly __typename: "TraceRetentionRuleMaxDaysOrCount";
-          readonly maxCount: number;
-          readonly maxDays: number;
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        };
+        readonly " $fragmentSpreads": FragmentRefs<"RetentionPoliciesTable_retentionPolicy">;
       };
     }>;
   };
@@ -153,78 +129,85 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
-                (v2/*: any*/),
                 {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cronExpression",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": null,
-                  "kind": "LinkedField",
-                  "name": "rule",
-                  "plural": false,
+                  "kind": "InlineDataFragmentSpread",
+                  "name": "RetentionPoliciesTable_retentionPolicy",
                   "selections": [
-                    (v3/*: any*/),
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v4/*: any*/)
-                      ],
-                      "type": "TraceRetentionRuleMaxCount",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v5/*: any*/)
-                      ],
-                      "type": "TraceRetentionRuleMaxDays",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v5/*: any*/),
-                        (v4/*: any*/)
-                      ],
-                      "type": "TraceRetentionRuleMaxDaysOrCount",
-                      "abstractKey": null
-                    }
-                  ],
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "ProjectConnection",
-                  "kind": "LinkedField",
-                  "name": "projects",
-                  "plural": false,
-                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "ProjectEdge",
+                      "kind": "ScalarField",
+                      "name": "cronExpression",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
                       "kind": "LinkedField",
-                      "name": "edges",
-                      "plural": true,
+                      "name": "rule",
+                      "plural": false,
+                      "selections": [
+                        (v3/*: any*/),
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            (v4/*: any*/)
+                          ],
+                          "type": "TraceRetentionRuleMaxCount",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            (v5/*: any*/)
+                          ],
+                          "type": "TraceRetentionRuleMaxDays",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            (v5/*: any*/),
+                            (v4/*: any*/)
+                          ],
+                          "type": "TraceRetentionRuleMaxDaysOrCount",
+                          "abstractKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "ProjectConnection",
+                      "kind": "LinkedField",
+                      "name": "projects",
+                      "plural": false,
                       "selections": [
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "Project",
+                          "concreteType": "ProjectEdge",
                           "kind": "LinkedField",
-                          "name": "node",
-                          "plural": false,
+                          "name": "edges",
+                          "plural": true,
                           "selections": [
-                            (v2/*: any*/),
-                            (v1/*: any*/)
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Project",
+                              "kind": "LinkedField",
+                              "name": "node",
+                              "plural": false,
+                              "selections": [
+                                (v2/*: any*/),
+                                (v1/*: any*/)
+                              ],
+                              "storageKey": null
+                            }
                           ],
                           "storageKey": null
                         }
@@ -232,7 +215,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "storageKey": null
+                  "args": null,
+                  "argumentDefinitions": []
                 },
                 (v3/*: any*/)
               ],
@@ -272,6 +256,18 @@ return {
             }
           ],
           "storageKey": null
+        },
+        {
+          "kind": "ClientExtension",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "__id",
+              "storageKey": null
+            }
+          ]
         }
       ],
       "storageKey": null
@@ -282,6 +278,6 @@ return {
 };
 })();
 
-(node as any).hash = "05f4dfa540c2b394a25b5a004349c49f";
+(node as any).hash = "21f8b6156e669019ebb7877c04f48ade";
 
 export default node;

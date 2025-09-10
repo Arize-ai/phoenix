@@ -1,5 +1,207 @@
 # Changelog
 
+## [1.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.1...arize-phoenix-client-v1.18.0) (2025-09-04)
+
+
+### Features
+
+* paginate get experiment runs inside run_experiment ([#9370](https://github.com/Arize-ai/phoenix/issues/9370)) ([8882afc](https://github.com/Arize-ai/phoenix/commit/8882afc2eb1901ffaad0bc9057eb65e1ec3bc337))
+
+## [1.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.0...arize-phoenix-client-v1.17.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* experiment task function backward compatibility for the example argument ([#9374](https://github.com/Arize-ai/phoenix/issues/9374)) ([9dd3b8c](https://github.com/Arize-ai/phoenix/commit/9dd3b8cf09198fc611fb4ce1c6781afdfd07a0dc))
+
+## [1.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.16.0...arize-phoenix-client-v1.17.0) (2025-09-03)
+
+
+### Features
+
+* add methods to log document annotations ([#9352](https://github.com/Arize-ai/phoenix/issues/9352)) ([26808b7](https://github.com/Arize-ai/phoenix/commit/26808b795a1333c40e79a62742a9ff0b631cd064))
+
+
+### Documentation
+
+* fix doctring on document annotations ([#9367](https://github.com/Arize-ai/phoenix/issues/9367)) ([5a149f2](https://github.com/Arize-ai/phoenix/commit/5a149f23983725579939ee36ce358f659b0ef5bd))
+* fix doctring trailing comma ([#9339](https://github.com/Arize-ai/phoenix/issues/9339)) ([292cace](https://github.com/Arize-ai/phoenix/commit/292cace00b1fcb399bff2f6936a7715fa012ebe9))
+* fix doctrings for annotatiosn ([#9337](https://github.com/Arize-ai/phoenix/issues/9337)) ([e1c713a](https://github.com/Arize-ai/phoenix/commit/e1c713a11e614b225f222493d8286b63e7a23452))
+
+## [1.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.3...arize-phoenix-client-v1.16.0) (2025-08-30)
+
+
+### Features
+
+* `get_spans_dataframe` sorts by newst/oldest spans ([#9173](https://github.com/Arize-ai/phoenix/issues/9173)) ([2bf5819](https://github.com/Arize-ai/phoenix/commit/2bf58194ae6be3e63d08c64ccf71a96b1e20dfdf))
+* **client:** re-export types for dx ([#9330](https://github.com/Arize-ai/phoenix/issues/9330)) ([3713355](https://github.com/Arize-ai/phoenix/commit/37133552a24cab98c7c9d8eb680f80be3c3df2bf))
+* Handle new OpenAI tool types ([#9175](https://github.com/Arize-ai/phoenix/issues/9175)) ([d6c2559](https://github.com/Arize-ai/phoenix/commit/d6c25590d11668cb2529a2173d8e3ea1df67a14e))
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+* Add explicit documentation for missing phoenix.Client methods in API reference ([#8976](https://github.com/Arize-ai/phoenix/issues/8976)) ([6cd0b1f](https://github.com/Arize-ai/phoenix/commit/6cd0b1f84f8aacd1fa2a88c31c61638c0b391818))
+* **client:** fix python client docs ([#9317](https://github.com/Arize-ai/phoenix/issues/9317)) ([d94835a](https://github.com/Arize-ai/phoenix/commit/d94835aad129216fdb7d480a70aa2a501e615a8e))
+* consistent docstrings ([#9324](https://github.com/Arize-ai/phoenix/issues/9324)) ([00dcea9](https://github.com/Arize-ai/phoenix/commit/00dcea97aac7a8165395bfaefe52f771feadca2d))
+* fix client python docs ([#9160](https://github.com/Arize-ai/phoenix/issues/9160)) ([bbe1300](https://github.com/Arize-ai/phoenix/commit/bbe130056dd531128a04db53a2e635df41284d7a))
+
+## [1.15.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.2...arize-phoenix-client-v1.15.3) (2025-08-15)
+
+
+### Bug Fixes
+
+* **experiments:** dataset version id should not be optional ([#9074](https://github.com/Arize-ai/phoenix/issues/9074)) ([ec83174](https://github.com/Arize-ai/phoenix/commit/ec831742aa2cc22453922a7acf61775e4bbe5b29))
+* **experiments:** result should be nullable when there's error in experiment run evaluation ([#9065](https://github.com/Arize-ai/phoenix/issues/9065)) ([fc5c303](https://github.com/Arize-ai/phoenix/commit/fc5c30310b804157f5472a2e2599ca34e0a03a46))
+
+## [1.15.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.1...arize-phoenix-client-v1.15.2) (2025-08-14)
+
+
+### Bug Fixes
+
+* **experiments:** ran experiment should contain project name ([#9076](https://github.com/Arize-ai/phoenix/issues/9076)) ([03dd8de](https://github.com/Arize-ai/phoenix/commit/03dd8deeee5fc26991df5b39f6f0adf29676557e))
+* **experiments:** span name should be short for experiment tasks ([#9079](https://github.com/Arize-ai/phoenix/issues/9079)) ([589e96d](https://github.com/Arize-ai/phoenix/commit/589e96d040d571c28b03cf393ed20d405dd895bb))
+
+## [1.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.15.0...arize-phoenix-client-v1.15.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* **experiments:** record end time after span ends ([#9070](https://github.com/Arize-ai/phoenix/issues/9070)) ([7961d43](https://github.com/Arize-ai/phoenix/commit/7961d43d9b3002d769be11f06605790d01ca5820))
+
+
+### Documentation
+
+* client config for run_experiment docstring ([#9032](https://github.com/Arize-ai/phoenix/issues/9032)) ([41384be](https://github.com/Arize-ai/phoenix/commit/41384be0e7e65d55285899b54033b269c4c3cc22))
+
+## [1.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.2...arize-phoenix-client-v1.15.0) (2025-08-07)
+
+
+### Features
+
+* **playground:** support gpt-5 ([#8985](https://github.com/Arize-ai/phoenix/issues/8985)) ([8711bde](https://github.com/Arize-ai/phoenix/commit/8711bdecfeee479c480a1acebf32ebc1b11461cb))
+* python phoenix-client delete span method ([#8944](https://github.com/Arize-ai/phoenix/issues/8944)) ([c7a0a1a](https://github.com/Arize-ai/phoenix/commit/c7a0a1a9fa63a659f86c5675ef913168df8962bf))
+* Reexport experiment utilities in top-level client module ([#8953](https://github.com/Arize-ai/phoenix/issues/8953)) ([1f9a9cb](https://github.com/Arize-ai/phoenix/commit/1f9a9cb8d9ac3bf63db05a8541e5826e099a153b))
+
+
+### Bug Fixes
+
+* Update notebooks to use new client ([#8891](https://github.com/Arize-ai/phoenix/issues/8891)) ([6ebbfb4](https://github.com/Arize-ai/phoenix/commit/6ebbfb4d6a9bfb40cf7a7d6a8db1464b4d931bd0))
+
+## [1.14.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.1...arize-phoenix-client-v1.14.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* Remove reference to experiment evaluators in client docstrings ([#8933](https://github.com/Arize-ai/phoenix/issues/8933)) ([3a45871](https://github.com/Arize-ai/phoenix/commit/3a45871775494496b1993d816a3a9fd26630e51e))
+
+## [1.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.14.0...arize-phoenix-client-v1.14.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* reconcile schema `str` type with runtime `datetime` type ([#8862](https://github.com/Arize-ai/phoenix/issues/8862)) ([f7a2403](https://github.com/Arize-ai/phoenix/commit/f7a24031e147f86d07e8f4832e72fb33839a03fc))
+
+## [1.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.2...arize-phoenix-client-v1.14.0) (2025-07-29)
+
+
+### Features
+
+* update python client with list method for datasets ([#8815](https://github.com/Arize-ai/phoenix/issues/8815)) ([559863c](https://github.com/Arize-ai/phoenix/commit/559863cfb2d3c5d1e496e39f4c9619bac27f0891))
+
+## [1.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.1...arize-phoenix-client-v1.13.2) (2025-07-18)
+
+
+### Bug Fixes
+
+* Allow executors to run in background threads ([#8628](https://github.com/Arize-ai/phoenix/issues/8628)) ([6fb4f42](https://github.com/Arize-ai/phoenix/commit/6fb4f4265e71671c661dcf3e67a5085598d9a252))
+
+## [1.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.0...arize-phoenix-client-v1.13.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* Do not access API for experiment evaluations in dry_run mode ([#8606](https://github.com/Arize-ai/phoenix/issues/8606)) ([b8c77fb](https://github.com/Arize-ai/phoenix/commit/b8c77fb2d2d397e13f55aec86b978be2bd9dbfa6))
+
+## [1.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.12.0...arize-phoenix-client-v1.13.0) (2025-07-16)
+
+
+### Features
+
+* Add experiments module to phoenix-client ([#8375](https://github.com/Arize-ai/phoenix/issues/8375)) ([3df0326](https://github.com/Arize-ai/phoenix/commit/3df032627e8ce52a96e8d6dcd626f7641d0cb011))
+* Add serialization/deserialization methods to client Datasets ([#8453](https://github.com/Arize-ai/phoenix/issues/8453)) ([1dcb304](https://github.com/Arize-ai/phoenix/commit/1dcb304f1415edfa12a07ff152a1ebe82a3de8c0))
+* Experiment enhancements ([#8591](https://github.com/Arize-ai/phoenix/issues/8591)) ([2ba7953](https://github.com/Arize-ai/phoenix/commit/2ba79535c07069939ac33d660172c50a434bda54))
+
+## [1.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.11.0...arize-phoenix-client-v1.12.0) (2025-07-03)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
+## [1.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.10.0...arize-phoenix-client-v1.11.0) (2025-06-19)
+
+
+### Features
+
+* Add `log_spans` to client and REST API ([#8005](https://github.com/Arize-ai/phoenix/issues/8005)) ([5a838ab](https://github.com/Arize-ai/phoenix/commit/5a838abf587db2ae707e39b1eca9d93c0c83323d))
+* Add dataset methods to phoenix client ([#7931](https://github.com/Arize-ai/phoenix/issues/7931)) ([4a5aa39](https://github.com/Arize-ai/phoenix/commit/4a5aa39b90adfb9896f336db7998bcde7c481bf8))
+* **auth:** logout ([#7985](https://github.com/Arize-ai/phoenix/issues/7985)) ([63128c5](https://github.com/Arize-ai/phoenix/commit/63128c5328222147fe5c5103d8dd3576d5534bc2))
+* read OTEL_EXPORTER_OTLP_ENDPOINT when PHOENIX_COLLECTOR_ENDPOINT is missing ([#8095](https://github.com/Arize-ai/phoenix/issues/8095)) ([4cb7e4c](https://github.com/Arize-ai/phoenix/commit/4cb7e4c2cd3b43ee3334c717dc4499634ca12135))
+* separate docs phoenix client evals ([#7948](https://github.com/Arize-ai/phoenix/issues/7948)) ([e569b68](https://github.com/Arize-ai/phoenix/commit/e569b6802ab9e31cb230a30dbc08f60d7e28e993))
+
+
+### Documentation
+
+* Readthedocs improvements on naming and structure ([#8009](https://github.com/Arize-ai/phoenix/issues/8009)) ([76a4b92](https://github.com/Arize-ai/phoenix/commit/76a4b9282ff8476757ee1c0b3c85a7767208795b))
+
+## [1.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.9.0...arize-phoenix-client-v1.10.0) (2025-06-04)
+
+
+### Features
+
+* Add `get_spans` to phoenix client ([#7688](https://github.com/Arize-ai/phoenix/issues/7688)) ([8b48176](https://github.com/Arize-ai/phoenix/commit/8b481762c188e3191a8e0bb2ffd295a7ee3fdfb8))
+* ollama ([#7846](https://github.com/Arize-ai/phoenix/issues/7846)) ([4c52db4](https://github.com/Arize-ai/phoenix/commit/4c52db40da6b7772487cc6d288cf69d5944812a1))
+
+
+### Bug Fixes
+
+* Do not return notes from GET /span_annotations ([#7830](https://github.com/Arize-ai/phoenix/issues/7830)) ([52c2c06](https://github.com/Arize-ai/phoenix/commit/52c2c06028815d0982172925e2d31705f49e0fe3))
+
+## [1.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.8.0...arize-phoenix-client-v1.9.0) (2025-05-31)
+
+
+### Features
+
+* **admin:** users REST api ([#7314](https://github.com/Arize-ai/phoenix/issues/7314)) ([c7bcc36](https://github.com/Arize-ai/phoenix/commit/c7bcc36b8469e76db3038f53859e24c7bb5da000))
+* xai to playground ([#7808](https://github.com/Arize-ai/phoenix/issues/7808)) ([5dd53be](https://github.com/Arize-ai/phoenix/commit/5dd53be2ee697dd1b2c482df58d718d00ae892eb))
+
+## [1.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.7.0...arize-phoenix-client-v1.8.0) (2025-05-29)
+
+
+### Features
+
+* Playground add deepseek ([#7675](https://github.com/Arize-ai/phoenix/issues/7675)) ([b162720](https://github.com/Arize-ai/phoenix/commit/b162720325c7fe7c20cda75feb161b4646127cf8))
+
+## [1.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.6.0...arize-phoenix-client-v1.7.0) (2025-05-21)
+
+
+### Features
+
+* graphql query for hourly span count timeseries ([#6997](https://github.com/Arize-ai/phoenix/issues/6997)) ([fe6a80a](https://github.com/Arize-ai/phoenix/commit/fe6a80aaa939ebe445af04c17e46b2c29080bc60))
+
+## [1.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.5.0...arize-phoenix-client-v1.6.0) (2025-05-14)
+
+
+### Features
+
+* **api:** expose experiment routes ([#7543](https://github.com/Arize-ai/phoenix/issues/7543)) ([7882615](https://github.com/Arize-ai/phoenix/commit/7882615fb22c487833b76c784edda668921e21db))
+
+
+### Bug Fixes
+
+* allow context.span_id as column name ([#7368](https://github.com/Arize-ai/phoenix/issues/7368)) ([ba1b9eb](https://github.com/Arize-ai/phoenix/commit/ba1b9eba9ce55b6644d46cd3f6436d29ccf2f304))
+
 ## [1.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.4.0...arize-phoenix-client-v1.5.0) (2025-05-09)
 
 

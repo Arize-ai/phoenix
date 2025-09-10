@@ -1,5 +1,86 @@
 # Changelog
 
+## [0.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.0...arize-phoenix-otel-v0.13.1) (2025-09-10)
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+* **client:** fix python client docs ([#9317](https://github.com/Arize-ai/phoenix/issues/9317)) ([d94835a](https://github.com/Arize-ai/phoenix/commit/d94835aad129216fdb7d480a70aa2a501e615a8e))
+* consistent docstrings ([#9324](https://github.com/Arize-ai/phoenix/issues/9324)) ([00dcea9](https://github.com/Arize-ai/phoenix/commit/00dcea97aac7a8165395bfaefe52f771feadca2d))
+* **otel:** better docs ([#9319](https://github.com/Arize-ai/phoenix/issues/9319)) ([46ba146](https://github.com/Arize-ai/phoenix/commit/46ba1467eb445a9d0ae877e9c6237a5563ca3827))
+
+## [0.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.1...arize-phoenix-otel-v0.13.0) (2025-08-14)
+
+
+### Features
+
+* **license:** switch otel to apache 2 ([#9075](https://github.com/Arize-ai/phoenix/issues/9075)) ([8f99827](https://github.com/Arize-ai/phoenix/commit/8f998275fbd7efb9a05da228dc2d848dbda2efb5))
+
+
+### Bug Fixes
+
+* update openinference-instrumentation dependency version lower bound ([#8947](https://github.com/Arize-ai/phoenix/issues/8947)) ([d6f32d8](https://github.com/Arize-ai/phoenix/commit/d6f32d8b6e210cdd07bf3833206166d11c4f035f))
+* Update tests to be more reliable in CI ([#8642](https://github.com/Arize-ai/phoenix/issues/8642)) ([3358ac1](https://github.com/Arize-ai/phoenix/commit/3358ac1154f261f75684946c514e8066e8e25430))
+
+## [0.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.0...arize-phoenix-otel-v0.12.1) (2025-06-24)
+
+
+### Documentation
+
+* **otel:** tracer provider kwargs docs ([ac9511e](https://github.com/Arize-ai/phoenix/commit/ac9511e54aa51101d739297c656d5162da40c9d1))
+
+## [0.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.11.0...arize-phoenix-otel-v0.12.0) (2025-06-24)
+
+
+### Features
+
+* **otel:** support tracer provider arguments ([6b337d9](https://github.com/Arize-ai/phoenix/commit/6b337d9195e176f12e1bd799447ea5f8fbe1734e))
+* **otel:** support tracer provider arguments ([#8270](https://github.com/Arize-ai/phoenix/issues/8270)) ([613cdd8](https://github.com/Arize-ai/phoenix/commit/613cdd85923a85d413d2e42546458b0c3a6e7e63))
+
+## [0.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.3...arize-phoenix-otel-v0.11.0) (2025-06-18)
+
+
+### Features
+
+* **auth:** logout ([#7985](https://github.com/Arize-ai/phoenix/issues/7985)) ([63128c5](https://github.com/Arize-ai/phoenix/commit/63128c5328222147fe5c5103d8dd3576d5534bc2))
+* Enable phoenix cloud spaces ([#8108](https://github.com/Arize-ai/phoenix/issues/8108)) ([f7c2bca](https://github.com/Arize-ai/phoenix/commit/f7c2bca26e7617da472bb48b91ce696c7c1dc378))
+* read OTEL_EXPORTER_OTLP_ENDPOINT when PHOENIX_COLLECTOR_ENDPOINT is missing ([#8095](https://github.com/Arize-ai/phoenix/issues/8095)) ([4cb7e4c](https://github.com/Arize-ai/phoenix/commit/4cb7e4c2cd3b43ee3334c717dc4499634ca12135))
+
+
+### Documentation
+
+* phoenix-otel documentation header styling - Update conf.py header… ([#7936](https://github.com/Arize-ai/phoenix/issues/7936)) ([0173e7f](https://github.com/Arize-ai/phoenix/commit/0173e7f5e187fe0f4f1c15311a56b878117803a9))
+* Readthedocs improvements on naming and structure ([#8009](https://github.com/Arize-ai/phoenix/issues/8009)) ([76a4b92](https://github.com/Arize-ai/phoenix/commit/76a4b9282ff8476757ee1c0b3c85a7767208795b))
+
+## [0.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.2...arize-phoenix-otel-v0.10.3) (2025-06-04)
+
+
+### Bug Fixes
+
+* Otel moved the location of span exporters on batch processors ([#7919](https://github.com/Arize-ai/phoenix/issues/7919)) ([6c5a0cf](https://github.com/Arize-ai/phoenix/commit/6c5a0cfa990ca1775062e47ad9c52c3b61f986a4))
+
+## [0.10.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.1...arize-phoenix-otel-v0.10.2) (2025-06-03)
+
+
+### Bug Fixes
+
+* upgrade lower version pin on openinference-instrumentation and openinference-instrumentation-semantic-conventions ([#7901](https://github.com/Arize-ai/phoenix/issues/7901)) ([868c4f2](https://github.com/Arize-ai/phoenix/commit/868c4f2fb173af1e9a2b3891d1aecf40c1398aa6))
+
+## [0.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.0...arize-phoenix-otel-v0.10.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* `register` crashes when printing details under certain conditions ([#7754](https://github.com/Arize-ai/phoenix/issues/7754)) ([754d713](https://github.com/Arize-ai/phoenix/commit/754d713fb5d85e0fdc2925aca514da128c9d5586))
+
+## [0.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.2...arize-phoenix-otel-v0.10.0) (2025-05-28)
+
+
+### Features
+
+* Add option to not replace default span processor ([#7736](https://github.com/Arize-ai/phoenix/issues/7736)) ([95a9ac2](https://github.com/Arize-ai/phoenix/commit/95a9ac2098c7efc134b340b3a21b26bf267e1831))
+
 ## [0.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.1...arize-phoenix-otel-v0.9.2) (2025-04-14)
 
 

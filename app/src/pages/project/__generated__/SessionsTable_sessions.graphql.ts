@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8ffc05d16e320703b1fced6251b209f>>
+ * @generated SignedSource<<12852c10c1801de345c2e84f74839416>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type SessionsTable_sessions$data = {
   readonly sessions: {
     readonly edges: ReadonlyArray<{
       readonly session: {
+        readonly costSummary: {
+          readonly total: {
+            readonly cost: number | null;
+          };
+        };
         readonly endTime: string;
         readonly firstInput: {
           readonly value: string;
@@ -28,8 +33,6 @@ export type SessionsTable_sessions$data = {
         readonly sessionId: string;
         readonly startTime: string;
         readonly tokenUsage: {
-          readonly completion: number;
-          readonly prompt: number;
           readonly total: number;
         };
         readonly traceLatencyMsP50: number | null;
@@ -82,6 +85,11 @@ return {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sessionId"
     },
     {
       "defaultValue": {
@@ -141,6 +149,11 @@ return {
           "kind": "Variable",
           "name": "filterIoSubstring",
           "variableName": "filterIoSubstring"
+        },
+        {
+          "kind": "Variable",
+          "name": "sessionId",
+          "variableName": "sessionId"
         },
         {
           "kind": "Variable",
@@ -235,20 +248,6 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "prompt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "completion",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
                       "name": "total",
                       "storageKey": null
                     }
@@ -280,6 +279,35 @@ return {
                   "kind": "ScalarField",
                   "name": "traceLatencyMsQuantile",
                   "storageKey": "traceLatencyMsQuantile(probability:0.99)"
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cost",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -347,6 +375,6 @@ return {
 };
 })();
 
-(node as any).hash = "36dfca4fe1c2c0f19a1fd0e2ac1c6316";
+(node as any).hash = "7204fb2692236e72b75f7604adb46755";
 
 export default node;

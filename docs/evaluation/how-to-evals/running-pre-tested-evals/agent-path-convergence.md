@@ -8,7 +8,7 @@ One way of doing this is to calculate convergence:
 
 1. Run your agent on a set of similar queries
 2. Record the number of steps taken for each
-3. Calculate the convergence score: `avg(minimum steps taken for this query / steps in the run)`
+3. Calculate the convergence score: `avg(minimum steps taken / steps taken for this run)`
 
 This will give a convergence score of 0-1, with 1 being a perfect score.
 
@@ -17,12 +17,11 @@ This will give a convergence score of 0-1, with 1 being a perfect score.
 all_outputs = [
 ]
 
-optimal_path_length = 999
+optimal_path_length = min(all_outputs, key = lambda output: len(output))
 ratios_sum = 0
 
 for output in all_outputs:
     run_length = len(output)
-    optimal_path_length = min(run_length, optimal_path_length)
     ratio = optimal_path_length / run_length
     ratios_sum += ratio
 

@@ -349,7 +349,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             // if we have top level model config for the provider, merge it in
             // this allows us to populate default values for baseUrl, endpoint, and apiVersion
             // when the user has saved an azure prompt and we load it back in
-            const { baseUrl, endpoint, apiVersion } =
+            const { baseUrl, endpoint, apiVersion, region } =
               modelConfigByProvider[instance.model.provider] ?? {};
             // ensure that the invocation parameters are only the ones that are supported by the model
             const filteredInvocationParameters =
@@ -370,6 +370,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 baseUrl: instance.model.baseUrl ?? baseUrl,
                 endpoint: instance.model.endpoint ?? endpoint,
                 apiVersion: instance.model.apiVersion ?? apiVersion,
+                region: instance.model.region ?? region,
                 supportedInvocationParameters,
                 invocationParameters: mergedInvocationParameters,
               },
@@ -406,6 +407,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             p.invocationName === RESPONSE_FORMAT_PARAM_NAME
         );
 
+      // Set default baseUrl for OLLAMA if no saved config exists
+      const getDefaultBaseUrl = (provider: ModelProvider) => {
+        if (provider === "OLLAMA") {
+          return "http://localhost:11434/v1";
+        }
+        return null;
+      };
+
       const patch: Partial<PlaygroundNormalizedInstance> = {
         // If we have a saved config for the provider, use it as the default otherwise reset the
         // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
@@ -424,9 +433,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           : {
               ...instance.model,
               modelName: null,
-              baseUrl: null,
+              baseUrl: getDefaultBaseUrl(provider),
               apiVersion: null,
               endpoint: null,
+              region: null,
               provider,
             },
         toolChoice:

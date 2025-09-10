@@ -33,10 +33,6 @@ relevance_classifications = llm_classify(
 #relevance_classifications is a Dataframe with columns 'label' and 'explanation'
 </code></pre>
 
-The flag above can be set with any of the templates or your own custom templates. The example below is from a relevance Evaluation.&#x20;
-
-<figure><img src="../../.gitbook/assets/explanation.png" alt=""><figcaption></figcaption></figure>
-
-
+The flag above can be set with any of the templates or your own custom templates. The example below is from a relevance Evaluation.
 
 [^1]: set to get an explanation out

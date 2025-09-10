@@ -29,6 +29,10 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   ANTHROPIC: ["claude"],
   OPENAI: ["gpt", "o1"],
   GOOGLE: ["gemini"],
+  DEEPSEEK: ["deepseek"],
+  XAI: ["grok"],
+  OLLAMA: [],
+  AWS: ["nova", "titan"],
 };
 
 export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<

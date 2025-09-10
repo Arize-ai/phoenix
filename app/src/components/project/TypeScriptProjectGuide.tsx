@@ -2,6 +2,7 @@ import { ExternalLink, Heading, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
+import { BASE_URL } from "@phoenix/config";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
 
@@ -19,7 +20,7 @@ type PythonProjectGuideProps = {
 };
 
 const PHOENIX_OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
 const getSetProjectNameCode = (projectName: string) => {
   return `import { Resource } from '@opentelemetry/resources';
@@ -29,6 +30,11 @@ resource: new Resource({
     [SEMRESATTRS_PROJECT_NAME]: "${projectName}",
 });`;
 };
+
+const PHOENIX_OTEL_ENV_VARS = [
+  "# HTTP endpoint. Can use gRPC if available. See documentation",
+  `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="${BASE_URL}/v1/traces"`,
+].join("\n");
 
 export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
@@ -73,11 +79,12 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <CodeWrap>
         <PythonBlockWithCopy
-          value={
+          value={[
             isHosted
               ? `OTEL_EXPORTER_OTLP_HEADERS='<auth-headers>'`
-              : `OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer <your-api-key>'`
-          }
+              : `OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer <your-api-key>'`,
+            PHOENIX_OTEL_ENV_VARS,
+          ].join("\n")}
         />
       </CodeWrap>
       <IsAuthenticated>

@@ -29,7 +29,7 @@ export function NotificationProvider({
 }) {
   const [notify, holder] = useNotification({
     style: {
-      zIndex: 1000,
+      zIndex: 100001, // We need to be 1 higher than what react-aria uses
     },
   });
 

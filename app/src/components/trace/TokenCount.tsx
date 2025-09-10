@@ -1,66 +1,39 @@
+import { forwardRef, HTMLAttributes, Ref } from "react";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+import { Icon, Icons, Text, TextProps } from "@phoenix/components";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
-import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+const tokenCountItemCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-static-size-50);
+  align-items: center;
 
-type TokenCountProps = {
-  /**
-   * The total number of tokens in the prompt and completion
-   */
-  tokenCountTotal: number;
-  /**
-   * The number of tokens in the prompt
-   */
-  tokenCountPrompt: number;
-  /**
-   * The number of tokens in the completion
-   */
-  tokenCountCompletion: number;
-  /**
-   * The size of the icon and text
-   */
+  &[data-size="S"] {
+    font-size: var(--ac-global-font-size-s);
+  }
+  &[data-size="M"] {
+    font-size: var(--ac-global-font-size-m);
+  }
+`;
+
+interface TokenCountProps extends HTMLAttributes<HTMLDivElement> {
+  children: number | null | undefined;
   size?: TextProps["size"];
-};
-
-/**
- * Displays the number of tokens in the prompt and completion
- */
-export function TokenCount(props: TokenCountProps) {
-  return (
-    <TooltipTrigger>
-      <TriggerWrap>
-        <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
-      </TriggerWrap>
-      <Tooltip>
-        <Flex direction="column" gap="size-50">
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            prompt tokens
-            <TokenItem>{props.tokenCountPrompt}</TokenItem>
-          </Flex>
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            completion tokens
-            <TokenItem>{props.tokenCountCompletion}</TokenItem>
-          </Flex>
-        </Flex>
-      </Tooltip>
-    </TooltipTrigger>
-  );
 }
 
-function TokenItem({
-  children,
-  ...textProps
-}: {
-  children: number;
-  size?: TextProps["size"];
-}) {
+function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
+  const { children, size = "M", ...otherProps } = props;
+
+  const text = typeof children === "number" ? formatNumber(children) : "--";
   return (
-    <Flex
-      direction="row"
-      gap="size-50"
-      alignItems="center"
+    <div
       className="token-count-item"
+      data-size={size}
+      css={tokenCountItemCSS}
+      ref={ref}
+      {...otherProps}
     >
       <Icon
         svg={<Icons.TokensOutline />}
@@ -68,7 +41,12 @@ function TokenItem({
           color: var(--ac-global-text-color-900);
         `}
       />
-      <Text {...textProps}>{children}</Text>
-    </Flex>
+      <Text size={props.size} fontFamily="mono">
+        {text}
+      </Text>
+    </div>
   );
 }
+
+const _TokenCount = forwardRef(TokenCount);
+export { _TokenCount as TokenCount };

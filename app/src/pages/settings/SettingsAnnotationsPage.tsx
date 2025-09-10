@@ -1,9 +1,15 @@
 import { graphql, useFragment, useMutation } from "react-relay";
 import { useLoaderData, useRevalidator } from "react-router";
 
-import { Card } from "@arizeai/components";
-
-import { Button, DialogTrigger, Icon, Icons, Modal } from "@phoenix/components";
+import {
+  Button,
+  Card,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import { SettingsAnnotationsPageLoaderData } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -39,9 +45,6 @@ const SettingsAnnotations = ({
       deleteAnnotationConfigs(input: $input) {
         query {
           ...AnnotationConfigTableFragment
-        }
-        annotationConfigs {
-          __typename
         }
       }
     }
@@ -159,19 +162,19 @@ const SettingsAnnotations = ({
   return (
     <Card
       title="Annotation Configs"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
       extra={
         <DialogTrigger>
           <Button size="S">
             <Icon svg={<Icons.PlusOutline />} />
             New Configuration
           </Button>
-          <Modal>
-            <AnnotationConfigDialog
-              onAddAnnotationConfig={handleAddAnnotationConfig}
-            />
-          </Modal>
+          <ModalOverlay>
+            <Modal>
+              <AnnotationConfigDialog
+                onAddAnnotationConfig={handleAddAnnotationConfig}
+              />
+            </Modal>
+          </ModalOverlay>
         </DialogTrigger>
       }
     >

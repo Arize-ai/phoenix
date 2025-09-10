@@ -1,0 +1,87 @@
+{{- include "phoenix.validatePersistence" . }}
+{{- include "phoenix.validateExternalDatabase" . }}
+{{- include "phoenix.validateDatabaseUrl" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ .Release.Name }}
+data:
+  # Authentication configuration
+  PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}
+  PHOENIX_USE_SECURE_COOKIES: {{ .Values.auth.useSecureCookies | quote }}
+  PHOENIX_CSRF_TRUSTED_ORIGINS: {{ join "," .Values.auth.csrfTrustedOrigins | quote }}
+  PHOENIX_ALLOWED_ORIGINS: {{ join "," .Values.auth.allowedOrigins | quote }}
+  PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
+  PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
+  PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
+  
+  # OAuth2/OIDC Identity Provider Configuration
+  {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+  {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+  {{- $provider_upper := $provider_name | upper }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ID: {{ $provider_config.client_id | quote }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_OIDC_CONFIG_URL: {{ $provider_config.oidc_config_url | quote }}
+  {{- if $provider_config.display_name }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_DISPLAY_NAME: {{ $provider_config.display_name | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "allow_sign_up" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOW_SIGN_UP: {{ $provider_config.allow_sign_up | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "auto_login" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
+  # Server configuration
+  PHOENIX_HOST: {{ .Values.server.host | quote }}
+  PHOENIX_PORT: {{ .Values.server.port | quote }}
+  PHOENIX_GRPC_PORT: {{ .Values.server.grpcPort | quote }}
+  PHOENIX_HOST_ROOT_PATH: {{ .Values.server.hostRootPath | quote }}
+  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | default "/data" | quote }}
+  PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
+  PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
+  PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
+
+  # Database configuration
+  {{- if .Values.database.url }}
+  PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
+  {{- else if and .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.user .Values.database.postgres.db }}
+  PHOENIX_POSTGRES_HOST: {{ .Values.database.postgres.host | quote }}
+  PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
+  PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
+  PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
+  {{- end }}
+  PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
+  PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
+  PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}
+
+  # SMTP configuration
+  PHOENIX_SMTP_HOSTNAME: {{ .Values.smtp.hostname | quote }}
+  PHOENIX_SMTP_PORT: {{ .Values.smtp.port | quote }}
+  PHOENIX_SMTP_USERNAME: {{ .Values.smtp.username | quote }}
+  PHOENIX_SMTP_MAIL_FROM: {{ .Values.smtp.mailFrom | quote }}
+  PHOENIX_SMTP_VALIDATE_CERTS: {{ .Values.smtp.validateCerts | quote }}
+
+  # Logging
+  PHOENIX_LOGGING_MODE: {{ .Values.logging.mode | quote }}
+  PHOENIX_LOGGING_LEVEL: {{ .Values.logging.level | quote }}
+  PHOENIX_DB_LOGGING_LEVEL: {{ .Values.logging.dbLevel | quote }}
+  PHOENIX_LOG_MIGRATIONS: {{ .Values.logging.logMigrations | quote }}
+
+  # TLS configuration
+  PHOENIX_TLS_ENABLED: {{ .Values.tls.enabled | quote }}
+  PHOENIX_TLS_ENABLED_FOR_GRPC: {{ .Values.tls.enabledForGrpc | quote }}
+  PHOENIX_TLS_ENABLED_FOR_HTTP: {{ .Values.tls.enabledForHttp | quote }}
+  PHOENIX_TLS_CERT_FILE: {{ .Values.tls.certFile | quote }}
+  PHOENIX_TLS_KEY_FILE: {{ .Values.tls.keyFile | quote }}
+  PHOENIX_TLS_KEY_FILE_PASSWORD: {{ .Values.tls.keyFilePassword | default "" | quote }}
+  PHOENIX_TLS_CA_FILE: {{ .Values.tls.caFile | quote }}
+  PHOENIX_TLS_VERIFY_CLIENT: {{ .Values.tls.verifyClient | quote }}
+
+  # Instrumentation
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorHttpEndpoint | quote }}
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorGrpcEndpoint | quote }}

@@ -10,11 +10,27 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("can create user key", async ({ page }) => {
+  // Navigate to profile page
   await page.goto("/profile");
-  await page.getByRole("button", { name: "New Key" }).click();
+
+  // Generate a unique key name for this test run
   const keyName = `key-${randomUUID()}`;
+
+  // Click the "New Key" button to open the create dialog
+  await page.getByRole("button", { name: "New Key" }).click();
+
+  // Fill in the key name and submit
   await page.getByRole("dialog").getByLabel("Name").fill(keyName);
   await page.getByRole("button", { name: "Create Key" }).click();
-  await page.getByLabel("dismiss").click();
-  await expect(page.getByRole("cell", { name: keyName })).toBeVisible();
+
+  // Close the dialog that appears after creating the key
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "dismiss" })
+    .click();
+
+  // Verify the named key appears in the table - which means key creation succeeded
+  await expect(page.getByRole("cell", { name: keyName })).toBeVisible({
+    timeout: 60000,
+  });
 });

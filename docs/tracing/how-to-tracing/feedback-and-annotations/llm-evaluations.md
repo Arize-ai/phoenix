@@ -6,7 +6,7 @@ description: >-
 
 # Log Evaluation Results
 
-An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../../evaluation/concepts-evals/evaluation.md) for more information.
+An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](broken-reference) for more information.
 
 ## Connect to Phoenix
 
@@ -68,7 +68,7 @@ px.Client().log_evaluations(
 
 Multiple sets of Evaluations can be logged by the same `px.Client().log_evaluations()` function call.
 
-```
+```python
 px.Client().log_evaluations(
     SpanEvaluations(
         dataframe=qa_correctness_eval_df,

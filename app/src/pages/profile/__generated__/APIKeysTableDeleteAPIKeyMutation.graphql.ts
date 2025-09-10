@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<652b7db0509cc6582d4714ae2358f0f8>>
+ * @generated SignedSource<<49f60807e5523a753f297c524a001147>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,6 +57,13 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "apiKeyId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
   "storageKey": null
 };
 return {
@@ -131,13 +138,7 @@ return {
                 "name": "userApiKeys",
                 "plural": true,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -180,7 +181,8 @@ return {
                         "kind": "ScalarField",
                         "name": "email",
                         "storageKey": null
-                      }
+                      },
+                      (v4/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -196,12 +198,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f28a00e7a6eb2e18b1f8b31c8231c2b7",
+    "cacheID": "510641f5bceb5958f37618a9f54095c3",
     "id": null,
     "metadata": {},
     "name": "APIKeysTableDeleteAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation APIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteUserApiKey(input: $input) {\n    __typename\n    apiKeyId\n    query {\n      ...UserAPIKeysTableFragment\n    }\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
+    "text": "mutation APIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteUserApiKey(input: $input) {\n    __typename\n    apiKeyId\n    query {\n      ...UserAPIKeysTableFragment\n    }\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
   }
 };
 })();

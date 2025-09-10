@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import ClassVar, Optional, cast
 
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -12,11 +12,14 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
+    DatasetExperimentAnnotationSummary,
+)
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -216,6 +219,10 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+        filter_ids: Optional[
+            list[GlobalID]
+        ] = UNSET,  # this is a stopgap until a query DSL is implemented
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -230,6 +237,28 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if filter_condition is not UNSET and filter_condition:
+            # Search both name and description columns with case-insensitive partial matching
+            search_filter = or_(
+                models.Experiment.name.ilike(f"%{filter_condition}%"),
+                models.Experiment.description.ilike(f"%{filter_condition}%"),
+            )
+            query = query.where(search_filter)
+
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=Experiment.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+            query = query.where(models.Experiment.id.in_(filter_rowids))
+
         async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)
@@ -243,17 +272,15 @@ class Dataset(Node):
     @strawberry.field
     async def experiment_annotation_summaries(
         self, info: Info[Context, None]
-    ) -> list[ExperimentAnnotationSummary]:
+    ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id_attr
         query = (
             select(
-                models.ExperimentRunAnnotation.name,
-                func.min(models.ExperimentRunAnnotation.score),
-                func.max(models.ExperimentRunAnnotation.score),
-                func.avg(models.ExperimentRunAnnotation.score),
-                func.count(),
-                func.count(models.ExperimentRunAnnotation.error),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_score"),
             )
+            .select_from(models.ExperimentRunAnnotation)
             .join(
                 models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
@@ -268,22 +295,12 @@ class Dataset(Node):
         )
         async with info.context.db() as session:
             return [
-                ExperimentAnnotationSummary(
-                    annotation_name=annotation_name,
-                    min_score=min_score,
-                    max_score=max_score,
-                    mean_score=mean_score,
-                    count=count_,
-                    error_count=error_count,
+                DatasetExperimentAnnotationSummary(
+                    annotation_name=scores_tuple.annotation_name,
+                    min_score=scores_tuple.min_score,
+                    max_score=scores_tuple.max_score,
                 )
-                async for (
-                    annotation_name,
-                    min_score,
-                    max_score,
-                    mean_score,
-                    count_,
-                    error_count,
-                ) in await session.stream(query)
+                async for scores_tuple in await session.stream(query)
             ]
 
     @strawberry.field

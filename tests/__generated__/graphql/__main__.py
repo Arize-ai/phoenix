@@ -51,6 +51,9 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
         )
 
     def visit_Name(self, node: ast.Name) -> ast.AST:
+        # Handle the specific case of UMAPPoints_aliased forward reference bug
+        if node.id == "UMAPPoints_aliased":
+            return ast.Name(id="UMAPPoints", ctx=node.ctx)
         if node.id in self._aliases:
             return self._aliases[node.id]
         if node.id in self._literals:

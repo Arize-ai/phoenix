@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
@@ -19,6 +20,8 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 
 @strawberry.type
@@ -106,10 +109,10 @@ class Experiment(Node):
 
     @strawberry.field
     async def average_run_latency_ms(self, info: Info[Context, None]) -> Optional[float]:
-        latency_seconds = await info.context.data_loaders.average_experiment_run_latency.load(
+        latency_ms = await info.context.data_loaders.average_experiment_run_latency.load(
             self.id_attr
         )
-        return latency_seconds * 1000 if latency_seconds is not None else None
+        return latency_ms
 
     @strawberry.field
     async def project(self, info: Info[Context, None]) -> Optional[Project]:
@@ -129,6 +132,64 @@ class Experiment(Node):
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
         return info.context.last_updated_at.get(self._table, self.id_attr)
+
+    @strawberry.field
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+        experiment_id = self.id_attr
+        summary = await info.context.data_loaders.span_cost_summary_by_experiment.load(
+            experiment_id
+        )
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        experiment_id = self.id_attr
+
+        stmt = (
+            select(
+                models.SpanCostDetail.token_type,
+                models.SpanCostDetail.is_prompt,
+                func.sum(models.SpanCostDetail.cost).label("cost"),
+                func.sum(models.SpanCostDetail.tokens).label("tokens"),
+            )
+            .select_from(models.SpanCostDetail)
+            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
+        )
+
+        async with info.context.db() as session:
+            data = await session.stream(stmt)
+            return [
+                SpanCostDetailSummaryEntry(
+                    token_type=token_type,
+                    is_prompt=is_prompt,
+                    value=CostBreakdown(tokens=tokens, cost=cost),
+                )
+                async for token_type, is_prompt, cost, tokens in data
+            ]
+
+    @strawberry.field
+    async def repetition_count(self, info: Info[Context, None]) -> int:
+        return await info.context.data_loaders.experiment_repetition_counts.load(self.id_attr)
 
 
 def to_gql_experiment(

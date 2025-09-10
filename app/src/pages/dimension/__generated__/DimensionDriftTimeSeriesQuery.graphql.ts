@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<449390fef826aca48dd8be66e1b5d4ae>>
+ * @generated SignedSource<<d830e7bc2332ab6a53255b5faba61ead>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -226,16 +226,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "af2d25e28675891b3c8a6bc75027f731",
+    "cacheID": "76a27456cd1f545ddb16fc0d9ef09fc1",
     "id": null,
     "metadata": {},
     "name": "DimensionDriftTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionDriftTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $driftGranularity: Granularity!\n  $countGranularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      driftTimeSeries(metric: psi, timeRange: $timeRange, granularity: $driftGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionDriftTimeSeriesQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n  $driftGranularity: Granularity!\n  $countGranularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      driftTimeSeries(metric: psi, timeRange: $timeRange, granularity: $driftGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6312b58dbb252b17efdf08d44dd58630";
+(node as any).hash = "e458e42625d1c4dcdd2359a8d33d32a8";
 
 export default node;

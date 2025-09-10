@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import logging
+import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
@@ -14,9 +15,9 @@ from typing import Any, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
@@ -46,6 +47,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExa
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import DatasetInsertEvent
 
 from .models import V1RoutesBaseModel
@@ -55,6 +57,11 @@ from .utils import (
     add_errors_to_responses,
     add_text_csv_content_to_responses,
 )
+
+csv.field_size_limit(
+    1_000_000_000  # allows large field sizes for CSV upload (1GB)
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +79,7 @@ class Dataset(V1RoutesBaseModel):
     metadata: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+    example_count: int
 
 
 class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
@@ -96,7 +104,18 @@ async def list_datasets(
     ),
 ) -> ListDatasetsResponseBody:
     async with request.app.state.db() as session:
-        query = select(models.Dataset).order_by(models.Dataset.id.desc())
+        value = case(
+            (models.DatasetExampleRevision.revision_kind == "CREATE", 1),
+            (models.DatasetExampleRevision.revision_kind == "DELETE", -1),
+        )
+        query = (
+            select(models.Dataset)
+            .add_columns(func.coalesce(func.sum(value), 0).label("example_count"))
+            .outerjoin_from(models.Dataset, models.DatasetExample)
+            .outerjoin_from(models.DatasetExample, models.DatasetExampleRevision)
+            .group_by(models.Dataset.id)
+            .order_by(models.Dataset.id.desc())
+        )
 
         if cursor:
             try:
@@ -112,18 +131,19 @@ async def list_datasets(
 
         query = query.limit(limit + 1)
         result = await session.execute(query)
-        datasets = result.scalars().all()
-
+        datasets = result.all()
         if not datasets:
             return ListDatasetsResponseBody(next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
-            next_cursor = str(GlobalID(DATASET_NODE_NAME, str(datasets[-1].id)))
+            dataset = datasets[-1][0]
+            next_cursor = str(GlobalID(DATASET_NODE_NAME, str(dataset.id)))
             datasets = datasets[:-1]
 
         data = []
-        for dataset in datasets:
+        for row in datasets:
+            dataset = row[0]
             data.append(
                 Dataset(
                     id=str(GlobalID(DATASET_NODE_NAME, str(dataset.id))),
@@ -132,6 +152,7 @@ async def list_datasets(
                     metadata=dataset.metadata_,
                     created_at=dataset.created_at,
                     updated_at=dataset.updated_at,
+                    example_count=row[1],
                 )
             )
 
@@ -311,6 +332,7 @@ async def list_dataset_versions(
 
 class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
+    version_id: str
 
 
 class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
@@ -319,6 +341,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
 
 @router.post(
     "/datasets/upload",
+    dependencies=[Depends(is_not_locked)],
     operation_id="uploadDataset",
     summary="Upload dataset from JSON, CSV, or PyArrow",
     responses=add_errors_to_responses(
@@ -467,10 +490,15 @@ async def upload_dataset(
     )
     if sync:
         async with request.app.state.db() as session:
-            dataset_id = (await operation(session)).dataset_id
+            event = await operation(session)
+            dataset_id = event.dataset_id
+            version_id = event.dataset_version_id
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
-            data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
+            data=UploadDatasetData(
+                dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
+                version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
+            )
         )
     try:
         request.state.enqueue_operation(operation)
@@ -686,7 +714,7 @@ async def get_dataset_examples(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> ListDatasetExamplesResponseBody:
@@ -805,7 +833,7 @@ async def get_dataset_csv(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> Response:
@@ -817,10 +845,11 @@ async def get_dataset_csv(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
         headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
+            "content-disposition": f"attachment; filename*=UTF-8''{encoded_dataset_name}.csv",
             "content-type": "text/csv",
         },
     )
@@ -847,7 +876,7 @@ async def get_dataset_jsonl_openai_ft(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> bytes:
@@ -859,7 +888,10 @@ async def get_dataset_jsonl_openai_ft(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
     return content
 
 
@@ -884,7 +916,7 @@ async def get_dataset_jsonl_openai_evals(
     version_id: Optional[str] = Query(
         default=None,
         description=(
-            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
 ) -> bytes:
@@ -896,7 +928,10 @@ async def get_dataset_jsonl_openai_evals(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
     return content
 
 

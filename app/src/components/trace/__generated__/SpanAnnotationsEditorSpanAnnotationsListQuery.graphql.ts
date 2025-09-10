@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d7a127354d629adcc15f30172a16e62>>
+ * @generated SignedSource<<22add1be7cf10e7e2b57732cf7901968>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -411,16 +411,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d6bf3aaa60e426a28e3c53ae332e6385",
+    "cacheID": "c19b9cff9a85b67ea4db4f43b28d1fd3",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorSpanAnnotationsListQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationsEditorSpanAnnotationsListQuery(\n  $projectId: GlobalID!\n  $spanId: GlobalID!\n  $filterUserIds: [GlobalID]\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      annotationConfigs {\n        configs: edges {\n          config: node {\n            __typename\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n            ... on AnnotationConfigBase {\n              __isAnnotationConfigBase: __typename\n              name\n              annotationType\n              description\n            }\n            ... on CategoricalAnnotationConfig {\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              lowerBound\n              upperBound\n              optimizationDirection\n            }\n            ... on FreeformAnnotationConfig {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
+    "text": "query SpanAnnotationsEditorSpanAnnotationsListQuery(\n  $projectId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID]\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      annotationConfigs {\n        configs: edges {\n          config: node {\n            __typename\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n            ... on AnnotationConfigBase {\n              __isAnnotationConfigBase: __typename\n              name\n              annotationType\n              description\n            }\n            ... on CategoricalAnnotationConfig {\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              lowerBound\n              upperBound\n              optimizationDirection\n            }\n            ... on FreeformAnnotationConfig {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6b637c7f2c7dcf264447c95b2f59b6a8";
+(node as any).hash = "ab94a265160b38df3c4310317a5ca86b";
 
 export default node;

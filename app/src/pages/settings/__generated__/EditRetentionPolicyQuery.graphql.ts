@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<93ee3e634f476390a8ec2ed7038b0e8e>>
+ * @generated SignedSource<<d6ecf29c8afd168a0030b468ffcdfd1e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,10 +171,6 @@ return {
         "plural": false,
         "selections": [
           (v10/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -206,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b22ef3b4215b44c32f941eb1483a6899",
+    "cacheID": "3fe25e8ebefb19f49627fe187ba0eb5d",
     "id": null,
     "metadata": {},
     "name": "EditRetentionPolicyQuery",
     "operationKind": "query",
-    "text": "query EditRetentionPolicyQuery(\n  $id: GlobalID!\n) {\n  retentionPolicy: node(id: $id) {\n    __typename\n    ... on ProjectTraceRetentionPolicy {\n      id\n      name\n      cronExpression\n      rule {\n        __typename\n        ... on TraceRetentionRuleMaxCount {\n          maxCount\n        }\n        ... on TraceRetentionRuleMaxDays {\n          maxDays\n        }\n        ... on TraceRetentionRuleMaxDaysOrCount {\n          maxDays\n          maxCount\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EditRetentionPolicyQuery(\n  $id: ID!\n) {\n  retentionPolicy: node(id: $id) {\n    __typename\n    ... on ProjectTraceRetentionPolicy {\n      id\n      name\n      cronExpression\n      rule {\n        __typename\n        ... on TraceRetentionRuleMaxCount {\n          maxCount\n        }\n        ... on TraceRetentionRuleMaxDays {\n          maxDays\n        }\n        ... on TraceRetentionRuleMaxDaysOrCount {\n          maxDays\n          maxCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fdfb6bfe85f8c83dc75da4e5aa1403f0";
+(node as any).hash = "3bf941d551e8fb7a6940d8774075be73";
 
 export default node;

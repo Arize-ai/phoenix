@@ -15,10 +15,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Card, Field, Form } from "@arizeai/components";
+import { Field, Form } from "@arizeai/components";
 
 import {
   Button,
+  Card,
   CopyToClipboardButton,
   DisclosureGroup,
   Flex,
@@ -56,7 +57,7 @@ import {
   AIMessageMode,
   MessageMode,
 } from "./MessageContentRadioGroup";
-import { MessageRolePicker } from "./MessageRolePicker";
+import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
@@ -342,8 +343,6 @@ function SortableMessageItem({
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
         collapsible
-        variant="compact"
-        bodyStyle={{ padding: 0 }}
         {...messageCardStyles}
         title={
           <div
@@ -352,7 +351,7 @@ function SortableMessageItem({
               margin-left: var(--ac-global-dimension-size-150);
             `}
           >
-            <MessageRolePicker
+            <MessageRoleSelect
               includeLabel={false}
               role={message.role}
               onChange={(role) => {

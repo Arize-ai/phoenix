@@ -1,11 +1,12 @@
 import gzip
 from collections.abc import Callable
+from datetime import datetime, timezone
 from itertools import chain
 from typing import Any, Iterator, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
@@ -28,6 +29,7 @@ from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -45,6 +47,7 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
 
 @router.post(
     "/evaluations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="addEvaluations",
     summary="Add span, trace, or document evaluations",
     status_code=HTTP_204_NO_CONTENT,
@@ -53,8 +56,7 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
             {
                 "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 "description": (
-                    "Unsupported content type, "
-                    "only gzipped protobuf and pandas-arrow are supported"
+                    "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
                 ),
             },
             HTTP_422_UNPROCESSABLE_ENTITY,
@@ -268,6 +270,7 @@ def _document_annotation_factory(
     Callable[..., Precursors.DocumentAnnotation],
 ]:
     return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
+        datetime.now(timezone.utc),
         span_id=str(index[span_id_idx]),
         document_position=int(index[document_position_idx]),
         obj=models.DocumentAnnotation(
@@ -279,6 +282,7 @@ def _document_annotation_factory(
 
 def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnotation]:
     return lambda **kwargs: Precursors.SpanAnnotation(
+        datetime.now(timezone.utc),
         span_id=str(span_id),
         obj=models.SpanAnnotation(**kwargs),
     )
@@ -286,6 +290,7 @@ def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnot
 
 def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
     return lambda **kwargs: Precursors.TraceAnnotation(
+        datetime.now(timezone.utc),
         trace_id=str(trace_id),
         obj=models.TraceAnnotation(**kwargs),
     )

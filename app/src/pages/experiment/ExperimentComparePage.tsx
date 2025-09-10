@@ -1,25 +1,63 @@
-import { startTransition, Suspense, useState } from "react";
-import { useLoaderData, useSearchParams } from "react-router";
+import { startTransition, useCallback, useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
+import {
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
-
-import { Alert, Flex, Heading, Loading, View } from "@phoenix/components";
+import { Alert, Flex, View } from "@phoenix/components";
+import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  ExperimentCompareViewMode,
+  ExperimentCompareViewModeToggle,
+  isExperimentCompareViewMode,
+} from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 
-import { ExperimentCompareTable } from "./ExperimentCompareTable";
+import type {
+  ExperimentComparePage_selectedCompareExperiments$data,
+  ExperimentComparePage_selectedCompareExperiments$key,
+} from "./__generated__/ExperimentComparePage_selectedCompareExperiments.graphql";
+import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
+import { ExperimentCompareListPage } from "./ExperimentCompareListPage";
+import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
-import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
+
+type Experiment = NonNullable<
+  ExperimentComparePage_selectedCompareExperiments$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  invariant(loaderData, "loaderData is required");
+  invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
-  const [displayFullText, setDisplayFullText] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
-  const experimentIdsSelected = experimentIds.length > 0;
+  const { datasetId } = useParams();
+  invariant(datasetId != null, "datasetId is required");
+  const [searchParams] = useSearchParams();
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
+    searchParams.getAll("experimentId");
+  const viewMode = useMemo(() => {
+    const viewMode = searchParams.get("view");
+    if (isExperimentCompareViewMode(viewMode)) {
+      return viewMode;
+    }
+    return "grid";
+  }, [searchParams]);
+  const navigate = useNavigate();
+
+  const onViewModeChange = useCallback(
+    (viewMode: ExperimentCompareViewMode) => {
+      searchParams.set("view", viewMode);
+      navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
+    },
+    [datasetId, navigate, searchParams]
+  );
+
   return (
     <main
       css={css`
@@ -30,57 +68,139 @@ export function ExperimentComparePage() {
       `}
     >
       <View
-        padding="size-200"
+        paddingX="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-200"
         borderBottomColor="dark"
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="column" gap="size-100">
-          <Heading level={1}>Compare Experiments</Heading>
-          <Flex direction="row" justifyContent="space-between" alignItems="end">
-            <ExperimentMultiSelector
-              dataset={loaderData.dataset}
-              selectedExperimentIds={experimentIds}
-              label="experiments"
-              onChange={(newExperimentIds) => {
-                startTransition(() => {
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          gap="size-150"
+          alignItems="end"
+        >
+          <ExperimentMultiSelector
+            dataRef={loaderData}
+            selectedBaseExperimentId={baseExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaseExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
                   searchParams.delete("experimentId");
-                  newExperimentIds.forEach((id) => {
-                    searchParams.append("experimentId", id);
-                  });
-                  setSearchParams(searchParams);
-                });
-              }}
+                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                    (experimentId) => {
+                      searchParams.append("experimentId", experimentId);
+                    }
+                  );
+                  navigate(
+                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                  );
+                }
+              });
+            }}
+          />
+          <View flex="1" paddingBottom={5}>
+            <SelectedCompareExperiments dataRef={loaderData} />
+          </View>
+          {
+            <ExperimentCompareViewModeToggle
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
             />
-            <Switch
-              onChange={(isSelected) => {
-                setDisplayFullText(isSelected);
-              }}
-              defaultSelected={false}
-              labelPlacement="start"
-            >
-              Full Text
-            </Switch>
-          </Flex>
+          }
         </Flex>
       </View>
-      {experimentIdsSelected ? (
-        <ExperimentRunFilterConditionProvider>
-          <Suspense fallback={<Loading />}>
-            <ExperimentCompareTable
-              datasetId={loaderData.dataset.id}
-              experimentIds={experimentIds}
-              displayFullText={displayFullText}
-            />
-          </Suspense>
-        </ExperimentRunFilterConditionProvider>
-      ) : (
+      {baseExperimentId == null ? (
         <View padding="size-200">
           <Alert variant="info" title="No Experiment Selected">
-            Please select one or more experiments.
+            Please select an experiment.
           </Alert>
         </View>
+      ) : (
+        <ExperimentComparePageContent />
       )}
     </main>
+  );
+}
+
+function ExperimentComparePageContent() {
+  const [searchParams] = useSearchParams();
+  const viewMode = searchParams.get("view") ?? "grid";
+  if (viewMode === "grid") {
+    return <ExperimentCompareGridPage />;
+  } else if (viewMode === "metrics") {
+    return <ExperimentCompareMetricsPage />;
+  } else if (viewMode === "list") {
+    return <ExperimentCompareListPage />;
+  }
+  return (
+    <View padding="size-200">
+      <Alert variant="info" title={`Invalid View Mode Requested`}>
+        {`Please enter a valid view ("grid" or "metrics") in the URL query parameters.`}
+      </Alert>
+    </View>
+  );
+}
+
+export function SelectedCompareExperiments({
+  dataRef,
+}: {
+  dataRef: ExperimentComparePage_selectedCompareExperiments$key;
+}) {
+  const [searchParams] = useSearchParams();
+  const [, ...compareExperimentIds] = searchParams.getAll("experimentId");
+  const { getExperimentColor } = useExperimentColors();
+  const data =
+    useFragment<ExperimentComparePage_selectedCompareExperiments$key>(
+      graphql`
+        fragment ExperimentComparePage_selectedCompareExperiments on Query
+        @argumentDefinitions(
+          datasetId: { type: "ID!" }
+          experimentIds: { type: "[ID!]!" }
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              experiments(filterIds: $experimentIds) {
+                edges {
+                  experiment: node {
+                    id
+                    sequenceNumber
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      dataRef
+    );
+  const idToExperiment = useMemo(() => {
+    const idToExperiment: Record<string, Experiment> = {};
+    data.dataset.experiments?.edges.forEach((edge) => {
+      idToExperiment[edge.experiment.id] = edge.experiment;
+    });
+    return idToExperiment;
+  }, [data]);
+  if (compareExperimentIds.length === 0) {
+    return null;
+  }
+  const compareExperiments = compareExperimentIds.map(
+    (experimentId) => idToExperiment[experimentId]
+  );
+  return (
+    <Flex direction="row" gap="size-100" alignItems="center">
+      {compareExperiments.map((experiment, experimentIndex) => (
+        <ExperimentNameWithColorSwatch
+          key={experiment.id}
+          color={getExperimentColor(experimentIndex)}
+          name={experiment.name}
+        />
+      ))}
+    </Flex>
   );
 }

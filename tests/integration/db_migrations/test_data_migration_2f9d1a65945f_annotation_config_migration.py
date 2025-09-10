@@ -13,13 +13,14 @@ def test_annotation_config_migration(
     _engine: Engine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
+    _schema: str,
 ) -> None:
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
     # apply migrations up to right before annotation config migration
-    _up(_engine, _alembic_config, "bc8fea3c2bc8")
+    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # insert entities to be annotated
     now = datetime.now(timezone.utc)
@@ -113,11 +114,11 @@ def test_annotation_config_migration(
                 assert "user_id" not in trace_annotations_table_def
                 assert "annotator_kind VARCHAR NOT NULL" in trace_annotations_table_def
                 assert (
-                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""
                     in trace_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"
                     in trace_annotations_table_def
                 )
                 assert (
@@ -136,11 +137,11 @@ def test_annotation_config_migration(
                 assert "user_id" not in span_annotations_table_def
                 assert "annotator_kind VARCHAR NOT NULL" in span_annotations_table_def
                 assert (
-                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""
                     in span_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"
                     in span_annotations_table_def
                 )
                 assert (
@@ -158,11 +159,11 @@ def test_annotation_config_migration(
                 assert "user_id" not in document_annotations_table_def
                 assert "annotator_kind VARCHAR NOT NULL" in document_annotations_table_def
                 assert (
-                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""
                     in document_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"
                     in document_annotations_table_def
                 )
                 assert (
@@ -170,7 +171,7 @@ def test_annotation_config_migration(
                     in document_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_position UNIQUE (name, span_rowid, document_position)"  # noqa: E501
+                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_position UNIQUE (name, span_rowid, document_position)"
                     in document_annotations_table_def
                 )
                 assert document_annotations_table_def.count("CONSTRAINT") == 4
@@ -343,7 +344,7 @@ def test_annotation_config_migration(
             conn.commit()
 
         with _engine.connect() as conn:
-            # verify that 'CODE' annotator_kind is not allowed for trace annotations before migration  # noqa: E501
+            # verify that 'CODE' annotator_kind is not allowed for trace annotations before migration
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_pre_migration(
                     conn=conn,
@@ -375,7 +376,7 @@ def test_annotation_config_migration(
             assert "valid_annotator_kind" in str(exc_info.value)
 
         with _engine.connect() as conn:
-            # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration  # noqa: E501
+            # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_pre_migration(
                     conn=conn,
@@ -392,7 +393,7 @@ def test_annotation_config_migration(
             assert "valid_annotator_kind" in str(exc_info.value)
 
         # run the annotation config migration
-        _up(_engine, _alembic_config, "2f9d1a65945f")
+        _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
 
         # verify new columns exist and have been backfilled
         with _engine.connect() as conn:
@@ -414,23 +415,23 @@ def test_annotation_config_migration(
                     in trace_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""
                     in trace_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"
                     in trace_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier UNIQUE (name, trace_rowid, identifier)"  # noqa: E501
+                    "CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier UNIQUE (name, trace_rowid, identifier)"
                     in trace_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_trace_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    "CONSTRAINT fk_trace_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"
                     in trace_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    """CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""
                     in trace_annotations_table_def
                 )
                 assert trace_annotations_table_def.count("CONSTRAINT") == 6
@@ -444,23 +445,23 @@ def test_annotation_config_migration(
                     "CONSTRAINT pk_span_annotations PRIMARY KEY (id)" in span_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""
                     in span_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"
                     in span_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT uq_span_annotations_name_span_rowid_identifier UNIQUE (name, span_rowid, identifier)"  # noqa: E501
+                    "CONSTRAINT uq_span_annotations_name_span_rowid_identifier UNIQUE (name, span_rowid, identifier)"
                     in span_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_span_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    "CONSTRAINT fk_span_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"
                     in span_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    """CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""
                     in span_annotations_table_def
                 )
                 assert span_annotations_table_def.count("CONSTRAINT") == 6
@@ -475,23 +476,23 @@ def test_annotation_config_migration(
                     in document_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""
                     in document_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"
                     in document_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier UNIQUE (name, span_rowid, document_position, identifier)"  # noqa: E501
+                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier UNIQUE (name, span_rowid, document_position, identifier)"
                     in document_annotations_table_def
                 )
                 assert (
-                    "CONSTRAINT fk_document_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    "CONSTRAINT fk_document_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"
                     in document_annotations_table_def
                 )
                 assert (
-                    """CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    """CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""
                     in document_annotations_table_def
                 )
                 assert document_annotations_table_def.count("CONSTRAINT") == 6
@@ -802,7 +803,7 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
-            # delete the annotations with CODE annotator kind because they will break the down migration  # noqa: E501
+            # delete the annotations with CODE annotator kind because they will break the down migration
             conn.execute(
                 text("DELETE FROM trace_annotations WHERE id = :id"),
                 {"id": trace_annotation_from_code_id},
@@ -817,7 +818,7 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
-        _down(_engine, _alembic_config, "bc8fea3c2bc8")
+        _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
 
 def _create_trace_annotation_pre_migration(
@@ -1126,7 +1127,7 @@ def _get_postgres_table_info(conn: Connection, table_name: str) -> dict[str, Any
             WHERE t.table_name = :table_name
               AND t.table_schema = current_schema()
             LIMIT 1;
-            """  # noqa: E501
+            """
         ),
         {"table_name": table_name},
     ).scalar()

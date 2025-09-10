@@ -23,32 +23,25 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
-        resolved_experiment_ids = (
-            select(models.Experiment.id)
-            .where(models.Experiment.id.in_(set(experiment_ids)))
+        average_repetition_latency_ms = (
+            select(
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                func.avg(models.ExperimentRun.latency_ms).label("average_repetition_latency_ms"),
+            )
+            .select_from(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
             .subquery()
         )
-        query = (
-            select(
-                resolved_experiment_ids.c.id,
-                func.avg(
-                    func.extract("epoch", models.ExperimentRun.end_time)
-                    - func.extract("epoch", models.ExperimentRun.start_time)
-                ),
-            )
-            .outerjoin_from(
-                from_=resolved_experiment_ids,
-                target=models.ExperimentRun,
-                onclause=resolved_experiment_ids.c.id == models.ExperimentRun.experiment_id,
-            )
-            .group_by(resolved_experiment_ids.c.id)
-        )
+        query = select(
+            average_repetition_latency_ms.c.experiment_id,
+            func.avg(average_repetition_latency_ms.c.average_repetition_latency_ms).label(
+                "average_run_latency_ms"
+            ),
+        ).group_by(average_repetition_latency_ms.c.experiment_id)
         async with self._db() as session:
-            avg_latencies = {
-                experiment_id: avg_latency
-                async for experiment_id, avg_latency in await session.stream(query)
+            average_run_latencies_ms = {
+                experiment_id: average_run_latency_ms
+                async for experiment_id, average_run_latency_ms in await session.stream(query)
             }
-        return [
-            avg_latencies.get(experiment_id, ValueError(f"Unknown experiment: {experiment_id}"))
-            for experiment_id in keys
-        ]
+        return [average_run_latencies_ms.get(experiment_id) for experiment_id in keys]

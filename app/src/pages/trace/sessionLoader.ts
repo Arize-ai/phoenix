@@ -13,7 +13,7 @@ export async function sessionLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<sessionLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query sessionLoaderQuery($id: GlobalID!) {
+      query sessionLoaderQuery($id: ID!) {
         session: node(id: $id) {
           id
           ... on ProjectSession {

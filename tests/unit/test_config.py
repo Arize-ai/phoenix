@@ -1,5 +1,7 @@
-from typing import Optional
-from urllib.parse import quote_plus
+from pathlib import Path
+from typing import Any, Optional
+from unittest.mock import MagicMock
+from urllib.parse import quote
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -7,7 +9,10 @@ from starlette.datastructures import URL
 
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
+    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    ensure_working_dir_if_needed,
     get_env_admins,
+    get_env_auth_settings,
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
@@ -16,84 +21,97 @@ from phoenix.config import (
 )
 
 
-def test_missing_required_vars(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PHOENIX_POSTGRES_USER", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_PASSWORD", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_HOST", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+class TestPostgresConnectionString:
+    """Tests for PostgreSQL connection string generation from environment variables."""
 
-    assert get_env_postgres_connection_str() is None
+    class TestBasicFunctionality:
+        """Core functionality and validation tests."""
 
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    assert get_env_postgres_connection_str() is None
+        def test_missing_required_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that missing required environment variables return None."""
+            monkeypatch.delenv("PHOENIX_POSTGRES_USER", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_PASSWORD", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_HOST", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            assert get_env_postgres_connection_str() is None
 
-def test_basic_connection_string(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+            # Having only host is insufficient
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            assert get_env_postgres_connection_str() is None
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost"
-    assert get_env_postgres_connection_str() == expected
+        def test_minimal_connection_string(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test basic connection string with minimal required parameters."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@localhost"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_port_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5555")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+        def test_full_connection_string_with_port_override(
+            self, monkeypatch: pytest.MonkeyPatch
+        ) -> None:
+            """Test that explicit port overrides port in host string.
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:5555"
-    assert get_env_postgres_connection_str() == expected
+            LEGACY BEHAVIOR: For backward compatibility, PHOENIX_POSTGRES_HOST can contain
+            a port (e.g., 'localhost:5432'), which gets parsed and split. However, if
+            PHOENIX_POSTGRES_PORT is explicitly set, it overrides the port from the host string.
+            This maintains compatibility with older configurations.
+            """
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            # LEGACY: Host includes port, but explicit port should override it
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "9999")
+            monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@localhost:9999/mydb"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    # Host includes a port, and no explicit port is set.
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:6666")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+    class TestUrlEncoding:
+        """Tests for proper URL encoding of userinfo components."""
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:6666"
-    assert get_env_postgres_connection_str() == expected
+        def test_comprehensive_special_character_encoding(
+            self, monkeypatch: pytest.MonkeyPatch
+        ) -> None:
+            """Test encoding of both username and password with challenging special characters."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user@domain.com")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "p@ss w0rd&123=abc%")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
 
+            expected = f"postgresql://{quote('user@domain.com')}:{quote('p@ss w0rd&123=abc%')}@localhost:5432/mydb"
+            assert get_env_postgres_connection_str() == expected
 
-def test_overrides_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "9999")
-    monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
+    class TestHostParsingEdgeCases:
+        """Tests for challenging host parsing scenarios that shouldn't be split as host:port."""
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost:9999"
-    assert get_env_postgres_connection_str() == expected
+        def test_cloud_sql_socket_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that Cloud SQL Unix socket paths with colons are not incorrectly parsed."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "/cloudsql/project:region:instance-id")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@/cloudsql/project:region:instance-id:5432"
+            assert get_env_postgres_connection_str() == expected
 
-def test_with_db(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
-    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
-    monkeypatch.delenv("PHOENIX_POSTGRES_PORT", raising=False)
+        def test_ipv6_address(self, monkeypatch: pytest.MonkeyPatch) -> None:
+            """Test that IPv6 addresses with multiple colons are not incorrectly parsed."""
+            monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
+            monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "2001:db8::1")
+            monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+            monkeypatch.delenv("PHOENIX_POSTGRES_DB", raising=False)
 
-    expected = f"postgresql://user:{quote_plus('pass')}@localhost/mydb"
-    assert get_env_postgres_connection_str() == expected
-
-
-def test_with_all_params_and_special_chars(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pa ss")
-    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
-    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "1234")
-    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
-
-    expected = f"postgresql://user:{quote_plus('pa ss')}@localhost:1234/mydb"
-    assert get_env_postgres_connection_str() == expected
+            expected = f"postgresql://{quote('user')}:{quote('pass')}@2001:db8::1:5432"
+            assert get_env_postgres_connection_str() == expected
 
 
 class TestGetEnvStartupAdmins:
@@ -355,7 +373,7 @@ class TestGetEnvPhoenixAdminSecret:
                 {
                     "PHOENIX_ADMIN_SECRET": None,
                 },
-                None,
+                "",
                 id="not_set",
             ),
             pytest.param(
@@ -372,14 +390,14 @@ class TestGetEnvPhoenixAdminSecret:
         self,
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, Optional[str]],
-        expected_result: Optional[str],
+        expected_result: str,
     ) -> None:
         for key, value in env_vars.items():
             if value is None:
                 monkeypatch.delenv(key, raising=False)
             else:
                 monkeypatch.setenv(key, value)
-        assert get_env_phoenix_admin_secret() == expected_result
+        assert str(get_env_phoenix_admin_secret()) == expected_result
 
     @pytest.mark.parametrize(
         "env_vars",
@@ -509,3 +527,299 @@ class TestGetEnvTlsEnabled:
 
         # Test gRPC TLS enablement
         assert get_env_tls_enabled_for_grpc() == expected_grpc
+
+
+class TestGetEnvAuthSettings:
+    @pytest.mark.parametrize(
+        "env_vars, expected_result",
+        [
+            pytest.param(
+                {},  # No environment variables set
+                {
+                    "enable_auth": False,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                id="default_values",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                id="auth_enabled_with_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_ADMIN_SECRET": "validadminsecret123456789012345678901234567890",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "validadminsecret123456789012345678901234567890",
+                    "oauth2_clients": [],
+                },
+                id="auth_enabled_with_both_secrets",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Google",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        }
+                    ],
+                },
+                id="auth_enabled_with_oauth2",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                    "PHOENIX_OAUTH2_AZURE_CLIENT_ID": "azure_client_id",
+                    "PHOENIX_OAUTH2_AZURE_CLIENT_SECRET": "azure_client_secret",
+                    "PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL": "https://login.microsoftonline.com/.well-known/openid-configuration",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "azure",
+                            "idp_display_name": "Azure",
+                            "client_id": "azure_client_id",
+                            "client_secret": "azure_client_secret",
+                            "oidc_config_url": "https://login.microsoftonline.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        },
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Google",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        },
+                    ],
+                },
+                id="auth_enabled_with_multiple_oauth2",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                    "PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME": "Custom Google Name",
+                    "PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP": "false",
+                    "PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN": "true",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Custom Google Name",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": False,
+                            "auto_login": True,
+                        }
+                    ],
+                },
+                id="auth_enabled_with_custom_oauth2_settings",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_result: dict[str, Any],
+    ) -> None:
+        # Clear all auth-related environment variables first
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_ADMIN_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_DISABLE_BASIC_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        result = get_env_auth_settings()
+        assert result.enable_auth == expected_result["enable_auth"]
+        assert result.disable_basic_auth == expected_result["disable_basic_auth"]
+        assert str(result.phoenix_secret) == expected_result["phoenix_secret"]
+        assert str(result.phoenix_admin_secret) == expected_result["phoenix_admin_secret"]
+
+        # Compare OAuth2 clients
+        assert len(result.oauth2_clients) == len(expected_result["oauth2_clients"])
+        # Create lookup dictionaries by IDP name
+        actual_clients = {client.name: client for client in result.oauth2_clients}
+        expected_clients = {
+            client["idp_name"]: client for client in expected_result["oauth2_clients"]
+        }
+        # Compare each client by name
+        for idp_name, expected in expected_clients.items():
+            actual = actual_clients[idp_name]
+            assert actual.name == expected["idp_name"]
+            assert actual.client_id == expected["client_id"]
+            assert actual.client_secret == expected["client_secret"]
+            assert actual.display_name == expected["idp_display_name"]
+            assert actual.allow_sign_up == expected["allow_sign_up"]
+            assert actual.auto_login == expected["auto_login"]
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_error_msg",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                },
+                "`PHOENIX_SECRET` must be set when auth is enabled with `PHOENIX_ENABLE_AUTH`",
+                id="auth_enabled_without_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                },
+                "OAuth2 is the only supported auth method but "
+                "no OAuth2 client configs are provided",
+                id="basic_auth_disabled_without_oauth2",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_error_msg: str,
+    ) -> None:
+        # Clear all auth-related environment variables first
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_ADMIN_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_DISABLE_BASIC_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        with pytest.raises(ValueError) as e:
+            get_env_auth_settings()
+        assert expected_error_msg in str(e.value)
+
+
+def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "password")
+    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "host")
+    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "somedb")
+    monkeypatch.delenv("PHOENIX_WORKING_DIR", raising=False)
+    mkdir_spy = MagicMock()
+    monkeypatch.setattr(Path, "mkdir", mkdir_spy, raising=True)
+
+    ensure_working_dir_if_needed()
+
+    mkdir_spy.assert_not_called()
+
+
+def test_allow_external_resources_env_var_exists() -> None:
+    """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
+    assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
+
+
+def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that the environment variable parsing logic works correctly."""
+    import os
+
+    # Test default (env var not set) - should be True
+    monkeypatch.delenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, raising=False)
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit True
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit true (lowercase)
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+
+    # Test explicit False
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "False")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+
+    # Test explicit false (lowercase)
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "false")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+
+    # Test invalid value - should be false (not "true")
+    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
+    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"

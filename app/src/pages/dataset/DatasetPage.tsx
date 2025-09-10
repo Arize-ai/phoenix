@@ -24,13 +24,13 @@ import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
-import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
-import { DatasetHistoryButton } from "./DatasetHistoryButton";
+import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
 export function DatasetPage() {
@@ -85,11 +85,36 @@ const mainCSS = css`
   }
 `;
 
+const TABS_CONFIG = {
+  0: "experiments",
+  1: "examples",
+  2: "versions",
+  3: "evaluators",
+} as const;
+
+const TABS_LIST = Object.values(TABS_CONFIG);
+
+type TabName = (typeof TABS_LIST)[number];
+
+function isTabName(name: unknown): name is TabName {
+  return typeof name === "string" && (TABS_LIST as string[]).includes(name);
+}
+
+function getTabIndexFromPathname(pathname: string): number {
+  // We only need the last part of the path
+  const path = pathname.split("/").at(-1);
+  if (isTabName(path)) {
+    return TABS_LIST.indexOf(path);
+  }
+  return 0;
+}
+
 function DatasetPageContent({
   dataset,
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
@@ -99,10 +124,9 @@ function DatasetPageContent({
   const navigate = useNavigate();
   const onTabChange = useCallback(
     (tabIndex: number) => {
-      if (tabIndex === 0) {
-        navigate(`/datasets/${datasetId}/experiments`);
-      } else if (tabIndex === 1) {
-        navigate(`/datasets/${datasetId}/examples`);
+      if (TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG]) {
+        const path = TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG];
+        navigate(`/datasets/${datasetId}/${path}`);
       }
     },
     [navigate, datasetId]
@@ -110,7 +134,7 @@ function DatasetPageContent({
 
   // Set the initial tab
   const location = useLocation();
-  const initialIndex = location.pathname.includes("examples") ? 1 : 0;
+  const initialIndex = getTabIndexFromPathname(location.pathname);
   return (
     <main css={mainCSS}>
       <View
@@ -120,12 +144,12 @@ function DatasetPageContent({
         paddingBottom="size-50"
         flex="none"
       >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Flex direction="column" justifyContent="space-between">
+        <Flex direction="row" justifyContent="space-between" alignItems="start">
+          <Flex
+            direction="column"
+            justifyContent="space-between"
+            alignItems="start"
+          >
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
@@ -137,9 +161,10 @@ function DatasetPageContent({
               </Flex>
             </Flex>
           </Flex>
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ActionMenu
               align="end"
+              buttonSize="compact"
               icon={<Icon svg={<Icons.DownloadOutline />} />}
               onAction={(action) => {
                 switch (action) {
@@ -172,17 +197,8 @@ function DatasetPageContent({
               <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
               <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
-            <DatasetHistoryButton datasetId={dataset.id} />
-            <DatasetCodeDropdown />
+            <DatasetCodeButton />
             <RunExperimentButton />
-            <Button
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={() => {
-                navigate(`/playground?datasetId=${dataset.id}`);
-              }}
-            >
-              Playground
-            </Button>
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
@@ -194,19 +210,30 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              onPress={() => {
+                navigate(`/playground?datasetId=${dataset.id}`);
+              }}
+            >
+              Playground
+            </Button>
           </Flex>
         </Flex>
       </View>
       <Tabs
-        defaultSelectedKey={initialIndex === 0 ? "experiments" : "examples"}
+        defaultSelectedKey={
+          initialIndex === 0
+            ? "experiments"
+            : initialIndex === 1
+              ? "examples"
+              : "versions"
+        }
         onSelectionChange={(key) => {
-          switch (key) {
-            case "experiments":
-              onTabChange(0);
-              break;
-            case "examples":
-              onTabChange(1);
-              break;
+          if (isTabName(key)) {
+            onTabChange(TABS_LIST.indexOf(key));
           }
         }}
       >
@@ -217,6 +244,12 @@ function DatasetPageContent({
           <Tab id="examples">
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
+          <Tab id="versions">Versions</Tab>
+          {isEvaluatorsEnabled ? (
+            <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
+              Evaluators
+            </Tab>
+          ) : null}
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -224,6 +257,16 @@ function DatasetPageContent({
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="examples">
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="versions">
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="evaluators">
           <Suspense>
             <Outlet />
           </Suspense>

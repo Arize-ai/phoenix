@@ -25,6 +25,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -32,13 +33,16 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+SessionFilterCondition: TypeAlias = Optional[str]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, SessionFilterCondition]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability]
+Key: TypeAlias = tuple[
+    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilterCondition, Probability
+]
 Result: TypeAlias = Optional[QuantileValue]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -47,15 +51,18 @@ FloatCol: TypeAlias = SQLColumnExpression[Float[float]]
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, probability = key
+    kind, project_rowid, time_range, filter_condition, session_filter_condition, probability = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition), (project_rowid, probability)
+    return (kind, interval, filter_condition, session_filter_condition), (
+        project_rowid,
+        probability,
+    )
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind, Probability]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition, Kind, Probability]
 
 
 class LatencyMsQuantileCache(
@@ -71,8 +78,17 @@ class LatencyMsQuantileCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition), (project_rowid, probability) = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition, kind, probability)
+        (
+            (kind, interval, filter_condition, session_filter_condition),
+            (project_rowid, probability),
+        ) = _cache_key_fn(key)
+        return project_rowid, (
+            interval,
+            filter_condition,
+            session_filter_condition,
+            kind,
+            probability,
+        )
 
 
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
@@ -113,11 +129,18 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition = segment
+    kind, (start_time, end_time), filter_condition, session_filter_condition = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
         latency_column = cast(FloatCol, models.Trace.latency_ms)
         time_column = models.Trace.start_time
+        if filter_condition:
+            sf = SpanFilter(filter_condition)
+            stmt = stmt.where(
+                models.Trace.id.in_(
+                    sf(select(models.Span.trace_rowid).distinct()).scalar_subquery()
+                )
+            )
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)
         time_column = models.Span.start_time
@@ -127,6 +150,15 @@ async def _get_results(
             stmt = sf(stmt)
     else:
         assert_never(kind)
+    if session_filter_condition:
+        project_rowids = [project_rowid for project_rowid, _ in params]
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition=session_filter_condition,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     if start_time:
         stmt = stmt.where(start_time <= time_column)
     if end_time:

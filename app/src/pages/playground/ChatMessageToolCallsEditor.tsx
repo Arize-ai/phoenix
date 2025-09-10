@@ -8,6 +8,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolCallsJSONSchema,
+  awsToolCallsJSONSchema,
   openAIToolCallsJSONSchema,
 } from "@phoenix/schemas/toolCallSchemas";
 import {
@@ -88,9 +89,14 @@ export function ChatMessageToolCallsEditor({
     switch (instance.model.provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
+      case "OLLAMA":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;
+      case "AWS":
+        return awsToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":
         return null;

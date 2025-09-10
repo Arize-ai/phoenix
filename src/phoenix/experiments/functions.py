@@ -10,12 +10,13 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from itertools import product
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
 import pandas as pd
+from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -64,6 +65,41 @@ from phoenix.trace.attributes import flatten
 from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify
 
+if TYPE_CHECKING:
+    from phoenix.client.resources.datasets import Dataset as ClientDataset
+
+
+def _convert_client_dataset(new_dataset: "ClientDataset") -> Dataset:
+    """
+    Converts Dataset objects from `phoenix.client` to Dataset objects compatible with experiments.
+    """
+    examples_dict: dict[str, Example] = {}
+    for example_data in new_dataset.examples:
+        legacy_example = Example(
+            id=example_data["id"],
+            input=example_data["input"],
+            output=example_data["output"],
+            metadata=example_data["metadata"],
+            updated_at=datetime.fromisoformat(example_data["updated_at"]),
+        )
+        examples_dict[legacy_example.id] = legacy_example
+
+    return Dataset(
+        id=new_dataset.id,
+        version_id=new_dataset.version_id,
+        examples=examples_dict,
+    )
+
+
+def _is_new_client_dataset(dataset: Any) -> bool:
+    """Check if dataset is from new client (has list examples)."""
+    try:
+        from phoenix.client.resources.datasets import Dataset as _ClientDataset
+
+        return isinstance(dataset, _ClientDataset)
+    except ImportError:
+        return False
+
 
 def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     return VersionedClient(
@@ -71,6 +107,64 @@ def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     ), VersionedAsyncClient(
         base_url=get_base_url(),
     )
+
+
+def _get_all_experiment_runs(
+    client: httpx.Client,
+    experiment_id: str,
+    page_size: int = 50,
+) -> list[ExperimentRun]:
+    """
+    Fetch all experiment runs using pagination to handle large datasets.
+
+    Args:
+        client: The HTTP client to use for requests.
+        experiment_id: The ID of the experiment.
+        page_size: Number of runs to fetch per page. Defaults to 50.
+
+    Returns:
+        List of all experiment runs as ExperimentRun objects.
+    """
+    all_runs: list[dict[str, Any]] = []
+    cursor = None
+
+    while True:
+        params: dict[str, Any] = {"limit": page_size}
+        if cursor:
+            params["cursor"] = cursor
+
+        try:
+            response = client.get(
+                f"v1/experiments/{experiment_id}/runs",
+                params=params,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            runs = data["data"]
+            all_runs.extend(runs)
+
+            # Check if there are more pages
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment doesn't exist - treat as empty result
+                break
+            else:
+                raise
+
+    # Convert dicts to ExperimentRun objects
+    experiment_runs: list[ExperimentRun] = []
+    for run in all_runs:
+        # Parse datetime strings
+        run["start_time"] = datetime.fromisoformat(run["start_time"])
+        run["end_time"] = datetime.fromisoformat(run["end_time"])
+        experiment_runs.append(ExperimentRun.from_dict(run))
+
+    return experiment_runs
 
 
 Evaluators: TypeAlias = Union[
@@ -84,7 +178,7 @@ RateLimitErrors: TypeAlias = Union[type[BaseException], Sequence[type[BaseExcept
 
 
 def run_experiment(
-    dataset: Dataset,
+    dataset: Union[Dataset, Any],  # Accept both legacy and new client datasets
     task: ExperimentTask,
     evaluators: Optional[Evaluators] = None,
     *,
@@ -116,8 +210,17 @@ def run_experiment(
     - `metadata`: Metadata associated with the dataset example
     - `example`: The dataset `Example` object with all associated fields
 
-    An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
-    or numeric "score". If the `evaluator` is a function of one argument then that argument will be
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms.
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
 
@@ -156,11 +259,20 @@ def run_experiment(
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
             added to the experiment using the `evaluate_experiment` function.
     """
+    # Auto-convert client Dataset objects to legacy format
+    normalized_dataset: Dataset
+    if _is_new_client_dataset(dataset):
+        normalized_dataset = _convert_client_dataset(cast("ClientDataset", dataset))
+    else:
+        normalized_dataset = dataset
+
     task_signature = inspect.signature(task)
     _validate_task_signature(task_signature)
 
-    if not dataset.examples:
-        raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
+    if not normalized_dataset.examples:
+        raise ValueError(
+            f"Dataset has no examples: {normalized_dataset.id=}, {normalized_dataset.version_id=}"
+        )
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
@@ -169,7 +281,7 @@ def run_experiment(
     sync_client, async_client = _phoenix_clients()
 
     payload = {
-        "version_id": dataset.version_id,
+        "version_id": normalized_dataset.version_id,
         "name": experiment_name,
         "description": experiment_description,
         "metadata": experiment_metadata,
@@ -177,23 +289,23 @@ def run_experiment(
     }
     if not dry_run:
         experiment_response = sync_client.post(
-            f"/v1/datasets/{dataset.id}/experiments",
+            f"v1/datasets/{normalized_dataset.id}/experiments",
             json=payload,
         )
         experiment_response.raise_for_status()
         exp_json = experiment_response.json()["data"]
         project_name = exp_json["project_name"]
         experiment = Experiment(
-            dataset_id=dataset.id,
-            dataset_version_id=dataset.version_id,
+            dataset_id=normalized_dataset.id,
+            dataset_version_id=normalized_dataset.version_id,
             repetitions=repetitions,
             id=exp_json["id"],
             project_name=project_name,
         )
     else:
         experiment = Experiment(
-            dataset_id=dataset.id,
-            dataset_version_id=dataset.version_id,
+            dataset_id=normalized_dataset.id,
+            dataset_version_id=normalized_dataset.version_id,
             repetitions=repetitions,
             id=DRY_RUN,
             project_name="",
@@ -206,31 +318,69 @@ def run_experiment(
     print("🧪 Experiment started.")
     if dry_run:
         examples = {
-            (ex := dataset[i]).id: ex
-            for i in pd.Series(range(len(dataset)))
-            .sample(min(len(dataset), int(dry_run)), random_state=42)
+            (ex := normalized_dataset[i]).id: ex
+            for i in pd.Series(range(len(normalized_dataset)))
+            .sample(min(len(normalized_dataset), int(dry_run)), random_state=42)
             .sort_values()
         }
         id_selection = "\n".join(examples)
         print(f"🌵️ This is a dry-run for these example IDs:\n{id_selection}")
-        dataset = replace(dataset, examples=examples)
+        normalized_dataset = replace(normalized_dataset, examples=examples)
     else:
-        dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
+        dataset_experiments_url = get_dataset_experiments_url(dataset_id=normalized_dataset.id)
         experiment_compare_url = get_experiment_url(
-            dataset_id=dataset.id,
+            dataset_id=normalized_dataset.id,
             experiment_id=experiment.id,
         )
         print(f"📺 View dataset experiments: {dataset_experiments_url}")
         print(f"🔗 View this experiment: {experiment_compare_url}")
 
-    def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
+    # Create a cache for task results
+    task_result_cache: dict[tuple[str, int], Any] = {}
+
+    def sync_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    resp = sync_client.post(
+                        f"v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                    )
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        # Ignore duplicate runs - we'll get the final state from the database
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -271,9 +421,10 @@ def run_experiment(
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
+        assert isinstance(output, (dict, list, str, int, float, bool, type(None))), (
+            "Output must be JSON serializable"
+        )
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -285,19 +436,71 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                resp = sync_client.post(
+                    f"v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                )
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    # 409 conflict errors are caused by submitting duplicate runs
+                    return None
+                raise
         return exp_run
 
-    async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
+    async def async_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    future = asyncio.get_running_loop().run_in_executor(
+                        None,
+                        functools.partial(
+                            sync_client.post,
+                            url=f"v1/experiments/{experiment.id}/runs",
+                            json=jsonify(exp_run),
+                        ),
+                    )
+                    resp = await future
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        # 409 conflict errors are caused by submitting duplicate runs
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -332,9 +535,10 @@ def run_experiment(
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
+        assert isinstance(output, (dict, list, str, int, float, bool, type(None))), (
+            "Output must be JSON serializable"
+        )
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -346,19 +550,26 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            # Below is a workaround to avoid timeout errors sometimes
-            # encountered when the task is a synchronous function that
-            # blocks for too long.
-            resp = await asyncio.get_running_loop().run_in_executor(
-                None,
-                functools.partial(
-                    sync_client.post,
-                    url=f"/v1/experiments/{experiment.id}/runs",
-                    json=jsonify(exp_run),
-                ),
-            )
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                future = asyncio.get_running_loop().run_in_executor(
+                    None,
+                    functools.partial(
+                        sync_client.post,
+                        url=f"v1/experiments/{experiment.id}/runs",
+                        json=jsonify(exp_run),
+                    ),
+                )
+                resp = await future
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    # Ignore duplicate runs - we'll get the final state from the database
+                    return None
+                raise
         return exp_run
 
     _errors: tuple[type[BaseException], ...]
@@ -388,16 +599,32 @@ def run_experiment(
 
     test_cases = [
         TestCase(example=deepcopy(ex), repetition_number=rep)
-        for ex, rep in product(dataset.examples.values(), range(1, repetitions + 1))
+        for ex, rep in product(normalized_dataset.examples.values(), range(1, repetitions + 1))
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
-    params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
+
+    # Get the final state of runs from the database
+    if not dry_run:
+        task_runs = _get_all_experiment_runs(sync_client, experiment.id)
+
+        # Check if we got all expected runs
+        expected_runs = len(normalized_dataset.examples) * repetitions
+        actual_runs = len(task_runs)
+        if actual_runs < expected_runs:
+            print(
+                f"⚠️  Warning: Only {actual_runs} out of {expected_runs} expected runs were "
+                "completed successfully."
+            )
+
+    params = ExperimentParameters(
+        n_examples=len(normalized_dataset.examples), n_repetitions=repetitions
+    )
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
     ran_experiment.__init__(  # type: ignore[misc]
         params=params,
-        dataset=dataset,
+        dataset=normalized_dataset,
         runs={r.id: r for r in task_runs if r is not None},
         task_summary=task_summary,
         **_asdict(experiment),
@@ -438,16 +665,14 @@ def evaluate_experiment(
     else:
         dataset = Dataset.from_dict(
             sync_client.get(
-                f"/v1/datasets/{dataset_id}/examples",
+                f"v1/datasets/{dataset_id}/examples",
                 params={"version_id": str(dataset_version_id)},
             ).json()["data"]
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
-        experiment_runs = {
-            exp_run["id"]: ExperimentRun.from_dict(exp_run)
-            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
-        }
+        all_runs = _get_all_experiment_runs(sync_client, experiment.id)
+        experiment_runs = {exp_run.id: exp_run for exp_run in all_runs}
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
         params = ExperimentParameters(n_examples=len(dataset.examples))
@@ -499,8 +724,11 @@ def evaluate_experiment(
         status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -537,7 +765,7 @@ def evaluate_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
+            resp = sync_client.post("v1/experiment_evaluations", json=jsonify(eval_run))
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
@@ -551,8 +779,11 @@ def evaluate_experiment(
         status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -596,7 +827,7 @@ def evaluate_experiment(
                 None,
                 functools.partial(
                     sync_client.post,
-                    url="/v1/experiment_evaluations",
+                    url="v1/experiment_evaluations",
                     json=jsonify(eval_run),
                 ),
             )

@@ -6,12 +6,15 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
+import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
@@ -30,6 +33,9 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
+import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
+import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
@@ -40,6 +46,8 @@ import {
   datasetLoader,
   DatasetPage,
   DatasetsPage,
+  datasetVersionsLoader,
+  DatasetVersionsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -50,17 +58,18 @@ import {
   ExamplesPage,
   experimentCompareLoader,
   ExperimentComparePage,
-  experimentsLoader,
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
+  LoggedOutPage,
   LoginPage,
-  ModelPage,
+  ModelInferencesPage,
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
+  ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
   ProjectsPage,
@@ -85,7 +94,7 @@ import {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
-      {/* 
+      {/*
         Using /v1/* below redirects all /v1/* routes that don't have a GET method to the root path.
         In particular, this redirects /v1/traces to the root path (/). This route is for the
         OpenTelemetry trace collector, but users sometimes accidentally try to access Phoenix
@@ -94,6 +103,7 @@ const router = createBrowserRouter(
       */}
       <Route path="/v1/*" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/logout" element={<LoggedOutPage />} />
       <Route
         path="/reset-password"
         element={<ResetPasswordPage />}
@@ -117,8 +127,8 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "model" }}
             element={<ModelRoot />}
           >
-            <Route index element={<ModelPage />} />
-            <Route element={<ModelPage />}>
+            <Route index element={<ModelInferencesPage />} />
+            <Route element={<ModelInferencesPage />}>
               <Route path="dimensions">
                 <Route
                   path=":dimensionId"
@@ -145,7 +155,7 @@ const router = createBrowserRouter(
           </Route>
           <Route
             path="/projects"
-            handle={{ crumb: () => "projects" }}
+            handle={{ crumb: () => "Projects" }}
             element={<ProjectsRoot />}
           >
             <Route index element={<ProjectsPage />} />
@@ -173,10 +183,11 @@ const router = createBrowserRouter(
                   />
                 </Route>
                 <Route path="config" element={<ProjectConfigPage />} />
+                <Route path="metrics" element={<ProjectMetricsPage />} />
               </Route>
             </Route>
           </Route>
-          <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
+          <Route path="/datasets" handle={{ crumb: () => "Datasets" }}>
             <Route index element={<DatasetsPage />} />
             <Route
               path=":datasetId"
@@ -186,16 +197,8 @@ const router = createBrowserRouter(
               }}
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
-                <Route
-                  index
-                  element={<ExperimentsPage />}
-                  loader={experimentsLoader}
-                />
-                <Route
-                  path="experiments"
-                  element={<ExperimentsPage />}
-                  loader={experimentsLoader}
-                />
+                <Route index element={<ExperimentsPage />} />
+                <Route path="experiments" element={<ExperimentsPage />} />
                 <Route
                   path="examples"
                   element={<ExamplesPage />}
@@ -203,21 +206,25 @@ const router = createBrowserRouter(
                 >
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
+                <Route
+                  path="versions"
+                  element={<DatasetVersionsPage />}
+                  loader={datasetVersionsLoader}
+                />
+                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
               </Route>
               <Route
                 path="compare"
-                handle={{
-                  crumb: () => "compare",
-                }}
-                loader={experimentCompareLoader}
                 element={<ExperimentComparePage />}
+                loader={experimentCompareLoader}
+                handle={{ crumb: () => "compare" }}
               />
             </Route>
           </Route>
           <Route
             path="/playground"
             handle={{
-              crumb: () => "Playground",
+              crumb: () => "Playground", // TODO: add playground name
             }}
           >
             <Route index element={<PlaygroundPage />} />
@@ -238,7 +245,7 @@ const router = createBrowserRouter(
           <Route
             path="/prompts"
             handle={{
-              crumb: () => "prompts",
+              crumb: () => "Prompts",
             }}
           >
             <Route index element={<PromptsPage />} loader={promptsLoader} />
@@ -290,21 +297,21 @@ const router = createBrowserRouter(
             path="/apis"
             element={<APIsPage />}
             handle={{
-              crumb: () => "APIs",
+              crumb: () => "APIs", // TODO: add API name
             }}
           />
           <Route
             path="/support"
             element={<SupportPage />}
             handle={{
-              crumb: () => "support",
+              crumb: () => "Support",
             }}
           />
           <Route
             path="/settings"
             element={<SettingsPage />}
             handle={{
-              crumb: () => "settings",
+              crumb: () => "Settings",
             }}
           >
             <Route
@@ -312,7 +319,7 @@ const router = createBrowserRouter(
               loader={settingsGeneralPageLoader}
               element={<SettingsGeneralPage />}
               handle={{
-                crumb: () => "general",
+                crumb: () => "General",
               }}
             />
             <Route
@@ -320,7 +327,15 @@ const router = createBrowserRouter(
               loader={settingsAIProvidersPageLoader}
               element={<SettingsAIProvidersPage />}
               handle={{
-                crumb: () => "providers",
+                crumb: () => "AI Providers",
+              }}
+            />
+            <Route
+              path="models"
+              loader={settingsModelsLoader}
+              element={<SettingsModelsPage />}
+              handle={{
+                crumb: () => "Models",
               }}
             />
             <Route
@@ -328,18 +343,34 @@ const router = createBrowserRouter(
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
               handle={{
-                crumb: () => "annotations",
+                crumb: () => "Annotations",
               }}
             />
+
             <Route
               path="data"
               element={<SettingsDataPage />}
               handle={{
-                crumb: () => "data retention",
+                crumb: () => "Data Retention",
               }}
               loader={settingsDataPageLoader}
             />
           </Route>
+          <Route
+            path="/redirects/spans/:span_otel_id"
+            loader={spanRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/traces/:trace_otel_id"
+            loader={traceRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/sessions/:session_id"
+            loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
         </Route>
       </Route>
     </Route>

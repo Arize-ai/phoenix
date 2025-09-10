@@ -17,7 +17,10 @@ import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/Sav
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { identifierPattern } from "@phoenix/utils/identifierUtils";
 
-export type SavePromptSubmitHandler = (params: SavePromptFormParams) => void;
+export type SavePromptSubmitHandler = (
+  params: SavePromptFormParams,
+  close: () => void
+) => void;
 
 export type SavePromptFormParams = {
   promptId?: string;
@@ -30,17 +33,19 @@ export function SavePromptForm({
   onUpdate,
   isSubmitting = false,
   defaultSelectedPromptId,
+  onClose,
 }: {
   onCreate: SavePromptSubmitHandler;
   onUpdate: SavePromptSubmitHandler;
   isSubmitting?: boolean;
   defaultSelectedPromptId?: string;
+  onClose: () => void;
 }) {
   const flexContainer = useRef<HTMLDivElement>(null);
   const prompts = useLazyLoadQuery<SavePromptFormQuery>(
     graphql`
       query SavePromptFormQuery {
-        prompts {
+        prompts(first: 200) {
           edges {
             prompt: node {
               id
@@ -91,12 +96,12 @@ export function SavePromptForm({
   const onSubmit = useCallback(
     (params: SavePromptFormParams) => {
       if (mode === "create") {
-        onCreate(params);
+        onCreate(params, onClose);
       } else {
-        onUpdate(params);
+        onUpdate(params, onClose);
       }
     },
-    [onCreate, onUpdate, mode]
+    [onCreate, onUpdate, mode, onClose]
   );
 
   return (

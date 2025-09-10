@@ -90,22 +90,18 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (
                             f"{LLM_INPUT_MESSAGES}.4.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}",
                             "multiply",
-                        ),  # noqa: E501
+                        ),
                         (
                             f"{LLM_INPUT_MESSAGES}.4.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                            json.dumps(  # noqa: E501
-                                {"a": 121, "b": 3}
-                            ),
+                            json.dumps({"a": 121, "b": 3}),
                         ),
                         (
                             f"{LLM_INPUT_MESSAGES}.4.{MESSAGE_TOOL_CALLS}.1.{TOOL_CALL_FUNCTION_NAME}",
                             "add",
-                        ),  # noqa: E501
+                        ),
                         (
                             f"{LLM_INPUT_MESSAGES}.4.{MESSAGE_TOOL_CALLS}.1.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                            json.dumps(  # noqa: E501
-                                {"a": 363, "b": 42}
-                            ),
+                            json.dumps({"a": 363, "b": 42}),
                         ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
@@ -129,7 +125,7 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         ],
                     },
                 ],
-                "prompt_template_variables": {"variable_name": "variable-value"},
+                "variable_name": "variable-value",
             },
             id="llm-span-with-input-messages-and-prompt-template-variables",
         ),
@@ -191,7 +187,7 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
             ),
             {
                 "input": "plain-text-input",
-                "prompt_template_variables": {"variable_name": "variable-value"},
+                "variable_name": "variable-value",
             },
             id="llm-span-with-no-input-messages-and-plain-text-input-with-prompt-template-variables",
         ),

@@ -1,8 +1,17 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
+import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
+import {
+  OAuthUserForm,
+  OAuthUserFormParams,
+} from "@phoenix/components/settings/OAuthUserForm";
 import {
   UserForm,
   UserFormParams,
@@ -39,6 +48,30 @@ export function NewUserDialog({
             username: data.username,
             password: data.password,
             role: data.role,
+            authMethod: "LOCAL",
+            sendWelcomeEmail: true,
+          },
+        },
+        onCompleted: (response) => {
+          onNewUserCreated(response.createUser.user.email);
+        },
+        onError: (error) => {
+          onNewUserCreationError(error);
+        },
+      });
+    },
+    [commit, onNewUserCreated, onNewUserCreationError]
+  );
+
+  const onSubmitOauthUser = useCallback(
+    (data: OAuthUserFormParams) => {
+      commit({
+        variables: {
+          input: {
+            email: data.email,
+            username: data.username,
+            role: data.role,
+            authMethod: "OAUTH2",
             sendWelcomeEmail: true,
           },
         },
@@ -54,15 +87,37 @@ export function NewUserDialog({
   );
 
   return (
-    <DialogContainer
-      onDismiss={onDismiss}
-      isDismissable
-      type="modal"
-      isKeyboardDismissDisabled
+    <ModalOverlay
+      isOpen={true}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onDismiss();
+        }
+      }}
     >
-      <Dialog title="Add user">
-        <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
-      </Dialog>
-    </DialogContainer>
+      <Modal>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add User</DialogTitle>
+              <DialogCloseButton />
+            </DialogHeader>
+            {window.Config.basicAuthDisabled ? (
+              <OAuthUserForm
+                key="oauth-form"
+                onSubmit={onSubmitOauthUser}
+                isSubmitting={isCommitting}
+              />
+            ) : (
+              <UserForm
+                key="user-form"
+                onSubmit={onSubmit}
+                isSubmitting={isCommitting}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

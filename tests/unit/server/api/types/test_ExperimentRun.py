@@ -16,7 +16,7 @@ async def test_annotations_resolver_returns_annotations_for_run(
     experiment_run_with_annotations: Any,
 ) -> None:
     query = """
-      query ($runId: GlobalID!) {
+      query ($runId: ID!) {
         run: node(id: $runId) {
           ... on ExperimentRun {
             annotations {

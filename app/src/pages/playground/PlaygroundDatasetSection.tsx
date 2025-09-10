@@ -21,7 +21,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
-      query PlaygroundDatasetSectionQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetSectionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -70,9 +70,8 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                 />
               }
               onPress={() => {
-                navigate(
-                  `/datasets/${datasetId}/compare?experimentId=${experimentIds.join("&experimentId=")}`
-                );
+                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
+                navigate(`/datasets/${datasetId}/compare${queryParams}`);
               }}
             >
               View Experiment{instances.length > 1 ? "s" : ""}

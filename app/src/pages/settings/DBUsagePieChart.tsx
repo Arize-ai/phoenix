@@ -7,7 +7,7 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
 } from "recharts";
 
 import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
@@ -17,7 +17,10 @@ import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 import { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
 
 const REMAINING_TEXT = "remaining";
-function TooltipContent({ active, payload }: TooltipProps<number, string>) {
+function TooltipContent({
+  active,
+  payload,
+}: TooltipContentProps<number, string>) {
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -62,7 +65,7 @@ export function DBUsagePieChart({
       : null;
   const chartData = useMemo(() => {
     const chartData = [...data.dbTableStats];
-    if (remainingBytes !== null) {
+    if (remainingBytes !== null && remainingBytes > 0) {
       chartData.push({
         tableName: REMAINING_TEXT,
         numBytes: remainingBytes,
@@ -96,7 +99,7 @@ export function DBUsagePieChart({
             />
           ))}
         </Pie>
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <text
           x="50%"
           y="50%"
@@ -117,6 +120,32 @@ export function DBUsagePieChart({
           {`Used`}
         </text>
         <g>
+          {typeof data.dbStorageCapacityBytes === "number" && (
+            <>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={15}
+                textAnchor="left"
+                fill="var(--ac-global-text-color-500)"
+                fontSize="var(--ac-global-font-size-xs)"
+              >
+                {"Capacity:"}
+              </text>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={28}
+                textAnchor="left"
+                fill="var(--ac-global-text-color-500)"
+                fontSize="var(--ac-global-font-size-xs)"
+              >
+                {storageSizeFormatter(data.dbStorageCapacityBytes)}
+              </text>
+            </>
+          )}
           <text
             x="100%"
             y="100%"

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<277cfcc24482250d7e7637a6c73be287>>
+ * @generated SignedSource<<10c898175150b0f2ecb644bed28a2c4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -142,10 +142,6 @@ return {
             "storageKey": null
           },
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/)
         ],
         "storageKey": null
@@ -153,16 +149,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b4dac4f67e74b03bfd1c4802b844fb0",
+    "cacheID": "72451f81ebdef0195b7338c67ae5f327",
     "id": null,
     "metadata": {},
     "name": "promptVersionsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionsLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query promptVersionsLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b5ea8ee71d6ce7848581a446f803c1aa";
+(node as any).hash = "82115f75fbd5968bbe774fb7e006718f";
 
 export default node;

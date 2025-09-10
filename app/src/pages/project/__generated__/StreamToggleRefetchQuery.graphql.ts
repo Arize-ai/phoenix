@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<70520bcd913307e25639a84e44aef198>>
+ * @generated SignedSource<<9eb3eacba7aee412fa43e126660b9ec8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -87,10 +87,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -117,12 +113,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4e136f41c0942f253822336dc0c5b291",
+    "cacheID": "70bebe4abe808b13c94decf17c7cd90d",
     "id": null,
     "metadata": {},
     "name": "StreamToggleRefetchQuery",
     "operationKind": "query",
-    "text": "query StreamToggleRefetchQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...StreamToggle_data\n    __isNode: __typename\n    id\n  }\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query StreamToggleRefetchQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...StreamToggle_data\n    id\n  }\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();

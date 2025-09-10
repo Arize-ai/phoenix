@@ -7,15 +7,22 @@ import {
 } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, Item, Picker } from "@arizeai/components";
-
 import {
+  Button,
+  Card,
   CopyToClipboardButton,
   Flex,
   Input,
   Label,
+  ListBox,
   Loading,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
   TextField,
+  View,
 } from "@phoenix/components";
 import { useProjectContext } from "@phoenix/contexts";
 
@@ -105,57 +112,80 @@ const ProjectConfigCard = ({
   }));
 
   return (
-    <Card title="Project Settings" variant="compact">
-      <Flex direction="row" gap="size-200">
-        <div
-          css={[
-            gradientPreviewCSS,
-            {
-              background: `linear-gradient(136.27deg, ${data.gradientStartColor} 14.03%, ${data.gradientEndColor} 84.38%)`,
-            },
-          ]}
-        />
-        <div
-          css={css`
-            width: 100%;
-            .ac-dropdown,
-            .ac-dropdown-button {
+    <Card title="Project Settings">
+      <View padding="size-200">
+        <Flex direction="row" gap="size-200">
+          <div
+            css={[
+              gradientPreviewCSS,
+              {
+                background: `linear-gradient(136.27deg, ${data.gradientStartColor} 14.03%, ${data.gradientEndColor} 84.38%)`,
+              },
+            ]}
+          />
+          <div
+            css={css`
               width: 100%;
-            }
-          `}
-        >
-          <Flex direction="column" gap="size-100" width="100%">
-            <Flex direction="row" gap="size-100" alignItems="end" width="100%">
-              <TextField
-                value={data.name}
-                isReadOnly
-                css={css`
-                  width: 100%;
-                `}
+              .ac-dropdown,
+              .ac-dropdown-button {
+                width: 100%;
+              }
+            `}
+          >
+            <Flex direction="column" gap="size-100" width="100%">
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="end"
+                width="100%"
               >
-                <Label>Project Name</Label>
-                <Input />
-              </TextField>
-              <CopyToClipboardButton text={data.name} size="M" />
+                <TextField
+                  value={data.name}
+                  isReadOnly
+                  css={css`
+                    width: 100%;
+                  `}
+                >
+                  <Label>Project Name</Label>
+                  <Input />
+                </TextField>
+                <CopyToClipboardButton text={data.name} size="M" />
+              </Flex>
+              <Select
+                selectedKey={defaultTab}
+                onSelectionChange={(key) => {
+                  if (typeof key === "string" && isProjectTab(key)) {
+                    setDefaultTab(key);
+                  }
+                }}
+                placeholder="Select a default tab"
+              >
+                <Label>Default Project Tab</Label>
+                <Button>
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    <SelectItem key="spans" id="spans">
+                      Spans
+                    </SelectItem>
+                    <SelectItem key="traces" id="traces">
+                      Traces
+                    </SelectItem>
+                    <SelectItem key="sessions" id="sessions">
+                      Sessions
+                    </SelectItem>
+                    <SelectItem key="metrics" id="metrics">
+                      Metrics
+                    </SelectItem>
+                  </ListBox>
+                </Popover>
+              </Select>
             </Flex>
-            <Picker
-              label="Default Project Tab"
-              selectedKey={defaultTab}
-              onSelectionChange={(key) => {
-                if (typeof key === "string" && isProjectTab(key)) {
-                  setDefaultTab(key);
-                }
-              }}
-              size="default"
-              placeholder="Select a default tab"
-            >
-              <Item key="spans">Spans</Item>
-              <Item key="traces">Traces</Item>
-              <Item key="sessions">Sessions</Item>
-            </Picker>
-          </Flex>
-        </div>
-      </Flex>
+          </div>
+        </Flex>
+      </View>
     </Card>
   );
 };

@@ -11,7 +11,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestDeleteExperiment:
     MUTATION = """
-      mutation ($experimentIds: [GlobalID!]!) {
+      mutation ($experimentIds: [ID!]!) {
         deleteExperiments(input: {experimentIds: $experimentIds}) {
           experiments {
             id

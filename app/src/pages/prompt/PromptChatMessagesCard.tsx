@@ -1,8 +1,6 @@
 import { graphql, useFragment } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
-import { Flex, Text } from "@phoenix/components";
+import { Card, Flex, Text, View } from "@phoenix/components";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
@@ -188,13 +186,10 @@ export function PromptChatMessagesCard({
   promptVersion: PromptChatMessagesCard__main$key;
 }) {
   return (
-    <Card
-      title={title}
-      variant="compact"
-      collapsible
-      data-testid="prompt-chat-messages-card"
-    >
-      <PromptChatMessages promptVersion={promptVersion} />
+    <Card title={title} collapsible data-testid="prompt-chat-messages-card">
+      <View padding="size-200">
+        <PromptChatMessages promptVersion={promptVersion} />
+      </View>
     </Card>
   );
 }

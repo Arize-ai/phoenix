@@ -1,10 +1,17 @@
+import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+from typing_extensions import override
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
-from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+
+if TYPE_CHECKING:
+    from anthropic.types import Message
+    from anthropic.types import Usage as MessageUsage
 
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
@@ -99,7 +106,6 @@ class AnthropicModel(BaseModel):
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._anthropic.RateLimitError,
-            max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
@@ -113,7 +119,10 @@ class AnthropicModel(BaseModel):
             "top_k": self.top_k,
         }
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+    @override
+    def _generate_with_extra(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -122,20 +131,18 @@ class AnthropicModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = self._rate_limited_completion(
+        return self._rate_limited_completion(
             model=self.model,
             messages=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )
 
-        return str(response)
-
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.limit
-        def _completion(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
-                response = self.client.messages.create(**kwargs)
-                return response.content[0].text
+                response: Message = self.client.messages.create(**kwargs)
+                return self._parse_output(response)
             except self._anthropic.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "prompt is too long" in exception_message:
@@ -144,9 +151,10 @@ class AnthropicModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(
+    @override
+    async def _async_generate_with_extra(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, ExtraInfo]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -155,20 +163,18 @@ class AnthropicModel(BaseModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = await self._async_rate_limited_completion(
+        return await self._async_rate_limited_completion(
             model=self.model,
             messages=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )
 
-        return str(response)
-
-    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Tuple[str, ExtraInfo]:
         @self._rate_limiter.alimit
-        async def _async_completion(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Tuple[str, ExtraInfo]:
             try:
-                response = await self.async_client.messages.create(**kwargs)
-                return response.content[0].text
+                response: Message = await self.async_client.messages.create(**kwargs)
+                return self._parse_output(response)
             except self._anthropic.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "prompt is too long" in exception_message:
@@ -188,3 +194,28 @@ class AnthropicModel(BaseModel):
                     f"Unsupported content type for {AnthropicModel.__name__}: {part.content_type}"
                 )
         return messages
+
+    def _extract_text(self, message: "Message") -> str:
+        for block in message.content:
+            if block.type == "tool_use":
+                return json.dumps(block.input, ensure_ascii=False)
+        return "\n\n".join(
+            block.text for block in message.content if block.type == "text" and block.text
+        )
+
+    def _extract_usage(self, message_usage: "MessageUsage") -> Usage:
+        prompt_tokens = (
+            message_usage.input_tokens
+            + (message_usage.cache_creation_input_tokens or 0)
+            + (message_usage.cache_read_input_tokens or 0)
+        )
+        return Usage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=message_usage.output_tokens,
+            total_tokens=prompt_tokens + message_usage.output_tokens,
+        )
+
+    def _parse_output(self, message: "Message") -> Tuple[str, ExtraInfo]:
+        text = self._extract_text(message)
+        usage = self._extract_usage(message.usage)
+        return text, ExtraInfo(usage=usage)

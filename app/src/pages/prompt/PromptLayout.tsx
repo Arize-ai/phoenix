@@ -1,20 +1,20 @@
-import { useState } from "react";
 import { useFragment } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer } from "@arizeai/components";
-
 import {
   Button,
   Counter,
+  DialogTrigger,
   Flex,
   Heading,
   Icon,
   Icons,
   LazyTabPanel,
   Link,
+  Modal,
+  ModalOverlay,
   Tab,
   TabList,
   Tabs,
@@ -55,7 +55,6 @@ const mainCSS = css`
 `;
 
 export function PromptLayout() {
-  const [dialog, setDialog] = useState<React.ReactNode | null>(null);
   const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -115,22 +114,23 @@ export function PromptLayout() {
           </Flex>
 
           <Flex direction="row" gap="size-100">
-            <Button
-              size="S"
-              leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
-              onPress={() => {
-                setDialog(
+            <DialogTrigger>
+              <Button
+                size="S"
+                leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+              >
+                Clone
+              </Button>
+              <ModalOverlay>
+                <Modal size="M">
                   <ClonePromptDialog
                     promptId={data.id}
                     promptName={data.name}
                     promptDescription={data.description ?? undefined}
-                    setDialog={setDialog}
                   />
-                );
-              }}
-            >
-              Clone
-            </Button>
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
             <Button
               size="S"
               leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
@@ -174,9 +174,6 @@ export function PromptLayout() {
           <Outlet />
         </LazyTabPanel>
       </Tabs>
-      <DialogContainer onDismiss={() => setDialog(null)}>
-        {dialog}
-      </DialogContainer>
     </main>
   );
 }

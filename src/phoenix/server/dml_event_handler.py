@@ -120,6 +120,7 @@ class _SpanDmlEventHandler(_DmlEventHandler[SpanDmlEvent]):
     def _clear(cache: CacheForDataLoaders, project_id: int) -> None:
         cache.latency_ms_quantile.invalidate(project_id)
         cache.token_count.invalidate(project_id)
+        cache.token_cost.invalidate(project_id)
         cache.record_count.invalidate(project_id)
         cache.min_start_or_max_end_time.invalidate(project_id)
 
@@ -127,6 +128,10 @@ class _SpanDmlEventHandler(_DmlEventHandler[SpanDmlEvent]):
 class _SpanDeleteEventHandler(_SpanDmlEventHandler):
     @staticmethod
     def _clear(cache: CacheForDataLoaders, project_id: int) -> None:
+        # Call parent's cache invalidation first (core span caches)
+        _SpanDmlEventHandler._clear(cache, project_id)
+
+        # Then invalidate annotation-specific caches
         cache.annotation_summary.invalidate_project(project_id)
         cache.document_evaluation_summary.invalidate_project(project_id)
 

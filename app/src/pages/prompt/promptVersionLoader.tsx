@@ -15,7 +15,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<promptVersionLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query promptVersionLoaderQuery($id: GlobalID!) {
+      query promptVersionLoaderQuery($id: ID!) {
         promptVersion: node(id: $id) {
           __typename
           id

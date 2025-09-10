@@ -20,7 +20,11 @@ declare global {
         nSamples: number;
       };
       authenticationEnabled: boolean;
+      basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
+      managementUrl?: string | null;
+      supportEmail?: string | null;
+      hasDbThreshold: boolean;
     };
   }
 }

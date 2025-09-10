@@ -19,49 +19,37 @@ type ContinuousAnnotationInputProps =
 export const ContinuousAnnotationInput = forwardRef<
   HTMLDivElement,
   ContinuousAnnotationInputProps
->(
-  (
-    {
-      annotationConfig,
-      containerRef,
-      annotation,
-      onSubmitExplanation,
-      ...props
-    },
-    ref
-  ) => {
-    return (
-      <Flex gap="size-50" alignItems="center" position="relative">
-        <AnnotationInputExplanation
-          annotation={annotation}
-          onSubmit={onSubmitExplanation}
-          containerRef={containerRef}
+>(({ annotationConfig, annotation, onSubmitExplanation, ...props }, ref) => {
+  return (
+    <Flex gap="size-50" alignItems="center" position="relative">
+      <AnnotationInputExplanation
+        annotation={annotation}
+        onSubmit={onSubmitExplanation}
+      />
+      <NumberField
+        defaultValue={annotation?.score ?? undefined}
+        {...props}
+        ref={ref}
+        minValue={annotationConfig?.lowerBound ?? 0}
+        maxValue={annotationConfig?.upperBound ?? 1}
+        css={{
+          width: "100%",
+        }}
+      >
+        <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
+        <Input
+          placeholder={
+            annotationConfig?.optimizationDirection === "MAXIMIZE"
+              ? `e.g. ${annotationConfig.upperBound}`
+              : `e.g. ${annotationConfig.lowerBound}`
+          }
         />
-        <NumberField
-          defaultValue={annotation?.score ?? undefined}
-          {...props}
-          ref={ref}
-          minValue={annotationConfig?.lowerBound ?? 0}
-          maxValue={annotationConfig?.upperBound ?? 1}
-          css={{
-            width: "100%",
-          }}
-        >
-          <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
-          <Input
-            placeholder={
-              annotationConfig?.optimizationDirection === "MAXIMIZE"
-                ? `e.g. ${annotationConfig.upperBound}`
-                : `e.g. ${annotationConfig.lowerBound}`
-            }
-          />
-          <Text slot="description">
-            from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
-          </Text>
-        </NumberField>
-      </Flex>
-    );
-  }
-);
+        <Text slot="description">
+          from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
+        </Text>
+      </NumberField>
+    </Flex>
+  );
+});
 
 ContinuousAnnotationInput.displayName = "ContinuousAnnotationInput";

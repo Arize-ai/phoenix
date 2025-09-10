@@ -95,3 +95,23 @@ def wordiness_evaluator(expected, output):
 The decorated `wordiness_evaluator` can be passed directly into `run_experiment`!
 {% endtab %}
 {% endtabs %}
+
+## Multiple Evaluators on Experiment Runs
+
+Phoenix supports running multiple evals on a single experiment, allowing you to comprehensively assess your model's performance from different angles. When you provide multiple evaluators, Phoenix creates evaluation runs for every combination of experiment runs and evaluators.&#x20;
+
+```python
+from phoenix.experiments import run_experiment
+from phoenix.experiments.evaluators import ContainsKeyword, MatchesRegex
+
+experiment = run_experiment(
+    dataset,
+    task,
+    evaluators=[
+        ContainsKeyword("hello"),
+        MatchesRegex(r"\d+"),
+        custom_evaluator_function
+    ]
+)
+```
+

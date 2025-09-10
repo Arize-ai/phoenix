@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from strawberry import Private
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -12,6 +12,9 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 from .AnnotationSource import AnnotationSource
 from .User import User, to_gql_user
+
+if TYPE_CHECKING:
+    from .Trace import Trace
 
 
 @strawberry.type
@@ -24,15 +27,15 @@ class TraceAnnotation(Node):
     score: Optional[float]
     explanation: Optional[str]
     metadata: JSON
-    trace_rowid: Private[Optional[int]]
+    trace_rowid: Private[int]
     identifier: str
     source: AnnotationSource
 
     @strawberry.field
-    async def trace_id(self) -> GlobalID:
+    async def trace(self) -> Annotated["Trace", strawberry.lazy(".Trace")]:
         from phoenix.server.api.types.Trace import Trace
 
-        return GlobalID(type_name=Trace.__name__, node_id=str(self.trace_rowid))
+        return Trace(trace_rowid=self.trace_rowid)
 
     @strawberry.field
     async def user(

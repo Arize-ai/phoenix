@@ -5,7 +5,7 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -30,17 +30,17 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { gray100 } = useChartColors();
+  const { grey100 } = useSequentialChartColors();
 
   return {
-    color: gray100,
+    color: grey100,
   };
 };
 function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
     const percentEmpty = payload[0]?.value ?? null;
@@ -50,9 +50,11 @@ function TooltipContent({
         : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={color}
           name="% Empty"
@@ -75,7 +77,7 @@ export function DimensionPercentEmptyTimeSeries({
   const data = useLazyLoadQuery<DimensionPercentEmptyTimeSeriesQuery>(
     graphql`
       query DimensionPercentEmptyTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {
@@ -152,7 +154,7 @@ export function DimensionPercentEmptyTimeSeries({
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <Line
           type="monotone"
           dataKey="value"

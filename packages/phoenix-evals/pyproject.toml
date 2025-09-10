@@ -22,11 +22,16 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.20.6"
+version = "0.29.0"
 dependencies = [
   "pandas",
   "tqdm",
   "typing-extensions>=4.5, <5",
+  "pystache",
+  "pydantic>=2.0.0",
+  "jsonpath_ng",
+  "openinference-semantic-conventions>=0.1.19",
+  "opentelemetry-api",
 ]
 
 [project.optional-dependencies]
@@ -57,7 +62,7 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
@@ -101,6 +106,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"tests/**/*.py" = ["E501"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -116,6 +122,10 @@ exclude = [
 [[tool.mypy.overrides]]
 module = [
   "litellm",
+  "langchain_openai",
+  "langchain_anthropic",
+  "mistralai",
+  "mistralai.*",
 ]
 ignore_missing_imports = true
 

@@ -21,7 +21,7 @@
 
 ### 完全开源，在开放环境中开发
 
-Phoenix是一个[开源平台](https://github.com/Arize-ai/phoenix)，在设计时考虑了隐私和可定制性。Phoenix应用程序可以[自行托管](https://docs.arize.com/phoenix/deployment)，完全在本地计算机或容器中运行，也可以通过我们网站上的免费云实例访问。\
+Phoenix是一个[开源平台](https://github.com/Arize-ai/phoenix)，在设计时考虑了隐私和可定制性。Phoenix应用程序可以[自行托管](https://arize.com/docs/phoenix/deployment)，完全在本地计算机或容器中运行，也可以通过我们网站上的免费云实例访问。\
 
 
 所有开发流程，_包括上市和运营票据_，都在GitHub上公开。我们鼓励并欢迎社区贡献。我们希望Phoenix成为真正的协作成果。
@@ -45,7 +45,7 @@ Phoenix涵盖了构建、评估和量产LLM应用程序所需的一切。
 
 * 多种部署选项：提供一系列部署选项，从按需云实例到Docker容器，再到在本地机器上运&#x884C;_&#x70;hoenix serve_。
 
-Phoenix与[超过20个框架](https://docs.arize.com/phoenix/tracing/integrations-tracing)集成，包括OpenAI、LangChain、LlamaIndex、Anthropic、DSPy、Groq和Vercel AI SDK，以及手动实现选项，适用于所有现有工作流程。\
+Phoenix与[超过20个框架](https://arize.com/docs/phoenix/tracing/integrations-tracing)集成，包括OpenAI、LangChain、LlamaIndex、Anthropic、DSPy、Groq和Vercel AI SDK，以及手动实现选项，适用于所有现有工作流程。\
 
 
 ### 框架无关

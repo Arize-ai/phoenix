@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   CopyToClipboardButton,
   Flex,
   Icon,
@@ -20,6 +19,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolDefinitionJSONSchema,
+  awsToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
@@ -119,9 +119,14 @@ export function PlaygroundTool({
     switch (instance.model.provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
+      case "OLLAMA":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
+      case "AWS":
+        return awsToolDefinitionJSONSchema as JSONSchema7;
       case "GOOGLE":
         return null;
     }
@@ -132,14 +137,12 @@ export function PlaygroundTool({
       collapsible
       backgroundColor={"yellow-100"}
       borderColor={"yellow-700"}
-      variant="compact"
       title={
         <Flex direction="row" gap="size-100">
           <SpanKindIcon spanKind="tool" />
           <Text>{toolName ?? "Tool"}</Text>
         </Flex>
       }
-      bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
           <CopyToClipboardButton text={editorValueRef} />

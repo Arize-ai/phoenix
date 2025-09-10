@@ -12,9 +12,9 @@ pip install -q openai nest_asyncio
 ```
 
 ## Prepare your dataset
-The first thing you'll need is a dataset to evaluate. This could be your own collect or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
+The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
 
-For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to sub this with your own data, just be sure it includes the following columns:
+For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
 - reference
 - query
 - response
@@ -146,4 +146,4 @@ results_df.head()
 
 **Note:** You'll only be able to log evaluations to the Phoenix UI if you used a trace or span dataset exported from Phoenix as your dataset in this quickstart. If you've used your own outside dataset, you won't be able to log these results to Phoenix.
 
-Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](https://docs.arize.com/phoenix/tracing/how-to-tracing/llm-evaluations)
+Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](https://arize.com/docs/phoenix/tracing/how-to-tracing/llm-evaluations)

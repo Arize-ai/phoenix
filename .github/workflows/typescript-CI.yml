@@ -4,7 +4,7 @@ permissions:
 
 on:
   push:
-    branches: [main, feat/annotations]
+    branches: [main, feat/bedrock, feat/cost]
   pull_request:
     paths:
       - "app/**"

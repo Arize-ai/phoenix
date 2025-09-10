@@ -1,20 +1,23 @@
 import { Suspense, useCallback, useMemo } from "react";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
+  GitHubLink,
+  ManagementLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
   SideNavbar,
+  SideNavToggleButton,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
-import { useNotifyError } from "@phoenix/contexts";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const layoutCSS = css`
@@ -30,7 +33,6 @@ const mainViewCSS = css`
   flex: 1 1 auto;
   height: 100%;
   overflow: hidden;
-  padding-left: var(--px-nav-collapsed-width);
 `;
 const contentCSS = css`
   flex: 1 1 auto;
@@ -38,6 +40,11 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  border-left: 1px solid var(--ac-global-color-grey-200);
+  border-top: 1px solid var(--ac-global-color-grey-200);
+  border-radius: var(--ac-global-rounding-medium) 0 0 0;
+  /* Fill the background of the content */
+  box-shadow: 0 0 10px 10px var(--ac-global-color-grey-100);
 `;
 
 const bottomLinksCSS = css`
@@ -61,6 +68,7 @@ export function Layout() {
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>
+          <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
         <div data-testid="content" css={contentCSS}>
@@ -74,36 +82,28 @@ export function Layout() {
 }
 
 function SideNav() {
+  const isSideNavExpanded = usePreferencesContext(
+    (state) => state.isSideNavExpanded
+  );
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
-  const notifyError = useNotifyError();
   const { authenticationEnabled } = useFunctionality();
-  const navigate = useNavigate();
-  const onLogout = useCallback(async () => {
-    const response = await fetch(prependBasename("/auth/logout"), {
-      method: "POST",
-    });
-    if (response.ok) {
-      navigate("/login");
-      return;
-    }
-    notifyError({
-      title: "Logout Failed",
-      message: "Failed to log out: " + response.statusText,
-    });
-  }, [navigate, notifyError]);
+  const onLogout = useCallback(() => {
+    window.location.replace(prependBasename("/auth/logout"));
+  }, []);
   return (
-    <SideNavbar>
+    <SideNavbar isExpanded={isSideNavExpanded}>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
           {hasInferences && (
-            <li>
+            <li key="model">
               <NavLink
                 to="/model"
                 text="Model"
                 leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
+                isExpanded={isSideNavExpanded}
               />
             </li>
           )}
@@ -112,68 +112,82 @@ function SideNav() {
               to="/projects"
               text="Projects"
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
+          <li key="datasets">
             <NavLink
               to="/datasets"
-              text="Datasets"
+              text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
+          <li key="playground">
             <NavLink
               to="/playground"
               text="Playground"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
+          <li key="prompts">
             <NavLink
               to="/prompts"
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
+          <li key="apis">
             <NavLink
               to="/apis"
               text="APIs"
               leadingVisual={<Icon svg={<Icons.Code />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
-          <li>
+          <li key="github">
+            <GitHubLink isExpanded={isSideNavExpanded} />
+          </li>
+          <li key="settings">
             <NavLink
               to="/settings/general"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
-            <DocsLink />
+          <li key="docs">
+            <DocsLink isExpanded={isSideNavExpanded} />
           </li>
-          <li>
+          <li key="support">
             <NavLink
               to="/support"
               text="Support"
               leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
-          <li>
-            <ThemeToggle />
+          <li key="theme-toggle">
+            <ThemeToggle isExpanded={isSideNavExpanded} />
           </li>
           {authenticationEnabled && (
             <>
-              <li>
+              <li key="profile">
                 <NavLink
                   to="/profile"
                   text="Profile"
                   leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+                  isExpanded={isSideNavExpanded}
                 />
               </li>
-              <li>
+              <Suspense>
+                <ManagementLink isExpanded={isSideNavExpanded} />
+              </Suspense>
+              <li key="logout">
                 <NavButton
                   text="Log Out"
                   leadingVisual={<Icon svg={<Icons.LogOut />} />}

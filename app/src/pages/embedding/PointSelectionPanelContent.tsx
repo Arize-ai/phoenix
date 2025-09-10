@@ -3,21 +3,28 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
-  CloseOutline,
-  CompactSearchField,
-  Dialog,
-  DialogContainer,
-} from "@arizeai/components";
-
-import {
   Button,
+  CloseOutline,
+  Dialog,
+  DialogTrigger,
   Icon,
+  Input,
+  Modal,
+  ModalOverlay,
+  SearchField,
   Tab,
   TabList,
   TabPanel,
   Tabs,
   Text,
 } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -303,6 +310,12 @@ export function PointSelectionPanelContent() {
   const numSelectedEvents = allSelectedEvents.length;
   const numMatchingEvents = filteredEvents.length;
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedDetailPointId(null);
+    }
+  };
+
   return (
     <section css={pointSelectionPanelCSS}>
       <div
@@ -354,17 +367,26 @@ export function PointSelectionPanelContent() {
           )}
         </TabPanel>
       </Tabs>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setSelectedDetailPointId(null)}
+      <DialogTrigger
+        isOpen={eventDetails !== null}
+        onOpenChange={handleOpenChange}
       >
-        {eventDetails && (
-          <Dialog title="Embedding Details" size="L">
-            <EventDetails event={eventDetails} />
-          </Dialog>
-        )}
-      </DialogContainer>
+        <ModalOverlay>
+          <Modal variant="slideover" size="L">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Embedding Details</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {eventDetails && <EventDetails event={eventDetails} />}
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </section>
   );
 }
@@ -415,12 +437,14 @@ function SelectionToolbar({
             gap: var(--ac-global-dimension-static-size-100);
           `}
         >
-          <CompactSearchField
-            placeholder="Search by text or ID"
+          <SearchField
+            size="S"
             onChange={(searchText) => {
               setSelectionSearchText(searchText);
             }}
-          />
+          >
+            <Input placeholder="Search by text or ID" />
+          </SearchField>
           {selectionDisplay === SelectionDisplay.gallery && (
             <SelectionGridSizeRadioGroup
               size={selectionGridSize}

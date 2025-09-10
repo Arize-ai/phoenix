@@ -68,7 +68,7 @@ pandas==2.2.1
     #   streamlit
 pillow==10.3.0
     # via streamlit
-protobuf==4.25.3
+protobuf==4.25.8
     # via streamlit
 pyarrow==15.0.2
     # via streamlit
@@ -87,7 +87,7 @@ referencing==0.34.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.2
+requests==2.32.4
     # via streamlit
 rich==13.7.1
     # via streamlit
@@ -110,7 +110,7 @@ toml==0.10.2
     # via streamlit
 toolz==0.12.1
     # via altair
-tornado==6.4.2
+tornado==6.5.1
     # via streamlit
 typing-extensions==4.11.0
     # via
@@ -119,5 +119,5 @@ typing-extensions==4.11.0
     #   streamlit
 tzdata==2024.1
     # via pandas
-urllib3==2.2.1
+urllib3==2.5.0
     # via requests

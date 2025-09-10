@@ -5,7 +5,7 @@ import {
   ComposedChart,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -16,7 +16,7 @@ import {
   ChartTooltipDivider,
   ChartTooltipItem,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -31,9 +31,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { gray300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   return {
-    color: gray300,
+    color: grey300,
   };
 };
 
@@ -41,7 +41,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
     const cardinality = payload[0]?.value ?? null;
@@ -52,9 +52,11 @@ function TooltipContent({
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={color}
           name="Cardinality"
@@ -77,7 +79,7 @@ export function DimensionCardinalityTimeSeries({
   const data = useLazyLoadQuery<DimensionCardinalityTimeSeriesQuery>(
     graphql`
       query DimensionCardinalityTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {
@@ -156,7 +158,7 @@ export function DimensionCardinalityTimeSeries({
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <Area
           type="monotone"
           dataKey="value"

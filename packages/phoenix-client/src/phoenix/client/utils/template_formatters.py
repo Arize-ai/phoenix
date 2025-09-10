@@ -23,8 +23,13 @@ class TemplateFormatter(Protocol):
 class BaseTemplateFormatter(ABC):
     @abstractmethod
     def parse(self, template: str) -> set[str]:
-        """
-        Parse the template and return a set of variable names.
+        """Parse the template and return a set of variable names.
+
+        Args:
+            template (str): The template string to parse.
+
+        Returns:
+            set[str]: A set of variable names found in the template.
         """
         raise NotImplementedError
 
@@ -35,8 +40,17 @@ class BaseTemplateFormatter(ABC):
         *,
         variables: Mapping[str, str] = MappingProxyType({}),
     ) -> str:
-        """
-        Formats the template with the given variables.
+        """Format the template with the given variables.
+
+        Args:
+            template (str): The template string to format.
+            variables (Mapping[str, str]): A mapping of variable names to their values.
+
+        Returns:
+            str: The formatted template string.
+
+        Raises:
+            TemplateFormatterError: If required template variables are missing.
         """
         template_variable_names = self.parse(template)
         if missing_template_variables := template_variable_names - set(variables.keys()):
@@ -56,14 +70,16 @@ class BaseTemplateFormatter(ABC):
 
 
 class NoOpFormatterBase(BaseTemplateFormatter):
-    """
-    No-op template formatter.
+    """No-op template formatter that returns templates unchanged.
 
-    Examples:
+    This formatter does not perform any variable substitution and simply
+    returns the template string as-is.
 
-    >>> formatter = NoOpFormatterBase()
-    >>> formatter.format("hello")
-    'hello'
+    Example::
+
+        formatter = NoOpFormatterBase()
+        result = formatter.format("hello")
+        # result == "hello"
     """
 
     def parse(self, template: str) -> set[str]:
@@ -74,14 +90,16 @@ class NoOpFormatterBase(BaseTemplateFormatter):
 
 
 class FStringBaseTemplateFormatter(BaseTemplateFormatter):
-    """
-    Regular f-string template formatter.
+    """F-string style template formatter using Python string formatting.
 
-    Examples:
+    This formatter uses Python's built-in string formatting with curly braces
+    to substitute variables in templates.
 
-    >>> formatter = FStringBaseTemplateFormatter()
-    >>> formatter.format("{hello}", {"hello": "world"})
-    'world'
+    Example::
+
+        formatter = FStringBaseTemplateFormatter()
+        result = formatter.format("{hello}", variables={"hello": "world"})
+        # result == "world"
     """
 
     def parse(self, template: str) -> set[str]:
@@ -99,14 +117,16 @@ class FStringBaseTemplateFormatter(BaseTemplateFormatter):
 
 
 class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
-    """
-    Mustache template formatter.
+    """Mustache-style template formatter using double curly braces.
 
-    Examples:
+    This formatter uses Mustache-style syntax with double curly braces
+    and optional whitespace to substitute variables in templates.
 
-    >>> formatter = MustacheBaseTemplateFormatter()
-    >>> formatter.format("{{ hello }}", {"hello": "world"})
-    'world'
+    Example::
+
+        formatter = MustacheBaseTemplateFormatter()
+        result = formatter.format("{{ hello }}", variables={"hello": "world"})
+        # result == "world"
     """
 
     PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
@@ -132,8 +152,10 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
 
 
 class TemplateFormatterError(Exception):
-    """
-    An error raised when template formatting fails.
+    """An error raised when template formatting fails.
+
+    This exception is raised when required template variables are missing
+    or when template formatting encounters other errors.
     """
 
     pass
@@ -145,6 +167,14 @@ NO_OP_FORMATTER = NoOpFormatterBase()
 
 
 def to_formatter(obj: v1.PromptVersionData) -> BaseTemplateFormatter:
+    """Convert a PromptVersionData object to the appropriate template formatter.
+
+    Args:
+        obj (v1.PromptVersionData): The prompt version data containing template format information.
+
+    Returns:
+        BaseTemplateFormatter: The appropriate formatter based on the template format.
+    """
     if (
         "template_format" not in obj
         or not obj["template_format"]

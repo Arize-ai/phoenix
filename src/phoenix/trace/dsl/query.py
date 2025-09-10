@@ -456,16 +456,16 @@ class SpanQuery(_HasTmpSuffix):
         return replace(self, _filter=_filter)
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
-        assert (
-            isinstance(key, str) and key
-        ), "The field name for explosion must be a non-empty string."
+        assert isinstance(key, str) and key, (
+            "The field name for explosion must be a non-empty string."
+        )
         _explode = Explosion(key=key, kwargs=kwargs, primary_index_key=self._index.key)
         return replace(self, _explode=_explode)
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
-        assert (
-            isinstance(key, str) and key
-        ), "The field name for concatenation must be a non-empty string."
+        assert isinstance(key, str) and key, (
+            "The field name for concatenation must be a non-empty string."
+        )
         _concat = (
             Concatenation(key=key, kwargs=kwargs, separator=self._concat.separator)
             if self._concat
@@ -807,8 +807,8 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
         stmt = stmt.where(models.Span.start_time < end_time)
-    if limit is not None:
-        stmt = stmt.limit(limit)
+    # Default newest-first ordering by start_time, with id as a stable tiebreaker
+    stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
@@ -827,6 +827,8 @@ def _get_spans_dataframe(
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
+    if limit is not None:
+        stmt = stmt.limit(limit)
     conn = session.connection()
     # set `drop=False` for backward-compatibility
     df = pd.read_sql_query(stmt, conn).set_index(span_id_label, drop=False)

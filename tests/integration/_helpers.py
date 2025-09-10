@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import ssl
+import string
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
@@ -14,6 +16,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
@@ -26,6 +29,7 @@ from typing import (
     Generator,
     Generic,
     Literal,
+    NamedTuple,
     Optional,
     Protocol,
     Sequence,
@@ -46,12 +50,22 @@ from fastapi import FastAPI
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
+from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
-from opentelemetry.trace import Span, Tracer
+from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
+from psutil import STATUS_ZOMBIE, Popen
+from sqlalchemy import URL, create_engine, text
+from sqlalchemy.exc import OperationalError
+from starlette.requests import Request
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from strawberry.relay import GlobalID
+from typing_extensions import Self, TypeAlias, assert_never, override
+
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_PASSWORD,
@@ -60,29 +74,16 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    sanitize_email,
 )
 from phoenix.config import (
-    ENV_PHOENIX_TLS_CA_FILE,
-    ENV_PHOENIX_TLS_CERT_FILE,
-    ENV_PHOENIX_TLS_ENABLED,
-    ENV_PHOENIX_TLS_VERIFY_CLIENT,
-    get_base_url,
-    get_env_database_connection_str,
-    get_env_database_schema,
-    get_env_grpc_port,
-    get_env_smtp_mail_from,
+    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
+    ENV_PHOENIX_SQL_DATABASE_URL,
 )
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.thread_server import ThreadServer
-from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
-from sqlalchemy.exc import OperationalError
-from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
-from strawberry.relay import GlobalID
-from typing_extensions import Self, TypeAlias, assert_never
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -107,13 +108,7 @@ class _Profile:
     username: _Username
 
 
-class _String(str, ABC):
-    def __new__(cls, obj: Any) -> _String:
-        assert obj is not None
-        return super().__new__(cls, str(obj))
-
-
-class _GqlId(_String): ...
+class _GqlId(str): ...
 
 
 _AnyT = TypeVar("_AnyT")
@@ -121,13 +116,7 @@ _AnyT = TypeVar("_AnyT")
 
 class _CanLogOut(Generic[_AnyT], ABC):
     @abstractmethod
-    def log_out(self) -> _AnyT: ...
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        self.log_out()
+    def log_out(self, app: _AppInfo) -> _AnyT: ...
 
 
 @dataclass(frozen=True)
@@ -136,8 +125,8 @@ class _User:
     role: UserRoleInput
     profile: _Profile
 
-    def log_in(self) -> _LoggedInUser:
-        tokens = _log_in(self.password, email=self.email)
+    def log_in(self, app: _AppInfo) -> _LoggedInUser:
+        tokens = _log_in(app, self.password, email=self.email)
         return _LoggedInUser(self.gid, self.role, self.profile, tokens)
 
     @cached_property
@@ -154,30 +143,41 @@ class _User:
 
     def gql(
         self,
+        app: _AppInfo,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> tuple[dict[str, Any], Headers]:
-        return _gql(self, query=query, variables=variables, operation_name=operation_name)
+        return _gql(app, self, query=query, variables=variables, operation_name=operation_name)
 
     def create_user(
         self,
+        app: _AppInfo,
         role: UserRoleInput = _MEMBER,
         /,
         *,
         profile: _Profile,
         send_welcome_email: bool = False,
+        local: bool = True,
     ) -> _User:
-        return _create_user(self, role=role, profile=profile, send_welcome_email=send_welcome_email)
+        return _create_user(
+            app,
+            self,
+            role=role,
+            profile=profile,
+            send_welcome_email=send_welcome_email,
+            local=local,
+        )
 
-    def delete_users(self, *users: Union[_GqlId, _User]) -> None:
-        return _delete_users(self, users=users)
+    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> None:
+        return _delete_users(app, self, users=users)
 
-    def list_users(self) -> list[_User]:
-        return _list_users(self)
+    def list_users(self, app: _AppInfo) -> list[_User]:
+        return _list_users(app, self)
 
     def patch_user_gid(
         self,
+        app: _AppInfo,
         gid: _GqlId,
         /,
         *,
@@ -186,6 +186,7 @@ class _User:
         new_role: Optional[UserRoleInput] = None,
     ) -> None:
         return _patch_user_gid(
+            app,
             gid,
             self,
             new_username=new_username,
@@ -195,6 +196,7 @@ class _User:
 
     def patch_user(
         self,
+        app: _AppInfo,
         user: _User,
         /,
         *,
@@ -203,6 +205,7 @@ class _User:
         new_role: Optional[UserRoleInput] = None,
     ) -> _User:
         return _patch_user(
+            app,
             user,
             self,
             new_username=new_username,
@@ -212,12 +215,14 @@ class _User:
 
     def patch_viewer(
         self,
+        app: _AppInfo,
         /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
     ) -> None:
         return _patch_viewer(
+            app,
             self,
             self.password,
             new_username=new_username,
@@ -226,28 +231,31 @@ class _User:
 
     def create_api_key(
         self,
+        app: _AppInfo,
         kind: _ApiKeyKind = "User",
         /,
         *,
         name: Optional[_Name] = None,
         expires_at: Optional[datetime] = None,
     ) -> _ApiKey:
-        return _create_api_key(self, kind, name=name, expires_at=expires_at)
+        return _create_api_key(app, self, kind, name=name, expires_at=expires_at)
 
-    def delete_api_key(self, api_key: _ApiKey, /) -> None:
-        return _delete_api_key(api_key, self)
+    def delete_api_key(self, app: _AppInfo, api_key: _ApiKey, /) -> None:
+        return _delete_api_key(app, api_key, self)
 
-    def export_embeddings(self, filename: str) -> None:
-        _export_embeddings(self, filename=filename)
+    def export_embeddings(self, app: _AppInfo, filename: str) -> None:
+        _export_embeddings(app, self, filename=filename)
 
     def initiate_password_reset(
         self,
+        app: _AppInfo,
         smtpd: smtpdfix.AuthController,
         /,
         *,
         should_receive_email: bool = True,
     ) -> Optional[_PasswordResetToken]:
         return _initiate_password_reset(
+            app,
             self.email,
             smtpd,
             should_receive_email=should_receive_email,
@@ -269,17 +277,22 @@ _ApiKeyKind = Literal["System", "User"]
 
 
 class _ApiKey(str):
-    def __new__(cls, string: Optional[str], *args: Any, **kwargs: Any) -> _ApiKey:
+    def __new__(
+        cls,
+        string: str,
+        gid: _GqlId,
+        kind: _ApiKeyKind = "User",
+    ) -> _ApiKey:
         return super().__new__(cls, string)
 
     def __init__(
         self,
-        _: Any,
+        string: str,
         gid: _GqlId,
         kind: _ApiKeyKind = "User",
     ) -> None:
         self._gid = gid
-        self._kind = kind
+        self._kind: _ApiKeyKind = kind
 
     @cached_property
     def gid(self) -> _GqlId:
@@ -293,22 +306,22 @@ class _ApiKey(str):
 class _AdminSecret(str): ...
 
 
-class _Token(_String, ABC): ...
+class _Token(str, ABC): ...
 
 
 class _PasswordResetToken(_Token):
-    def reset(self, password: _Password, /) -> None:
-        return _reset_password(self, password=password)
+    def reset(self, app: _AppInfo, password: _Password, /) -> None:
+        return _reset_password(app, self, password=password)
 
 
 class _AccessToken(_Token, _CanLogOut[None]):
-    def log_out(self) -> None:
-        _log_out(self)
+    def log_out(self, app: _AppInfo) -> None:
+        _log_out(app, self)
 
 
 class _RefreshToken(_Token, _CanLogOut[None]):
-    def log_out(self) -> None:
-        _log_out(self)
+    def log_out(self, app: _AppInfo) -> None:
+        _log_out(app, self)
 
 
 @dataclass(frozen=True)
@@ -316,11 +329,12 @@ class _LoggedInTokens(_CanLogOut[None]):
     access_token: _AccessToken
     refresh_token: _RefreshToken
 
-    def log_out(self) -> None:
-        self.access_token.log_out()
+    @override
+    def log_out(self, app: _AppInfo) -> None:
+        self.access_token.log_out(app)
 
-    def refresh(self) -> _LoggedInTokens:
-        resp = _httpx_client(self).post("auth/refresh")
+    def refresh(self, app: _AppInfo) -> _LoggedInTokens:
+        resp = _httpx_client(app, self).post("auth/refresh")
         resp.raise_for_status()
         access_token = _AccessToken(resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         refresh_token = _RefreshToken(resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
@@ -331,12 +345,13 @@ class _LoggedInTokens(_CanLogOut[None]):
 class _LoggedInUser(_User, _CanLogOut[_User]):
     tokens: _LoggedInTokens
 
-    def log_out(self) -> _User:
-        self.tokens.access_token.log_out()
+    @override
+    def log_out(self, app: _AppInfo) -> _User:
+        self.tokens.access_token.log_out(app)
         return _User(self.gid, self.role, self.profile)
 
-    def refresh(self) -> _LoggedInUser:
-        return replace(self, tokens=self.tokens.refresh())
+    def refresh(self, app: _AppInfo) -> _LoggedInUser:
+        return replace(self, tokens=self.tokens.refresh(app))
 
 
 _RoleOrUser = Union[UserRoleInput, _User]
@@ -352,12 +367,13 @@ _SecurityArtifact: TypeAlias = Union[
 
 
 class _UserGenerator(Protocol):
-    def send(self, _: tuple[UserRoleInput, Optional[_Profile]]) -> _User: ...
+    def send(self, _: tuple[_AppInfo, UserRoleInput, Optional[_Profile]]) -> _User: ...
 
 
 class _UserFactory(Protocol):
     def __call__(
         self,
+        app: _AppInfo,
         role: UserRoleInput = _MEMBER,
         /,
         *,
@@ -368,6 +384,7 @@ class _UserFactory(Protocol):
 class _GetUser(Protocol):
     def __call__(
         self,
+        app: _AppInfo,
         role_or_user: Union[_User, UserRoleInput] = _MEMBER,
         /,
         *,
@@ -378,6 +395,8 @@ class _GetUser(Protocol):
 class _SpanExporterFactory(Protocol):
     def __call__(
         self,
+        app: _AppInfo,
+        /,
         *,
         headers: Optional[_Headers] = None,
     ) -> SpanExporter: ...
@@ -386,6 +405,7 @@ class _SpanExporterFactory(Protocol):
 class _GetSpan(Protocol):
     def __call__(
         self,
+        app: _AppInfo,
         /,
         project_name: Optional[str] = None,
         span_name: Optional[str] = None,
@@ -396,6 +416,7 @@ class _GetSpan(Protocol):
 class _SendSpans(Protocol):
     def __call__(
         self,
+        app: _AppInfo,
         api_key: Optional[_ApiKey] = None,
         /,
         spans: Iterable[ReadableSpan] = (),
@@ -403,26 +424,97 @@ class _SendSpans(Protocol):
     ) -> SpanExportResult: ...
 
 
+@dataclass(frozen=True)
+class _AppInfo:
+    env: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "env", MappingProxyType(dict(self.env)))
+
+    @cached_property
+    def base_url(self) -> str:
+        scheme = (
+            "https"
+            if self.env.get(
+                "PHOENIX_TLS_ENABLED_FOR_HTTP",
+                self.env.get("PHOENIX_TLS_ENABLED", "false"),
+            ).lower()
+            == "true"
+            else "http"
+        )
+        hostname = self.env.get("PHOENIX_HOSTNAME", "127.0.0.1")
+        port = self.env.get("PHOENIX_PORT", "6006")
+        path = self.env.get("PHOENIX_ROOT_PATH", "")
+        return str(urljoin(f"{scheme}://{hostname}:{port}", path))
+
+    @cached_property
+    def grpc_url(self) -> str:
+        scheme = (
+            "https"
+            if self.env.get(
+                "PHOENIX_TLS_ENABLED_FOR_GRPC",
+                self.env.get("PHOENIX_TLS_ENABLED", "false"),
+            ).lower()
+            == "true"
+            else "http"
+        )
+        hostname = self.env.get("PHOENIX_HOSTNAME", "127.0.0.1")
+        port = self.env.get("PHOENIX_GRPC_PORT", "4317")
+        return f"{scheme}://{hostname}:{port}"
+
+    @cached_property
+    def admin_secret(self) -> _AdminSecret:
+        return _AdminSecret(self.env.get("PHOENIX_ADMIN_SECRET", ""))
+
+    @cached_property
+    def certificate_file(self) -> Optional[str]:
+        return self.env.get("PHOENIX_TLS_CERT_FILE")
+
+    @cached_property
+    def client_certificate_file(self) -> Optional[str]:
+        return self.env.get("PHOENIX_TLS_CA_FILE")
+
+    @cached_property
+    def client_key_file(self) -> Optional[str]:
+        return self.env.get("PHOENIX_TLS_CA_FILE")
+
+
 def _http_span_exporter(
+    app: _AppInfo,
+    /,
     *,
     headers: Optional[_Headers] = None,
 ) -> SpanExporter:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-    endpoint = urljoin(get_base_url(), "v1/traces")
-    exporter = OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
-    exporter._MAX_RETRY_TIMEOUT = 2
+    endpoint = urljoin(app.base_url, "v1/traces")
+    exporter = OTLPSpanExporter(
+        endpoint=endpoint,
+        headers=headers,
+        certificate_file=app.certificate_file,
+        client_key_file=app.client_key_file,
+        client_certificate_file=app.client_certificate_file,
+    )
     return exporter
 
 
 def _grpc_span_exporter(
+    app: _AppInfo,
     *,
     headers: Optional[_Headers] = None,
 ) -> SpanExporter:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    endpoint = _change_port(get_base_url(), get_env_grpc_port())
-    return OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
+    endpoint = app.grpc_url
+    return OTLPSpanExporter(
+        endpoint=endpoint,
+        headers=headers,
+        credentials=_load_credentials(
+            certificate_file=app.certificate_file,
+            client_key_file=app.client_key_file,
+            client_certificate_file=app.client_certificate_file,
+        ),
+    )
 
 
 def _change_port(url: str, new_port: int) -> str:
@@ -474,6 +566,7 @@ def _start_span(
     project_name: Optional[str] = None,
     span_name: Optional[str] = None,
     attributes: Optional[Mapping[str, AttributeValue]] = None,
+    start_time: Optional[int] = None,
 ) -> Span:
     return _get_tracer(
         project_name=project_name or token_hex(16),
@@ -481,6 +574,7 @@ def _start_span(
     ).start_span(
         name=span_name or token_hex(16),
         attributes=attributes,
+        start_time=start_time,
     )
 
 
@@ -519,36 +613,6 @@ class _DefaultAdminTokens(ABC):
         return False
 
 
-class _DefaultAdminTokenSequestration(httpx.BaseTransport):
-    """
-    This middleware sequesters the default admin's access and refresh tokens when they pass
-    through the httpx client. If a sequestered token is used to log out, an exception is
-    raised. This is because logging out the default admin during testing would revoke all
-    existing access tokens being held by other concurrent tests attached to the same server.
-    """
-
-    message = "Default admin must not log out during testing."
-    exc_cls = RuntimeError
-
-    def __init__(self, transport: httpx.BaseTransport) -> None:
-        self._transport = transport
-
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
-        assert (port := request.url.port)
-        path, headers = request.url.path, request.headers
-        sequester_tokens = False
-        if "auth/login" in path:
-            sequester_tokens = DEFAULT_ADMIN_EMAIL in request.content.decode()
-        elif "auth/refresh" in path:
-            sequester_tokens = _DefaultAdminTokens.intersect(port, headers)
-        elif "auth/logout" in path and _DefaultAdminTokens.intersect(port, headers):
-            raise self.exc_cls(self.message)
-        response = self._transport.handle_request(request)
-        if sequester_tokens and response.status_code // 100 == 2:
-            _DefaultAdminTokens.stash(port, response.headers)
-        return response
-
-
 class _LogResponse(httpx.Response):
     def __init__(self, info: BytesIO, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -575,7 +639,7 @@ class _LogTransport(httpx.BaseTransport):
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         info = BytesIO()
-        info.write(f"{'-'*50}\n".encode())
+        info.write(f"{'-' * 50}\n".encode())
         if test_name := _TEST_NAME.get():
             op_idx = _HTTPX_OP_IDX.get()
             _HTTPX_OP_IDX.set(op_idx + 1)
@@ -605,6 +669,7 @@ class _LogTransport(httpx.BaseTransport):
 
 
 def _httpx_client(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     headers: Optional[_Headers] = None,
     cookies: Optional[dict[str, Any]] = None,
@@ -627,8 +692,8 @@ def _httpx_client(
             PHOENIX_REFRESH_TOKEN_COOKIE_NAME: auth.tokens.refresh_token,
         }
     elif isinstance(auth, _User):
-        logged_in_user = auth.log_in()
-        return _httpx_client(logged_in_user.tokens, headers, cookies, transport)
+        logged_in_user = auth.log_in(app)
+        return _httpx_client(app, logged_in_user.tokens, headers, cookies, transport)
     elif isinstance(auth, _ApiKey):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif isinstance(auth, _AdminSecret):
@@ -637,49 +702,55 @@ def _httpx_client(
         pass
     else:
         assert_never(auth)
-    ssl_context = _get_ssl_context()
+    ssl_context = _get_ssl_context(app.env)
     # Having no timeout is useful when stepping through the debugger on the server side.
     return httpx.Client(
         timeout=None,
         headers=headers,
         cookies=cookies,
-        base_url=get_base_url(),
-        transport=_LogTransport(
-            _DefaultAdminTokenSequestration(
-                transport or httpx.HTTPTransport(verify=ssl_context or False),
-            )
-        ),
+        base_url=app.base_url,
+        transport=_LogTransport(transport or httpx.HTTPTransport(verify=ssl_context or False)),
     )
 
 
-def _get_ssl_context() -> Optional[ssl.SSLContext]:
-    if os.environ.get(ENV_PHOENIX_TLS_ENABLED) != "true":
+def _get_ssl_context(env: Mapping[str, str]) -> Optional[ssl.SSLContext]:
+    if (
+        env.get("PHOENIX_TLS_ENABLED_FOR_HTTP", env.get("PHOENIX_TLS_ENABLED", "false")).lower()
+        != "true"
+    ):
         return None
     context = ssl.create_default_context()
-    ca_file = os.environ.get(ENV_PHOENIX_TLS_CERT_FILE)
+    ca_file = env.get("PHOENIX_TLS_CERT_FILE")
     context.load_verify_locations(cafile=ca_file)
-    if os.environ.get(ENV_PHOENIX_TLS_VERIFY_CLIENT) != "true":
+    if env.get("PHOENIX_TLS_VERIFY_CLIENT", "false").lower() != "true":
         return context
-    assert (cert_file := os.environ.get(ENV_PHOENIX_TLS_CA_FILE))
+    assert (cert_file := env.get("PHOENIX_TLS_CA_FILE"))
     context.load_cert_chain(certfile=cert_file)
     return context
 
 
+_SCHEMA_PREFIX = f"_{token_hex(3)}"
+
+
 @contextmanager
-def _server() -> Iterator[None]:
-    if get_env_database_connection_str().startswith("postgresql"):
-        # double-check for safety
-        assert get_env_database_schema()
+def _server(app: _AppInfo) -> Iterator[_AppInfo]:
+    if not (sql_database_url := app.env.get(ENV_PHOENIX_SQL_DATABASE_URL)):
+        raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_URL} is required.")
+    if sql_database_url.startswith("postgresql") and not str(
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
+    ).startswith(_SCHEMA_PREFIX):
+        raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve"
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
+    env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
+    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
     t = 60
     time_limit = time() + t
     timed_out = False
-    url = urljoin(get_base_url(), "healthz")
-    ssl_context = _get_ssl_context()
+    url = str(urljoin(app.base_url, "healthz"))
+    ssl_context = _get_ssl_context(app.env)
     while not timed_out and _is_alive(process):
         sleep(0.1)
         try:
@@ -695,7 +766,7 @@ def _server() -> Iterator[None]:
             for line in log:
                 print(line, end="")
             log.clear()
-        yield
+        yield app
         process.kill()
         process.wait(10)
     finally:
@@ -728,7 +799,7 @@ def _random_schema(
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     engine.connect().close()
     engine.dispose()
-    schema = f"_{token_hex(15)}"
+    schema = f"{_SCHEMA_PREFIX}{token_hex(16)}"[:63]
     yield schema
     time_limit = time() + 30
     while time() < time_limit:
@@ -746,6 +817,7 @@ def _random_schema(
 
 
 def _gql(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
     *,
@@ -754,18 +826,19 @@ def _gql(
     operation_name: Optional[str] = None,
 ) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
-    resp = _httpx_client(auth).post("graphql", json=json_)
+    resp = _httpx_client(app, auth).post("graphql", json=json_)
     return _json(resp), resp.headers
 
 
 def _get_gql_spans(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
     *fields: str,
 ) -> dict[_ProjectName, list[dict[str, Any]]]:
     out = "name spans{edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert not resp_dict.get("errors")
     assert not headers.get("set-cookie")
     return {
@@ -775,6 +848,7 @@ def _get_gql_spans(
 
 
 def _list_users(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> list[_User]:
@@ -792,7 +866,7 @@ def _list_users(
             + args_str
             + "{edges{node{id email username role{name}}} pageInfo{hasNextPage endCursor}}}"
         )
-        resp_dict, _ = _gql(auth, query=query)
+        resp_dict, _ = _gql(app, auth, query=query)
 
         users_data = resp_dict["data"]["users"]
         users = [e["node"] for e in users_data["edges"]]
@@ -815,12 +889,14 @@ def _list_users(
 
 
 def _create_user(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     role: UserRoleInput,
     profile: _Profile,
     send_welcome_email: bool = False,
+    local: bool = True,
 ) -> _User:
     email = profile.email
     password = profile.password
@@ -828,30 +904,34 @@ def _create_user(
     args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
     if username:
         args.append(f'username:"{username}"')
+    if not local:
+        args.append("authMethod:OAUTH2")
     args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
-    assert user["email"] == email
+    assert user["email"] == sanitize_email(email)
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
 
 
 def _delete_users(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     users: Iterable[Union[_GqlId, _User]],
 ) -> None:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[GlobalID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _, headers = _gql(auth, query=query, variables=dict(userIds=user_ids))
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
+    _, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
 
 
 def _patch_user_gid(
+    app: _AppInfo,
     gid: _GqlId,
     auth: Optional[_SecurityArtifact] = None,
     /,
@@ -869,7 +949,7 @@ def _patch_user_gid(
         args.append(f"newRole:{new_role.value}")
     out = "user{id username role{name}}"
     query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert (data := resp_dict["data"]["patchUser"])
     assert (result := data["user"])
     assert result["id"] == gid
@@ -881,6 +961,7 @@ def _patch_user_gid(
 
 
 def _patch_user(
+    app: _AppInfo,
     user: _User,
     auth: Optional[_SecurityArtifact] = None,
     /,
@@ -890,6 +971,7 @@ def _patch_user(
     new_role: Optional[UserRoleInput] = None,
 ) -> _User:
     _patch_user_gid(
+        app,
         user.gid,
         auth,
         new_username=new_username,
@@ -906,6 +988,7 @@ def _patch_user(
 
 
 def _patch_viewer(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     current_password: Optional[_Password] = None,
     /,
@@ -922,7 +1005,7 @@ def _patch_viewer(
         args.append(f'newUsername:"{new_username}"')
     out = "user{username}"
     query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert (data := resp_dict["data"]["patchViewer"])
     assert (user := data["user"])
     if new_username:
@@ -934,6 +1017,7 @@ def _patch_viewer(
 
 
 def _create_api_key(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     kind: _ApiKeyKind = "User",
     /,
@@ -947,7 +1031,7 @@ def _create_api_key(
     args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
     field = f"create{kind}ApiKey"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert (data := resp_dict["data"][field])
     assert (key := data["apiKey"])
     assert key["name"] == name
@@ -958,6 +1042,7 @@ def _create_api_key(
 
 
 def _delete_api_key(
+    app: _AppInfo,
     api_key: _ApiKey,
     auth: Optional[_SecurityArtifact] = None,
     /,
@@ -967,28 +1052,30 @@ def _delete_api_key(
     gid = api_key.gid
     args, out = f'id:"{gid}"', "apiKeyId"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict, headers = _gql(auth, query=query)
+    resp_dict, headers = _gql(app, auth, query=query)
     assert resp_dict["data"][field]["apiKeyId"] == gid
     assert not headers.get("set-cookie")
 
 
 def _will_be_asked_to_reset_password(
+    app: _AppInfo,
     user: _User,
 ) -> bool:
-    query = "query($gid:GlobalID!){node(id:$gid){... on User{passwordNeedsReset}}}"
+    query = "query($gid:ID!){node(id:$gid){... on User{passwordNeedsReset}}}"
     variables = dict(gid=user.gid)
-    resp_dict, _ = user.log_in().gql(query, variables)
+    resp_dict, _ = user.log_in(app).gql(app, query, variables)
     return cast(bool, resp_dict["data"]["node"]["passwordNeedsReset"])
 
 
 def _log_in(
+    app: _AppInfo,
     password: _Password,
     /,
     *,
     email: _Email,
 ) -> _LoggedInTokens:
     json_ = dict(email=email, password=password)
-    resp = _httpx_client().post("auth/login", json=json_)
+    resp = _httpx_client(app).post("auth/login", json=json_)
     resp.raise_for_status()
     assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
     assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
@@ -996,17 +1083,24 @@ def _log_in(
 
 
 def _log_out(
+    app: _AppInfo,
     auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> None:
-    resp = _httpx_client(auth).post("auth/logout")
-    resp.raise_for_status()
+    resp = _httpx_client(app, auth).get("auth/logout", follow_redirects=False)
+    try:
+        resp.raise_for_status()
+    except HTTPStatusError as e:
+        if e.response.status_code != 302:
+            raise
+        assert e.response.headers["location"] in ("/login", "/logout")
     tokens = _extract_tokens(resp.headers, "set-cookie")
     for k in _COOKIE_NAMES:
         assert tokens[k] == '""'
 
 
 def _initiate_password_reset(
+    app: _AppInfo,
     email: _Email,
     smtpd: smtpdfix.AuthController,
     /,
@@ -1015,30 +1109,32 @@ def _initiate_password_reset(
 ) -> Optional[_PasswordResetToken]:
     old_msg_count = len(smtpd.messages)
     json_ = dict(email=email)
-    resp = _httpx_client().post("auth/password-reset-email", json=json_)
+    resp = _httpx_client(app).post("auth/password-reset-email", json=json_)
     resp.raise_for_status()
     new_msg_count = len(smtpd.messages) - old_msg_count
     assert new_msg_count == int(should_receive_email)
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email
-    assert msg["from"] == get_env_smtp_mail_from()
+    assert msg["to"] == sanitize_email(email)
     return _extract_password_reset_token(msg)
 
 
 def _reset_password(
+    app: _AppInfo,
     token: _PasswordResetToken,
     /,
     password: _Password,
 ) -> None:
     json_ = dict(token=token, password=password)
-    resp = _httpx_client().post("auth/password-reset", json=json_)
+    resp = _httpx_client(app).post("auth/password-reset", json=json_)
     resp.raise_for_status()
 
 
-def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename: str) -> None:
-    resp = _httpx_client(auth).get("/exports", params={"filename": filename})
+def _export_embeddings(
+    app: _AppInfo, auth: Optional[_SecurityArtifact] = None, /, *, filename: str
+) -> None:
+    resp = _httpx_client(app, auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()
 
 
@@ -1175,7 +1271,7 @@ class _OIDCServer:
         with _OIDCServer(port=8000) as oidc_server:
             # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
             # The server will be available at oidc_server.base_url
-    """  # noqa: E501
+    """
 
     def __init__(self, port: int):
         """
@@ -1209,7 +1305,7 @@ class _OIDCServer:
         - /.well-known/openid-configuration: Discovery document for OIDC clients
         - /userinfo: User information endpoint
         - /.well-known/jwks.json: JSON Web Key Set for token verification
-        """  # noqa: E501
+        """
 
         @self._app.get("/auth")
         async def auth(request: Request) -> Response:
@@ -1217,7 +1313,7 @@ class _OIDCServer:
             Authorization endpoint that simulates the initial OAuth2 authorization request.
 
             Validates the client_id and returns a redirect with an authorization code.
-            """  # noqa: E501
+            """
             params = dict(request.query_params)
             if params.get("client_id") != self._client_id:
                 return JSONResponse({"error": "invalid_client"}, status_code=400)
@@ -1226,7 +1322,7 @@ class _OIDCServer:
             redirect_uri = params.get("redirect_uri")
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = f"{token_hex(8)}@example.com"
+            self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
             self._user_name = f"User {token_hex(8)}"
             return RedirectResponse(
                 f"{redirect_uri}?code=test_auth_code&state={state}",
@@ -1243,7 +1339,7 @@ class _OIDCServer:
             - id_token: A JWT containing user information and the nonce from the auth request
             - refresh_token: A randomly generated refresh token
             - Other standard OAuth2 token response fields
-            """  # noqa: E501
+            """
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Basic "):
                 try:
@@ -1292,7 +1388,7 @@ class _OIDCServer:
 
             Returns the standard OIDC configuration document that clients use to
             discover the endpoints and capabilities of this identity provider.
-            """  # noqa: E501
+            """
             return JSONResponse(
                 {
                     "issuer": self.base_url,
@@ -1325,7 +1421,7 @@ class _OIDCServer:
 
             Returns a JSON response with user profile information that would typically
             be retrieved from a real identity provider's user database.
-            """  # noqa: E501
+            """
             user_info = {
                 "sub": self._user_id,
                 "name": self._user_name,
@@ -1343,7 +1439,7 @@ class _OIDCServer:
             of ID tokens issued by this server. In this implementation, we're using
             a symmetric key (HS256) for simplicity, but in a real OIDC provider,
             this would typically use asymmetric keys (RS256).
-            """  # noqa: E501
+            """
             # Base64url encode the secret key
             encoded_key = urlsafe_b64encode(self._secret_key.encode()).decode().rstrip("=")
             return JSONResponse(
@@ -1433,7 +1529,7 @@ async def _get(
     kwargs: Mapping[str, Any] = MappingProxyType({}),
     error_msg: str = "",
     no_wait: bool = False,
-    retries: int = 60,
+    retries: int = 20,
     initial_wait_time: float = 0.1,
     max_wait_time: float = 1,
 ) -> T:
@@ -1455,7 +1551,7 @@ async def _get(
 
     Raises:
         AssertionError: If query_fn returns None after all retries
-    """  # noqa: E501
+    """
     from asyncio import sleep
 
     wt = 0 if no_wait else initial_wait_time
@@ -1469,3 +1565,146 @@ async def _get(
             raise AssertionError(error_msg)
         retries -= 1
         wt = min(wt * 1.5, max_wait_time)
+
+
+_SpanId: TypeAlias = str
+_TraceId: TypeAlias = str
+_SessionId: TypeAlias = str
+
+_SpanGlobalId: TypeAlias = GlobalID
+_TraceGlobalId: TypeAlias = GlobalID
+_SessionGlobalId: TypeAlias = GlobalID
+_ProjectGlobalId: TypeAlias = GlobalID
+
+
+class _ExistingProject(NamedTuple):
+    id: _ProjectGlobalId
+    name: _ProjectName
+
+
+class _ExistingSession(NamedTuple):
+    id: _SessionGlobalId
+    session_id: _SessionId
+
+
+class _ExistingTrace(NamedTuple):
+    id: _TraceGlobalId
+    trace_id: _TraceId
+    project: _ExistingProject
+    session: Optional[_ExistingSession]
+
+
+class _ExistingSpan(NamedTuple):
+    id: _SpanGlobalId
+    span_id: _SpanId
+    trace: _ExistingTrace
+
+
+def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
+    assert n > 0, "Number of spans to insert must be greater than 0"
+    memory = InMemorySpanExporter()
+    project_name = token_hex(16)
+    for _ in range(n):
+        _start_span(
+            project_name=project_name,
+            attributes={
+                "session.id": token_hex(8),
+                "retrieval.documents.0.document.id": token_hex(8),
+                "retrieval.documents.1.document.id": token_hex(8),
+                "retrieval.documents.2.document.id": token_hex(8),
+            },
+            exporter=memory,
+        ).end()
+    assert len(spans := memory.get_finished_spans()) == n
+
+    headers = {"authorization": f"Bearer {app.admin_secret}"}
+    assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
+
+    span_ids = set()
+    for span in spans:
+        assert (context := span.get_span_context())  # type: ignore[no-untyped-call]
+        span_ids.add(format_span_id(context.span_id))
+    assert len(span_ids) == n
+
+    return asyncio.run(
+        _get(
+            lambda: tuple(ans) if len(ans := _get_existing_spans(app, span_ids)) == n else None,
+            error_msg="spans not found",
+        )
+    )
+
+
+def _get_existing_spans(
+    app: _AppInfo,
+    span_ids: Iterable[_SpanId],
+) -> set[_ExistingSpan]:
+    ids = list(span_ids)
+    n = len(ids)
+    query = """
+      query ($filterCondition: String, $first: Int) {
+        projects {
+          edges {
+            node {
+              id
+              name
+              spans (filterCondition: $filterCondition, first: $first) {
+                edges {
+                  node {
+                    id
+                    spanId
+                    trace {
+                      id
+                      traceId
+                      session {
+                        id
+                        sessionId
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    res, _ = _gql(
+        app,
+        app.admin_secret,
+        query=query,
+        variables={"filterCondition": f"span_id in {ids}", "first": n},
+    )
+    return {
+        _ExistingSpan(
+            id=GlobalID.from_id(span["node"]["id"]),
+            span_id=span["node"]["spanId"],
+            trace=_ExistingTrace(
+                id=GlobalID.from_id(span["node"]["trace"]["id"]),
+                trace_id=span["node"]["trace"]["traceId"],
+                project=_ExistingProject(
+                    id=GlobalID.from_id(project["node"]["id"]),
+                    name=project["node"]["name"],
+                ),
+                session=(
+                    _ExistingSession(
+                        id=GlobalID.from_id(span["node"]["trace"]["session"]["id"]),
+                        session_id=span["node"]["trace"]["session"]["sessionId"],
+                    )
+                    if span["node"]["trace"]["session"] is not None
+                    else None
+                ),
+            ),
+        )
+        for project in res["data"]["projects"]["edges"]
+        for span in project["node"]["spans"]["edges"]
+        if span["node"]["spanId"] in ids
+    }
+
+
+async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
+    ids = set(span_ids)
+    await _get(lambda: (len(_get_existing_spans(app, ids)) == len(ids)) or None)
+
+
+def _randomize_casing(email: str) -> str:
+    return "".join(c.lower() if random() < 0.5 else c.upper() for c in email)

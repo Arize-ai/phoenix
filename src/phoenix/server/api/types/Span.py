@@ -33,16 +33,24 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationSort,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DocumentAnnotation import (
+    DocumentAnnotation,
+    to_gql_document_annotation,
+)
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
+
+from .TokenCountPromptDetails import TokenCountPromptDetails
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -352,6 +360,48 @@ class Span(Node):
         return cast(Optional[int], value)
 
     @strawberry.field
+    async def token_prompt_details(
+        self,
+        info: Info[Context, None],
+    ) -> TokenCountPromptDetails:
+        if self.db_span:
+            attributes = self.db_span.attributes
+        else:
+            attributes = await info.context.data_loaders.span_fields.load(
+                (self.span_rowid, models.Span.attributes),
+            )
+
+        cache_read: Optional[int] = None
+        raw_cache_read = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+        )
+        if isinstance(raw_cache_read, int):
+            cache_read = raw_cache_read
+
+        cache_write: Optional[int] = None
+        raw_cache_write = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE,
+        )
+        if isinstance(raw_cache_write, int):
+            cache_write = raw_cache_write
+
+        audio: Optional[int] = None
+        raw_audio = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO,
+        )
+        if isinstance(raw_audio, int):
+            audio = raw_audio
+
+        return TokenCountPromptDetails(
+            cache_read=cache_read,
+            cache_write=cache_write,
+            audio=audio,
+        )
+
+    @strawberry.field
     async def input(
         self,
         info: Info[Context, None],
@@ -490,8 +540,7 @@ class Span(Node):
 
     @strawberry.field(
         description=(
-            "Annotations associated with the span. This encompasses both "
-            "LLM and human annotations."
+            "Annotations associated with the span. This encompasses both LLM and human annotations."
         )
     )  # type: ignore
     async def span_annotations(
@@ -592,8 +641,11 @@ class Span(Node):
     async def document_evaluations(
         self,
         info: Info[Context, None],
-    ) -> list[DocumentEvaluation]:
-        return await info.context.data_loaders.document_evaluations.load(self.span_rowid)
+    ) -> list[DocumentAnnotation]:
+        return [
+            to_gql_document_annotation(anno)
+            for anno in await info.context.data_loaders.document_evaluations.load(self.span_rowid)
+        ]
 
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
@@ -746,6 +798,41 @@ class Span(Node):
             )
         ]
 
+    @strawberry.field
+    async def cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
+        span_cost = await info.context.data_loaders.span_cost_by_span.load(self.span_rowid)
+        if span_cost is None:
+            return None
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=span_cost.prompt_tokens,
+                cost=span_cost.prompt_cost,
+            ),
+            completion=CostBreakdown(
+                tokens=span_cost.completion_tokens,
+                cost=span_cost.completion_cost,
+            ),
+            total=CostBreakdown(
+                tokens=span_cost.total_tokens,
+                cost=span_cost.total_cost,
+            ),
+        )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_span
+        entries = await loader.load(self.span_rowid)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(tokens=entry.value.tokens, cost=entry.value.cost),
+            )
+            for entry in entries
+        ]
+
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
     if not (
@@ -800,6 +887,11 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)
 METADATA = SpanAttributes.METADATA
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE

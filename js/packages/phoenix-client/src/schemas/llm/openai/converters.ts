@@ -272,7 +272,7 @@ export const openAIMessageToVercelAI = openAIMessageSchema.transform(
               type: "tool-call",
               toolCallId: tc.id,
               toolName: tc.function.name,
-              args: tc.function.arguments,
+              input: tc.function.arguments,
             });
           });
         }
@@ -289,7 +289,7 @@ export const openAIMessageToVercelAI = openAIMessageSchema.transform(
             type: "tool-result",
             toolCallId: openai.tool_call_id,
             toolName: "", // We don't have this??
-            result: openai.content,
+            output: { type: "text", value: openai.content },
           });
         } else {
           openai.content.forEach((part) => {
@@ -298,7 +298,10 @@ export const openAIMessageToVercelAI = openAIMessageSchema.transform(
                 type: "tool-result",
                 toolCallId: openai.tool_call_id,
                 toolName: "", // We don't have this??
-                result: part.text,
+                output: {
+                  type: "text",
+                  value: part.text,
+                },
               });
               return;
             }
@@ -391,7 +394,7 @@ export const openAIToolDefinitionToVercelAI =
     (openai): VercelAIToolDefinition => ({
       type: "function",
       description: openai.function.description,
-      parameters: {
+      inputSchema: {
         _type: undefined,
         jsonSchema: openai.function.parameters,
         validate: undefined,

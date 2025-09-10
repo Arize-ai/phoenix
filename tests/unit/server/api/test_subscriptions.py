@@ -24,6 +24,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.trace.attributes import flatten, get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
@@ -55,7 +56,7 @@ class TestChatCompletionSubscription:
         }
       }
 
-      query SpanQuery($spanId: GlobalID!) {
+      query SpanQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             ...SpanFragment
@@ -209,6 +210,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -484,6 +487,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -636,6 +641,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -844,7 +851,7 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      query SpanQuery($spanId: GlobalID!) {
+      query SpanQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             ...SpanFragment
@@ -852,7 +859,7 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      query ExperimentQuery($experimentId: GlobalID!) {
+      query ExperimentQuery($experimentId: ID!) {
         experiment: node(id: $experimentId) {
           ... on Experiment {
             id
@@ -884,6 +891,9 @@ class TestChatCompletionOverDatasetSubscription:
         trace {
           id
           traceId
+          project {
+            name
+          }
         }
       }
 
@@ -1094,6 +1104,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -1181,6 +1193,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -1219,7 +1233,8 @@ class TestChatCompletionOverDatasetSubscription:
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
         assert experiment.pop("name") == "playground-experiment"
-        assert experiment.pop("projectName") == "playground"
+        project_name = experiment.pop("projectName")
+        assert is_experiment_project_name(project_name)
         assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
@@ -1248,6 +1263,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert project["name"] == project_name
         assert not trace
         assert not run
 
@@ -1271,6 +1288,8 @@ class TestChatCompletionOverDatasetSubscription:
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
+        project = trace.pop("project")
+        assert project["name"] == project_name
         assert not trace
         assert not run
 
@@ -1410,6 +1429,10 @@ LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

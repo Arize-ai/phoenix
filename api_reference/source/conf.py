@@ -70,8 +70,8 @@ def setup(app):
 
 # -- Project information -----------------------------------------------------
 
-project = "Phoenix API Reference"
-copyright = "2024, Arize AI"
+project = "Phoenix Python Reference"
+copyright = "2025, Arize AI"
 author = "Arize AI"
 
 # -- General configuration ---------------------------------------------------
@@ -164,7 +164,7 @@ html_show_sphinx = False
 
 html_theme_options = {
     "logo": {
-        "text": "Phoenix API",
+        "text": "Phoenix Python",
         "image_light": "logo.png",
         "image_dark": "logo.png",
     },
@@ -181,7 +181,10 @@ html_theme_options = {
         },
     ],
     "external_links": [
-        {"name": "Docs", "url": "https://docs.arize.com/phoenix"},
+        {"name": "Phoenix Otel", "url": "https://phoenix-otel.readthedocs.io/"},
+        {"name": "Phoenix Client", "url": "https://phoenix-client.readthedocs.io/"},
+        {"name": "Phoenix Evals", "url": "https://phoenix-evals.readthedocs.io/"},
+        {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
     ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo", "version-switcher"],

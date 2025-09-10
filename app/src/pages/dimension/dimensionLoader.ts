@@ -13,7 +13,7 @@ export async function dimensionLoader(args: LoaderFunctionArgs) {
   return fetchQuery<dimensionLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query dimensionLoaderQuery($id: GlobalID!) {
+      query dimensionLoaderQuery($id: ID!) {
         dimension: node(id: $id) {
           ... on Dimension {
             id

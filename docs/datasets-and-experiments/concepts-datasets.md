@@ -1,7 +1,3 @@
----
-description: There are many ways to build datasets for experimentation and evaluation.
----
-
 # Concepts: Datasets
 
 ## Datasets
@@ -95,7 +91,7 @@ Your dataset might look like:
 
 ## Types of Datasets
 
-Depending on the type of contents of a given dataset, you might consider the dataset be a certain type.&#x20;
+Depending on the type of contents of a given dataset, you might consider the dataset be a certain type.
 
 ### Golden Dataset
 
@@ -106,6 +102,3 @@ A dataset that contains the **inputs** and the ideal "golden" **output** is ofte
 | Paris is the capital of France          | True   |
 | Canada borders the United States        | True   |
 | The native language of Japan is English | False  |
-
-
-

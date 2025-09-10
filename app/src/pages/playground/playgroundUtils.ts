@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
-
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -9,9 +7,11 @@ import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
+  ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
+  createAwsToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
@@ -49,6 +49,7 @@ import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
+  GenerativeCredentialInput,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
@@ -152,6 +153,10 @@ export function processAttributeToolCalls({
       switch (provider) {
         case "OPENAI":
         case "AZURE_OPENAI":
+        case "DEEPSEEK":
+        case "XAI":
+        case "AWS":
+        case "OLLAMA":
           return {
             id: tool_call.id ?? "",
             type: "function" as const,
@@ -329,12 +334,14 @@ export function openInferenceModelProviderToPhoenixModelProvider(
   if (provider == null) {
     return null;
   }
-  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  const maybeProvider = provider.toLowerCase();
   switch (maybeProvider) {
     case "openai":
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "aws":
+      return "AWS";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -379,13 +386,25 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
-    const urlInfo = getUrlInfoFromAttributes(parsedAttributes);
+    const { baseUrl } = getUrlInfoFromAttributes(parsedAttributes);
+    const azureConfig =
+      provider === "AZURE_OPENAI"
+        ? getAzureConfigFromAttributes(parsedAttributes)
+        : { deploymentName: null, apiVersion: null, endpoint: null };
+    const modelName =
+      provider === "AZURE_OPENAI" && azureConfig.deploymentName
+        ? azureConfig.deploymentName
+        : data.llm.model_name;
     return {
       modelConfig: {
         ...Object.fromEntries(
-          Object.entries(urlInfo).filter(([_, value]) => value !== null)
+          Object.entries({
+            baseUrl,
+            endpoint: azureConfig.endpoint,
+            apiVersion: azureConfig.apiVersion,
+          }).filter(([_, value]) => value !== null)
         ),
-        modelName: data.llm.model_name,
+        modelName,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -396,10 +415,62 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
 }
 
+/**
+ * Temporary stopgap: Extract Azure config (deploymentName, apiVersion, endpoint)
+ * from span attributes until vendor-specific OpenInference conventions exist.
+ *
+ * Important: This currently only works for two types of spans:
+ * - Phoenix playground spans (URL present → parsed for deployment/apiVersion/endpoint)
+ * - LangChain spans (metadata.ls_model_name)
+ *
+ * Note: For Azure, `llm.model_name` is NOT the deployment name.
+ *
+ * Where we look (in order of precedence):
+ * 1) URL (preferred): When the request URL is present (most often on playground
+ *    generated spans), parse it to extract:
+ *    - deploymentName from the path segment: deployments/<name>/...
+ *    - apiVersion from the query param: api-version=<version>
+ *    - endpoint from the URL origin
+ * 2) Metadata (fallback): If the URL is not present or not parseable, use
+ *    `llm.metadata.ls_model_name` (commonly emitted by some LangChain spans) as
+ *    the deploymentName.
+ *
+ * Notes:
+ * - URL is typically only included for spans emitted by the Phoenix playground;
+ *   external OpenTelemetry spans may not include it, so we rely on metadata
+ *   when necessary.
+ * - This is a temporary stopgap until vendor-specific OpenInference conventions
+ *   exist for Azure configuration. We cannot reliably detect LangChain emitters.
+ */
+export function getAzureConfigFromAttributes(parsedAttributes: unknown): {
+  deploymentName: string | null;
+  apiVersion: string | null;
+  endpoint: string | null;
+} {
+  const { success: metaSuccess, data: meta } =
+    LS_METADATA_SCHEMA.safeParse(parsedAttributes);
+  const deploymentNameFromMetadata =
+    metaSuccess &&
+    typeof meta?.metadata?.ls_model_name === "string" &&
+    meta.metadata.ls_model_name.trim()
+      ? meta.metadata.ls_model_name.trim()
+      : null;
+  // Derive deployment name, endpoint and apiVersion from URL when available
+  const { success: urlSuccess, data: urlData } =
+    urlSchema.safeParse(parsedAttributes);
+  const { endpoint, apiVersion, deploymentName } = urlSuccess
+    ? parseAzureDeploymentInfoFromUrl(urlData.url.full)
+    : { endpoint: null, apiVersion: null, deploymentName: null };
+  return {
+    // URL takes precedence when present; fall back to metadata-derived name
+    deploymentName: deploymentName ?? deploymentNameFromMetadata,
+    apiVersion,
+    endpoint,
+  };
+}
+
 export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   baseUrl: string | null;
-  endpoint: string | null;
-  apiVersion: string | null;
 } {
   const { success, data } = urlSchema.safeParse(parsedAttributes);
   if (success) {
@@ -415,8 +486,6 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
       }
       return {
         baseUrl: `${baseUrl.origin}${baseUrl.pathname}`,
-        endpoint: url.origin,
-        apiVersion: url.searchParams.get("api-version") || null,
       };
     } catch (_) {
       // If the URL is invalid, we will just return null for all values
@@ -424,8 +493,6 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   }
   return {
     baseUrl: null,
-    apiVersion: null,
-    endpoint: null,
   };
 }
 
@@ -868,6 +935,8 @@ export const getToolName = (tool: Tool): string | null => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
+    case "AWS":
+      return validatedToolDefinition.toolSpec.name;
     case "UNKNOWN":
       return null;
     default:
@@ -890,6 +959,9 @@ export const createToolForProvider = ({
 }): Tool => {
   switch (provider) {
     case "OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -899,6 +971,11 @@ export const createToolForProvider = ({
       return {
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
+      };
+    case "AWS":
+      return {
+        id: generateToolId(),
+        definition: createAwsToolDefinition(toolNumber),
       };
     // TODO(apowell): #5348 Add Google tool definition
     case "GOOGLE":
@@ -922,6 +999,10 @@ export const createToolCallForProvider = (
   switch (provider) {
     case "OPENAI":
     case "AZURE_OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
+    case "AWS":
+    case "OLLAMA":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -965,6 +1046,27 @@ function toGqlChatCompletionRole(
 }
 
 /**
+ * Normalizes invocation parameters by removing unset float values or invalid float values
+ * @param invocationParameters - the invocation parameters to normalize
+ * @returns the normalized invocation parameters
+ */
+export const normalizeInvocationParameters = (
+  invocationParameters: InvocationParameterInput[]
+): InvocationParameterInput[] => {
+  return invocationParameters.filter((param) => {
+    // Remove unset float values or invalid float values
+    if (
+      param.valueFloat !== null &&
+      typeof param.valueFloat === "number" &&
+      isNaN(param.valueFloat)
+    ) {
+      return false;
+    }
+    return true;
+  });
+};
+
+/**
  * Gets chat completion input for either running over a dataset or using variable input
  */
 const getBaseChatCompletionInput = ({
@@ -998,9 +1100,8 @@ const getBaseChatCompletionInput = ({
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
 
-  let invocationParameters: InvocationParameterInput[] = [
-    ...instance.model.invocationParameters,
-  ];
+  let invocationParameters: InvocationParameterInput[] =
+    normalizeInvocationParameters(instance.model.invocationParameters);
   const convertedToolChoice = safelyConvertToolChoiceToProvider({
     toolChoice: instance.toolChoice,
     targetProvider: instance.model.provider,
@@ -1044,6 +1145,13 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
+  const awsModelParams =
+    instance.model.provider === "AWS"
+      ? {
+          region: instance.model.region,
+        }
+      : {};
+
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
@@ -1051,6 +1159,7 @@ const getBaseChatCompletionInput = ({
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
+      ...awsModelParams,
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
@@ -1060,7 +1169,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider] || null,
+    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
@@ -1091,6 +1200,29 @@ export const denormalizePlaygroundInstance = (
   // it cannot be a normalized instance if it is not a chat template
   return instance as PlaygroundInstance;
 };
+
+/**
+ * A function that gets the credentials for a provider
+ */
+function getCredentials(
+  credentials: CredentialsState,
+  provider: ModelProvider
+): GenerativeCredentialInput[] {
+  const providerCredentials = credentials[provider];
+  const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
+  if (!providerCredentials) {
+    // This means the credentials are missing, however we don't want to throw here so we return an empty array
+    return [];
+  }
+  if (providerCredentialsConfig.length === 0) {
+    // This means that the provider doesn't require any credentials
+    return [];
+  }
+  return providerCredentialsConfig.map((credential) => ({
+    envVarName: credential.envVarName,
+    value: providerCredentials[credential.envVarName] ?? "",
+  }));
+}
 
 /**
  * Gets chat completion input for running over variables
@@ -1354,6 +1486,29 @@ const applyAnthropicInvocationParameterConstraints = (
   });
 };
 
+const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+
+/**
+ * A function that filters out invocation parameters where 0 and null have the same effect
+ * For these parameters, we can omit the 0 value because it's the same as null
+ * @param invocationParameters
+ * @returns
+ */
+const filterZeroValueInvocationParameters = (
+  invocationParameters: InvocationParameterInput[]
+): InvocationParameterInput[] => {
+  const filtered = invocationParameters.filter((param) => {
+    if (
+      param.invocationName &&
+      ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
+    ) {
+      return !(param.valueFloat == 0 || param.valueInt == 0);
+    }
+    return true;
+  });
+  return filtered;
+};
+
 /**
  * Applies provider-specific constraints to the invocation parameters.
  *
@@ -1367,11 +1522,49 @@ export const applyProviderInvocationParameterConstraints = (
   provider: ModelProvider,
   model: string | null
 ): InvocationParameterInput[] => {
+  // We want to remove 0 values for parameters where 0 and null have the same effect
+  const filteredInvocationParameters =
+    filterZeroValueInvocationParameters(invocationParameters);
   if (provider === "ANTHROPIC") {
     return applyAnthropicInvocationParameterConstraints(
-      invocationParameters,
+      filteredInvocationParameters,
       model
     );
   }
-  return invocationParameters;
+  return filteredInvocationParameters;
 };
+
+// --- Azure helpers (module-level) --------------------------------------------------------------
+// Regex to extract deployment name from a path like: deployments/<name>/chat/completions
+const AZURE_DEPLOYMENT_PATH_REGEX = /(?:^|\/)deployments\/([^/]+)(?:\/?|$)/;
+
+// Optional schema to read LangChain-provided deployment name from metadata
+const LS_METADATA_SCHEMA = z
+  .object({
+    metadata: z
+      .object({
+        ls_model_name: z.string().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+// Parse Azure details (endpoint, apiVersion, deployment name) from URL
+function parseAzureDeploymentInfoFromUrl(fullUrl: string): {
+  endpoint: string | null;
+  apiVersion: string | null;
+  deploymentName: string | null;
+} {
+  try {
+    const urlObj = new URL(fullUrl);
+    const endpoint = urlObj.origin.trim();
+    const apiVer = urlObj.searchParams.get("api-version");
+    const apiVersion = apiVer && apiVer.trim() ? apiVer.trim() : null;
+    const path = (urlObj.pathname || "").toString();
+    const match = path.match(AZURE_DEPLOYMENT_PATH_REGEX);
+    const deploymentName = match && match[1] ? match[1].trim() : null;
+    return { endpoint, apiVersion, deploymentName };
+  } catch {
+    return { endpoint: null, apiVersion: null, deploymentName: null };
+  }
+}

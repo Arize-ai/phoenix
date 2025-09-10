@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bacb9de1928f56ec91b4e645677057e8>>
+ * @generated SignedSource<<4fc9d6193754fb9b02b74c44a30f8a68>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f53e5ac5e0bfd6a0a6c50b761223a617",
+    "cacheID": "3c329f10094fdfe6dfbc0c7742bcffc4",
     "id": null,
     "metadata": {},
     "name": "DimensionCardinalityTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionCardinalityTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      cardinalityTimeSeries: dataQualityTimeSeries(metric: cardinality, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionCardinalityTimeSeriesQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      cardinalityTimeSeries: dataQualityTimeSeries(metric: cardinality, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "88ce04bb2022d5e2bc75c663abd7e5de";
+(node as any).hash = "54017cf4e3febc3e99e1d95c98800ef7";
 
 export default node;

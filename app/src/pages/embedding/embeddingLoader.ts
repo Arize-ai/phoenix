@@ -13,7 +13,7 @@ export async function embeddingLoader(args: LoaderFunctionArgs) {
   return fetchQuery<embeddingLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query embeddingLoaderQuery($id: GlobalID!) {
+      query embeddingLoaderQuery($id: ID!) {
         embedding: node(id: $id) {
           ... on EmbeddingDimension {
             id

@@ -16,6 +16,7 @@ import {
   TimeRangeForm,
   View,
 } from "@phoenix/components";
+import { ComponentSize } from "@phoenix/components/types";
 import { timeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { LAST_N_TIME_RANGES } from "./constants";
@@ -26,6 +27,7 @@ export type TimeRangeSelectorProps = {
   isDisabled?: boolean;
   value: OpenTimeRangeWithKey;
   onChange: (timeRange: OpenTimeRangeWithKey) => void;
+  size?: ComponentSize;
 };
 
 const listBoxCSS = css`
@@ -50,12 +52,12 @@ function getDisplayText({ timeRangeKey, start, end }: OpenTimeRangeWithKey) {
 }
 
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
-  const { value, isDisabled, onChange } = props;
+  const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
   return (
     <DialogTrigger>
       <Button
-        size="S"
+        size={size}
         leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
       >
@@ -71,13 +73,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 <CustomTimeRangeWrap visible={timeRangeKey === "custom"}>
                   {/* We force re-mount to reset the dirty state in the form */}
                   {timeRangeKey === "custom" && (
-                    <Flex
-                      direction="column"
-                      gap="size-100"
-                      justifyContent="end"
-                      height="100%"
-                    >
-                      <Heading level={4} weight="heavy">
+                    <Flex direction="column" gap="size-100" height="100%">
+                      <Heading level={2} weight="heavy">
                         Time Range
                       </Heading>
                       <TimeRangeForm
@@ -107,7 +104,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                     }
                     const timeRangeKey = selection.keys().next().value;
                     if (!isTimeRangeKey(timeRangeKey)) {
-                      close();
+                      // Sometimes the time range is undefined for some reason
+                      // TODO: figure out why this happens
                       return;
                     }
                     if (timeRangeKey !== "custom") {
@@ -158,7 +156,7 @@ function CustomTimeRangeWrap({
       <View
         borderEndWidth="thin"
         borderColor="light"
-        padding="size-100"
+        padding="size-200"
         height="100%"
       >
         {children}

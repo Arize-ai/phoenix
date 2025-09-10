@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8776cd35fbc8a1af057dffe77f290c4f>>
+ * @generated SignedSource<<63f1c8a9a32bfe128e1a06f284b55fbd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -200,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ead28b4d3393d0091aee72f30bcb3550",
+    "cacheID": "e4d29747630390022d08f376ad4c9d58",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation(\n  $projectId: GlobalID!\n  $annotationConfigId: GlobalID!\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
+    "text": "mutation ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n      id\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ec2dc54a9750a2f8f31bece26a75b7f";
+(node as any).hash = "26b991be7525781487a7a64abcbf7e50";
 
 export default node;

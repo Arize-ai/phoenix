@@ -70,7 +70,7 @@ async function fetchLatestVersion({
   const data = await fetchQuery<datasetStore_latestVersionQuery>(
     RelayEnvironment,
     graphql`
-      query datasetStore_latestVersionQuery($datasetId: GlobalID!) {
+      query datasetStore_latestVersionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {

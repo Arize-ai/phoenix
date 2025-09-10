@@ -8,7 +8,7 @@
 
 ### 完全にオープンソースでオープンに開発
 
-フェニックスは、プライバシーとカスタマイズ性を念頭に置いて設計された[オープンソースのプラットフォーム](https://github.com/Arize-ai/phoenix)です。フェニックスアプリケーションは[自己ホスト](https://docs.arize.com/phoenix/deployment)でき、ローカルマシンまたはコンテナ上で完全に実行できます。または、当社のウェブサイト上の無料クラウドインスタンスからアクセスすることもできます。\
+フェニックスは、プライバシーとカスタマイズ性を念頭に置いて設計された[オープンソースのプラットフォーム](https://github.com/Arize-ai/phoenix)です。フェニックスアプリケーションは[自己ホスト](https://arize.com/docs/phoenix/deployment)でき、ローカルマシンまたはコンテナ上で完全に実行できます。または、当社のウェブサイト上の無料クラウドインスタンスからアクセスすることもできます。\
 
 
 開発プロセスはすべて（_市場投入や運用チケットなど_）GitHub上で公開されています。私たちはコミュニティからの貢献を歓迎し、称賛します。私たちは、Phoenixを真の共同作業にしたいと考えています。
@@ -32,7 +32,7 @@ Phoenixは、LLMアプリケーションの構築、評価、実用化に必要�
 
 * 複数のデプロイオプション：オンデマンドのクラウドインスタンスからDockerコンテナ、ローカルマシンで&#x306E;_&#x70;hoenix serv&#x65;_&#x306E;実行まで、幅広いデプロイオプションを提供します。
 
-OpenAI、LangChain、LlamaIndex、Anthropic、DSPy、Groq、Vercel AI SDKなど、[20以上のフレームワーク](https://docs.arize.com/phoenix/tracing/integrations-tracing)との統合や、手動での実装オプションにより、Phoenixはあらゆる既存のワークフローに適合します。\
+OpenAI、LangChain、LlamaIndex、Anthropic、DSPy、Groq、Vercel AI SDKなど、[20以上のフレームワーク](https://arize.com/docs/phoenix/tracing/integrations-tracing)との統合や、手動での実装オプションにより、Phoenixはあらゆる既存のワークフローに適合します。\
 
 
 ### フレームワークに依存しない

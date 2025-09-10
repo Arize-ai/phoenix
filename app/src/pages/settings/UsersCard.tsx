@@ -1,9 +1,7 @@
 import { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Card, DialogContainer } from "@arizeai/components";
-
-import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
+import { Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -34,8 +32,6 @@ export function UsersCard() {
   return (
     <Card
       title="Users"
-      variant="compact"
-      bodyStyle={{ padding: 0, overflowX: "auto" }}
       extra={
         <Button
           onPress={() => {
@@ -70,22 +66,18 @@ export function UsersCard() {
         </Button>
       }
     >
-      <Suspense
-        fallback={
-          <View padding="size-200">
-            <Loading />
-          </View>
-        }
-      >
-        <UsersTable query={data} />
-      </Suspense>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
+      <View overflow="auto">
+        <Suspense
+          fallback={
+            <View padding="size-200">
+              <Loading />
+            </View>
+          }
+        >
+          <UsersTable query={data} />
+        </Suspense>
+      </View>
+      {dialog}
     </Card>
   );
 }

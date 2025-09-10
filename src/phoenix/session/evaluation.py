@@ -19,17 +19,23 @@ from typing import (
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from typing_extensions import deprecated
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 from phoenix.session.client import Client
-from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
+from phoenix.trace.dsl.helpers import (
+    get_called_tools,
+    get_qa_with_reference,
+    get_retrieved_documents,
+)
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
 
 __all__ = [
     "get_retrieved_documents",
     "get_qa_with_reference",
+    "get_called_tools",
     "add_evaluations",
 ]
 
@@ -131,16 +137,19 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     )
 
 
+@deprecated("Migrate to using client.spans.log_span_annotations via arize-phoenix-client")
 def log_evaluations(
     *evals: Evaluations,
     endpoint: Optional[str] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
 ) -> None:
-    logger.warning(
-        "This `log_evaluations` function is deprecated and will be removed in a future release. "
-        "Please use `px.Client().log_evaluations(*evaluations)` instead."
-    )
+    """
+    .. deprecated::
+        This function is deprecated. Use ``client.spans.log_span_annotations()`` via
+        arize-phoenix-client instead.
+        See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+    """
     host = host or get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"

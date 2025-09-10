@@ -51,7 +51,7 @@ async def test_dataset_example_span_resolver(
     dataset_with_span_and_nonspan_examples: Any,
 ) -> None:
     query = """
-      query ($exampleId: GlobalID!) {
+      query ($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -95,7 +95,7 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
     example_with_experiment_runs: Any,
 ) -> None:
     query = """
-      query ($exampleId: GlobalID!) {
+      query ($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             experimentRuns {

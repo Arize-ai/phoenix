@@ -47,7 +47,7 @@ class TestProjectTraceRetentionPolicyMutations:
                 }
             }
         }
-        query GetNode($id: GlobalID!) {
+        query GetNode($id: ID!) {
             node(id: $id) {
                 ... on Project {
                     traceRetentionPolicy {
@@ -76,7 +76,7 @@ class TestProjectTraceRetentionPolicyMutations:
                 }
             }
         }
-    """  # noqa: E501
+    """
 
     @pytest.mark.parametrize(
         "initial_rule_input, initial_rule_output, update_rule_input, update_rule_output",
@@ -319,7 +319,7 @@ class TestProjectTraceRetentionPolicyMutations:
         The default policy (with name "Default") is a special policy that must maintain its name
         and cannot be deleted to ensure system stability and provide a fallback for projects.
         However, its cron expression and rule can be modified as needed.
-        """  # noqa: E501
+        """
 
         # Create a GlobalID for the default policy to use in GraphQL operations
         default_policy_gid = str(

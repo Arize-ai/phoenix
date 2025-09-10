@@ -1,12 +1,14 @@
+import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union, cast
+from typing import Any, Iterable, Iterator, Literal, Optional, Union
+from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, func, select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
+from sqlalchemy.orm import joinedload, load_only
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -18,19 +20,14 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     getenv,
 )
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
-from phoenix.db.models import DatasetExample as OrmExample
-from phoenix.db.models import DatasetExampleRevision as OrmRevision
-from phoenix.db.models import DatasetVersion as OrmVersion
-from phoenix.db.models import Experiment as OrmExperiment
-from phoenix.db.models import ExperimentRun as OrmExperimentRun
-from phoenix.db.models import Trace as OrmTrace
+from phoenix.db.models import LatencyMs
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -41,10 +38,12 @@ from phoenix.server.api.helpers.playground_clients import initialize_playground_
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
+from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
+from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -61,12 +60,19 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    Cursor,
+    CursorString,
+    connection_from_cursors_and_nodes,
+    connection_from_list,
+)
+from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -74,6 +80,7 @@ from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -101,6 +108,55 @@ class DbTableStats:
 
 
 @strawberry.type
+class ExperimentRunMetricComparison:
+    num_runs_improved: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment improved "
+            "on the best run in any compare experiment."
+        )
+    )
+    num_runs_regressed: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment regressed "
+            "on the best run in any compare experiment."
+        )
+    )
+    num_runs_equal: int = strawberry.field(
+        description=(
+            "The number of runs in which the base experiment is equal to the best run "
+            "in any compare experiment."
+        )
+    )
+    num_total_runs: strawberry.Private[int]
+
+    @strawberry.field(
+        description=(
+            "The number of runs in the base experiment that could not be compared, either because "
+            "the base experiment run was missing a value or because all compare experiment runs "
+            "were missing values."
+        )
+    )  # type: ignore[misc]
+    def num_runs_without_comparison(self) -> int:
+        return (
+            self.num_total_runs
+            - self.num_runs_improved
+            - self.num_runs_regressed
+            - self.num_runs_equal
+        )
+
+
+@strawberry.type
+class ExperimentRunMetricComparisons:
+    latency: ExperimentRunMetricComparison
+    total_token_count: ExperimentRunMetricComparison
+    prompt_token_count: ExperimentRunMetricComparison
+    completion_token_count: ExperimentRunMetricComparison
+    total_cost: ExperimentRunMetricComparison
+    prompt_cost: ExperimentRunMetricComparison
+    completion_cost: ExperimentRunMetricComparison
+
+
+@strawberry.type
 class Query:
     @strawberry.field
     async def model_providers(self) -> list[GenerativeProvider]:
@@ -114,20 +170,39 @@ class Query:
         ]
 
     @strawberry.field
-    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
+    async def generative_models(
+        self,
+        info: Info[Context, None],
+    ) -> list[GenerativeModel]:
+        async with info.context.db() as session:
+            result = await session.scalars(
+                select(models.GenerativeModel)
+                .where(models.GenerativeModel.deleted_at.is_(None))
+                .order_by(
+                    models.GenerativeModel.is_built_in.asc(),  # display custom models first
+                    models.GenerativeModel.provider.nullslast(),
+                    models.GenerativeModel.name,
+                )
+                .options(joinedload(models.GenerativeModel.token_prices))
+            )
+
+        return [to_gql_generative_model(model) for model in result.unique()]
+
+    @strawberry.field
+    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name=model_name, provider_key=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
         registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
-        all_models: list[GenerativeModel] = []
+        all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
+                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
         return all_models
 
     @strawberry.field
@@ -165,7 +240,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -181,7 +256,7 @@ class Query:
     ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
         return [
             UserRole(
@@ -197,7 +272,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -209,7 +284,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name == "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -285,6 +360,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[DatasetSort] = UNSET,
+        filter: Optional[DatasetFilter] = UNSET,
     ) -> Connection[Dataset]:
         args = ConnectionArgs(
             first=first,
@@ -296,6 +372,8 @@ class Query:
         if sort:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
@@ -310,100 +388,133 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: list[GlobalID],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> list[ExperimentComparison]:
-        experiment_ids_ = [
-            from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
-            for experiment_id in experiment_ids
-        ]
-        if len(set(experiment_ids_)) != len(experiment_ids_):
-            raise ValueError("Experiment IDs must be unique.")
+    ) -> Connection[ExperimentComparison]:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        experiment_rowids = [base_experiment_rowid, *compare_experiment_rowids]
+
+        cursor = Cursor.from_string(after) if after else None
+        page_size = first or 50
 
         async with info.context.db() as session:
-            validation_result = (
-                await session.execute(
+            experiments = (
+                await session.scalars(
                     select(
-                        func.count(distinct(OrmVersion.dataset_id)),
-                        func.max(OrmVersion.dataset_id),
-                        func.max(OrmVersion.id),
-                        func.count(OrmExperiment.id),
+                        models.Experiment,
                     )
-                    .select_from(OrmVersion)
-                    .join(
-                        OrmExperiment,
-                        OrmExperiment.dataset_version_id == OrmVersion.id,
-                    )
-                    .where(
-                        OrmExperiment.id.in_(experiment_ids_),
+                    .where(models.Experiment.id.in_(experiment_rowids))
+                    .options(
+                        load_only(
+                            models.Experiment.dataset_id, models.Experiment.dataset_version_id
+                        )
                     )
                 )
-            ).first()
-            if validation_result is None:
-                raise ValueError("No experiments could be found for input IDs.")
-
-            num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
-            if num_datasets != 1:
-                raise ValueError("Experiments must belong to the same dataset.")
-            if num_resolved_experiment_ids != len(experiment_ids_):
-                raise ValueError("Unable to resolve one or more experiment IDs.")
-
+            ).all()
+            if not experiments or len(experiments) < len(experiment_rowids):
+                raise NotFound("Unable to resolve one or more experiment IDs.")
+            num_datasets = len(set(experiment.dataset_id for experiment in experiments))
+            if num_datasets > 1:
+                raise BadRequest("Experiments must belong to the same dataset.")
+            base_experiment = next(
+                experiment for experiment in experiments if experiment.id == base_experiment_rowid
+            )
             revision_ids = (
-                select(func.max(OrmRevision.id))
-                .join(OrmExample, OrmExample.id == OrmRevision.dataset_example_id)
+                select(func.max(models.DatasetExampleRevision.id))
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+                )
                 .where(
                     and_(
-                        OrmRevision.dataset_version_id <= version_id,
-                        OrmExample.dataset_id == dataset_id,
+                        models.DatasetExampleRevision.dataset_version_id
+                        <= base_experiment.dataset_version_id,
+                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
                     )
                 )
-                .group_by(OrmRevision.dataset_example_id)
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
             examples_query = (
-                select(OrmExample)
-                .distinct(OrmExample.id)
+                select(models.DatasetExample)
+                .distinct(models.DatasetExample.id)
                 .join(
-                    OrmRevision,
+                    models.DatasetExampleRevision,
                     onclause=and_(
-                        OrmExample.id == OrmRevision.dataset_example_id,
-                        OrmRevision.id.in_(revision_ids),
-                        OrmRevision.revision_kind != "DELETE",
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
                     ),
                 )
-                .order_by(OrmExample.id.desc())
+                .order_by(models.DatasetExample.id.desc())
+                .limit(page_size + 1)
             )
+            if cursor is not None:
+                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
                     query=examples_query,
                     filter_condition=filter_condition,
-                    experiment_ids=experiment_ids_,
+                    experiment_ids=experiment_rowids,
                 )
 
             examples = (await session.scalars(examples_query)).all()
+            has_next_page = len(examples) > page_size
+            examples = examples[:page_size]
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmExperimentRun]]] = (
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]] = (
                 defaultdict(lambda: defaultdict(list))
             )
             async for run in await session.stream_scalars(
-                select(OrmExperimentRun)
+                select(models.ExperimentRun)
                 .where(
                     and_(
-                        OrmExperimentRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
+                        models.ExperimentRun.dataset_example_id.in_(
+                            example.id for example in examples
+                        ),
+                        models.ExperimentRun.experiment_id.in_(experiment_rowids),
                     )
                 )
-                .options(joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id))
+                .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+                .order_by(
+                    models.ExperimentRun.repetition_number.asc()
+                )  # repetitions are not currently implemented, but this ensures that the repetitions will be properly ordered once implemented # noqa: E501
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
-        experiment_comparisons = []
+        cursors_and_nodes = []
         for example in examples:
             run_comparison_items = []
-            for experiment_id in experiment_ids_:
+            for experiment_id in experiment_rowids:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
@@ -415,17 +526,306 @@ class Query:
                         ],
                     )
                 )
-            experiment_comparisons.append(
-                ExperimentComparison(
-                    example=DatasetExample(
-                        id_attr=example.id,
-                        created_at=example.created_at,
-                        version_id=version_id,
-                    ),
-                    run_comparison_items=run_comparison_items,
-                )
+            experiment_comparison = ExperimentComparison(
+                id_attr=example.id,
+                example=DatasetExample(
+                    id_attr=example.id,
+                    created_at=example.created_at,
+                    version_id=base_experiment.dataset_version_id,
+                ),
+                run_comparison_items=run_comparison_items,
             )
-        return experiment_comparisons
+            cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def experiment_run_metric_comparisons(
+        self,
+        info: Info[Context, None],
+        base_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
+    ) -> ExperimentRunMetricComparisons:
+        if base_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the base experiment ID")
+        if not compare_experiment_ids:
+            raise BadRequest("At least one compare experiment ID must be provided")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+
+        try:
+            base_experiment_rowid = from_global_id_with_expected_type(
+                base_experiment_id, models.Experiment.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid base experiment ID: {base_experiment_id}")
+
+        compare_experiment_rowids = []
+        for compare_experiment_id in compare_experiment_ids:
+            try:
+                compare_experiment_rowids.append(
+                    from_global_id_with_expected_type(
+                        compare_experiment_id, models.Experiment.__name__
+                    )
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
+
+        base_experiment_runs = (
+            select(
+                models.ExperimentRun.dataset_example_id,
+                func.min(models.ExperimentRun.start_time).label("start_time"),
+                func.min(models.ExperimentRun.end_time).label("end_time"),
+                func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.sum(models.SpanCost.total_cost).label("total_cost"),
+                func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+            )
+            .select_from(models.ExperimentRun)
+            .join(
+                models.Trace,
+                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
+                isouter=True,
+            )
+            .join(
+                models.SpanCost,
+                onclause=models.Trace.id == models.SpanCost.trace_rowid,
+                isouter=True,
+            )
+            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
+            .group_by(models.ExperimentRun.dataset_example_id)
+            .subquery()
+            .alias("base_experiment_runs")
+        )
+        compare_experiment_runs = (
+            select(
+                models.ExperimentRun.dataset_example_id,
+                func.min(
+                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
+                ).label("min_latency_ms"),
+                func.min(models.SpanCost.total_tokens).label("min_total_tokens"),
+                func.min(models.SpanCost.prompt_tokens).label("min_prompt_tokens"),
+                func.min(models.SpanCost.completion_tokens).label("min_completion_tokens"),
+                func.min(models.SpanCost.total_cost).label("min_total_cost"),
+                func.min(models.SpanCost.prompt_cost).label("min_prompt_cost"),
+                func.min(models.SpanCost.completion_cost).label("min_completion_cost"),
+            )
+            .select_from(models.ExperimentRun)
+            .join(
+                models.Trace,
+                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
+                isouter=True,
+            )
+            .join(
+                models.SpanCost,
+                onclause=models.Trace.id == models.SpanCost.trace_rowid,
+                isouter=True,
+            )
+            .where(
+                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
+            )
+            .group_by(models.ExperimentRun.dataset_example_id)
+            .subquery()
+            .alias("comp_exp_run_mins")
+        )
+
+        base_experiment_run_latency = LatencyMs(
+            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
+        ).label("base_experiment_run_latency_ms")
+
+        comparisons_query = (
+            select(
+                func.count().label("num_base_experiment_runs"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_latency_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_latency_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_run_latency,
+                    compare_column=compare_experiment_runs.c.min_latency_ms,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_latency_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_total_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_total_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_tokens,
+                    compare_column=compare_experiment_runs.c.min_total_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_total_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_prompt_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_prompt_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_tokens,
+                    compare_column=compare_experiment_runs.c.min_prompt_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_prompt_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_completion_token_count_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_completion_token_count_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_tokens,
+                    compare_column=compare_experiment_runs.c.min_completion_tokens,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_completion_token_count_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_total_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_total_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.total_cost,
+                    compare_column=compare_experiment_runs.c.min_total_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_total_cost_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_prompt_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_prompt_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.prompt_cost,
+                    compare_column=compare_experiment_runs.c.min_prompt_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_prompt_cost_is_equal"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="improvement",
+                ).label("num_completion_cost_improved"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="regression",
+                ).label("num_completion_cost_regressed"),
+                _comparison_count_expression(
+                    base_column=base_experiment_runs.c.completion_cost,
+                    compare_column=compare_experiment_runs.c.min_completion_cost,
+                    optimization_direction="minimize",
+                    comparison_type="equality",
+                ).label("num_completion_cost_is_equal"),
+            )
+            .select_from(base_experiment_runs)
+            .join(
+                compare_experiment_runs,
+                onclause=base_experiment_runs.c.dataset_example_id
+                == compare_experiment_runs.c.dataset_example_id,
+                isouter=True,
+            )
+        )
+
+        async with info.context.db() as session:
+            result = (await session.execute(comparisons_query)).first()
+        assert result is not None
+
+        return ExperimentRunMetricComparisons(
+            latency=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_latency_improved,
+                num_runs_regressed=result.num_latency_regressed,
+                num_runs_equal=result.num_latency_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            total_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_total_token_count_improved,
+                num_runs_regressed=result.num_total_token_count_regressed,
+                num_runs_equal=result.num_total_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            prompt_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_prompt_token_count_improved,
+                num_runs_regressed=result.num_prompt_token_count_regressed,
+                num_runs_equal=result.num_prompt_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            completion_token_count=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_completion_token_count_improved,
+                num_runs_regressed=result.num_completion_token_count_regressed,
+                num_runs_equal=result.num_completion_token_count_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            total_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_total_cost_improved,
+                num_runs_regressed=result.num_total_cost_regressed,
+                num_runs_equal=result.num_total_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            prompt_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_prompt_cost_improved,
+                num_runs_regressed=result.num_prompt_cost_regressed,
+                num_runs_equal=result.num_prompt_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+            completion_cost=ExperimentRunMetricComparison(
+                num_runs_improved=result.num_completion_cost_improved,
+                num_runs_regressed=result.num_completion_cost_regressed,
+                num_runs_equal=result.num_completion_cost_is_equal,
+                num_total_runs=result.num_base_experiment_runs,
+            ),
+        )
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(
@@ -437,7 +837,7 @@ class Query:
             compile_sqlalchemy_filter_condition(
                 filter_condition=condition,
                 experiment_ids=[
-                    from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+                    from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
                     for experiment_id in experiment_ids
                 ],
             )
@@ -459,8 +859,8 @@ class Query:
         )
 
     @strawberry.field
-    def model(self) -> Model:
-        return Model()
+    def model(self) -> InferenceModel:
+        return InferenceModel()
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
@@ -635,6 +1035,18 @@ class Query:
                 if not trace_annotation:
                     raise NotFound(f"Unknown trace annotation: {id}")
             return to_gql_trace_annotation(trace_annotation)
+        elif type_name == GenerativeModel.__name__:
+            async with info.context.db() as session:
+                stmt = (
+                    select(models.GenerativeModel)
+                    .where(models.GenerativeModel.deleted_at.is_(None))
+                    .where(models.GenerativeModel.id == node_id)
+                    .options(joinedload(models.GenerativeModel.token_prices))
+                )
+                model = await session.scalar(stmt)
+                if not model:
+                    raise NotFound(f"Unknown model: {id}")
+            return to_gql_generative_model(model)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -665,6 +1077,7 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter: Optional[PromptFilter] = UNSET,
     ) -> Connection[Prompt]:
         args = ConnectionArgs(
             first=first,
@@ -673,6 +1086,14 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = select(models.Prompt)
+        if filter:
+            column = getattr(models.Prompt, filter.col.value)
+            # Cast Identifier columns to String for ilike operations
+            if filter.col.value == "name":
+                column = cast(column, String)
+            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
+                models.Prompt.updated_at.desc()
+            )
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
@@ -921,16 +1342,17 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            stmt = text(f"""\
+            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
+            stmt = text("""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
                 INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
                 WHERE c.relkind = 'r'
-                AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
-            """)
+                AND n.nspname = :nspname;
+            """).bindparams(nspname=nspname)
             try:
                 async with info.context.db() as session:
-                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
                 return []
@@ -940,6 +1362,62 @@ class Query:
             DbTableStats(table_name=table_name, num_bytes=num_bytes)
             for table_name, num_bytes in stats
         ]
+
+    @strawberry.field
+    async def server_status(
+        self,
+        info: Info[Context, None],
+    ) -> ServerStatus:
+        return ServerStatus(
+            insufficient_storage=info.context.db.should_not_insert_or_update,
+        )
+
+    @strawberry.field
+    def validate_regular_expression(self, regex: str) -> ValidationResult:
+        try:
+            re.compile(regex)
+            return ValidationResult(is_valid=True, error_message=None)
+        except re.error as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
+
+    @strawberry.field
+    async def get_span_by_otel_id(
+        self,
+        info: Info[Context, None],
+        span_id: str,
+    ) -> Optional[Span]:
+        stmt = select(models.Span.id).filter_by(span_id=span_id)
+        async with info.context.db() as session:
+            span_rowid = await session.scalar(stmt)
+        if span_rowid:
+            return Span(span_rowid=span_rowid)
+        return None
+
+    @strawberry.field
+    async def get_trace_by_otel_id(
+        self,
+        info: Info[Context, None],
+        trace_id: str,
+    ) -> Optional[Trace]:
+        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        async with info.context.db() as session:
+            trace_rowid = await session.scalar(stmt)
+        if trace_rowid:
+            return Trace(trace_rowid=trace_rowid)
+        return None
+
+    @strawberry.field
+    async def get_project_session_by_id(
+        self,
+        info: Info[Context, None],
+        session_id: str,
+    ) -> Optional[ProjectSession]:
+        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        async with info.context.db() as session:
+            session_row = await session.scalar(stmt)
+        if session_row:
+            return to_gql_project_session(session_row)
+        return None
 
 
 def _consolidate_sqlite_db_table_stats(
@@ -974,3 +1452,40 @@ def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
         if s.startswith(prefix) and len(prefix) > len(longest):
             longest = prefix
     return longest
+
+
+def _comparison_count_expression(
+    *,
+    base_column: ColumnElement[Any],
+    compare_column: ColumnElement[Any],
+    optimization_direction: Literal["maximize", "minimize"],
+    comparison_type: Literal["improvement", "regression", "equality"],
+) -> ColumnElement[int]:
+    """
+    Given a base and compare column, returns an expression counting the number of
+    improvements, regressions, or equalities given the optimization direction.
+    """
+    if optimization_direction == "maximize":
+        raise NotImplementedError
+
+    if comparison_type == "improvement":
+        condition = compare_column > base_column
+    elif comparison_type == "regression":
+        condition = compare_column < base_column
+    elif comparison_type == "equality":
+        condition = compare_column == base_column
+    else:
+        assert_never(comparison_type)
+
+    return func.coalesce(
+        func.sum(
+            case(
+                (
+                    condition,
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+        0,
+    )

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9240e863423fc1dc81715d6c3bc685ea>>
+ * @generated SignedSource<<7d78eef4cf1de105ba7998cb6e0d0801>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -87,10 +87,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -131,12 +127,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "73f41a4d1a52207ec36287e8c6c527cc",
+    "cacheID": "492e0693e4facc2052015087af2e9de5",
     "id": null,
     "metadata": {},
     "name": "ProjectConfigPageProjectConfigCardQuery",
     "operationKind": "query",
-    "text": "query ProjectConfigPageProjectConfigCardQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectConfigPage_projectConfigCard\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n"
+    "text": "query ProjectConfigPageProjectConfigCardQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectConfigPage_projectConfigCard\n    id\n  }\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n"
   }
 };
 })();

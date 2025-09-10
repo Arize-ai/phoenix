@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -22,6 +23,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
@@ -30,6 +32,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundClientCredential,
     PlaygroundStreamingClient,
     initialize_playground_clients,
 )
@@ -62,6 +65,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
@@ -71,6 +75,8 @@ from phoenix.utilities.template_formatters import (
     NoOpFormatter,
     TemplateFormatter,
 )
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -132,9 +138,17 @@ class ChatCompletionMutationMixin:
         if llm_client_class is None:
             raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
+            # Convert GraphQL credentials to PlaygroundCredential objects
+            credentials = None
+            if input.credentials:
+                credentials = [
+                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
+                    for cred in input.credentials
+                ]
+
             llm_client = llm_client_class(
                 model=input.model,
-                api_key=input.api_key,
+                credentials=credentials,
             )
         except CustomGraphQLError:
             raise
@@ -151,6 +165,7 @@ class ChatCompletionMutationMixin:
             if input.dataset_version_id
             else None
         )
+        project_name = generate_experiment_project_name()
         async with info.context.db() as session:
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
@@ -184,7 +199,7 @@ class ChatCompletionMutationMixin:
                 description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
-                project_name=PLAYGROUND_PROJECT_NAME,
+                project_name=project_name,
             )
             session.add(experiment)
             await session.flush()
@@ -200,7 +215,7 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            api_key=input.api_key,
+                            credentials=input.credentials,
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
@@ -210,6 +225,7 @@ class ChatCompletionMutationMixin:
                             ),
                             prompt_name=input.prompt_name,
                         ),
+                        project_name=project_name,
                     )
                     for revision in batch
                 ),
@@ -281,9 +297,17 @@ class ChatCompletionMutationMixin:
         if llm_client_class is None:
             raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
+            # Convert GraphQL credentials to PlaygroundCredential objects
+            credentials = None
+            if input.credentials:
+                credentials = [
+                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
+                    for cred in input.credentials
+                ]
+
             llm_client = llm_client_class(
                 model=input.model,
-                api_key=input.api_key,
+                credentials=credentials,
             )
         except CustomGraphQLError:
             raise
@@ -300,6 +324,8 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         llm_client: PlaygroundStreamingClient,
         input: ChatCompletionInput,
+        project_name: str = PLAYGROUND_PROJECT_NAME,
+        project_description: str = "Traces from prompt playground",
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
@@ -394,15 +420,15 @@ class ChatCompletionMutationMixin:
             # Get or create the project ID
             if (
                 project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
                 project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
+                        name=project_name,
+                        description=project_description,
                     )
                 )
             trace = models.Trace(
@@ -433,6 +459,19 @@ class ChatCompletionMutationMixin:
             session.add(trace)
             session.add(span)
             await session.flush()
+            try:
+                span_cost = info.context.span_cost_calculator.calculate_cost(
+                    start_time=span.start_time,
+                    attributes=span.attributes,
+                )
+            except Exception as e:
+                logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
+                span_cost = None
+            if span_cost:
+                span_cost.span_rowid = span.id
+                span_cost.trace_rowid = trace.id
+                session.add(span_cost)
+                await session.flush()
 
         gql_span = Span(span_rowid=span.id, db_span=span)
 
@@ -588,5 +627,4 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
-
-PLAYGROUND_PROJECT_NAME = "playground"
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e31c25a432606ec9f656152bee65b0e>>
+ * @generated SignedSource<<f1d87ec6ac6c65d815428bc7abe7b5b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -151,10 +151,6 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v3/*: any*/),
                   {
                     "kind": "InlineFragment",
@@ -208,16 +204,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f33f0c5c35bdfcb0a9fdb1eacff3dec8",
+    "cacheID": "387e2e286ff86ad049a2b4afbd189b22",
     "id": null,
     "metadata": {},
     "name": "DeletePromptVersionTagButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: GlobalID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfigCard_data\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
+    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: ID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfigCard_data\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9a239d04f2789c811b994f09bd0a814a";
+(node as any).hash = "58fa5b2b6e7af186229c70b90082644a";
 
 export default node;

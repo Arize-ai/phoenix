@@ -8,6 +8,10 @@ import {
   AzureOpenAIInvocationParameters,
   AnthropicInvocationParameters,
   GoogleInvocationParameters,
+  DeepSeekInvocationParameters,
+  XAIInvocationParameters,
+  OllamaInvocationParameters,
+  AwsInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -78,17 +82,17 @@ interface PromptVersionInputBase {
   templateFormat?: PromptVersionData["template_format"];
 }
 
-interface OpenAIPromptVersionInput extends PromptVersionInputBase {
+export interface OpenAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "OPENAI";
   invocationParameters?: OpenAIInvocationParameters;
 }
 
-interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
+export interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "AZURE_OPENAI";
   invocationParameters?: AzureOpenAIInvocationParameters;
 }
 
-interface AnthropicPromptVersionInput extends PromptVersionInputBase {
+export interface AnthropicPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "ANTHROPIC";
   /**
    * The invocation parameters for the prompt version.
@@ -97,16 +101,40 @@ interface AnthropicPromptVersionInput extends PromptVersionInputBase {
   invocationParameters: AnthropicInvocationParameters;
 }
 
-interface GooglePromptVersionInput extends PromptVersionInputBase {
+export interface GooglePromptVersionInput extends PromptVersionInputBase {
   modelProvider: "GOOGLE";
   invocationParameters?: GoogleInvocationParameters;
 }
 
-type PromptVersionInput =
+export interface DeepSeekPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "DEEPSEEK";
+  invocationParameters?: DeepSeekInvocationParameters;
+}
+
+export interface XAIPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "XAI";
+  invocationParameters?: XAIInvocationParameters;
+}
+
+export interface OllamaPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "OLLAMA";
+  invocationParameters?: OllamaInvocationParameters;
+}
+
+export interface AwsPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "AWS";
+  invocationParameters?: AwsInvocationParameters;
+}
+
+export type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
   | AnthropicPromptVersionInput
-  | GooglePromptVersionInput;
+  | GooglePromptVersionInput
+  | DeepSeekPromptVersionInput
+  | XAIPromptVersionInput
+  | OllamaPromptVersionInput
+  | AwsPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -188,6 +216,70 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         invocation_parameters: {
           type: "google",
           google: invocation_parameters ?? {},
+        },
+      };
+    case "DEEPSEEK":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "deepseek",
+          deepseek: invocation_parameters ?? {},
+        },
+      };
+    case "XAI":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "xai",
+          xai: invocation_parameters ?? {},
+        },
+      };
+    case "OLLAMA":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "ollama",
+          ollama: invocation_parameters ?? {},
+        },
+      };
+    case "AWS":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "aws",
+          aws: invocation_parameters ?? {},
         },
       };
     default:

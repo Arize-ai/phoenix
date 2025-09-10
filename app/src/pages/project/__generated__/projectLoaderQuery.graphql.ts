@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab6d3c084016845863d78bae110a2ed5>>
+ * @generated SignedSource<<f1dcab0c7fbb8446238ae5fa7267c650>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -112,16 +112,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "04c84b5bc2a01477851d347af75dcc11",
+    "cacheID": "146b6f58a3f2f95565821ff5d976155d",
     "id": null,
     "metadata": {},
     "name": "projectLoaderQuery",
     "operationKind": "query",
-    "text": "query projectLoaderQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n}\n"
+    "text": "query projectLoaderQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3d31e323c06df38ec2eaa6f3adb55e79";
+(node as any).hash = "3e1dc1a02098a23c327567a7fcf393fd";
 
 export default node;

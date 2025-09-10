@@ -1,8 +1,15 @@
-import { ReactNode, useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import {
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
@@ -25,26 +32,8 @@ function isLocalAuth(authMethod: AuthMethod): authMethod is "LOCAL" {
 
 export function UserActionMenu(props: UserActionMenuProps) {
   const { userId, onUserDeleted, authMethod } = props;
-  const [dialog, setDialog] = useState<ReactNode>(null);
-
-  const onDelete = useCallback(() => {
-    setDialog(
-      <DeleteUserDialog
-        userId={userId}
-        onClose={() => setDialog(null)}
-        onDeleted={() => {
-          onUserDeleted();
-          setDialog(null);
-        }}
-      />
-    );
-  }, [userId, onUserDeleted]);
-
-  const onPasswordReset = useCallback(() => {
-    setDialog(
-      <ResetPasswordDialog userId={userId} onClose={() => setDialog(null)} />
-    );
-  }, [userId]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
 
   const actionMenuItems = useMemo(() => {
     const deleteUserItemEl = (
@@ -98,23 +87,46 @@ export function UserActionMenu(props: UserActionMenuProps) {
         onAction={(action) => {
           switch (action) {
             case UserAction.DELETE:
-              onDelete();
+              setShowDeleteDialog(true);
               break;
             case UserAction.RESET_PASSWORD:
-              onPasswordReset();
+              setShowResetPasswordDialog(true);
               break;
           }
         }}
       >
         {actionMenuItems}
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setDialog(null)}
+      <DialogTrigger
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
       >
-        {dialog}
-      </DialogContainer>
+        <ModalOverlay>
+          <Modal>
+            <DeleteUserDialog
+              userId={userId}
+              onClose={() => setShowDeleteDialog(false)}
+              onDeleted={() => {
+                onUserDeleted();
+                setShowDeleteDialog(false);
+              }}
+            />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+      <DialogTrigger
+        isOpen={showResetPasswordDialog}
+        onOpenChange={setShowResetPasswordDialog}
+      >
+        <ModalOverlay>
+          <Modal>
+            <ResetPasswordDialog
+              userId={userId}
+              onClose={() => setShowResetPasswordDialog(false)}
+            />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </div>
   );
 }

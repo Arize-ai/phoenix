@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9802d63232cb94fe44c76458925e772f>>
+ * @generated SignedSource<<b2e238d57a54313d613cf99ed1a213a7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,9 +21,25 @@ export type ExperimentsTableFragment$data = {
       readonly experiment: {
         readonly annotationSummaries: ReadonlyArray<{
           readonly annotationName: string;
+          readonly count: number;
+          readonly errorCount: number;
           readonly meanScore: number | null;
         }>;
         readonly averageRunLatencyMs: number | null;
+        readonly costSummary: {
+          readonly completion: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+          readonly prompt: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+          readonly total: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+        };
         readonly createdAt: string;
         readonly description: string | null;
         readonly errorRate: number | null;
@@ -56,16 +72,32 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "annotationName",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "annotationName",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -110,15 +142,16 @@ return {
   },
   "name": "ExperimentsTableFragment",
   "selections": [
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
-      "concreteType": "ExperimentAnnotationSummary",
+      "concreteType": "DatasetExperimentAnnotationSummary",
       "kind": "LinkedField",
       "name": "experimentAnnotationSummaries",
       "plural": true,
       "selections": [
-        (v1/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -160,7 +193,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -225,7 +258,48 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/)
+                    (v1/*: any*/)
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "prompt",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "completion",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    }
                   ],
                   "storageKey": null
                 },
@@ -237,12 +311,26 @@ return {
                   "name": "annotationSummaries",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "meanScore",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "count",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "errorCount",
                       "storageKey": null
                     }
                   ],
@@ -306,14 +394,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*: any*/)
+    }
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "c7c7580fe40888ceb86a1701fe4eedf4";
+(node as any).hash = "357028b833d3db5992481041ea2bc922";
 
 export default node;

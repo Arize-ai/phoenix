@@ -31,7 +31,7 @@ const formRowCSS = css`
   justify-content: end;
   /* Move the button down to align */
   button {
-    margin-top: 23.5px;
+    margin-top: 26px;
   }
 `;
 

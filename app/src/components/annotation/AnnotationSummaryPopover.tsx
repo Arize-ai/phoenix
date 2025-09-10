@@ -2,8 +2,6 @@ import { CSSProperties, ReactNode, useMemo } from "react";
 import { FocusScope, Pressable } from "react-aria";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
 import {
   Dialog,
   DialogTrigger,
@@ -11,6 +9,10 @@ import {
   Popover,
   PopoverArrow,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
@@ -63,6 +65,7 @@ export function AnnotationSummaryPopover({
       <StopPropagation>
         <Popover
           shouldCloseOnInteractOutside={() => true}
+          isKeyboardDismissDisabled={false}
           style={{ minWidth: width }}
         >
           <PopoverArrow />
@@ -96,7 +99,7 @@ export function AnnotationSummaryPopover({
                           </Truncate>
                         </Text>
                       </Flex>
-                      <TooltipTrigger delay={0} placement="top">
+                      <TooltipTrigger delay={0}>
                         <TriggerWrap>
                           <MeanScore
                             size="L"
@@ -104,8 +107,8 @@ export function AnnotationSummaryPopover({
                             fallback={null}
                           />
                         </TriggerWrap>
-                        <Tooltip>
-                          <PopoverArrow />
+                        <Tooltip placement="top">
+                          <TooltipArrow />
                           <Text>Mean Score</Text>
                         </Tooltip>
                       </TooltipTrigger>
@@ -118,7 +121,7 @@ export function AnnotationSummaryPopover({
                           <th>author</th>
                           <th>label</th>
                           <th>score</th>
-                          <th>filters</th>
+                          {showFilterActions ? <th>filters</th> : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -152,7 +155,11 @@ export function AnnotationSummaryPopover({
                             <td>
                               {annotation.label ? (
                                 <Text title={annotation.label}>
-                                  <Truncate maxWidth="150px">
+                                  <Truncate
+                                    maxWidth={
+                                      showFilterActions ? "150px" : "200px"
+                                    }
+                                  >
                                     {annotation.label}
                                   </Truncate>
                                 </Text>

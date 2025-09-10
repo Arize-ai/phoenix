@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
@@ -59,7 +59,7 @@ PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry(
 
 def register_llm_client(
     provider_key: GenerativeProviderKey,
-    model_names: list[ModelName],
+    model_names: Sequence[ModelName],
 ) -> Callable[[type["PlaygroundStreamingClient"]], type["PlaygroundStreamingClient"]]:
     def decorator(cls: type["PlaygroundStreamingClient"]) -> type["PlaygroundStreamingClient"]:
         provider_registry = PLAYGROUND_CLIENT_REGISTRY._registry.setdefault(provider_key, {})

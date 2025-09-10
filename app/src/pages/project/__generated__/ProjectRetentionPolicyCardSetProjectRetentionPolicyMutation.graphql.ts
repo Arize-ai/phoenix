@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<885f696f3a3e2b81f989090d4afaf721>>
+ * @generated SignedSource<<6ba1f1d68793b0d9cebd6f87e52e585d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -198,10 +198,6 @@ return {
                 "plural": false,
                 "selections": [
                   (v4/*: any*/),
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v5/*: any*/),
                   {
                     "kind": "InlineFragment",
@@ -280,16 +276,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9cf8dd42d8ca1f6810e9e07a682d708e",
+    "cacheID": "a98d713987237f83deb503164dc5d9b2",
     "id": null,
     "metadata": {},
     "name": "ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(\n  $projectId: GlobalID!\n  $policyId: GlobalID!\n) {\n  patchProjectTraceRetentionPolicy(input: {id: $policyId, addProjects: [$projectId]}) {\n    query {\n      node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...ProjectRetentionPolicyCard_policy\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(\n  $projectId: ID!\n  $policyId: ID!\n) {\n  patchProjectTraceRetentionPolicy(input: {id: $policyId, addProjects: [$projectId]}) {\n    query {\n      node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...ProjectRetentionPolicyCard_policy\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c462ad8c60c830b4188a3d1f7f1cfa0e";
+(node as any).hash = "7b5534147b50d4a3232a2d5d94705212";
 
 export default node;

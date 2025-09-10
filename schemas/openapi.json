@@ -335,6 +335,48 @@
             "description": "One or more span id to fetch annotations for"
           },
           {
+            "name": "include_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list.",
+              "title": "Include Annotation Names"
+            },
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list."
+          },
+          {
+            "name": "exclude_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to exclude from results.",
+              "title": "Exclude Annotation Names"
+            },
+            "description": "Optional list of annotation names to exclude from results."
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -1478,6 +1520,658 @@
         }
       }
     },
+    "/v1/experiments/{experiment_id}/runs": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create run for an experiment",
+        "operationId": "createExperimentRun",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExperimentRunRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment run created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateExperimentRunResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment or dataset example not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "This experiment run has already been submitted"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List runs for an experiment",
+        "description": "Retrieve a paginated list of runs for an experiment",
+        "operationId": "listExperimentRuns",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded experiment run ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded experiment run ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The max number of experiment runs to return at a time. If not specified, returns all results.",
+              "title": "Limit"
+            },
+            "description": "The max number of experiment runs to return at a time. If not specified, returns all results."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment runs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExperimentRunsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid cursor format"
+          }
+        }
+      }
+    },
+    "/v1/experiment_evaluations": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create or update evaluation for an experiment run",
+        "operationId": "upsertExperimentEvaluation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertExperimentEvaluationRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment run not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces/{trace_identifier}": {
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete a trace by identifier",
+        "description": "Delete an entire trace by its identifier. The identifier can be either:\n1. A Relay node ID (base64-encoded)\n2. An OpenTelemetry trace_id (hex string)\n\nThis will permanently remove all spans in the trace and their associated data.",
+        "operationId": "deleteTrace",
+        "parameters": [
+          {
+            "name": "trace_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "title": "Trace Identifier"
+            },
+            "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Search spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "spanSearch",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span Global ID)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span Global ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtlpSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "List spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "getSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span Global ID)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span Global ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Create spans",
+        "description": "Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.",
+        "operationId": "createSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpansRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [
@@ -1539,6 +2233,64 @@
               }
             },
             "description": "Span not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/spans/{span_identifier}": {
+      "delete": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Delete a span by span_identifier",
+        "description": "Delete a single span by identifier.\n\n        **Important**: This operation deletes ONLY the specified span itself and does NOT\n        delete its descendants/children. All child spans will remain in the trace and\n        become orphaned (their parent_id will point to a non-existent span).\n\n        Behavior:\n        - Deletes only the target span (preserves all descendant spans)\n        - If this was the last span in the trace, the trace record is also deleted\n        - If the deleted span had a parent, its cumulative metrics (error count, token counts)\n          are subtracted from all ancestor spans in the chain\n\n        **Note**: This operation is irreversible and may create orphaned spans.",
+        "operationId": "deleteSpan",
+        "parameters": [
+          {
+            "name": "span_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id",
+              "title": "Span Identifier"
+            },
+            "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "422": {
             "description": "Validation Error",
@@ -2634,10 +3386,313 @@
           }
         }
       }
+    },
+    "/v1/document_annotations": {
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Annotate Span Documents",
+        "operationId": "annotateSpanDocuments",
+        "parameters": [
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If set to true, the annotations are inserted synchronously.",
+              "default": false,
+              "title": "Sync"
+            },
+            "description": "If set to true, the annotations are inserted synchronously."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateSpanDocumentsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Span document annotation inserted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateSpanDocumentsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Span not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request - non-empty identifier not supported"
+          }
+        }
+      }
+    },
+    "/v1/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List all users",
+        "description": "Retrieve a paginated list of all users in the system.",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Cursor for pagination (base64-encoded user ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded user ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of users to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of users to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUsersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create a new user",
+        "description": "Create a new user with the specified configuration.",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Role not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username or email already exists."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user by ID",
+        "description": "Delete an existing user by their unique GlobalID.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Cannot delete the default admin or system user"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AnnotateSpanDocumentsRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SpanDocumentAnnotationData"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpanDocumentsRequestBody"
+      },
+      "AnnotateSpanDocumentsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InsertedSpanDocumentAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpanDocumentsResponseBody"
+      },
       "AnnotateSpansRequestBody": {
         "properties": {
           "data": {
@@ -2669,6 +3724,48 @@
           "data"
         ],
         "title": "AnnotateSpansResponseBody"
+      },
+      "AnnotationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation result"
+          }
+        },
+        "type": "object",
+        "title": "AnnotationResult"
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -3027,6 +4124,95 @@
         ],
         "title": "CreateExperimentResponseBody"
       },
+      "CreateExperimentRunRequestBody": {
+        "properties": {
+          "dataset_example_id": {
+            "type": "string",
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
+          },
+          "output": {
+            "title": "Output",
+            "description": "The output of the experiment task"
+          },
+          "repetition_number": {
+            "type": "integer",
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the experiment run"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_example_id",
+          "output",
+          "repetition_number",
+          "start_time",
+          "end_time"
+        ],
+        "title": "CreateExperimentRunRequestBody"
+      },
+      "CreateExperimentRunResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreateExperimentRunResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateExperimentRunResponseBody"
+      },
+      "CreateExperimentRunResponseBodyData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the newly created experiment run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CreateExperimentRunResponseBodyData"
+      },
       "CreateProjectRequestBody": {
         "properties": {
           "name": {
@@ -3092,6 +4278,101 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpansRequestBody"
+      },
+      "CreateSpansResponseBody": {
+        "properties": {
+          "total_received": {
+            "type": "integer",
+            "title": "Total Received",
+            "description": "Total number of spans received"
+          },
+          "total_queued": {
+            "type": "integer",
+            "title": "Total Queued",
+            "description": "Number of spans successfully queued for insertion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_received",
+          "total_queued"
+        ],
+        "title": "CreateSpansResponseBody"
+      },
+      "CreateUserRequestBody": {
+        "properties": {
+          "user": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUserData"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2UserData"
+              }
+            ],
+            "title": "User",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUserData",
+                "OAUTH2": "#/components/schemas/OAuth2UserData"
+              }
+            }
+          },
+          "send_welcome_email": {
+            "type": "boolean",
+            "title": "Send Welcome Email",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "CreateUserRequestBody"
+      },
+      "CreateUserResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateUserResponseBody"
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -3127,6 +4408,10 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "example_count": {
+            "type": "integer",
+            "title": "Example Count"
           }
         },
         "type": "object",
@@ -3136,7 +4421,8 @@
           "description",
           "metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "example_count"
         ],
         "title": "Dataset"
       },
@@ -3363,6 +4649,123 @@
           "updated_at"
         ],
         "title": "Experiment"
+      },
+      "ExperimentEvaluationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the evaluation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the evaluation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the evaluation result"
+          }
+        },
+        "type": "object",
+        "title": "ExperimentEvaluationResult"
+      },
+      "ExperimentRunResponse": {
+        "properties": {
+          "dataset_example_id": {
+            "type": "string",
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
+          },
+          "output": {
+            "title": "Output",
+            "description": "The output of the experiment task"
+          },
+          "repetition_number": {
+            "type": "integer",
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the experiment run"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the experiment run"
+          },
+          "experiment_id": {
+            "type": "string",
+            "title": "Experiment Id",
+            "description": "The ID of the experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_example_id",
+          "output",
+          "repetition_number",
+          "start_time",
+          "end_time",
+          "id",
+          "experiment_id"
+        ],
+        "title": "ExperimentRunResponse"
       },
       "FreeformAnnotationConfig": {
         "properties": {
@@ -3666,6 +5069,48 @@
         ],
         "title": "GetPromptsResponseBody"
       },
+      "GetUsersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LocalUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OAuth2User"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "auth_method",
+                "mapping": {
+                  "LOCAL": "#/components/schemas/LocalUser",
+                  "OAUTH2": "#/components/schemas/OAuth2User"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetUsersResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3697,6 +5142,20 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
+      },
+      "InsertedSpanDocumentAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted span document annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedSpanDocumentAnnotation"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -3792,6 +5251,34 @@
         ],
         "title": "ListDatasetsResponseBody"
       },
+      "ListExperimentRunsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentRunResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListExperimentRunsResponseBody"
+      },
       "ListExperimentsResponseBody": {
         "properties": {
           "data": {
@@ -3808,15 +5295,222 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "LocalUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "password_needs_reset": {
+            "type": "boolean",
+            "title": "Password Needs Reset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method",
+          "password_needs_reset"
+        ],
+        "title": "LocalUser"
+      },
+      "LocalUserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "LocalUserData"
+      },
       "ModelProvider": {
         "type": "string",
         "enum": [
           "OPENAI",
           "AZURE_OPENAI",
           "ANTHROPIC",
-          "GOOGLE"
+          "GOOGLE",
+          "DEEPSEEK",
+          "XAI",
+          "OLLAMA",
+          "AWS"
         ],
         "title": "ModelProvider"
+      },
+      "OAuth2User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          },
+          "profile_picture_url": {
+            "type": "string",
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2User"
+      },
+      "OAuth2UserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2UserData"
       },
       "OptimizationDirection": {
         "type": "string",
@@ -3826,6 +5520,519 @@
           "NONE"
         ],
         "title": "OptimizationDirection"
+      },
+      "OtlpAnyValue": {
+        "properties": {
+          "array_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpArrayValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bool_value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bool Value"
+          },
+          "bytes_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Value"
+          },
+          "double_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/components/schemas/OtlpDoubleValue"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Value"
+          },
+          "int_value": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 9.223372036854776e+18,
+                "minimum": -9.223372036854776e+18
+              },
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Int Value"
+          },
+          "kvlist_value": {
+            "type": "null",
+            "title": "Kvlist Value"
+          },
+          "string_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "String Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpAnyValue"
+      },
+      "OtlpArrayValue": {
+        "properties": {
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpAnyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "Array of values. The array may be empty (contain 0 elements)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpArrayValue"
+      },
+      "OtlpDoubleValue": {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ],
+        "title": "OtlpDoubleValue"
+      },
+      "OtlpEvent": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "name of the event. This field is semantically required to be set to non-empty string."
+          },
+          "time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Unix Nano",
+            "description": "time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpEvent"
+      },
+      "OtlpKeyValue": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpAnyValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpKeyValue"
+      },
+      "OtlpKind": {
+        "type": "string",
+        "enum": [
+          "SPAN_KIND_UNSPECIFIED",
+          "SPAN_KIND_INTERNAL",
+          "SPAN_KIND_SERVER",
+          "SPAN_KIND_CLIENT",
+          "SPAN_KIND_PRODUCER",
+          "SPAN_KIND_CONSUMER"
+        ],
+        "title": "OtlpKind"
+      },
+      "OtlpSpan": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:\n\n    \"/http/user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\"\n    \"/http/server_latency\": 300\n    \"example.com/myattribute\": true\n    \"example.com/score\": 10.239\n\nThe OpenTelemetry API specification further restricts the allowed value types:\nhttps://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute\nAttribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped."
+          },
+          "dropped_events_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Events Count",
+            "description": "dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped."
+          },
+          "dropped_links_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Links Count",
+            "description": "dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped."
+          },
+          "end_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time Unix Nano",
+            "description": "end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "events": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpEvent"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events",
+            "description": "events is a collection of Event items. A span with no events is valid."
+          },
+          "flags": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flags",
+            "description": "Flags, a bit field.\n\nBits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.\n\nSee https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.\n\nBits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).\nTo read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.\nTo read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.\n\nWhen creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.\nReaders MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.\n\n[Optional]."
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpKind"
+              },
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.",
+            "default": "SPAN_KIND_INTERNAL"
+          },
+          "links": {
+            "type": "null",
+            "title": "Links"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A description of the span's operation.\n\nFor example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.\n\nThis field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.\n\nThis field is required."
+          },
+          "parent_span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Span Id",
+            "description": "The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array."
+          },
+          "span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Id",
+            "description": "A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "start_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time Unix Nano",
+            "description": "start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0)."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "trace_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace State",
+            "description": "trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header\nSee also https://github.com/w3c/distributed-tracing for more details about this field."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpSpan"
+      },
+      "OtlpSpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "OtlpSpansResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
+      "OtlpStatus": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "The status code."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "A developer-facing human readable error message."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpStatus"
       },
       "Project": {
         "properties": {
@@ -3998,6 +6205,44 @@
         ],
         "title": "PromptAnthropicThinkingConfigEnabled"
       },
+      "PromptAwsInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "aws",
+            "title": "Type"
+          },
+          "aws": {
+            "$ref": "#/components/schemas/PromptAwsInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "aws"
+        ],
+        "title": "PromptAwsInvocationParameters"
+      },
+      "PromptAwsInvocationParametersContent": {
+        "properties": {
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAwsInvocationParametersContent"
+      },
       "PromptAzureOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -4050,6 +6295,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -4117,6 +6363,70 @@
           "name"
         ],
         "title": "PromptData"
+      },
+      "PromptDeepSeekInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "deepseek",
+            "title": "Type"
+          },
+          "deepseek": {
+            "$ref": "#/components/schemas/PromptDeepSeekInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "deepseek"
+        ],
+        "title": "PromptDeepSeekInvocationParameters"
+      },
+      "PromptDeepSeekInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptDeepSeekInvocationParametersContent"
       },
       "PromptGoogleInvocationParameters": {
         "properties": {
@@ -4232,6 +6542,70 @@
         ],
         "title": "PromptMessage"
       },
+      "PromptOllamaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ollama",
+            "title": "Type"
+          },
+          "ollama": {
+            "$ref": "#/components/schemas/PromptOllamaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "ollama"
+        ],
+        "title": "PromptOllamaInvocationParameters"
+      },
+      "PromptOllamaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOllamaInvocationParametersContent"
+      },
       "PromptOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -4284,6 +6658,7 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "minimal",
               "low",
               "medium",
               "high"
@@ -4610,6 +6985,18 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -4617,9 +7004,13 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -4728,6 +7119,18 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -4735,9 +7138,13 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -4835,58 +7242,155 @@
         ],
         "title": "PromptVersionTagData"
       },
-      "SpanAnnotation": {
+      "PromptXAIInvocationParameters": {
         "properties": {
-          "span_id": {
+          "type": {
             "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+            "const": "xai",
+            "title": "Type"
+          },
+          "xai": {
+            "$ref": "#/components/schemas/PromptXAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "xai"
+        ],
+        "title": "PromptXAIInvocationParameters"
+      },
+      "PromptXAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptXAIInvocationParametersContent"
+      },
+      "Span": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID",
+            "default": ""
           },
           "name": {
             "type": "string",
             "title": "Name",
-            "description": "The name of the annotation"
+            "description": "Name of the span operation"
           },
-          "annotator_kind": {
+          "context": {
+            "$ref": "#/components/schemas/SpanContext",
+            "description": "Span context containing trace_id and span_id"
+          },
+          "span_kind": {
             "type": "string",
-            "enum": [
-              "LLM",
-              "CODE",
-              "HUMAN"
-            ],
-            "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "title": "Span Kind",
+            "description": "Type of work that the span encapsulates"
           },
-          "result": {
+          "parent_id": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The result of the annotation"
+            "title": "Parent Id",
+            "description": "OpenTelemetry span ID of the parent span"
           },
-          "metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata",
-            "description": "Metadata for the annotation"
-          },
-          "identifier": {
+          "start_time": {
             "type": "string",
-            "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "Start time of the span"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "End time of the span"
+          },
+          "status_code": {
+            "type": "string",
+            "title": "Status Code",
+            "description": "Status code of the span"
+          },
+          "status_message": {
+            "type": "string",
+            "title": "Status Message",
+            "description": "Status message",
             "default": ""
           },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Span attributes"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Span events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "context",
+          "span_kind",
+          "start_time",
+          "end_time",
+          "status_code"
+        ],
+        "title": "Span"
+      },
+      "SpanAnnotation": {
+        "properties": {
           "id": {
             "type": "string",
             "title": "Id"
@@ -4919,27 +7423,6 @@
               }
             ],
             "title": "User Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "span_id",
-          "name",
-          "annotator_kind",
-          "id",
-          "created_at",
-          "updated_at",
-          "source",
-          "user_id"
-        ],
-        "title": "SpanAnnotation"
-      },
-      "SpanAnnotationData": {
-        "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           },
           "name": {
             "type": "string",
@@ -4959,7 +7442,7 @@
           "result": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
+                "$ref": "#/components/schemas/AnnotationResult"
               },
               {
                 "type": "null"
@@ -4985,57 +7468,86 @@
             "title": "Identifier",
             "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
             "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           }
         },
         "type": "object",
         "required": [
-          "span_id",
+          "id",
+          "created_at",
+          "updated_at",
+          "source",
+          "user_id",
           "name",
-          "annotator_kind"
+          "annotator_kind",
+          "span_id"
         ],
-        "title": "SpanAnnotationData"
+        "title": "SpanAnnotation"
       },
-      "SpanAnnotationResult": {
+      "SpanAnnotationData": {
         "properties": {
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label",
-            "description": "The label assigned by the annotation"
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
           },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
             ],
-            "title": "Score",
-            "description": "The score assigned by the annotation"
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
           },
-          "explanation": {
+          "result": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/AnnotationResult"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Explanation",
-            "description": "Explanation of the annotation result"
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
           }
         },
         "type": "object",
-        "title": "SpanAnnotationResult"
+        "required": [
+          "name",
+          "annotator_kind",
+          "span_id"
+        ],
+        "title": "SpanAnnotationData"
       },
       "SpanAnnotationsResponseBody": {
         "properties": {
@@ -5064,6 +7576,148 @@
           "next_cursor"
         ],
         "title": "SpanAnnotationsResponseBody"
+      },
+      "SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext"
+      },
+      "SpanDocumentAnnotationData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "document_position": {
+            "type": "integer",
+            "title": "Document Position",
+            "description": "A 0 based index of the document. E.x. the first document during retrieval is 0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "annotator_kind",
+          "span_id",
+          "document_position"
+        ],
+        "title": "SpanDocumentAnnotationData"
+      },
+      "SpanEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the event"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "When the event occurred"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Event attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "timestamp"
+        ],
+        "title": "SpanEvent"
+      },
+      "SpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpansResponseBody"
       },
       "TextContentPart": {
         "properties": {
@@ -5259,11 +7913,16 @@
           "dataset_id": {
             "type": "string",
             "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
           }
         },
         "type": "object",
         "required": [
-          "dataset_id"
+          "dataset_id",
+          "version_id"
         ],
         "title": "UploadDatasetData"
       },
@@ -5278,6 +7937,125 @@
           "data"
         ],
         "title": "UploadDatasetResponseBody"
+      },
+      "UpsertExperimentEvaluationRequestBody": {
+        "properties": {
+          "experiment_run_id": {
+            "type": "string",
+            "title": "Experiment Run Id",
+            "description": "The ID of the experiment run being evaluated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the evaluation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the evaluation"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the evaluation in ISO format"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the evaluation in ISO format"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentEvaluationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the evaluation. Either result or error must be provided."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Error message if the evaluation encountered an error. Either result or error must be provided."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the evaluation"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Optional trace ID for tracking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_run_id",
+          "name",
+          "annotator_kind",
+          "start_time",
+          "end_time"
+        ],
+        "title": "UpsertExperimentEvaluationRequestBody"
+      },
+      "UpsertExperimentEvaluationResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBody"
+      },
+      "UpsertExperimentEvaluationResponseBodyData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the upserted experiment evaluation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBodyData"
       },
       "ValidationError": {
         "properties": {

@@ -1,25 +1,33 @@
-import { ReactNode, startTransition, Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 import { graphql } from "relay-runtime";
 
-import { DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Modal,
+  ModalOverlay,
+  View,
+} from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
 export function RunMetadataFooter({ spanId }: { spanId: string }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
-      query RunMetadataFooterQuery($spanId: GlobalID!) {
+      query RunMetadataFooterQuery($spanId: ID!) {
         span: node(id: $spanId) {
           id
           ... on Span {
@@ -31,10 +39,13 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
                 id
               }
             }
-            tokenCountCompletion
-            tokenCountPrompt
             tokenCountTotal
             latencyMs
+            costSummary {
+              total {
+                cost
+              }
+            }
           }
         }
       }
@@ -48,6 +59,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     return null;
   }
   const { trace } = data.span;
+  const totalCost = data.span.costSummary?.total?.cost;
 
   return (
     <View
@@ -60,62 +72,64 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     >
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
-          <TokenCount
+          <LatencyText size="S" latencyMs={data.span.latencyMs || 0} />
+          <SpanTokenCount
             tokenCountTotal={data.span.tokenCountTotal || 0}
-            tokenCountPrompt={data.span.tokenCountPrompt || 0}
-            tokenCountCompletion={data.span.tokenCountCompletion || 0}
+            nodeId={data.span.id}
+            size="S"
           />
-          <LatencyText latencyMs={data.span.latencyMs || 0} />
+          {totalCost != null && (
+            <SpanTokenCosts
+              totalCost={totalCost}
+              spanNodeId={data.span.id}
+              size="S"
+            />
+          )}
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Button
-            size="S"
-            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-            onPress={() =>
-              setDialog(
+          <DialogTrigger>
+            <Button
+              size="S"
+              leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+            >
+              Annotate
+            </Button>
+            <ModalOverlay>
+              <Modal variant="slideover" size="S">
                 <EditSpanAnnotationsDialog
                   spanNodeId={spanId}
                   projectId={trace.project.id}
                 />
-              )
-            }
-          >
-            Annotate
-          </Button>
-          <Button
-            size="S"
-            leadingVisual={<Icon svg={<Icons.Trace />} />}
-            onPress={() => {
-              startTransition(() => {
-                setDialog(
-                  <Suspense>
-                    <PlaygroundRunTraceDetailsDialog
-                      traceId={trace.traceId}
-                      projectId={trace.project.id}
-                      title={`Playground Trace`}
-                    />
-                  </Suspense>
-                );
-              });
+              </Modal>
+            </ModalOverlay>
+          </DialogTrigger>
+          <DialogTrigger
+            onOpenChange={(open) => {
+              if (!open) {
+                setSearchParams((searchParams) => {
+                  searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                  return searchParams;
+                });
+              }
             }}
           >
-            View Trace
-          </Button>
+            <Button size="S" leadingVisual={<Icon svg={<Icons.Trace />} />}>
+              View Trace
+            </Button>
+            <ModalOverlay>
+              <Modal variant="slideover" size="fullscreen">
+                <Suspense fallback={<Loading />}>
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={trace.traceId}
+                    projectId={trace.project.id}
+                    title={`Playground Trace`}
+                  />
+                </Suspense>
+              </Modal>
+            </ModalOverlay>
+          </DialogTrigger>
         </Flex>
       </Flex>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-          setSearchParams((searchParams) => {
-            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-            return searchParams;
-          });
-        }}
-      >
-        {dialog}
-      </DialogContainer>
     </View>
   );
 }

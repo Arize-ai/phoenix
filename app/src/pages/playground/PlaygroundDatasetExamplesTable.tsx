@@ -1,13 +1,11 @@
-import React, {
+import {
   memo,
   PropsWithChildren,
   ReactNode,
-  startTransition,
   useCallback,
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import {
   Disposable,
@@ -33,23 +31,31 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
-
 import {
-  Button,
+  DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Loading,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
+import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -77,7 +83,6 @@ import PlaygroundDatasetExamplesTableSubscription, {
 import {
   ExampleRunData,
   InstanceResponses,
-  Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
@@ -151,7 +156,7 @@ const cellWithControlsWrapCSS = css`
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   height: 100%;
   min-height: 75px;
   .controls {
@@ -172,7 +177,7 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: -4px;
+  top: calc(-1 * var(--ac-global-dimension-static-size-200));
   right: var(--ac-global-dimension-static-size-100);
   display: flex;
   flex-direction: row;
@@ -198,11 +203,11 @@ export function CellWithControlsWrap(
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
     <div
+      data-testid="large-text-wrap"
       css={css`
         max-height: 300px;
         overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-200);
+        padding: var(--ac-global-dimension-static-size-200);
       `}
     >
       {children}
@@ -231,15 +236,15 @@ function EmptyExampleOutput({
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
-  const missingVariables = useMemo(() => {
-    const parsedDatasetExampleInput = isStringKeyedObject(datasetExampleInput)
-      ? datasetExampleInput
-      : {};
+  const parsedDatasetExampleInput = useMemo(() => {
+    return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
+  }, [datasetExampleInput]);
 
+  const missingVariables = useMemo(() => {
     return instanceVariables.filter((variable) => {
       return parsedDatasetExampleInput[variable] == null;
     });
-  }, [datasetExampleInput, instanceVariables]);
+  }, [parsedDatasetExampleInput, instanceVariables]);
   if (isRunning) {
     return <Loading />;
   }
@@ -249,83 +254,127 @@ function EmptyExampleOutput({
   }
   return (
     <PlaygroundErrorWrap>
-      {`Missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+      {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
         ", "
-      )}`}
+      )}.${
+        Object.keys(parsedDatasetExampleInput).length > 0
+          ? ` Possible inputs are: ${Object.keys(parsedDatasetExampleInput).join(", ")}`
+          : " No inputs found in dataset example."
+      }`}
     </PlaygroundErrorWrap>
   );
 }
 
 function ExampleOutputContent({
   exampleData,
-  setDialog,
 }: {
   exampleData: ExampleRunData;
-  setDialog(dialog: ReactNode): void;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
+  const [, setSearchParams] = useSearchParams();
   const spanControls = useMemo(() => {
     if (hasSpan || hasExperimentRun) {
       return (
         <>
           {hasExperimentRun && (
-            <TooltipTrigger>
-              <Button
-                size="S"
-                aria-label="View experiment run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <PlaygroundExperimentRunDetailsDialog
-                        runId={experimentRunId}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View run details</Tooltip>
-            </TooltipTrigger>
+            <DialogTrigger>
+              <TooltipTrigger>
+                <IconButton size="S" aria-label="View experiment run details">
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  view experiment run
+                </Tooltip>
+              </TooltipTrigger>
+              <ModalOverlay>
+                <Modal variant="slideover" size="L">
+                  <PlaygroundExperimentRunDetailsDialog
+                    runId={experimentRunId}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           )}
           {hasSpan && (
             <>
-              <TooltipTrigger>
-                <Button
-                  size="S"
-                  aria-label="View run trace"
-                  leadingVisual={<Icon svg={<Icons.Trace />} />}
-                  onPress={() => {
-                    startTransition(() => {
-                      setDialog(
-                        <PlaygroundRunTraceDetailsDialog
-                          traceId={span.context.traceId}
-                          projectId={span.project.id}
-                          title={`Experiment Run Trace`}
-                        />
-                      );
-                    });
-                  }}
-                />
-                <Tooltip>View Trace</Tooltip>
-              </TooltipTrigger>
+              <DialogTrigger
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setSearchParams(
+                      (prev) => {
+                        const newParams = new URLSearchParams(prev);
+                        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                        return newParams;
+                      },
+                      { replace: true }
+                    );
+                  }
+                }}
+              >
+                <TooltipTrigger>
+                  <IconButton size="S" aria-label="View run trace">
+                    <Icon svg={<Icons.Trace />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view run trace
+                  </Tooltip>
+                </TooltipTrigger>
+                <ModalOverlay>
+                  <Modal size="fullscreen" variant="slideover">
+                    <PlaygroundRunTraceDetailsDialog
+                      traceId={span.context.traceId}
+                      projectId={span.project.id}
+                      title={`Experiment Run Trace`}
+                    />
+                  </Modal>
+                </ModalOverlay>
+              </DialogTrigger>
             </>
           )}
         </>
       );
     }
-  }, [experimentRunId, hasExperimentRun, hasSpan, setDialog, span]);
+  }, [experimentRunId, hasExperimentRun, hasSpan, span, setSearchParams]);
 
   return (
-    <CellWithControlsWrap controls={spanControls}>
+    <Flex direction="column" height="100%">
+      <CellTop extra={spanControls}>
+        {span ? (
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            height="100%"
+          >
+            <LatencyText latencyMs={span.latencyMs || 0} size="S" />
+            <SpanTokenCount
+              tokenCountTotal={span.tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+            <SpanTokenCosts
+              totalCost={span.costSummary?.total?.cost || 0}
+              spanNodeId={span.id}
+            />
+          </Flex>
+        ) : (
+          <Text color="text-500" fontStyle="italic">
+            generating...
+          </Text>
+        )}
+      </CellTop>
       <View padding="size-200">
-        <Flex direction={"column"} gap="size-200">
+        <Flex direction={"column"} gap="size-100" key="content-wrap">
           {errorMessage != null ? (
-            <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
+            <PlaygroundErrorWrap key="error-message">
+              {errorMessage}
+            </PlaygroundErrorWrap>
           ) : null}
-          <Text>{content}</Text>
+          {content != null ? <Text key="content">{content}</Text> : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
                 toolCall == null ? null : (
@@ -333,10 +382,9 @@ function ExampleOutputContent({
                 )
               )
             : null}
-          {hasSpan ? <SpanMetadata span={span} /> : null}
         </Flex>
       </View>
-    </CellWithControlsWrap>
+    </Flex>
   );
 }
 
@@ -344,14 +392,12 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
-  setDialog,
   instanceVariables,
   datasetExampleInput,
 }: {
   instanceId: number;
   exampleId: string;
   isRunning: boolean;
-  setDialog(dialog: ReactNode): void;
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
@@ -366,22 +412,9 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       datasetExampleInput={datasetExampleInput}
     />
   ) : (
-    <ExampleOutputContent exampleData={exampleData} setDialog={setDialog} />
+    <ExampleOutputContent exampleData={exampleData} />
   );
 });
-
-function SpanMetadata({ span }: { span: Span }) {
-  return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <TokenCount
-        tokenCountTotal={span.tokenCountTotal || 0}
-        tokenCountPrompt={span.tokenCountPrompt || 0}
-        tokenCountCompletion={span.tokenCountCompletion || 0}
-      />
-      <LatencyText latencyMs={span.latencyMs || 0} />
-    </Flex>
-  );
-}
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({ table }: { table: Table<T> }) {
@@ -395,7 +428,10 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   padding: 0,
+                  verticalAlign: "top",
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  minWidth: 0,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking
                   // an alternative solution would be to set a max-width and allow
@@ -413,7 +449,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
   );
 }
 // special memoized wrapper for our table body that we will use during column resizing
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
@@ -448,7 +484,6 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.appendExampleDataTextChunk
   );
 
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
@@ -705,7 +740,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
         }
@@ -723,7 +758,7 @@ export function PlaygroundDatasetExamplesTable({
       fragment PlaygroundDatasetExamplesTableFragment on Dataset
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
-        datasetVersionId: { type: "GlobalID" }
+        datasetVersionId: { type: "ID" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
@@ -788,7 +823,6 @@ export function PlaygroundDatasetExamplesTable({
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
-              setDialog={setDialog}
               instanceVariables={instanceVariables}
               datasetExampleInput={row.original.input}
             />
@@ -805,24 +839,36 @@ export function PlaygroundDatasetExamplesTable({
       accessorKey: "input",
       cell: ({ row }) => {
         return (
-          <CellWithControlsWrap
-            controls={
-              <TooltipTrigger>
-                <Button
-                  size="S"
-                  aria-label="View example details"
-                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                  onPress={() => {
-                    setSearchParams((prev) => {
-                      prev.set("exampleId", row.original.id);
-                      return prev;
-                    });
-                  }}
-                />
-                <Tooltip>View Example</Tooltip>
-              </TooltipTrigger>
-            }
-          >
+          <>
+            <CellTop
+              extra={
+                <TooltipTrigger>
+                  <IconButton
+                    size="S"
+                    aria-label="View example details"
+                    onPress={() => {
+                      setSearchParams((prev) => {
+                        prev.set("exampleId", row.original.id);
+                        return prev;
+                      });
+                    }}
+                  >
+                    <Icon svg={<Icons.ExpandOutline />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view example
+                  </Tooltip>
+                </TooltipTrigger>
+              }
+            >
+              <Text
+                color="text-500"
+                css={css`
+                  white-space: nowrap;
+                `}
+              >{`Example ${row.original.id}`}</Text>
+            </CellTop>
             <LargeTextWrap>
               <JSONText
                 json={row.original.input}
@@ -831,7 +877,7 @@ export function PlaygroundDatasetExamplesTable({
                 collapseSingleKey={false}
               />
             </LargeTextWrap>
-          </CellWithControlsWrap>
+          </>
         );
       },
       size: 200,
@@ -839,7 +885,16 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "reference output",
       accessorKey: "output",
-      cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
+      cell: (props) => {
+        return (
+          <>
+            <CellTop>
+              <Text color="text-500">{`reference output`}</Text>
+            </CellTop>
+            <JSONCell {...props} collapseSingleKey={true} />
+          </>
+        );
+      },
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
@@ -876,7 +931,7 @@ export function PlaygroundDatasetExamplesTable({
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -953,19 +1008,6 @@ export function PlaygroundDatasetExamplesTable({
           <TableBody table={table} />
         )}
       </table>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-          setSearchParams((searchParams) => {
-            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-            return searchParams;
-          });
-        }}
-      >
-        {dialog}
-      </DialogContainer>
     </div>
   );
 }
@@ -997,9 +1039,12 @@ graphql`
         datasetExampleId
         span {
           id
-          tokenCountCompletion
-          tokenCountPrompt
           tokenCountTotal
+          costSummary {
+            total {
+              cost
+            }
+          }
           latencyMs
           project {
             id
@@ -1040,9 +1085,12 @@ graphql`
             errorMessage
             span {
               id
-              tokenCountCompletion
-              tokenCountPrompt
               tokenCountTotal
+              costSummary {
+                total {
+                  cost
+                }
+              }
               latencyMs
               project {
                 id

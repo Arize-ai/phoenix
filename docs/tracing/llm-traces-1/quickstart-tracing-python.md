@@ -5,46 +5,18 @@
 Phoenix supports three main options to collect traces:
 
 1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
-2. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
-3. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
+2. Use [automatic instrumentation](https://arize.com/docs/phoenix/integrations) to capture all calls made to supported frameworks.
+3. Use [base OpenTelemetry](../how-to-tracing/setup-tracing/custom-spans.md) instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 1 and 2.
 
-<details>
+## Launch Phoenix
 
-<summary>Launch the Phoenix app</summary>
-
-### Using Phoenix Cloud:
-
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, set your endpoint and API key:
-
-```python
-import os
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-### Using Self-hosted Phoenix:
-
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, s[ee self-hosting](../../).
-2. In your code, set your endpoint:
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
-```
-
-</details>
+{% include "../../.gitbook/includes/launch-phoenix-python.md" %}
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
-To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.&#x20;
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
 ```bash
 pip install arize-phoenix-otel
@@ -56,7 +28,7 @@ from phoenix.otel import register
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  auto_instrument=True # See 'Trace all calls made to a library' below
+  auto_instrument=True, # See 'Trace all calls made to a library' below
 )
 tracer = tracer_provider.get_tracer(__name__)
 ```
@@ -75,7 +47,7 @@ Input and output attributes are set automatically based on `my_func`'s parameter
 
 ## Trace all calls made to a library
 
-Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/):
+Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](https://github.com/Arize-ai/openinference?tab=readme-ov-file#instrumentation):
 
 ```
 pip install openinference-instrumentation-openai
@@ -108,6 +80,6 @@ You should now see traces in Phoenix!
 
 ## Next Steps
 
-* Explore tracing [integrations](../integrations-tracing/)
+* Explore tracing [integrations](https://arize.com/docs/phoenix/integrations)
 * [Customize tracing](../how-to-tracing/)
-* View use cases to see [end-to-end examples](../use-cases-tracing/)
+* View use cases to see[ end-to-end examples](https://arize.com/docs/phoenix/cookbook/guide)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b9b87ed74c784f2c3c61888cbd771e22>>
+ * @generated SignedSource<<c784979040de482d2dfcf39eb9d2749c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,10 +93,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -151,12 +147,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e677b5974fa137ac3a26acde353767d8",
+    "cacheID": "cdfdedf08fd777fb83fabe0bce5ab3db",
     "id": null,
     "metadata": {},
     "name": "APIKeysTableQuery",
     "operationKind": "query",
-    "text": "query APIKeysTableQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "query APIKeysTableQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();

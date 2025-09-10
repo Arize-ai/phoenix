@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from io import BytesIO
 from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.error import HTTPError
@@ -19,6 +20,19 @@ NOT_PARSABLE = "NOT_PARSABLE"
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 _FUNCTION_NAME = "record_response"
+SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
+SUPPORTED_IMAGE_FORMATS = {
+    "png",
+    "jpeg",
+    "jpg",
+    "webp",
+    "heic",
+    "heif",
+    "bmp",
+    "gif",
+    "tiff",
+    "ico",
+}
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -64,9 +78,11 @@ def snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = Fa
     snapped to a rail.
 
     Args:
-        raw_string (str): An input to be snapped to a rail.
+        raw_string (Optional[str]): An input to be snapped to a rail.
 
         rails (List[str]): The target set of strings to snap to.
+
+        verbose (bool, optional): Whether to print debug information. Defaults to False.
 
     Returns:
         str: A string from the rails argument or "UNPARSABLE" if the input
@@ -173,6 +189,13 @@ def _default_openai_function(
 
 
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
+    """Print arguments if the condition is True.
+
+    Args:
+        condition (bool): Whether to print or not.
+        *args (Any): Positional arguments to pass to tqdm.write.
+        **kwargs (Any): Keyword arguments to pass to tqdm.write.
+    """
     if condition:
         tqdm.write(*args, **kwargs)
 
@@ -184,10 +207,10 @@ def get_audio_format_from_base64(
     Determines the audio format from a base64 encoded string by checking file signatures.
 
     Args:
-        enc_str: Base64 encoded audio data
+        enc_str (str): Base64 encoded audio data
 
     Returns:
-        Audio format as string
+        Literal["mp3", "wav", "ogg", "flac", "m4a", "aac"]: Audio format as string
 
     Raises:
         ValueError: If the audio format is not supported or cannot be determined
@@ -228,3 +251,80 @@ def get_audio_format_from_base64(
     raise ValueError(
         "Unsupported audio format. Supported formats are: mp3, wav, ogg, flac, m4a, aac"
     )
+
+
+def get_image_format_from_base64(
+    enc_str: str,
+) -> Literal["png", "jpeg", "jpg", "webp", "heic", "heif", "bmp", "gif", "tiff", "ico"]:
+    """
+    Determines the image format from a base64 encoded string by checking file signatures.
+
+    Args:
+        enc_str (str): Base64 encoded image data
+
+    Returns:
+        Literal["png", "jpeg", "jpg", "webp", "heic", "heif", "bmp", "gif", "tiff", "ico"]:
+            Image format as string
+
+    Raises:
+        ValueError: If the image format is not supported or cannot be determined
+    """
+    image_bytes = base64.b64decode(enc_str)
+
+    if len(image_bytes) < 12:
+        raise ValueError("Image data too short to determine format")
+
+    # PNG
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+
+    # JPEG (also covers .jpg)
+    if image_bytes[0:3] == b"\xff\xd8\xff":
+        return "jpeg"
+
+    # WEBP
+    if image_bytes[0:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        return "webp"
+
+    # HEIC / HEIF — ISO Base Media Format with 'ftypheic' or similar brands
+    if image_bytes[4:12] in (b"ftypheic", b"ftypheix", b"ftyphevc", b"ftyphevx"):
+        return "heic"
+    if image_bytes[4:12] in (b"ftypmif1", b"ftypmsf1"):
+        return "heif"
+
+    # BMP
+    if image_bytes.startswith(b"BM"):
+        return "bmp"
+
+    # GIF
+    if image_bytes.startswith(b"GIF87a") or image_bytes.startswith(b"GIF89a"):
+        return "gif"
+
+    # TIFF
+    if image_bytes.startswith(b"II*\x00") or image_bytes.startswith(b"MM\x00*"):
+        return "tiff"
+
+    # ICO
+    if image_bytes[:4] == b"\x00\x00\x01\x00":
+        return "ico"
+
+    raise ValueError(
+        "Unsupported image format. Supported formats are: "
+        + ", ".join(sorted(SUPPORTED_IMAGE_FORMATS))
+    )
+
+
+def emoji_guard(emoji: str, fallback: str = "") -> str:
+    """Return emoji on non-Windows systems, fallback on Windows.
+
+    Args:
+        emoji (str): The emoji string to display.
+        fallback (str, optional): The fallback string for Windows. Defaults to "".
+
+    Returns:
+        str: The emoji or fallback string depending on the operating system.
+    """
+    # Windows has problems with showing emojis
+    if os.name == "nt":
+        return fallback
+    return emoji

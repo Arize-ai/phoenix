@@ -1,4 +1,3 @@
-import sys
 from asyncio import Event, sleep
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
@@ -50,7 +49,7 @@ class TestTraceDataSweeper:
         # Test configuration
         traces_to_keep = 3  # Number of traces to retain
         initial_traces = 2 * traces_to_keep  # Total traces to create
-        assert initial_traces > traces_to_keep, "Must create more traces than we want to keep"  # noqa: E501
+        assert initial_traces > traces_to_keep, "Must create more traces than we want to keep"
 
         # Configure retention policy
         retention_rule = TraceRetentionRule(root=MaxCountRule(max_count=traces_to_keep))
@@ -66,7 +65,7 @@ class TestTraceDataSweeper:
                     models.ProjectTraceRetentionPolicy,
                     DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
                 )
-                assert policy is not None, "Default policy should exist"  # noqa: E501
+                assert policy is not None, "Default policy should exist"
             else:
                 policy = models.ProjectTraceRetentionPolicy(
                     name=token_hex(8),
@@ -85,14 +84,14 @@ class TestTraceDataSweeper:
 
         # Run multiple sweeps to verify retention works consistently
         num_retention_cycles = 2
-        assert num_retention_cycles >= 2, "Must run at least twice"  # noqa: E501
+        assert num_retention_cycles >= 2, "Must run at least twice"
         current_trace_count = 0
 
         for retention_cycle in range(num_retention_cycles):
             # Create new batch of traces
             async with db() as session:
                 traces_to_create = initial_traces - current_trace_count
-                assert traces_to_create, "Must create more traces than we want to keep"  # noqa: E501
+                assert traces_to_create, "Must create more traces than we want to keep"
                 base_time = datetime.now(timezone.utc)
                 session.add_all(
                     [
@@ -114,14 +113,13 @@ class TestTraceDataSweeper:
                     (await session.scalars(get_most_recent_trace_ids)).all()
                 )
 
-            assert (
-                traces_before_sweep == initial_traces
-            ), f"Initial trace count mismatch in cycle {retention_cycle}"  # noqa: E501
+            assert traces_before_sweep == initial_traces, (
+                f"Initial trace count mismatch in cycle {retention_cycle}"
+            )
 
             # Execute sweeper
             sweeper_trigger.set()
-            # Use longer wait time on Windows for CI
-            wait_time = 1.0 if sys.platform == "win32" else 0.1
+            wait_time = 1.0
             await sleep(wait_time)  # Allow time for processing
 
             # Verify final state
@@ -130,13 +128,13 @@ class TestTraceDataSweeper:
                 remaining_trace_ids = set((await session.scalars(get_all_trace_ids)).all())
 
             # Verify we have exactly the number of traces we want to keep
-            assert remaining_trace_ids == (
-                most_recent_trace_ids
-            ), f"Trace IDs mismatch in cycle {retention_cycle}"  # noqa: E501
+            assert remaining_trace_ids == (most_recent_trace_ids), (
+                f"Trace IDs mismatch in cycle {retention_cycle}"
+            )
             traces_after_sweep = len(remaining_trace_ids)
-            assert (
-                traces_after_sweep == traces_to_keep
-            ), f"Final trace count should match traces_to_keep in cycle {retention_cycle}"  # noqa: E501
+            assert traces_after_sweep == traces_to_keep, (
+                f"Final trace count should match traces_to_keep in cycle {retention_cycle}"
+            )
 
             current_trace_count = traces_after_sweep
 

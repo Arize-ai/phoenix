@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48a79cdbd8ef4e27e47974d858531d28>>
+ * @generated SignedSource<<0fde1c9e696750397964faa277b9cb6a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -175,16 +175,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d7075240e4dae8871997e57616c05302",
+    "cacheID": "8d1b89f8e5b4cd2774b9862c9aff1d3e",
     "id": null,
     "metadata": {},
     "name": "datasetStore_latestVersionQuery",
     "operationKind": "query",
-    "text": "query datasetStore_latestVersionQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetStore_latestVersionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a1349b92d8b0c745f5e8039c55b048c7";
+(node as any).hash = "55c5e6b728d6f3e3088308750a4e43f7";
 
 export default node;

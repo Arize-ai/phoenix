@@ -8,7 +8,8 @@ import { ThemeContextType } from "./contexts";
  * Medium size root CSS variables
  */
 export const mediumRootCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-scale-factor: 1;
     --ac-global-dimension-size-0: 0px;
     --ac-global-dimension-size-10: 1px;
@@ -65,7 +66,8 @@ export const mediumRootCSS = css`
 `;
 
 const staticCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     // static colors
     --ac-global-static-color-white-900: rgba(255, 255, 255, 0.9);
     --ac-global-static-color-white-700: rgba(255, 255, 255, 0.7);
@@ -73,11 +75,18 @@ const staticCSS = css`
     --ac-global-static-color-black-900: rgba(0, 0, 0, 0.9);
     --ac-global-static-color-black-700: rgba(0, 0, 0, 0.7);
     --ac-global-static-color-black-300: rgba(0, 0, 0, 0.3);
+
+    // component sizing
+    --ac-global-input-height-s: 30px;
+    --ac-global-input-height-m: 38px;
+    --ac-global-button-height-s: var(--ac-global-input-height-s);
+    --ac-global-button-height-m: var(--ac-global-input-height-m);
   }
 `;
 
 const dimensionsCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-static-size-0: 0px;
     --ac-global-dimension-static-size-10: 1px;
     --ac-global-dimension-static-size-25: 2px;
@@ -539,31 +548,31 @@ export const darkThemeCSS = css`
     --ac-global-color-fuchsia-200: rgb(var(--ac-global-color-fuchsia-200-rgb));
     --ac-global-color-fuchsia-300-rgb: 120, 0, 120;
     --ac-global-color-fuchsia-300: rgb(var(--ac-global-color-fuchsia-300-rgb));
-    --ac-global-color-fuchsia-400-rgb: 145, 0, 78;
+    --ac-global-color-fuchsia-400-rgb: 146, 0, 147;
     --ac-global-color-fuchsia-400: rgb(var(--ac-global-color-fuchsia-400-rgb));
     --ac-global-color-fuchsia-500-rgb: 169, 19, 170;
     --ac-global-color-fuchsia-500: rgb(var(--ac-global-color-fuchsia-500-rgb));
-    --ac-global-color-fuchsia-600-rgb: 209, 43, 114;
+    --ac-global-color-fuchsia-600-rgb: 191, 43, 191;
     --ac-global-color-fuchsia-600: rgb(var(--ac-global-color-fuchsia-600-rgb));
-    --ac-global-color-fuchsia-700-rgb: 227, 69, 137;
+    --ac-global-color-fuchsia-700-rgb: 211, 65, 213;
     --ac-global-color-fuchsia-700: rgb(var(--ac-global-color-fuchsia-700-rgb));
-    --ac-global-color-fuchsia-800-rgb: 241, 97, 156;
+    --ac-global-color-fuchsia-800-rgb: 228, 91, 229;
     --ac-global-color-fuchsia-800: rgb(var(--ac-global-color-fuchsia-800-rgb));
-    --ac-global-color-fuchsia-900-rgb: 252, 124, 173;
+    --ac-global-color-fuchsia-900-rgb: 239, 120, 238;
     --ac-global-color-fuchsia-900: rgb(var(--ac-global-color-fuchsia-900-rgb));
-    --ac-global-color-fuchsia-1000-rgb: 255, 152, 191;
+    --ac-global-color-fuchsia-1000-rgb: 246, 149, 243;
     --ac-global-color-fuchsia-1000: rgb(
       var(--ac-global-color-fuchsia-1000-rgb)
     );
-    --ac-global-color-fuchsia-1100-rgb: 255, 179, 207;
+    --ac-global-color-fuchsia-1100-rgb: 251, 175, 246;
     --ac-global-color-fuchsia-1100: rgb(
       var(--ac-global-color-fuchsia-1100-rgb)
     );
-    --ac-global-color-fuchsia-1200-rgb: 254, 202, 221;
+    --ac-global-color-fuchsia-1200-rgb: 254, 199, 248;
     --ac-global-color-fuchsia-1200: rgb(
       var(--ac-global-color-fuchsia-1200-rgb)
     );
-    --ac-global-color-fuchsia-1300-rgb: 255, 221, 233;
+    --ac-global-color-fuchsia-1300-rgb: 255, 220, 250;
     --ac-global-color-fuchsia-1300: rgb(
       var(--ac-global-color-fuchsia-1300-rgb)
     );
@@ -610,7 +619,7 @@ export const darkThemeCSS = css`
       var(--ac-global-color-magenta-1400-rgb)
     );
 
-    // Semantic colors
+    // Semantic colors for dark mode
     --ac-global-color-info-rgb: 114, 217, 255;
     --ac-global-color-info: rgb(var(--ac-global-color-info-rgb));
     --ac-global-color-info-900: rgba(var(--ac-global-color-info-rgb), 0.9);
@@ -649,6 +658,11 @@ export const darkThemeCSS = css`
       var(--ac-global-color-warning-rgb),
       0.5
     );
+    --ac-global-color-severe-rgb: 188, 76, 0;
+    --ac-global-color-severe: rgb(var(--ac-global-color-severe-rgb));
+    --ac-global-color-severe-900: rgba(var(--ac-global-color-severe-rgb), 0.9);
+    --ac-global-color-severe-700: rgba(var(--ac-global-color-severe-rgb), 0.7);
+    --ac-global-color-severe-500: rgba(var(--ac-global-color-severe-rgb), 0.5);
 
     // Designation colors
     --ac-global-color-designation-purple: #bb9ff9;
@@ -662,6 +676,10 @@ export const darkThemeCSS = css`
     // Link colors
     --ac-global-link-color: rgb(114, 217, 255);
     --ac-global-link-color-visited: var(--ac-global-color-purple-900);
+
+    // Floating toolbar colors
+    --ac-floating-toolbar-background-color: var(--ac-global-color-grey-200);
+    --ac-floating-toolbar-border-color: var(--ac-global-color-grey-300);
   }
 `;
 
@@ -877,7 +895,7 @@ export const lightThemeCSS = css`
     --ac-global-color-magenta-1300: #54032a;
     --ac-global-color-magenta-1400: #3c061d;
 
-    // Semantic colors
+    // Semantic colors for light mode
     --ac-global-color-info: rgb(2, 173, 221);
     --ac-global-color-info-900: rgba(2, 173, 221, 0.9);
     --ac-global-color-info-700: rgba(2, 173, 221, 0.7);
@@ -886,14 +904,17 @@ export const lightThemeCSS = css`
     --ac-global-color-danger-900: rgba(218, 11, 0, 0.9);
     --ac-global-color-danger-700: rgba(218, 11, 0, 0.7);
     --ac-global-color-danger-500: rgba(218, 11, 0, 0.5);
-    --ac-global-color-success: rgb(17, 191, 69);
-    --ac-global-color-success-900: rgba(17, 191, 69, 0.9);
-    --ac-global-color-success-700: rgba(17, 191, 69, 0.7);
-    --ac-global-color-success-500: rgba(17, 191, 69, 0.5);
+    --ac-global-color-success: rgb(26, 127, 55);
+    --ac-global-color-success-700: rgba(26, 127, 55, 0.7);
+    --ac-global-color-success-500: rgba(26, 127, 55, 0.5);
     --ac-global-color-warning: rgb(224, 102, 2);
     --ac-global-color-warning-900: rgba(224, 102, 2, 0.9);
     --ac-global-color-warning-700: rgba(224, 102, 2, 0.7);
     --ac-global-color-warning-500: rgba(224, 102, 2, 0.5);
+    --ac-global-color-severe: rgb(188, 76, 0);
+    --ac-global-color-severe-900: rgba(188, 76, 0, 0.9);
+    --ac-global-color-severe-700: rgba(188, 76, 0, 0.7);
+    --ac-global-color-severe-500: rgba(188, 76, 0, 0.5);
 
     // Designation colors
     --ac-global-color-designation-purple: #4500d9;
@@ -906,6 +927,10 @@ export const lightThemeCSS = css`
 
     --ac-global-link-color: rgb(9, 105, 218);
     --ac-global-link-color-visited: var(--ac-global-color-purple-900);
+
+    // Floating toolbar colors
+    --ac-floating-toolbar-background-color: var(--ac-global-color-grey-75);
+    --ac-floating-toolbar-border-color: var(--ac-global-color-grey-200);
   }
 `;
 
@@ -967,7 +992,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-100);
-    --ac-hover-background: var(--ac-global-color-primary-50);
+    --ac-hover-background: var(--ac-global-color-primary-100);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
@@ -1015,9 +1040,21 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
     --ac-global-button-success-border-color: var(--ac-global-color-success);
 
+    // Styles for disclosure
+    --ac-global-disclosure-background-color-active: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.05
+    );
+
     // Style for tooltips
-    --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
+    --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
+
+    // Style for cards
+    --ac-global-card-header-height: 46px;
+
+    // Style for popovers
+    --ac-global-popover-background-color: var(--ac-global-color-grey-50);
 
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
@@ -1057,17 +1094,31 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 `;
 
 const opacitiesCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-opacity-disabled: 0.6;
   }
 `;
 
 const appGlobalStylesCSS = css`
+  body,
+  input,
+  button,
+  .ac-theme // We scope it to the theme so we can mount two at the same time
+  {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    color: var(--ac-global-text-color-900);
+  }
+  .ac-theme {
+    color: var(--ac-global-text-color-900);
+    font-size: var(--ac-global-font-size-s);
+  }
   body {
     background-color: var(--ac-global-color-grey-75);
-    color: var(--ac-global-text-color-900);
-    font-family: "Roboto";
-    font-size: var(--ac-global-font-size-s);
+
     margin: 0;
     overflow: hidden;
     #root,
@@ -1118,7 +1169,8 @@ const appGlobalStylesCSS = css`
     }
   }
 
-  :root {
+  :root,
+  .ac-theme {
     --px-section-background-color: #2f353d;
 
     /** The color of shadows on menus etc. */
@@ -1132,8 +1184,8 @@ const appGlobalStylesCSS = css`
 
     --px-gradient-bar-height: 8px;
 
-    --px-nav-collapsed-width: 45px;
-    --px-nav-expanded-width: 200px;
+    --px-nav-collapsed-width: 52px;
+    --px-nav-expanded-width: 230px;
 
     --ac-global-opacity-disabled: 0.6;
 
@@ -1160,6 +1212,10 @@ const appGlobalStylesCSS = css`
     /* Modal */
     --ac-global-modal-width-S: 500px;
     --ac-global-modal-width-M: 700px;
+    --ac-global-modal-width-L: 900px;
+    --ac-global-modal-width-FULLSCREEN: calc(
+      100vw - var(--ac-global-dimension-static-size-1700)
+    );
   }
 
   .ac-theme--dark {
@@ -1199,6 +1255,34 @@ const codeMirrorOverridesCSS = css`
   }
 `;
 
+const chartCSS = css`
+  .ac-theme {
+    --chart-cartesian-grid-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-text-color: var(--ac-global-text-color-700);
+    --chart-axis-label-color: var(--ac-global-text-color-700);
+    --chart-legend-text-color: var(--ac-global-text-color-900);
+  }
+  .ac-theme--dark {
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+  }
+  .ac-theme--light {
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
+  }
+`;
+
+const fontFamilyCSS = css`
+  .font-default {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+  }
+  .font-mono,
+  pre {
+    font-family: "Geist Mono", monospace;
+    font-optical-sizing: auto;
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1212,7 +1296,9 @@ export function GlobalStyles() {
         mediumRootCSS,
         opacitiesCSS,
         appGlobalStylesCSS,
-        codeMirrorOverridesCSS
+        codeMirrorOverridesCSS,
+        chartCSS,
+        fontFamilyCSS
       )}
     />
   );

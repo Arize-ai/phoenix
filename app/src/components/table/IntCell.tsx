@@ -18,7 +18,11 @@ export function IntCell<TData extends object, TValue>({
     throw new Error("IntCell only supports number or null values.");
   }
   return (
-    <span title={value != null ? String(value) : ""} css={floatRightCSS}>
+    <span
+      title={value != null ? String(value) : ""}
+      className="font-mono"
+      css={floatRightCSS}
+    >
       {intFormatter(value)}
     </span>
   );

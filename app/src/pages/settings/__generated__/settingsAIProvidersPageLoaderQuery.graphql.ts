@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8b2423e06fab062b5127b3ee540e643>>
+ * @generated SignedSource<<c8606f200b49db7fc42c3fa2b4d713f0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -80,15 +80,33 @@ const node: ConcreteRequest = {
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "apiKeyEnvVar",
+            "concreteType": "GenerativeProviderCredentialConfig",
+            "kind": "LinkedField",
+            "name": "credentialRequirements",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "envVarName",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "isRequired",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "apiKeySet",
+            "name": "credentialsSet",
             "storageKey": null
           }
         ],
@@ -97,12 +115,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "cc6e19e54ea894e905970362ee382e43",
+    "cacheID": "1238ea27e05b70fd2c203ab4be6a1209",
     "id": null,
     "metadata": {},
     "name": "settingsAIProvidersPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
+    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
   }
 };
 

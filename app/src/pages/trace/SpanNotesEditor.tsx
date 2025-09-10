@@ -40,7 +40,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const notesEndRef = useRef<HTMLDivElement>(null);
   const data = useLazyLoadQuery<SpanNotesEditorQuery>(
     graphql`
-      query SpanNotesEditorQuery($spanNodeId: GlobalID!) {
+      query SpanNotesEditorQuery($spanNodeId: ID!) {
         viewer {
           id
           username

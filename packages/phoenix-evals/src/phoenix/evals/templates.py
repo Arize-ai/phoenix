@@ -8,7 +8,6 @@ from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Unio
 import pandas as pd
 
 from phoenix.evals.exceptions import PhoenixException
-from phoenix.evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
@@ -79,10 +78,15 @@ class PromptTemplate:
         self,
         template: Union[str, List[PromptPartTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+        variables: Optional[List[str]] = None,
     ):
         self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
-        self.variables = self._parse_variables(self.template)
+        # option to override the variables
+        if variables is not None:
+            self.variables = variables
+        else:
+            self.variables = self._parse_variables(self.template)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
@@ -188,11 +192,21 @@ class ClassificationTemplate(PromptTemplate):
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
-    label_delimiter = r"\W*label\W*"
-    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    if len(parts) == 2:
-        return parts[1]
-    return NOT_PARSABLE
+    match = re.search(r"\blabel\b", raw_string, flags=re.IGNORECASE)
+    if not match:
+        return raw_string
+
+    remainder = raw_string[match.end() :].lstrip(" :.-\t")
+
+    # Remove everything after explanation in case it erroneously comes after the label, violating
+    # chain of thought
+    exp_match = re.search(r"\bexplanation\b", remainder, flags=re.IGNORECASE)
+    if exp_match:
+        label_text = remainder[: exp_match.start()]
+    else:
+        label_text = remainder.split("\n", 1)[0]
+
+    return label_text.strip() or remainder.strip()
 
 
 def normalize_classification_template(

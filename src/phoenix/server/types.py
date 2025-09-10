@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
@@ -13,8 +14,9 @@ from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.models import UserRoleName
 
 
 class CanSetLastUpdatedAt(Protocol):
@@ -28,14 +30,22 @@ class CanGetLastUpdatedAt(Protocol):
 class DbSessionFactory:
     def __init__(
         self,
-        db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
+        db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
     ):
         self._db = db
         self.dialect = SupportedSQLDialect(dialect)
+        self.lock: Optional[asyncio.Lock] = None
+        self.should_not_insert_or_update = False
+        """An informational flag that allows different tasks to coordinate whether insert
+        and update operations should be allowed. For example, this can be set to True when disk
+        usage is high to prevent further writes to the database, and set to False when disk
+        usage returns to normal. Note that this flag does not preclude the actual execution of any
+        insert or update operations.
+        """
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._db()
+        return self._db(self.lock)
 
 
 _AnyT = TypeVar("_AnyT")
@@ -145,7 +155,7 @@ class ApiKey(Token): ...
 
 @dataclass(frozen=True)
 class UserTokenAttributes(TokenAttributes):
-    user_role: enums.UserRole
+    user_role: UserRoleName
 
 
 @dataclass(frozen=True)

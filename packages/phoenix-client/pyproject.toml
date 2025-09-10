@@ -21,14 +21,18 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.5.0"
+version = "1.18.0"
 dependencies = [
   "httpx",
+  "tqdm",
   "typing-extensions",
+  "openinference-semantic-conventions",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp",
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
@@ -74,6 +78,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"tests/**/*.py" = ["E501", "E731"]
 "src/phoenix/client/__generated__/v1/*.py" = ["E501"]
 
 [tool.ruff.format]
@@ -101,6 +106,7 @@ exclude = [
   "tests/canary/",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
+   "**/.venv", 
 ]
 
 

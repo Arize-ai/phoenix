@@ -9,8 +9,6 @@ import {
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
 import {
   Button,
   Flex,
@@ -22,6 +20,9 @@ import {
   ListBoxItem,
   Text,
   TextField,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
@@ -80,7 +81,7 @@ export function AnnotationConfigList(props: {
   const viewerId = viewer?.id;
   const data = useLazyLoadQuery<AnnotationConfigListQuery>(
     graphql`
-      query AnnotationConfigListQuery($projectId: GlobalID!) {
+      query AnnotationConfigListQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
             ...AnnotationConfigListProjectAnnotationConfigFragment
@@ -156,10 +157,10 @@ export function AnnotationConfigList(props: {
     useMutation<AnnotationConfigListAssociateAnnotationConfigWithProjectMutation>(
       graphql`
         mutation AnnotationConfigListAssociateAnnotationConfigWithProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
-          $spanId: GlobalID!
-          $filterUserIds: [GlobalID!]
+          $projectId: ID!
+          $annotationConfigId: ID!
+          $spanId: ID!
+          $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
             input: {
@@ -191,10 +192,10 @@ export function AnnotationConfigList(props: {
     useMutation<AnnotationConfigListRemoveAnnotationConfigFromProjectMutation>(
       graphql`
         mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
-          $spanId: GlobalID!
-          $filterUserIds: [GlobalID!]
+          $projectId: ID!
+          $annotationConfigId: ID!
+          $spanId: ID!
+          $filterUserIds: [ID!]
         ) {
           removeAnnotationConfigFromProject(
             input: {
@@ -299,16 +300,17 @@ export function AnnotationConfigList(props: {
                   <Input placeholder="Search annotation configs" />
                 </TextField>
                 <TooltipTrigger>
-                  <TriggerWrap>
-                    <Button
-                      aria-label="Create annotation config"
-                      onPress={() => {
-                        navigate("/settings/annotations");
-                      }}
-                      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-                    />
-                  </TriggerWrap>
-                  <Tooltip>Create new annotation config</Tooltip>
+                  <Button
+                    aria-label="Create annotation config"
+                    onPress={() => {
+                      navigate("/settings/annotations");
+                    }}
+                    leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+                  />
+                  <Tooltip placement="bottom">
+                    <TooltipArrow />
+                    Create new annotation config
+                  </Tooltip>
                 </TooltipTrigger>
               </Flex>
             </View>

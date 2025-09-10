@@ -9,16 +9,19 @@ import {
   CrewAISVG,
   DSPYSVG,
   GeminiSVG,
+  GoogleADKSVG,
   GroqSVG,
   HaystackSVG,
   HuggingFaceSVG,
   IntegrationSVG,
   LangChainSVG,
   LlamaIndexSVG,
+  MastraSVG,
   McpSVG,
   MistralAISVG,
   NodeJSSVG,
   OpenAISVG,
+  PydanticAISVG,
   VercelSVG,
   VertexAISVG,
 } from "./IntegrationIcons";
@@ -104,7 +107,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "OpenAI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
     icon: <OpenAISVG />,
@@ -114,13 +117,13 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-llama-index",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex",
     icon: <LlamaIndexSVG />,
   },
   {
     name: "LangChain",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-langchain",
     icon: <LangChainSVG />,
@@ -128,7 +131,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Haystack",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack",
     icon: <HaystackSVG />,
@@ -136,7 +139,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Vertex AI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/vertex",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/vertex",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
     icon: <VertexAISVG />,
@@ -144,7 +147,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Mistral AI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai",
     icon: <MistralAISVG />,
@@ -152,7 +155,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "DSPy",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-dspy",
     icon: <DSPYSVG />,
@@ -160,7 +163,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Anthropic",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/anthropic",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic",
     icon: <AnthropicSVG />,
@@ -168,7 +171,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Smolagents",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/hfsmolagents",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/hfsmolagents",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents",
     icon: <HuggingFaceSVG />,
@@ -176,7 +179,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "OpenAI Agents",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-agents-sdk",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
     icon: <OpenAISVG />,
@@ -184,7 +187,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Agno",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/agno",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/agno",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agno",
     icon: <AgnoSVG />,
@@ -192,7 +195,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Bedrock",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-bedrock",
     icon: <BedrockSVG />,
@@ -200,15 +203,23 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Google GenAI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/google-genai",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-genai",
     icon: <GeminiSVG />,
   },
   {
+    name: "Google ADK",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk",
+    icon: <GoogleADKSVG />,
+  },
+  {
     name: "Groq",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/groq",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
     icon: <GroqSVG />,
@@ -216,23 +227,38 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "CrewAI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/crewai",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-crewai",
     icon: <CrewAISVG />,
   },
   {
+    name: "Pydantic AI",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/pydantic/pydantic-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
+    icon: <PydanticAISVG />,
+  },
+  {
     name: "LiteLLM",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm",
+      "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
     icon: <IntegrationSVG />,
   },
   {
-    name: "Model Context Protocol",
+    name: "PortKey",
+    docsHref: "https://arize.com/docs/phoenix/integrations/portkey",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey",
+    icon: <IntegrationSVG />,
+  },
+  {
+    name: "MCP",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+      "https://arize.com/docs/phoenix/integrations/model-context-protocol/mcp-tracing",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mcp",
     icon: <McpSVG />,
@@ -289,7 +315,7 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "OpenAI NodeJS SDK",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-node-sdk",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-node-sdk",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
     icon: <OpenAISVG />,
@@ -297,7 +323,7 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "LangChain.js",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain.js",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain",
     icon: <LangChainSVG />,
@@ -305,23 +331,31 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Vercel AI SDK",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
     icon: <VercelSVG />,
   },
   {
+    name: "Mastra",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/mastra/mastra-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+    icon: <MastraSVG />,
+  },
+  {
     name: "BeeAI",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/beeai",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
     icon: <BeeAISVG />,
   },
   {
-    name: "Model Context Protocol",
+    name: "MCP",
     docsHref:
-      "https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+      "https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp",
     icon: <McpSVG />,

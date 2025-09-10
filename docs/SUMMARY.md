@@ -3,11 +3,11 @@
 * [Arize Phoenix](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
-* [Deployment](deployment.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
+* [Production Guide](production-guide.md)
 
-## 🔭 Tracing
+## Tracing
 
 * [Overview: Tracing](tracing/llm-traces.md)
 * [Quickstart: Tracing](tracing/llm-traces-1/README.md)
@@ -17,34 +17,7 @@
   * [Projects](tracing/features-tracing/projects.md)
   * [Annotations](tracing/features-tracing/how-to-annotate-traces.md)
   * [Sessions](tracing/features-tracing/sessions.md)
-* [Integrations: Tracing](tracing/integrations-tracing/README.md)
-  * [OpenAI](tracing/integrations-tracing/openai.md)
-  * [OpenAI Agents SDK](tracing/integrations-tracing/openai-agents-sdk.md)
-  * [LlamaIndex](tracing/integrations-tracing/llamaindex.md)
-  * [LlamaIndex Workflows](tracing/integrations-tracing/llamaindex-1.md)
-  * [LangChain](tracing/integrations-tracing/langchain.md)
-  * [LangGraph](tracing/integrations-tracing/langgraph.md)
-  * [LiteLLM](tracing/integrations-tracing/litellm.md)
-  * [Anthropic](tracing/integrations-tracing/anthropic.md)
-  * [Bedrock](tracing/integrations-tracing/bedrock.md)
-  * [Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
-  * [VertexAI](tracing/integrations-tracing/vertexai.md)
-  * [MistralAI](tracing/integrations-tracing/mistralai.md)
-  * [Groq](tracing/integrations-tracing/groq.md)
-  * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
-  * [CrewAI](tracing/integrations-tracing/crewai.md)
-  * [Haystack](tracing/integrations-tracing/haystack.md)
-  * [DSPy](tracing/integrations-tracing/dspy.md)
-  * [Instructor](tracing/integrations-tracing/instructor.md)
-  * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
-  * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
-  * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
-  * [LangFlow](tracing/integrations-tracing/langflow.md)
-  * [BeeAI](tracing/integrations-tracing/beeai.md)
-  * [Flowise](tracing/integrations-tracing/flowise.md)
-  * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
-  * [AutoGen](tracing/integrations-tracing/autogen-support.md)
-  * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
+  * [Metrics](tracing/features-tracing/metrics.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
     * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
@@ -56,26 +29,29 @@
   * [Add Metadata](tracing/how-to-tracing/add-metadata/README.md)
     * [Add Attributes, Metadata, Users](tracing/how-to-tracing/add-metadata/customize-spans.md)
     * [Instrument Prompt Templates and Prompt Variables](tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables.md)
-  * [Feedback & Annotations](tracing/how-to-tracing/feedback-and-annotations/README.md)
-    * [Capture Feedback on Traces](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
-    * [Evaluating Phoenix Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
+  * [Annotate Traces](tracing/how-to-tracing/feedback-and-annotations/README.md)
+    * [Annotating in the UI](tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui.md)
+    * [Annotating via the Client](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
+    * [Annotating Auto-Instrumented Spans](tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans.md)
+    * [Running Evals on Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
     * [Log Evaluation Results](tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md)
   * [Importing & Exporting Traces](tracing/how-to-tracing/importing-and-exporting-traces/README.md)
     * [Import Existing Traces](tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces.md)
     * [Export Data & Query Spans](tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md)
+    * [Exporting Annotated Spans](tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans.md)
+  * [Cost Tracking](tracing/how-to-tracing/cost-tracking/README.md)
   * [Advanced](tracing/how-to-tracing/advanced/README.md)
     * [Mask Span Attributes](tracing/how-to-tracing/advanced/masking-span-attributes.md)
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
-    * [Filter Spans](tracing/how-to-tracing/advanced/modifying-spans.md)
+    * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
 * [Concepts: Tracing](tracing/concepts-tracing/README.md)
-  * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
-  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
   * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
-* [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
+  * [How Tracing Works](tracing/concepts-tracing/how-tracing-works.md)
+  * [Annotations Concepts](tracing/concepts-tracing/annotations-concepts.md)
+  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
 
-## 📃 Prompt Engineering
+## Prompt Engineering
 
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
   * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
@@ -93,31 +69,23 @@
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
-* [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
-  * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
-  * [ReAct Prompting](prompt-engineering/use-cases-prompts/react-prompting.md)
-  * [Chain-of-Thought Prompting](prompt-engineering/use-cases-prompts/chain-of-thought-prompting.md)
-  * [Few Shot Prompting](prompt-engineering/use-cases-prompts/few-shot-prompting.md)
+* [Concepts: Prompts](prompt-engineering/concepts-prompts/README.md)
+  * [Prompts Concepts](prompt-engineering/concepts-prompts/prompts-concepts.md)
+  * [Context Engineering Basics](prompt-engineering/concepts-prompts/context-engineering-basics.md)
 
-## 🗄️ Datasets & Experiments
+## Datasets & Experiments
 
-* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
-* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
+* [Overview: Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
+* [Quickstart: Datasets & Experiments](datasets-and-experiments/quickstart-datasets.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
-* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
-* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
-  * [Prompt Optimization](datasets-and-experiments/use-cases-datasets/prompt-optimization.md)
-  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
-  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
-  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 
-## 🧠 Evaluation
+## Evaluation
 
 * [Overview: Evals](evaluation/llm-evals/README.md)
   * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
@@ -145,19 +113,14 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evals API Reference](evaluation/how-to-evals/evals-reference.md)
 * [Concepts: Evals](evaluation/concepts-evals/README.md)
-  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
+  * [Evaluators](evaluation/concepts-evals/evaluation.md)
   * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
   * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
-  * [Evaluators](evaluation/concepts-evals/evaluation.md)
+  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
+  * [Evaluating Multi-Agent Systems](evaluation/concepts-evals/evaluating-multi-agent-systems.md)
 
-***
-
-* [Use Cases: Evals](use-cases-evals/README.md)
-  * [Evaluate RAG](use-cases-evals/rag-evaluation.md)
-  * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
-
-## 🔎 Retrieval
+## Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
@@ -166,7 +129,7 @@
   * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
   * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
-## 🌌 inferences
+## Inferences
 
 * [Quickstart: Inferences](inferences/phoenix-inferences.md)
 * [How-to: Inferences](inferences/how-to-inferences/README.md)
@@ -178,19 +141,36 @@
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
   * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
-* [Concepts: Inferences](inferences/inferences.md)
 * [API: Inferences](inferences/inference-and-schema.md)
-* [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
-  * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
+* [Concepts: Inferences](inferences/concepts-inferences.md)
 
-## 🔌 INTEGRATIONS
-
-* [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
-* [Cleanlab](integrations/cleanlab.md)
-* [Ragas](integrations/ragas.md)
-
-## ⚙️ Settings
+## Settings
 
 * [Access Control (RBAC)](settings/access-control-rbac.md)
 * [API Keys](settings/api-keys.md)
 * [Data Retention](settings/data-retention.md)
+* [Phoenix to Arize AX Migration](settings/phoenix-to-arize-ax-migration.md)
+
+## Resources
+
+* [Frequently Asked Questions](resources/frequently-asked-questions/README.md)
+  * [What is the difference between Phoenix and Arize?](resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize.md)
+  * [What is my Phoenix Endpoint?](resources/frequently-asked-questions/what-is-my-phoenix-endpoint.md)
+  * [What is LlamaTrace vs Phoenix Cloud?](resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud.md)
+  * [Phoenix Cloud Migration Guide: Legacy to New Version](resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version.md)
+  * [Will Phoenix Cloud be on the latest version of Phoenix?](resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix.md)
+  * [Can I add other users to my Phoenix Instance?](resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance.md)
+  * [Can I use Azure OpenAI?](resources/frequently-asked-questions/can-i-use-azure-openai.md)
+  * [Can I use Phoenix locally from a remote Jupyter instance?](resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance.md)
+  * [How can I configure the backend to send the data to the phoenix UI in another container?](resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container.md)
+  * [Can I run Phoenix on Sagemaker?](resources/frequently-asked-questions/can-i-run-phoenix-on-sagemaker.md)
+  * [Can I persist data in a notebook?](resources/frequently-asked-questions/can-i-persist-data-in-a-notebook.md)
+  * [What is the difference between GRPC and HTTP?](resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http.md)
+  * [Can I use gRPC for trace collection?](resources/frequently-asked-questions/can-i-use-grpc-for-trace-collection.md)
+  * [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable.md)
+  * [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](resources/frequently-asked-questions/braintrust-open-source-alternative-llm-evaluation-platform-comparison.md)
+  * [Langfuse alternative? Arize Phoenix vs Langfuse: key differences](resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences.md)
+  * [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith.md)
+* [Contribute to Phoenix](resources/contribute-to-phoenix.md)
+* [Github](https://github.com/Arize-ai/phoenix)
+* [OpenInference](https://github.com/Arize-ai/openinference)

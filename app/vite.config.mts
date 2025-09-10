@@ -28,10 +28,6 @@ export default defineConfig(() => {
           __dirname,
           "./node_modules/@codemirror/state/dist/index.cjs"
         ),
-        "@codemirror/lang-json": resolve(
-          __dirname,
-          "node_modules/@codemirror/lang-json/dist/index.cjs"
-        ),
       },
     },
     test: {

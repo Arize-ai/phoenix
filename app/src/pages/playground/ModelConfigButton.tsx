@@ -1,35 +1,30 @@
-import {
-  Fragment,
-  ReactNode,
-  startTransition,
-  Suspense,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { memo, Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogContainer,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-
-import {
   Button,
   ComboBox,
   ComboBoxItem,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Input,
   Label,
+  Modal,
+  ModalOverlay,
   Text,
   TextField,
+  Tooltip,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -48,7 +43,7 @@ import {
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelComboBox } from "./ModelComboBox";
-import { ModelProviderPicker } from "./ModelProviderPicker";
+import { ModelProviderSelect } from "./ModelProviderSelect";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -75,6 +70,10 @@ const modelConfigFormCSS = css`
   padding: var(--ac-global-dimension-size-200);
   overflow: auto;
 `;
+
+function providerSupportsOpenAIConfig(provider: ModelProvider) {
+  return provider === "OPENAI" || provider === "OLLAMA";
+}
 
 function OpenAiModelConfigFormField({
   instance,
@@ -114,6 +113,17 @@ function OpenAiModelConfigFormField({
     [updateModelConfig]
   );
 
+  const debouncedUpdateBaseUrl = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "baseUrl",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <ModelComboBox
@@ -125,12 +135,10 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
+        key="base-url"
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "baseUrl",
-            value,
-          });
+          debouncedUpdateBaseUrl(value);
         }}
       >
         <Label>Base URL</Label>
@@ -178,9 +186,21 @@ function AzureOpenAiModelConfigFormField({
     [updateModelConfig]
   );
 
+  const debouncedUpdateEndpoint = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "endpoint",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <TextField
+        key="model-name"
         defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
@@ -190,12 +210,10 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. azure-openai-deployment-name" />
       </TextField>
       <TextField
+        key="endpoint"
         defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "endpoint",
-            value,
-          });
+          debouncedUpdateEndpoint(value);
         }}
       >
         <Label>Endpoint</Label>
@@ -236,9 +254,166 @@ function AzureOpenAiModelConfigFormField({
   );
 }
 
+function AwsModelConfigFormField({
+  instance,
+  container,
+}: {
+  instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const updateModelConfig = useCallback(
+    ({
+      configKey,
+      value,
+    }: {
+      configKey: keyof PlaygroundInstance["model"];
+      value: string;
+    }) => {
+      updateModel({
+        instanceId: instance.id,
+        patch: {
+          ...instance.model,
+          [configKey]: value,
+        },
+      });
+    },
+    [instance.id, instance.model, updateModel]
+  );
+
+  return (
+    <>
+      <ComboBox
+        container={container ?? undefined}
+        size="L"
+        label="Region"
+        data-testid="bedrock-region-combobox"
+        selectedKey={instance.model.region ?? "us-east-1"}
+        aria-label="region picker"
+        isRequired
+        placeholder="Select an Amazon Region"
+        inputValue={instance.model.region ?? "us-east-1"}
+        onInputChange={(value) => {
+          updateModelConfig({
+            configKey: "region",
+            value,
+          });
+        }}
+        onSelectionChange={(key) => {
+          if (typeof key === "string") {
+            updateModelConfig({
+              configKey: "region",
+              value: key,
+            });
+          }
+        }}
+        allowsCustomValue
+      >
+        <ComboBoxItem key="us-east-1" textValue="us-east-1" id="us-east-1">
+          N. Virginia (us-east-1)
+        </ComboBoxItem>
+        <ComboBoxItem key="us-east-2" textValue="us-east-2" id="us-east-2">
+          Ohio (us-east-2)
+        </ComboBoxItem>
+        <ComboBoxItem key="us-west-1" textValue="us-west-1" id="us-west-1">
+          N. California (us-west-1)
+        </ComboBoxItem>
+        <ComboBoxItem key="us-west-2" textValue="us-west-2" id="us-west-2">
+          Oregon (us-west-2)
+        </ComboBoxItem>
+        <ComboBoxItem key="ap-south-1" textValue="ap-south-1" id="ap-south-1">
+          Asia Pacific (Mumbai) (ap-south-1)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ap-northeast-3"
+          textValue="ap-northeast-3"
+          id="ap-northeast-3"
+        >
+          Asia Pacific (Osaka) (ap-northeast-3)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ap-northeast-2"
+          textValue="ap-northeast-2"
+          id="ap-northeast-2"
+        >
+          Asia Pacific (Seoul) (ap-northeast-2)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ap-southeast-1"
+          textValue="ap-southeast-1"
+          id="ap-southeast-1"
+        >
+          Asia Pacific (Singapore) (ap-southeast-1)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ap-southeast-2"
+          textValue="ap-southeast-2"
+          id="ap-southeast-2"
+        >
+          Asia Pacific (Sydney) (ap-southeast-2)
+        </ComboBoxItem>
+        <ComboBoxItem key="ap-east-2" textValue="ap-east-2" id="ap-east-2">
+          Asia Pacific (Taipei) (ap-east-2)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ap-northeast-1"
+          textValue="ap-northeast-1"
+          id="ap-northeast-1"
+        >
+          Asia Pacific (Tokyo) (ap-northeast-1)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="ca-central-1"
+          textValue="ca-central-1"
+          id="ca-central-1"
+        >
+          Canada (Central) (ca-central-1)
+        </ComboBoxItem>
+        <ComboBoxItem
+          key="eu-central-1"
+          textValue="eu-central-1"
+          id="eu-central-1"
+        >
+          Europe (Frankfurt) (eu-central-1)
+        </ComboBoxItem>
+        <ComboBoxItem key="eu-west-1" textValue="eu-west-1" id="eu-west-1">
+          Europe (Ireland) (eu-west-1)
+        </ComboBoxItem>
+        <ComboBoxItem key="eu-west-2" textValue="eu-west-2" id="eu-west-2">
+          Europe (London) (eu-west-2)
+        </ComboBoxItem>
+        <ComboBoxItem key="eu-west-3" textValue="eu-west-3" id="eu-west-3">
+          Europe (Paris) (eu-west-3)
+        </ComboBoxItem>
+        <ComboBoxItem key="eu-north-1" textValue="eu-north-1" id="eu-north-1">
+          Europe (Stockholm) (eu-north-1)
+        </ComboBoxItem>
+        <ComboBoxItem key="sa-east-1" textValue="sa-east-1" id="sa-east-1">
+          South America (São Paulo) (sa-east-1)
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox
+        container={container ?? undefined}
+        size="L"
+        label="API"
+        data-testid="bedrock-api-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
+        aria-label="api picker"
+        isDisabled
+        placeholder="Select an Bedrock API"
+        inputValue={"converse"}
+      >
+        <ComboBoxItem key="converse" textValue="converse" id="converse">
+          Converse
+        </ComboBoxItem>
+      </ComboBox>
+    </>
+  );
+}
+
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
-export function ModelConfigButton(props: ModelConfigButtonProps) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
+
+function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
       (instance) => instance.id === props.playgroundInstanceId
@@ -261,14 +436,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
     );
 
   return (
-    <Fragment>
+    <DialogTrigger>
       <Button
         size="S"
-        onPress={() => {
-          startTransition(() => {
-            setDialog(<ModelConfigDialog {...props} />);
-          });
-        }}
         leadingVisual={
           <GenerativeProviderIcon
             provider={instance.model.provider}
@@ -281,11 +451,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             <Text>{instance.model.modelName || "--"}</Text>
           </Truncate>
           {!requiredInvocationParametersConfigured ? (
-            <TooltipTrigger delay={0} offset={5}>
+            <TooltipTrigger delay={0}>
               <span>
-                <TriggerWrap>
-                  <Icon color="danger" svg={<Icons.InfoOutline />} />
-                </TriggerWrap>
+                <Icon color="danger" svg={<Icons.InfoOutline />} />
               </span>
               <Tooltip>
                 Some required invocation parameters are not configured.
@@ -294,16 +462,12 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </Fragment>
+      <ModalOverlay>
+        <Modal variant="slideover" size="S">
+          <ModelConfigDialog {...props} />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
 
@@ -343,32 +507,39 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
     });
   }, [instance.model, notifySuccess, setModelConfigForProvider]);
   return (
-    <Dialog
-      title="Model Configuration"
-      size="M"
-      extra={
-        <TooltipTrigger delay={0} offset={5}>
-          <Button
-            size="S"
-            variant="default"
-            onPress={onSaveConfig}
-            leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
-          >
-            Save as Default
-          </Button>
-          <Tooltip>
-            Saves the current configuration as the default for{" "}
-            {ModelProviders[instance.model.provider] ?? "this provider"}.
-          </Tooltip>
-        </TooltipTrigger>
-      }
-    >
-      <Suspense>
-        <ModelConfigDialogContent {...props} />
-      </Suspense>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Model Configuration</DialogTitle>
+          <DialogTitleExtra>
+            <TooltipTrigger delay={0} closeDelay={0}>
+              <Button
+                size="S"
+                variant="default"
+                onPress={onSaveConfig}
+                leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
+              >
+                Save as Default
+              </Button>
+              <Tooltip placement="bottom" offset={5}>
+                Saves the current configuration as the default for{" "}
+                {ModelProviders[instance.model.provider] ?? "this provider"}.
+              </Tooltip>
+            </TooltipTrigger>
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <Suspense>
+          <ModelConfigDialogContent {...props} />
+        </Suspense>
+      </DialogContent>
     </Dialog>
   );
 }
+
+const MemoizedModelConfigButton = memo(ModelConfigButton);
+
+export { MemoizedModelConfigButton as ModelConfigButton };
 
 interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
 function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
@@ -401,7 +572,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery {
-        ...ModelProviderPickerFragment
+        ...ModelProviderSelectFragment
       }
     `,
     {}
@@ -431,7 +602,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           </Text>
         </Flex>
       ) : null}
-      <ModelProviderPicker
+      <ModelProviderSelect
         provider={instance.model.provider}
         query={query}
         onChange={(provider) => {
@@ -442,7 +613,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "OPENAI" ? (
+      {providerSupportsOpenAIConfig(instance.model.provider) ? (
         <OpenAiModelConfigFormField
           instance={instance}
           container={container ?? null}
@@ -460,6 +631,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           container={container ?? undefined}
         />
       )}
+      {instance.model.provider === "AWS" ? (
+        <AwsModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
+      ) : null}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>

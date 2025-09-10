@@ -8,9 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Card } from "@arizeai/components";
-
-import { Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Card, Flex, Icon, Icons, Link } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -108,7 +106,7 @@ export function PromptVersionTagsConfigCard({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
-    <Card title="Tags" variant="compact" bodyStyle={{ padding: 0 }}>
+    <Card title="Tags">
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -118,9 +116,7 @@ export function PromptVersionTagsConfigCard({
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
                           left: header.getStart(),

@@ -137,7 +137,7 @@ class TestAnnotationConfigMutations:
         }
     }
 
-    query GetProject($id: GlobalID!) {
+    query GetProject($id: ID!) {
         project: node(id: $id) {
             ... on Project {
                 annotationConfigs {

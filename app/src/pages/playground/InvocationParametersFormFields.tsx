@@ -75,20 +75,29 @@ const InvocationParameterFormField = ({
   switch (__typename) {
     case "InvocationParameterBase":
       return null;
-    case "BoundedFloatInvocationParameter":
-      if (typeof value !== "number" && value !== undefined) return null;
+    case "BoundedFloatInvocationParameter": {
+      const isNumber = typeof value === "number";
+      const defaultValue = isNumber ? value : undefined;
       return (
         <Slider
           label={field.label}
-          defaultValue={value}
+          defaultValue={defaultValue}
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
-          onChange={(value) => onChange(value)}
+          onChange={(value) => {
+            // NB: the type inference here is wrong. In the case
+            // that the defaultValue is undefined, an array is returned here
+            if (Array.isArray(value) && value.length > 0) {
+              return onChange(value[0]);
+            }
+            onChange(value);
+          }}
         >
-          <SliderNumberField />
+          <SliderNumberField defaultValue={defaultValue} />
         </Slider>
       );
+    }
     case "FloatInvocationParameter":
     case "IntInvocationParameter":
       return (

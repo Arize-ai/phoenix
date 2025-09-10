@@ -12,7 +12,14 @@
     </div>
 </h1>
 
-![NPM](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)
+<p align="center">
+    <a href="https://www.npmjs.com/package/@arizeai/phoenix-client">
+        <img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client" alt="NPM Version">
+    </a>
+    <a href="https://arize-ai.github.io/phoenix/">
+        <img src="https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white" alt="Documentation">
+    </a>
+</p>
 
 This package provides a TypeSript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
 
@@ -173,6 +180,123 @@ const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
 
 A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
 
+## Datasets
+
+The `@arizeai/phoenix-client` package allows you to create and manage datasets, which are collections of examples used for experiments and evaluation.
+
+### Creating a Dataset
+
+You can create a dataset by providing a name, description, and an array of examples (each with `input`, `output`, and optional `metadata`).
+
+```ts
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+const { datasetId } = await createDataset({
+  name: "questions",
+  description: "a simple dataset of questions",
+  examples: [
+    {
+      input: { question: "What is the capital of France" },
+      output: { answer: "Paris" },
+      metadata: {},
+    },
+    {
+      input: { question: "What is the capital of the USA" },
+      output: { answer: "Washington D.C." },
+      metadata: {},
+    },
+  ],
+});
+// You can now use datasetId to run experiments or add more examples
+```
+
+## Experiments
+
+The `@arizeai/phoenix-client` package provides an experiments API for running and evaluating tasks on datasets. This is useful for benchmarking models, evaluating outputs, and tracking experiment results in Phoenix.
+
+### Running an Experiment
+
+To run an experiment, you typically:
+
+1. Create a dataset (or use an existing one)
+2. Define a task function to run on each example
+3. Define one or more evaluators to score or label the outputs
+4. Run the experiment and inspect the results
+
+Below is a complete example:
+
+```ts
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+
+// 1. Create a dataset
+const { datasetId } = await createDataset({
+  name: "names-dataset",
+  description: "a simple dataset of names",
+  examples: [
+    {
+      input: { name: "John" },
+      output: { text: "Hello, John!" },
+      metadata: {},
+    },
+    {
+      input: { name: "Jane" },
+      output: { text: "Hello, Jane!" },
+      metadata: {},
+    },
+  ],
+});
+
+// 2. Define a task to run on each example
+const task = async (example) => `hello ${example.input.name}`;
+
+// 3. Define evaluators
+const evaluators = [
+  asEvaluator({
+    name: "matches",
+    kind: "CODE",
+    evaluate: async ({ output, expected }) => {
+      const matches = output === expected?.text;
+      return {
+        label: matches ? "matches" : "does not match",
+        score: matches ? 1 : 0,
+        explanation: matches
+          ? "output matches expected"
+          : "output does not match expected",
+        metadata: {},
+      };
+    },
+  }),
+  asEvaluator({
+    name: "contains-hello",
+    kind: "CODE",
+    evaluate: async ({ output }) => {
+      const matches = typeof output === "string" && output.includes("hello");
+      return {
+        label: matches ? "contains hello" : "does not contain hello",
+        score: matches ? 1 : 0,
+        explanation: matches
+          ? "output contains hello"
+          : "output does not contain hello",
+        metadata: {},
+      };
+    },
+  }),
+];
+
+// 4. Run the experiment
+const experiment = await runExperiment({
+  dataset: { datasetId },
+  task,
+  evaluators,
+});
+```
+
+> **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:
@@ -193,4 +317,19 @@ Compatibility Table:
 
 | Phoenix Client Version | Phoenix Server Version |
 | ---------------------- | ---------------------- |
+| ^2.0.0                 | ^9.0.0                 |
 | ^1.0.0                 | ^8.0.0                 |
+
+---
+
+## Community
+
+Join our community to connect with thousands of AI builders:
+
+- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
+- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.

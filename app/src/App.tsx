@@ -12,7 +12,7 @@ import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
 
-import "normalize.css";
+import "react-resizable/css/styles.css";
 
 export function App() {
   return (

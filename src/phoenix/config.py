@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -7,18 +9,22 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Optional, Union, cast, overload
-from urllib.parse import quote_plus, urljoin, urlparse
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
+from urllib.parse import quote, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
-from starlette.datastructures import URL
+from starlette.datastructures import URL, Secret
 
 from phoenix.utilities.logging import log_a_list
+from phoenix.utilities.re import parse_env_headers
 
-from .utilities.re import parse_env_headers
+if TYPE_CHECKING:
+    from phoenix.server.oauth2 import OAuth2Clients
 
 logger = logging.getLogger(__name__)
+
+ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
@@ -45,6 +51,16 @@ be accessible by both the Phoenix server and the notebook environment.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
+"""
+ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
+"""
+The FullStory organization ID for web analytics tracking. When set, FullStory tracking
+will be enabled in the Phoenix web interface.
+"""
+ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
+"""
+Allows calls to external resources, like Google Fonts in the web interface
+Defaults to True. Set to False in air-gapped environments to prevent external requests.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -95,7 +111,24 @@ ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
 )
 """
 The allocated storage capacity for the Phoenix database in gibibytes (2^30 bytes). Use float for
-fractional value. This is currently used only by the UI for informational displays.
+fractional value.
+"""
+ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that, when exceeded, triggers a email notifications
+to admin users with valid email addresses. Must be specified in conjunction with allocated storage
+capacity. This is a percentage value between 0 and 100. This setting is ignored if SMTP is not
+configured.
+"""
+ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that blocks insertions and updates of database
+records when exceeded. Deletions are not blocked. Must be specified in conjunction with allocated
+storage capacity. This is a percentage value between 0 and 100.
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
@@ -124,8 +157,11 @@ ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRAT
 """
 Whether or not to disable migrations. Defaults to None / False.
 
-This should only be used by developers working on the Phoenix server that need to be
-switching between branches without having to run migrations.
+This should only be used by developers working on the Phoenix server that need
+to be switching between branches without having to run migrations.
+
+This can also be useful if a migration fails and you want to put the applicaiton
+in a running state.
 """
 
 # Phoenix server OpenTelemetry instrumentation environment variables
@@ -136,8 +172,18 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
+ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS = "PHOENIX_MASK_INTERNAL_SERVER_ERRORS"
+"""
+Whether to mask internal server errors from the GraphQL and REST APIs. Defaults to true.
+"""
+
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
+"""
+Forbid login via password and disable the creation of local users, which log in via passwords.
+This can be helpful in setups where authentication is handled entirely through OAUTH2.
+"""
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -160,6 +206,7 @@ be updated manually in the application.
 """
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before access tokens expire.
@@ -203,7 +250,20 @@ Examples:
     - With a sub-path: "https://example.com/phoenix"
     - Without a sub-path: "https://phoenix.example.com"
 """
+ENV_PHOENIX_MANAGEMENT_URL = "PHOENIX_MANAGEMENT_URL"
+"""
+The URL to use for redirecting to a management interface that may be hosting Phoenix. If set, and
+the current user is within PHOENIX_ADMINS, a link will be added to the navigation menu to return to
+this URL.
+"""
+ENV_PHOENIX_SUPPORT_EMAIL = "PHOENIX_SUPPORT_EMAIL"
+"""
+The support email address to display in error messages and notifications.
 
+When set, this email will be included in error messages for insufficient storage
+conditions and database usage notification emails, providing users with a direct
+contact for assistance. If not set, error messages will not include contact information.
+"""
 
 # SMTP settings
 ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
@@ -277,6 +337,10 @@ ENV_PHOENIX_TLS_VERIFY_CLIENT = "PHOENIX_TLS_VERIFY_CLIENT"
 Whether to verify client certificates for mutual TLS (mTLS) authentication.
 When set to true, clients must provide valid certificates signed by the CA specified in
 PHOENIX_TLS_CA_FILE.
+"""
+ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DAYS"
+"""
+The default retention policy for traces in days.
 """
 
 
@@ -439,6 +503,20 @@ def get_env_tls_verify_client() -> bool:
     return _bool_val(ENV_PHOENIX_TLS_VERIFY_CLIENT, False)
 
 
+def get_env_default_retention_policy_days() -> int:
+    """
+    Returns the number of days for the default retention policy as set by the
+    PHOENIX_DEFAULT_RETENTION_POLICY_DAYS environment variable, defaulting to 0 if not set.
+
+    Returns:
+        int: Number of days for the default retention policy. Defaults to 0 if the environment variable is not set.
+    """  # noqa: E501
+    days = _int_val(ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS, 0)
+    if days < 0:
+        raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
+    return days
+
+
 def get_env_tls_config() -> Optional[TLSConfig]:
     """
     Retrieves and validates TLS configuration from environment variables.
@@ -555,7 +633,7 @@ def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     assert (lower := value.lower()) in (
         "true",
         "false",
-    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive)"
+    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive). Got: {value}"
     return lower == "true"
 
 
@@ -573,8 +651,7 @@ def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]
         return float(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be a number."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be a number."
         )
 
 
@@ -592,8 +669,7 @@ def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
         return int(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be an integer."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be an integer."
         )
 
 
@@ -631,6 +707,13 @@ def get_env_enable_auth() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
 
 
+def get_env_disable_basic_auth() -> bool:
+    """
+    Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
+
+
 def get_env_disable_rate_limit() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
@@ -638,29 +721,29 @@ def get_env_disable_rate_limit() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
-def get_env_phoenix_secret() -> Optional[str]:
+def get_env_phoenix_secret() -> Secret:
     """
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
-        return None
+        return Secret("")
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
-    return phoenix_secret
+    return Secret(phoenix_secret)
 
 
-def get_env_phoenix_admin_secret() -> Optional[str]:
+def get_env_phoenix_admin_secret() -> Secret:
     """
     Gets the value of the PHOENIX_ADMIN_SECRET environment variable
     and performs validation.
     """
     phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
     if phoenix_admin_secret is None:
-        return None
-    if (phoenix_secret := get_env_phoenix_secret()) is None:
+        return Secret("")
+    if not (phoenix_secret := get_env_phoenix_secret()):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
             f"setting `{ENV_PHOENIX_SECRET}`."
@@ -668,17 +751,24 @@ def get_env_phoenix_admin_secret() -> Optional[str]:
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
-    if phoenix_admin_secret == phoenix_secret:
+    if phoenix_admin_secret == str(phoenix_secret):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
         )
-    return phoenix_admin_secret
+    return Secret(phoenix_admin_secret)
 
 
-def get_env_default_admin_initial_password() -> str:
+def get_env_default_admin_initial_password() -> Secret:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
+    return Secret(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
+
+
+def get_env_cookies_path() -> str:
+    """
+    Gets the value of the PHOENIX_COOKIE_PATH environment variable.
+    """
+    return getenv(ENV_PHOENIX_COOKIES_PATH, "/")
 
 
 def get_env_phoenix_use_secure_cookies() -> bool:
@@ -689,7 +779,15 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> tuple[bool, Optional[str]]:
+class AuthSettings(NamedTuple):
+    enable_auth: bool
+    disable_basic_auth: bool
+    phoenix_secret: Secret
+    phoenix_admin_secret: Secret
+    oauth2_clients: OAuth2Clients
+
+
+def get_env_auth_settings() -> AuthSettings:
     """
     Gets auth settings and performs validation.
     """
@@ -700,7 +798,22 @@ def get_env_auth_settings() -> tuple[bool, Optional[str]]:
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return enable_auth, phoenix_secret
+    phoenix_admin_secret = get_env_phoenix_admin_secret()
+    disable_basic_auth = get_env_disable_basic_auth()
+    from phoenix.server.oauth2 import OAuth2Clients
+
+    oauth2_clients = OAuth2Clients.from_configs(get_env_oauth2_settings())
+    if enable_auth and disable_basic_auth and not oauth2_clients:
+        raise ValueError(
+            "OAuth2 is the only supported auth method but no OAuth2 client configs are provided."
+        )
+    return AuthSettings(
+        enable_auth=enable_auth,
+        disable_basic_auth=disable_basic_auth,
+        phoenix_secret=phoenix_secret,
+        phoenix_admin_secret=phoenix_admin_secret,
+        oauth2_clients=oauth2_clients,
+    )
 
 
 def get_env_password_reset_token_expiry() -> timedelta:
@@ -763,7 +876,7 @@ def get_env_csrf_trusted_origins() -> list[str]:
 
 def get_env_admins() -> dict[str, str]:
     """
-    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
+    Parse the PHOENIX_ADMINS environment variable to extract the semicolon separated pairs of
     username and email. The last equal sign (=) in each pair is used to separate the username from
     the email.
 
@@ -775,6 +888,8 @@ def get_env_admins() -> dict[str, str]:
     """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
+    from phoenix.auth import sanitize_email
+
     usernames = set()
     emails = set()
     ans = {}
@@ -791,7 +906,7 @@ def get_env_admins() -> dict[str, str]:
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_addr = sanitize_email(pair[last_equals_pos + 1 :])
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
@@ -839,6 +954,8 @@ class OAuth2ClientConfig:
     client_id: str
     client_secret: str
     oidc_config_url: str
+    allow_sign_up: bool
+    auto_login: bool
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -870,6 +987,8 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
+        allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
+        auto_login = get_env_oauth2_auto_login(idp_name)
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -886,22 +1005,98 @@ class OAuth2ClientConfig:
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
+            allow_sign_up=allow_sign_up,
+            auto_login=auto_login,
         )
 
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
-    Get OAuth2 settings from environment variables.
-    """
+    Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
+    This function scans the environment for OAuth2 configuration variables and returns a list of
+    configured identity providers. It supports multiple identity providers simultaneously.
+
+    Environment Variable Pattern:
+        PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
+
+    Required Environment Variables for each IDP:
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+    Optional Environment Variables:
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        When set to False, the system will check if the user exists in the database by their email address.
+        If the user does not exist or has a password set, they will be redirected to the login page with
+        an error message.
+
+    Returns:
+        list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
+            Each OAuth2ClientConfig contains the validated configuration for one identity provider.
+
+    Raises:
+        ValueError: If required environment variables are missing or invalid.
+            Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
+
+    Example:
+        To configure Google as an identity provider, set these environment variables:
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
+        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN)$"  # noqa: E501
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
+
+    This function determines whether new user registration is allowed for the specified identity provider.
+    When set to False, the system will check if the user exists in the database by their email address.
+    If the user does not exist or has a password set, they will be redirected to the login page with
+    an error message.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if new user registration is allowed (default), False otherwise
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Controls whether new user registration is allowed (defaults to True if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
+    return _bool_val(env_var, True)
+
+
+def get_env_oauth2_auto_login(idp_name: str) -> bool:
+    """Retrieves the auto_login setting for a specific OAuth2 identity provider.
+
+    This function determines whether users should be automatically logged in when accessing the OAuth2
+    identity provider's login page. When set to True, users will be redirected to the identity provider's
+    login page without first seeing the application's login page.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if auto-login is enabled, False otherwise (defaults to False if not set)
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_AUTO_LOGIN: Controls whether auto-login is enabled (defaults to False if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_AUTO_LOGIN".upper()
+    return _bool_val(env_var, False)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -933,27 +1128,38 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+# LEGACY: Regex for backward compatibility with host:port parsing in PHOENIX_POSTGRES_HOST
+_HOST_PORT_REGEX = re.compile(r"^[^:]+:\d{1,5}$")
 
-    if pg_host and ":" in pg_host:
+
+def get_env_postgres_connection_str() -> Optional[str]:
+    """
+    Build PostgreSQL connection string from environment variables.
+
+    LEGACY: Supports host:port parsing in PHOENIX_POSTGRES_HOST for backward compatibility.
+    """  # noqa: E501
+    if not (
+        (pg_host := getenv(ENV_PHOENIX_POSTGRES_HOST, "").rstrip("/"))
+        and (pg_user := getenv(ENV_PHOENIX_POSTGRES_USER))
+        and (pg_password := getenv(ENV_PHOENIX_POSTGRES_PASSWORD))
+    ):
+        return None
+    pg_port = getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if _HOST_PORT_REGEX.match(pg_host):  # maintain backward compatibility
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
+    encoded_user = quote(pg_user)
+    encoded_password = quote(pg_password)
+    connection_str = f"postgresql://{encoded_user}:{encoded_password}@{pg_host}"
+    if pg_port:
+        connection_str = f"{connection_str}:{pg_port}"
+    if pg_db:
+        connection_str = f"{connection_str}/{pg_db}"
 
-        return connection_str
-    return None
+    return connection_str
 
 
 def _no_local_storage() -> bool:
@@ -1052,7 +1258,7 @@ def ensure_working_dir_if_needed() -> None:
     This is bypassed if a postgres database is configured and a working directory is not set.
     """
     if _no_local_storage():
-        pass
+        return
 
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
@@ -1146,7 +1352,7 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_env_project_name() -> str:
@@ -1171,7 +1377,36 @@ def get_env_database_schema() -> Optional[str]:
 
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
-    return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    ans = _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    if ans is not None and ans <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES}: "
+            f"{ans}. Value must be a positive number."
+        )
+    return ans
+
+
+def get_env_database_usage_email_warning_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 <= ans <= 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage between 0 and 100."
+        )
+    return ans
+
+
+def get_env_database_usage_insertion_blocking_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 <= ans <= 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage between 0 and 100."
+        )
+    return ans
 
 
 def get_env_enable_prometheus() -> bool:
@@ -1258,7 +1493,7 @@ def get_env_logging_mode() -> LoggingMode:
     except ValueError:
         raise ValueError(
             f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
-            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode], 'and')} "
             "(case-insensitive)."
         )
 
@@ -1337,7 +1572,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     if logging_level.upper() not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
-            f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
+            f"Valid values are: {log_a_list(valid_values, 'and')} (case-insensitive)."
         )
     return levelNamesMapping[logging_level.upper()]
 
@@ -1380,6 +1615,10 @@ def get_env_disable_migrations() -> bool:
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
 
 
+def get_env_mask_internal_server_errors() -> bool:
+    return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
+
+
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
 
@@ -1395,11 +1634,57 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     return allowed_origins.split(",")
 
 
+def get_env_fullstory_org() -> Optional[str]:
+    """
+    Get the FullStory organization ID from environment variables.
+
+    Returns:
+        Optional[str]: The FullStory organization ID if set, None otherwise.
+    """
+    return getenv(ENV_PHOENIX_FULLSTORY_ORG)
+
+
+def get_env_management_url() -> Optional[str]:
+    """
+    Gets the value of the PHOENIX_MANAGEMENT_URL environment variable.
+    """
+    return getenv(ENV_PHOENIX_MANAGEMENT_URL)
+
+
+def get_env_support_email() -> Optional[str]:
+    """
+    Get the support email address from the PHOENIX_SUPPORT_EMAIL environment variable.
+
+    Returns:
+        The support email address if set, None otherwise.
+    """
+    return getenv(ENV_PHOENIX_SUPPORT_EMAIL)
+
+
+def validate_env_support_email() -> None:
+    """
+    Validate the support email address configured in PHOENIX_SUPPORT_EMAIL.
+
+    Raises:
+        ValueError: If the email address is invalid.
+    """
+    if not (email := get_env_support_email()):
+        return
+    try:
+        validate_email(email, check_deliverability=False)
+    except EmailNotValidError as e:
+        raise ValueError(f"Invalid email in {ENV_PHOENIX_SUPPORT_EMAIL}: '{email}'") from e
+
+
 def verify_server_environment_variables() -> None:
     """Verify that the environment variables are set correctly. Raises an error otherwise."""
     get_env_root_url()
     get_env_phoenix_secret()
     get_env_phoenix_admin_secret()
+    get_env_database_allocated_storage_capacity_gibibytes()
+    get_env_database_usage_email_warning_threshold_percentage()
+    get_env_database_usage_insertion_blocking_threshold_percentage()
+    validate_env_support_email()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:
@@ -1450,3 +1735,11 @@ def _validate_file_exists_and_is_readable(
             f.read(1)  # Read just one byte to verify readability
     except Exception as e:
         raise ValueError(f"{description} file is not readable: {e}")
+
+
+def get_env_allow_external_resources() -> bool:
+    """
+    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
+    Defaults to True if not set.
+    """
+    return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)

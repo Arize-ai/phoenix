@@ -49,7 +49,7 @@ def llm_generate(
             names should be surrounded by curly braces so that a call to `.format`
             can be made to substitute variable values.
 
-        model (BaseEvalModel): An LLM model class.
+        model (BaseModel): An LLM model class.
 
         system_instruction (Optional[str], optional): An optional system message.
 

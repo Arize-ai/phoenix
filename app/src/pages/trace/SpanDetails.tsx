@@ -1,12 +1,4 @@
-import {
-  PropsWithChildren,
-  ReactNode,
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -24,17 +16,7 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import {
-  Card,
-  CardProps,
-  Content,
-  ContextualHelp,
-  DialogContainer,
-  EmptyGraphic,
-  List,
-  ListItem,
-  TabbedCard,
-} from "@arizeai/components";
+import { Content, ContextualHelp, TabbedCard } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -49,8 +31,11 @@ import {
 import {
   Alert,
   Button,
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Counter,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -64,6 +49,11 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  List,
+  ListItem,
+  Loading,
+  Modal,
+  ModalOverlay,
   Tab,
   TabList,
   Tabs,
@@ -77,7 +67,7 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
-  ConnectedMarkdownModeRadioGroup,
+  ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
@@ -87,7 +77,6 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -158,9 +147,7 @@ const spanHasException = (span: Span) => {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  variant: "compact",
   collapsible: true,
-  bodyStyle: { padding: 0 },
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
@@ -189,10 +176,9 @@ export function SpanDetails({
     ? spanDetailsContainerDimensions.width <
       CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
     : true;
-  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID]) {
+      query SpanDetailsQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -210,8 +196,6 @@ export function SpanDetails({
             parentId
             latencyMs
             tokenCountTotal
-            tokenCountPrompt
-            tokenCountCompletion
             startTime
             endTime
             id
@@ -248,14 +232,13 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
+            ...SpanAside_span
           }
         }
       }
     `,
     {
       id: spanNodeId,
-      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -335,7 +318,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
@@ -397,7 +380,9 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <SpanEventsList events={span.events} />
+              <View overflow="auto">
+                <SpanEventsList events={span.events} />
+              </View>
             </LazyTabPanel>
           </Tabs>
         </Flex>
@@ -450,49 +435,39 @@ function AddSpanToDatasetButton({
   span: Span;
   buttonText: string | null;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
-  const onAddSpanToDataset = useCallback(() => {
-    setDialog(
-      <SpanToDatasetExampleDialog
-        spanId={span.id}
-        onCompleted={(datasetId) => {
-          setDialog(null);
-          notifySuccess({
-            title: "Span Added to Dataset",
-            message: "Successfully added span to dataset",
-            action: {
-              text: "View Dataset",
-              onClick: () => {
-                navigate(`/datasets/${datasetId}/examples`);
-              },
-            },
-          });
-        }}
-      />
-    );
-  }, [span.id, notifySuccess, navigate]);
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant="default"
         size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
-        onPress={onAddSpanToDataset}
       >
         {buttonText}
       </Button>
-      <Suspense>
-        <DialogContainer
-          type="slideOver"
-          isDismissable
-          onDismiss={() => setDialog(null)}
-        >
-          {dialog}
-        </DialogContainer>
-      </Suspense>
-    </>
+      <ModalOverlay>
+        <Modal variant="slideover" size="L">
+          <Suspense fallback={<Loading />}>
+            <SpanToDatasetExampleDialog
+              spanId={span.id}
+              onCompleted={(datasetId) => {
+                notifySuccess({
+                  title: "Span Added to Dataset",
+                  message: "Successfully added span to dataset",
+                  action: {
+                    text: "View Dataset",
+                    onClick: () => {
+                      navigate(`/datasets/${datasetId}/examples`);
+                    },
+                  },
+                });
+              }}
+            />
+          </Suspense>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
 
@@ -720,11 +695,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         collapsible
         backgroundColor="light"
         borderColor="light"
-        bodyStyle={{
-          padding: 0,
-        }}
         titleSeparator={false}
-        variant="compact"
         title={modelNameTitleEl}
       >
         <Tabs>
@@ -762,7 +733,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     title="LLM Input"
                     extra={
                       <Flex direction="row" gap="size-100">
-                        <ConnectedMarkdownModeRadioGroup />
+                        <ConnectedMarkdownModeSelect />
                         <CopyToClipboardButton text={input.value} />
                       </Flex>
                     }
@@ -857,7 +828,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       title="LLM Output"
                       extra={
                         <Flex direction="row" gap="size-100">
-                          <ConnectedMarkdownModeRadioGroup />
+                          <ConnectedMarkdownModeSelect />
                           <CopyToClipboardButton text={output.value} />
                         </Flex>
                       }
@@ -926,7 +897,7 @@ function RetrieverSpanInfo(props: {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isText ? (
-                  <ConnectedMarkdownModeRadioGroup />
+                  <ConnectedMarkdownModeSelect />
                 ) : (
                   <CopyToClipboardButton text={input.value} />
                 )}
@@ -972,7 +943,7 @@ function RetrieverSpanInfo(props: {
                 </Flex>
               )
             }
-            extra={<ConnectedMarkdownModeRadioGroup />}
+            extra={<ConnectedMarkdownModeSelect />}
           >
             <ul
               css={css`
@@ -1053,7 +1024,6 @@ function RerankerSpanInfo(props: {
         titleExtra={<Counter>{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
-        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -1083,7 +1053,6 @@ function RerankerSpanInfo(props: {
         title={"Output Documents"}
         titleExtra={<Counter>{numOutputDocuments}</Counter>}
         {...defaultCardProps}
-        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -1208,7 +1177,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1226,7 +1195,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }
@@ -1318,9 +1287,6 @@ function DocumentItem({
       {...defaultCardProps}
       backgroundColor={backgroundColor}
       borderColor={borderColor}
-      bodyStyle={{
-        padding: 0,
-      }}
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
@@ -1471,7 +1437,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ConnectedMarkdownModeRadioGroup />
+            <ConnectedMarkdownModeSelect />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
             />
@@ -1649,7 +1615,6 @@ function LLMToolSchema({
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-700"
-      bodyStyle={{ padding: 0 }}
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
       <CodeBlock value={toolSchema} mimeType={"json"} />
@@ -1765,6 +1730,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
+  padding: var(--ac-global-dimension-static-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.
@@ -1785,15 +1751,7 @@ function MessageContentListItem({
   return (
     <li css={text ? messageContentTextListItemCSS : null}>
       {text ? (
-        <pre
-          css={css`
-            white-space: pre-wrap;
-            padding: 0;
-            margin: 0;
-          `}
-        >
-          {text}
-        </pre>
+        <ConnectedMarkdownBlock margin="none">{text}</ConnectedMarkdownBlock>
       ) : null}
       {imageUrl ? <SpanImage url={imageUrl} /> : null}
     </li>
@@ -1814,7 +1772,7 @@ function SpanIO({ span }: { span: Span }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1832,7 +1790,7 @@ function SpanIO({ span }: { span: Span }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }
@@ -1982,8 +1940,7 @@ function EmptyIndicator({ text }: { text: string }) {
       justifyContent="center"
       gap="size-100"
     >
-      <EmptyGraphic graphicKey="documents" />
-      <Text>{text}</Text>
+      <Text size="L">{text}</Text>
     </Flex>
   );
 }

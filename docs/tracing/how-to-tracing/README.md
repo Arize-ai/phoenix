@@ -7,7 +7,7 @@ description: Guides on how to use traces
 ## Setup Tracing
 
 * Setup Tracing in [Python](./#instrument-python-using-openinference-helpers) or [Typescript](setup-tracing/javascript.md)
-* Add Integrations via [Auto Instrumentation](../integrations-tracing/)
+* Add Integrations via [Auto Instrumentation](https://arize.com/docs/phoenix/integrations)
 * [Manually Instrument](./#manual-instrumentation) your application
 
 ## [Customize Traces & Spans](add-metadata/customize-spans.md)
@@ -23,9 +23,9 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 * [How to read attributes from context](add-metadata/customize-spans.md#using_attributes)
 * [Masking attributes on spans](advanced/masking-span-attributes.md)
 
-## [Auto Instrumentation](../integrations-tracing/)
+## [Auto Instrumentation](broken-reference)
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](../integrations-tracing/#platforms) and [LiteLLM proxy](../integrations-tracing/#platforms).
+Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](broken-reference) and [LiteLLM proxy](broken-reference).
 
 ## Manual Instrumentation
 
@@ -50,7 +50,7 @@ Create and customize spans for your use-case
 
 ## [Querying Spans](importing-and-exporting-traces/extract-data-from-spans.md)
 
-How to query spans for to construct DataFrames to use for evaluation
+How to query spans to construct DataFrames to use for evaluation
 
 * [How to run a query](importing-and-exporting-traces/extract-data-from-spans.md#how-to-run-a-query)
 * [How to specify a project](importing-and-exporting-traces/extract-data-from-spans.md#how-to-specify-a-project)
@@ -59,6 +59,11 @@ How to query spans for to construct DataFrames to use for evaluation
 * [How to extract attributes](importing-and-exporting-traces/extract-data-from-spans.md#extracting-span-attributes)
 * [How to use data for evaluation](importing-and-exporting-traces/extract-data-from-spans.md#how-to-use-data-for-evaluation)
 * [How to use pre-defined queries](importing-and-exporting-traces/extract-data-from-spans.md#predefined-queries)
+
+## [Annotate Traces](feedback-and-annotations/)
+
+* [Annotating in the UI](feedback-and-annotations/annotating-in-the-ui.md)
+* [Annotating via the Client](feedback-and-annotations/capture-feedback.md)
 
 ## [Log Evaluation Results](./#log-evaluation-results)
 
@@ -72,3 +77,12 @@ How to log evaluation results to annotate traces with evals
 
 * [Saving Traces](importing-and-exporting-traces/extract-data-from-spans.md)
 * [Loading Traces](importing-and-exporting-traces/importing-existing-traces.md)
+
+## [Cost Tracking](cost-tracking/)
+
+How to track token-based costs for your LLM applications
+
+* [Setting up cost tracking](cost-tracking/#send-token-counts)
+* [Model pricing configuration](cost-tracking/#model-pricing-configuration)
+* [Viewing cost data](cost-tracking/#viewing-cost-data)
+* [Session and experiment costs](cost-tracking/#session-level-costs)

@@ -1,4 +1,4 @@
-export const PROJECT_TABS = ["traces", "spans", "sessions"] as const;
+export const PROJECT_TABS = ["traces", "spans", "sessions", "metrics"] as const;
 
 export type ProjectTab = (typeof PROJECT_TABS)[number];
 

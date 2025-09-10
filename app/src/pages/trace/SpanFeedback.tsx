@@ -147,8 +147,6 @@ function SpanAnnotationsTable({
         cell: ({ row }) => {
           return (
             <SpanAnnotationActionMenu
-              buttonVariant="default"
-              buttonSize="compact"
               annotationId={row.original.id}
               spanNodeId={row.original.spanNodeId}
               annotationName={row.original.name}
@@ -195,9 +193,7 @@ function SpanAnnotationsTable({
                     <>
                       <div
                         {...{
-                          className: header.column.getCanSort()
-                            ? "cursor-pointer"
-                            : "",
+                          className: header.column.getCanSort() ? "sort" : "",
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
                             display: "flex",

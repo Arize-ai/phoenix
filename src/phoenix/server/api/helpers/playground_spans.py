@@ -263,10 +263,13 @@ def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
 def input_value_and_mime_type(
     input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
 ) -> Iterator[tuple[str, Any]]:
-    assert (api_key := "api_key") in (input_data := jsonify(input))
-    disallowed_keys = {"api_key", "invocation_parameters"}
+    input_data = jsonify(input)
+    # Filter out sensitive credential information and invocation parameters
+    disallowed_keys = {"api_key", "credentials", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
-    assert api_key not in input_data
+    # Ensure sensitive data is not included in trace data
+    assert "api_key" not in input_data
+    assert "credentials" not in input_data
     yield INPUT_MIME_TYPE, JSON
     yield INPUT_VALUE, safe_json_dumps(input_data)
 

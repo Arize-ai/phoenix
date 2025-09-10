@@ -1,3 +1,5 @@
+import invariant from "tiny-invariant";
+
 import { BASE_URL } from "@phoenix/config";
 
 import { createLoginRedirectUrl } from "./utils/routingUtils";
@@ -28,8 +30,12 @@ export async function authFetch(
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       // If the server returns a 401, we should try to refresh the token
-      await refreshTokens();
-      // Retry the original request
+      // If not successful, the user will be redirected to the login page
+      const response = await refreshTokens();
+      invariant(
+        response.ok,
+        `Failed to authenticate. Please visit ${createLoginRedirectUrl()} to login.`
+      );
       return fetch(input, init);
     }
     if (error instanceof Error && error.name === "AbortError") {
@@ -55,10 +61,12 @@ export async function refreshTokens(): Promise<Response> {
       // for now force redirect to login page. This could re-throw with a custom error
       // But for now, we'll just redirect
       window.location.href = createLoginRedirectUrl();
+      // return a promise that never resolves, giving the browser time to redirect above
+      return new Promise(() => {});
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;
-    return response;
+    return Promise.resolve(response);
   });
   return refreshPromise;
 }

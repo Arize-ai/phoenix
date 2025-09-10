@@ -83,6 +83,11 @@ class ChatPromptVersionInput:
     model_provider: ModelProvider
     model_name: str
 
+    def __post_init__(self) -> None:
+        self.invocation_parameters = {
+            k: v for k, v in self.invocation_parameters.items() if v is not None
+        }
+
 
 def to_pydantic_prompt_chat_template_v1(
     prompt_chat_template_input: PromptChatTemplateInput,

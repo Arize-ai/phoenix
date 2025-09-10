@@ -200,13 +200,13 @@ class TestPromptMutations:
                                         "type": "function",
                                         "function": {
                                             "name": "get_weather",
-                                            "description": "Get current temperature for a given location.",  # noqa: E501
+                                            "description": "Get current temperature for a given location.",
                                             "parameters": {
                                                 "type": "object",
                                                 "properties": {
                                                     "location": {
                                                         "type": "string",
-                                                        "description": "City and country e.g. Bogotá, Colombia",  # noqa: E501
+                                                        "description": "City and country e.g. Bogotá, Colombia",
                                                     }
                                                 },
                                                 "required": ["location"],
@@ -283,18 +283,18 @@ class TestPromptMutations:
                                 {
                                     "definition": {
                                         "name": "get_weather",
-                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "description": "Get the current weather in a given location",
                                         "input_schema": {
                                             "type": "object",
                                             "properties": {
                                                 "location": {
                                                     "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                    "description": "The city and state, e.g. San Francisco, CA",
                                                 },
                                                 "unit": {
                                                     "type": "string",
                                                     "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
                                                 },
                                             },
                                             "required": ["location"],
@@ -509,18 +509,18 @@ class TestPromptMutations:
                                 {
                                     "definition": {
                                         "name": "get_weather",
-                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "description": "Get the current weather in a given location",
                                         "input_schema": {
                                             "type": "object",
                                             "properties": {
                                                 "location": {
                                                     "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                    "description": "The city and state, e.g. San Francisco, CA",
                                                 },
                                                 "unit": {
                                                     "type": "string",
                                                     "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
                                                 },
                                             },
                                             "required": ["location"],
@@ -592,13 +592,13 @@ class TestPromptMutations:
                                         "type": "function",
                                         "function": {
                                             "name": "get_weather",
-                                            "description": "Get current temperature for a given location.",  # noqa: E501
+                                            "description": "Get current temperature for a given location.",
                                             "parameters": {
                                                 "type": "object",
                                                 "properties": {
                                                     "location": {
                                                         "type": "string",
-                                                        "description": "City and country e.g. Bogotá, Colombia",  # noqa: E501
+                                                        "description": "City and country e.g. Bogotá, Colombia",
                                                     }
                                                 },
                                                 "required": ["location"],
@@ -713,18 +713,18 @@ class TestPromptMutations:
                                 {
                                     "definition": {
                                         "name": "get_weather",
-                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "description": "Get the current weather in a given location",
                                         "input_schema": {
                                             "type": "object",
                                             "properties": {
                                                 "location": {
                                                     "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                    "description": "The city and state, e.g. San Francisco, CA",
                                                 },
                                                 "unit": {
                                                     "type": "string",
                                                     "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
                                                 },
                                             },
                                             "required": ["location"],
@@ -910,18 +910,18 @@ class TestPromptMutations:
                                 {
                                     "definition": {
                                         "name": "get_weather",
-                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "description": "Get the current weather in a given location",
                                         "input_schema": {
                                             "type": "object",
                                             "properties": {
                                                 "location": {
                                                     "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                    "description": "The city and state, e.g. San Francisco, CA",
                                                 },
                                                 "unit": {
                                                     "type": "string",
                                                     "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
                                                 },
                                             },
                                             "required": ["location"],

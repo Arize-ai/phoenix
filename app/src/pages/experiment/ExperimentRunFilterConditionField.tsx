@@ -1,4 +1,10 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router";
 import {
   autocompletion,
@@ -11,22 +17,20 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  AddonBefore,
-  Field,
-  HelpTooltip,
-  PopoverTrigger,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Field } from "@arizeai/components";
 
 import {
   Button,
+  DialogTrigger,
   Flex,
   Form,
   Icon,
+  IconButton,
   Icons,
+  Popover,
   Text,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
@@ -62,12 +66,15 @@ const fieldCSS = css`
   &:hover,
   &[data-is-focused="true"] {
     border-color: var(--ac-global-input-field-border-color-active);
-    background-color: var(--ac-global-input-field-background-color-active);
   }
   &[data-is-invalid="true"] {
     border-color: var(--ac-global-color-danger);
   }
   box-sizing: border-box;
+  .search-icon {
+    margin-left: var(--ac-global-dimension-static-size-100);
+    margin-top: var(--ac-global-dimension-static-size-100);
+  }
 `;
 
 function filterConditionCompletions(
@@ -178,7 +185,7 @@ async function isConditionValid(condition: string, experimentIds: string[]) {
       graphql`
         query ExperimentRunFilterConditionFieldValidationQuery(
           $condition: String!
-          $experimentIds: [GlobalID!]!
+          $experimentIds: [ID!]!
         ) {
           validateExperimentRunFilterCondition(
             condition: $condition
@@ -237,6 +244,8 @@ export function ExperimentRunFilterConditionField(
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
 
+  const filterConditionFieldRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     isConditionValid(deferredFilterCondition, experimentIds).then((result) => {
       if (!result?.isValid) {
@@ -253,11 +262,19 @@ export function ExperimentRunFilterConditionField(
   const hasError = errorMessage !== "";
   const hasCondition = filterCondition !== "";
   return (
-    <div data-is-focused={isFocused} data-is-invalid={hasError} css={fieldCSS}>
+    <div
+      data-is-focused={isFocused}
+      data-is-invalid={hasError}
+      css={css(
+        fieldCSS,
+        css`
+          flex: 1;
+        `
+      )}
+      ref={filterConditionFieldRef}
+    >
       <Flex direction="row">
-        <AddonBefore>
-          <Icon svg={<Icons.Search />} />
-        </AddonBefore>
+        <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
           css={codeMirrorCSS}
           indentWithTab={false}
@@ -291,37 +308,37 @@ export function ExperimentRunFilterConditionField(
         >
           <Icon svg={<Icons.CloseCircleOutline />} />
         </button>
-        <PopoverTrigger placement="bottom right">
-          <TriggerWrap>
-            <button
-              css={css`
-                color: var(--ac-global-text-color-700);
-                background-color: var(--ac-global-color-grey-300);
-                padding-left: var(--ac-global-dimension-static-size-100);
-                padding-right: var(--ac-global-dimension-static-size-100);
-                height: 100%;
-              `}
-              className="button--reset"
-            >
-              <Icon svg={<Icons.PlusCircleOutline />} />
-            </button>
-          </TriggerWrap>
-          <FilterConditionBuilder
-            onAddFilterConditionSnippet={appendFilterCondition}
-          />
-        </PopoverTrigger>
+        <DialogTrigger>
+          <IconButton
+            css={css`
+              color: var(--ac-global-text-color-700);
+              border-left: 1px solid var(--ac-global-input-field-border-color);
+              border-bottom: 0;
+              border-top: 0;
+              padding-left: var(--ac-global-dimension-static-size-100);
+              padding-right: var(--ac-global-dimension-static-size-100);
+              border-radius: 0;
+              height: 36px !important;
+            `}
+            className="button--reset"
+          >
+            <Icon svg={<Icons.PlusOutline />} />
+          </IconButton>
+          <Popover placement="bottom right">
+            <FilterConditionBuilder
+              onAddFilterConditionSnippet={appendFilterCondition}
+            />
+          </Popover>
+        </DialogTrigger>
       </Flex>
-      <TooltipTrigger isOpen={hasError && isFocused} placement="bottom">
-        <TriggerWrap>
-          <div />
-        </TriggerWrap>
-        <HelpTooltip>
+      <TooltipTrigger isOpen={hasError && isFocused}>
+        <Tooltip placement="bottom" triggerRef={filterConditionFieldRef}>
           {errorMessage != "" ? (
             <Text color="danger">{errorMessage}</Text>
           ) : (
             <Text color="success">Valid Expression</Text>
           )}
-        </HelpTooltip>
+        </Tooltip>
       </TooltipTrigger>
     </div>
   );
@@ -341,9 +358,8 @@ function FilterConditionBuilder(props: {
       paddingTop="size-200"
       paddingStart="size-200"
       paddingEnd="size-200"
+      paddingBottom="size-200"
       borderRadius="medium"
-      borderWidth="thin"
-      borderColor="light"
       backgroundColor="light"
     >
       <Form>

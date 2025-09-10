@@ -16,6 +16,9 @@ export async function authenticatedRootLoader() {
       query authenticatedRootLoaderQuery {
         ...ViewerContext_viewer
         viewer {
+          id
+          username
+          email
           passwordNeedsReset
         }
       }

@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -14,23 +20,35 @@ import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
 import { PromptActionMenu } from "./PromptActionMenu";
+import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
+  searchFilter: string;
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  const { searchFilter } = props;
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const queryArgs = useMemo(
+    () => ({
+      filter: searchFilter.trim()
+        ? { value: searchFilter, col: "name" as const }
+        : null,
+    }),
+    [searchFilter]
+  );
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<PromptsTablePromptsQuery, PromptsTable_prompts$key>(
       graphql`
@@ -39,8 +57,9 @@ export function PromptsTable(props: PromptsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
+          filter: { type: "PromptFilter", defaultValue: null }
         ) {
-          prompts(first: $first, after: $after)
+          prompts(first: $first, after: $after, filter: $filter)
             @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
@@ -59,6 +78,15 @@ export function PromptsTable(props: PromptsTableProps) {
       props.query
     );
 
+  // Refetch when searchFilter changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch(queryArgs, {
+        fetchPolicy: "store-and-network",
+      });
+    });
+  }, [refetch, queryArgs]);
+
   const tableData = useMemo(
     () =>
       data.prompts.edges.map((edge) => {
@@ -69,6 +97,7 @@ export function PromptsTable(props: PromptsTableProps) {
       }),
     [data]
   );
+
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -79,11 +108,11 @@ export function PromptsTable(props: PromptsTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(PAGE_SIZE);
+          loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext, queryArgs]
   );
 
   type TableRow = (typeof tableData)[number];
@@ -137,7 +166,7 @@ export function PromptsTable(props: PromptsTableProps) {
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
-                  refetch({}, { fetchPolicy: "network-only" });
+                  refetch(queryArgs, { fetchPolicy: "network-only" });
                 }}
               />
             </Flex>
@@ -146,7 +175,8 @@ export function PromptsTable(props: PromptsTableProps) {
       },
     ];
     return cols;
-  }, [refetch]);
+  }, [refetch, queryArgs]);
+
   const table = useReactTable({
     columns,
     data: tableData,
@@ -156,6 +186,11 @@ export function PromptsTable(props: PromptsTableProps) {
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  if (isEmpty) {
+    return <PromptsEmpty />;
+  }
+
   return (
     <div
       css={css`
@@ -174,9 +209,7 @@ export function PromptsTable(props: PromptsTableProps) {
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         ["aria-role"]: header.column.getCanSort()
                           ? "button"
                           : null,
@@ -209,34 +242,27 @@ export function PromptsTable(props: PromptsTableProps) {
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => {
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() => {
-                    navigate(`${row.original.id}`);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      align={cell.column.columnDef.meta?.textAlign}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        )}
+        <tbody>
+          {rows.map((row) => {
+            return (
+              <tr
+                key={row.id}
+                onClick={() => {
+                  navigate(`${row.original.id}`);
+                }}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    align={cell.column.columnDef.meta?.textAlign}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
       </table>
     </div>
   );

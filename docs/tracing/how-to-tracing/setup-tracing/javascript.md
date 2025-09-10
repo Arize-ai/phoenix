@@ -94,7 +94,7 @@ console.log("👀 OpenInference initialized");
 
 This basic setup has will instrument chat completions via native calls to the OpenAI client.
 
-As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](../../integrations-tracing/).
+As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](broken-reference).
 
 **Picking the right span processor**
 
@@ -521,3 +521,68 @@ const doWork = (parent, i) => {
 ```
 
 All other APIs behave the same when you use `sdk-trace-base` compared with the Node.js SDKs.
+
+## Specifying a Custom Tracer Provider
+
+OpenInference JavaScript instrumentations support specifying a custom tracer provider in multiple ways. This is useful when you need to use a different tracer provider than the default global one, or when you want to have more control over the tracing configuration.
+
+### Method 1: Pass tracerProvider on instantiation
+
+You can pass a custom tracer provider directly to the instrumentation when creating it:
+
+```typescript
+// Create a custom tracer provider
+const customTracerProvider = new NodeTracerProvider({
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: "custom-service",
+    [SEMRESATTRS_PROJECT_NAME]: "custom-project",
+  }),
+  spanProcessors: [
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: `http://localhost:6006/v1/traces`,
+      })
+    ),
+  ],
+});
+
+// Pass the custom tracer provider to the instrumentation
+const instrumentation = new OpenAIInstrumentation({
+  tracerProvider: customTracerProvider,
+});
+instrumentation.manuallyInstrument(OpenAI);
+```
+
+### Method 2: Set tracerProvider after instantiation
+
+You can set a tracer provider after creating the instrumentation:
+
+```typescript
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.setTracerProvider(customTracerProvider);
+instrumentation.manuallyInstrument(OpenAI);
+```
+
+### Method 3: Pass tracerProvider to registerInstrumentations
+
+You can also specify the tracer provider when registering instrumentations:
+
+```typescript
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
+
+registerInstrumentations({
+  instrumentations: [instrumentation],
+  tracerProvider: customTracerProvider,
+});
+```
+
+### Supported Instrumentations
+
+This functionality is supported across all OpenInference JavaScript instrumentations:
+
+- **LangChain JS**: `@arizeai/openinference-instrumentation-langchain`
+- **BeeAI**: `@arizeai/openinference-instrumentation-beeai`
+- **OpenAI JS**: `@arizeai/openinference-instrumentation-openai`
+
+For specific examples with each instrumentation, see their respective documentation pages in the [Integrations section](../../section-integrations/).

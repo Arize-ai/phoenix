@@ -283,6 +283,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List runs for an experiment
+         * @description Retrieve a paginated list of runs for an experiment
+         */
+        get: operations["listExperimentRuns"];
+        put?: never;
+        /** Create run for an experiment */
+        post: operations["createExperimentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiment_evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or update evaluation for an experiment run */
+        post: operations["upsertExperimentEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/traces/{trace_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a trace by identifier
+         * @description Delete an entire trace by its identifier. The identifier can be either:
+         *     1. A Relay node ID (base64-encoded)
+         *     2. An OpenTelemetry trace_id (hex string)
+         *
+         *     This will permanently remove all spans in the trace and their associated data.
+         */
+        delete: operations["deleteTrace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         */
+        get: operations["spanSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/spans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         */
+        get: operations["getSpans"];
+        put?: never;
+        /**
+         * Create spans
+         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
+         */
+        post: operations["createSpans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -295,6 +401,38 @@ export interface paths {
         /** Create span annotations */
         post: operations["annotateSpans"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/spans/{span_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a span by span_identifier
+         * @description Delete a single span by identifier.
+         *
+         *             **Important**: This operation deletes ONLY the specified span itself and does NOT
+         *             delete its descendants/children. All child spans will remain in the trace and
+         *             become orphaned (their parent_id will point to a non-existent span).
+         *
+         *             Behavior:
+         *             - Deletes only the target span (preserves all descendant spans)
+         *             - If this was the last span in the trace, the trace record is also deleted
+         *             - If the deleted span had a parent, its cumulative metrics (error count, token counts)
+         *               are subtracted from all ancestor spans in the chain
+         *
+         *             **Note**: This operation is irreversible and may create orphaned spans.
+         */
+        delete: operations["deleteSpan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -498,10 +636,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/document_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Annotate Span Documents */
+        post: operations["annotateSpanDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all users
+         * @description Retrieve a paginated list of all users in the system.
+         */
+        get: operations["getUsers"];
+        put?: never;
+        /**
+         * Create a new user
+         * @description Create a new user with the specified configuration.
+         */
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user by ID
+         * @description Delete an existing user by their unique GlobalID.
+         */
+        delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnnotateSpanDocumentsRequestBody */
+        AnnotateSpanDocumentsRequestBody: {
+            /** Data */
+            data: components["schemas"]["SpanDocumentAnnotationData"][];
+        };
+        /** AnnotateSpanDocumentsResponseBody */
+        AnnotateSpanDocumentsResponseBody: {
+            /** Data */
+            data: components["schemas"]["InsertedSpanDocumentAnnotation"][];
+        };
         /** AnnotateSpansRequestBody */
         AnnotateSpansRequestBody: {
             /** Data */
@@ -511,6 +720,24 @@ export interface components {
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
+        };
+        /** AnnotationResult */
+        AnnotationResult: {
+            /**
+             * Label
+             * @description The label assigned by the annotation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the annotation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the annotation result
+             */
+            explanation?: string | null;
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -632,6 +859,58 @@ export interface components {
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** CreateExperimentRunRequestBody */
+        CreateExperimentRunRequestBody: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+        };
+        /** CreateExperimentRunResponseBody */
+        CreateExperimentRunResponseBody: {
+            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
+        };
+        /** CreateExperimentRunResponseBodyData */
+        CreateExperimentRunResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the newly created experiment run
+             */
+            id: string;
+        };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
             /** Name */
@@ -651,6 +930,39 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateSpansRequestBody */
+        CreateSpansRequestBody: {
+            /** Data */
+            data: components["schemas"]["Span"][];
+        };
+        /** CreateSpansResponseBody */
+        CreateSpansResponseBody: {
+            /**
+             * Total Received
+             * @description Total number of spans received
+             */
+            total_received: number;
+            /**
+             * Total Queued
+             * @description Number of spans successfully queued for insertion
+             */
+            total_queued: number;
+        };
+        /** CreateUserRequestBody */
+        CreateUserRequestBody: {
+            /** User */
+            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"];
+            /**
+             * Send Welcome Email
+             * @default true
+             */
+            send_welcome_email?: boolean;
+        };
+        /** CreateUserResponseBody */
+        CreateUserResponseBody: {
+            /** Data */
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"];
         };
         /** Dataset */
         Dataset: {
@@ -674,6 +986,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Example Count */
+            example_count: number;
         };
         /** DatasetExample */
         DatasetExample: {
@@ -790,6 +1104,74 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ExperimentEvaluationResult */
+        ExperimentEvaluationResult: {
+            /**
+             * Label
+             * @description The label assigned by the evaluation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the evaluation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the evaluation result
+             */
+            explanation?: string | null;
+        };
+        /** ExperimentRunResponse */
+        ExperimentRunResponse: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description The ID of the experiment run
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * @description The ID of the experiment
+             */
+            experiment_id: string;
+        };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
             /** Name */
@@ -872,6 +1254,13 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetUsersResponseBody */
+        GetUsersResponseBody: {
+            /** Data */
+            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -884,6 +1273,14 @@ export interface components {
             /**
              * Id
              * @description The ID of the inserted span annotation
+             */
+            id: string;
+        };
+        /** InsertedSpanDocumentAnnotation */
+        InsertedSpanDocumentAnnotation: {
+            /**
+             * Id
+             * @description The ID of the inserted span document annotation
              */
             id: string;
         };
@@ -914,21 +1311,339 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** ListExperimentRunsResponseBody */
+        ListExperimentRunsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentRunResponse"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /** LocalUser */
+        LocalUser: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password */
+            password?: string;
+            /** Password Needs Reset */
+            password_needs_reset: boolean;
+        };
+        /** LocalUserData */
+        LocalUserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password */
+            password?: string;
+        };
         /**
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS";
+        /** OAuth2User */
+        OAuth2User: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string;
+            /** Profile Picture Url */
+            profile_picture_url?: string;
+        };
+        /** OAuth2UserData */
+        OAuth2UserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string;
+        };
         /**
          * OptimizationDirection
          * @enum {string}
          */
         OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
+        /** OtlpAnyValue */
+        OtlpAnyValue: {
+            array_value?: components["schemas"]["OtlpArrayValue"] | null;
+            /** Bool Value */
+            bool_value?: boolean | null;
+            /** Bytes Value */
+            bytes_value?: string | null;
+            /** Double Value */
+            double_value?: number | components["schemas"]["OtlpDoubleValue"] | string | null;
+            /** Int Value */
+            int_value?: number | string | null;
+            /** Kvlist Value */
+            kvlist_value?: null;
+            /** String Value */
+            string_value?: string | null;
+        };
+        /** OtlpArrayValue */
+        OtlpArrayValue: {
+            /**
+             * Values
+             * @description Array of values. The array may be empty (contain 0 elements).
+             */
+            values?: components["schemas"]["OtlpAnyValue"][] | null;
+        };
+        /**
+         * OtlpDoubleValue
+         * @enum {string}
+         */
+        OtlpDoubleValue: "Infinity" | "-Infinity" | "NaN";
+        /** OtlpEvent */
+        OtlpEvent: {
+            /**
+             * Attributes
+             * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+             */
+            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
+            /**
+             * Dropped Attributes Count
+             * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
+             */
+            dropped_attributes_count?: number | null;
+            /**
+             * Name
+             * @description name of the event. This field is semantically required to be set to non-empty string.
+             */
+            name?: string | null;
+            /**
+             * Time Unix Nano
+             * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             */
+            time_unix_nano?: number | string | null;
+        };
+        /** OtlpKeyValue */
+        OtlpKeyValue: {
+            /** Key */
+            key?: string | null;
+            value?: components["schemas"]["OtlpAnyValue"] | null;
+        };
+        /**
+         * OtlpKind
+         * @enum {string}
+         */
+        OtlpKind: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
+        /** OtlpSpan */
+        OtlpSpan: {
+            /**
+             * Attributes
+             * @description attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:
+             *
+             *         "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+             *         "/http/server_latency": 300
+             *         "example.com/myattribute": true
+             *         "example.com/score": 10.239
+             *
+             *     The OpenTelemetry API specification further restricts the allowed value types:
+             *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
+             *     Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+             */
+            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
+            /**
+             * Dropped Attributes Count
+             * @description dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped.
+             */
+            dropped_attributes_count?: number | null;
+            /**
+             * Dropped Events Count
+             * @description dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped.
+             */
+            dropped_events_count?: number | null;
+            /**
+             * Dropped Links Count
+             * @description dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped.
+             */
+            dropped_links_count?: number | null;
+            /**
+             * End Time Unix Nano
+             * @description end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.
+             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             *
+             *     This field is semantically required and it is expected that end_time >= start_time.
+             */
+            end_time_unix_nano?: number | string | null;
+            /**
+             * Events
+             * @description events is a collection of Event items. A span with no events is valid.
+             */
+            events?: components["schemas"]["OtlpEvent"][] | null;
+            /**
+             * Flags
+             * @description Flags, a bit field.
+             *
+             *     Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+             *
+             *     See https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.
+             *
+             *     Bits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).
+             *     To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
+             *     To read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
+             *
+             *     When creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.
+             *     Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
+             *
+             *     [Optional].
+             */
+            flags?: number | null;
+            /**
+             * Kind
+             * @description Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.
+             * @default SPAN_KIND_INTERNAL
+             */
+            kind?: components["schemas"]["OtlpKind"] | number | null;
+            /** Links */
+            links?: null;
+            /**
+             * Name
+             * @description A description of the span's operation.
+             *
+             *     For example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.
+             *
+             *     This field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.
+             *
+             *     This field is required.
+             */
+            name?: string | null;
+            /**
+             * Parent Span Id
+             * @description The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array.
+             */
+            parent_span_id?: string | null;
+            /**
+             * Span Id
+             * @description A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+             *
+             *     This field is required.
+             */
+            span_id?: string | null;
+            /**
+             * Start Time Unix Nano
+             * @description start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.
+             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             *
+             *     This field is semantically required and it is expected that end_time >= start_time.
+             */
+            start_time_unix_nano?: number | string | null;
+            /** @description An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0). */
+            status?: components["schemas"]["OtlpStatus"] | null;
+            /**
+             * Trace Id
+             * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+             *
+             *     This field is required.
+             */
+            trace_id?: string | null;
+            /**
+             * Trace State
+             * @description trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header
+             *     See also https://github.com/w3c/distributed-tracing for more details about this field.
+             */
+            trace_state?: string | null;
+        };
+        /**
+         * OtlpSpansResponseBody
+         * @description Paginated response where each span follows OTLP JSON structure.
+         */
+        OtlpSpansResponseBody: {
+            /** Data */
+            data: components["schemas"]["OtlpSpan"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** OtlpStatus */
+        OtlpStatus: {
+            /**
+             * Code
+             * @description The status code.
+             */
+            code?: number | null;
+            /**
+             * Message
+             * @description A developer-facing human readable error message.
+             */
+            message?: string | null;
+        };
         /** Project */
         Project: {
             /** Name */
@@ -988,6 +1703,24 @@ export interface components {
             /** Budget Tokens */
             budget_tokens: number;
         };
+        /** PromptAwsInvocationParameters */
+        PromptAwsInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "aws";
+            aws: components["schemas"]["PromptAwsInvocationParametersContent"];
+        };
+        /** PromptAwsInvocationParametersContent */
+        PromptAwsInvocationParametersContent: {
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Temperature */
+            temperature?: number;
+            /** Top P */
+            top_p?: number;
+        };
         /** PromptAzureOpenAIInvocationParameters */
         PromptAzureOpenAIInvocationParameters: {
             /**
@@ -1017,7 +1750,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -1036,6 +1769,37 @@ export interface components {
             description?: string | null;
             /** Source Prompt Id */
             source_prompt_id?: string | null;
+        };
+        /** PromptDeepSeekInvocationParameters */
+        PromptDeepSeekInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deepseek";
+            deepseek: components["schemas"]["PromptDeepSeekInvocationParametersContent"];
+        };
+        /** PromptDeepSeekInvocationParametersContent */
+        PromptDeepSeekInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -1073,6 +1837,37 @@ export interface components {
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
         };
+        /** PromptOllamaInvocationParameters */
+        PromptOllamaInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ollama";
+            ollama: components["schemas"]["PromptOllamaInvocationParametersContent"];
+        };
+        /** PromptOllamaInvocationParametersContent */
+        PromptOllamaInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+        };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
             /**
@@ -1102,7 +1897,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "low" | "medium" | "high";
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -1228,7 +2023,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1247,7 +2042,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1266,39 +2061,100 @@ export interface components {
             /** Description */
             description?: string | null;
         };
-        /** SpanAnnotation */
-        SpanAnnotation: {
+        /** PromptXAIInvocationParameters */
+        PromptXAIInvocationParameters: {
             /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            type: "xai";
+            xai: components["schemas"]["PromptXAIInvocationParametersContent"];
+        };
+        /** PromptXAIInvocationParametersContent */
+        PromptXAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
             /**
-             * Metadata
-             * @description Metadata for the annotation
+             * Reasoning Effort
+             * @enum {string}
              */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
+            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+        };
+        /** Span */
+        Span: {
             /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * Id
+             * @description Span Global ID, distinct from the OpenTelemetry span ID
              * @default
              */
-            identifier?: string;
+            id?: string;
+            /**
+             * Name
+             * @description Name of the span operation
+             */
+            name: string;
+            /** @description Span context containing trace_id and span_id */
+            context: components["schemas"]["SpanContext"];
+            /**
+             * Span Kind
+             * @description Type of work that the span encapsulates
+             */
+            span_kind: string;
+            /**
+             * Parent Id
+             * @description OpenTelemetry span ID of the parent span
+             */
+            parent_id?: string | null;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start time of the span
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description End time of the span
+             */
+            end_time: string;
+            /**
+             * Status Code
+             * @description Status code of the span
+             */
+            status_code: string;
+            /**
+             * Status Message
+             * @description Status message
+             * @default
+             */
+            status_message?: string;
+            /**
+             * Attributes
+             * @description Span attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Events
+             * @description Span events
+             */
+            events?: components["schemas"]["SpanEvent"][];
+        };
+        /** SpanAnnotation */
+        SpanAnnotation: {
             /** Id */
             id: string;
             /**
@@ -1318,14 +2174,6 @@ export interface components {
             source: "API" | "APP";
             /** User Id */
             user_id: string | null;
-        };
-        /** SpanAnnotationData */
-        SpanAnnotationData: {
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
             /**
              * Name
              * @description The name of the annotation
@@ -1338,7 +2186,7 @@ export interface components {
              */
             annotator_kind: "LLM" | "CODE" | "HUMAN";
             /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            result?: components["schemas"]["AnnotationResult"] | null;
             /**
              * Metadata
              * @description Metadata for the annotation
@@ -1352,29 +2200,130 @@ export interface components {
              * @default
              */
             identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
         };
-        /** SpanAnnotationResult */
-        SpanAnnotationResult: {
+        /** SpanAnnotationData */
+        SpanAnnotationData: {
             /**
-             * Label
-             * @description The label assigned by the annotation
+             * Name
+             * @description The name of the annotation
              */
-            label?: string | null;
+            name: string;
             /**
-             * Score
-             * @description The score assigned by the annotation
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
              */
-            score?: number | null;
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
             /**
-             * Explanation
-             * @description Explanation of the annotation result
+             * Metadata
+             * @description Metadata for the annotation
              */
-            explanation?: string | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
         };
         /** SpanAnnotationsResponseBody */
         SpanAnnotationsResponseBody: {
             /** Data */
             data: components["schemas"]["SpanAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** SpanContext */
+        SpanContext: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
+        };
+        /** SpanDocumentAnnotationData */
+        SpanDocumentAnnotationData: {
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["AnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Document Position
+             * @description A 0 based index of the document. E.x. the first document during retrieval is 0
+             */
+            document_position: number;
+        };
+        /** SpanEvent */
+        SpanEvent: {
+            /**
+             * Name
+             * @description Name of the event
+             */
+            name: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the event occurred
+             */
+            timestamp: string;
+            /**
+             * Attributes
+             * @description Event attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SpansResponseBody */
+        SpansResponseBody: {
+            /** Data */
+            data: components["schemas"]["Span"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1444,10 +2393,74 @@ export interface components {
         UploadDatasetData: {
             /** Dataset Id */
             dataset_id: string;
+            /** Version Id */
+            version_id: string;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** UpsertExperimentEvaluationRequestBody */
+        UpsertExperimentEvaluationRequestBody: {
+            /**
+             * Experiment Run Id
+             * @description The ID of the experiment run being evaluated
+             */
+            experiment_run_id: string;
+            /**
+             * Name
+             * @description The name of the evaluation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the evaluation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the evaluation in ISO format
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the evaluation in ISO format
+             */
+            end_time: string;
+            /** @description The result of the evaluation. Either result or error must be provided. */
+            result?: components["schemas"]["ExperimentEvaluationResult"] | null;
+            /**
+             * Error
+             * @description Error message if the evaluation encountered an error. Either result or error must be provided.
+             */
+            error?: string | null;
+            /**
+             * Metadata
+             * @description Metadata for the evaluation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Trace Id
+             * @description Optional trace ID for tracking
+             */
+            trace_id?: string | null;
+        };
+        /** UpsertExperimentEvaluationResponseBody */
+        UpsertExperimentEvaluationResponseBody: {
+            data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
+        };
+        /** UpsertExperimentEvaluationResponseBodyData */
+        UpsertExperimentEvaluationResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the upserted experiment evaluation
+             */
+            id: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1684,6 +2697,10 @@ export interface operations {
             query: {
                 /** @description One or more span id to fetch annotations for */
                 span_ids: string[];
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+                include_annotation_names?: string[] | null;
+                /** @description Optional list of annotation names to exclude from results. */
+                exclude_annotation_names?: string[] | null;
                 /** @description A cursor for pagination */
                 cursor?: string | null;
                 /** @description The maximum number of annotations to return in a single request */
@@ -2415,6 +3432,402 @@ export interface operations {
             };
         };
     };
+    listExperimentRuns: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded experiment run ID) */
+                cursor?: string | null;
+                /** @description The max number of experiment runs to return at a time. If not specified, returns all results. */
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiment runs retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid cursor format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createExperimentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment run created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment or dataset example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description This experiment run has already been submitted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsertExperimentEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spanSearch: {
+        parameters: {
+            query?: {
+                /** @description Pagination cursor (Span Global ID) */
+                cursor?: string | null;
+                /** @description Maximum number of spans to return */
+                limit?: number;
+                /** @description Inclusive lower bound time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound time */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtlpSpansResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getSpans: {
+        parameters: {
+            query?: {
+                /** @description Pagination cursor (Span Global ID) */
+                cursor?: string | null;
+                /** @description Maximum number of spans to return */
+                limit?: number;
+                /** @description Inclusive lower bound time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound time */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpansResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createSpans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpansRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSpansResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     annotateSpans: {
         parameters: {
             query?: {
@@ -2450,6 +3863,54 @@ export interface operations {
                 };
             };
             /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteSpan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                span_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3191,6 +4652,211 @@ export interface operations {
                 };
             };
             /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    annotateSpanDocuments: {
+        parameters: {
+            query?: {
+                /** @description If set to true, the annotations are inserted synchronously. */
+                sync?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotateSpanDocumentsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Span document annotation inserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotateSpanDocumentsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request - non-empty identifier not supported */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getUsers: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded user ID) */
+                cursor?: string;
+                /** @description The max number of users to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUsersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUserResponseBody"];
+                };
+            };
+            /** @description Role not found. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Username or email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cannot delete the default admin or system user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description User not found. */
             404: {
                 headers: {
                     [name: string]: unknown;

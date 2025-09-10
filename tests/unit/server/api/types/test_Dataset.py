@@ -15,7 +15,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestDatasetExampleNodeInterface:
     QUERY = """
-      query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($exampleId: ID!, $datasetVersionId: ID = null) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -145,14 +145,14 @@ class TestDatasetExampleNodeInterface:
 
 class TestDatasetExampleCountResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             exampleCount(datasetVersionId: $datasetVersionId)
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_count_uses_latest_version_when_no_version_is_specified(
         self,
@@ -186,7 +186,7 @@ class TestDatasetExampleCountResolver:
 
 class TestDatasetExamplesResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null, $revisionDatasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $revisionDatasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             examples(datasetVersionId: $datasetVersionId) {
@@ -205,7 +205,7 @@ class TestDatasetExamplesResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
@@ -440,7 +440,7 @@ async def test_versions_resolver_returns_versions_in_correct_order(
     dataset_with_three_versions: Any,
 ) -> None:
     query = """
-      query ($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
+      query ($datasetId: ID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             versions(sort: {dir: $dir, col: $col}) {
@@ -470,14 +470,14 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 class TestDatasetExperimentCountResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             experimentCount(datasetVersionId: $datasetVersionId)
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_experiment_count_uses_all_versions_when_no_version_is_specified(
         self,
@@ -511,7 +511,7 @@ class TestDatasetExperimentCountResolver:
 
 class TestDatasetExperimentsResolver:
     QUERY = """
-      query ($datasetId: GlobalID!) {
+      query ($datasetId: ID!) {
         node(id: $datasetId) {
           ... on Dataset {
             experiments {
@@ -525,7 +525,7 @@ class TestDatasetExperimentsResolver:
           }
         }
       }
-    """  # noqa: E501
+    """
 
     async def test_experiments_have_sequence_number(
         self,
@@ -545,6 +545,215 @@ class TestDatasetExperimentsResolver:
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
+
+
+@pytest.fixture
+async def experiments_for_filtering(db: DbSessionFactory) -> None:
+    """
+    Creates a dataset with a few experiments with specific names and descriptions for
+    filtering tests.
+    """
+    async with db() as session:
+        # Insert dataset
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(
+                name="filter-test-dataset",
+                description="dataset-description",
+                metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+            )
+        )
+
+        # Insert dataset version
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="version-description",
+                metadata_={"version-metadata-key": "version-metadata-value"},
+            )
+        )
+
+        # Insert experiments with specific names and descriptions
+        await session.scalars(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "test-experiment-one",
+                        "description": "first test experiment description",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "one"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "test-experiment-two",
+                        "description": "second test experiment description",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "two"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "production-experiment",
+                        "description": "production ready experiment",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "prod"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "demo-experiment",
+                        "description": "demo experiment for testing",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "demo"},
+                    },
+                ]
+            )
+        )
+
+
+async def test_experiments_filter_by_search_term(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that experiments can be filtered by search term across name and description."""
+    query = """
+      query ($datasetId: ID!, $filterCondition: String) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(filterCondition: $filterCondition) {
+              edges {
+                node {
+                  id
+                  name
+                  description
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    # Test filtering by partial name match
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filterCondition": "test-experiment",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    data = response.data
+    # Should find test-experiment-one and test-experiment-two (matches name)
+    assert len(data["node"]["experiments"]["edges"]) == 2
+    names = [edge["node"]["name"] for edge in data["node"]["experiments"]["edges"]]
+    assert "test-experiment-one" in names
+    assert "test-experiment-two" in names
+
+    # Test filtering with no matches
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filterCondition": "nonexistent",
+        },
+    )
+    assert not response.errors
+    assert response.data == {"node": {"experiments": {"edges": []}}}
+
+
+async def test_experiments_filter_by_description_search(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that experiments can be found by searching their description."""
+    query = """
+      query ($datasetId: ID!, $filterCondition: String) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(filterCondition: $filterCondition) {
+              edges {
+                node {
+                  id
+                  name
+                  description
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    # Test filtering by partial description match
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filterCondition": "production ready",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    data = response.data
+    assert len(data["node"]["experiments"]["edges"]) == 1
+    assert data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+
+    # Test searching for "demo" which appears in both name and description
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filterCondition": "demo",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    data = response.data
+    assert len(data["node"]["experiments"]["edges"]) == 1
+    assert data["node"]["experiments"]["edges"][0]["node"]["name"] == "demo-experiment"
+
+
+async def test_experiments_without_filter(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that all experiments are returned when no filter is applied."""
+    query = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    response = await gql_client.execute(
+        query=query,
+        variables={"datasetId": str(GlobalID("Dataset", str(1)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    data = response.data
+    # experiments_for_filtering fixture creates 4 experiments for dataset 1
+    assert len(data["node"]["experiments"]["edges"]) == 4
 
 
 @pytest.fixture
@@ -802,3 +1011,117 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
                 },
             ],
         )
+
+
+@pytest.fixture
+async def datasets_for_filtering(db: DbSessionFactory) -> None:
+    """
+    Creates three datasets with specific names for testing filtering functionality.
+    """
+    async with db() as session:
+        for name in ["test_dataset", "dataset_test", "other_name"]:
+            dataset = models.Dataset(name=name)
+            session.add(dataset)
+        await session.commit()
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_names",
+    [
+        pytest.param(
+            "dataset",
+            ["test_dataset", "dataset_test"],
+            id="filter-matches-all",
+        ),
+        pytest.param(
+            "test",
+            ["test_dataset", "dataset_test"],
+            id="filter-matches-partial",
+        ),
+        pytest.param(
+            "TEST",
+            ["test_dataset", "dataset_test"],
+            id="filter-case-insensitive",
+        ),
+        pytest.param(
+            "nomatch",
+            [],
+            id="filter-no-matches",
+        ),
+    ],
+)
+async def test_dataset_filter(
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    datasets_for_filtering: None,
+) -> None:
+    """Test dataset filtering capabilities."""
+    query = """
+        query ($filter: DatasetFilter) {
+            datasets(filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"filter": {"col": "name", "value": filter_value}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    datasets = data["datasets"]
+    dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
+    assert sorted(dataset_names) == sorted(expected_names)
+
+
+@pytest.mark.parametrize(
+    "sort, filter_value, expected_names",
+    [
+        pytest.param(
+            {"col": "name", "dir": "asc"},
+            "test",
+            ["dataset_test", "test_dataset"],
+            id="filter-and-sort-asc",
+        ),
+        pytest.param(
+            {"col": "name", "dir": "desc"},
+            "test",
+            ["test_dataset", "dataset_test"],
+            id="filter-and-sort-desc",
+        ),
+    ],
+)
+async def test_dataset_filter_and_sort(
+    sort: dict[str, str],
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    datasets_for_filtering: None,
+) -> None:
+    """Test combining dataset filtering and sorting."""
+    query = """
+        query ($sort: DatasetSort, $filter: DatasetFilter) {
+            datasets(sort: $sort, filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {
+        "sort": sort,
+        "filter": {"col": "name", "value": filter_value},
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    datasets = data["datasets"]
+    dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
+    assert dataset_names == expected_names

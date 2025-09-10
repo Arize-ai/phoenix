@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c3856663c8358197fb6fe6bf74d583c>>
+ * @generated SignedSource<<c22bfc24b7d470a2565fc7d880fba3a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -192,10 +192,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v1/*: any*/),
           {
             "kind": "InlineFragment",
@@ -275,16 +271,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f199554faad2a910a81eceeffdecafd2",
+    "cacheID": "1ee3e2486d1f2ef0b65f6f2fbbb82ec1",
     "id": null,
     "metadata": {},
     "name": "SpanNotesEditorQuery",
     "operationKind": "query",
-    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: GlobalID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        createdAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n      ...SpanFeedback_annotations\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: ID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        createdAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n      ...SpanFeedback_annotations\n    }\n    id\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "52b812698dcd109bea51c9cac2040c8e";
+(node as any).hash = "5ef72854a1deefb62cd963735947309d";
 
 export default node;

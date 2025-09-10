@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<864f26d268dc93a782e8ae30e0b8c207>>
+ * @generated SignedSource<<5fb171dc548244120786fa8b5a54ecc3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -129,10 +129,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -212,7 +208,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v4/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -268,16 +265,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca59c018695d41ca01b5f9d453386886",
+    "cacheID": "fd22f70774f5ca11a13a0dabba9adf65",
     "id": null,
     "metadata": {},
     "name": "ExamplesTableQuery",
     "operationKind": "query",
-    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: GlobalID\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_4a6F8Z\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_4a6F8Z\n    id\n  }\n}\n\nfragment ExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e04e697cdb44ab2dd115f4562211f6a4";
+(node as any).hash = "a042efee74921059872b4d6812ae20be";
 
 export default node;

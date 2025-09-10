@@ -38,10 +38,13 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -196,16 +199,17 @@ export function SpansTable(props: SpansTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
-                tokenCountPrompt
-                tokenCountCompletion
-                cumulativeTokenCountTotal
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
+                tokenCountTotal @skip(if: $rootSpansOnly)
+                cumulativeTokenCountTotal @include(if: $rootSpansOnly)
                 spanId
                 trace {
                   id
                   traceId
+                  costSummary @include(if: $rootSpansOnly) {
+                    total {
+                      cost
+                    }
+                  }
                 }
                 input {
                   value: truncatedValue
@@ -234,6 +238,11 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                costSummary @skip(if: $rootSpansOnly) {
+                  total {
+                    cost
+                  }
                 }
                 ...AnnotationSummaryGroup
               }
@@ -485,18 +494,40 @@ export function SpansTable(props: SpansTableProps) {
         const tokenCountTotal = rootSpansOnly
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
-        const tokenCountPrompt = rootSpansOnly
-          ? span.cumulativeTokenCountPrompt
-          : span.tokenCountPrompt;
-        const tokenCountCompletion = rootSpansOnly
-          ? span.cumulativeTokenCountCompletion
-          : span.tokenCountCompletion;
+
+        if (rootSpansOnly) {
+          return (
+            <SpanCumulativeTokenCount
+              tokenCountTotal={tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+          );
+        }
+
         return (
-          <TokenCount
+          <SpanTokenCount
             tokenCountTotal={tokenCountTotal || 0}
-            tokenCountPrompt={tokenCountPrompt || 0}
-            tokenCountCompletion={tokenCountCompletion || 0}
+            nodeId={span.id}
           />
+        );
+      },
+    },
+    {
+      header: rootSpansOnly ? "cumulative cost" : "total cost",
+      accessorKey: rootSpansOnly
+        ? "trace.costSummary.total.cost"
+        : "costSummary.total.cost",
+      id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const span = row.original;
+        return rootSpansOnly ? (
+          <TraceTokenCosts totalCost={value} nodeId={span.trace.id} size="S" />
+        ) : (
+          <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
         );
       },
     },
@@ -586,7 +617,7 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = React.useMemo(() => {
+  const [columnSizeVars] = useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -674,9 +705,7 @@ export function SpansTable(props: SpansTableProps) {
                       <>
                         <div
                           {...{
-                            className: header.column.getCanSort()
-                              ? "cursor-pointer"
-                              : "",
+                            className: header.column.getCanSort() ? "sort" : "",
                             onClick: header.column.getToggleSortingHandler(),
                             style: {
                               left: header.getStart(),
@@ -719,7 +748,11 @@ export function SpansTable(props: SpansTableProps) {
               </tr>
             ))}
           </thead>
-          {isEmpty ? (
+          {isEmpty && !hasNext ? (
+            // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+            // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+            // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+            // will be replaced to eliminate this condition.
             <ProjectTableEmpty projectName={data.name} />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody

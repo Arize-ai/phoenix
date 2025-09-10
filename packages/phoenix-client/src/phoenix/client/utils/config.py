@@ -4,6 +4,7 @@ from typing import Optional, overload
 import httpx
 
 from phoenix.client.constants import (
+    ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
     ENV_PHOENIX_API_KEY,
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
@@ -61,7 +62,7 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_base_url() -> httpx.URL:

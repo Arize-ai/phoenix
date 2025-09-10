@@ -3,15 +3,21 @@ import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, Token, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  Token,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import { AnnotationConfig } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ComponentSize, SizingProps } from "@phoenix/components/types";
@@ -33,7 +39,7 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
       query AnnotationSummaryQuery(
-        $id: GlobalID!
+        $id: ID!
         $annotationName: String!
         $timeRange: TimeRange!
       ) {
@@ -242,14 +248,14 @@ function getStableColor(
 }
 
 function useAnnotationSummaryChartColors(name: string) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   const primaryColor = useWordColor(name);
   const colors = [
     primaryColor,
-    chartColors.default,
-    chartColors.gray600,
-    chartColors.gray400,
-    chartColors.gray200,
+    chartColors.grey300,
+    chartColors.grey400,
+    chartColors.grey500,
+    chartColors.grey600,
   ];
   return colors;
 }
@@ -271,7 +277,7 @@ export function SummaryValue({
   }
 
   return (
-    <TooltipTrigger delay={0} placement="bottom">
+    <TooltipTrigger delay={0}>
       <TriggerWrap>
         <SummaryValuePreview
           name={name}
@@ -283,14 +289,14 @@ export function SummaryValue({
           annotationConfig={annotationConfig}
         />
       </TriggerWrap>
-      <HelpTooltip>
+      <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
           labelFractions={labelFractions}
           meanScore={meanScore}
           annotationConfig={annotationConfig}
         />
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
@@ -446,7 +452,7 @@ export function SummaryValueLabels({
     return null;
   }
   return (
-    <TooltipTrigger delay={0} placement="bottom">
+    <TooltipTrigger delay={0}>
       <TriggerWrap>
         <Flex
           direction="row"
@@ -463,13 +469,13 @@ export function SummaryValueLabels({
           {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
         </Flex>
       </TriggerWrap>
-      <HelpTooltip>
+      <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
           labelFractions={labelFractions}
           annotationConfig={annotationConfig}
         />
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }

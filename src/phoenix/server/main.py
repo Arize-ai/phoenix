@@ -25,12 +25,14 @@ from phoenix.config import (
     get_env_db_logging_level,
     get_env_disable_migrations,
     get_env_enable_prometheus,
+    get_env_fullstory_org,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
     get_env_log_migrations,
     get_env_logging_level,
     get_env_logging_mode,
+    get_env_management_url,
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
@@ -90,19 +92,23 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
 
-|
-|  🌎 Join our Community 🌎
-|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
-|
-|  ⭐️ Leave us a Star ⭐️
+|  ⭐️⭐️⭐️ Support Open Source ⭐️⭐️⭐️
+|  ⭐️⭐️⭐️ Star on GitHub! ⭐️⭐️⭐️
 |  https://github.com/Arize-ai/phoenix
 |
+|  🌎 Join our Community 🌎
+|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
+|
 |  📚 Documentation 📚
-|  https://docs.arize.com/phoenix
+|  https://arize.com/docs/phoenix
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|
 |  Authentication: {{ auth_enabled }}
+{%- if basic_auth_disabled %}
+|  Basic Auth: Disabled
+{%- endif %}
 {%- if auth_enabled_for_http or auth_enabled_for_grpc %}
 {%- if tls_enabled_for_http %}
 |  TLS: Enabled for HTTP
@@ -332,7 +338,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_env_auth_settings()
+    auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_evals: list[pb.Evaluation] = []
@@ -372,6 +378,7 @@ def main() -> None:
     )
 
     allowed_origins = get_env_allowed_origins()
+    management_url = get_env_management_url()
 
     # Get TLS configuration
     tls_enabled_for_http = get_env_tls_enabled_for_http()
@@ -382,20 +389,25 @@ def main() -> None:
     # Print information about the server
     http_scheme = "https" if tls_enabled_for_http else "http"
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+    # Use localhost for display when host is the loopback address to make URLs clickable
+    display_host = "localhost" if host in ("0.0.0.0", "::") else host
     root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
-        ui_path=root_path,
-        grpc_path=f"{grpc_scheme}://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(root_path, "v1/traces"),
+        ui_path=display_root_path,
+        grpc_path=f"{grpc_scheme}://{display_host}:{get_env_grpc_port()}",
+        http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
-        auth_enabled=authentication_enabled,
+        auth_enabled=auth_settings.enable_auth,
+        disable_basic_auth=auth_settings.disable_basic_auth,
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
+
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -424,7 +436,8 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        authentication_enabled=authentication_enabled,
+        authentication_enabled=auth_settings.enable_auth,
+        basic_auth_disabled=auth_settings.disable_basic_auth,
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,
@@ -436,7 +449,7 @@ def main() -> None:
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
-        secret=secret,
+        secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
         refresh_token_expiry=get_env_refresh_token_expiry(),
@@ -444,6 +457,7 @@ def main() -> None:
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
         allowed_origins=allowed_origins,
+        management_url=management_url,
     )
 
     # Configure server with TLS if enabled
@@ -452,6 +466,7 @@ def main() -> None:
         host=host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
+        log_level=Settings.logging_level,
     )
 
     if tls_enabled_for_http:
@@ -476,11 +491,13 @@ def main() -> None:
 
 
 def initialize_settings() -> None:
+    """Initialize the settings from environment variables."""
     Settings.logging_mode = get_env_logging_mode()
     Settings.logging_level = get_env_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
     Settings.disable_migrations = get_env_disable_migrations()
+    Settings.fullstory_org = get_env_fullstory_org()
 
 
 if __name__ == "__main__":

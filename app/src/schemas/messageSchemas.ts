@@ -24,8 +24,10 @@ import {
 } from "./promptSchemas";
 import {
   anthropicToolCallSchema,
+  awsToolCallSchema,
   openAIToolCallSchema,
   openAIToolCallToAnthropic,
+  openAIToolCallToAws,
 } from "./toolCallSchemas";
 
 type ModelProvider = keyof typeof ModelProviders;
@@ -67,6 +69,26 @@ export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;
 export const openAIMessagesSchema = z.array(openAIMessageSchema);
 
 export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
+  removeAdditionalStrategy: "passthrough",
+});
+
+/**
+ * AWS Message Schemas
+ */
+export const awsMessageSchema = z
+  .object({
+    role: z.enum(["user", "assistant", "tool"]),
+    content: z.array(z.unknown()),
+    tool_call_id: z.string().optional(),
+    tool_calls: z.array(awsToolCallSchema).optional(),
+  })
+  .passthrough();
+
+export type AwsMessage = z.infer<typeof awsMessageSchema>;
+
+export const awsMessagesSchema = z.array(awsMessageSchema);
+
+export const awsMessagesJSONSchema = zodToJsonSchema(awsMessagesSchema, {
   removeAdditionalStrategy: "passthrough",
 });
 
@@ -158,6 +180,27 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
 /**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format
  */
+export const openAIMessageToAws = openAIMessageSchema.transform(
+  (openai): AwsMessage => {
+    const base = {
+      role: openai.role === "assistant" ? "assistant" : "user",
+      content: openai.content ? [{ type: "text", text: openai.content }] : [],
+    } satisfies AwsMessage;
+
+    if (openai.tool_calls) {
+      return {
+        role: openai.role === "assistant" ? "assistant" : "user",
+        content: openai.content ? [{ type: "text", text: openai.content }] : [],
+        tool_calls: openai.tool_calls.map((tc) =>
+          openAIToolCallToAws.parse(tc)
+        ),
+      };
+    }
+
+    return base;
+  }
+);
+
 export const openAIMessageToAnthropic = openAIMessageSchema.transform(
   (openai): AnthropicMessage => {
     const base = {
@@ -381,9 +424,14 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
+    case "AWS":
+      return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
     case "GOOGLE":
       // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
@@ -407,6 +455,10 @@ export type LlmProviderMessage = z.infer<typeof llmProviderMessageSchema>;
 type ProviderToMessageMap = {
   OPENAI: OpenAIMessage;
   AZURE_OPENAI: OpenAIMessage;
+  DEEPSEEK: OpenAIMessage;
+  XAI: OpenAIMessage;
+  OLLAMA: OpenAIMessage;
+  AWS: AwsMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;

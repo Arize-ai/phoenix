@@ -15,10 +15,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { DialogContainer } from "@arizeai/components";
-
-import { Flex, Icon, Icons } from "@phoenix/components";
-import { RolePicker } from "@phoenix/components/settings/RolePicker";
+import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
+import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -136,8 +134,9 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
             return normalizeUserRole(row.original.role);
           }
           return (
-            <RolePicker
+            <RoleSelect
               includeLabel={false}
+              size="S"
               onChange={(key) => {
                 if (key === row.original.role) {
                   return;
@@ -208,9 +207,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
+                      className: header.column.getCanSort() ? "sort" : "",
                       onClick: header.column.getToggleSortingHandler(),
                       style: {
                         left: header.getStart(),
@@ -263,13 +260,17 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           })}
         </tbody>
       )}
-      <DialogContainer
-        onDismiss={() => setDialog(null)}
+      <ModalOverlay
+        isOpen={dialog !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDialog(null);
+          }
+        }}
         isDismissable
-        type="modal"
       >
-        {dialog}
-      </DialogContainer>
+        <Modal size="S">{dialog}</Modal>
+      </ModalOverlay>
     </table>
   );
 }

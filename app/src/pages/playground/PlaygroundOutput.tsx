@@ -7,12 +7,10 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
-
-import { Loading, View } from "@phoenix/components";
+import { Card, Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
-  ConnectedMarkdownModeRadioGroup,
+  ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
@@ -68,9 +66,19 @@ const getToolCallKey = (
 ): Key => {
   if (
     isStringKeyedObject(toolCall) &&
+    "id" in toolCall &&
     (typeof toolCall.id === "string" || typeof toolCall.id === "number")
   ) {
     return toolCall.id;
+  } else if (
+    isStringKeyedObject(toolCall) &&
+    "toolUse" in toolCall &&
+    isStringKeyedObject(toolCall.toolUse) &&
+    "toolUseId" in toolCall.toolUse &&
+    (typeof toolCall.toolUse.toolUseId === "string" ||
+      typeof toolCall.toolUse.toolUseId === "number")
+  ) {
+    return toolCall.toolUse.toolUseId;
   }
   return JSON.stringify(toolCall);
 };
@@ -84,22 +92,26 @@ function PlaygroundOutputMessage({
   const styles = useChatMessageStyles(role);
 
   return (
-    <Card
-      title={role}
-      {...styles}
-      variant="compact"
-      extra={<ConnectedMarkdownModeRadioGroup />}
-    >
+    <Card title={role} {...styles} extra={<ConnectedMarkdownModeSelect />}>
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
+
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
             return (
-              <PlaygroundToolCall
-                key={getToolCallKey(toolCall)}
-                toolCall={toolCall}
-              />
+              <View
+                key={`tool-call-${getToolCallKey(toolCall)}`}
+                paddingX="size-200"
+                paddingY="size-200"
+                borderTopWidth="thin"
+                borderTopColor="blue-500"
+              >
+                <PlaygroundToolCall
+                  key={getToolCallKey(toolCall)}
+                  toolCall={toolCall}
+                />
+              </View>
             );
           })
         : null}
@@ -426,10 +438,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           />
         ) : null
       }
-      titleSeparator
       collapsible
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
     >
       {loading ? (
         <View padding="size-200">

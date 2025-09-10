@@ -1,41 +1,57 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { Cell, Pie, PieChart } from "recharts";
 import { css } from "@emotion/react";
 
 import {
-  HelpTooltip,
+  Flex,
+  Heading,
+  Link,
   ProgressBar,
+  RichTooltip,
+  Text,
   TooltipTrigger,
   TriggerWrap,
-} from "@arizeai/components";
-
-import { Flex, Heading, Link, Text, View } from "@phoenix/components";
+  View,
+} from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { SequenceNumberToken } from "@phoenix/components/experiment";
+import {
+  ExperimentTokenCount,
+  SequenceNumberToken,
+} from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CompactJSONCell, IntCell } from "@phoenix/components/table";
+import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
+import {
+  CompactJSONCell,
+  IntCell,
+  LoadMoreRow,
+} from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import { RunExperimentButton } from "../dataset/RunExperimentButton";
-
-import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
-import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
+import type {
+  ExperimentsTableFragment$data,
+  ExperimentsTableFragment$key,
+} from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
@@ -43,38 +59,78 @@ import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
-export function ExperimentsTableEmpty() {
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
+const TableBody = <T extends { id: string }>({
+  table,
+  hasNext,
+  onLoadNext,
+  isLoadingNext,
+  dataset,
+}: {
+  table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+  dataset: ExperimentsTableFragment$data;
+}) => {
+  const navigate = useNavigate();
   return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--ac-global-dimension-size-400) !important;
-            button {
-              margin-top: var(--ac-global-dimension-size-200);
-              margin-left: auto;
-              margin-right: auto;
-            }
-          `}
-        >
-          No experiments for this dataset. To see how to run experiments on a
-          dataset, check out the documentation.
-          <RunExperimentButton />
-        </td>
-      </tr>
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        return (
+          <tr
+            key={row.id}
+            onClick={() => {
+              navigate(
+                `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
+              );
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
     </tbody>
   );
-}
+};
+
+// Memoized wrapper for table body to use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
 
 export function ExperimentsTable({
   dataset,
 }: {
-  dataset: experimentsLoaderQuery$data["dataset"];
+  dataset: ExperimentsTableFragment$key;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
+  const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -84,6 +140,7 @@ export function ExperimentsTable({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {
+          id
           experimentAnnotationSummaries {
             annotationName
             minScore
@@ -105,9 +162,25 @@ export function ExperimentsTable({
                 project {
                   id
                 }
+                costSummary {
+                  total {
+                    tokens
+                    cost
+                  }
+                  prompt {
+                    tokens
+                    cost
+                  }
+                  completion {
+                    tokens
+                    cost
+                  }
+                }
                 annotationSummaries {
                   annotationName
                   meanScore
+                  count
+                  errorCount
                 }
               }
             }
@@ -122,12 +195,24 @@ export function ExperimentsTable({
       data.experiments.edges.map((edge) => {
         const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
           (acc, summary) => {
-            acc[summary.annotationName] = summary;
+            const totalRunCount = edge.experiment.runCount;
+            const annotatedCount = summary.count - summary.errorCount;
+            acc[summary.annotationName] = {
+              ...summary,
+              annotatedCount,
+              totalRunCount,
+            };
             return acc;
           },
           {} as Record<
             string,
-            { annotationName: string; meanScore: number | null } | undefined
+            | {
+                annotationName: string;
+                meanScore: number | null;
+                annotatedCount: number;
+                totalRunCount: number;
+              }
+            | undefined
           >
         );
         return {
@@ -137,10 +222,13 @@ export function ExperimentsTable({
       }),
     [data.experiments.edges]
   );
+
   type TableRow = (typeof tableData)[number];
+
   const baseColumns: ColumnDef<TableRow>[] = [
     {
       id: "select",
+      maxSize: 50,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
@@ -172,7 +260,7 @@ export function ExperimentsTable({
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
             <Link
-              to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
+              to={`/datasets/${data.id}/compare?experimentId=${experimentId}`}
             >
               {getValue() as string}
             </Link>
@@ -192,6 +280,7 @@ export function ExperimentsTable({
       cell: TimestampCell,
     },
   ];
+
   const annotationColumns: ColumnDef<TableRow>[] =
     data.experimentAnnotationSummaries.map((annotationSummary) => {
       const { annotationName, minScore, maxScore } = annotationSummary;
@@ -200,7 +289,6 @@ export function ExperimentsTable({
           <Flex
             direction="row"
             gap="size-100"
-            wrap
             alignItems="center"
             justifyContent="end"
           >
@@ -231,6 +319,8 @@ export function ExperimentsTable({
               value={annotation.meanScore}
               min={minScore}
               max={maxScore}
+              annotatedCount={annotation.annotatedCount}
+              totalRunCount={annotation.totalRunCount}
             />
           );
         },
@@ -261,6 +351,41 @@ export function ExperimentsTable({
       },
     },
     {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue, row }) => {
+        const value = getValue() as number | null;
+        const experimentId = row.original.id;
+        if (value == null) {
+          return "--";
+        }
+        return (
+          <ExperimentTokenCosts totalCost={value} experimentId={experimentId} />
+        );
+      },
+    },
+    {
+      header: "total tokens",
+      accessorKey: "costSummary.total.tokens",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue, row }) => {
+        const value = getValue() as number | null;
+        const experimentId = row.original.id;
+        return (
+          <ExperimentTokenCount
+            tokenCountTotal={value}
+            experimentId={experimentId}
+            size="S"
+          />
+        );
+      },
+    },
+    {
       header: "error rate",
       accessorKey: "errorRate",
       meta: {
@@ -276,6 +401,7 @@ export function ExperimentsTable({
     },
     {
       id: "actions",
+      maxSize: 120,
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
@@ -288,7 +414,7 @@ export function ExperimentsTable({
               metadata={metadata}
               canDeleteExperiment={true}
               onExperimentDeleted={() => {
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch({}, { fetchPolicy: "network-only" });
               }}
             />
           </Flex>
@@ -296,23 +422,26 @@ export function ExperimentsTable({
       },
     },
   ];
+
   const table = useReactTable<TableRow>({
     columns: [...baseColumns, ...annotationColumns, ...tailColumns],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
     state: {
       rowSelection,
+      columnSizing,
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
+    getCoreRowModel: getCoreRowModel(),
   });
-  const rows = table.getRowModel().rows;
+
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
-
-  const isEmpty = rows.length === 0;
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -330,76 +459,161 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const [columnSizeVars] = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return [colSizes];
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+
   return (
     <div
       css={css`
-        flex: 1 1 auto;
+        height: 100%;
         overflow: auto;
-        width: table.getTotalSize();
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
+                  colSpan={header.colSpan}
                   key={header.id}
+                  style={{
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        <Truncate maxWidth="100%">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </Truncate>
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
-          <ExperimentsTableEmpty />
+        {columnSizingInfo.isResizingColumn ? (
+          <MemoizedTableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={data}
+          />
         ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(
-                    `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-                  );
-                }}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
+          <TableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={data}
+          />
         )}
       </table>
       {selectedRows.length ? (
         <ExperimentSelectionToolbar
-          datasetId={dataset.id}
+          datasetId={data.id}
           selectedExperiments={selectedExperiments}
           onClearSelection={clearSelection}
           onExperimentsDeleted={() => {
-            refetch({}, { fetchPolicy: "store-and-network" });
+            refetch({}, { fetchPolicy: "network-only" });
           }}
         />
       ) : null}
     </div>
+  );
+}
+
+function MissingAnnotationPieChart({
+  unannotatedRatio,
+}: {
+  unannotatedRatio: number;
+}) {
+  const size = 16;
+
+  const chartData = useMemo(
+    () => [
+      { name: "hasAnnotation", value: 1 - unannotatedRatio },
+      { name: "missingAnnotation", value: unannotatedRatio },
+    ],
+    [unannotatedRatio]
+  );
+
+  return (
+    <PieChart width={size} height={size}>
+      <Pie
+        data={chartData}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        innerRadius={6}
+        outerRadius={8}
+        strokeWidth={0}
+        stroke="transparent"
+        startAngle={90}
+        endAngle={-270}
+      >
+        {chartData.map((entry) => (
+          <Cell
+            key={entry.name}
+            fill={
+              entry.name === "missingAnnotation"
+                ? "var(--ac-global-color-warning)"
+                : "var(--ac-global-color-grey-300)"
+            }
+            opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
+          />
+        ))}
+      </Pie>
+    </PieChart>
   );
 }
 
@@ -408,79 +622,95 @@ function AnnotationAggregationCell({
   value,
   min,
   max,
+  annotatedCount,
+  totalRunCount,
 }: {
   annotationName: string;
   value: number;
   min?: number | null;
   max?: number | null;
+  annotatedCount: number;
+  totalRunCount: number;
 }) {
   const color = useWordColor(annotationName);
-  const percentile = useMemo(() => {
-    // Assume a 0 to 1 range if min and max are not provided
-    const correctedMin = typeof min === "number" ? min : 0;
-    const correctedMax = typeof max === "number" ? max : 1;
-    if (correctedMin === correctedMax && correctedMax === value) {
-      // All the values are the same, so we want to display it as full rather than empty
-      return 100;
-    }
-    // Avoid division by zero
-    const range = correctedMax - correctedMin || 1;
-    return ((value - correctedMin) / range) * 100;
-  }, [value, min, max]);
+  const percentile = useMemo(
+    () => calculateAnnotationScorePercentile(value, min, max),
+    [value, min, max]
+  );
+  const unannotatedRatio =
+    totalRunCount > 0 ? 1 - annotatedCount / totalRunCount : 0;
   return (
-    <TooltipTrigger>
-      <TriggerWrap>
-        <div
-          css={css`
-            float: right;
-            --mod-barloader-fill-color: ${color};
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: var(--ac-global-dimension-size-100);
-          `}
-        >
-          {floatFormatter(value)}
-          <ProgressBar
-            width="40px"
-            value={percentile}
-            aria-label="where the mean score lands between overall min max"
-          />
-        </div>
-      </TriggerWrap>
-      <HelpTooltip>
-        <View width="size-2400">
-          <Heading level={3} weight="heavy">
-            {annotationName}
-          </Heading>
-          <Flex direction="column">
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score
+    <div
+      css={css`
+        float: right;
+        --mod-barloader-fill-color: ${color};
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {unannotatedRatio > 0.0 && (
+        <TooltipTrigger>
+          <TriggerWrap>
+            <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
+          </TriggerWrap>
+          <RichTooltip>
+            <View width="size-2000">
+              <Text size="XS">
+                {formatPercent(unannotatedRatio * 100)} (
+                {totalRunCount - annotatedCount}/{totalRunCount}) missing{" "}
+                {annotationName}
               </Text>
-              <Text size="XS">{floatFormatter(value)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Min
-              </Text>
-              <Text size="XS">{floatFormatter(min)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                All Experiments Max
-              </Text>
-              <Text size="XS">{floatFormatter(max)}</Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text weight="heavy" size="XS">
-                Mean Score Percentile
-              </Text>
-              <Text size="XS">{formatPercent(percentile)}</Text>
-            </Flex>
+            </View>
+          </RichTooltip>
+        </TooltipTrigger>
+      )}
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            {floatFormatter(value)}
+            <ProgressBar
+              width="40px"
+              value={percentile}
+              aria-label="where the mean score lands between overall min max"
+            />
           </Flex>
-        </View>
-      </HelpTooltip>
-    </TooltipTrigger>
+        </TriggerWrap>
+        <RichTooltip>
+          <View width="size-2400">
+            <Heading level={3} weight="heavy">
+              {annotationName}
+            </Heading>
+            <Flex direction="column">
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score
+                </Text>
+                <Text size="XS">{floatFormatter(value)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Min
+                </Text>
+                <Text size="XS">{floatFormatter(min)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  All Experiments Max
+                </Text>
+                <Text size="XS">{floatFormatter(max)}</Text>
+              </Flex>
+              <Flex justifyContent="space-between">
+                <Text weight="heavy" size="XS">
+                  Mean Score Percentile
+                </Text>
+                <Text size="XS">{formatPercent(percentile)}</Text>
+              </Flex>
+            </Flex>
+          </View>
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
   );
 }

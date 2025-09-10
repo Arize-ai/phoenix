@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c57c249c56c0f6baf88e651f199b3b05>>
+ * @generated SignedSource<<1fb3c4288ed65a2d8446c0154e7e6abf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,11 +14,14 @@ export type RunMetadataFooterQuery$variables = {
 };
 export type RunMetadataFooterQuery$data = {
   readonly span: {
+    readonly costSummary?: {
+      readonly total: {
+        readonly cost: number | null;
+      };
+    } | null;
     readonly id: string;
     readonly latencyMs?: number | null;
     readonly spanId?: string;
-    readonly tokenCountCompletion?: number | null;
-    readonly tokenCountPrompt?: number | null;
     readonly tokenCountTotal?: number | null;
     readonly trace?: {
       readonly id: string;
@@ -101,20 +104,6 @@ v3 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
     },
@@ -123,6 +112,35 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "latencyMs",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostSummary",
+      "kind": "LinkedField",
+      "name": "costSummary",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "total",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cost",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -182,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "447ee90c4f55ded6a8a64e73fc30c065",
+    "cacheID": "5f0974276186eb5032c3aadb289adbe3",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d8025b7f870ac81e2d1e3249bb818186";
+(node as any).hash = "ea9edc5ec856a42e5e53663d6a570de1";
 
 export default node;

@@ -17,3 +17,5 @@ class GenerativeModelInput:
     """ The endpoint to use for the model. Only required for Azure OpenAI models. """
     api_version: Optional[str] = UNSET
     """ The API version to use for the model. """
+    region: Optional[str] = UNSET
+    """ The region to use for the model. """

@@ -1,87 +1,56 @@
-import os
-from collections.abc import Iterator
-from contextlib import ExitStack
 from secrets import token_hex
-from time import sleep
-from typing import Any
-from unittest import mock
+from typing import Iterator, Mapping
 
 import pytest
-from opentelemetry.sdk.environment_variables import (
-    OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-)
-from opentelemetry.sdk.trace.export import SpanExportResult
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import format_span_id
-from typing_extensions import TypeAlias
+from strawberry.relay import GlobalID
 
-from .._helpers import _AdminSecret, _gql, _grpc_span_exporter, _server, _start_span
+from phoenix.client import Client
+
+from .._helpers import (
+    _AppInfo,
+    _ExistingProject,
+    _ExistingSpan,
+    _insert_spans,
+    _server,
+)
 
 
 @pytest.fixture(scope="package")
-def _admin_secret() -> _AdminSecret:
-    return _AdminSecret(token_hex(16))
+def _env(
+    _env_ports: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_auth: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+) -> dict[str, str]:
+    """Combine all environment variable configurations for testing."""
+    return {
+        **_env_ports,
+        **_env_database,
+        **_env_auth,
+        **_env_smtp,
+    }
 
 
 @pytest.fixture(scope="package")
 def _app(
-    _ports: Iterator[int],
-    _env_phoenix_sql_database_url: Any,
-    _admin_secret: _AdminSecret,
-) -> Iterator[None]:
-    values = (
-        ("PHOENIX_ENABLE_AUTH", "true"),
-        ("PHOENIX_DISABLE_RATE_LIMIT", "true"),
-        ("PHOENIX_SECRET", token_hex(16)),
-        ("PHOENIX_ADMIN_SECRET", str(_admin_secret)),
-        (OTEL_EXPORTER_OTLP_TRACES_HEADERS, f"Authorization=Bearer {_admin_secret}"),
-    )
-    with ExitStack() as stack:
-        stack.enter_context(mock.patch.dict(os.environ, values))
-        stack.enter_context(_server())
-        yield
+    _env: dict[str, str],
+) -> Iterator[_AppInfo]:
+    with _server(_AppInfo(_env)) as app:
+        yield app
 
 
-SpanId: TypeAlias = str
-SpanGlobalId: TypeAlias = str
+@pytest.fixture(scope="package")
+def _existing_spans(
+    _app: _AppInfo,
+) -> tuple[_ExistingSpan, ...]:
+    return _insert_spans(_app, 102)
 
 
-@pytest.fixture(autouse=True, scope="package")
-def _span_ids(
-    _app: Any,
-    _admin_secret: _AdminSecret,
-) -> tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]]:
-    memory = InMemorySpanExporter()
-    for _ in range(2):
-        _start_span(project_name="default", exporter=memory).end()
-    assert (spans := memory.get_finished_spans())
-    assert _grpc_span_exporter().export(spans) is SpanExportResult.SUCCESS
-    sleep(0.1)
-    span1, span2 = spans
-    assert (sc1 := span1.get_span_context())  # type: ignore[no-untyped-call]
-    span_id1 = format_span_id(sc1.span_id)
-    assert (sc2 := span2.get_span_context())  # type: ignore[no-untyped-call]
-    span_id2 = format_span_id(sc2.span_id)
-    res, _ = _gql(_admin_secret, query=QUERY, operation_name="GetSpanIds")
-    gids = {e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]}
-    assert span_id1 in gids
-    assert span_id2 in gids
-    return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
-
-
-QUERY = """
-query GetSpanIds {
-  node(id: "UHJvamVjdDox") {
-    ... on Project {
-      spans {
-        edges {
-          node {
-            id
-            spanId
-          }
-        }
-      }
-    }
-  }
-}
-"""
+@pytest.fixture(scope="function")
+def _existing_project(
+    _app: _AppInfo,
+) -> Iterator[_ExistingProject]:
+    client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
+    project = client.projects.create(name=token_hex(16))
+    yield _ExistingProject(id=GlobalID.from_id(project["id"]), name=project["name"])
+    client.projects.delete(project_name=project["name"])

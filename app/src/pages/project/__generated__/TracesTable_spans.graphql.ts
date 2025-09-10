@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4bfbdd258cc30acda2c9ccd3467c71c4>>
+ * @generated SignedSource<<25644e3acbb00a592e2d9acdd67f512a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,14 +19,10 @@ export type TracesTable_spans$data = {
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
-        readonly cumulativeTokenCountCompletion: number | null;
-        readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: {
           readonly edges: ReadonlyArray<{
             readonly node: {
-              readonly cumulativeTokenCountCompletion: number | null;
-              readonly cumulativeTokenCountPrompt: number | null;
               readonly cumulativeTokenCountTotal: number | null;
               readonly documentRetrievalMetrics: ReadonlyArray<{
                 readonly evaluationName: string;
@@ -34,6 +30,7 @@ export type TracesTable_spans$data = {
                 readonly ndcg: number | null;
                 readonly precision: number | null;
               }>;
+              readonly endTime: string | null;
               readonly id: string;
               readonly input: {
                 readonly value: string;
@@ -70,6 +67,7 @@ export type TracesTable_spans$data = {
           readonly ndcg: number | null;
           readonly precision: number | null;
         }>;
+        readonly endTime: string | null;
         readonly id: string;
         readonly input: {
           readonly value: string;
@@ -102,6 +100,11 @@ export type TracesTable_spans$data = {
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly trace: {
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+            };
+          };
           readonly id: string;
           readonly numSpans: number;
           readonly traceId: string;
@@ -156,17 +159,24 @@ v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
+  "name": "endTime",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v7 = [
+v8 = [
   {
     "alias": "value",
     "args": null,
@@ -175,48 +185,48 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v8/*: any*/),
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v7/*: any*/),
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanId",
+  "selections": (v8/*: any*/),
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "traceId",
+  "name": "spanId",
   "storageKey": null
 },
 v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "traceId",
   "storageKey": null
 },
 v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -226,7 +236,7 @@ v13 = {
   "selections": [
     (v2/*: any*/),
     (v1/*: any*/),
-    (v12/*: any*/),
+    (v13/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -251,12 +261,12 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "args": null,
   "kind": "FragmentSpread",
   "name": "AnnotationSummaryGroup"
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -426,6 +436,7 @@ return {
                 },
                 (v4/*: any*/),
                 (v5/*: any*/),
+                (v6/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -433,24 +444,10 @@ return {
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountCompletion",
-                  "storageKey": null
-                },
-                (v6/*: any*/),
-                (v8/*: any*/),
+                (v7/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
+                (v11/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -460,18 +457,47 @@ return {
                   "plural": false,
                   "selections": [
                     (v2/*: any*/),
-                    (v11/*: any*/),
+                    (v12/*: any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "numSpans",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanCostSummary",
+                      "kind": "LinkedField",
+                      "name": "costSummary",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "CostBreakdown",
+                          "kind": "LinkedField",
+                          "name": "total",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "cost",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
                 },
-                (v13/*: any*/),
+                (v14/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -495,7 +521,7 @@ return {
                           "name": "fraction",
                           "storageKey": null
                         },
-                        (v12/*: any*/)
+                        (v13/*: any*/)
                       ],
                       "storageKey": null
                     },
@@ -510,8 +536,8 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v14/*: any*/),
                 (v15/*: any*/),
+                (v16/*: any*/),
                 {
                   "alias": null,
                   "args": [
@@ -555,6 +581,7 @@ return {
                             (v4/*: any*/),
                             (v5/*: any*/),
                             (v6/*: any*/),
+                            (v7/*: any*/),
                             {
                               "alias": "cumulativeTokenCountTotal",
                               "args": null,
@@ -562,23 +589,9 @@ return {
                               "name": "tokenCountTotal",
                               "storageKey": null
                             },
-                            {
-                              "alias": "cumulativeTokenCountPrompt",
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "tokenCountPrompt",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": "cumulativeTokenCountCompletion",
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "tokenCountCompletion",
-                              "storageKey": null
-                            },
-                            (v8/*: any*/),
                             (v9/*: any*/),
                             (v10/*: any*/),
+                            (v11/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -588,13 +601,13 @@ return {
                               "plural": false,
                               "selections": [
                                 (v2/*: any*/),
-                                (v11/*: any*/)
+                                (v12/*: any*/)
                               ],
                               "storageKey": null
                             },
-                            (v13/*: any*/),
                             (v14/*: any*/),
                             (v15/*: any*/),
+                            (v16/*: any*/),
                             {
                               "args": null,
                               "kind": "FragmentSpread",
@@ -675,6 +688,6 @@ return {
 };
 })();
 
-(node as any).hash = "506e7c2397918ad76b8f1a50a0a2c49b";
+(node as any).hash = "b2ce5da0dab3a8061fce34751c19df14";
 
 export default node;

@@ -18,7 +18,7 @@ _Follow our tutorial in a notebook with our Langchain and LlamaIndex integration
 
 #### Step 1: Logging Knowledge Base
 
-The first thing we need is to collect some sample from your vector store, to be able to compare against later. This is to able to see if some sections are not being retrieved, or some sections are getting a lot of traffic where you might want to beef up your context or documents in that area.
+The first thing we need is to collect some sample from your vector store, to be able to compare against later. This is to be able to see if some sections are not being retrieved, or some sections are getting a lot of traffic where you might want to beef up your context or documents in that area.
 
 For more details, visit this [page](../inferences/how-to-inferences/define-your-schema/corpus-data.md).
 
@@ -50,7 +50,7 @@ primary_schema = Schema(
         raw_data_column_name="query",
         context_retrieval_ids_column_name="retrieved_document_ids",
         context_retrieval_scores_column_name="relevance_scores",
-    )
+    ),
     response_column_names="response",
 )
 ```
@@ -59,7 +59,7 @@ primary_schema = Schema(
 
 In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.
 
-Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](https://docs.arize.com/phoenix/references/openinference) specification.
+Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](https://arize.com/docs/phoenix/references/openinference) specification.
 
 ```python
 # Get traces from Phoenix into dataframe 
@@ -74,11 +74,11 @@ queries_df = get_qa_with_reference(px.active_session())
 
 ```
 
-Once the data is in a dataframe, evaluations can be run on the data. Evaluations can be run on on different spans of data. In the below example we run on the top level spans that represent a single trace.
+Once the data is in a dataframe, evaluations can be run on the data. Evaluations can be run on different spans of data. In the below example we run on the top level spans that represent a single trace.
 
 ### Q\&A and Hallucination Evals
 
-This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../evaluation/how-to-evals/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
+This example shows how to run Q\&A and Hallucination Evals with OpenAI (many other [models](../evaluation/how-to-evals/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
 
 ```python
 from phoenix.trace import SpanEvaluations, DocumentEvaluations
@@ -126,11 +126,11 @@ px.Client().log_evaluations(
 
 ```
 
-The Evals are available in dataframe locally and can be materilazed back to the Phoenix UI, the Evals are attached to the referenced SpanIDs.
+The Evals are available in dataframe locally and can be materialized back to the Phoenix UI, the Evals are attached to the referenced SpanIDs.
 
 <figure><img src="../.gitbook/assets/databricks_notebook_eval2.png" alt=""><figcaption><p>Evals in Phoenix UI</p></figcaption></figure>
 
-The snipit of code above links the Evals back to the spans they were generated against.
+The snippet of code above links the Evals back to the spans they were generated against.
 
 ### Retrieval Chunk Evals
 

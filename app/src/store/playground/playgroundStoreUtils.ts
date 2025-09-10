@@ -23,6 +23,9 @@ export const convertInstanceToolsToProvider = ({
   return instanceTools.map((tool) => {
     switch (provider) {
       case "OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
+      case "OLLAMA":
       case "AZURE_OPENAI": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -36,6 +39,24 @@ export const convertInstanceToolsToProvider = ({
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
         );
+        const definition = maybeOpenAIToolDefinition
+          ? fromOpenAIToolDefinition({
+              toolDefinition: maybeOpenAIToolDefinition,
+              targetProvider: provider,
+            })
+          : tool.definition;
+        return {
+          ...tool,
+          definition,
+        };
+      }
+      case "AWS": {
+        // Keep AWS tool definitions in OpenAI format
+        // The backend will handle the conversion to AWS format
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+
         const definition = maybeOpenAIToolDefinition
           ? fromOpenAIToolDefinition({
               toolDefinition: maybeOpenAIToolDefinition,
@@ -74,6 +95,9 @@ export const convertMessageToolCallsToProvider = ({
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
+      case "OLLAMA":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }
@@ -82,6 +106,15 @@ export const convertMessageToolCallsToProvider = ({
         return maybeOpenAIToolCall != null
           ? fromOpenAIToolCall({
               toolCall: maybeOpenAIToolCall,
+              targetProvider: provider,
+            })
+          : toolCall;
+      }
+      case "AWS": {
+        const maybeAwsToolCall = toOpenAIToolCall(toolCall);
+        return maybeAwsToolCall != null
+          ? fromOpenAIToolCall({
+              toolCall: maybeAwsToolCall,
               targetProvider: provider,
             })
           : toolCall;

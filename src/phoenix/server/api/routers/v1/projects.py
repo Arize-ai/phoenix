@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -14,8 +14,8 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.enums import UserRole
 from phoenix.db.helpers import exclude_experiment_projects
+from phoenix.db.models import UserRoleName
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -24,6 +24,7 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.authorization import is_not_locked
 
 router = APIRouter(tags=["projects"])
 
@@ -174,6 +175,7 @@ async def get_project(
 
 @router.post(
     "/projects",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createProject",
     summary="Create a new project",  # noqa: E501
     description="Create a new project with the specified configuration.",  # noqa: E501
@@ -214,6 +216,7 @@ async def create_project(
 
 @router.put(
     "/projects/{project_identifier}",
+    dependencies=[Depends(is_not_locked)],
     operation_id="updateProject",
     summary="Update a project by ID or name",  # noqa: E501
     description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
@@ -256,8 +259,8 @@ async def update_project(
                 .join(models.User)
                 .where(models.User.id == int(request.user.identity))
             )
-            role_name = await session.scalar(stmt)
-        if role_name != UserRole.ADMIN.value:
+            role_name: UserRoleName = await session.scalar(stmt)
+        if role_name != "ADMIN" and role_name != "SYSTEM":
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Only admins can update projects",
@@ -316,8 +319,8 @@ async def delete_project(
                 .join(models.User)
                 .where(models.User.id == int(request.user.identity))
             )
-            role_name = await session.scalar(stmt)
-        if role_name != UserRole.ADMIN.value:
+            role_name: UserRoleName = await session.scalar(stmt)
+        if role_name != "ADMIN" and role_name != "SYSTEM":
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Only admins can delete projects",

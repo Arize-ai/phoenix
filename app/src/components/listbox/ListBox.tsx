@@ -14,13 +14,18 @@ const listBoxCSS = css`
   overflow: auto;
   forced-color-adjust: none;
   outline: none;
-  max-height: 300px;
-  min-height: 100px;
   box-sizing: border-box;
 
   &[data-focus-visible] {
     outline: 2px solid var(--focus-ring-color);
     outline-offset: -1px;
+  }
+
+  &[data-empty] {
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+    color: var(--ac-global-text-color-700);
   }
 
   .react-aria-ListBoxItem {
@@ -69,5 +74,9 @@ function ListBox<T extends object>(
   return <AriaListBox css={mergedCSS} ref={ref} {...restProps} />;
 }
 
-const _ListBox = forwardRef(ListBox);
+type ListBoxComponent = <T extends object>(
+  props: ListBoxProps<T> & React.RefAttributes<HTMLDivElement>
+) => React.ReactElement | null;
+
+const _ListBox = forwardRef(ListBox) as ListBoxComponent;
 export { _ListBox as ListBox };

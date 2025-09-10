@@ -25,11 +25,12 @@ import { Icon, Icons, View } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { IntCell, TextCell } from "../../components/table";
-import { TokenCount } from "../../components/trace/TokenCount";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import {
@@ -96,7 +97,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterIoSubstring } = useSessionSearchContext();
+  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
@@ -111,6 +112,7 @@ export function SessionsTable(props: SessionsTableProps) {
             defaultValue: { col: startTime, dir: desc }
           }
           filterIoSubstring: { type: "String", defaultValue: null }
+          sessionId: { type: "String", defaultValue: null }
         ) {
           name
           sessions(
@@ -119,6 +121,7 @@ export function SessionsTable(props: SessionsTableProps) {
             sort: $sort
             filterIoSubstring: $filterIoSubstring
             timeRange: $timeRange
+            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
@@ -134,12 +137,15 @@ export function SessionsTable(props: SessionsTableProps) {
                   value
                 }
                 tokenUsage {
-                  prompt
-                  completion
                   total
                 }
                 traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
                 traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
+                costSummary {
+                  total {
+                    cost
+                  }
+                }
               }
             }
           }
@@ -151,6 +157,7 @@ export function SessionsTable(props: SessionsTableProps) {
     return data.sessions.edges.map(({ session }) => ({
       ...session,
       tokenCountTotal: session.tokenUsage.total,
+      costTotal: session.costSummary?.total?.cost ?? null,
     }));
   }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
@@ -214,19 +221,34 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
-      cell: ({ row, getValue }) => {
+      cell: ({ getValue, row }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        const { prompt, completion } = row.original.tokenUsage;
+        const session = row.original;
         return (
-          <TokenCount
+          <SessionTokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={prompt || 0}
-            tokenCountCompletion={completion || 0}
+            nodeId={session.id}
+            size="S"
           />
         );
+      },
+    },
+    {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      id: "costTotal",
+      enableSorting: true,
+      minSize: 80,
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const session = row.original;
+        return <SessionTokenCosts totalCost={value} nodeId={session.id} />;
       },
     },
     {
@@ -249,12 +271,13 @@ export function SessionsTable(props: SessionsTableProps) {
             : { col: "startTime", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
-          filterIoSubstring: filterIoSubstring,
+          filterIoSubstring: filterIoSubstringOrSessionId,
+          sessionId: filterIoSubstringOrSessionId,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterIoSubstring, fetchKey]);
+  }, [sorting, refetch, filterIoSubstringOrSessionId, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -365,9 +388,7 @@ export function SessionsTable(props: SessionsTableProps) {
                         <div
                           data-sortable={header.column.getCanSort()}
                           {...{
-                            className: header.column.getCanSort()
-                              ? "cursor-pointer"
-                              : "",
+                            className: header.column.getCanSort() ? "sort" : "",
                             onClick: header.column.getToggleSortingHandler(),
                             style: {
                               left: header.getStart(),

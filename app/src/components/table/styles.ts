@@ -16,18 +16,28 @@ export const tableCSS = css`
     z-index: 1;
     tr {
       th {
-        padding: var(--ac-global-dimension-size-50)
+        padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
         background-color: var(--ac-global-color-grey-100);
         position: relative;
         text-align: left;
         user-select: none;
+        vertical-align: top;
+        font-weight: 600;
+        font-size: var(--ac-global-font-size-s);
+        line-height: var(--ac-global-line-height-s);
         border-bottom: 1px solid var(--ac-global-border-color-default);
         &:not(:last-of-type) {
           border-right: 1px solid var(--ac-global-border-color-default);
         }
-        .cursor-pointer {
+        .sort {
+          /* The sortable part of the header */
           cursor: pointer;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+
+          gap: var(--ac-global-dimension-size-50);
         }
         .sort-icon {
           margin-left: var(--ac-global-dimension-size-50);
@@ -72,9 +82,6 @@ export const tableCSS = css`
           border-bottom: 1px solid var(--ac-global-border-color-default);
         }
       }
-      &:hover {
-        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.3);
-      }
       & > td {
         padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
@@ -99,8 +106,19 @@ export const borderedTableCSS = css`
   }
 `;
 
+export const interactiveTableCSS = css`
+  tbody:not(.is-empty) {
+    tr {
+      &:hover {
+        background-color: var(--ac-hover-background);
+      }
+    }
+  }
+`;
+
 export const selectableTableCSS = css(
   tableCSS,
+  interactiveTableCSS,
   css`
     tbody:not(.is-empty) {
       tr {
@@ -143,5 +161,6 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    backgroundColor: isPinned ? "var(--ac-global-color-grey-100)" : undefined,
   };
 }

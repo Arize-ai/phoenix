@@ -26,3 +26,25 @@ class TestGenerativeProvider:
         attributes = {"llm": {"provider": "UnknownProvider"}}
         provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
         assert provider is None
+
+    async def test_credential_requirements_for_ollama(self) -> None:
+        """Test that OLLAMA provider returns empty credential requirements"""
+        provider = GenerativeProvider(name="Ollama", key=GenerativeProviderKey.OLLAMA)
+        requirements = await provider.credential_requirements()
+        assert requirements == []
+
+    async def test_credential_requirements_for_other_providers(self) -> None:
+        """Test that other providers return their credential requirements"""
+        # Test OpenAI
+        provider = GenerativeProvider(name="OpenAI", key=GenerativeProviderKey.OPENAI)
+        requirements = await provider.credential_requirements()
+        assert len(requirements) == 1
+        assert requirements[0].env_var_name == "OPENAI_API_KEY"
+        assert requirements[0].is_required is True
+
+        # Test Anthropic
+        provider = GenerativeProvider(name="Anthropic", key=GenerativeProviderKey.ANTHROPIC)
+        requirements = await provider.credential_requirements()
+        assert len(requirements) == 1
+        assert requirements[0].env_var_name == "ANTHROPIC_API_KEY"
+        assert requirements[0].is_required is True

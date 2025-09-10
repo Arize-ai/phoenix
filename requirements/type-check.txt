@@ -3,6 +3,7 @@ asyncpg
 grpcio
 litellm>=1.0.3
 openai>=1.0.0
+boto3
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-grpc
@@ -17,12 +18,13 @@ psycopg[binary,pool]
 py-grpc-prometheus
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
-strawberry-graphql[opentelemetry]==0.267.0  # avoid this issue: https://github.com/strawberry-graphql/strawberry/issues/3854
+strawberry-graphql[opentelemetry]==0.270.1
 tenacity
 types-cachetools
 types-jsonschema
 types-protobuf
 types-psutil
+types-python-dateutil
 types-requests
 types-setuptools
 types-tabulate

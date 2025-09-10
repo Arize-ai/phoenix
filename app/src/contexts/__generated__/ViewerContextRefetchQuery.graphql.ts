@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<483d1efacfdd4ff9a8796187190711e8>>
+ * @generated SignedSource<<7682165efeee36179feb871060b9b84f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -89,12 +89,20 @@ return {
           {
             "alias": null,
             "args": null,
+            "kind": "ScalarField",
+            "name": "isManagementUser",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
             "concreteType": "UserRole",
             "kind": "LinkedField",
             "name": "role",
             "plural": false,
             "selections": [
-              (v1/*: any*/)
+              (v1/*: any*/),
+              (v0/*: any*/)
             ],
             "storageKey": null
           },
@@ -145,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "12e359dfec5f96fcfcbeff2e8110b80f",
+    "cacheID": "79221da09cbb1334cb0c446af434f607",
     "id": null,
     "metadata": {},
     "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    role {\n      name\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bec0ae2a629134a5b9afe1846eaec2c9";
+(node as any).hash = "d85505e5f9dffd2a1c791f8e0007ab61";
 
 export default node;

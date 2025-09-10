@@ -14,7 +14,8 @@ export const fieldBaseCSS = css`
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--ac-global-dimension-static-font-size-75);
+    font-size: var(--ac-global-font-size-xs);
+    line-height: var(--ac-global-line-height-xs);
     font-weight: var(--px-font-weight-heavy);
   }
 
@@ -45,7 +46,7 @@ export const fieldBaseCSS = css`
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
     }
-    &[data-invalid] {
+    &[data-invalid="true"] {
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
@@ -54,6 +55,7 @@ export const fieldBaseCSS = css`
     }
   }
   [slot="description"],
+  [slot="errorMessage"],
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
     font-size: var(--ac-global-font-size-xs) !important;
@@ -82,23 +84,48 @@ export const fieldPopoverCSS = css`
 `;
 
 export const textFieldCSS = css`
-  display: flex;
-  flex-direction: column;
+  position: relative;
   width: 100%;
+  --field-icon-vertical-position: 50%;
+
+  :has(.react-aria-Label) {
+    /* 24px is the height of the label. TODO: make this variable based */
+    --field-icon-vertical-position: calc(
+      var(--textfield-vertical-padding) + 1px + 24px
+    );
+  }
 
   &[data-size="S"] {
-    --textfield-input-height: 30px;
+    --textfield-input-height: var(--ac-global-input-height-s);
     --textfield-vertical-padding: 6px;
     --textfield-horizontal-padding: 6px;
   }
   &[data-size="M"] {
-    --textfield-input-height: 38px;
+    --textfield-input-height: var(--ac-global-input-height-m);
     --textfield-vertical-padding: 10px;
     --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --icon-size: var(--ac-global-font-size-l);
+  }
+
+  &:has(.ac-field-icon) {
+    .react-aria-Input {
+      padding-right: calc(
+        var(--textfield-horizontal-padding) + var(--icon-size)
+      );
+    }
+  }
+
+  /* Icons */
+  .ac-field-icon {
+    position: absolute;
+    right: var(--textfield-horizontal-padding);
+    top: var(--field-icon-vertical-position);
   }
 
   .react-aria-Input,
-  .react-aria-TextArea {
+  .react-aria-TextArea,
+  input {
+    width: 100%;
     margin: 0;
     border: var(--ac-global-border-size-thin) solid
       var(
@@ -113,12 +140,19 @@ export const textFieldCSS = css`
     box-sizing: border-box;
     outline-offset: -1px;
     outline: var(--ac-global-border-size-thin) solid transparent;
-    &[data-focused] {
+    &[data-focused]:not([data-invalid]) {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
     }
   }
+
   .react-aria-Input {
     /* TODO: remove this sizing */
     height: var(--textfield-input-height);
+  }
+
+  [slot="description"],
+  [slot="errorMessage"],
+  .react-aria-FieldError {
+    grid-area: help;
   }
 `;

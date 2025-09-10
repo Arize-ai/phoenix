@@ -31,6 +31,7 @@ import { css } from "@emotion/react";
 import { useNotification } from "@arizeai/components";
 
 import {
+  DebouncedSearch,
   Flex,
   FlexProps,
   Heading,
@@ -43,10 +44,11 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  ConnectedLastNTimeRangePicker,
+  ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
+import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -72,7 +74,6 @@ import {
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
-import { ProjectsSearch } from "./ProjectsSearch";
 
 const PAGE_SIZE = 10;
 
@@ -112,6 +113,7 @@ export function ProjectsPage() {
     `,
     {
       first: PAGE_SIZE,
+      filter: { value: "", col: "name" },
       ...queryParams,
     }
   );
@@ -312,10 +314,7 @@ export function ProjectsPageContent({
       ref={projectsContainerRef}
     >
       <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
+        padding="size-200"
         width="100%"
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
@@ -327,7 +326,9 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <ProjectsSearch
+          <DebouncedSearch
+            aria-label="Search projects by name"
+            placeholder="Search projects by name"
             onChange={(newSearch) => {
               setFilter(newSearch);
               refetch({
@@ -349,7 +350,7 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
-            <ConnectedLastNTimeRangePicker />
+            <ConnectedTimeRangeSelector size="M" />
             <NewProjectButton variant="primary" />
           </Flex>
         </Flex>
@@ -484,29 +485,6 @@ function ProjectsGrid({
   );
 }
 
-function ProjectIcon({
-  gradientStartColor,
-  gradientEndColor,
-}: {
-  gradientStartColor: string;
-  gradientEndColor: string;
-}) {
-  return (
-    <div
-      css={css`
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(
-          136.27deg,
-          ${gradientStartColor} 14.03%,
-          ${gradientEndColor} 84.38%
-        );
-        flex-shrink: 0;
-      `}
-    />
-  );
-}
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
@@ -536,8 +514,7 @@ function ProjectItem({
     <div
       css={css`
         padding: var(--ac-global-dimension-size-200);
-        border: 1px solid var(--ac-global-color-grey-400);
-        background-color: var(--ac-global-color-grey-100);
+        border: 1px solid var(--ac-global-color-grey-100);
         box-shadow:
           0 0 1px 0px var(--ac-global-color-grey-400) inset,
           0 0 1px 0px var(--ac-global-color-grey-400);
@@ -555,7 +532,7 @@ function ProjectItem({
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <ProjectIcon
+          <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
           />
@@ -567,7 +544,6 @@ function ProjectItem({
                 display: -webkit-box;
                 -webkit-box-orient: vertical;
                 -webkit-line-clamp: 1;
-                overflow: hidden;
               `}
             >
               {project.name}
@@ -591,15 +567,11 @@ function ProjectItem({
 }
 
 const PROJECT_METRICS_QUERY = graphql`
-  query ProjectsPageProjectMetricsQuery(
-    $id: GlobalID!
-    $timeRange: TimeRange!
-  ) {
+  query ProjectsPageProjectMetricsQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ... on Project {
         traceCount(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
-        tokenCountTotal(timeRange: $timeRange)
       }
     }
   }
@@ -611,12 +583,6 @@ function ProjectMetricsLoadingSkeleton() {
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
-        </Text>
-        <Skeleton width={60} height={20} animation="wave" />
-      </Flex>
-      <Flex direction="column" flex="none" gap="size-100">
-        <Text elementType="h3" size="S" color="text-700">
-          Total Tokens
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -696,7 +662,7 @@ function ProjectMetricsRow({
   flexProps?: Partial<FlexProps>;
 }) {
   const {
-    project: { traceCount, tokenCountTotal, latencyMsP50 },
+    project: { traceCount, latencyMsP50 },
   } = project;
   return (
     <Flex
@@ -705,19 +671,15 @@ function ProjectMetricsRow({
       minHeight="size-600"
       {...flexProps}
     >
-      <Flex direction="column" flex="none">
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
         </Text>
-        <Text size="L">{intFormatter(traceCount)}</Text>
-      </Flex>
-      <Flex direction="column" flex="none">
-        <Text elementType="h3" size="S" color="text-700">
-          Total Tokens
+        <Text size="L" fontFamily="mono">
+          {intFormatter(traceCount)}
         </Text>
-        <Text size="L">{intFormatter(tokenCountTotal)}</Text>
       </Flex>
-      <Flex direction="column" flex="none">
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
@@ -757,7 +719,7 @@ function ProjectsTable({
           cell: ({ row }) => {
             return (
               <Flex direction="row" gap="size-200" alignItems="center">
-                <ProjectIcon
+                <GradientCircle
                   gradientStartColor={row.original.gradientStartColor}
                   gradientEndColor={row.original.gradientEndColor}
                 />
@@ -789,7 +751,6 @@ function ProjectsTable({
                   flexProps={{
                     justifyContent: "start",
                     gap: "size-800",
-                    wrap: "wrap",
                     rowGap: "size-100",
                   }}
                   projectId={row.original.id}
@@ -896,9 +857,7 @@ function ProjectsTable({
                     {header.isPlaceholder ? null : (
                       <div
                         {...{
-                          className: header.column.getCanSort()
-                            ? "cursor-pointer"
-                            : "",
+                          className: header.column.getCanSort() ? "sort" : "",
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
                             left: header.getStart(),

@@ -1,10 +1,11 @@
-import { Tooltip, TooltipTrigger } from "@arizeai/components";
-
 import {
   Icon,
   Icons,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 
 export type AIMessageMode = "text" | "toolCalls";
@@ -36,17 +37,23 @@ export function AIMessageContentRadioGroup({
         }
       }}
     >
-      <TooltipTrigger placement="top" delay={0} offset={10}>
+      <TooltipTrigger delay={0}>
         <ToggleButton aria-label="text input" id={"text"}>
           <Icon svg={<Icons.MessageSquareOutline />} />
         </ToggleButton>
-        <Tooltip>Text input</Tooltip>
+        <Tooltip placement="top">
+          <TooltipArrow />
+          Text input
+        </Tooltip>
       </TooltipTrigger>
-      <TooltipTrigger placement="top" delay={0} offset={10}>
+      <TooltipTrigger delay={0}>
         <ToggleButton aria-label="tool calling" id={"toolCalls"}>
           <Icon svg={<Icons.Code />} />
         </ToggleButton>
-        <Tooltip>Tool calling</Tooltip>
+        <Tooltip placement="top">
+          <TooltipArrow />
+          Tool calling
+        </Tooltip>
       </TooltipTrigger>
     </ToggleButtonGroup>
   );

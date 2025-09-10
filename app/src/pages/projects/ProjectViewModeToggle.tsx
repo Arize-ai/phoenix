@@ -33,7 +33,7 @@ export const ProjectViewModeToggle = () => {
           setProjectViewMode(selectedKey as ProjectViewMode);
         }
       }}
-      size="S"
+      size="M"
     >
       <TooltipTrigger delay={100}>
         <ToggleButton id="grid" leadingVisual={<Icon svg={<Icons.Grid />} />} />

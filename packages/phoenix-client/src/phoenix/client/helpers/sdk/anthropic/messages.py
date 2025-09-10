@@ -226,6 +226,7 @@ class _InvocationParametersConversion:
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
             v1.PromptGoogleInvocationParameters,
+            v1.PromptAwsInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -282,6 +283,15 @@ class _InvocationParametersConversion:
                 ans["temperature"] = google_params["temperature"]
             if "top_p" in google_params:
                 ans["top_p"] = google_params["top_p"]
+        elif obj["type"] == "aws":
+            aws_params: v1.PromptAwsInvocationParametersContent
+            aws_params = obj["aws"]
+            if "max_tokens" in aws_params:
+                ans["max_tokens"] = aws_params["max_tokens"]
+            if "temperature" in aws_params:
+                ans["temperature"] = aws_params["temperature"]
+            if "top_p" in aws_params:
+                ans["top_p"] = aws_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

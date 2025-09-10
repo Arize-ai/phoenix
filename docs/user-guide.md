@@ -10,41 +10,41 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
 {% tabs %}
 {% tab title="Traces" %}
-### Traces for Debugging
+**Traces for Debugging**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 
 Phoenix's tracing and span analysis capabilities are invaluable during the prototyping and debugging stages. By instrumenting application code with Phoenix, teams gain detailed insights into the execution flow, making it easier to identify and resolve issues. Developers can drill down into specific spans, analyze performance metrics, and access relevant logs and metadata to streamline debugging efforts.
 
-* [Quickstart: Tracing](https://docs.arize.com/phoenix/tracing/llm-traces-1)
+* [Quickstart: Tracing](https://arize.com/docs/phoenix/tracing/llm-traces-1)
 {% endtab %}
 
 {% tab title="Experimentation" %}
-### Experimentation
+**Experimentation**
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif)
 
-Leverage experiments to measure prompt and model performance. Typically during this early stage, you'll focus on gather a robust set of test cases and evaluation metrics to test initial iterations of your application. Experiments at this stage may resemble unit tests, as they're geared towards ensure your application performs correctly.
+Leverage experiments to measure prompt and model performance. Typically during this early stage, you'll focus on gathering a robust set of test cases and evaluation metrics to test initial iterations of your application. Experiments at this stage may resemble unit tests, as they're geared towards ensuring your application performs correctly.
 
 * [run-experiments.md](datasets-and-experiments/how-to-experiments/run-experiments.md "mention")
 {% endtab %}
 
 {% tab title="Evaluation" %}
-### Evaluation
+**Evaluation**
 
 ![Evaluation Framework GIF](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals-docs.gif)
 
 Either as a part of experiments or a standalone feature, evaluations help you understand how your app is performing at a granular level. Typical evaluations might be correctness evals compared against a ground truth data set, or LLM-as-a-judge evals to detect hallucinations or relevant RAG output.
 
-* [Quickstart: Evals](https://docs.arize.com/phoenix/evaluation/evals)
+* [Quickstart: Evals](https://arize.com/docs/phoenix/evaluation/evals)
 {% endtab %}
 
 {% tab title="Prompt Engineering" %}
-### Prompt Engineering
+**Prompt Engineering**
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif)
 
-Prompt engineering is critical  how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often times has the best ROI.&#x20;
+Prompt engineering is critical to how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often has the best ROI.
 
 * [overview-prompts.md](prompt-engineering/overview-prompts.md "mention")
 
@@ -54,7 +54,7 @@ Instrument prompt and prompt variable collection to associate iterations of your
 {% endtab %}
 
 {% tab title="Search & Retrieval" %}
-### Search & Retrieval Embeddings Visualizer
+**Search & Retrieval Embeddings Visualizer**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/embedding_rag.mp4" %}
 
@@ -64,15 +64,13 @@ Phoenix's search and retrieval optimization tools include an embeddings visualiz
 {% endtab %}
 {% endtabs %}
 
-
-
 ## 🧪 Testing/Staging
 
 In the testing and staging environment, Phoenix supports comprehensive evaluation, benchmarking, and data curation. Traces, experimentation, prompt tracking, and embedding visualizer remain important in the testing and staging phase, helping teams identify and resolve issues before deployment.
 
 {% tabs %}
 {% tab title="Iterate via Experiments" %}
-### Iterate via Experiments
+**Iterate via Experiments**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" %}
 
@@ -82,7 +80,7 @@ With a stable set of test cases and evaluations defined, you can now easily iter
 {% endtab %}
 
 {% tab title="Evals Testing" %}
-### Evals Testing
+**Evals Testing**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
 
@@ -92,7 +90,7 @@ Phoenix's flexible evaluation framework supports thorough testing of LLM outputs
 {% endtab %}
 
 {% tab title="Curate Data" %}
-### Curate Data
+**Curate Data**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/datasets%20ex.mp4" %}
 
@@ -102,17 +100,15 @@ Phoenix assists in curating high-quality data for testing and fine-tuning. It pr
 {% endtab %}
 
 {% tab title="Guardrails" %}
-### Guardrails
+**Guardrails**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/guardrails.png" %}
 
 Add guardrails to your application to prevent malicious and erroneous inputs and outputs. Guardrails will be visualized in Phoenix, and can be attached to spans and traces in the same fashion as evaluation metrics.
 
-* [guardrails-ai.md](tracing/integrations-tracing/guardrails-ai.md "mention")
+* [Broken link](broken-reference "mention")
 {% endtab %}
 {% endtabs %}
-
-
 
 ## 🚀 Production
 
@@ -120,7 +116,7 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
 {% tabs %}
 {% tab title="Traces in Production" %}
-### Traces in Production
+**Traces in Production**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 
@@ -130,7 +126,7 @@ Phoenix and Arize use the same collector frameworks in development and productio
 {% endtab %}
 
 {% tab title="Evals for Production" %}
-### Evals for Production
+**Evals for Production**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
 
@@ -140,7 +136,7 @@ Phoenix's evaluation framework can be used to generate ongoing assessments of LL
 {% endtab %}
 
 {% tab title="Fine-tuning" %}
-### Fine-tuning
+**Fine-tuning**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/ExportForFinetuning.mp4" %}
 
@@ -148,11 +144,6 @@ Phoenix and Arize together help teams identify data points for fine-tuning based
 
 Phoenix, in collaboration with Arize, empowers teams to build, optimize, and maintain high-quality LLM applications throughout the entire lifecycle. By providing a comprehensive observability platform and seamless integration with production monitoring tools, Phoenix and Arize enable teams to deliver exceptional LLM-driven experiences with confidence and efficiency.
 
-* [Fine-Tuning](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets#exporting-for-fine-tuning)
+* [Fine-Tuning](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets#exporting-for-fine-tuning)
 {% endtab %}
 {% endtabs %}
-
-
-
-
-

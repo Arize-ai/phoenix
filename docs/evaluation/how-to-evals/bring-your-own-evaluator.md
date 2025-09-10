@@ -64,11 +64,11 @@ The categorical template defines the expected output of the LLM, and the rails d
 ```python
 from phoenix.evals import (
     llm_classify,
-    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
     # for a full list of supported models
 )
 
-# The rails is used to hold the output to specific values based on the template
+# The rails are used to hold the output to specific values based on the template
 # It will remove text such as ",,," or "..."
 # Will ensure the binary value expected from the template is returned
 rails = ["irrelevant", "relevant"]
@@ -95,7 +95,7 @@ llm_output_string = "The answer is relevant...!"
 llm_output_string = "Irrelevant."
 >"irrelevant"
 
-#No class in resposne
+#No class in response
 llm_output_string = "I am not sure!"
 >"UNPARSABLE"
 
@@ -114,11 +114,11 @@ The Phoenix library does support numeric score Evals if you would like to use th
 ```
 SCORE_TEMPLATE = """
 You are a helpful AI bot that checks for grammatical, spelling and typing errors
-in a document context. You are going to return a continous score for the
+in a document context. You are going to return a continuous score for the
 document based on the percent of grammatical and typing errors. The score should be
 between 10 and 1. A score of 1 will be no grammatical errors in any word,
 a score of 2 will be 20% of words have errors, a 5 score will be 50% errors,
-a score of 7 is 70%, and a 10 score will be all words in the context have a
+a score of 7 is 70%, and a 10 score will be all words in the context have
 grammatical errors.
 
 The following is the document context.
@@ -138,14 +138,14 @@ We use the more generic `llm_generate` function that can be used for almost any 
 
 <pre class="language-python"><code class="lang-python">from phoenix.evals import (
     llm_generate,
-    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
     # for a full list of supported models
 )
 
 <strong>test_results = llm_generate(
 </strong>    dataframe=&#x3C;YOUR_DATAFRAME_GOES_HERE>,
     template=SCORE_TEMPLATE,
-    model=OpenAIModel('gpt-4o', api_key=''),
+    model=OpenAIModel(model='gpt-4o', api_key=''),
     verbose=True,
     # Callback function that will be called for each row of the dataframe
     output_parser=numeric_score_eval,
@@ -207,4 +207,4 @@ At this point, you've constructed a custom Eval, but you have no understanding o
 
 1. Start with a labeled ground truth set of data. Each input would be a row of your dataframe of examples, and each labeled output would be the correct judge label
 2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [hallucinations.md](running-pre-tested-evals/hallucinations.md "mention")
-3. Tweak your prompt and retest. See [prompt-optimization.md](../../prompt-engineering/use-cases-prompts/prompt-optimization.md "mention") for an example of how to do this in an automated way.
+3. Tweak your prompt and retest. See [Broken link](broken-reference "mention") for an example of how to do this in an automated way.

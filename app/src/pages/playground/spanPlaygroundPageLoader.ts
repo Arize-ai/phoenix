@@ -25,7 +25,7 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
   const loaderData = await fetchQuery<spanPlaygroundPageLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query spanPlaygroundPageLoaderQuery($spanId: GlobalID!) {
+      query spanPlaygroundPageLoaderQuery($spanId: ID!) {
         span: node(id: $spanId) {
           __typename
           ... on Span {

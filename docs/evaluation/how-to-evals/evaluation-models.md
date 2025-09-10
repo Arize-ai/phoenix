@@ -8,11 +8,11 @@ description: Evaluation model classes powering your LLM Evals
 
 We currently support the following LLM providers under `phoenix.evals`:
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#openaimodel">OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_openai.png">gitbook_openai.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#openaimodel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#openaimodel</a></td></tr><tr><td><a href="evaluation-models.md#anthropicmodel">Anthropic</a></td><td><a href="../../.gitbook/assets/gitbook_anthropic.png">gitbook_anthropic.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#AnthropicModel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#AnthropicModel</a></td></tr><tr><td><a href="evaluation-models.md#geminimodel">Gemini</a> </td><td><a href="../../.gitbook/assets/gitbook_gemini.png">gitbook_gemini.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#GeminiModel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#GeminiModel</a></td></tr><tr><td><a href="evaluation-models.md#vertexai">VertexAI</a></td><td><a href="../../.gitbook/assets/vertexai_gitbooks.png">vertexai_gitbooks.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#vertexai">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#vertexai</a></td></tr><tr><td><a href="evaluation-models.md#bedrockmodel">Bedrock</a></td><td><a href="../../.gitbook/assets/gitbook_bedrock.png">gitbook_bedrock.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#BedrockModel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#BedrockModel</a></td></tr><tr><td><a href="evaluation-models.md#mistralaimodel">Mistral AI</a></td><td><a href="../../.gitbook/assets/gitbook_mistral.png">gitbook_mistral.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#MistralAIModel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#MistralAIModel</a></td></tr><tr><td><a href="evaluation-models.md#azure-openai">Azure OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_azureOpenai.png">gitbook_azureOpenai.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#azure-openai">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#azure-openai</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#openaimodel">OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_openai.png">gitbook_openai.png</a></td><td><a href="evaluation-models.md#openaimodel">#openaimodel</a></td></tr><tr><td><a href="evaluation-models.md#anthropicmodel">Anthropic</a></td><td><a href="../../.gitbook/assets/gitbook_anthropic.png">gitbook_anthropic.png</a></td><td><a href="evaluation-models.md#anthropicmodel">#anthropicmodel</a></td></tr><tr><td><a href="evaluation-models.md#geminimodel">Gemini</a></td><td><a href="../../.gitbook/assets/gitbook_gemini.png">gitbook_gemini.png</a></td><td><a href="evaluation-models.md#geminimodel">#geminimodel</a></td></tr><tr><td><a href="evaluation-models.md#googlegenaimodel">Google GenAI</a></td><td><a href="../../.gitbook/assets/gitbook-gemini.png">gitbook-gemini.png</a></td><td><a href="evaluation-models.md#googlegenaimodel">#googlegenaimodel</a></td></tr><tr><td><a href="evaluation-models.md#vertexai">VertexAI</a></td><td><a href="../../.gitbook/assets/vertexai_gitbooks.png">vertexai_gitbooks.png</a></td><td><a href="evaluation-models.md#vertexai">#vertexai</a></td></tr><tr><td><a href="evaluation-models.md#bedrockmodel">Bedrock</a></td><td><a href="../../.gitbook/assets/gitbook_bedrock.png">gitbook_bedrock.png</a></td><td><a href="evaluation-models.md#bedrockmodel">#bedrockmodel</a></td></tr><tr><td><a href="evaluation-models.md#mistralaimodel">Mistral AI</a></td><td><a href="../../.gitbook/assets/gitbook_mistral.png">gitbook_mistral.png</a></td><td><a href="evaluation-models.md#mistralaimodel">#mistralaimodel</a></td></tr><tr><td><a href="evaluation-models.md#azure-openai">Azure OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_azureOpenai.png">gitbook_azureOpenai.png</a></td><td><a href="evaluation-models.md#azure-openai">#azure-openai</a></td></tr></tbody></table>
 
 ## LLM Wrappers
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#litellmmodel">LiteLLMModel</a></td><td><a href="../../.gitbook/assets/litellm logo.png">litellm logo.png</a></td><td><a href="https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#LiteLLMModel">https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1135/evaluation/how-to-evals/evaluation-models#LiteLLMModel</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#litellmmodel">LiteLLMModel</a></td><td><a href="../../.gitbook/assets/litellm logo.png">litellm logo.png</a></td><td><a href="evaluation-models.md#LiteLLMModel">#LiteLLMModel</a></td></tr></tbody></table>
 
 ### OpenAIModel
 
@@ -61,8 +61,6 @@ class OpenAIModel:
 {% hint style="info" %}
 All models newer than GPT 3.5 Turbo are tested regularly. If you're using an older model than that, you may run into deprecated API parameters.
 {% endhint %}
-
-
 
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
 
@@ -158,6 +156,136 @@ class GeminiModel:
 ```
 
 Similar to VertexAIModel above for authentication
+
+### GoogleGenAIModel
+
+{% hint style="info" %}
+Need to install the extra dependency `google-genai>=1.0.0`
+{% endhint %}
+
+```python
+class GoogleGenAIModel:
+    model: str = "gemini-2.5-flash"
+    """The model name to use."""
+    vertexai: Optional[bool] = None
+    """Whether to use VertexAI instead of the Developer API."""
+    api_key: Optional[str] = None
+    """Your Google API key. If not provided, will be read from environment variables."""
+    credentials: Optional["Credentials"] = None
+    """Google Cloud credentials for VertexAI access."""
+    project: Optional[str] = None
+    """Google Cloud project ID for VertexAI."""
+    location: Optional[str] = None
+    """Google Cloud location for VertexAI."""
+    initial_rate_limit: int = 5
+    """Initial rate limit for API calls per second."""
+```
+
+The `GoogleGenAIModel` provides access to Google's Gemini models through the Google GenAI SDK. This is Google's recommended approach for accessing Gemini models as of late 2024, providing a unified interface for both the Developer API and VertexAI.
+
+#### Key Features
+
+* **Multimodal Support**: Supports text, image, and audio inputs
+* **Async Support**: Fully async-compatible for high-throughput evaluations
+* **Flexible Authentication**: Works with both API keys and VertexAI credentials
+* **Rate Limiting**: Built-in dynamic rate limiting with automatic adjustment
+
+#### Authentication Options
+
+**Option 1: Using API Key (Developer API)**
+
+Set the `GOOGLE_API_KEY` or `GEMINI_API_KEY` environment variable:
+
+```bash
+export GOOGLE_API_KEY=your_api_key_here
+```
+
+```python
+from phoenix.evals import GoogleGenAIModel
+
+# API key will be read from environment
+model = GoogleGenAIModel()
+```
+
+**Option 2: Using VertexAI**
+
+```python
+model = GoogleGenAIModel(
+    vertexai=True,
+    project="your-project-id",
+    location="us-central1"
+)
+```
+
+#### Basic Usage
+
+```python
+from phoenix.evals import GoogleGenAIModel
+
+# Initialize with default settings
+model = GoogleGenAIModel(model="gemini-2.5-flash")
+
+# Simple text generation
+response = model("What is the capital of France?")
+print(response)  # "The capital of France is Paris."
+```
+
+#### Multimodal Usage
+
+**Image Input:**
+
+```python
+import base64
+from phoenix.evals.templates import MultimodalPrompt, PromptPart, PromptPartContentType
+
+# Load and encode an image
+with open("image.jpg", "rb") as f:
+    image_bytes = f.read()
+image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+# Create multimodal prompt
+prompt = MultimodalPrompt(
+    parts=[
+        PromptPart(content_type=PromptPartContentType.TEXT, content="What's in this image?"),
+        PromptPart(content_type=PromptPartContentType.IMAGE, content=image_base64)
+    ]
+)
+
+response = model._generate(prompt=prompt)
+print(response)
+```
+
+**Audio Input:**
+
+```python
+# Load and encode audio
+with open("audio.wav", "rb") as f:
+    audio_bytes = f.read()
+audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+
+prompt = MultimodalPrompt(
+    parts=[
+        PromptPart(content_type=PromptPartContentType.AUDIO, content=audio_base64)
+    ]
+)
+
+response = model._generate(prompt=prompt)
+print(response)
+```
+
+#### Supported Models
+
+The GoogleGenAIModel supports all Gemini models available through the Google GenAI SDK, including:
+
+* `gemini-2.5-flash` (default)
+* `gemini-2.5-flash-001`
+* `gemini-2.0-flash-001`
+* `gemini-1.5-pro`
+* `gemini-1.5-flash`
+
+#### Supported File Formats
+
+**Images**: PNG, JPEG, WebP, HEIC, HEIF **Audio**: WAV, MP3, AIFF, AAC, OGG, FLAC
 
 ### AnthropicModel
 

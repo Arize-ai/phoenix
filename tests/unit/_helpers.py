@@ -34,7 +34,7 @@ async def _node(
     id_: int,
     httpx_client: httpx.AsyncClient,
 ) -> dict[str, Any]:
-    query = "query($id:GlobalID!){node(id:$id){... on " + type_name + "{" + field + "}}}"
+    query = "query($id:ID!){node(id:$id){... on " + type_name + "{" + field + "}}}"
     gid = str(GlobalID(type_name, str(id_)))
     response = await httpx_client.post(
         "/graphql",

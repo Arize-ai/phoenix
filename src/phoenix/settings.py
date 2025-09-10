@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass, field
+from typing import Optional
 
 from phoenix.config import LoggingMode
 
@@ -18,6 +19,8 @@ class _Settings:
     db_logging_level: int = field(default=logging.WARNING)
     # By default, migrations are enabled
     disable_migrations: bool = field(default=False)
+    # FullStory organization ID for web analytics tracking
+    fullstory_org: Optional[str] = field(default=None)
 
 
 # Singleton instance of the settings

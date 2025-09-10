@@ -1,13 +1,16 @@
+import re
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
+import orjson
+import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
 from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
+    Boolean,
     CheckConstraint,
     ColumnElement,
     Dialect,
@@ -23,7 +26,6 @@ from sqlalchemy import (
     case,
     func,
     insert,
-    not_,
     select,
     text,
 )
@@ -42,6 +44,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
+from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -53,6 +56,10 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.token_price_customization import (
+    TokenPriceCustomization,
+    TokenPriceCustomizationParser,
+)
 from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
 from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
@@ -147,9 +154,8 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
-class AuthMethod(Enum):
-    LOCAL = "LOCAL"
-    OAUTH2 = "OAUTH2"
+UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER"]
+AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
 class JSONB(JSON):
@@ -184,6 +190,9 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
+        return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) and value else value
+
 
 class JsonList(TypeDecorator[list[Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
@@ -192,6 +201,9 @@ class JsonList(TypeDecorator[list[Any]]):
 
     def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
+
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
+        return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
@@ -393,12 +405,49 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
+class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON
+
+    def process_bind_param(
+        self, value: Optional[TokenPriceCustomization], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TokenPriceCustomization]:
+        return TokenPriceCustomizationParser.parse(value)
+
+
+class _RegexStr(TypeDecorator[re.Pattern[str]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[re.Pattern[str]], _: Dialect) -> Optional[str]:
+        if value is None:
+            return None
+        if not isinstance(value, re.Pattern):
+            raise TypeError(f"Expected a regex pattern, got {type(value)}")
+        pattern = value.pattern
+        if not isinstance(pattern, str):
+            raise ValueError(f"Expected a string, got {type(pattern)}")
+        return pattern
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[re.Pattern[str]]:
+        if value is None:
+            return None
+        return re.compile(value)
+
+
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
 
 class Base(DeclarativeBase):
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
@@ -420,7 +469,6 @@ class Base(DeclarativeBase):
 
 class ProjectTraceRetentionPolicy(Base):
     __tablename__ = "project_trace_retention_policies"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
         _TraceRetentionCronExpression, nullable=False
@@ -529,6 +577,12 @@ class Trace(Base):
     experiment_runs: Mapped[list["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="trace",
+    )
+    span_costs: Mapped[list["SpanCost"]] = relationship(
+        "SpanCost",
+        back_populates="trace",
+        cascade="all, delete-orphan",
+        uselist=True,
     )
     __table_args__ = (
         UniqueConstraint(
@@ -687,6 +741,7 @@ class Span(Base):
     span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -791,6 +846,41 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.text_contains(string, substring) > 0, **kw)
+
+
+class CaseInsensitiveContains(expression.FunctionElement[bool]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = Boolean()
+    name = "case_insensitive_contains"
+
+
+@compiles(CaseInsensitiveContains)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    result = compiler.process(func.lower(string).contains(func.lower(substring)), **kw)
+    return result
+
+
+@compiles(CaseInsensitiveContains, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    escaped = func.replace(
+        func.replace(func.replace(substring, "\\", "\\\\"), "%", "\\%"), "_", "\\_"
+    )
+    pattern = func.concat("%", escaped, "%")
+    result = compiler.process(string.ilike(pattern), **kw)
+    return result
+
+
+@compiles(CaseInsensitiveContains, "sqlite")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # Use sqlean's `text_lower` to handle non-ASCII characters
+    string, substring = list(element.clauses)
+    result = compiler.process(
+        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+    )
+    return result
 
 
 async def init_models(engine: AsyncEngine) -> None:
@@ -1135,7 +1225,7 @@ class ExperimentRunAnnotation(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -1152,8 +1242,11 @@ class User(Base):
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
-    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
-    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_client_id: Mapped[Optional[str]]
+    oauth2_user_id: Mapped[Optional[str]]
+    auth_method: Mapped[AuthMethod] = mapped_column(
+        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2')", name="valid_auth_method")
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -1169,41 +1262,21 @@ class User(Base):
     )
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
-    @hybrid_property
-    def auth_method(self) -> Optional[str]:
-        if self.password_hash is not None:
-            return AuthMethod.LOCAL.value
-        elif self.oauth2_client_id is not None:
-            return AuthMethod.OAUTH2.value
-        return None
-
-    @auth_method.inplace.expression
-    @classmethod
-    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
-        return case(
-            (
-                not_(cls.password_hash.is_(None)),
-                AuthMethod.LOCAL.value,
-            ),
-            (
-                not_(cls.oauth2_client_id.is_(None)),
-                AuthMethod.OAUTH2.value,
-            ),
-            else_=None,
-        )
+    __mapper_args__ = {
+        "polymorphic_on": "auth_method",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
 
     __table_args__ = (
         CheckConstraint(
-            "(password_hash IS NULL) = (password_salt IS NULL)",
-            name="password_hash_and_salt",
+            "auth_method != 'LOCAL' "
+            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            name="local_auth_has_password_no_oauth",
         ),
         CheckConstraint(
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-            name="oauth2_client_id_and_user_id",
-        ),
-        CheckConstraint(
-            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
-            name="exactly_one_auth_method",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+            name="non_local_auth_has_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
@@ -1211,6 +1284,59 @@ class User(Base):
         ),
         dict(sqlite_autoincrement=True),
     )
+
+
+class LocalUser(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "LOCAL",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        password_hash: bytes,
+        password_salt: bytes,
+        reset_password: bool = True,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        if not password_hash or not password_salt:
+            raise ValueError("password_hash and password_salt are required for LocalUser")
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            password_hash=password_hash,
+            password_salt=password_salt,
+            reset_password=reset_password,
+            auth_method="LOCAL",
+        )
+
+
+class OAuth2User(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "OAUTH2",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        oauth2_client_id: Optional[str] = None,
+        oauth2_user_id: Optional[str] = None,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            reset_password=False,
+            auth_method="OAUTH2",
+            oauth2_client_id=oauth2_client_id,
+            oauth2_user_id=oauth2_user_id,
+        )
 
 
 class PasswordResetToken(Base):
@@ -1269,9 +1395,86 @@ class ApiKey(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
+
+
+class GenerativeModel(Base):
+    __tablename__ = "generative_models"
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    provider: Mapped[str]
+    start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    name_pattern: Mapped[re.Pattern[str]] = mapped_column(_RegexStr, nullable=False)
+    is_built_in: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    token_prices: Mapped[list["TokenPrice"]] = relationship(
+        "TokenPrice",
+        back_populates="model",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_generative_models_match_criteria",
+            "name_pattern",
+            "provider",
+            "is_built_in",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
+        Index(
+            "ix_generative_models_name_is_built_in",
+            "name",
+            "is_built_in",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
+    )
+
+
+class TokenPrice(Base):
+    __tablename__ = "token_prices"
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("generative_models.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str]
+    is_prompt: Mapped[bool]
+    base_rate: Mapped[float]
+    customization: Mapped[TokenPriceCustomization] = mapped_column(_TokenCustomization)
+
+    model: Mapped["GenerativeModel"] = relationship(
+        "GenerativeModel",
+        back_populates="token_prices",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "token_type",
+            "is_prompt",
+        ),
+    )
+
+
 class PromptLabel(Base):
     __tablename__ = "prompt_labels"
-
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(String, nullable=True)
@@ -1286,7 +1489,6 @@ class PromptLabel(Base):
 
 class Prompt(Base):
     __tablename__ = "prompts"
-
     source_prompt_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompts.id", ondelete="SET NULL"),
         index=True,
@@ -1324,7 +1526,6 @@ class Prompt(Base):
 
 class PromptPromptLabel(Base):
     __tablename__ = "prompts_prompt_labels"
-
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
         index=True,
@@ -1424,16 +1625,12 @@ class PromptVersionTag(Base):
 
 class AnnotationConfig(Base):
     __tablename__ = "annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
 class ProjectAnnotationConfig(Base):
     __tablename__ = "project_annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -1442,3 +1639,140 @@ class ProjectAnnotationConfig(Base):
     )
 
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
+
+
+class SpanCost(Base):
+    __tablename__ = "span_costs"
+
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    span_start_time: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        nullable=False,
+        index=True,
+    )
+    model_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey(
+            "generative_models.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+    )
+    total_cost: Mapped[Optional[float]]
+    total_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def total_cost_per_token(self) -> Optional[float]:
+        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+
+    @total_cost_per_token.inplace.expression
+    @classmethod
+    def _total_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.total_tokens.isnot(None), cls.total_tokens != 0),
+                cls.total_cost / cls.total_tokens,
+            )
+        )
+
+    prompt_cost: Mapped[Optional[float]]
+    prompt_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def prompt_cost_per_token(self) -> Optional[float]:
+        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+
+    @prompt_cost_per_token.inplace.expression
+    @classmethod
+    def _prompt_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.prompt_tokens.isnot(None), cls.prompt_tokens != 0),
+                cls.prompt_cost / cls.prompt_tokens,
+            )
+        )
+
+    completion_cost: Mapped[Optional[float]]
+    completion_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def completion_cost_per_token(self) -> Optional[float]:
+        return (
+            ((self.completion_cost or 0) / self.completion_tokens)
+            if self.completion_tokens
+            else None
+        )
+
+    @completion_cost_per_token.inplace.expression
+    @classmethod
+    def _completion_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.completion_tokens.isnot(None), cls.completion_tokens != 0),
+                cls.completion_cost / cls.completion_tokens,
+            )
+        )
+
+    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")
+    trace: Mapped["Trace"] = relationship("Trace", back_populates="span_costs")
+    span_cost_details: Mapped[list["SpanCostDetail"]] = relationship(
+        "SpanCostDetail",
+        back_populates="span_cost",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_span_costs_model_id_span_start_time",
+            "model_id",
+            "span_start_time",
+        ),
+    )
+
+    def append_detail(self, detail: "SpanCostDetail") -> None:
+        self.span_cost_details.append(detail)
+        if cost := detail.cost:
+            if detail.is_prompt:
+                self.prompt_cost = (self.prompt_cost or 0) + cost
+            else:
+                self.completion_cost = (self.completion_cost or 0) + cost
+            self.total_cost = (self.total_cost or 0) + cost
+        if tokens := detail.tokens:
+            if detail.is_prompt:
+                self.prompt_tokens = (self.prompt_tokens or 0) + tokens
+            else:
+                self.completion_tokens = (self.completion_tokens or 0) + tokens
+            self.total_tokens = (self.total_tokens or 0) + tokens
+
+
+class SpanCostDetail(Base):
+    __tablename__ = "span_cost_details"
+    span_cost_id: Mapped[int] = mapped_column(
+        ForeignKey("span_costs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str]
+    is_prompt: Mapped[bool]
+
+    cost: Mapped[Optional[float]]
+    tokens: Mapped[Optional[float]]
+    cost_per_token: Mapped[Optional[float]]
+
+    span_cost: Mapped["SpanCost"] = relationship("SpanCost", back_populates="span_cost_details")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "span_cost_id",
+            "token_type",
+            "is_prompt",
+        ),
+    )

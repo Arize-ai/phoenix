@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
+from typing_extensions import deprecated
 
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
@@ -138,6 +139,7 @@ class Session(TraceDataExtractor, ABC):
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
         )
 
+    @deprecated("Migrate to using client.spans.get_spans_dataframe via arize-phoenix-client")
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -151,6 +153,11 @@ class Session(TraceDataExtractor, ABC):
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.get_spans_dataframe()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Queries the spans in the project based on the provided parameters.
 
         Parameters
@@ -192,11 +199,17 @@ class Session(TraceDataExtractor, ABC):
             project_name=project_name,
         )
 
+    @deprecated("Migrate to using client.spans.get_span_annotations via arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
     ) -> list[Evaluations]:
         """
+        .. deprecated::
+            This method is deprecated. Use ``client.spans.get_span_annotations()`` via
+            arize-phoenix-client instead.
+            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+
         Get the evaluations for a project.
 
         Parameters
@@ -601,7 +614,7 @@ def launch_app(
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     if not use_temp_dir:
         print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
-    print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
+    print("📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix")
     return _session
 
 

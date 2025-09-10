@@ -3,29 +3,85 @@ import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { experimentCompareLoaderQuery } from "./__generated__/experimentCompareLoaderQuery.graphql";
+import type {
+  experimentCompareLoaderQuery,
+  experimentCompareLoaderQuery$data,
+} from "./__generated__/experimentCompareLoaderQuery.graphql";
 
 /**
  * Loads in the necessary page data for the compare experiment page
  */
-export async function experimentCompareLoader(args: LoaderFunctionArgs) {
+export async function experimentCompareLoader(
+  args: LoaderFunctionArgs
+): Promise<experimentCompareLoaderQuery$data | undefined> {
   const { datasetId } = args.params;
+  if (datasetId == null) {
+    throw new Error("Dataset ID is required");
+  }
+  const url = new URL(args.request.url);
+  const [baseExperimentId = undefined, ...compareExperimentIds] =
+    url.searchParams.getAll("experimentId");
+  const view = url.searchParams.get("view") || "grid";
+
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentCompareLoaderQuery($id: GlobalID!) {
-        dataset: node(id: $id) {
-          id
-          ... on Dataset {
-            id
-            name
-            ...ExperimentMultiSelector__experiments
-          }
-        }
+      query experimentCompareLoaderQuery(
+        $datasetId: ID!
+        $baseExperimentId: ID!
+        $compareExperimentIds: [ID!]!
+        $experimentIds: [ID!]!
+        $hasBaseExperiment: Boolean!
+        $hasCompareExperiments: Boolean!
+        $includeGridView: Boolean!
+        $includeListView: Boolean!
+        $includeMetricsView: Boolean!
+      ) {
+        ...ExperimentMultiSelector__data
+          @arguments(
+            datasetId: $datasetId
+            hasBaseExperiment: $hasBaseExperiment
+          )
+        ...ExperimentComparePage_selectedCompareExperiments
+          @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
+        ...ExperimentCompareTable_comparisons
+          @include(if: $includeGridView)
+          @arguments(
+            datasetId: $datasetId
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            experimentIds: $experimentIds
+          )
+        ...ExperimentCompareListPage_comparisons
+          @include(if: $includeListView)
+          @arguments(baseExperimentId: $baseExperimentId)
+        ...ExperimentCompareListPage_aggregateData
+          @include(if: $includeListView)
+          @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
+        ...ExperimentCompareMetricsPage_experiments
+          @include(if: $includeMetricsView)
+          @arguments(
+            datasetId: $datasetId
+            baseExperimentId: $baseExperimentId
+            compareExperimentIds: $compareExperimentIds
+            experimentIds: $experimentIds
+            hasCompareExperiments: $hasCompareExperiments
+          )
       }
     `,
     {
-      id: datasetId as string,
+      datasetId,
+      baseExperimentId: baseExperimentId ?? "",
+      compareExperimentIds,
+      experimentIds: [
+        ...(baseExperimentId ? [baseExperimentId] : []),
+        ...compareExperimentIds,
+      ],
+      hasBaseExperiment: baseExperimentId != null,
+      includeGridView: view === "grid" && baseExperimentId != null,
+      includeListView: view === "list" && baseExperimentId != null,
+      includeMetricsView: view === "metrics" && baseExperimentId != null,
+      hasCompareExperiments: compareExperimentIds.length > 0,
     }
   ).toPromise();
 }

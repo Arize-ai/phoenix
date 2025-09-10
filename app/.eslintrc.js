@@ -144,6 +144,90 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "Picker",
+        module: "@arizeai/components",
+        use: "import { Select, SelectValue, SelectItem } from '@phoenix/components'",
+      },
+      {
+        name: "CompactSearchField",
+        module: "@arizeai/components",
+        use: "import { SearchField, Input } from '@phoenix/components'",
+      },
+      {
+        name: "Dialog",
+        module: "@arizeai/components",
+        use: "import { Dialog } from '@phoenix/components'",
+      },
+      {
+        name: "DialogTrigger",
+        module: "@arizeai/components",
+        use: "import { DialogTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "TooltipTrigger",
+        module: "@arizeai/components",
+        use: "import { TooltipTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "TriggerWrap",
+        module: "@arizeai/components",
+        use: "import { TriggerWrap } from '@phoenix/components'",
+      },
+      {
+        name: "HelpTooltip",
+        module: "@arizeai/components",
+        use: "Tooltip or RichTooltip from @phoenix/components",
+      },
+      {
+        name: "ActionTooltip",
+        module: "@arizeai/components",
+        use: "Tooltip or RichTooltip from @phoenix/components",
+      },
+      {
+        name: "ProgressCircle",
+        module: "@arizeai/components",
+        use: "import { ProgressCircle } from '@phoenix/components'",
+      },
+      {
+        name: "DialogContainer",
+        module: "@arizeai/components",
+        use: "import { DialogContainer } from '@phoenix/components'",
+      },
+      {
+        name: "ProgressBar",
+        module: "@arizeai/components",
+        use: "import { ProgressBar } from '@phoenix/components'",
+      },
+      {
+        name: "Breadcrumbs",
+        module: "@arizeai/components",
+        use: "import { Breadcrumbs } from '@phoenix/components'",
+      },
+      {
+        name: "BreadcrumbItem",
+        module: "@arizeai/components",
+        use: "import { Breadcrumb } from '@phoenix/components'",
+      },
+      {
+        name: "List",
+        module: "@arizeai/components",
+        use: "import { List } from '@phoenix/components'",
+      },
+      {
+        name: "ListItem",
+        module: "@arizeai/components",
+        use: "import { ListItem } from '@phoenix/components'",
+      },
+      {
+        name: "Card",
+        module: "@arizeai/components",
+        use: "import { Card } from '@phoenix/components'",
+      },
+      {
+        name: "EmptyGraphic",
+        module: "@arizeai/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

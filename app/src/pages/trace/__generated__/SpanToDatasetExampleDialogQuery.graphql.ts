@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82d6ad20643353ceeed5781a447e312e>>
+ * @generated SignedSource<<d8741a83f105a06a217f7f01579734ec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -126,10 +126,6 @@ return {
           },
           (v2/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -142,16 +138,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "68887dda2ffa7793e66ff83d472c72f8",
+    "cacheID": "48a0d4811a4c4fd2cf3c7114f1b04fc9",
     "id": null,
     "metadata": {},
     "name": "SpanToDatasetExampleDialogQuery",
     "operationKind": "query",
-    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      revision: asExampleRevision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      revision: asExampleRevision {\n        input\n        output\n        metadata\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "647a1865dacf40ce9bbb255b572a9a68";
+(node as any).hash = "9ff195bb3e4302feb10eb48b22dfdcb1";
 
 export default node;

@@ -94,7 +94,10 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     async def insert(self) -> Optional[list[_DmlEventT]]:
         if not self._queue:
             return None
-        self._queue, parcels = [], self._queue
+        parcels = self._queue.copy()
+        # IMPORTANT: Use .clear() instead of reassignment, i.e. self._queue = [], to
+        # avoid potential race conditions when appending postponed items to the queue.
+        self._queue.clear()
         events: list[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
@@ -104,8 +107,12 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
                     to_postpone.extend(to_retry)
         if to_postpone:
             loop = asyncio.get_running_loop()
-            loop.call_later(self._retry_delay_sec, self._queue.extend, to_postpone)
+            loop.call_later(self._retry_delay_sec, self._add_postponed_to_queue, to_postpone)
         return events
+
+    def _add_postponed_to_queue(self, items: list[Postponed[_PrecursorT]]) -> None:
+        """Add postponed items back to the queue for retry."""
+        self._queue.extend(items)
 
     def _insert_on_conflict(self, *records: Mapping[str, Any]) -> Insert:
         return insert_on_conflict(
@@ -167,40 +174,41 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
 class Precursors(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation:
+        updated_at: datetime
         span_id: str
         obj: models.SpanAnnotation
 
         def as_insertable(
             self,
             span_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.SpanAnnotation:
             return Insertables.SpanAnnotation(
+                updated_at=self.updated_at,
                 span_id=self.span_id,
                 obj=self.obj,
                 span_rowid=span_rowid,
-                id_=id_,
             )
 
     @dataclass(frozen=True)
     class TraceAnnotation:
+        updated_at: datetime
         trace_id: str
         obj: models.TraceAnnotation
 
         def as_insertable(
             self,
             trace_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.TraceAnnotation:
             return Insertables.TraceAnnotation(
+                updated_at=self.updated_at,
                 trace_id=self.trace_id,
                 obj=self.obj,
                 trace_rowid=trace_rowid,
-                id_=id_,
             )
 
     @dataclass(frozen=True)
     class DocumentAnnotation:
+        updated_at: datetime
         span_id: str
         document_position: int
         obj: models.DocumentAnnotation
@@ -208,56 +216,52 @@ class Precursors(ABC):
         def as_insertable(
             self,
             span_rowid: int,
-            id_: Optional[int] = None,
         ) -> Insertables.DocumentAnnotation:
             return Insertables.DocumentAnnotation(
+                updated_at=self.updated_at,
                 span_id=self.span_id,
                 document_position=self.document_position,
                 obj=self.obj,
                 span_rowid=span_rowid,
-                id_=id_,
             )
 
 
 class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):
+        updated_at: datetime
         span_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.SpanAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
+            obj.updated_at = self.updated_at
             return obj
 
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
+        updated_at: datetime
         trace_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.TraceAnnotation:
             obj = copy(self.obj)
             obj.trace_rowid = self.trace_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
+            obj.updated_at = self.updated_at
             return obj
 
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
+        updated_at: datetime
         span_rowid: int
         identifier: str = ""
-        id_: Optional[int] = None
 
         @property
         def row(self) -> models.DocumentAnnotation:
             obj = copy(self.obj)
             obj.span_rowid = self.span_rowid
-            if self.id_ is not None:
-                obj.id = self.id_
+            obj.updated_at = self.updated_at
             return obj

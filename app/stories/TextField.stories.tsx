@@ -9,6 +9,7 @@ import {
   TextField,
   TextFieldProps,
 } from "@phoenix/components";
+import { FieldDangerIcon } from "@phoenix/components/field/FieldDangerIcon";
 
 const meta: Meta = {
   title: "TextField",
@@ -45,6 +46,7 @@ export const Gallery = () => (
     <TextField isInvalid>
       <Label>Label</Label>
       <Input type="text" />
+      <FieldDangerIcon />
       <FieldError>Field error</FieldError>
     </TextField>
     <TextField isReadOnly>

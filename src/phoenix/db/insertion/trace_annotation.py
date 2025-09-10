@@ -56,7 +56,7 @@ class TraceAnnotationQueueInserter(
         session: AsyncSession,
         *insertions: Insertables.TraceAnnotation,
     ) -> list[TraceAnnotationDmlEvent]:
-        records = [dict(as_kv(ins.row)) for ins in insertions]
+        records = [{**dict(as_kv(ins.row)), "updated_at": ins.row.updated_at} for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
         return [TraceAnnotationDmlEvent(ids)]
@@ -91,7 +91,7 @@ class TraceAnnotationQueueInserter(
 
         for p in parcels:
             if (anno := existing_annos.get(_key(p))) is not None:
-                if p.received_at <= anno.updated_at:
+                if p.item.updated_at <= anno.updated_at:
                     to_discard.append(p)
                 else:
                     to_insert.append(
@@ -99,7 +99,6 @@ class TraceAnnotationQueueInserter(
                             received_at=p.received_at,
                             item=p.item.as_insertable(
                                 trace_rowid=anno.trace_rowid,
-                                id_=anno.id_,
                             ),
                         )
                     )

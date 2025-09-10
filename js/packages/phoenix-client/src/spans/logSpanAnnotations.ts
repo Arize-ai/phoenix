@@ -5,11 +5,17 @@ import { SpanAnnotation, toSpanAnnotationData } from "./types";
 /**
  * Parameters to log multiple span annotations
  */
-interface LogSpanAnnotationsParams extends ClientFn {
+export interface LogSpanAnnotationsParams extends ClientFn {
   /**
    * The span annotations to log
    */
   spanAnnotations: SpanAnnotation[];
+  /**
+   * If true, the request will be fulfilled synchronously and return the annotation IDs.
+   * If false, the request will be processed asynchronously and return null.
+   * @default false
+   */
+  sync?: boolean;
 }
 
 /**
@@ -50,10 +56,14 @@ interface LogSpanAnnotationsParams extends ClientFn {
 export async function logSpanAnnotations({
   client: _client,
   spanAnnotations,
+  sync = false,
 }: LogSpanAnnotationsParams): Promise<{ id: string }[]> {
   const client = _client ?? createClient();
 
   const { data, error } = await client.POST("/v1/span_annotations", {
+    params: {
+      query: { sync },
+    },
     body: {
       data: spanAnnotations.map(toSpanAnnotationData),
     },
@@ -63,9 +73,5 @@ export async function logSpanAnnotations({
     throw new Error(`Failed to log span annotations: ${error}`);
   }
 
-  if (!data?.data?.length) {
-    throw new Error("No annotation IDs returned from server");
-  }
-
-  return data.data;
+  return data?.data || [];
 }

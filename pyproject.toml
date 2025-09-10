@@ -29,12 +29,12 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.267.0",  # avoid this issue: https://github.com/strawberry-graphql/strawberry/issues/3854
+  "strawberry-graphql==0.270.1",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
   "wrapt>=1.17.2",
-  "protobuf>=3.20.2, <6.0",
+  "protobuf>=4.25.8",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
@@ -43,22 +43,26 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.12",
-  "openinference-instrumentation>=0.1.12",
+  "openinference-semantic-conventions>=0.1.20",
+  "openinference-instrumentation>=0.1.32",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
   "aioitertools",
-  "sqlean.py>=3.45.1",
+  "sqlean.py>=3.45.1; platform_system != 'Windows'",
+  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=0.13.1",
-  "arize-phoenix-otel>=0.5.1",
+  "arize-phoenix-evals>=0.20.6",
+  "arize-phoenix-otel>=0.10.3",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "arize-phoenix-client",
   "email-validator",
+  "python-dateutil",
+  "prometheus_client",
+  "orjson",
 ]
 dynamic = ["version"]
 
@@ -72,7 +76,7 @@ dev = [
   "hatch",
   "tox==4.18.1",
   "tox-uv==1.11.3",
-  "uv==0.4.8",
+  "uv==0.7.12",
   "jupyter",
   "nbqa",
   "ruff==0.6.9",
@@ -88,7 +92,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.267.0",  # avoid this issue: https://github.com/strawberry-graphql/strawberry/issues/3854
+  "strawberry-graphql[debug-server,opentelemetry]==0.270.1",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -96,13 +100,13 @@ dev = [
   "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
   "anthropic>=0.49.0",
-  "prometheus_client",
   "asgi-lifespan",
   "Faker>=30.1.0",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
   "types-jsonschema",
+  "types-python-dateutil",
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
@@ -129,25 +133,28 @@ container = [
   "openai>=1.0.0",
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",
-  "opentelemetry-exporter-otlp",
-  "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-fastapi",
-  "opentelemetry-instrumentation-sqlalchemy",
-  "opentelemetry-instrumentation-grpc",
+  # Note: when updating opentelemetry dependencies, all packages must use versions
+  # released on the same date (e.g., 1.33.1/0.54b1) to ensure compatibility.
+  "opentelemetry-sdk==1.33.1",
+  "opentelemetry-proto==1.33.1",
+  "opentelemetry-exporter-otlp==1.33.1",
+  "opentelemetry-semantic-conventions==0.54b1",
+  "opentelemetry-instrumentation-fastapi==0.54b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-sqlalchemy==0.54b1",
+  "opentelemetry-instrumentation-grpc==0.54b1",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.267.0",  # avoid this issue: https://github.com/strawberry-graphql/strawberry/issues/3854
+  "strawberry-graphql[opentelemetry]==0.270.1",
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
+  "boto3",
 ]
 test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
@@ -168,6 +175,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.hatch.build]
@@ -187,6 +195,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.pytest.ini_options]
@@ -295,6 +304,7 @@ target-version = "py39"
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 "examples/**/*.py" = ["E501"]
+"tests/**/*.py" = ["E501"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "NPY201"]

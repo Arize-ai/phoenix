@@ -18,4 +18,4 @@ Phoenix supports retrievals troubleshooting and evaluation on both traces and in
 | Follow the entirety of an LLM workflow | ✅                 | 🚫 support for spans only |
 | Embeddings Visualizer                  | 🚧 on the roadmap | ✅                         |
 
-Check out our [quickstart on retrieval](quickstart-retrieval.md) to get started. Look at our [retrieval concepts ](concepts-retrieval/)to better understand how to troubleshoot and evaluate different kinds of retrieval systems. For a high level overview on evaluation, check out our [evaluation overview](../evaluation/llm-evals/).
+Check out our [quickstart on retrieval](quickstart-retrieval.md) to get started. Look at our [retrieval concepts](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/retrieval-and-inferences) to better understand how to troubleshoot and evaluate different kinds of retrieval systems. For a high level overview on evaluation, check out our [evaluation overview](../evaluation/llm-evals/).

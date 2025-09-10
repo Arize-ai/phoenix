@@ -1,13 +1,15 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
+
 # General Client Design Guidelines
 
 ## Dependancies
 
-The client should be as light-weight as possible as it is meant to be integrated into applications directly with no impact on the runtime. 
+The client should be as light-weight as possible as it is meant to be integrated into applications directly with no impact on the runtime.
+
 ## Syntax
 
 All methods that interact with the server shoud be namespaced via `prompts`, `experiments`, `projects` and so on.
@@ -23,7 +25,7 @@ getPrompt("prompt_version_id");
 Prefer:
 
 ```typescript
-getPrompt({ promptIdentifier="prompt_version_id" });
+getPrompt({ promptIdentifier = "prompt_version_id" });
 ```
 
 functions should be prefixed with an action:

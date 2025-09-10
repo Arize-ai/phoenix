@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92bc942dc57358c5452458194d798e07>>
+ * @generated SignedSource<<6ab4e5404caddbbfc8c22f6f5a124631>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,10 +105,6 @@ return {
           },
           (v2/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -121,16 +117,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c36833ac260163836d9810cf8e137380",
+    "cacheID": "2430234746cf1242506d2053fa26bcb5",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "38aaf5a39c06500e51a82c91a9e27408";
+(node as any).hash = "908dc4074c43c03dfea50a060690df11";
 
 export default node;

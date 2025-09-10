@@ -4,7 +4,7 @@ from random import getrandbits
 from typing import Any, Optional
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Path, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from pydantic import Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,9 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentInsertEvent
+from phoenix.server.experiments.utils import generate_experiment_project_name
 
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses, add_text_csv_content_to_responses
@@ -86,6 +88,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 
 @router.post(
     "/datasets/{dataset_id}/experiments",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createExperiment",
     summary="Create experiment on a dataset",
     responses=add_errors_to_responses(
@@ -157,7 +160,7 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = f"Experiment-{getrandbits(96).to_bytes(12, 'big').hex()}"
+        project_name = generate_experiment_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )
@@ -303,7 +306,7 @@ async def list_experiments(
                 ),
                 repetitions=experiment.repetitions,
                 metadata=experiment.metadata_,
-                project_name=None,
+                project_name=experiment.project_name,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
             )
