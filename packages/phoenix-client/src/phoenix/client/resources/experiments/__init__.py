@@ -30,20 +30,14 @@ from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, u
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
-from typing_extensions import TYPE_CHECKING
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.evaluators import (
     create_evaluator,
-    is_evals_evaluator,
-    is_evals_score,
     wrap_phoenix_evals_evaluator,
 )
-from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
-from phoenix.client.utils.rate_limiters import RateLimiter
-
-from .types import (
+from phoenix.client.resources.experiments.types import (
     DRY_RUN,
     EvaluationResult,
     Evaluator,
@@ -55,13 +49,12 @@ from .types import (
     ExperimentTask,
     RanExperiment,
     RateLimitErrors,
+    ScoreResult,
     TestCase,
+    is_evals_evaluator,
 )
-
-if TYPE_CHECKING:
-    from phoenix.evals.preview.evaluators import Score as EvalsScore
-
-    ScoreResult = Union["EvalsScore", list["EvalsScore"]]
+from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
+from phoenix.client.utils.rate_limiters import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -248,27 +241,14 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
 
     elif isinstance(obj, Mapping):
         for name, value in obj.items():
-            if is_evals_evaluator(value):
-                evaluator = wrap_phoenix_evals_evaluator(value)
-            else:
-                evaluator = (
-                    create_evaluator(name=name)(value)
-                    if not isinstance(value, Evaluator)
-                    else value
-                )
+            evaluator = cast(Evaluator, create_evaluator(name=name)(obj))
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
         for value in obj:
-            if is_evals_evaluator(value):
-                evaluator = wrap_phoenix_evals_evaluator(value)
-            else:
-                evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
+            evaluator = cast(Evaluator, create_evaluator()(value))
             evaluators_by_name[evaluator.name] = evaluator
     else:
-        if is_evals_evaluator(obj):
-            evaluator = wrap_phoenix_evals_evaluator(obj)
-        else:
-            evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
+        evaluator = cast(Evaluator, create_evaluator()(obj))
         evaluators_by_name[evaluator.name] = evaluator
 
     return evaluators_by_name
@@ -1300,7 +1280,7 @@ class Experiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[Union[EvaluationResult, "ScoreResult"]] = None
+        result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)
@@ -1335,36 +1315,12 @@ class Experiments:
                     kind="evaluator",
                 )
 
-            if result and is_evals_score(result):
-                if isinstance(result, list):
-                    result = result[0]
-                score = result.score
-                label = result.label
-                explanation = result.explanation
-                eval_name = result.name or evaluator.name
-                evaluation_result = cast(
-                    EvaluationResult,
-                    {
-                        k: v
-                        for k, v in (
-                            ("score", score),
-                            ("label", label),
-                            ("explanation", explanation),
-                        )
-                        if v is not None
-                    },
-                )
-            elif result:
-                evaluation_result = cast(EvaluationResult, result)
-            else:
-                evaluation_result = None
-
-            if evaluation_result:
+            if result:
                 # Filter out None values for OpenTelemetry attributes
                 attributes: dict[str, Any] = {}
-                if (score := evaluation_result.get("score")) is not None:
+                if (score := result.get("score")) is not None:
                     attributes["evaluation.score"] = score
-                if (label := evaluation_result.get("label")) is not None:
+                if (label := result.get("label")) is not None:
                     attributes["evaluation.label"] = label
                 if attributes:
                     span.set_attributes(attributes)
@@ -1381,10 +1337,10 @@ class Experiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
-        if is_evals_score(result):
-            eval_name: str = result.name or evaluator.name
+        if result:
+            eval_name = result.get("name", None) or evaluator.name
         else:
-            eval_name: str = evaluator.name
+            eval_name = evaluator.name
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
             start_time=start_time,
@@ -1392,7 +1348,7 @@ class Experiments:
             name=eval_name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
-            result=evaluation_result,
+            result=result,
             trace_id=trace_id,
         )
 
@@ -2287,7 +2243,7 @@ class AsyncExperiments:
         dry_run: bool,
         timeout: Optional[int],
     ) -> Optional[ExperimentEvaluationRun]:
-        result: Optional[Union[EvaluationResult, "ScoreResult"]] = None
+        result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
         start_time = datetime.now(timezone.utc)
@@ -2322,36 +2278,12 @@ class AsyncExperiments:
                     kind="evaluator",
                 )
 
-            if result and is_evals_score(result):
-                if isinstance(result, list):
-                    result = result[0]
-                score = result.score
-                label = result.label
-                explanation = result.explanation
-                eval_name = result.name or evaluator.name
-                evaluation_result = cast(
-                    EvaluationResult,
-                    {
-                        k: v
-                        for k, v in (
-                            ("score", score),
-                            ("label", label),
-                            ("explanation", explanation),
-                        )
-                        if v is not None
-                    },
-                )
-            elif result:
-                evaluation_result = cast(EvaluationResult, result)
-            else:
-                evaluation_result = None
-
-            if evaluation_result:
+            if result:
                 # Filter out None values for OpenTelemetry attributes
                 attributes: dict[str, Any] = {}
-                if (score := evaluation_result.get("score")) is not None:
+                if (score := result.get("score")) is not None:
                     attributes["evaluation.score"] = score
-                if (label := evaluation_result.get("label")) is not None:
+                if (label := result.get("label")) is not None:
                     attributes["evaluation.label"] = label
                 if attributes:
                     span.set_attributes(attributes)
@@ -2368,10 +2300,10 @@ class AsyncExperiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
-        if is_evals_score(result):
-            eval_name: str = result.name or evaluator.name
+        if result:
+            eval_name = result.get("name", None) or evaluator.name
         else:
-            eval_name: str = evaluator.name
+            eval_name = evaluator.name
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
             start_time=start_time,
@@ -2379,7 +2311,7 @@ class AsyncExperiments:
             name=eval_name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
-            result=evaluation_result,
+            result=result,
             trace_id=trace_id,
         )
 
