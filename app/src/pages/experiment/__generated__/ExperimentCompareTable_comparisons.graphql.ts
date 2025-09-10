@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e042b6bfde2655736f4c57c426716c3b>>
+ * @generated SignedSource<<22597e2155f1a0ffcd92c30f5e1aea36>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,6 +50,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly endTime: string;
             readonly error: string | null;
             readonly id: string;
+            readonly latencyMs: number;
             readonly output: any | null;
             readonly repetitionNumber: number;
             readonly startTime: string;
@@ -318,6 +319,13 @@ return {
                       "plural": true,
                       "selections": [
                         (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "latencyMs",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -657,6 +665,6 @@ return {
 };
 })();
 
-(node as any).hash = "9fe8c0cb5e73920b1753f39aad6d1884";
+(node as any).hash = "97c62429e4265f6ee32060de9c4e8a17";
 
 export default node;

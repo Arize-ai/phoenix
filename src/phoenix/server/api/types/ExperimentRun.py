@@ -42,6 +42,10 @@ class ExperimentRun(Node):
     error: Optional[str]
 
     @strawberry.field
+    def latency_ms(self) -> float:
+        return (self.end_time - self.start_time).total_seconds() * 1000
+
+    @strawberry.field
     async def annotations(
         self,
         info: Info[Context, None],

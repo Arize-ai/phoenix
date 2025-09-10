@@ -1161,8 +1161,6 @@ type ExperimentRepeatedRunGroup {
   runs: [ExperimentRun!]!
   experimentId: ID!
   averageLatencyMs: Float
-  example: DatasetExample!
-  runCount: Int!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
@@ -1177,6 +1175,7 @@ type ExperimentRun implements Node {
   startTime: DateTime!
   endTime: DateTime!
   error: String
+  latencyMs: Float!
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!

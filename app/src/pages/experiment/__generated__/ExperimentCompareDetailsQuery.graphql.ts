@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e4136447bfb6f60ca4b1763ea250796a>>
+ * @generated SignedSource<<f90204caa217df54e6001916c4a5189e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,6 +50,7 @@ export type ExperimentCompareDetailsQuery$data = {
           readonly error: string | null;
           readonly experimentId: string;
           readonly id: string;
+          readonly latencyMs: number;
           readonly output: any | null;
           readonly startTime: string;
         };
@@ -178,6 +179,13 @@ v7 = {
               "plural": false,
               "selections": [
                 (v5/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "latencyMs",
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -455,16 +463,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b4b278dcc7425d8961d54478724e3db",
+    "cacheID": "9fd8bbcc6c685c4a7258ce312d07a3ff",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            experimentId\n            output\n            error\n            endTime\n            startTime\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            latencyMs\n            experimentId\n            output\n            error\n            endTime\n            startTime\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8ca15fa2aac9476c66117f61f0e220f4";
+(node as any).hash = "75c7269d82be13d74931d4b5716f582f";
 
 export default node;

@@ -177,6 +177,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   experimentId
                   runs {
                     id
+                    latencyMs
                     repetitionNumber
                     output
                     error
