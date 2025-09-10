@@ -145,8 +145,8 @@ class TestDatasetExampleNodeInterface:
                 "id": example_id,
                 "createdAt": "2020-01-01T00:00:00+00:00",
                 "revision": {
-                    "input": {"input": "first-input"},
-                    "output": {"output": "first-output"},
+                    "input": {},
+                    "output": {},
                     "metadata": {},
                     "revisionKind": "DELETE",
                 },
@@ -995,8 +995,8 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
             id=2,
             dataset_example_id=1,
             dataset_version_id=2,
-            input={"input": "first-input"},
-            output={"output": "first-output"},
+            input={},
+            output={},
             metadata_={},
             revision_kind="DELETE",
         )

@@ -21,7 +21,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
@@ -100,7 +99,7 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment | null>;
+type ExperimentInfoMap = Record<string, Experiment>;
 
 type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
@@ -140,6 +139,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       ExperimentCompareTableQuery,
@@ -255,6 +255,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }, {} as ExperimentInfoMap) || {}
     );
   }, [data]);
+
+  const baseExperiment = experimentInfoById[baseExperimentId];
+  // invariant(baseExperiment, "baseExperiment not found");
+
   const tableData: TableRow[] = useMemo(
     () =>
       data.compareExperiments.edges.map((edge) => {
@@ -304,6 +308,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         setDialog(
                           <ExampleDetailsDialog
                             exampleId={row.original.example.id}
+                            datasetVersionId={baseExperiment.datasetVersionId}
                           />
                         );
                       }}
@@ -354,11 +359,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [displayFullText, setDialog]);
+  }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
-    const baseExperiment = experimentInfoById[baseExperimentId];
-    invariant(baseExperiment, "baseExperiment not found");
     const datasetVersionId = baseExperiment.datasetVersionId;
 
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -436,6 +439,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     displayFullText,
     experimentInfoById,
     getExperimentColor,
+    baseExperiment.datasetVersionId,
   ]);
 
   const columns = useMemo(() => {
