@@ -19,8 +19,8 @@ class TraceDataExtractor(ABC):
     `Session` so that they both implement the same methods.
     """
 
+    @deprecated("Migrate to client.spans.get_spans_dataframe() from arize-phoenix-client")
     @abstractmethod
-    @deprecated("Migrate to client.spans.get_spans() from arize-phoenix-client")
     def query_spans(
         self,
         *queries: SpanQuery,
