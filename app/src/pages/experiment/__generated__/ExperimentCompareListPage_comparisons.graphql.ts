@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<68e885ad75fabece894f17c8a0149ed5>>
+ * @generated SignedSource<<2c7a781ef8fa0ce5eb8f77e63b4c66c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -188,7 +188,7 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "RunComparisonItem",
+                  "concreteType": "ExperimentRepeatedRunGroup",
                   "kind": "LinkedField",
                   "name": "runComparisonItems",
                   "plural": true,

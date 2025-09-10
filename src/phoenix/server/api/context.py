@@ -17,6 +17,7 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
+    AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
@@ -53,6 +54,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostDetailSummaryEntriesBySpanDataLoader,
     SpanCostDetailSummaryEntriesByTraceDataLoader,
     SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
     SpanCostSummaryByExperimentRunDataLoader,
     SpanCostSummaryByGenerativeModelDataLoader,
     SpanCostSummaryByProjectDataLoader,
@@ -86,6 +88,9 @@ from phoenix.server.types import (
 class DataLoaders:
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
+    average_experiment_repeated_run_group_latency: (
+        AverageExperimentRepeatedRunGroupLatencyDataLoader
+    )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
@@ -130,6 +135,9 @@ class DataLoaders:
     span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
     span_cost_fields: TableFieldsDataLoader
     span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_repeated_run_group: (
+        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader
+    )
     span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
     span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader

@@ -1114,7 +1114,7 @@ type ExperimentComparison implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   example: DatasetExample!
-  runComparisonItems: [RunComparisonItem!]!
+  runComparisonItems: [ExperimentRepeatedRunGroup!]!
 }
 
 """A connection to a list of items."""
@@ -1155,6 +1155,16 @@ type ExperimentEdge {
 
 type ExperimentMutationPayload {
   experiments: [Experiment!]!
+}
+
+type ExperimentRepeatedRunGroup {
+  runs: [ExperimentRun!]!
+  experimentId: ID!
+  averageLatencyMs: Float
+  example: DatasetExample!
+  runCount: Int!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentRun implements Node {
@@ -2196,11 +2206,6 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
-}
-
-type RunComparisonItem {
-  experimentId: ID!
-  runs: [ExperimentRun!]!
 }
 
 enum ScalarDriftMetric {

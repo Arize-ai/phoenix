@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4ab0ff919535a74382f1e1ac2435107>>
+ * @generated SignedSource<<5bd5ed0b1a2c7d4036c8d014badcc006>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -682,7 +682,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "RunComparisonItem",
+                        "concreteType": "ExperimentRepeatedRunGroup",
                         "kind": "LinkedField",
                         "name": "runComparisonItems",
                         "plural": true,
@@ -945,7 +945,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "RunComparisonItem",
+                        "concreteType": "ExperimentRepeatedRunGroup",
                         "kind": "LinkedField",
                         "name": "runComparisonItems",
                         "plural": true,

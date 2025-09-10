@@ -520,7 +520,8 @@ class Query:
             for experiment_id in experiment_rowids:
                 run_comparison_items.append(
                     ExperimentRepeatedRunGroup(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
+                        experiment_rowid=experiment_id,
+                        dataset_example_rowid=example.id,
                         runs=[
                             to_gql_experiment_run(run)
                             for run in sorted(
