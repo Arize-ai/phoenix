@@ -22,12 +22,13 @@ def upgrade() -> None:
     op.create_table(
         "dataset_labels",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False),
+        sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("color", sa.String, nullable=False),
     )
 
     op.create_table(
-        "dataset_dataset_labels",
+        "datasets_dataset_labels",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "dataset_id",
@@ -51,9 +52,10 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("description", sa.String, nullable=True),
+        sa.UniqueConstraint("dataset_id", "dataset_label_id"),
     )
 
 
 def downgrade() -> None:
-    op.drop_table("dataset_dataset_labels")
+    op.drop_table("datasets_dataset_labels")
     op.drop_table("dataset_labels")

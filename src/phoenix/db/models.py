@@ -1061,8 +1061,8 @@ class Dataset(Base):
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
     )
-    dataset_dataset_labels: Mapped[list["DatasetDatasetLabel"]] = relationship(
-        "DatasetDatasetLabel", back_populates="dataset"
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset"
     )
 
     @hybrid_property
@@ -1118,13 +1118,14 @@ class DatasetLabel(Base):
     __tablename__ = "dataset_labels"
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    dataset_dataset_labels: Mapped[list["DatasetDatasetLabel"]] = relationship(
-        "DatasetDatasetLabel", back_populates="dataset_label"
+    color: Mapped[Optional[str]]
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset_label"
     )
 
 
-class DatasetDatasetLabel(Base):
-    __tablename__ = "dataset_dataset_labels"
+class DatasetsDatasetLabel(Base):
+    __tablename__ = "datasets_dataset_labels"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
@@ -1139,11 +1140,13 @@ class DatasetDatasetLabel(Base):
         nullable=True,
     )
     description: Mapped[Optional[str]]
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_dataset_labels")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
     dataset_label: Mapped["DatasetLabel"] = relationship(
-        "DatasetLabel", back_populates="dataset_dataset_labels"
+        "DatasetLabel", back_populates="datasets_dataset_labels"
     )
     user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("dataset_id", "dataset_label_id"),)
 
 
 class DatasetVersion(Base):
