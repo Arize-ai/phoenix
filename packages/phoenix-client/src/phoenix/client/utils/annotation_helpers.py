@@ -727,8 +727,8 @@ def _validate_annotations_dataframe(
         not annotator_kind_required and "annotator_kind" in dataframe.columns
     ):
         # Get unique non-null values and check against allowed values
-        invalid_values = (
-            set(dataframe.loc[:, "annotator_kind"].dropna().unique()) - valid_annotator_kinds  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+        invalid_values = (  # pyright: ignore[reportUnknownVariableType]
+            set(dataframe.loc[:, "annotator_kind"].dropna().unique()) - valid_annotator_kinds  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType,reportCallIssue]
         )
         if invalid_values:
             raise ValueError(
