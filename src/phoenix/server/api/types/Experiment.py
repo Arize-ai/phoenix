@@ -5,13 +5,14 @@ import strawberry
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
@@ -32,6 +33,7 @@ class Experiment(Node):
     name: str
     project_name: Optional[str]
     description: Optional[str]
+    dataset_version_id: GlobalID
     metadata: JSON
     created_at: datetime
     updated_at: datetime
@@ -205,6 +207,7 @@ def to_gql_experiment(
         name=experiment.name,
         project_name=experiment.project_name,
         description=experiment.description,
+        dataset_version_id=GlobalID(DatasetVersion.__name__, str(experiment.dataset_version_id)),
         metadata=experiment.metadata_,
         created_at=experiment.created_at,
         updated_at=experiment.updated_at,

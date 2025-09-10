@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
 }
 
 """A connection to a list of items."""
@@ -1082,6 +1082,7 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+  datasetVersionId: ID!
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!

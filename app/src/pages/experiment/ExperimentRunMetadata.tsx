@@ -5,9 +5,21 @@ import {
 } from "@phoenix/components/experiment";
 import { TokenCount } from "@phoenix/components/trace";
 
-import { ExperimentRun } from "./ExperimentCompareTable";
 import { ExperimentRunLatency } from "./ExperimentRunLatency";
-export function ExperimentRunMetadata(props: ExperimentRun) {
+
+type ExperimentRunMetadataProps = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  costSummary: {
+    total: {
+      tokens: number | null;
+      cost: number | null;
+    };
+  };
+};
+
+export function ExperimentRunMetadata(props: ExperimentRunMetadataProps) {
   const { id, startTime, endTime, costSummary } = props;
   const tokenCountTotal = costSummary.total.tokens;
   const costTotal = costSummary.total.cost;

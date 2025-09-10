@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
@@ -18,22 +20,129 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import {
+  ExperimentCompareDetailsQuery,
+  ExperimentCompareDetailsQuery$data,
+} from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
-import type { ExperimentInfoMap, TableRow } from "./ExperimentCompareTable";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
-// TODO: this is an anti-pattern but right now the components are coupled.
-// This will be re-factored to encapsulated.
 type ExperimentCompareDetailsProps = {
-  selectedExample: TableRow;
-  experimentInfoById: ExperimentInfoMap;
+  datasetId: string;
+  datasetExampleId: string;
+  datasetVersionId: string;
+  experimentIds: string[];
 };
 
+type Experiment = NonNullable<
+  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
+
+type ExperimentRun = NonNullable<
+  ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
+>["edges"][number]["run"];
+
 export function ExperimentCompareDetails({
-  selectedExample,
-  experimentInfoById,
+  datasetId,
+  datasetExampleId,
+  datasetVersionId,
+  experimentIds,
 }: ExperimentCompareDetailsProps) {
+  const exampleData = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
+    graphql`
+      query ExperimentCompareDetailsQuery(
+        $datasetId: ID!
+        $datasetExampleId: ID!
+        $datasetVersionId: ID!
+        $experimentIds: [ID!]!
+      ) {
+        example: node(id: $datasetExampleId) {
+          ... on DatasetExample {
+            revision(datasetVersionId: $datasetVersionId) {
+              input
+              referenceOutput: output
+            }
+            experimentRuns(experimentIds: $experimentIds, first: 120) {
+              edges {
+                run: node {
+                  id
+                  experimentId
+                  output
+                  error
+                  endTime
+                  startTime
+                  costSummary {
+                    total {
+                      cost
+                      tokens
+                    }
+                  }
+                  annotations {
+                    edges {
+                      annotation: node {
+                        id
+                        name
+                        label
+                        score
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments(filterIds: $experimentIds) {
+              edges {
+                experiment: node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      datasetId,
+      datasetExampleId,
+      datasetVersionId,
+      experimentIds,
+    }
+  );
+
+  const input = exampleData.example.revision?.input;
+  const referenceOutput = exampleData.example.revision?.referenceOutput;
+  const experimentRuns = exampleData.example.experimentRuns?.edges;
+  const experiments = exampleData.dataset.experiments?.edges;
+
+  const experimentsById = useMemo(() => {
+    return experiments?.reduce(
+      (acc, edge) => {
+        acc[edge.experiment.id] = edge.experiment;
+        return acc;
+      },
+      {} as Record<string, Experiment>
+    );
+  }, [experiments]);
+
+  const experimentRunsByExperimentId = useMemo(() => {
+    return experimentRuns?.reduce(
+      (acc, run) => {
+        acc[run.run.experimentId] = [
+          ...(acc[run.run.experimentId] || []),
+          run.run,
+        ];
+        return acc;
+      },
+      {} as Record<string, ExperimentRun[]>
+    );
+  }, [experimentRuns]);
+
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
       <Panel defaultSize={35}>
@@ -48,22 +157,10 @@ export function ExperimentCompareDetails({
               <View width="50%">
                 <Card
                   title="Input"
-                  extra={
-                    <CopyToClipboardButton
-                      text={JSON.stringify(
-                        selectedExample.example.revision.input
-                      )}
-                    />
-                  }
+                  extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
                 >
                   <View maxHeight="300px" overflow="auto">
-                    <JSONBlock
-                      value={JSON.stringify(
-                        selectedExample.example.revision.input,
-                        null,
-                        2
-                      )}
-                    />
+                    <JSONBlock value={JSON.stringify(input, null, 2)} />
                   </View>
                 </Card>
               </View>
@@ -72,19 +169,13 @@ export function ExperimentCompareDetails({
                   title="Reference Output"
                   extra={
                     <CopyToClipboardButton
-                      text={JSON.stringify(
-                        selectedExample.example.revision.referenceOutput
-                      )}
+                      text={JSON.stringify(referenceOutput)}
                     />
                   }
                 >
                   <View maxHeight="300px" overflow="auto">
                     <JSONBlock
-                      value={JSON.stringify(
-                        selectedExample.example.revision.referenceOutput,
-                        null,
-                        2
-                      )}
+                      value={JSON.stringify(referenceOutput, null, 2)}
                     />
                   </View>
                 </Card>
@@ -122,11 +213,14 @@ export function ExperimentCompareDetails({
                 gap: var(--ac-global-dimension-static-size-200);
               `}
             >
-              {selectedExample.runComparisonItems.map((runItem, index) => {
-                const experiment = experimentInfoById[runItem.experimentId];
+              {experimentIds?.map((experimentId, index) => {
+                const experiment = experimentsById?.[experimentId];
+                if (!experiment) {
+                  return null;
+                }
                 return (
                   <li
-                    key={runItem.experimentId}
+                    key={experimentId}
                     css={css`
                       // Make them all the same size
                       flex: 1 1 0px;
@@ -134,7 +228,9 @@ export function ExperimentCompareDetails({
                   >
                     <ExperimentItem
                       experiment={experiment}
-                      runItem={runItem}
+                      experimentRuns={
+                        experimentRunsByExperimentId?.[experimentId] || []
+                      }
                       index={index}
                     />
                   </li>
@@ -160,18 +256,18 @@ const experimentItemCSS = css`
  */
 function ExperimentItem({
   experiment,
-  runItem,
+  experimentRuns,
   index,
 }: {
-  experiment: ExperimentInfoMap[string];
-  runItem: TableRow["runComparisonItems"][number];
+  experiment: Experiment;
+  experimentRuns: ExperimentRun[];
   index: number;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
     index === 0 ? baseExperimentColor : getExperimentColor(index - 1);
 
-  const hasExperimentResult = runItem.runs.length > 0;
+  const hasExperimentResult = experimentRuns.length > 0;
   return (
     <div css={experimentItemCSS}>
       <View paddingX="size-200" paddingTop="size-200">
@@ -184,7 +280,7 @@ function ExperimentItem({
       </View>
       {!hasExperimentResult ? <Empty message="No Run" /> : null}
       <ul>
-        {runItem.runs.map((run, index) => (
+        {experimentRuns.map((run, index) => (
           <li key={index}>
             <div
               css={css`
