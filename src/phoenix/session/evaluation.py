@@ -30,7 +30,7 @@ from phoenix.trace.dsl.helpers import (
 )
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
-from phoenix.utils.deprecation import deprecated
+from phoenix.utilities.deprecation import deprecated
 
 __all__ = [
     "get_retrieved_documents",
