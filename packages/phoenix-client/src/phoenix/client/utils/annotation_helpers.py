@@ -29,11 +29,11 @@ _DATAFRAME_CHUNK_SIZE = 100
 
 class _IdConfig(NamedTuple):
     """Configuration for ID column handling in annotation DataFrames.
-    
+
     This configuration defines which columns are required as IDs, their expected types,
     and fallback column names. It supports both single-ID configs (e.g., span_id only)
     and multi-ID configs (e.g., span_id + document_position for document annotations).
-    
+
     Key behaviors:
     - ID columns can be in DataFrame columns OR index levels, but not both
     - For multi-ID configs, ALL IDs must be in the same location (all columns or all index)
@@ -55,7 +55,7 @@ _SPAN_ID_CONFIG = _IdConfig(
     fallbacks=MappingProxyType({"span_id": "context.span_id"}),
 )
 
-# Single-ID config: trace annotations require only trace_id  
+# Single-ID config: trace annotations require only trace_id
 # Important: Can fall back to "context.trace_id" or unnamed string index
 _TRACE_ID_CONFIG = _IdConfig(
     columns=MappingProxyType({"trace_id": str}),
@@ -80,26 +80,26 @@ _SESSION_ID_CONFIG = _IdConfig(
 
 def _get_index_names(dataframe: "pd.DataFrame") -> list[Any]:
     """Extract index level names from DataFrame, handling both MultiIndex and single Index.
-    
+
     This function centralizes the complex logic for extracting index names from pandas
     DataFrames, which can have different index types (MultiIndex vs single Index).
-    
+
     Args:
         dataframe: The pandas DataFrame to extract index names from.
-        
+
     Returns:
         List of non-None index level names (can be any hashable type, not just strings).
         Returns empty list if index has no names (unnamed index).
-        
+
     Important considerations:
         - MultiIndex.names can contain None values that must be filtered out
         - Single Index.name can be None (unnamed index)
         - Index names are typically strings but can be any hashable type
     """
-    if hasattr(dataframe.index, 'names') and dataframe.index.names:  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+    if hasattr(dataframe.index, "names") and dataframe.index.names:  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
         # MultiIndex case: filter out None names (unnamed levels)
-        return [name for name in dataframe.index.names if name is not None]  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType,reportReturnType]
-    elif hasattr(dataframe.index, 'name') and dataframe.index.name:  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType,reportUnnecessaryComparison]
+        return [name for name in dataframe.index.names if name is not None]  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType,reportReturnType,reportUnnecessaryComparison]
+    elif hasattr(dataframe.index, "name") and dataframe.index.name is not None:  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType,reportUnnecessaryComparison]
         # Named single Index case
         return [dataframe.index.name]  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType,reportReturnType]
     # Unnamed index case: return empty list
@@ -108,26 +108,26 @@ def _get_index_names(dataframe: "pd.DataFrame") -> list[Any]:
 
 def _is_multiindex(dataframe: "pd.DataFrame") -> bool:
     """Check if DataFrame has a MultiIndex (more than one index level).
-    
+
     This is used to determine how to extract values from index levels - MultiIndex
     requires get_level_values() while single Index can be accessed directly.
-    
+
     Args:
         dataframe: The pandas DataFrame to check.
-        
+
     Returns:
         True if the DataFrame has a MultiIndex (2+ levels), False for single level.
-        
+
     Important considerations:
         - A named single Index is NOT a MultiIndex (has names=[name] but len=1)
         - Unnamed index has names=[None] so len=1, also not MultiIndex
     """
-    return hasattr(dataframe.index, 'names') and len(dataframe.index.names) > 1  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+    return hasattr(dataframe.index, "names") and len(dataframe.index.names) > 1  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
 
 
 def _is_valid_value(value: Any, expected_type: Type[Any]) -> bool:
     """Check if a value is valid for the expected type.
-    
+
     This function does basic type and emptiness validation for ID values.
     String types have additional validation for empty/whitespace-only values.
 
@@ -137,7 +137,7 @@ def _is_valid_value(value: Any, expected_type: Type[Any]) -> bool:
 
     Returns:
         bool: True if the value is valid for the expected type, False otherwise.
-        
+
     Important considerations:
         - None values are always invalid regardless of type
         - For strings: empty strings and whitespace-only strings are invalid
@@ -162,7 +162,7 @@ def _extract_id_value(
     expected_type: Type[Any],
 ) -> Optional[Any]:
     """Extract and convert ID value from DataFrame columns, with fallback support.
-    
+
     This function implements the fallback chain for ID extraction from DataFrame columns:
     1. Try primary column (e.g., "span_id")
     2. If not found/invalid, try fallback column (e.g., "context.span_id")
@@ -177,7 +177,7 @@ def _extract_id_value(
 
     Returns:
         Optional[Any]: The converted ID value if found and valid, None otherwise.
-        
+
     Important considerations:
         - Column existence is checked against dataframe.columns, not just row keys
         - Values are validated using _is_valid_value before type conversion
@@ -214,10 +214,10 @@ def _extract_id_value_from_index(
     expected_type: Type[Any],
 ) -> Optional[Any]:
     """Extract and convert ID value from DataFrame index levels, with fallback support.
-    
+
     This function handles the complex logic of extracting values from pandas index levels,
     which can be either a single named index or a MultiIndex with multiple levels.
-    
+
     The extraction process:
     1. Get all available index level names
     2. Try primary level name (e.g., "span_id")
@@ -233,7 +233,7 @@ def _extract_id_value_from_index(
 
     Returns:
         Optional[Any]: The converted ID value if found and valid, None otherwise.
-        
+
     Important considerations:
         - For MultiIndex: row_index is a tuple, need to find position of level name
         - For single Index: row_index is the value directly
@@ -252,7 +252,7 @@ def _extract_id_value_from_index(
         else:
             # Single named index case: row_index is the value directly
             value = row_index
-        
+
         if _is_valid_value(value, expected_type):
             if expected_type is str and isinstance(value, str):
                 value = value.strip()  # Clean whitespace for string types
@@ -267,7 +267,7 @@ def _extract_id_value_from_index(
         else:
             # Single named index case: row_index is the value directly
             value = row_index
-        
+
         if _is_valid_value(value, expected_type):
             if expected_type is str and isinstance(value, str):
                 value = value.strip()  # Clean whitespace for string types
@@ -278,25 +278,22 @@ def _extract_id_value_from_index(
 
 
 def _validate_column_values(
-    dataframe: "pd.DataFrame", 
-    column: str, 
-    expected_type: Type[Any],
-    value_description: str
+    dataframe: "pd.DataFrame", column: str, expected_type: Type[Any], value_description: str
 ) -> None:
     """Validate values in a specific DataFrame column with comprehensive type checking.
-    
+
     This function performs thorough validation of column values, including None checks,
     type validation, and string-specific validation (empty/whitespace checking).
-    
+
     Args:
         dataframe: The DataFrame to validate.
         column: The column name to validate (must exist in dataframe.columns).
         expected_type: The expected type for values in the column.
         value_description: Human-readable description of the values for error messages.
-        
+
     Raises:
         ValueError: If any validation fails (None values, wrong types, empty strings).
-        
+
     Important considerations:
         - Uses pandas .isna() which catches both None and NaN values
         - For strings: validates against empty strings AND whitespace-only strings
@@ -318,31 +315,27 @@ def _validate_column_values(
     else:
         # Non-string validation: check exact type match for all values
         if not all(isinstance(x, expected_type) for x in dataframe.loc[:, column]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-            raise ValueError(
-                f"{value_description} values must be of type {expected_type.__name__}"
-            )
+            raise ValueError(f"{value_description} values must be of type {expected_type.__name__}")
 
 
 def _validate_index_level_values(
-    dataframe: "pd.DataFrame",
-    index_name: str,
-    expected_type: Type[Any]
+    dataframe: "pd.DataFrame", index_name: str, expected_type: Type[Any]
 ) -> None:
     """Validate values in a specific DataFrame index level with comprehensive type checking.
-    
+
     This function handles the complex task of validating index level values, which requires
     different extraction methods for MultiIndex vs single Index, followed by the same
     validation logic as column values.
-    
+
     Args:
         dataframe: The DataFrame to validate.
         index_name: The index level name to validate (must exist in index names).
         expected_type: The expected type for values in the index level.
-        
+
     Raises:
         ValueError: If any validation fails (None values, wrong types, empty strings).
         ImportError: If pandas is not available.
-        
+
     Important considerations:
         - MultiIndex uses get_level_values() to extract specific level
         - Single Index uses the index directly (index_name is just for error messages)
@@ -355,7 +348,7 @@ def _validate_index_level_values(
         raise ImportError(
             "Pandas is not installed. Please install pandas to use this method: pip install pandas"
         )
-    
+
     # Extract the index level values (different methods for MultiIndex vs single Index)
     if _is_multiindex(dataframe):
         # MultiIndex case: extract specific level by name
@@ -364,11 +357,11 @@ def _validate_index_level_values(
     else:
         # Single named index case: use entire index (index_name is just for error context)
         level_values = dataframe.index  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
-    
+
     # Check for None/NaN values (wrap in Series for consistent .isna() method)
     if pd.Series(level_values).isna().any():  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
         raise ValueError(f"Index level '{index_name}' values cannot be None")
-    
+
     # Type-specific validation (same logic as column validation)
     if expected_type is str:
         # String validation: check for empty strings after stripping whitespace
@@ -512,7 +505,7 @@ def _validate_annotations_dataframe(
     2. Name column validation (name vs annotation_name conflicts)
     3. Required column presence validation
     4. ID column location and structure validation (most complex part)
-    5. ID value type and content validation  
+    5. ID value type and content validation
     6. Annotator kind value validation
     7. Result column presence validation
 
@@ -531,7 +524,7 @@ def _validate_annotations_dataframe(
         ValueError: If the DataFrame is missing required columns, if no valid annotation data is provided,
             or if annotator_kind values are invalid, or if ID column configuration is invalid.
         TypeError: If the input is not a pandas DataFrame.
-        
+
     Critical behavior notes:
         - ID columns can be in DataFrame columns OR index levels, but not both for same ID
         - Multi-ID configs require ALL IDs in same location (all columns or all index)
@@ -594,12 +587,12 @@ def _validate_annotations_dataframe(
 
     # STAGE 4: ID column location and structure validation (most complex part)
     # This section implements the sophisticated ID column detection logic that supports:
-    # - Primary vs fallback column names (e.g., "span_id" vs "context.span_id")  
+    # - Primary vs fallback column names (e.g., "span_id" vs "context.span_id")
     # - ID columns in DataFrame columns OR index levels (but not both)
     # - Single-ID vs multi-ID configurations with different fallback rules
-    
+
     available_id_columns: list[str] = []  # ID columns found in DataFrame columns
-    available_id_index_names: list[str] = []  # ID columns found in index levels  
+    available_id_index_names: list[str] = []  # ID columns found in index levels
     conflicting_columns: list[tuple[str, str]] = []  # Primary/fallback conflicts
     missing_id_columns: list[str] = []  # IDs not found anywhere
 
@@ -610,7 +603,7 @@ def _validate_annotations_dataframe(
     for id_col in id_config.columns.keys():
         found_in_columns = False
         found_in_index = False
-        
+
         # Step 1: Check if primary ID column is in DataFrame columns
         if id_col in dataframe.columns:
             available_id_columns.append(id_col)
@@ -623,7 +616,9 @@ def _validate_annotations_dataframe(
 
         # Step 3: Enforce rule - ID cannot be in both columns and index
         if found_in_columns and found_in_index:
-            raise ValueError(f"ID column '{id_col}' cannot be present in both DataFrame columns and index")
+            raise ValueError(
+                f"ID column '{id_col}' cannot be present in both DataFrame columns and index"
+            )
 
         # Step 4: If primary not found anywhere, try fallback column
         if not found_in_columns and not found_in_index:
@@ -633,7 +628,7 @@ def _validate_annotations_dataframe(
                 if fallback_col in dataframe.columns:
                     available_id_columns.append(fallback_col)
                     found_in_columns = True
-                # Check fallback in index level names  
+                # Check fallback in index level names
                 elif fallback_col in index_names:
                     available_id_index_names.append(fallback_col)
                     found_in_index = True
@@ -657,9 +652,11 @@ def _validate_annotations_dataframe(
         )
 
     # STAGE 4b: Multi-ID location consistency check
-    # Rule: For multi-ID configs (e.g., span_id + document_position), ALL IDs must be in same location
-    # Valid: all in columns OR all in index. Invalid: some in columns, some in index
-    multi_id_check = len(id_config.columns) > 1 and available_id_columns and available_id_index_names
+    # Rule: For multi-ID configs (e.g., span_id + document_position), ALL IDs must be in same
+    # location. Valid: all in columns OR all in index. Invalid: some in columns, some in index
+    multi_id_check = (
+        len(id_config.columns) > 1 and available_id_columns and available_id_index_names
+    )
     if multi_id_check:
         raise ValueError(
             "For multi-ID configurations, all ID columns must be in the same location "
@@ -689,11 +686,13 @@ def _validate_annotations_dataframe(
             # Different error messages for single vs multi-ID configs
             if len(id_config.columns) == 1:
                 raise ValueError(
-                    f"DataFrame must have {missing_options[0]} column, index level, or a string-based index"
+                    f"DataFrame must have {missing_options[0]} column, index level, "
+                    "or a string-based index"
                 )
             else:
                 raise ValueError(
-                    f"DataFrame must have ALL required ID columns in columns or index levels: {', '.join(missing_options)}"
+                    f"DataFrame must have ALL required ID columns in columns or index levels: "
+                    f"{', '.join(missing_options)}"
                 )
 
     # STAGE 5: ID value type and content validation
@@ -704,14 +703,14 @@ def _validate_annotations_dataframe(
         # Get expected data type (primary ID type, or str for fallback columns)
         expected_type = id_config.columns.get(actual_id_column, str)
         _validate_column_values(dataframe, actual_id_column, expected_type, actual_id_column)
-    
+
     elif available_id_index_names:
         # Case 2: ID values are in index levels (single index or MultiIndex)
         for index_name in available_id_index_names:
             # Get expected data type for this specific index level
             expected_type = id_config.columns.get(index_name, str)
             _validate_index_level_values(dataframe, index_name, expected_type)
-    
+
     else:
         # Case 3: Using unnamed string index as fallback (single-ID config only)
         # This path is only reached for single-ID configs where no named columns/index found
@@ -722,13 +721,15 @@ def _validate_annotations_dataframe(
             if not all(isinstance(x, str) for x in dataframe.index):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
                 raise ValueError("Index values must be strings when used as ID")
 
-    # STAGE 6: Annotator kind value validation  
+    # STAGE 6: Annotator kind value validation
     # Check that annotator_kind values are from the allowed set (LLM, CODE, HUMAN, etc.)
     if annotator_kind_required or (
         not annotator_kind_required and "annotator_kind" in dataframe.columns
     ):
         # Get unique non-null values and check against allowed values
-        invalid_values = set(dataframe.loc[:, "annotator_kind"].dropna().unique()) - valid_annotator_kinds  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+        invalid_values = (
+            set(dataframe.loc[:, "annotator_kind"].dropna().unique()) - valid_annotator_kinds  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+        )
         if invalid_values:
             raise ValueError(
                 f"Invalid annotator_kind values found in DataFrame: {invalid_values}. "
@@ -736,7 +737,8 @@ def _validate_annotations_dataframe(
             )
 
     # STAGE 7: Result column presence validation
-    # Ensure at least one annotation result field is present (can't have annotations without results)
+    # Ensure at least one annotation result field is present (can't have annotations without
+    # results)
     result_columns = {"label", "score", "explanation"}
     if not any(col in dataframe.columns for col in result_columns):
         raise ValueError("DataFrame must contain at least one of: label, score, explanation")
@@ -875,7 +877,7 @@ def _chunk_annotations_dataframe(
     applies global parameter overrides, and performs type conversions.
 
     Processing flow for each row:
-    1. Extract annotation name (global override or row value)  
+    1. Extract annotation name (global override or row value)
     2. Extract annotator kind (global override or row value)
     3. Extract all required ID values using the same fallback logic as validation
     4. Extract optional annotation fields (label, score, explanation, metadata, identifier)
@@ -889,7 +891,7 @@ def _chunk_annotations_dataframe(
         dataframe (pd.DataFrame): The DataFrame to process. Must be pre-validated.
         annotation_name (Optional[str]): Global annotation name to use for all rows. If provided,
             overrides any "name" or "annotation_name" columns. Defaults to None.
-        annotator_kind (Optional[str]): Global annotator kind to use for all rows. If provided,  
+        annotator_kind (Optional[str]): Global annotator kind to use for all rows. If provided,
             overrides any "annotator_kind" column. Defaults to None.
         chunk_size (int): Number of annotations per chunk. Defaults to _DATAFRAME_CHUNK_SIZE (100).
         id_config (_IdConfig): Configuration for ID column handling. Must match validation.
@@ -901,7 +903,7 @@ def _chunk_annotations_dataframe(
     Raises:
         ValueError: If required fields are missing during processing (should not happen if pre-validated).
         TypeError: If score values cannot be converted to float.
-        
+
     Critical behavior notes:
         - Uses same ID extraction logic as validation but operates on individual rows
         - Global parameters (annotation_name, annotator_kind) override DataFrame columns
@@ -915,15 +917,15 @@ def _chunk_annotations_dataframe(
             # Get required fields with null checks
             row_name = annotation_name
             if row_name is None:
-                if "name" in row and bool(row.loc["name"]):  # pyright: ignore[reportUnknownArgumentType]
-                    row_name = str(row.loc["name"]).strip()  # pyright: ignore[reportUnknownArgumentType]
-                elif "annotation_name" in row and bool(row.loc["annotation_name"]):  # pyright: ignore[reportUnknownArgumentType]
-                    row_name = str(row.loc["annotation_name"]).strip()  # pyright: ignore[reportUnknownArgumentType]
+                if "name" in row and bool(row.loc["name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                    row_name = str(row.loc["name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                elif "annotation_name" in row and bool(row.loc["annotation_name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                    row_name = str(row.loc["annotation_name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
             assert row_name
 
             row_annotator_kind = annotator_kind or (
-                str(row.loc["annotator_kind"]).strip()  # pyright: ignore[reportUnknownArgumentType]
-                if "annotator_kind" in row and bool(row.loc["annotator_kind"])  # pyright: ignore[reportUnknownArgumentType]
+                str(row.loc["annotator_kind"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "annotator_kind" in row and bool(row.loc["annotator_kind"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
                 else None
             )
 
@@ -934,14 +936,16 @@ def _chunk_annotations_dataframe(
             for id_col in id_config.columns.keys():
                 expected_type = id_config.columns.get(id_col, str)
                 fallback_col = id_config.fallbacks.get(id_col)
-                
+
                 # Try to extract from columns first
                 value = _extract_id_value(row, dataframe, id_col, fallback_col, expected_type)
-                
+
                 # If not found in columns, try to extract from index
                 if value is None:
-                    value = _extract_id_value_from_index(idx, dataframe, id_col, fallback_col, expected_type)
-                
+                    value = _extract_id_value_from_index(
+                        idx, dataframe, id_col, fallback_col, expected_type
+                    )
+
                 if value is not None:
                     id_params[id_col] = value
                 else:
@@ -963,25 +967,31 @@ def _chunk_annotations_dataframe(
                     raise ValueError(f"Row {idx}: Missing required ID columns: {missing_ids}")
 
             # Get optional fields with proper type conversion
-            label = str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None  # pyright: ignore[reportUnknownArgumentType]
+            label = (
+                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+            )
             score = None
-            if "score" in row and row.loc["score"] is not None:
+            if "score" in row and row.loc["score"] is not None:  # pyright: ignore[reportUnknownMemberType]
                 try:
-                    score = float(row.loc["score"])  # pyright: ignore[reportUnknownArgumentType,reportArgumentType]
+                    score = float(row.loc["score"])  # pyright: ignore[reportUnknownArgumentType,reportArgumentType,reportUnknownMemberType]
                 except (ValueError, TypeError):
-                    raise TypeError(f"Score value '{row.loc['score']}' cannot be converted to float")
+                    raise TypeError(
+                        f"Score value '{row.loc['score']}' cannot be converted to float"  # pyright: ignore[reportUnknownMemberType]
+                    )
             explanation = (
-                str(row.loc["explanation"]).strip()  # pyright: ignore[reportUnknownArgumentType]
-                if "explanation" in row and bool(row.loc["explanation"])  # pyright: ignore[reportUnknownArgumentType]
+                str(row.loc["explanation"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "explanation" in row and bool(row.loc["explanation"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
                 else None
             )
             metadata = cast(
                 dict[str, Any],
-                dict(row.loc["metadata"]) if "metadata" in row and bool(row.loc["metadata"]) else None,  # pyright: ignore[reportUnknownArgumentType]
+                dict(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "metadata" in row and bool(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                else None,
             )
             identifier = (
-                str(row.loc["identifier"]).strip()  # pyright: ignore[reportUnknownArgumentType]
-                if "identifier" in row and bool(row.loc["identifier"])  # pyright: ignore[reportUnknownArgumentType]
+                str(row.loc["identifier"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "identifier" in row and bool(row.loc["identifier"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
                 else None
             )
 
