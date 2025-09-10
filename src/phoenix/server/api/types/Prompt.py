@@ -1,6 +1,6 @@
 # Part of the Phoenix PromptHub feature set
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import strawberry
 from sqlalchemy import func, select
@@ -19,6 +19,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 
+from .PromptLabel import PromptLabel, to_gql_prompt_label
 from .PromptVersion import (
     PromptVersion,
     to_gql_prompt_version,
@@ -115,6 +116,16 @@ class Prompt(Node):
             if not source_prompt:
                 raise NotFound(f"Source prompt not found: {self.source_prompt_id}")
             return to_gql_prompt_from_orm(source_prompt)
+
+    @strawberry.field
+    async def labels(self, info: Info[Context, None]) -> List["PromptLabel"]:
+        async with info.context.db() as session:
+            labels = await session.scalars(
+                select(models.PromptLabel)
+                .join(models.PromptPromptLabel)
+                .where(models.PromptPromptLabel.prompt_id == self.id_attr)
+            )
+            return [to_gql_prompt_label(label) for label in labels]
 
 
 def to_gql_prompt_from_orm(orm_model: "models.Prompt") -> Prompt:
