@@ -127,7 +127,7 @@ class TestDatasetExampleNodeInterface:
         assert response.errors
         assert response.errors[0].message == "Could not find revision."
 
-    async def test_deleted_dataset_example_returns_error(
+    async def test_deleted_dataset_example_is_returned(
         self,
         gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
@@ -139,8 +139,19 @@ class TestDatasetExampleNodeInterface:
                 "exampleId": example_id,
             },
         )
-        assert response.errors
-        assert response.errors[0].message == f"Unknown dataset example: {example_id}"
+        assert not response.errors
+        assert response.data == {
+            "example": {
+                "id": example_id,
+                "createdAt": "2020-01-01T00:00:00+00:00",
+                "revision": {
+                    "input": {"input": "first-input"},
+                    "output": {"output": "first-output"},
+                    "metadata": {},
+                    "revisionKind": "DELETE",
+                },
+            }
+        }
 
 
 class TestDatasetExampleCountResolver:
