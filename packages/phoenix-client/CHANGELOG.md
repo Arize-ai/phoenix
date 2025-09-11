@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.1...arize-phoenix-client-v1.18.2) (2025-09-11)
+
+
+### Bug Fixes
+
+* **experiments:** make sure repetitions is a positive integer ([#9479](https://github.com/Arize-ai/phoenix/issues/9479)) ([1b71c66](https://github.com/Arize-ai/phoenix/commit/1b71c666e88853de8bf40eec39ab634a8658f439))
+
 ## [1.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.0...arize-phoenix-client-v1.18.1) (2025-09-10)
 
 
