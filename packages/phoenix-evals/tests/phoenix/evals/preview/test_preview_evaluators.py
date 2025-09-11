@@ -538,7 +538,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, label="good", explanation="test explanation")
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -556,7 +556,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.75
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -572,7 +572,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> bool:
             return True
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -588,7 +588,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> str:
             return "good"
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -604,7 +604,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> str:
             return "This is a much longer explanation that should go into the explanation field"
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -627,7 +627,7 @@ class TestCreateEvaluatorDecorator:
                 "explanation": "This is a detailed explanation",
             }
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -643,7 +643,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> tuple:
             return (0.85, "very good", "This is a comprehensive evaluation")
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -660,7 +660,7 @@ class TestCreateEvaluatorDecorator:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
         with pytest.raises(ValueError):
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
