@@ -1061,6 +1061,9 @@ class Dataset(Base):
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
     )
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset"
+    )
 
     @hybrid_property
     def example_count(self) -> Optional[int]:
@@ -1109,6 +1112,38 @@ class Dataset(Base):
                 )
                 .filter(DatasetExample.dataset_id == self.id)
             )
+
+
+class DatasetLabel(Base):
+    __tablename__ = "dataset_labels"
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, server_default=text("'#ffffff'"), nullable=False)
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset_label"
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class DatasetsDatasetLabel(Base):
+    __tablename__ = "datasets_dataset_labels"
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    dataset_label_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_labels.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
+    dataset_label: Mapped["DatasetLabel"] = relationship(
+        "DatasetLabel", back_populates="datasets_dataset_labels"
+    )
+
+    __table_args__ = (UniqueConstraint("dataset_id", "dataset_label_id"),)
 
 
 class DatasetVersion(Base):

@@ -509,6 +509,48 @@ CREATE INDEX ix_api_keys_user_id ON public.api_keys
     USING btree (user_id);
 
 
+-- Table: dataset_labels
+-- ---------------------
+CREATE TABLE public.dataset_labels (
+    id serial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    color VARCHAR NOT NULL DEFAULT '#ffffff'::character varying,
+    user_id INTEGER,
+    CONSTRAINT pk_dataset_labels PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_labels_name
+        UNIQUE (name),
+    CONSTRAINT fk_dataset_labels_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
+-- Table: datasets_dataset_labels
+-- ------------------------------
+CREATE TABLE public.datasets_dataset_labels (
+    id serial NOT NULL,
+    dataset_id INTEGER NOT NULL,
+    dataset_label_id INTEGER NOT NULL,
+    CONSTRAINT pk_datasets_dataset_labels PRIMARY KEY (id),
+    CONSTRAINT uq_datasets_dataset_labels_dataset_id_dataset_label_id
+        UNIQUE (dataset_id, dataset_label_id),
+    CONSTRAINT fk_datasets_dataset_labels_dataset_id_datasets FOREIGN KEY
+        (dataset_id)
+        REFERENCES public.datasets (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_datasets_dataset_labels_dataset_label_id_dataset_labels
+        FOREIGN KEY
+        (dataset_label_id)
+        REFERENCES public.dataset_labels (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_datasets_dataset_labels_dataset_label_id ON public.datasets_dataset_labels
+    USING btree (dataset_label_id);
+
+
 -- Table: document_annotations
 -- ---------------------------
 CREATE TABLE public.document_annotations (
