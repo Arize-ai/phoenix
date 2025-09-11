@@ -22,19 +22,25 @@ def upgrade() -> None:
     op.create_table(
         "dataset_labels",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False),
+        sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("color", sa.String, server_default=sa.text("'#ffffff'"), nullable=False),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
 
     op.create_table(
-        "dataset_dataset_labels",
+        "datasets_dataset_labels",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "dataset_id",
             sa.Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column(
             "dataset_label_id",
@@ -43,17 +49,10 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
-        ),
-        sa.Column("description", sa.String, nullable=True),
+        sa.UniqueConstraint("dataset_id", "dataset_label_id"),
     )
 
 
 def downgrade() -> None:
-    op.drop_table("dataset_dataset_labels")
+    op.drop_table("datasets_dataset_labels")
     op.drop_table("dataset_labels")
