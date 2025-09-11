@@ -239,6 +239,14 @@ class Evaluator(ABC):
             "input_schema": schema,
         }
 
+    def input_mapping_description(self) -> Dict[str, Any]:
+        """
+        Return a JSON-serializable description of the evaluator's input mapping.
+        """
+        return {
+            "input_mapping_keys": list(self._input_mapping.keys()) if self._input_mapping else []
+        }
+
 
 # --- LLM Evaluator base ---
 class LLMEvaluator(Evaluator):
