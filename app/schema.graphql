@@ -1165,6 +1165,12 @@ type ExperimentRepeatedRunGroup implements Node {
   averageLatencyMs: Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  annotationSummaries: [ExperimentRepeatedRunGroupAnnotationSummary!]!
+}
+
+type ExperimentRepeatedRunGroupAnnotationSummary {
+  annotationName: String!
+  meanScore: Float
 }
 
 type ExperimentRun implements Node {

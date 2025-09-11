@@ -11,6 +11,9 @@ from typing_extensions import Self, TypeAlias
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.ExperimentRepeatedRunGroupAnnotationSummary import (
+    ExperimentRepeatedRunGroupAnnotationSummary,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
@@ -103,6 +106,17 @@ class ExperimentRepeatedRunGroup(Node):
                 )
                 async for token_type, is_prompt, cost, tokens in data
             ]
+
+    @strawberry.field
+    async def annotation_summaries(
+        self,
+        info: Info[Context, None],
+    ) -> list[ExperimentRepeatedRunGroupAnnotationSummary]:
+        return (
+            await info.context.data_loaders.experiment_repeated_run_group_annotation_summaries.load(
+                (self.experiment_rowid, self.dataset_example_rowid)
+            )
+        )
 
 
 _EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN = re.compile(

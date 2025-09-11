@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e9043769cca902fa8bffc07a861e851>>
+ * @generated SignedSource<<b14a98bdee3e61bae9fd3d638fecbda1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,10 @@ export type ExperimentCompareTable_comparisons$data = {
           };
         };
         readonly runComparisonItems: ReadonlyArray<{
+          readonly annotationSummaries: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly meanScore: number | null;
+          }>;
           readonly experimentId: string;
           readonly runs: ReadonlyArray<{
             readonly annotations: {
@@ -308,6 +312,31 @@ return {
                       "args": null,
                       "kind": "FragmentSpread",
                       "name": "ExperimentRepeatedRunGroupMetadataFragment"
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "ExperimentRepeatedRunGroupAnnotationSummary",
+                      "kind": "LinkedField",
+                      "name": "annotationSummaries",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotationName",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "meanScore",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
                     },
                     {
                       "alias": null,
@@ -671,6 +700,6 @@ return {
 };
 })();
 
-(node as any).hash = "8ef0d06dc5dd5d62821ac5b5beaca196";
+(node as any).hash = "aeaf677653a4b5601e13685640bd1f7b";
 
 export default node;

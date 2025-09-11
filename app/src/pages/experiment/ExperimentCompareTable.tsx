@@ -114,6 +114,7 @@ type TableRow =
 
 type RunComparisonItem =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number];
+type AnnotationSummary = RunComparisonItem["annotationSummaries"][number];
 type ExperimentRun = RunComparisonItem["runs"][number];
 type ExperimentRunAnnotation =
   ExperimentRun["annotations"]["edges"][number]["annotation"];
@@ -175,6 +176,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 }
                 runComparisonItems {
                   ...ExperimentRepeatedRunGroupMetadataFragment
+                  annotationSummaries {
+                    annotationName
+                    meanScore
+                  }
                   experimentId
                   runs {
                     id
@@ -269,10 +274,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             acc[item.experimentId] = item;
             return acc;
           },
-          {} as Record<
-            string,
-            ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-          >
+          {} as Record<string, RunComparisonItem>
         );
         return {
           ...comparison,
@@ -427,6 +429,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               tableRow={row.original}
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
+              annotationSummaries={
+                row.original.runComparisonMap[experimentId].annotationSummaries
+              }
             />
           );
         },
@@ -770,8 +775,10 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
  */
 function ExperimentRunOutput(
   props: ExperimentRun & {
+    numRepetitions: number;
     displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
+    annotationSummaries: readonly AnnotationSummary[];
   }
 ) {
   const { output, error, annotations, displayFullText, setDialog } = props;
@@ -795,6 +802,8 @@ function ExperimentRunOutput(
       </View>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
+        annotationSummaries={props.annotationSummaries}
+        numRepetitions={props.numRepetitions}
         onTraceClick={({ traceId, projectId, annotationName }) => {
           setDialog(
             <TraceDetailsDialog
@@ -928,6 +937,8 @@ function PaddedCell({ children }: { children: ReactNode }) {
 
 export type ExperimentRunCellAnnotationsListProps = {
   annotations: ExperimentRunAnnotation[];
+  annotationSummaries: readonly AnnotationSummary[];
+  numRepetitions: number;
   onTraceClick: ({
     annotationName,
     traceId,
@@ -942,7 +953,17 @@ export type ExperimentRunCellAnnotationsListProps = {
 export function ExperimentRunCellAnnotationsList(
   props: ExperimentRunCellAnnotationsListProps
 ) {
-  const { annotations, onTraceClick } = props;
+  const { annotations, annotationSummaries, onTraceClick, numRepetitions } =
+    props;
+  const annotationSummaryByAnnotationName = useMemo(() => {
+    return annotationSummaries.reduce(
+      (acc, summary) => {
+        acc[summary.annotationName] = summary;
+        return acc;
+      },
+      {} as Record<string, AnnotationSummary>
+    );
+  }, [annotationSummaries]);
   return (
     <ul
       css={css`
@@ -970,7 +991,13 @@ export function ExperimentRunCellAnnotationsList(
             `}
           >
             <DialogTrigger>
-              <ExperimentAnnotationButton annotation={annotation} />
+              <ExperimentAnnotationButton
+                annotation={annotation}
+                meanAnnotationScore={
+                  annotationSummaryByAnnotationName[annotation.name]?.meanScore
+                }
+                numRepetitions={numRepetitions}
+              />
               <Popover placement="top">
                 <PopoverArrow />
                 <Dialog style={{ width: 400 }}>
@@ -1028,6 +1055,7 @@ function ExperimentRunOutputCell({
   baseExperimentId,
   compareExperimentIds,
   tableRow,
+  annotationSummaries,
 }: {
   datasetId: string;
   datasetVersionId: string;
@@ -1038,6 +1066,7 @@ function ExperimentRunOutputCell({
   baseExperimentId: string;
   compareExperimentIds: string[];
   tableRow: TableRow;
+  annotationSummaries: readonly AnnotationSummary[];
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1143,8 +1172,10 @@ function ExperimentRunOutputCell({
       {run ? (
         <ExperimentRunOutput
           {...run}
+          numRepetitions={experimentRepetitionCount}
           displayFullText={displayFullText}
           setDialog={setDialog}
+          annotationSummaries={annotationSummaries}
         />
       ) : (
         <PaddedCell>
