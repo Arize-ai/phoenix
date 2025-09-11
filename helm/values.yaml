@@ -457,6 +457,9 @@ image:
   # -- Image pull policy for Phoenix container (Always, IfNotPresent, or Never)
   pullPolicy: "IfNotPresent"
 
+  # -- Docker image registry for Phoenix
+  registry: "docker.io"
+
   # -- Docker image repository for Phoenix
   repository: "arizephoenix/phoenix"
 
