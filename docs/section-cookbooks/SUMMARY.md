@@ -22,6 +22,7 @@
 ## Human-in-the-loop Workflows (Annotations)
 
 * [Using Human Annotations for Eval-Driven Development](human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development.md)
+* [Aligning LLM Evals with Human Annotations (TypeScript)](human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript.md)
 * [Creating a Custom LLM Evaluator with a Benchmark Dataset](human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 
 ## Prompt Engineering
