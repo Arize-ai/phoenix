@@ -185,7 +185,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, "ScoreResult"]:
+    ) -> EvaluationResult:
         """Evaluate the output synchronously."""
         ...
 
@@ -197,7 +197,7 @@ class Evaluator(Protocol):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, "ScoreResult"]:
+    ) -> EvaluationResult:
         """Evaluate the output asynchronously."""
         ...
 
@@ -271,7 +271,7 @@ class BaseEvaluator(ABC, Evaluator):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, "ScoreResult"]:
+    ) -> EvaluationResult:
         """
         Evaluate the output synchronously.
 
@@ -288,7 +288,7 @@ class BaseEvaluator(ABC, Evaluator):
         metadata: ExampleMetadata = MappingProxyType({}),
         input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
-    ) -> Union[EvaluationResult, "ScoreResult"]:
+    ) -> EvaluationResult:
         """
         Evaluate the output asynchronously.
 

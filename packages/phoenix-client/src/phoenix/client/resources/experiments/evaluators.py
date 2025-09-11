@@ -10,6 +10,7 @@ from phoenix.client.resources.experiments.types import (
     EvaluationResult,
     EvaluationScore,
     Evaluator,
+    ExperimentEvaluator,
     is_score_result,
 )
 
@@ -128,7 +129,7 @@ def create_evaluator(
     kind: Union[str, AnnotatorKind] = AnnotatorKind.CODE,
     name: Optional[str] = None,
     scorer: Optional[Callable[[Any], EvaluationResult]] = None,
-) -> Callable[[Callable[..., Any]], Any]:
+) -> Callable[[ExperimentEvaluator], Evaluator]:
     """
     A decorator that configures a sync or async function to be used as an experiment evaluator.
 
@@ -201,7 +202,7 @@ def create_evaluator(
     if isinstance(kind, str):
         kind = AnnotatorKind(kind.upper())
 
-    def wrapper(obj: Union[Callable[..., Any], EvalsEvaluator, Evaluator]) -> "Evaluator":
+    def wrapper(obj: ExperimentEvaluator) -> Evaluator:
         if isinstance(obj, EvalsEvaluator):
             return wrap_phoenix_evals_evaluator(obj)
         elif isinstance(obj, Evaluator):
