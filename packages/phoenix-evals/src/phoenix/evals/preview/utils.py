@@ -34,7 +34,7 @@ def _bind_mapping_function(
         if len(parameters) == 1:
             parameter_name = next(iter(parameters.keys()))
             if parameter_name in eval_input:
-                pass
+                return mapping_function(eval_input[parameter_name])
             else:
                 return mapping_function(eval_input)
         else:
