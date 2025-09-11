@@ -670,7 +670,7 @@ class TestCreateEvaluatorDecorator:
             return [1, 2, 3]
 
         with pytest.raises(ValueError):
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_error_message(self):
         """Test create_evaluator provides informative error message for unsupported types."""
@@ -680,7 +680,7 @@ class TestCreateEvaluatorDecorator:
             return {1, 2, 3}
 
         with pytest.raises(ValueError) as exc_info:
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
         error_message = str(exc_info.value)
         assert "Unsupported return type 'set' for evaluator 'error_test_evaluator'" in error_message
@@ -693,7 +693,9 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.8
 
-        result = test_func({"user_input": "test"}, input_mapping={"input_text": "user_input"})
+        result = test_func.evaluate(
+            {"user_input": "test"}, input_mapping={"input_text": "user_input"}
+        )
 
         assert len(result) == 1
         score = result[0]
@@ -724,7 +726,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str):
             return return_value
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -742,7 +744,7 @@ class TestCreateEvaluatorDecorator:
                 score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
             )
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -755,7 +757,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.3
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
