@@ -519,7 +519,7 @@ CREATE TABLE public.dataset_labels (
     id serial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    color VARCHAR NOT NULL,
+    color VARCHAR NOT NULL DEFAULT '#ffffff'::character varying,
     user_id INTEGER,
     CONSTRAINT pk_dataset_labels PRIMARY KEY (id),
     CONSTRAINT uq_dataset_labels_name

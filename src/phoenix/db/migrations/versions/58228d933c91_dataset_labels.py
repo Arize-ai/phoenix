@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("color", sa.String, nullable=False),
+        sa.Column("color", sa.String, server_default=sa.text("'#ffffff'"), nullable=False),
         sa.Column(
             "user_id",
             sa.Integer,
