@@ -123,20 +123,18 @@ remote_agent = agent_engines.create(
     extra_packages=["adk_agent.py"],
     env_vars={
         "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com/v1",
-        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000", #Optional, can prevent "context deadline exceeded" errors
+        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000",  # Optional, can prevent "context deadline exceeded" errors
     },
 )
 ```
 
 **Agent Module (`adk_agent.py`):**
 ```python
-from arize.otel import register
+from phoenix.otel import register
 from openinference.instrumentation.google_adk import GoogleADKInstrumentor
 
 # Configure instrumentation within the remote agent
 tracer_provider = register(
-    api_key="your-arize-api-key",
-    space_id="your-arize-space-id",
     project_name="adk-agent",
 )
 GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
