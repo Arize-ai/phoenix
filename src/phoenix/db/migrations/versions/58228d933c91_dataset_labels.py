@@ -25,6 +25,12 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("color", sa.String, nullable=False),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
 
     op.create_table(
@@ -35,23 +41,13 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column(
             "dataset_label_id",
             sa.Integer,
             sa.ForeignKey("dataset_labels.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
-        ),
-        sa.Column("description", sa.String, nullable=True),
         sa.UniqueConstraint("dataset_id", "dataset_label_id"),
     )
 
