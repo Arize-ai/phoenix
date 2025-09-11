@@ -238,7 +238,7 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
 
     elif isinstance(obj, Mapping):
         for name, value in obj.items():
-            evaluator = cast(Evaluator, create_evaluator(name=name)(obj))
+            evaluator = cast(Evaluator, create_evaluator(name=name)(value))
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
         for value in obj:
