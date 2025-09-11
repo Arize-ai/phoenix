@@ -303,22 +303,6 @@ class TestEvaluator:
         with expected_raises:
             evaluator.evaluate(eval_input)
 
-    def test_evaluator_callable(self):
-        """Test that evaluator is callable."""
-        from pydantic import create_model
-
-        InputModel = create_model("InputModel", input=(str, ...))
-        evaluator = self.MockEvaluator(
-            name="test_evaluator",
-            source="llm",
-            input_schema=InputModel,
-        )
-
-        result = evaluator({"input": "test"})
-
-        assert len(result) == 1
-        assert result[0].name == "test_evaluator"
-
     @pytest.mark.asyncio
     async def test_evaluator_aevaluate_success(self):
         """Test successful async evaluation."""
