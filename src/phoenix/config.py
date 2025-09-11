@@ -1056,7 +1056,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN)$"  # noqa: E501
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN|SCOPES)$"  # noqa: E501
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
