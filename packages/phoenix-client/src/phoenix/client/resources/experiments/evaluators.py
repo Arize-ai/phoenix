@@ -10,13 +10,16 @@ from phoenix.client.resources.experiments.types import (
     EvaluationResult,
     EvaluationScore,
     Evaluator,
+    ExperimentEvaluation,
     ExperimentEvaluator,
+    ScoreResult,
+    is_evaluation_result,
     is_score_result,
 )
 
 
-def _score_to_evaluation_result(score: EvaluationScore) -> EvaluationResult:
-    result: EvaluationResult = {}
+def _score_to_experiment_evaluation(score: EvaluationScore) -> ExperimentEvaluation:
+    result: ExperimentEvaluation = {}
     s = getattr(score, "score", None)
     if s is not None:
         result["score"] = float(s)
@@ -29,6 +32,13 @@ def _score_to_evaluation_result(score: EvaluationScore) -> EvaluationResult:
     if metadata := getattr(score, "metadata", None):
         result["metadata"] = metadata
     return result
+
+
+def _score_result_to_evaluation_result(score: ScoreResult) -> EvaluationResult:
+    if isinstance(score, EvaluationScore):
+        return _score_to_experiment_evaluation(score)
+    else:
+        return [_score_to_experiment_evaluation(s) for s in score]
 
 
 def get_func_name(fn: Callable[..., Any]) -> str:
@@ -87,16 +97,10 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
 def _default_eval_scorer(result: Any) -> EvaluationResult:
     """Convert function result to EvaluationResult."""
     if is_score_result(result):
-        if isinstance(result, EvaluationScore):
-            return _score_to_evaluation_result(result)
-        else:
-            return _score_to_evaluation_result(result[0])
+        return _score_result_to_evaluation_result(result)
 
-    if isinstance(result, dict):
-        # Check if it looks like an EvaluationResult dict
-        valid_keys = {"label", "score", "explanation"}
-        if all(isinstance(k, str) and k in valid_keys for k in result.keys()):  # pyright: ignore[reportUnknownVariableType]
-            return cast(EvaluationResult, result)  # pyright: ignore[reportReturnType,reportUnknownVariableType]
+    if is_evaluation_result(result):
+        return result
     elif isinstance(result, bool):
         return {"score": float(result), "label": str(result)}
     elif isinstance(result, (int, float)):
@@ -237,16 +241,16 @@ def wrap_phoenix_evals_evaluator(evaluator: EvalsEvaluator) -> Evaluator:
         def evaluate(self, **kwargs: Any) -> EvaluationResult:
             scores = evaluator.evaluate(kwargs)
             if isinstance(scores, EvaluationScore):
-                return _score_to_evaluation_result(scores)
+                return _score_to_experiment_evaluation(scores)
             else:
-                return _score_to_evaluation_result(scores[0])
+                return _score_to_experiment_evaluation(scores[0])
 
         async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
             scores = await evaluator.async_evaluate(kwargs)
             if isinstance(scores, EvaluationScore):
-                return _score_to_evaluation_result(scores)
+                return _score_to_experiment_evaluation(scores)
             else:
-                return _score_to_evaluation_result(scores[0])
+                return _score_to_experiment_evaluation(scores[0])
 
     return PhoenixEvalsEvaluator()
 

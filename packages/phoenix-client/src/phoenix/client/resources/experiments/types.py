@@ -39,12 +39,27 @@ Experiment = v1.Experiment
 ExperimentRun = v1.ExperimentRunResponse
 
 
-class EvaluationResult(v1.ExperimentEvaluationResult, total=False):
+class ExperimentEvaluation(v1.ExperimentEvaluationResult, total=False):
     name: Optional[str]
     metadata: Mapping[str, Any]
 
 
-def is_evaluation_result(obj: Any) -> TypeGuard["EvaluationResult"]:
+EvaluationResult = Union[ExperimentEvaluation, Sequence[ExperimentEvaluation]]
+
+
+def is_evaluation_result(obj: Any) -> TypeGuard[EvaluationResult]:
+    if is_experiment_evaluation(obj):
+        return True
+    if isinstance(obj, Sequence):
+        seq = cast(Sequence[Any], obj)
+        for item in seq:
+            if not is_experiment_evaluation(item):
+                return False
+        return True
+    return False
+
+
+def is_experiment_evaluation(obj: Any) -> TypeGuard[ExperimentEvaluation]:
     if not isinstance(obj, dict):
         return False
     data = cast(dict[str, Any], obj)
@@ -90,7 +105,7 @@ ScoreResult = Union[EvaluationScore, Sequence[EvaluationScore]]
 def is_score_result(obj: Any) -> TypeGuard[ScoreResult]:
     return (
         isinstance(obj, EvaluationScore)
-        or isinstance(obj, list)
+        or isinstance(obj, Sequence)
         and all(isinstance(item, EvaluationScore) for item in obj)  # pyright: ignore[reportUnknownVariableType]
     )
 
