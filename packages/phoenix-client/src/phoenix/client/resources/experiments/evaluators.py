@@ -241,7 +241,7 @@ def wrap_phoenix_evals_evaluator(evaluator: EvalsEvaluator) -> Evaluator:
                 return _score_to_evaluation_result(scores[0])
 
         async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
-            scores = await evaluator.aevaluate(kwargs)
+            scores = await evaluator.async_evaluate(kwargs)
             if isinstance(scores, EvaluationScore):
                 return _score_to_evaluation_result(scores)
             else:

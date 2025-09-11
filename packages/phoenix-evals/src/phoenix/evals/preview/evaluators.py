@@ -82,7 +82,7 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
 class Evaluator(ABC):
     """
     Core abstraction for evaluators.
-    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `aevaluate`).
+    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `async_evaluate`).
     Supports single-record (`evaluate`) mode with optional per-call field_mapping.
     """
 
@@ -136,7 +136,7 @@ class Evaluator(ABC):
         """Implement core logic assuming `eval_input` has required fields per schema/mapping."""
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         """Implement async core logic assuming `eval_input` has required fields per schema/mapping.
 
         By default, this runs the synchronous _evaluate method in a thread pool.
@@ -171,7 +171,7 @@ class Evaluator(ABC):
                 raise ValueError(f"Input validation failed: {e}")
         return self._evaluate(remapped_eval_input)
 
-    async def aevaluate(
+    async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """
@@ -193,7 +193,7 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return await self._aevaluate(remapped_eval_input)
+        return await self._async_evaluate(remapped_eval_input)
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
@@ -307,18 +307,18 @@ class LLMEvaluator(Evaluator):
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
-        raise NotImplementedError("Subclasses must implement _aevaluate")
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+        raise NotImplementedError("Subclasses must implement _async_evaluate")
 
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         return super().evaluate(eval_input, input_mapping)
 
-    async def aevaluate(
+    async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return await super().aevaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input, input_mapping)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -427,7 +427,7 @@ class ClassificationEvaluator(LLMEvaluator):
             )
         ]
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
         method = (
             ObjectGenerationMethod.TOOL_CALLING
@@ -486,7 +486,7 @@ def create_evaluator(
 
     The decorated function should accept keyword args matching its required fields and return a
     value that can be converted to a Score. The returned object is an Evaluator with full support
-    for evaluate/aevaluate and direct callability.
+    for evaluate/async_evaluate and direct callability.
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
@@ -860,7 +860,7 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.aevaluate(eval_input)
+        scores = await evaluator.async_evaluate(eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults

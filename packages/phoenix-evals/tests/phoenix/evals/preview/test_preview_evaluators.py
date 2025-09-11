@@ -304,7 +304,7 @@ class TestEvaluator:
             evaluator.evaluate(eval_input)
 
     @pytest.mark.asyncio
-    async def test_evaluator_aevaluate_success(self):
+    async def test_evaluator_async_evaluate_success(self):
         """Test successful async evaluation."""
         from pydantic import create_model
 
@@ -315,7 +315,7 @@ class TestEvaluator:
             input_schema=InputModel,
         )
 
-        result = await evaluator.aevaluate({"input": "test"})
+        result = await evaluator.async_evaluate({"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -475,7 +475,7 @@ class TestClassificationEvaluator:
             name="test_evaluator", llm=llm, prompt_template=template, choices=choices
         )
 
-        result = await evaluator._aevaluate({"input": "test"})
+        result = await evaluator._async_evaluate({"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
