@@ -1136,6 +1136,7 @@ class DatasetsDatasetLabel(Base):
     )
     dataset_label_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_labels.id", ondelete="CASCADE"),
+        index=True,
     )
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
     dataset_label: Mapped["DatasetLabel"] = relationship(

@@ -47,6 +47,7 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("dataset_labels.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
         sa.UniqueConstraint("dataset_id", "dataset_label_id"),
     )

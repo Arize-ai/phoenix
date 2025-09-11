@@ -551,6 +551,9 @@ CREATE TABLE public.datasets_dataset_labels (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_datasets_dataset_labels_dataset_label_id ON public.datasets_dataset_labels
+    USING btree (dataset_label_id);
+
 
 -- Table: document_annotations
 -- ---------------------------
