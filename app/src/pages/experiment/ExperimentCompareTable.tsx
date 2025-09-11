@@ -257,7 +257,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [data]);
 
   const baseExperiment = experimentInfoById[baseExperimentId];
-  // invariant(baseExperiment, "baseExperiment not found");
 
   const tableData: TableRow[] = useMemo(
     () =>
