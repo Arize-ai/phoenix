@@ -447,7 +447,7 @@ def _validate_annotations_dataframe(
         raise ValueError("DataFrame must contain at least one of: label, score, explanation")
 
 
-def _validate_span_annotations_dataframe(
+def _validate_span_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -462,7 +462,7 @@ def _validate_span_annotations_dataframe(
     )
 
 
-def _validate_document_annotations_dataframe(
+def _validate_document_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -477,7 +477,7 @@ def _validate_document_annotations_dataframe(
     )
 
 
-def _validate_trace_annotations_dataframe(
+def _validate_trace_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -493,7 +493,7 @@ def _validate_trace_annotations_dataframe(
     )
 
 
-def _validate_session_annotations_dataframe(
+def _validate_session_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -629,7 +629,7 @@ def _chunk_annotations_dataframe(
         yield annotations
 
 
-def _chunk_span_annotations_dataframe(
+def _chunk_span_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name: Optional[str] = None,
@@ -647,7 +647,7 @@ def _chunk_span_annotations_dataframe(
     )
 
 
-def _chunk_document_annotations_dataframe(
+def _chunk_document_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name: Optional[str] = None,

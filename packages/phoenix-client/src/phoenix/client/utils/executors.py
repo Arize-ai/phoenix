@@ -30,10 +30,14 @@ from phoenix.client.utils.rate_limiters import RateLimitError
 logger = logging.getLogger(__name__)
 
 
+EvalsRateLimitError: type[BaseException]
 try:
+    # TODO: update import path after evals 2.0 is released
     from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
-    EvalsRateLimitError = None
+    class _EvalsRateLimitErrorFallback(Exception):
+        pass
+    EvalsRateLimitError = _EvalsRateLimitErrorFallback
 
 
 class Unset:
@@ -350,9 +354,7 @@ class AsyncExecutor(Executor):
                 details.log_runtime(task_start_time)
 
                 is_client_rate_limit_error = isinstance(exc, RateLimitError)
-                is_evals_rate_limit_error = False
-                if EvalsRateLimitError is not None:
-                    is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
+                is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
                 is_rate_limit_error = is_client_rate_limit_error or is_evals_rate_limit_error
 
                 is_phoenix_exception = isinstance(exc, PhoenixException) and not is_rate_limit_error

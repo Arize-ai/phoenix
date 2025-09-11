@@ -16,7 +16,7 @@ from phoenix.client.resources.experiments.types import (
 
 
 def _score_to_evaluation_result(score: EvaluationScore) -> EvaluationResult:
-    result: dict[str, Any] = {}
+    result: EvaluationResult = {}
     if s := getattr(score, "score", None):
         result["score"] = float(s)
     if label := getattr(score, "label", None):
@@ -27,7 +27,7 @@ def _score_to_evaluation_result(score: EvaluationScore) -> EvaluationResult:
         result["name"] = name
     if metadata := getattr(score, "metadata", None):
         result["metadata"] = metadata
-    return EvaluationResult(**result)
+    return result
 
 
 def get_func_name(fn: Callable[..., Any]) -> str:
