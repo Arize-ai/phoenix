@@ -35,8 +35,10 @@ try:
     # TODO: update import path after evals 2.0 is released
     from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
+
     class _EvalsRateLimitErrorFallback(Exception):
         pass
+
     EvalsRateLimitError = _EvalsRateLimitErrorFallback
 
 
