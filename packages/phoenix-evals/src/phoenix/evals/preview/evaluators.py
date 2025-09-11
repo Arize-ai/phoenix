@@ -434,7 +434,7 @@ class ClassificationEvaluator(LLMEvaluator):
             if isinstance(self.labels, Dict)
             else ObjectGenerationMethod.AUTO
         )
-        response = await self.llm.agenerate_classification(
+        response = await self.llm.async_generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
             include_explanation=self.include_explanation,

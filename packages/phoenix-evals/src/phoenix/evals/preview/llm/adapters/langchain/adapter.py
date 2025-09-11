@@ -85,7 +85,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def agenerate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -182,7 +182,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
             "calling succeeded"
         )
 
-    async def agenerate_object(
+    async def async_generate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
@@ -202,7 +202,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 "output or tool calls"
             )
 
-        async def _agenerate_structured_output() -> Dict[str, Any]:
+        async def _async_generate_structured_output() -> Dict[str, Any]:
             normalized_schema = self._normalize_schema_for_langchain(schema)
             prompt_input = self._build_prompt(prompt)
             structured_model = self.client.with_structured_output(normalized_schema)
@@ -220,7 +220,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                     f"got {type(response).__name__}: {response}"
                 )
 
-        async def _agenerate_tool_call_output() -> Dict[str, Any]:
+        async def _async_generate_tool_call_output() -> Dict[str, Any]:
             tool_definition = self._schema_to_tool(schema)
             prompt_input = self._build_prompt(prompt)
 
@@ -248,19 +248,19 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 raise ValueError("No tool calls found in response")
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            return await _agenerate_structured_output()
+            return await _async_generate_structured_output()
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            return await _agenerate_tool_call_output()
+            return await _async_generate_tool_call_output()
 
         if supports_structured_output:
             try:
-                return await _agenerate_structured_output()
+                return await _async_generate_structured_output()
             except Exception as e:
                 logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
 
         if supports_tool_calls:
             try:
-                return await _agenerate_tool_call_output()
+                return await _async_generate_tool_call_output()
             except Exception as e:
                 logger.warning(f"Async tool calling failed: {e}")
 

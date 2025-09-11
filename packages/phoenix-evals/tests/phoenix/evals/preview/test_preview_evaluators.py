@@ -30,7 +30,7 @@ class MockLLM(LLM):
     def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
         return {"label": "good", "explanation": "This is a good result"}
 
-    async def agenerate_classification(
+    async def async_generate_classification(
         self, prompt: str, labels, include_explanation: bool, method
     ):
         return {"label": "good", "explanation": "This is a good result"}

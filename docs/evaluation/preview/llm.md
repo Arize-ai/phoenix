@@ -15,9 +15,9 @@ It allows you to invoke models using the keyword arguments you are already famil
   - `generate_object(prompt: str | MultimodalPrompt, schema: dict, method: str, **kwargs) -> dict`
   - `generate_classification(prompt: str | MultimodalPrompt, labels: list[str] | dict[str,str], include_explanation: bool = True, description: str | None = None, **kwargs) -> dict`
 - Async Methods:
-  - `agenerate_text(prompt: str | MultimodalPrompt, **kwargs) -> str`
-  - `agenerate_object(prompt: str | MultimodalPrompt, schema: dict, method: str, **kwargs) -> dict`
-  - `agenerate_classification(prompt: str | MultimodalPrompt, labels: list[str] | dict[str,str], include_explanation: bool = True, description: str | None = None, **kwargs) -> dict`
+  - `async_generate_text(prompt: str | MultimodalPrompt, **kwargs) -> str`
+  - `async_generate_object(prompt: str | MultimodalPrompt, schema: dict, method: str, **kwargs) -> dict`
+  - `async_generate_classification(prompt: str | MultimodalPrompt, labels: list[str] | dict[str,str], include_explanation: bool = True, description: str | None = None, **kwargs) -> dict`
 
 The LLM class provides both synchronous and asynchronous methods for all operations. Use the sync methods (without the 'a' prefix) for synchronous code, and the async methods (with the 'a' prefix) for asynchronous code.
 
@@ -77,7 +77,7 @@ async def main():
     llm = LLM(provider="openai", model="gpt-4o")
     
     # Async text generation
-    text = await llm.agenerate_text("Say hello to Phoenix!")
+    text = await llm.async_generate_text("Say hello to Phoenix!")
     print(text)
     
     # Async structured output
@@ -89,11 +89,11 @@ async def main():
         },
         "required": ["label"]
     }
-    obj = await llm.agenerate_object("Answer yes or no with optional explanation.", schema)
+    obj = await llm.async_generate_object("Answer yes or no with optional explanation.", schema)
     print(obj)
     
     # Async classification
-    result = await llm.agenerate_classification(
+    result = await llm.async_generate_classification(
         prompt="Is this helpful?", labels=["yes", "no"], include_explanation=True
     )
     print(result)
