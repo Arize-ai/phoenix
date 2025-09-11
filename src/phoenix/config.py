@@ -956,6 +956,8 @@ class OAuth2ClientConfig:
     oidc_config_url: str
     allow_sign_up: bool
     auto_login: bool
+    scopes: str
+
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -989,6 +991,7 @@ class OAuth2ClientConfig:
             )
         allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
         auto_login = get_env_oauth2_auto_login(idp_name)
+        scopes = getenv(f"PHOENIX_OAUTH2_{idp_name_upper}_SCOPES", "openid email profile")
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -1007,6 +1010,7 @@ class OAuth2ClientConfig:
             oidc_config_url=oidc_config_url,
             allow_sign_up=allow_sign_up,
             auto_login=auto_login,
+            scopes=scopes,
         )
 
 
@@ -1028,6 +1032,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     Optional Environment Variables:
         - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
         - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        - PHOENIX_OAUTH2_{IDP_NAME}_SCOPES: The scopes to request from the identity provider (defaults to "openid email profile")
         When set to False, the system will check if the user exists in the database by their email address.
         If the user does not exist or has a password set, they will be redirected to the login page with
         an error message.
@@ -1047,6 +1052,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
         PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
         PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+        PHOENIX_OAUTH2_GOOGLE_SCOPES=openid email profile (optional, defaults to "openid email profile")
     """  # noqa: E501
     idp_names = set()
     pattern = re.compile(

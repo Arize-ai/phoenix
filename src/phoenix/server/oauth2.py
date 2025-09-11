@@ -72,7 +72,7 @@ class OAuth2Clients:
             client_id=config.client_id,
             client_secret=config.client_secret,
             server_metadata_url=config.oidc_config_url,
-            client_kwargs={"scope": "openid email profile"},
+            client_kwargs={"scope": config.scopes},
             display_name=config.idp_display_name,
             allow_sign_up=config.allow_sign_up,
             auto_login=config.auto_login,
