@@ -28,6 +28,8 @@ def _bind_mapping_function(
         return mapping_function(eval_input)
 
     parameters = sig.parameters
+    if len(parameters) == 0:
+        raise ValueError("Mapping functions must have at least one parameter.")
     if len(parameters) <= 1:
         if len(parameters) == 1:
             parameter_name = next(iter(parameters.keys()))
