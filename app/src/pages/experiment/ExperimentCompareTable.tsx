@@ -37,6 +37,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  KeyboardToken,
   LinkButton,
   Loading,
   Modal,
@@ -938,7 +939,63 @@ function SelectedExampleDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Comparing Experiments for Example: ${selectedExampleId}`}</DialogTitle>
+          <Flex gap="size-50">
+            <TooltipTrigger delay={100}>
+              <Button
+                size="S"
+                id="next"
+                leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
+                aria-label="Next trace"
+                // isDisabled={!hasNext}
+                onPress={selectNextExample}
+              />
+              <Tooltip
+                offset={4}
+                css={css`
+                  background-color: var(--ac-global-background-color-dark);
+                  border-color: var(--ac-global-border-color-dark);
+                  border-radius: var(--ac-global-rounding-medium);
+                  padding: var(--ac-global-dimension-static-size-100);
+                `}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <span>Next example</span>
+                  <KeyboardToken>{NEXT_EXAMPLE_HOTKEY}</KeyboardToken>
+                </Flex>
+              </Tooltip>
+            </TooltipTrigger>
+            <TooltipTrigger delay={100}>
+              <Button
+                size="S"
+                id="previous"
+                leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
+                aria-label="Previous trace"
+                // isDisabled={!hasPrevious}
+                onPress={selectPreviousExample}
+              />
+              <Tooltip
+                offset={4}
+                css={css`
+                  background-color: var(--ac-global-background-color-dark);
+                  border-color: var(--ac-global-border-color-dark);
+                  border-radius: var(--ac-global-rounding-medium);
+                  padding: var(--ac-global-dimension-static-size-100);
+                `}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <span>Previous example</span>
+                  <KeyboardToken>{PREVIOUS_EXAMPLE_HOTKEY}</KeyboardToken>
+                </Flex>
+              </Tooltip>
+            </TooltipTrigger>
+            <DialogTitle
+              css={css`
+                margin-left: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {selectedExampleId}
+            </DialogTitle>
+          </Flex>
           <DialogTitleExtra>
             <LinkButton
               size="S"
