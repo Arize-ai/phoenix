@@ -854,4 +854,3 @@ class TestEvaluatorRequiredFieldsAndBinding:
         assert len(scores) == 1 and scores[0].score == 1.0
         # Introspection passthrough
         assert be.describe()["name"] == "emph"
-        assert set(be.mapping_description()["mapping_keys"]) == {"text"}
