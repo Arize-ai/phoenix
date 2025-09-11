@@ -22,7 +22,7 @@ import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { createProvider, createNoOpProvider } from "./instrumention";
+import { createProvider, createNoOpProvider } from "./instrumentation";
 import { SpanStatusCode, Tracer } from "@opentelemetry/api";
 import {
   MimeType,
@@ -37,7 +37,14 @@ import {
   getDatasetExperimentsUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
+import assert from "assert";
 
+/**
+ * Validate that a repetition is valid
+ */
+function isValidRepetitionParam(repetitions: number) {
+  return Number.isInteger(repetitions) && repetitions > 0;
+}
 /**
  * Parameters for running an experiment.
  *
@@ -154,6 +161,11 @@ export async function runExperiment({
   repetitions = 1,
   useBatchSpanProcessor = true,
 }: RunExperimentParams): Promise<RanExperiment> {
+  // Validation
+  assert(
+    isValidRepetitionParam(repetitions),
+    "repetitions must be an integer greater than 0"
+  );
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -348,6 +360,12 @@ function runTaskWithExamples({
   /** Number of repetitions per example */
   repetitions?: number;
 }): Promise<void> {
+  // Validate the input
+  assert(
+    isValidRepetitionParam(repetitions),
+    "repetitions must be an integer greater than 0"
+  );
+
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async ({
     example,
@@ -426,7 +444,7 @@ function runTaskWithExamples({
     .flatMap((example) =>
       Array.from({ length: repetitions }, (_, index) => ({
         example,
-        repetitionNumber: index,
+        repetitionNumber: index + 1, // Repetitions start at 1
       }))
     )
     .forEach((exampleWithRepetition) =>
