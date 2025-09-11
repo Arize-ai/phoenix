@@ -380,7 +380,7 @@ class ClassificationEvaluator(LLMEvaluator):
         llm (LLM): The LLM instance to use for evaluation.
         prompt_template (Union[str, Template]): The prompt template (string or Template) with
             placeholders for inputs.
-        choices: One of
+        choices:
 
             - List[str]: set of label names; scores will be None.
             - Dict[str, Union[float, int]]: map label -> score.
@@ -402,15 +402,16 @@ class ClassificationEvaluator(LLMEvaluator):
               "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
               tool calling consistency issues across models)
 
-    Examples:
+    Examples::
 
-        >>> from phoenix.evals.preview import ClassificationEvaluator
-        >>> from phoenix.evals.preview.llm import LLM
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> evaluator = ClassificationEvaluator(name="sentiment", llm=llm,
-        ...     prompt_template="What is the sentiment of the following document: {document}?",
-        ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
-        >>> evaluator.evaluate({"document": "I love this product!"})
+        from phoenix.evals.preview import ClassificationEvaluator
+        from phoenix.evals.preview.llm import LLM
+        llm = LLM(provider="openai", model="gpt-4o")
+        evaluator = ClassificationEvaluator(name="sentiment", llm=llm,
+            prompt_template="What is the sentiment of the following document: {document}?",
+            choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
+        evaluator.evaluate({"document": "I love this product!"})
+
         [Score(name='sentiment', score=1.0, label='positive',
         explanation="The sentiment is positive", direction='maximize', source='llm', metadata={})]
 
@@ -588,44 +589,49 @@ def create_evaluator(
         `**kwargs`
 
     Examples:
-        1) Function returns a Score object + uses the default source and direction:
-            >>> from phoenix.evals.preview import Score, create_evaluator
-            >>> @create_evaluator(name="test_evaluator")
-            ... def test_func(input_text: str, input_int: int) -> Score:
-            ...     return Score(score=0.8, label="good", explanation="test explanation")
-            ...
-            >>> test_func({"input_text": "test", "input_int": 5})
+
+        1) Function returns a Score object + uses the default source and direction::
+
+            from phoenix.evals.preview import Score, create_evaluator
+            @create_evaluator(name="test_evaluator")
+            def test_func(input_text: str, input_int: int) -> Score:
+                return Score(score=0.8, label="good", explanation="test explanation")
+
+            test_func({"input_text": "test", "input_int": 5})
             [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation',
              direction='maximize', source='heuristic', metadata={})]
 
-        2) Function that returns a tuple of a number and a short string label:
-            >>> from phoenix.evals.preview import create_evaluator
-            >>> @create_evaluator(name="test_evaluator")
-            ... def test_func(input_text: str) -> tuple[float, str]:
-            ...     return 0.8, "short label"
-            ...
-            >>> test_func({"input_text": "test"})
+        2) Function that returns a tuple of a number and a short string label::
+
+            from phoenix.evals.preview import create_evaluator
+            @create_evaluator(name="test_evaluator")
+            def test_func(input_text: str) -> tuple[float, str]:
+                return 0.8, "short label"
+
+            test_func({"input_text": "test"})
             [Score(name='test_evaluator', score=0.8, label='short label', explanation=None,
              direction='maximize', source='heuristic', metadata={})]
 
-        3) Function that returns a dictionary with keys "score", "label", and "explanation":
-            >>> from phoenix.evals.preview import create_evaluator
-            >>> @create_evaluator(name="test_evaluator")
-            ... def test_func(input_text: str) -> dict:
-            ...     return {"score": 0.8, "label": "short label", "explanation": "test explanation"}
-            ...
-            >>> test_func({"input_text": "test"})
+        3) Function that returns a dictionary with keys "score", "label", and "explanation"::
+
+            from phoenix.evals.preview import create_evaluator
+            @create_evaluator(name="test_evaluator")
+            def test_func(input_text: str) -> dict:
+                return {"score": 0.8, "label": "short label", "explanation": "test explanation"}
+
+            test_func({"input_text": "test"})
             [Score(name='test_evaluator', score=0.8, label='short label',
                    explanation='test explanation', direction='maximize', source='heuristic',
                    metadata={})]
 
-        4) Function that returns a score to be minimized:
-            >>> from phoenix.evals.preview import create_evaluator
-            >>> @create_evaluator(name="test_evaluator", direction="minimize")
-            ... def test_func(input_text: str) -> float:
-            ...     return 0.8
-            ...
-            >>> test_func({"input_text": "test"})
+        4) Function that returns a score to be minimized::
+
+            from phoenix.evals.preview import create_evaluator
+            @create_evaluator(name="test_evaluator", direction="minimize")
+            def test_func(input_text: str) -> float:
+                return 0.8
+
+            test_func({"input_text": "test"})
             [Score(name='test_evaluator', score=0.8, label=None, explanation=None,
              direction='minimize', source='heuristic', metadata={})]
     """
@@ -809,8 +815,7 @@ def create_classifier(
         llm (LLM): The LLM instance to use for evaluation.
         prompt_template (Union[str, Template]): The prompt template (string or Template) with
             placeholders for inputs.
-        choices: One of
-
+        choices:
             - List[str]: set of label names; scores will be None.
             - Dict[str, Union[float, int]]: map label -> score.
             - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
@@ -831,14 +836,15 @@ def create_classifier(
               "negative": (0.0, "Negative"), "neutral": (0.5, "Neutral")}` (less reliable b/c of
               tool calling consistency issues across models)
 
-    Examples:
-        >>> from phoenix.evals.preview import create_classifier
-        >>> from phoenix.evals.preview.llm import LLM
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> evaluator = create_classifier(name="sentiment", llm=llm,
-        ...     prompt_template="What is the sentiment of the following document: {document}?",
-        ...     choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
-        >>> evaluator.evaluate({"document": "I love this product!"})
+    Examples::
+
+        from phoenix.evals.preview import create_classifier
+        from phoenix.evals.preview.llm import LLM
+        llm = LLM(provider="openai", model="gpt-4o")
+        evaluator = create_classifier(name="sentiment", llm=llm,
+            prompt_template="What is the sentiment of the following document: {document}?",
+            choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5})
+        evaluator.evaluate({"document": "I love this product!"})
         [Score(name='sentiment', score=1.0, label='positive',
          explanation="The sentiment is positive", direction='maximize', source='llm', metadata={})]
 
@@ -937,14 +943,15 @@ def bind_evaluator(
     Returns:
         BoundEvaluator: A bound evaluator with fixed input mapping.
 
-    Examples:
-        >>> from phoenix.evals.preview import create_evaluator, bind_evaluator
-        >>> @create_evaluator(name="test_evaluator")
-        ... def test_func(input_text: str) -> Score:
-        ...     return Score(score=0.8, label="good", explanation="test explanation")
-        ...
-        >>> bound_evaluator = bind_evaluator(test_func, mapping={"input_text": "input.text"})
-        >>> bound_evaluator({"input": {"text": "test"}})
+    Examples::
+
+        from phoenix.evals.preview import create_evaluator, bind_evaluator
+        @create_evaluator(name="test_evaluator")
+        def test_func(input_text: str) -> Score:
+            return Score(score=0.8, label="good", explanation="test explanation")
+
+        bound_evaluator = bind_evaluator(test_func, mapping={"input_text": "input.text"})
+        bound_evaluator({"input": {"text": "test"}})
         [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation',
          direction='maximize', source='heuristic', metadata={})]
     """
@@ -978,9 +985,9 @@ def evaluate_dataframe(
         pd.DataFrame: A copy of the input dataframe with added columns for scores and exceptions.
         For each evaluator, columns are added for:
 
-            - "{evaluator.name}_execution_details": Details about any exceptions encountered,
-              execution time, and status.
-            - "{score.name}_score": JSON-serialized Score objects for each score returned
+        - `{evaluator.name}_execution_details`: Details about any exceptions encountered, execution
+          time, and status.
+        - `{score.name}_score`: JSON-serialized Score objects for each score returned
 
     Notes:
         - Score name collisions: If multiple evaluators return scores with the same name,
@@ -1111,9 +1118,9 @@ async def async_evaluate_dataframe(
         pd.DataFrame: A copy of the input dataframe with added columns for scores and exceptions.
         For each evaluator, columns are added for:
 
-            - "{evaluator.name}_execution_details": Details about any exceptions encountered,
-              execution time, and status.
-            - "{score.name}_score": JSON-serialized Score objects for each score returned
+        - `{evaluator.name}_execution_details`: Details about any exceptions encountered, execution
+          time, and status.
+        - `{score.name}_score`: JSON-serialized Score objects for each score returned
 
     Notes:
         - Score name collisions: If multiple evaluators return scores with the same name,

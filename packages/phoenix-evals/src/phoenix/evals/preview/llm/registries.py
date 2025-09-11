@@ -269,7 +269,8 @@ def register_adapter(
     Returns:
         Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]: A decorator function.
 
-    Example:
+    Example::
+
         @register_adapter(
             identifier=lambda client: "langchain" in client.__module__,
             name="langchain"
@@ -303,7 +304,8 @@ def register_provider(
     Returns:
         Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]: A decorator function.
 
-    Example:
+    Example::
+
         @register_provider(
             provider="openai",
             client_factory=_create_openai_langchain_client,

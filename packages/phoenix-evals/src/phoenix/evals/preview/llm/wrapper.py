@@ -72,21 +72,22 @@ class LLM:
 
     The LLM class provides both synchronous and asynchronous methods for all operations.
 
-    Examples:
-        >>> from phoenix.evals.llm import LLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> llm.generate_text(prompt="Hello, world!")
+    Examples::
+
+        from phoenix.evals.llm import LLM, show_provider_availability
+        show_provider_availability()
+        llm = LLM(provider="openai", model="gpt-4o")
+        llm.generate_text(prompt="Hello, world!")
         "Hello, world!"
-        >>> llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...         "type": "object",
-        ...         "properties": {
-        ...             "text": {"type": "string"}
-        ...         },
-        ...         "required": ["text"]
-        ... })
+        llm.generate_object(
+            prompt="Hello, world!",
+            schema={
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string"}
+                },
+                "required": ["text"]
+            })
         {"text": "Hello, world!"}
     """
 
@@ -251,19 +252,20 @@ class LLM:
         Returns:
             Dict[str, Any]: The generated classification.
 
-        Examples:
-            >>> from phoenix.evals.llm import LLM
-            >>> llm = LLM(provider="openai", model="gpt-4o", client="openai")
-            >>> llm.generate_classification(
-            ...     prompt="Hello, world!",
-            ...     labels=["yes", "no"],
-            ... )
+        Examples::
+
+            from phoenix.evals.llm import LLM
+            llm = LLM(provider="openai", model="gpt-4o", client="openai")
+            llm.generate_classification(
+                prompt="Hello, world!",
+                labels=["yes", "no"],
+            )
             {"label": "yes", "explanation": "The answer is yes."}
-            >>> llm.generate_classification(
-            ...     prompt="Hello, world!",
-            ...     labels={"yes": "Positive response", "no": "Negative response"},
-            ...     include_explanation=False,
-            ... )
+            llm.generate_classification(
+                prompt="Hello, world!",
+                labels={"yes": "Positive response", "no": "Negative response"},
+                include_explanation=False,
+            )
             {"label": "yes"}
         """
         # Generate schema from labels

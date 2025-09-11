@@ -97,20 +97,23 @@ class PrecisionRecallFScore(Evaluator):
             - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
 
     Examples:
-        1) Multi-class (macro):
-            >>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
-            >>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
-            ...               "output": ["cat", "cat", "cat", "bird"]}
-            >>> scores = evaluator(eval_input)
-            >>> [s.name for s in scores]
+
+        1) Multi-class (macro)::
+
+            evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
+            eval_input = {"expected": ["cat", "dog", "cat", "bird"],
+                          "output": ["cat", "cat", "cat", "bird"]}
+            scores = evaluator(eval_input)
+            [s.name for s in scores]
             ['precision', 'recall', 'f1']
 
-        2) Binary with explicit positive label:
-            >>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
-            >>> eval_input = {"expected": ["spam", "ham", "spam"],
-            ...               "output": ["spam", "spam", "ham"]}
-            >>> scores = evaluator(eval_input)
-            >>> [s.name for s in scores]
+        2) Binary with explicit positive label::
+
+            evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
+            eval_input = {"expected": ["spam", "ham", "spam"],
+                          "output": ["spam", "spam", "ham"]}
+            scores = evaluator(eval_input)
+            [s.name for s in scores]
             ['precision', 'recall', 'f0_5']
     """
 
