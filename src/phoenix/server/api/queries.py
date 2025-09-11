@@ -59,7 +59,10 @@ from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentComparison import (
     ExperimentComparison,
+)
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
+    parse_experiment_repeated_run_group_node_id,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
@@ -67,7 +70,11 @@ from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_gen
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+    is_global_id,
+)
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -867,8 +874,36 @@ class Query:
         return InferenceModel()
 
     @strawberry.field
-    async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name, node_id = from_global_id(id)
+    async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
+        if not is_global_id(id):
+            try:
+                experiment_rowid, dataset_example_rowid = (
+                    parse_experiment_repeated_run_group_node_id(id)
+                )
+            except Exception:
+                raise NotFound(f"Unknown node: {id}")
+
+            async with info.context.db() as session:
+                runs = (
+                    await session.scalars(
+                        select(models.ExperimentRun)
+                        .where(models.ExperimentRun.id == experiment_rowid)
+                        .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
+                        .options(
+                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                        )
+                    )
+                ).all()
+            if runs is None:
+                raise NotFound(f"Unknown experiment or dataset example: {id}")
+            return ExperimentRepeatedRunGroup(
+                experiment_rowid=experiment_rowid,
+                dataset_example_rowid=dataset_example_rowid,
+                runs=[to_gql_experiment_run(run) for run in runs],
+            )
+
+        global_id = GlobalID.from_id(id)
+        type_name, node_id = from_global_id(global_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)

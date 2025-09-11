@@ -36,7 +36,9 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
             .join(models.Trace, models.ExperimentRun.trace_id == models.Trace.trace_id)
             .join(models.SpanCost, models.SpanCost.trace_rowid == models.Trace.id)
             .where(
-                tuple_(models.ExperimentRun.id, models.ExperimentRun.dataset_example_id).in_(keys)
+                tuple_(
+                    models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id
+                ).in_(keys)
             )
             .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
         )

@@ -85,8 +85,8 @@ import type {
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
+import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
-import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 type ExampleCompareTableProps = {
   query: ExperimentCompareTable_comparisons$key;
@@ -174,6 +174,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   }
                 }
                 runComparisonItems {
+                  ...ExperimentRepeatedRunGroupMetadataFragment
                   experimentId
                   runs {
                     id
@@ -1121,7 +1122,7 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runDetailControls}>
-        {run && <ExperimentRunMetadata {...run} />}
+        <ExperimentRepeatedRunGroupMetadata fragmentRef={runComparisonItem} />
       </CellTop>
       <Flex
         alignItems="center"

@@ -1,8 +1,10 @@
+import re
+from base64 import b64decode, b64encode
 from typing import Optional
 
 import strawberry
 from sqlalchemy import func, select
-from strawberry.relay import GlobalID
+from strawberry.relay import GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Self, TypeAlias
 
@@ -18,7 +20,7 @@ DatasetExampleRowId: TypeAlias = int
 
 
 @strawberry.type
-class ExperimentRepeatedRunGroup:
+class ExperimentRepeatedRunGroup(Node):
     experiment_rowid: strawberry.Private[ExperimentRowId]
     dataset_example_rowid: strawberry.Private[DatasetExampleRowId]
     runs: list[ExperimentRun]
@@ -72,7 +74,7 @@ class ExperimentRepeatedRunGroup:
     async def cost_detail_summary_entries(
         self, info: Info[Context, None]
     ) -> list[SpanCostDetailSummaryEntry]:
-        run_id = self.id_attr
+        experiment_id = self.experiment_rowid
         example_id = self.dataset_example_rowid
         stmt = (
             select(
@@ -86,7 +88,7 @@ class ExperimentRepeatedRunGroup:
             .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
-            .where(models.ExperimentRun.id == run_id)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )
@@ -101,3 +103,29 @@ class ExperimentRepeatedRunGroup:
                 )
                 async for token_type, is_prompt, cost, tokens in data
             ]
+
+
+_EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN = re.compile(
+    r"ExperimentRepeatedRunGroup:experiment_id=(\d+):dataset_example_id=(\d+)"
+)
+
+
+def parse_experiment_repeated_run_group_node_id(
+    node_id: str,
+) -> tuple[ExperimentRowId, DatasetExampleRowId]:
+    decoded_node_id = _base64_decode(node_id)
+    match = re.match(_EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN, decoded_node_id)
+    if not match:
+        raise ValueError(f"Invalid node ID format: {node_id}")
+
+    experiment_id = int(match.group(1))
+    dataset_example_id = int(match.group(2))
+    return experiment_id, dataset_example_id
+
+
+def _base64_encode(string: str) -> str:
+    return b64encode(string.encode()).decode()
+
+
+def _base64_decode(string: str) -> str:
+    return b64decode(string.encode()).decode()

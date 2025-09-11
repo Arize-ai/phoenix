@@ -1157,7 +1157,9 @@ type ExperimentMutationPayload {
   experiments: [Experiment!]!
 }
 
-type ExperimentRepeatedRunGroup {
+type ExperimentRepeatedRunGroup implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
   runs: [ExperimentRun!]!
   experimentId: ID!
   averageLatencyMs: Float
