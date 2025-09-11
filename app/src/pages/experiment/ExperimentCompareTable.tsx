@@ -422,8 +422,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             if (!currentRow) {
               return null;
             }
+            const nextExampleIndex = currentRow.index + 1;
             const nextExampleId =
-              table.getRowModel().rows[currentRow.index + 1]?.original.id;
+              table.getRowModel().rows[nextExampleIndex]?.original.id;
             if (nextExampleId) {
               setDialog(
                 <SelectedExampleDialog
@@ -436,6 +437,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   selectPreviousExample={() =>
                     selectPreviousExample(nextExampleId)
                   }
+                  canSelectNextExample={nextExampleIndex < tableData.length - 1}
+                  canSelectPreviousExample={nextExampleIndex > 0}
                 />
               );
             }
@@ -447,19 +450,25 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             if (!currentRow) {
               return null;
             }
+            const previousExampleIndex = currentRow.index - 1;
             const previousExampleId =
-              table.getRowModel().rows[currentRow.index - 1]?.original.id;
+              table.getRowModel().rows[previousExampleIndex]?.original.id;
             if (previousExampleId) {
               setDialog(
                 <SelectedExampleDialog
                   datasetId={datasetId}
                   datasetVersionId={datasetVersionId}
-                  experimentIds={Object.keys(experimentInfoById)}
                   selectedExampleId={previousExampleId}
+                  baseExperimentId={baseExperimentId}
+                  compareExperimentIds={compareExperimentIds}
                   selectNextExample={() => selectNextExample(previousExampleId)}
                   selectPreviousExample={() =>
                     selectPreviousExample(previousExampleId)
                   }
+                  canSelectNextExample={
+                    previousExampleIndex < tableData.length - 1
+                  }
+                  canSelectPreviousExample={previousExampleIndex > 0}
                 />
               );
             }
@@ -482,6 +491,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               selectPreviousExample={() =>
                 selectPreviousExample(row.original.id)
               }
+              canSelectNextExample={row.index < tableData.length - 1}
+              canSelectPreviousExample={row.index > 0}
             />
           );
         },
@@ -496,6 +507,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     experimentInfoById,
     getExperimentColor,
     baseExperiment.datasetVersionId,
+    tableData.length,
   ]);
 
   const columns = useMemo(() => {
@@ -905,6 +917,8 @@ function SelectedExampleDialog({
   compareExperimentIds,
   selectNextExample,
   selectPreviousExample,
+  canSelectNextExample,
+  canSelectPreviousExample,
 }: {
   selectedExampleId: string;
   datasetId: string;
@@ -913,16 +927,22 @@ function SelectedExampleDialog({
   compareExperimentIds: string[];
   selectNextExample: () => void;
   selectPreviousExample: () => void;
+  canSelectNextExample: boolean;
+  canSelectPreviousExample: boolean;
 }) {
   const NEXT_EXAMPLE_HOTKEY = "j";
   const PREVIOUS_EXAMPLE_HOTKEY = "k";
 
   useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
-    selectNextExample();
+    if (canSelectNextExample) {
+      selectNextExample();
+    }
   });
 
   useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
-    selectPreviousExample();
+    if (canSelectPreviousExample) {
+      selectPreviousExample();
+    }
   });
   return (
     <Dialog>
@@ -935,7 +955,7 @@ function SelectedExampleDialog({
                 id="next"
                 leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
                 aria-label="Next trace"
-                // isDisabled={!hasNext}
+                isDisabled={!canSelectNextExample}
                 onPress={selectNextExample}
               />
               <Tooltip
@@ -959,7 +979,7 @@ function SelectedExampleDialog({
                 id="previous"
                 leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
                 aria-label="Previous trace"
-                // isDisabled={!hasPrevious}
+                isDisabled={!canSelectPreviousExample}
                 onPress={selectPreviousExample}
               />
               <Tooltip
@@ -1154,6 +1174,8 @@ function ExperimentRunOutputCell({
   tableRow,
   selectNextExample,
   selectPreviousExample,
+  canSelectNextExample,
+  canSelectPreviousExample,
 }: {
   datasetId: string;
   datasetVersionId: string;
@@ -1166,6 +1188,8 @@ function ExperimentRunOutputCell({
   tableRow: TableRow;
   selectNextExample: () => void;
   selectPreviousExample: () => void;
+  canSelectNextExample: boolean;
+  canSelectPreviousExample: boolean;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1236,6 +1260,8 @@ function ExperimentRunOutputCell({
               selectedExampleId={tableRow.id}
               selectNextExample={selectNextExample}
               selectPreviousExample={selectPreviousExample}
+              canSelectNextExample={canSelectNextExample}
+              canSelectPreviousExample={canSelectPreviousExample}
             />
           );
         }}
