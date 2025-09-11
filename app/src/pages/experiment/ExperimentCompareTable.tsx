@@ -134,6 +134,9 @@ const tableWrapCSS = css`
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
@@ -365,8 +368,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
-    const datasetVersionId = baseExperiment.datasetVersionId;
-
     return [baseExperimentId, ...compareExperimentIds].map(
       (experimentId, experimentIndex) => ({
         header: () => {
@@ -415,90 +416,22 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         accessorKey: experimentId,
         minSize: 500,
         enableSorting: false,
-        cell: ({ row, table }) => {
+        cell: ({ row }) => {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
 
-          const selectNextExample = (currentExampleId: string) => {
-            const currentRow = table
-              .getRowModel()
-              .rows.find((r) => r.original.id === currentExampleId);
-            if (!currentRow) {
-              return null;
-            }
-            const nextExampleIndex = currentRow.index + 1;
-            const nextExampleId =
-              table.getRowModel().rows[nextExampleIndex]?.original.id;
-            if (nextExampleId) {
-              setDialog(
-                <SelectedExampleDialog
-                  datasetId={datasetId}
-                  datasetVersionId={datasetVersionId}
-                  selectedExampleId={nextExampleId}
-                  baseExperimentId={baseExperimentId}
-                  compareExperimentIds={compareExperimentIds}
-                  selectNextExample={() => selectNextExample(nextExampleId)}
-                  selectPreviousExample={() =>
-                    selectPreviousExample(nextExampleId)
-                  }
-                  canSelectNextExample={nextExampleIndex < tableData.length - 1}
-                  canSelectPreviousExample={nextExampleIndex > 0}
-                />
-              );
-            }
-          };
-          const selectPreviousExample = (currentExampleId: string) => {
-            const currentRow = table
-              .getRowModel()
-              .rows.find((r) => r.original.id === currentExampleId);
-            if (!currentRow) {
-              return null;
-            }
-            const previousExampleIndex = currentRow.index - 1;
-            const previousExampleId =
-              table.getRowModel().rows[previousExampleIndex]?.original.id;
-            if (previousExampleId) {
-              setDialog(
-                <SelectedExampleDialog
-                  datasetId={datasetId}
-                  datasetVersionId={datasetVersionId}
-                  selectedExampleId={previousExampleId}
-                  baseExperimentId={baseExperimentId}
-                  compareExperimentIds={compareExperimentIds}
-                  selectNextExample={() => selectNextExample(previousExampleId)}
-                  selectPreviousExample={() =>
-                    selectPreviousExample(previousExampleId)
-                  }
-                  canSelectNextExample={
-                    previousExampleIndex < tableData.length - 1
-                  }
-                  canSelectPreviousExample={previousExampleIndex > 0}
-                />
-              );
-            }
-          };
-
           return (
             <ExperimentRunOutputCell
-              datasetId={datasetId}
-              datasetVersionId={datasetVersionId}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitionCount ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
               setDialog={setDialog}
+              setSelectedExampleId={setSelectedExampleId}
               tableRow={row.original}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
               annotationSummaries={annotationSummaries}
-              selectNextExample={() => selectNextExample(row.original.id)}
-              selectPreviousExample={() =>
-                selectPreviousExample(row.original.id)
-              }
-              canSelectNextExample={row.index < tableData.length - 1}
-              canSelectPreviousExample={row.index > 0}
             />
           );
         },
@@ -508,12 +441,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
-    datasetId,
     displayFullText,
     experimentInfoById,
     getExperimentColor,
-    baseExperiment.datasetVersionId,
-    tableData.length,
   ]);
 
   const columns = useMemo(() => {
@@ -591,6 +521,31 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     filterCondition,
     refetch,
   ]);
+
+  const createNavigationFunctions = (currentExampleId: string) => {
+    const currentRow = tableData.find((row) => row.id === currentExampleId);
+    if (!currentRow)
+      return { selectNextExample: () => {}, selectPreviousExample: () => {} };
+
+    const currentIndex = tableData.findIndex(
+      (row) => row.id === currentExampleId
+    );
+
+    return {
+      selectNextExample: () => {
+        const nextExampleId = tableData[currentIndex + 1]?.id;
+        if (nextExampleId) {
+          setSelectedExampleId(nextExampleId);
+        }
+      },
+      selectPreviousExample: () => {
+        const previousExampleId = tableData[currentIndex - 1]?.id;
+        if (previousExampleId) {
+          setSelectedExampleId(previousExampleId);
+        }
+      },
+    };
+  };
 
   return (
     <View overflow="auto">
@@ -709,11 +664,44 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!dialog}
+        isOpen={!!selectedExampleId}
         onOpenChange={() => {
           // Clear the URL search params for the span selection
           searchParams.delete("selectedSpanNodeId");
           setSearchParams(searchParams, { replace: true });
+          setSelectedExampleId(null);
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedExampleId && (
+            <SelectedExampleDialog
+              datasetId={datasetId}
+              datasetVersionId={baseExperiment.datasetVersionId}
+              selectedExampleId={selectedExampleId}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
+              selectNextExample={() => {
+                const nav = createNavigationFunctions(selectedExampleId);
+                nav.selectNextExample();
+              }}
+              selectPreviousExample={() => {
+                const nav = createNavigationFunctions(selectedExampleId);
+                nav.selectPreviousExample();
+              }}
+              canSelectNextExample={
+                tableData.findIndex((row) => row.id === selectedExampleId) <
+                tableData.length - 1
+              }
+              canSelectPreviousExample={
+                tableData.findIndex((row) => row.id === selectedExampleId) > 0
+              }
+            />
+          )}
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
+        isOpen={!!dialog}
+        onOpenChange={() => {
           setDialog(null);
         }}
       >
@@ -1201,35 +1189,21 @@ export function ExperimentRunCellAnnotationsList(
 }
 
 function ExperimentRunOutputCell({
-  datasetId,
-  datasetVersionId,
   experimentRepetitionCount,
   repeatedRunGroup,
   displayFullText,
   setDialog,
-  baseExperimentId,
-  compareExperimentIds,
+  setSelectedExampleId,
   tableRow,
   annotationSummaries,
-  selectNextExample,
-  selectPreviousExample,
-  canSelectNextExample,
-  canSelectPreviousExample,
 }: {
-  datasetId: string;
-  datasetVersionId: string;
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
+  setSelectedExampleId: (id: string) => void;
   tableRow: TableRow;
   annotationSummaries: readonly AnnotationSummary[];
-  selectNextExample: () => void;
-  selectPreviousExample: () => void;
-  canSelectNextExample: boolean;
-  canSelectPreviousExample: boolean;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1273,19 +1247,7 @@ function ExperimentRunOutputCell({
           size="S"
           aria-label="View example run details"
           onPress={() => {
-            setDialog(
-              <SelectedExampleDialog
-                datasetId={datasetId}
-                datasetVersionId={datasetVersionId}
-                baseExperimentId={baseExperimentId}
-                compareExperimentIds={compareExperimentIds}
-                selectedExampleId={tableRow.id}
-                selectNextExample={selectNextExample}
-                selectPreviousExample={selectPreviousExample}
-                canSelectNextExample={canSelectNextExample}
-                canSelectPreviousExample={canSelectPreviousExample}
-              />
-            );
+            setSelectedExampleId(tableRow.id);
           }}
         >
           <Icon svg={<Icons.ExpandOutline />} />

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -147,101 +147,105 @@ export function ExperimentCompareDetails({
 
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-      <Panel defaultSize={35}>
-        <div
-          css={css`
-            overflow: auto;
-            height: 100%;
-          `}
-        >
-          <View overflow="hidden" padding="size-200">
-            <Flex direction="row" gap="size-200" flex="1 1 auto">
-              <View width="50%">
-                <Card
-                  title="Input"
-                  extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
-                >
-                  <View maxHeight="300px" overflow="auto">
-                    <JSONBlock value={JSON.stringify(input, null, 2)} />
-                  </View>
-                </Card>
-              </View>
-              <View width="50%">
-                <Card
-                  title="Reference Output"
-                  extra={
-                    <CopyToClipboardButton
-                      text={JSON.stringify(referenceOutput)}
-                    />
-                  }
-                >
-                  <View maxHeight="300px" overflow="auto">
-                    <JSONBlock
-                      value={JSON.stringify(referenceOutput, null, 2)}
-                    />
-                  </View>
-                </Card>
-              </View>
-            </Flex>
-          </View>
-        </div>
-      </Panel>
-      <PanelResizeHandle css={resizeHandleCSS} />
-      <Panel defaultSize={65}>
-        <Flex direction="column" height="100%">
-          <View
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderBottomColor="dark"
-            borderBottomWidth="thin"
-            flex="none"
-          >
-            <Heading level={2}>Experiments</Heading>
-          </View>
+      <Suspense>
+        <Panel defaultSize={35}>
           <div
             css={css`
-              overflow-y: auto;
+              overflow: auto;
               height: 100%;
-              padding: var(--ac-global-dimension-static-size-200);
             `}
           >
-            <ul
+            <View overflow="hidden" padding="size-200">
+              <Flex direction="row" gap="size-200" flex="1 1 auto">
+                <View width="50%">
+                  <Card
+                    title="Input"
+                    extra={
+                      <CopyToClipboardButton text={JSON.stringify(input)} />
+                    }
+                  >
+                    <View maxHeight="300px" overflow="auto">
+                      <JSONBlock value={JSON.stringify(input, null, 2)} />
+                    </View>
+                  </Card>
+                </View>
+                <View width="50%">
+                  <Card
+                    title="Reference Output"
+                    extra={
+                      <CopyToClipboardButton
+                        text={JSON.stringify(referenceOutput)}
+                      />
+                    }
+                  >
+                    <View maxHeight="300px" overflow="auto">
+                      <JSONBlock
+                        value={JSON.stringify(referenceOutput, null, 2)}
+                      />
+                    </View>
+                  </Card>
+                </View>
+              </Flex>
+            </View>
+          </div>
+        </Panel>
+        <PanelResizeHandle css={resizeHandleCSS} />
+        <Panel defaultSize={65}>
+          <Flex direction="column" height="100%">
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
+              flex="none"
+            >
+              <Heading level={2}>Experiments</Heading>
+            </View>
+            <div
               css={css`
-                display: flex;
-                flex-direction: row;
-                flex-wrap: none;
-                gap: var(--ac-global-dimension-static-size-200);
+                overflow-y: auto;
+                height: 100%;
+                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
-              {experimentIds?.map((experimentId, index) => {
-                const experiment = experimentsById?.[experimentId];
-                if (!experiment) {
-                  return null;
-                }
-                return (
-                  <li
-                    key={experimentId}
-                    css={css`
-                      // Make them all the same size
-                      flex: 1 1 0px;
-                    `}
-                  >
-                    <ExperimentItem
-                      experiment={experiment}
-                      experimentRuns={
-                        experimentRunsByExperimentId?.[experimentId] || []
-                      }
-                      index={index}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </Flex>
-      </Panel>
+              <ul
+                css={css`
+                  display: flex;
+                  flex-direction: row;
+                  flex-wrap: none;
+                  gap: var(--ac-global-dimension-static-size-200);
+                `}
+              >
+                {experimentIds?.map((experimentId, index) => {
+                  const experiment = experimentsById?.[experimentId];
+                  if (!experiment) {
+                    return null;
+                  }
+                  return (
+                    <li
+                      key={experimentId}
+                      css={css`
+                        // Make them all the same size
+                        flex: 1 1 0px;
+                      `}
+                    >
+                      <ExperimentItem
+                        experiment={experiment}
+                        experimentRuns={
+                          experimentRunsByExperimentId?.[experimentId] || []
+                        }
+                        index={index}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </Flex>
+        </Panel>
+      </Suspense>
     </PanelGroup>
   );
 }
