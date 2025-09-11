@@ -10,13 +10,13 @@ Launch Phoenix
 
 {% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
 
-### Install <a href="#install" id="install"></a>
+### Install
 
 ```bash
 pip install openinference-instrumentation-google-adk google-adk arize-phoenix-otel
 ```
 
-### Setup <a href="#setup" id="setup"></a>
+### Setup
 
 Set the `GOOGLE_API_KEY` environment variable. Refer to Google's [ADK documentation](https://google.github.io/adk-docs/) for more details on authentication and environment variables.
 
@@ -36,7 +36,7 @@ tracer_provider = register(
 )
 ```
 
-### Observe <a href="#observe" id="observe"></a>
+### Observe
 
 Now that you have tracing setup, all Google ADK SDK requests will be streamed to Phoenix for observability and evaluation.
 
@@ -103,10 +103,48 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-{% hint style="info" %}
-Refer to [this page](https://pypi.org/project/openinference-instrumentation-google-adk/#description) for the latest status of the OpenInference Google ADK Instrumentation.
+### Agent Engine Deployment
+
+{% hint style="warning" %}
+When using **Vertex AI Agent Engine** for remote deployment, instrumentation must be configured **within the remote agent module**, not in the main application code.
 {% endhint %}
+
+For Agent Engine deployment, include the instrumentation packages in your requirements and set up instrumentation in your agent module:
+
+**Main Application:**
+```python
+remote_agent = agent_engines.create(
+    agent_engine=ModuleAgent(module_name="adk_agent", agent_name="app"),
+    requirements=[
+        "google-cloud-aiplatform[agent_engines,adk]",
+        "arize-otel",
+        "openinference-instrumentation-google-adk",
+    ],
+    extra_packages=["adk_agent.py"],
+    env_vars={
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.arize.com/v1",
+        "OTEL_EXPORTER_OTLP_TIMEOUT": "60000", #Optional, can prevent "context deadline exceeded" errors
+    },
+)
+```
+
+**Agent Module (`adk_agent.py`):**
+```python
+from arize.otel import register
+from openinference.instrumentation.google_adk import GoogleADKInstrumentor
+
+# Configure instrumentation within the remote agent
+tracer_provider = register(
+    api_key="your-arize-api-key",
+    space_id="your-arize-space-id",
+    project_name="adk-agent",
+)
+GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
+
+# Your agent code here...
+```
 
 ### Resources:
 
 * [OpenInference Package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk)
+* [Google ADK documentation](https://google.github.io/adk-docs/)
