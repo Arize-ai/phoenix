@@ -27,7 +27,7 @@ class ExperimentRun(V1RoutesBaseModel):
         description="The ID of the dataset example used in the experiment run"
     )
     output: Any = Field(description="The output of the experiment task")
-    repetition_number: int = Field(description="The repetition number of the experiment run")
+    repetition_number: int = Field(description="The repetition number of the experiment run", gt=0)
     start_time: datetime = Field(description="The start time of the experiment run")
     end_time: datetime = Field(description="The end time of the experiment run")
     trace_id: Optional[str] = Field(

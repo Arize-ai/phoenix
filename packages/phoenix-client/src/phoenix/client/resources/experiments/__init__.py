@@ -257,6 +257,12 @@ def _decode_unix_nano(time_unix_nano: int) -> datetime:
     return datetime.fromtimestamp(time_unix_nano / 1e9, tz=timezone.utc)
 
 
+def _validate_repetitions(reps: int) -> None:
+    """Make sure repetitions is a positive number"""
+    if reps <= 0:
+        raise ValueError("Repetitions must be greater than 0")
+
+
 def _validate_task_signature(sig: inspect.Signature) -> None:
     """Validate that task function has valid signature."""
     params = sig.parameters
@@ -596,6 +602,7 @@ class Experiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
+        _validate_repetitions(dangerously_set_repetitions)
         repetitions = dangerously_set_repetitions
 
         payload = {
@@ -1551,6 +1558,7 @@ class AsyncExperiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
+        _validate_repetitions(dangerously_set_repetitions)
         repetitions = dangerously_set_repetitions
 
         payload = {

@@ -46,7 +46,7 @@ class Experiment(V1RoutesBaseModel):
     dataset_version_id: str = Field(
         description="The ID of the dataset version associated with the experiment"
     )
-    repetitions: int = Field(description="Number of times the experiment is repeated")
+    repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
     project_name: Optional[str] = Field(
         description="The name of the project associated with the experiment"
