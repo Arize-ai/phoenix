@@ -17,7 +17,8 @@ from phoenix.client.resources.experiments.types import (
 
 def _score_to_evaluation_result(score: EvaluationScore) -> EvaluationResult:
     result: EvaluationResult = {}
-    if s := getattr(score, "score", None):
+    s = getattr(score, "score", None)
+    if s is not None:
         result["score"] = float(s)
     if label := getattr(score, "label", None):
         result["label"] = label
