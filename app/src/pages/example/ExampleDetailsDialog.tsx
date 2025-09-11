@@ -30,15 +30,21 @@ import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 /**
  * A Slide-over that shows the details of a dataset example.
  */
-export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
+export function ExampleDetailsDialog({
+  exampleId,
+  datasetVersionId,
+}: {
+  exampleId: string;
+  datasetVersionId?: string;
+}) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
-      query ExampleDetailsDialogQuery($exampleId: ID!) {
+      query ExampleDetailsDialogQuery($exampleId: ID!, $datasetVersionId: ID) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
-            latestRevision: revision {
+            revision(datasetVersionId: $datasetVersionId) {
               input
               output
               metadata
@@ -58,11 +64,11 @@ export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
         }
       }
     `,
-    { exampleId: exampleId as string },
+    { exampleId: exampleId as string, datasetVersionId: datasetVersionId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const revision = useMemo(() => {
-    const revision = data.example.latestRevision;
+    const revision = data.example.revision;
     return {
       input: JSON.stringify(revision?.input, null, 2),
       output: JSON.stringify(revision?.output, null, 2),

@@ -21,7 +21,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
@@ -100,7 +99,7 @@ type Experiment = NonNullable<
   ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type ExperimentInfoMap = Record<string, Experiment | null>;
+type ExperimentInfoMap = Record<string, Experiment>;
 
 type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
@@ -140,6 +139,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       ExperimentCompareTableQuery,
@@ -255,6 +255,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }, {} as ExperimentInfoMap) || {}
     );
   }, [data]);
+
+  const baseExperiment = experimentInfoById[baseExperimentId];
+
   const tableData: TableRow[] = useMemo(
     () =>
       data.compareExperiments.edges.map((edge) => {
@@ -304,6 +307,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         setDialog(
                           <ExampleDetailsDialog
                             exampleId={row.original.example.id}
+                            datasetVersionId={baseExperiment.datasetVersionId}
                           />
                         );
                       }}
@@ -354,11 +358,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [displayFullText, setDialog]);
+  }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
-    const baseExperiment = experimentInfoById[baseExperimentId];
-    invariant(baseExperiment, "baseExperiment not found");
     const datasetVersionId = baseExperiment.datasetVersionId;
 
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -420,8 +422,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               runComparisonItem={row.original.runComparisonMap[experimentId]}
               displayFullText={displayFullText}
               setDialog={setDialog}
-              experimentInfoById={experimentInfoById}
               tableRow={row.original}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
             />
           );
         },
@@ -435,6 +438,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     displayFullText,
     experimentInfoById,
     getExperimentColor,
+    baseExperiment.datasetVersionId,
   ]);
 
   const columns = useMemo(() => {
@@ -841,12 +845,14 @@ function SelectedExampleDialog({
   selectedExampleId,
   datasetId,
   datasetVersionId,
-  experimentIds,
+  baseExperimentId,
+  compareExperimentIds,
 }: {
   selectedExampleId: string;
   datasetId: string;
   datasetVersionId: string;
-  experimentIds: string[];
+  baseExperimentId: string;
+  compareExperimentIds: string[];
 }) {
   return (
     <Dialog>
@@ -867,7 +873,8 @@ function SelectedExampleDialog({
           datasetId={datasetId}
           datasetExampleId={selectedExampleId}
           datasetVersionId={datasetVersionId}
-          experimentIds={experimentIds}
+          baseExperimentId={baseExperimentId}
+          compareExperimentIds={compareExperimentIds}
         />
       </DialogContent>
     </Dialog>
@@ -1016,7 +1023,8 @@ function ExperimentRunOutputCell({
   runComparisonItem,
   displayFullText,
   setDialog,
-  experimentInfoById,
+  baseExperimentId,
+  compareExperimentIds,
   tableRow,
 }: {
   datasetId: string;
@@ -1025,7 +1033,8 @@ function ExperimentRunOutputCell({
   runComparisonItem: RunComparisonItem;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  experimentInfoById: ExperimentInfoMap;
+  baseExperimentId: string;
+  compareExperimentIds: string[];
   tableRow: TableRow;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1092,7 +1101,8 @@ function ExperimentRunOutputCell({
             <SelectedExampleDialog
               datasetId={datasetId}
               datasetVersionId={datasetVersionId}
-              experimentIds={Object.keys(experimentInfoById)}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
               selectedExampleId={tableRow.id}
             />
           );
