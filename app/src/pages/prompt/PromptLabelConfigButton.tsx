@@ -77,7 +77,7 @@ function PromptLabelList({
   query: PromptLabelConfigButton_labels$key;
   onNewLabelPress: () => void;
 }) {
-  const onSearchChange = () => {};
+  const [search, setSearch] = useState("");
 
   const [data] = useRefetchableFragment(
     graphql`
@@ -96,7 +96,11 @@ function PromptLabelList({
     `,
     query
   );
-  const labels = data.promptLabels.edges.map((edge) => edge.node);
+  const labels = data.promptLabels.edges
+    .map((edge) => edge.node)
+    .filter((label) => {
+      return label.name.toLowerCase().includes(search);
+    });
   return (
     <Autocomplete>
       <View
@@ -118,14 +122,14 @@ function PromptLabelList({
             autoFocus
             aria-label="Search labels"
             placeholder="Search labels..."
-            onChange={onSearchChange}
+            onChange={setSearch}
           />
         </Flex>
       </View>
       <ListBox
         aria-label="labels"
         items={labels}
-        selectionMode="single"
+        selectionMode="multiple"
         css={css`
           height: 300px;
         `}
@@ -139,8 +143,8 @@ function PromptLabelList({
       >
         {(item) => (
           <ListBoxItem key={item.id} id={item.id}>
-            <Flex direction="row" gap="size-50">
-              <ColorSwatch color={item.color} size="S" />
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <ColorSwatch color={item.color} size="M" shape="circle" />
               {item.name}
             </Flex>
           </ListBoxItem>

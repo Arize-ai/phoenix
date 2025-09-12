@@ -15,7 +15,6 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
@@ -23,14 +22,15 @@ from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_labe
 
 @strawberry.input
 class CreatePromptLabelInput:
-    name: Identifier
+    name: str
     description: Optional[str] = None
+    color: str
 
 
 @strawberry.input
 class PatchPromptLabelInput:
     prompt_label_id: GlobalID
-    name: Optional[Identifier] = None
+    name: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -64,14 +64,15 @@ class PromptLabelMutationMixin:
         self, info: Info[Context, None], input: CreatePromptLabelInput
     ) -> PromptLabelMutationPayload:
         async with info.context.db() as session:
-            name = IdentifierModel.model_validate(str(input.name))
-            label_orm = models.PromptLabel(name=name, description=input.description)
+            label_orm = models.PromptLabel(
+                name=input.name, description=input.description, color=input.color
+            )
             session.add(label_orm)
 
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"A prompt label named '{name}' already exists.")
+                raise Conflict(f"A prompt label named '{input.name}' already exists.")
 
             return PromptLabelMutationPayload(
                 prompt_label=to_gql_prompt_label(label_orm),

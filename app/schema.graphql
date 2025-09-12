@@ -439,8 +439,9 @@ input CreateProjectTraceRetentionPolicyInput {
 }
 
 input CreatePromptLabelInput {
-  name: Identifier!
+  name: String!
   description: String = null
+  color: String!
 }
 
 input CreateSpanAnnotationInput {
@@ -1681,7 +1682,7 @@ input PatchPromptInput {
 
 input PatchPromptLabelInput {
   promptLabelId: ID!
-  name: Identifier = null
+  name: String = null
   description: String = null
 }
 
