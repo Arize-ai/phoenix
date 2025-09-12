@@ -72,6 +72,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
+import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { TraceDetails } from "../trace";
@@ -980,6 +981,8 @@ export function ExperimentRunCellAnnotationsList(
         const traceId = annotation.trace?.traceId;
         const projectId = annotation.trace?.projectId;
         const hasTrace = traceId != null && projectId != null;
+        const meanAnnotationScore =
+          annotationSummaryByAnnotationName[annotation.name]?.meanScore;
         return (
           <li
             key={annotation.id}
@@ -994,10 +997,18 @@ export function ExperimentRunCellAnnotationsList(
             <DialogTrigger>
               <ExperimentAnnotationButton
                 annotation={annotation}
-                meanAnnotationScore={
-                  annotationSummaryByAnnotationName[annotation.name]?.meanScore
+                extra={
+                  meanAnnotationScore != null && numRepetitions > 1 ? (
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <Text fontFamily="mono">
+                        {floatFormatter(meanAnnotationScore)}
+                      </Text>
+                      <Text fontFamily="mono" color="grey-500">
+                        AVG
+                      </Text>
+                    </Flex>
+                  ) : null
                 }
-                numRepetitions={numRepetitions}
               />
               <Popover placement="top">
                 <PopoverArrow />

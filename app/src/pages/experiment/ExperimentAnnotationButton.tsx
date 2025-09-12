@@ -1,24 +1,25 @@
+import { ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import {
   Annotation,
   AnnotationNameAndValue,
 } from "@phoenix/components/annotation";
-import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 /**
  * A button that appears like a list item but that is still interactive
  * to show a pop-over for the details
  */
 export function ExperimentAnnotationButton({
   annotation,
-  meanAnnotationScore,
-  numRepetitions,
+  extra,
 }: {
   annotation: Annotation;
-  meanAnnotationScore?: number | null | undefined;
-  numRepetitions?: number | null | undefined;
+  /**
+   * Additional content like controls that will be placed on the right
+   */
+  extra?: ReactNode;
 }) {
   return (
     <Pressable>
@@ -46,18 +47,7 @@ export function ExperimentAnnotationButton({
             annotation={annotation}
             displayPreference="score"
           />
-          {meanAnnotationScore != null &&
-          numRepetitions != null &&
-          numRepetitions > 1 ? (
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Text fontFamily="mono">
-                {floatFormatter(meanAnnotationScore)}
-              </Text>
-              <Text fontFamily="mono" color="grey-500">
-                AVG
-              </Text>
-            </Flex>
-          ) : null}
+          {extra}
         </Flex>
       </button>
     </Pressable>
