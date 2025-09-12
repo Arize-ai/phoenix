@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c0e240f8e896e1fab093a75669b0e57>>
+ * @generated SignedSource<<3a3f8bab4e76cdad0f4056cb2c3914f5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,13 +51,11 @@ export type ExperimentCompareTable_comparisons$data = {
                 readonly tokens: number | null;
               };
             };
-            readonly endTime: string;
             readonly error: string | null;
             readonly id: string;
             readonly latencyMs: number;
             readonly output: any | null;
             readonly repetitionNumber: number;
-            readonly startTime: string;
             readonly trace: {
               readonly projectId: string;
               readonly traceId: string;
@@ -382,20 +380,6 @@ return {
                           "name": "error",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "startTime",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "endTime",
-                          "storageKey": null
-                        },
                         (v2/*: any*/),
                         {
                           "alias": null,
@@ -700,6 +684,6 @@ return {
 };
 })();
 
-(node as any).hash = "21df43d9c8f311f54de065213f930c7e";
+(node as any).hash = "907b10e1b961ed986834eaa926e98070";
 
 export default node;

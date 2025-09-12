@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f90204caa217df54e6001916c4a5189e>>
+ * @generated SignedSource<<cef202d1afe3ccf70a3c99d054b6819a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,13 +46,11 @@ export type ExperimentCompareDetailsQuery$data = {
               readonly tokens: number | null;
             };
           };
-          readonly endTime: string;
           readonly error: string | null;
           readonly experimentId: string;
           readonly id: string;
           readonly latencyMs: number;
           readonly output: any | null;
-          readonly startTime: string;
         };
       }>;
     };
@@ -205,20 +203,6 @@ v7 = {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "error",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "endTime",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "startTime",
                   "storageKey": null
                 },
                 {
@@ -463,16 +447,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9fd8bbcc6c685c4a7258ce312d07a3ff",
+    "cacheID": "9347af75c7bbece808950da708eeff7c",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            latencyMs\n            experimentId\n            output\n            error\n            endTime\n            startTime\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            latencyMs\n            experimentId\n            output\n            error\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "75c7269d82be13d74931d4b5716f582f";
+(node as any).hash = "57a492ef02a079a8cd4955cae5f54e35";
 
 export default node;

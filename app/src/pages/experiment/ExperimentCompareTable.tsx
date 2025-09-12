@@ -185,8 +185,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     repetitionNumber
                     output
                     error
-                    startTime
-                    endTime
                     trace {
                       traceId
                       projectId

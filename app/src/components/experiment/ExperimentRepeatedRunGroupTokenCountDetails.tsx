@@ -35,9 +35,9 @@ export function ExperimentRepeatedRunGroupTokenCountDetails(props: {
 
   const tokenData = useMemo(() => {
     if (data.node.__typename === "ExperimentRepeatedRunGroup") {
-      const prompt = data.node.costSummary?.prompt?.tokens ?? 0;
-      const completion = data.node.costSummary?.completion?.tokens ?? 0;
-      const total = data.node.costSummary?.total?.tokens ?? 0;
+      const prompt = data.node.costSummary.prompt.tokens;
+      const completion = data.node.costSummary.completion.tokens;
+      const total = data.node.costSummary.total.tokens;
 
       return {
         total,

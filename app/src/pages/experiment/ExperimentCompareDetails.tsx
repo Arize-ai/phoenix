@@ -74,8 +74,6 @@ export function ExperimentCompareDetails({
                   experimentId
                   output
                   error
-                  endTime
-                  startTime
                   costSummary {
                     total {
                       cost

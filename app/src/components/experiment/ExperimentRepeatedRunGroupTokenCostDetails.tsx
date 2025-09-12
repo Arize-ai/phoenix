@@ -35,9 +35,9 @@ export function ExperimentRepeatedRunGroupTokenCostDetails(props: {
 
   const costData = useMemo(() => {
     if (data.node.__typename === "ExperimentRepeatedRunGroup") {
-      const prompt = data.node.costSummary?.prompt?.cost ?? 0;
-      const completion = data.node.costSummary?.completion?.cost ?? 0;
-      const total = data.node.costSummary?.total?.cost ?? 0;
+      const prompt = data.node.costSummary.prompt.cost;
+      const completion = data.node.costSummary.completion.cost;
+      const total = data.node.costSummary.total.cost;
 
       return {
         total,
