@@ -1351,25 +1351,27 @@ class Experiments:
                     kind="evaluator",
                 )
 
-            if result:
-                first_result = None
-                if isinstance(result, Mapping):
-                    first_result = result
-                elif isinstance(result, Sequence) and len(result) > 0:  # pyright: ignore[reportUnnecessaryIsInstance]
-                    first_item = result[0]  # pyright: ignore[reportUnknownArgumentType]
-                    if isinstance(first_item, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]
-                        first_result = first_item
+            try:
+                eval_input_obj: dict[str, Any] = {
+                    "input": jsonify(example.get("input")),
+                    "output": jsonify(experiment_run.get("output")),
+                    "expected": jsonify(example.get("output")),
+                    "example": jsonify(example),
+                }
+                span.set_attribute(INPUT_VALUE, json.dumps(eval_input_obj, ensure_ascii=False))
+                span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
 
-                if isinstance(first_result, Mapping):
-                    attributes: dict[str, Any] = {}
-                    score_attr = first_result.get("score")
-                    if score_attr is not None:
-                        attributes["evaluation.score"] = score_attr
-                    label_attr = first_result.get("label")
-                    if label_attr is not None:
-                        attributes["evaluation.label"] = label_attr
-                    if attributes:
-                        span.set_attributes(attributes)
+            try:
+                if result is not None:
+                    span.set_attribute(
+                        OUTPUT_VALUE,
+                        json.dumps(jsonify(result), ensure_ascii=False),
+                    )
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
 
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
@@ -1399,10 +1401,16 @@ class Experiments:
                 eval_name = (
                     name_from_res
                     if isinstance(name_from_res, str)
-                    else (evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}")
+                    else (
+                        evaluator.name
+                        if len(results_to_submit) == 1
+                        else f"{evaluator.name}-{idx + 1}"
+                    )
                 )
             else:
-                eval_name = evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
 
             eval_run = ExperimentEvaluationRun(
                 experiment_run_id=experiment_run["id"],
@@ -2377,25 +2385,27 @@ class AsyncExperiments:
                     kind="evaluator",
                 )
 
-            if result:
-                first_result = None
-                if isinstance(result, Mapping):
-                    first_result = result
-                elif isinstance(result, Sequence) and len(result) > 0:  # pyright: ignore[reportUnnecessaryIsInstance]
-                    first_item = result[0]  # pyright: ignore[reportUnknownArgumentType]
-                    if isinstance(first_item, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]
-                        first_result = first_item
+            try:
+                eval_input_obj: dict[str, Any] = {
+                    "input": jsonify(example.get("input")),
+                    "output": jsonify(experiment_run.get("output")),
+                    "expected": jsonify(example.get("output")),
+                    "example": jsonify(example),
+                }
+                span.set_attribute(INPUT_VALUE, json.dumps(eval_input_obj, ensure_ascii=False))
+                span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
 
-                if isinstance(first_result, Mapping):
-                    attributes: dict[str, Any] = {}
-                    score_attr = first_result.get("score")
-                    if score_attr is not None:
-                        attributes["evaluation.score"] = score_attr
-                    label_attr = first_result.get("label")
-                    if label_attr is not None:
-                        attributes["evaluation.label"] = label_attr
-                    if attributes:
-                        span.set_attributes(attributes)
+            try:
+                if result is not None:
+                    span.set_attribute(
+                        OUTPUT_VALUE,
+                        json.dumps(jsonify(result), ensure_ascii=False),
+                    )
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
 
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
@@ -2425,10 +2435,16 @@ class AsyncExperiments:
                 eval_name = (
                     name_from_res
                     if isinstance(name_from_res, str)
-                    else (evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}")
+                    else (
+                        evaluator.name
+                        if len(results_to_submit) == 1
+                        else f"{evaluator.name}-{idx + 1}"
+                    )
                 )
             else:
-                eval_name = evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
 
             eval_run = ExperimentEvaluationRun(
                 experiment_run_id=experiment_run["id"],
