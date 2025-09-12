@@ -653,7 +653,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
               exampleSequence={exampleSequence}
-              onNextExample={(nextId) => setSelectedExampleId(nextId)}
+              onNextExample={(nextId) => {
+                setSelectedExampleId(nextId);
+                if (
+                  nextId === exampleSequence[exampleSequence.length - 1] &&
+                  !isLoadingNext &&
+                  hasNext
+                ) {
+                  loadNext(PAGE_SIZE);
+                }
+              }}
               onPreviousExample={(previousId) =>
                 setSelectedExampleId(previousId)
               }
