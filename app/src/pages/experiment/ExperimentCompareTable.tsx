@@ -1003,13 +1003,15 @@ function SelectedExampleDialog({
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <ExperimentCompareDetails
-          datasetId={datasetId}
-          datasetExampleId={selectedExampleId}
-          datasetVersionId={datasetVersionId}
-          baseExperimentId={baseExperimentId}
-          compareExperimentIds={compareExperimentIds}
-        />
+        <Suspense>
+          <ExperimentCompareDetails
+            datasetId={datasetId}
+            datasetExampleId={selectedExampleId}
+            datasetVersionId={datasetVersionId}
+            baseExperimentId={baseExperimentId}
+            compareExperimentIds={compareExperimentIds}
+          />
+        </Suspense>
       </DialogContent>
     </Dialog>
   );
