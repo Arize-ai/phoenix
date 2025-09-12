@@ -99,23 +99,22 @@ type Experiment = NonNullable<
 
 type ExperimentInfoMap = Record<string, Experiment>;
 
-type TableRow =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
-    id: string;
-    input: unknown;
-    referenceOutput: unknown;
-    runComparisonMap: Record<
-      string,
-      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-    >;
-  };
-
-type RunComparisonItem =
-  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number];
-type AnnotationSummary = RunComparisonItem["annotationSummaries"][number];
-type ExperimentRun = RunComparisonItem["runs"][number];
+type ExperimentComparison =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"];
+type ExperimentRepeatedRunGroup =
+  ExperimentComparison["repeatedRunGroups"][number];
+type AnnotationSummary =
+  ExperimentRepeatedRunGroup["annotationSummaries"][number];
+type ExperimentRun = ExperimentRepeatedRunGroup["runs"][number];
 type ExperimentRunAnnotation =
   ExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type TableRow = ExperimentComparison & {
+  id: string;
+  input: unknown;
+  referenceOutput: unknown;
+  repeatedRunGroupsByExperimentId: Record<string, ExperimentRepeatedRunGroup>;
+};
 
 const tableWrapCSS = css`
   flex: 1 1 auto;
@@ -172,7 +171,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     referenceOutput: output
                   }
                 }
-                runComparisonItems {
+                repeatedRunGroups {
                   ...ExperimentRepeatedRunGroupMetadataFragment
                   annotationSummaries {
                     annotationName
@@ -267,19 +266,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     () =>
       data.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
-        const runComparisonMap = comparison.runComparisonItems.reduce(
-          (acc, item) => {
-            acc[item.experimentId] = item;
-            return acc;
-          },
-          {} as Record<string, RunComparisonItem>
-        );
+        const repeatedRunGroupsByExperimentId =
+          comparison.repeatedRunGroups.reduce(
+            (acc, group) => {
+              acc[group.experimentId] = group;
+              return acc;
+            },
+            {} as Record<string, ExperimentRepeatedRunGroup>
+          );
         return {
           ...comparison,
           id: comparison.example.id,
           input: comparison.example.revision.input,
           referenceOutput: comparison.example.revision.referenceOutput,
-          runComparisonMap,
+          repeatedRunGroupsByExperimentId,
         };
       }),
     [data]
@@ -421,14 +421,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitionCount ?? 0
               }
-              runComparisonItem={row.original.runComparisonMap[experimentId]}
+              repeatedRunGroup={
+                row.original.repeatedRunGroupsByExperimentId[experimentId]
+              }
               displayFullText={displayFullText}
               setDialog={setDialog}
               tableRow={row.original}
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
               annotationSummaries={
-                row.original.runComparisonMap[experimentId].annotationSummaries
+                row.original.repeatedRunGroupsByExperimentId[experimentId]
+                  .annotationSummaries
               }
             />
           );
@@ -1047,7 +1050,7 @@ function ExperimentRunOutputCell({
   datasetId,
   datasetVersionId,
   experimentRepetitionCount,
-  runComparisonItem,
+  repeatedRunGroup,
   displayFullText,
   setDialog,
   baseExperimentId,
@@ -1058,7 +1061,7 @@ function ExperimentRunOutputCell({
   datasetId: string;
   datasetVersionId: string;
   experimentRepetitionCount: number;
-  runComparisonItem: RunComparisonItem;
+  repeatedRunGroup: ExperimentRepeatedRunGroup;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
   baseExperimentId: string;
@@ -1069,7 +1072,7 @@ function ExperimentRunOutputCell({
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
-    const runsByRepetitionNumber = runComparisonItem.runs.reduce(
+    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce(
       (acc, run) => {
         acc[run.repetitionNumber] = run;
         return acc;
@@ -1077,9 +1080,9 @@ function ExperimentRunOutputCell({
       {} as Record<number, ExperimentRun>
     );
     return runsByRepetitionNumber;
-  }, [runComparisonItem.runs]);
+  }, [repeatedRunGroup.runs]);
 
-  if (runComparisonItem.runs.length === 0) {
+  if (repeatedRunGroup.runs.length === 0) {
     return (
       <PaddedCell>
         <Empty message="No Run" />
@@ -1155,7 +1158,7 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runControls}>
-        <ExperimentRepeatedRunGroupMetadata fragmentRef={runComparisonItem} />
+        <ExperimentRepeatedRunGroupMetadata fragmentRef={repeatedRunGroup} />
       </CellTop>
       {run ? (
         <ExperimentRunOutput

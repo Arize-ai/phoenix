@@ -63,14 +63,14 @@ class ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(DataLoader[Key, Re
         )
         async with self._db() as session:
             annotation_summaries = (await session.execute(annotation_summaries_query)).all()
-        annotation_summaries_by_key = {}
+        annotation_summaries_by_key: dict[Key, list[AnnotationSummary]] = {}
         for summary in annotation_summaries:
             key = (summary.experiment_id, summary.dataset_example_id)
-            summary = AnnotationSummary(
+            gql_summary = AnnotationSummary(
                 annotation_name=summary.annotation_name,
                 mean_score=summary.mean_score,
             )
             if key not in annotation_summaries_by_key:
                 annotation_summaries_by_key[key] = []
-            annotation_summaries_by_key[key].append(summary)
+            annotation_summaries_by_key[key].append(gql_summary)
         return [annotation_summaries_by_key.get(key, []) for key in keys]

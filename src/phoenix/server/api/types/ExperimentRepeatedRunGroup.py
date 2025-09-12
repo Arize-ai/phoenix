@@ -112,11 +112,14 @@ class ExperimentRepeatedRunGroup(Node):
         self,
         info: Info[Context, None],
     ) -> list[ExperimentRepeatedRunGroupAnnotationSummary]:
-        return (
-            await info.context.data_loaders.experiment_repeated_run_group_annotation_summaries.load(
-                (self.experiment_rowid, self.dataset_example_rowid)
+        loader = info.context.data_loaders.experiment_repeated_run_group_annotation_summaries
+        return [
+            ExperimentRepeatedRunGroupAnnotationSummary(
+                annotation_name=summary.annotation_name,
+                mean_score=summary.mean_score,
             )
-        )
+            for summary in await loader.load((self.experiment_rowid, self.dataset_example_rowid))
+        ]
 
 
 _EXPERIMENT_REPEATED_RUN_GROUP_NODE_ID_PATTERN = re.compile(

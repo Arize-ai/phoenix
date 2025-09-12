@@ -523,9 +523,9 @@ class Query:
 
         cursors_and_nodes = []
         for example in examples:
-            run_comparison_items = []
+            repeated_run_groups = []
             for experiment_id in experiment_rowids:
-                run_comparison_items.append(
+                repeated_run_groups.append(
                     ExperimentRepeatedRunGroup(
                         experiment_rowid=experiment_id,
                         dataset_example_rowid=example.id,
@@ -544,7 +544,7 @@ class Query:
                     created_at=example.created_at,
                     version_id=base_experiment.dataset_version_id,
                 ),
-                run_comparison_items=run_comparison_items,
+                repeated_run_groups=repeated_run_groups,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2c7a781ef8fa0ce5eb8f77e63b4c66c0>>
+ * @generated SignedSource<<bf571dd99e9863d9b89494ab10308bae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type ExperimentCompareListPage_comparisons$data = {
             readonly referenceOutput: any;
           };
         };
-        readonly runComparisonItems: ReadonlyArray<{
+        readonly repeatedRunGroups: ReadonlyArray<{
           readonly experimentId: string;
           readonly runs: ReadonlyArray<{
             readonly annotations: {
@@ -190,7 +190,7 @@ return {
                   "args": null,
                   "concreteType": "ExperimentRepeatedRunGroup",
                   "kind": "LinkedField",
-                  "name": "runComparisonItems",
+                  "name": "repeatedRunGroups",
                   "plural": true,
                   "selections": [
                     {
@@ -390,6 +390,6 @@ return {
 };
 })();
 
-(node as any).hash = "f3335f76cb2dfb773cd5e57b31cc6a33";
+(node as any).hash = "b17d144482d18ca5dd8bcb8e474ef653";
 
 export default node;

@@ -1114,7 +1114,7 @@ type ExperimentComparison implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   example: DatasetExample!
-  runComparisonItems: [ExperimentRepeatedRunGroup!]!
+  repeatedRunGroups: [ExperimentRepeatedRunGroup!]!
 }
 
 """A connection to a list of items."""

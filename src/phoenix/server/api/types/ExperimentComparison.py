@@ -9,4 +9,4 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import ExperimentRepeat
 class ExperimentComparison(Node):
     id_attr: NodeID[int]
     example: DatasetExample
-    run_comparison_items: list[ExperimentRepeatedRunGroup]
+    repeated_run_groups: list[ExperimentRepeatedRunGroup]

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<515917510fbefdad214eb42c72b80646>>
+ * @generated SignedSource<<ecc9e979fc209f8bb615be4ca6c8abfe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,7 +171,7 @@ return {
                     "args": null,
                     "concreteType": "ExperimentRepeatedRunGroup",
                     "kind": "LinkedField",
-                    "name": "runComparisonItems",
+                    "name": "repeatedRunGroups",
                     "plural": true,
                     "selections": [
                       {
@@ -385,16 +385,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b04da147cd128c72d815dcd98f414911",
+    "cacheID": "ca2ae194678b5b6b473a72af787ef2f0",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareListPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n) {\n  ...ExperimentCompareListPage_comparisons_2H9k7i\n}\n\nfragment ExperimentCompareListPage_comparisons_2H9k7i on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            id\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n) {\n  ...ExperimentCompareListPage_comparisons_2H9k7i\n}\n\nfragment ExperimentCompareListPage_comparisons_2H9k7i on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        repeatedRunGroups {\n          experimentId\n          runs {\n            output\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            id\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f3335f76cb2dfb773cd5e57b31cc6a33";
+(node as any).hash = "b17d144482d18ca5dd8bcb8e474ef653";
 
 export default node;
