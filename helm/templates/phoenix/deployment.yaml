@@ -35,7 +35,7 @@ spec:
       {{- end }}
       containers:
         - name: phoenix
-          image: {{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
+          image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           {{- if .Values.securityContext.container.enabled }}
           securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
