@@ -10,7 +10,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -37,7 +36,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  KeyboardToken,
   LinkButton,
   Loading,
   Modal,
@@ -84,6 +82,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExampleDetailsPaginator } from "./ExampleDetailsPaginator";
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
@@ -289,6 +288,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }),
     [data]
   );
+
+  const exampleSequence = useMemo(() => {
+    return tableData.map((row) => row.id);
+  }, [tableData]);
 
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
@@ -522,31 +525,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     refetch,
   ]);
 
-  const createNavigationFunctions = (currentExampleId: string) => {
-    const currentRow = tableData.find((row) => row.id === currentExampleId);
-    if (!currentRow)
-      return { selectNextExample: () => {}, selectPreviousExample: () => {} };
-
-    const currentIndex = tableData.findIndex(
-      (row) => row.id === currentExampleId
-    );
-
-    return {
-      selectNextExample: () => {
-        const nextExampleId = tableData[currentIndex + 1]?.id;
-        if (nextExampleId) {
-          setSelectedExampleId(nextExampleId);
-        }
-      },
-      selectPreviousExample: () => {
-        const previousExampleId = tableData[currentIndex - 1]?.id;
-        if (previousExampleId) {
-          setSelectedExampleId(previousExampleId);
-        }
-      },
-    };
-  };
-
   return (
     <View overflow="auto">
       <Flex direction="column" height="100%">
@@ -680,20 +658,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               selectedExampleId={selectedExampleId}
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
-              selectNextExample={() => {
-                const nav = createNavigationFunctions(selectedExampleId);
-                nav.selectNextExample();
-              }}
-              selectPreviousExample={() => {
-                const nav = createNavigationFunctions(selectedExampleId);
-                nav.selectPreviousExample();
-              }}
-              canSelectNextExample={
-                tableData.findIndex((row) => row.id === selectedExampleId) <
-                tableData.length - 1
-              }
-              canSelectPreviousExample={
-                tableData.findIndex((row) => row.id === selectedExampleId) > 0
+              exampleSequence={exampleSequence}
+              onNextExample={(nextId) => setSelectedExampleId(nextId)}
+              onPreviousExample={(previousId) =>
+                setSelectedExampleId(previousId)
               }
             />
           )}
@@ -913,88 +881,30 @@ function SelectedExampleDialog({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
-  selectNextExample,
-  selectPreviousExample,
-  canSelectNextExample,
-  canSelectPreviousExample,
+  exampleSequence,
+  onNextExample,
+  onPreviousExample,
 }: {
   selectedExampleId: string;
   datasetId: string;
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
-  selectNextExample: () => void;
-  selectPreviousExample: () => void;
-  canSelectNextExample: boolean;
-  canSelectPreviousExample: boolean;
+  exampleSequence: string[];
+  onNextExample: (nextId: string) => void;
+  onPreviousExample: (previousId: string) => void;
 }) {
-  const NEXT_EXAMPLE_HOTKEY = "j";
-  const PREVIOUS_EXAMPLE_HOTKEY = "k";
-
-  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
-    if (canSelectNextExample) {
-      selectNextExample();
-    }
-  });
-
-  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
-    if (canSelectPreviousExample) {
-      selectPreviousExample();
-    }
-  });
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <Flex gap="size-50">
-            <TooltipTrigger delay={100}>
-              <Button
-                size="S"
-                id="next"
-                leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
-                aria-label="Next trace"
-                isDisabled={!canSelectNextExample}
-                onPress={selectNextExample}
-              />
-              <Tooltip
-                offset={4}
-                css={css`
-                  background-color: var(--ac-global-background-color-dark);
-                  border-color: var(--ac-global-border-color-dark);
-                  border-radius: var(--ac-global-rounding-medium);
-                  padding: var(--ac-global-dimension-static-size-100);
-                `}
-              >
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <span>Next example</span>
-                  <KeyboardToken>{NEXT_EXAMPLE_HOTKEY}</KeyboardToken>
-                </Flex>
-              </Tooltip>
-            </TooltipTrigger>
-            <TooltipTrigger delay={100}>
-              <Button
-                size="S"
-                id="previous"
-                leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
-                aria-label="Previous trace"
-                isDisabled={!canSelectPreviousExample}
-                onPress={selectPreviousExample}
-              />
-              <Tooltip
-                offset={4}
-                css={css`
-                  background-color: var(--ac-global-background-color-dark);
-                  border-color: var(--ac-global-border-color-dark);
-                  border-radius: var(--ac-global-rounding-medium);
-                  padding: var(--ac-global-dimension-static-size-100);
-                `}
-              >
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <span>Previous example</span>
-                  <KeyboardToken>{PREVIOUS_EXAMPLE_HOTKEY}</KeyboardToken>
-                </Flex>
-              </Tooltip>
-            </TooltipTrigger>
+            <ExampleDetailsPaginator
+              currentId={selectedExampleId}
+              exampleSequence={exampleSequence}
+              onNext={onNextExample}
+              onPrevious={onPreviousExample}
+            />
             <DialogTitle
               css={css`
                 margin-left: var(--ac-global-dimension-static-size-100);
