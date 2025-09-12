@@ -30,26 +30,70 @@ class TemplateFormat(str, Enum):
 
 
 class TemplateFormatter(ABC):
+    """Abstract base class for template formatters."""
+
     @abstractmethod
     def render(self, template: str, variables: Dict[str, Any]) -> str:
+        """Render a template with variables.
+
+        Args:
+            template (str): The template string to render.
+            variables (Dict[str, Any]): The variables to substitute.
+
+        Returns:
+            str: The rendered template.
+        """
         pass
 
     @abstractmethod
     def extract_variables(self, template: str) -> List[str]:
+        """Extract variable names from a template.
+
+        Args:
+            template (str): The template string to analyze.
+
+        Returns:
+            List[str]: A list of variable names found in the template.
+        """
         pass
 
 
 class MustacheFormatter(TemplateFormatter):
+    """Formatter for mustache-style templates using pystache."""
+
     def render(self, template: str, variables: Dict[str, Any]) -> str:
+        """Render a mustache template with variables.
+
+        Args:
+            template (str): The mustache template string.
+            variables (Dict[str, Any]): The variables to substitute.
+
+        Returns:
+            str: The rendered template.
+        """
         return pystache.render(template, variables)  # type: ignore
 
     def extract_variables(self, template: str) -> List[str]:
+        """Extract variable names from a mustache template.
+
+        Args:
+            template (str): The mustache template string.
+
+        Returns:
+            List[str]: A list of unique variable names found in the template.
+        """
         parsed = pystache.parse(template)
         variables: List[str] = []
         self._extract_from_parsed(parsed, variables)
         return list(set(variables))
 
     def _extract_from_parsed(self, parsed: Any, variables: List[str]) -> None:
+        """Recursively extract variable names from parsed mustache template.
+
+        Args:
+            parsed (Any): The parsed template object.
+            variables (List[str]): List to accumulate variable names in.
+        """
         try:
             # ParsedTemplate stores elements in _parse_tree attribute
             elements = parsed
@@ -69,12 +113,27 @@ class FStringFormatter(TemplateFormatter):
     """Formatter for f-string style templates using standard Python string formatting."""
 
     def render(self, template: str, variables: Dict[str, Any]) -> str:
-        """Use Python's built-in Formatter for f-string-like behavior."""
+        """Use Python's built-in Formatter for f-string-like behavior.
+
+        Args:
+            template (str): The f-string template.
+            variables (Dict[str, Any]): The variables to substitute.
+
+        Returns:
+            str: The rendered template.
+        """
         formatter = Formatter()
         return formatter.format(template, **variables)
 
     def extract_variables(self, template: str) -> List[str]:
-        """Extract variable names from template using Python's string formatter."""
+        """Extract variable names from template using Python's string formatter.
+
+        Args:
+            template (str): The f-string template to analyze.
+
+        Returns:
+            List[str]: A list of unique variable names found in the template.
+        """
         formatter = Formatter()
         field_names = []
 
@@ -90,11 +149,16 @@ class FStringFormatter(TemplateFormatter):
 
 
 def detect_template_format(template: str) -> TemplateFormat:
-    """
-    Detect whether a template uses mustache ({{variable}}) or f-string ({variable}) format.
+    """Detect whether a template uses mustache ({{variable}}) or f-string ({variable}) format.
 
     **Note**: Escaped JSON in f-strings ({{...}}) looks identical to mustache variables.
     Use explicit template_format parameter for ambiguous cases.
+
+    Args:
+        template (str): The template string to analyze.
+
+    Returns:
+        TemplateFormat: The detected template format (MUSTACHE or F_STRING).
     """
     mustache_pattern = r"\{\{\s*([^}]+)\s*\}\}"
     fstring_pattern = r"\{([^}]+)\}"
@@ -183,6 +247,16 @@ class Template:
         template: str,
         template_format: Optional[TemplateFormat] = None,
     ):
+        """Initialize a Template instance.
+
+        Args:
+            template (str): The template string to use.
+            template_format (Optional[TemplateFormat]): The format of the template. If None,
+                the format will be auto-detected.
+
+        Raises:
+            ValueError: If the template is empty.
+        """
         if not template:
             raise ValueError("Template cannot be empty")
         self.template = template
@@ -198,9 +272,26 @@ class Template:
 
     @property
     def variables(self) -> List[str]:
+        """Get the list of variables used in the template.
+
+        Returns:
+            List[str]: A list of variable names found in the template.
+        """
         return self._variables
 
     def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> str:
+        """Render the template with the given variables.
+
+        Args:
+            variables (Dict[str, Any]): The variables to substitute into the template.
+            tracer (Optional[Tracer]): Optional tracer for tracing operations.
+
+        Returns:
+            str: The rendered template.
+
+        Raises:
+            TypeError: If variables is not a dictionary.
+        """
         if not isinstance(variables, dict):  # pyright: ignore
             raise TypeError(f"Variables must be a dictionary, got {type(variables)}")
         return dedent(self._formatter.render(self.template, variables))

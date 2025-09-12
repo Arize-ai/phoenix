@@ -1,45 +1,3 @@
-"""
-Precision/Recall/F-score (F-beta) evaluator for single-label classification.
-
-- Supports binary and multi-class problems
-- Labels can be strings or integers (must be hashable)
-- No external dependencies
-
-Key behaviors:
-- Binary mode: If `positive_label` is provided, or labels are exactly {0, 1} with no
-  `positive_label` provided (defaults to positive=1), computes precision/recall/F exclusively
-  for the positive class (one-vs-rest). No averaging suffix is used in metric names.
-- Multi-class mode: Computes per-class metrics one-vs-rest and aggregates using the selected
-  averaging strategy: "macro" (default), "micro", or "weighted". When average is not the default
-  "macro", a suffix (e.g., `_micro`) is appended to metric names.
-
-Naming rules:
-- Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
-- Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
-
-Zero-division handling:
-- When a denominator is zero (e.g., a class has no predicted or true instances), the metric is
-  set to `zero_division` (default 0.0), consistent with common library behavior.
-
-Examples:
-1) Multi-class (macro):
->>> from phoenix.evals.preview.metrics.precision_recall import PrecisionRecallFScore
->>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
->>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
-...               "output": ["cat", "cat", "cat", "bird"]}
->>> scores = evaluator(eval_input)
->>> [s.name for s in scores]
-['precision', 'recall', 'f1']
-
-2) Binary with explicit positive label:
->>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
->>> eval_input = {"expected": ["spam", "ham", "spam"],
-...               "output": ["spam", "spam", "ham"]}
->>> scores = evaluator(eval_input)
->>> [s.name for s in scores]
-['precision', 'recall', 'f0_5']
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -64,6 +22,14 @@ AverageType = Literal["macro", "micro", "weighted"]
 
 
 def _format_beta_for_name(beta: float) -> str:
+    """Format beta value for use in metric names.
+
+    Args:
+        beta (float): The beta value to format.
+
+    Returns:
+        str: A formatted string representation of beta for metric naming.
+    """
     if beta <= 0:
         # Validation will raise elsewhere; keep a safe fallback
         return "f"
@@ -75,36 +41,80 @@ def _format_beta_for_name(beta: float) -> str:
 
 @dataclass(frozen=True)
 class _ClassCounts:
+    """Internal dataclass for tracking confusion matrix counts per class.
+
+    Args:
+        true_positive (int): Number of true positive predictions.
+        false_positive (int): Number of false positive predictions.
+        false_negative (int): Number of false negative predictions.
+    """
+
     true_positive: int = 0
     false_positive: int = 0
     false_negative: int = 0
 
     @property
     def support(self) -> int:
+        """Get the total number of instances for this class.
+
+        Returns:
+            int: The total number of instances (true_positive + false_negative).
+        """
         return self.true_positive + self.false_negative
 
 
 class PrecisionRecallFScore(Evaluator):
     """
-    Heuristic evaluator that computes precision, recall, and F-score.
+    Heuristic evaluator that computes precision, recall, and F-beta score given lists of expected
+    and output labels.
 
-    - Required fields: `expected`, `output` (sequences of labels)
-    - Supports labels as strings or integers
-    - Supports binary and multi-class via averaging strategies
+    Parameters:
+        - beta (float): Weight of recall relative to precision. Must be > 0. Defaults to 1.0 (F1).
+        - average: Aggregation strategy across classes. One of {'macro','micro','weighted'}.
+          Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
+          average is used.
+        - positive_label: When set, compute binary precision/recall/F exclusively for this label
+          (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
+          positive label defaults to 1. Otherwise, multi-class averaging is used.
+        - zero_division: Value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
 
-    Parameters
-    - beta: weight of recall relative to precision. Must be > 0. Defaults to 1.0 (F1).
-    - average: aggregation strategy across classes. One of {'macro','micro','weighted'}.
-               Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
-               average is used.
-    - positive_label: when set, compute binary precision/recall/F exclusively for this label
-                      (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
-                      positive label defaults to 1. Otherwise, multi-class averaging is used.
-    - zero_division: value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
+    Args:
+        eval_input (Mapping[str, Any]): Two lists of hashable labels:
+            - expected (Sequence[Hashable]): Expected/true sequence of labels
+            - output (Sequence[Hashable]): Output/predicted sequence of labels
 
-    Inputs
-    - expected, output: sequences (e.g., list, tuple, NumPy array) of hashable labels. Passing a
-      single string (e.g., 'cat') is not supported; pass a sequence instead (e.g., ['cat']).
+    Returns:
+        List[Score]: A list of Score objects.
+
+    Raises:
+        ValueError: If input validation fails.
+
+    Notes:
+        - Supports labels as strings or integers (must be hashable)
+        - Supports both binary and multi-class classification via averaging strategies
+        - Score Naming:
+            - Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
+            - Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
+
+    Examples:
+
+        1) Multi-class (macro)::
+
+            evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
+            eval_input = {"expected": ["cat", "dog", "cat", "bird"],
+                          "output": ["cat", "cat", "cat", "bird"]}
+            scores = evaluator(eval_input)
+            [s.name for s in scores]
+            ['precision', 'recall', 'f1']
+
+        2) Binary with explicit positive label::
+
+            evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
+            eval_input = {"expected": ["spam", "ham", "spam"],
+                          "output": ["spam", "spam", "ham"]}
+            scores = evaluator(eval_input)
+            [s.name for s in scores]
+            ['precision', 'recall', 'f0_5']
     """
 
     class InputSchema(BaseModel):
@@ -225,6 +235,17 @@ class PrecisionRecallFScore(Evaluator):
     def _collect_labels(
         self, expected: Sequence[Hashable], output: Sequence[Hashable]
     ) -> List[Hashable]:
+        """Collect all unique labels from expected and output sequences.
+
+        Preserve a stable, interpretable order: first seen in expected, then unseen from output.
+
+        Args:
+            expected (Sequence[Hashable]): The expected labels.
+            output (Sequence[Hashable]): The predicted labels.
+
+        Returns:
+            List[Hashable]: A list of unique labels in stable order.
+        """
         # Preserve a stable, interpretable order: first seen in expected, then unseen from output
         seen = set()
         ordered: List[Hashable] = []
@@ -241,6 +262,16 @@ class PrecisionRecallFScore(Evaluator):
     def _compute_counts(
         self, expected: Sequence[Hashable], output: Sequence[Hashable], labels: Sequence[Hashable]
     ) -> Dict[Hashable, _ClassCounts]:
+        """Compute confusion matrix counts for each label.
+
+        Args:
+            expected (Sequence[Hashable]): The expected labels.
+            output (Sequence[Hashable]): The predicted labels.
+            labels (Sequence[Hashable]): The set of all possible labels.
+
+        Returns:
+            Dict[Hashable, _ClassCounts]: A dictionary mapping each label to its counts.
+        """
         counts: Dict[Hashable, _ClassCounts] = {label: _ClassCounts() for label in labels}
         for yt, yp in zip(expected, output):
             if yt == yp:
@@ -270,6 +301,15 @@ class PrecisionRecallFScore(Evaluator):
         return counts
 
     def _safe_div(self, numerator: float, denominator: float) -> float:
+        """Perform safe division, returning zero_division value when denominator is zero.
+
+        Args:
+            numerator (float): The numerator value.
+            denominator (float): The denominator value.
+
+        Returns:
+            float: The result of division or zero_division value if denominator is zero.
+        """
         if denominator == 0.0:
             return float(self.zero_division)
         return numerator / denominator
@@ -277,6 +317,14 @@ class PrecisionRecallFScore(Evaluator):
     def _aggregate_precision_recall(
         self, counts_by_label: Mapping[Hashable, _ClassCounts]
     ) -> Tuple[float, float]:
+        """Aggregate precision and recall across all classes.
+
+        Args:
+            counts_by_label (Mapping[Hashable, _ClassCounts]): Counts for each label.
+
+        Returns:
+            Tuple[float, float]: A tuple of (precision, recall).
+        """
         if self.average == "micro":
             tp = sum(c.true_positive for c in counts_by_label.values())
             fp = sum(c.false_positive for c in counts_by_label.values())
@@ -310,6 +358,16 @@ class PrecisionRecallFScore(Evaluator):
         return precision, recall
 
     def _compute_f_score(self, precision: float, recall: float, beta: float) -> float:
+        """Compute the F-beta score from precision and recall.
+
+        Args:
+            precision (float): The precision value.
+            recall (float): The recall value.
+            beta (float): The beta parameter for F-score calculation.
+
+        Returns:
+            float: The F-beta score.
+        """
         if precision == 0.0 and recall == 0.0:
             return 0.0
         beta_sq = beta * beta
@@ -320,12 +378,18 @@ class PrecisionRecallFScore(Evaluator):
     def _resolve_positive_label(
         self, configured_positive: Optional[Hashable], labels: Sequence[Hashable]
     ) -> Optional[Hashable]:
-        """
-        Decide whether to run in binary mode and which label is positive.
+        """Decide whether to run in binary mode and which label is positive.
 
         - If a positive label is provided, use it.
         - Else, if labels are a binary numeric set {0, 1}, use 1 as positive.
         - Otherwise, return None to indicate multi-class averaging mode.
+
+        Args:
+            configured_positive (Optional[Hashable]): The explicitly configured positive label.
+            labels (Sequence[Hashable]): The set of all possible labels.
+
+        Returns:
+            Optional[Hashable]: The positive label to use, or None for multi-class mode.
         """
         if configured_positive is not None:
             return configured_positive

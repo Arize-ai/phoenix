@@ -13,14 +13,18 @@ logger = logging.getLogger(__name__)
 
 
 def get_tracer(tracer: Optional[Tracer] = None) -> Tracer:
-    """
+    """Get a tracer instance for tracing operations.
+
+    This function follows a priority order:
     1. Use the provided Tracer if given
     2. Otherwise, pull from the global tracer provider
     3. Fall back to NoOpTracer if all else fails
+
     Args:
-        tracer_provider: Optional tracer provider to use. If None, will use global provider.
+        tracer (Optional[Tracer]): Optional tracer to use. If None, will use global provider.
+
     Returns:
-        A tracer instance
+        Tracer: A tracer instance.
     """
 
     try:
@@ -71,21 +75,27 @@ def trace(
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
 ) -> Callable[[Callable[FnParams, Any]], Callable[FnParams, Any]]:
-    """
-    Traces the decorated function.
+    """Trace the decorated function.
 
     If the decorated function has a `tracer` argument, it will be used to trace the function.
     Otherwise the global TracerProvider will be used.
 
     Args:
-        span_name: The name of the span to trace. If not provided, the function's __qualname__ will
-            be used.
-        tracer: The tracer to use to trace the function. If not provided, the global TracerProvider
-            will be used.
-        process_input: A mapping of attribute names to callables that will be called with the bound
-            arguments to process the input.
-        process_output: A mapping of attribute names to callables that will be called with the
-            return value to process the output.
+        span_name (Optional[str]): The name of the span to trace. If not provided, the function's
+            __qualname__ will be used.
+        span_kind (Optional[OpenInferenceSpanKindValues]): The kind of span to create.
+        tracer (Optional[Tracer]): The tracer to use to trace the function. If not provided, the
+            global TracerProvider will be used.
+        process_input (Optional[Mapping[str, Callable[[BoundArguments], Any]]]): A mapping of
+            attribute names to callables that will be called with the bound arguments to process the
+            input arguments.
+        process_output (Optional[Mapping[str, Callable[[ReturnValue], Any]]]): A mapping of
+            attribute names to callables that will be called with the return value to process the
+            output.
+
+    Returns:
+        Callable[[Callable[FnParams, Any]], Callable[FnParams, Any]]: A decorator function that
+            wraps the input function with tracing capabilities.
     """
 
     def _decorator(
@@ -257,6 +267,14 @@ def trace(
 
 
 def _otel_attribute_value(value: Any) -> AttributeValue:
+    """Convert a value to an OpenTelemetry-compatible attribute value.
+
+    Args:
+        value (Any): The value to convert.
+
+    Returns:
+        AttributeValue: An OpenTelemetry-compatible attribute value.
+    """
     if isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
