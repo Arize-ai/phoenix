@@ -2,6 +2,7 @@ import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
@@ -115,7 +116,14 @@ function PromptIndexPageAside({
           {data.description || "No Description"}
         </Text>
         <section>
-          <Heading level={3}>Labels</Heading>
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={3}>Labels</Heading>
+            <PromptLabelConfigButton />
+          </Flex>
           <PromptLabels prompt={data} />
         </section>
         <section>
