@@ -10,7 +10,6 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
@@ -88,7 +87,6 @@ class PromptLabelMutationMixin:
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
-        validated_name = IdentifierModel.model_validate(str(input.name)) if input.name else None
         async with info.context.db() as session:
             label_id = from_global_id_with_expected_type(
                 input.prompt_label_id, PromptLabel.__name__
@@ -98,8 +96,8 @@ class PromptLabelMutationMixin:
             if not label_orm:
                 raise NotFound(f"PromptLabel with ID {input.prompt_label_id} not found")
 
-            if validated_name is not None:
-                label_orm.name = validated_name.root
+            if input.name is not None:
+                label_orm.name = input.name
             if input.description is not None:
                 label_orm.description = input.description
 
