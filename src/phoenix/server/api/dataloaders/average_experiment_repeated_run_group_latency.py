@@ -33,9 +33,9 @@ class AverageExperimentRepeatedRunGroupLatencyDataLoader(DataLoader[Key, Result]
             .where(
                 tuple_(
                     models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id
-                ).in_(keys)
+                ).in_(set(keys))
             )
-            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
+            .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
         )
         async with self._db() as session:
             average_run_latencies_ms = {
