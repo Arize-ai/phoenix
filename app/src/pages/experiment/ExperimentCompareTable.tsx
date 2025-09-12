@@ -1092,12 +1092,42 @@ function ExperimentRunOutputCell({
   const run: ExperimentRun | null =
     runsByRepetitionNumber[selectedRepetitionNumber];
 
-  let traceButton = null;
   const traceId = run?.trace?.traceId;
   const projectId = run?.trace?.projectId;
-  if (traceId && projectId) {
-    traceButton = (
+  const runControls = (
+    <>
+      {experimentRepetitionCount > 1 ? (
+        <ExperimentRepetitionSelector
+          repetitionNumber={selectedRepetitionNumber}
+          totalRepetitions={experimentRepetitionCount}
+          setRepetitionNumber={setSelectedRepetitionNumber}
+        />
+      ) : null}
       <TooltipTrigger>
+        <IconButton
+          className="expand-button"
+          size="S"
+          aria-label="View example run details"
+          onPress={() => {
+            setDialog(
+              <SelectedExampleDialog
+                datasetId={datasetId}
+                datasetVersionId={datasetVersionId}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
+                selectedExampleId={tableRow.id}
+              />
+            );
+          }}
+        >
+          <Icon svg={<Icons.ExpandOutline />} />
+        </IconButton>
+        <Tooltip>
+          <TooltipArrow />
+          view experiment run
+        </Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger isDisabled={!traceId || !projectId}>
         <IconButton
           className="trace-button"
           size="S"
@@ -1105,8 +1135,8 @@ function ExperimentRunOutputCell({
           onPress={() => {
             setDialog(
               <TraceDetailsDialog
-                traceId={traceId}
-                projectId={projectId}
+                traceId={traceId || ""}
+                projectId={projectId || ""}
                 title={`Experiment Run Trace`}
               />
             );
@@ -1119,56 +1149,14 @@ function ExperimentRunOutputCell({
           view run trace
         </Tooltip>
       </TooltipTrigger>
-    );
-  }
-  const runDetailControls = (
-    <TooltipTrigger>
-      <IconButton
-        className="expand-button"
-        size="S"
-        aria-label="View example run details"
-        onPress={() => {
-          setDialog(
-            <SelectedExampleDialog
-              datasetId={datasetId}
-              datasetVersionId={datasetVersionId}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              selectedExampleId={tableRow.id}
-            />
-          );
-        }}
-      >
-        <Icon svg={<Icons.ExpandOutline />} />
-      </IconButton>
-      <Tooltip>
-        <TooltipArrow />
-        view experiment run
-      </Tooltip>
-    </TooltipTrigger>
+    </>
   );
 
   return (
     <Flex direction="column" height="100%">
-      <CellTop extra={runDetailControls}>
+      <CellTop extra={runControls}>
         <ExperimentRepeatedRunGroupMetadata fragmentRef={runComparisonItem} />
       </CellTop>
-      <Flex
-        alignItems="center"
-        justifyContent="space-between"
-        css={css`
-          padding: var(--ac-global-dimension-static-size-100)
-            var(--ac-global-dimension-static-size-100) 0
-            var(--ac-global-dimension-static-size-200);
-        `}
-      >
-        <ExperimentRepetitionSelector
-          repetitionNumber={selectedRepetitionNumber}
-          totalRepetitions={experimentRepetitionCount}
-          setRepetitionNumber={setSelectedRepetitionNumber}
-        />
-        {traceButton}
-      </Flex>
       {run ? (
         <ExperimentRunOutput
           {...run}
@@ -1195,8 +1183,20 @@ function ExperimentRepetitionSelector({
   totalRepetitions: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
 }) {
+  const widthInChars = useMemo(
+    () => totalRepetitions.toString().length * 2 + 2,
+    [totalRepetitions]
+  );
   return (
     <Flex direction="row" alignItems="center">
+      <IconButton
+        size="S"
+        isDisabled={repetitionNumber === 1}
+        onPress={() => setRepetitionNumber((prev) => prev - 1)}
+        aria-label="Previous repetition"
+      >
+        <Icon svg={<Icons.ChevronLeft />} />
+      </IconButton>
       <TooltipTrigger>
         <TriggerWrap>
           <Flex direction="row" alignItems="center">
@@ -1205,6 +1205,8 @@ function ExperimentRepetitionSelector({
               css={css`
                 margin-inline-start: var(--ac-global-dimension-size-100);
                 margin-inline-end: var(--ac-global-dimension-size-100);
+                width: ${widthInChars}ch;
+                text-align: center;
               `}
             >
               {`${repetitionNumber} / ${totalRepetitions}`}
@@ -1215,14 +1217,6 @@ function ExperimentRepetitionSelector({
           {`repetition ${repetitionNumber} of ${totalRepetitions}`}
         </Tooltip>
       </TooltipTrigger>
-      <IconButton
-        size="S"
-        isDisabled={repetitionNumber === 1}
-        onPress={() => setRepetitionNumber((prev) => prev - 1)}
-        aria-label="Previous repetition"
-      >
-        <Icon svg={<Icons.ChevronLeft />} />
-      </IconButton>
       <IconButton
         size="S"
         isDisabled={repetitionNumber === totalRepetitions}
