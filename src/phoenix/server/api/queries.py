@@ -895,7 +895,7 @@ class Query:
                         )
                     )
                 ).all()
-            if runs is None:
+            if not runs:
                 raise NotFound(f"Unknown experiment or dataset example: {id}")
             return ExperimentRepeatedRunGroup(
                 experiment_rowid=experiment_rowid,
