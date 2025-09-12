@@ -16,6 +16,7 @@ export type {
   DialogTriggerProps,
   DateValue,
   TimeValue,
+  Selection,
 } from "react-aria-components";
 export { classNames } from "@arizeai/components";
 

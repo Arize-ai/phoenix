@@ -19,9 +19,13 @@ import {
   Loading,
   Popover,
   PopoverArrow,
+  type Selection,
   View,
 } from "@phoenix/components";
-import { PromptLabelConfigButton_labels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_labels.graphql";
+import {
+  PromptLabelConfigButton_labels$data,
+  PromptLabelConfigButton_labels$key,
+} from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_labels.graphql";
 import { PromptLabelConfigButtonQuery } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonQuery.graphql";
 
 import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
@@ -78,7 +82,7 @@ function PromptLabelList({
   onNewLabelPress: () => void;
 }) {
   const [search, setSearch] = useState("");
-
+  const [selected, setSelected] = useState<Selection>(new Set([]));
   const [data] = useRefetchableFragment(
     graphql`
       fragment PromptLabelConfigButton_labels on Query
@@ -130,26 +134,34 @@ function PromptLabelList({
         aria-label="labels"
         items={labels}
         selectionMode="multiple"
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         css={css`
           height: 300px;
         `}
-        onSelectionChange={(selection) => {
-          if (selection === "all") {
-            return;
-          }
-          //const labelId = selection.keys().next().value;
-        }}
         renderEmptyState={() => "No labels found"}
       >
-        {(item) => (
-          <ListBoxItem key={item.id} id={item.id}>
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <ColorSwatch color={item.color} size="M" shape="circle" />
-              {item.name}
-            </Flex>
-          </ListBoxItem>
-        )}
+        {(item) => <PromptLabelListBoxItem key={item.id} item={item} />}
       </ListBox>
     </Autocomplete>
+  );
+}
+
+type PromptLabel =
+  PromptLabelConfigButton_labels$data["promptLabels"]["edges"][number]["node"];
+
+function PromptLabelListBoxItem({ item }: { item: PromptLabel }) {
+  return (
+    <ListBoxItem key={item.id} id={item.id}>
+      {({ isSelected }) => (
+        <Flex direction="row" justifyContent="space-between">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <ColorSwatch color={item.color} size="M" shape="circle" />
+            {item.name}
+          </Flex>
+          {isSelected ? <Icon svg={<Icons.CheckmarkOutline />} /> : null}
+        </Flex>
+      )}
+    </ListBoxItem>
   );
 }
