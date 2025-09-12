@@ -11,17 +11,17 @@ import {
 
 import { TokenCount } from "../trace/TokenCount";
 
-import { ExperimentRunTokenCountDetails } from "./ExperimentRunTokenCountDetails";
+import { ExperimentRepeatedRunGroupTokenCountDetails } from "./ExperimentRepeatedRunGroupTokenCountDetails";
 
-type ExperimentRunTokenCountProps = {
+type ExperimentRepeatedRunGroupTokenCountProps = {
   /**
-   * The total number of tokens in the experiment run
+   * The total number of tokens in the experiment repeated run group
    */
   tokenCountTotal: number | null;
   /**
-   * The id of the experiment run node
+   * The id of the experiment repeated run group node
    */
-  experimentRunId: string;
+  experimentRepeatedRunGroupId: string;
   /**
    * The size of the icon and text
    */
@@ -29,9 +29,11 @@ type ExperimentRunTokenCountProps = {
 };
 
 /**
- * Displays the number of tokens in an experiment run with detailed breakdown
+ * Displays the number of tokens in an experiment repeated run group with detailed breakdown
  */
-export function ExperimentRunTokenCount(props: ExperimentRunTokenCountProps) {
+export function ExperimentRepeatedRunGroupTokenCount(
+  props: ExperimentRepeatedRunGroupTokenCountProps
+) {
   return (
     <TooltipTrigger isDisabled={props.tokenCountTotal == null}>
       <Pressable>
@@ -42,8 +44,8 @@ export function ExperimentRunTokenCount(props: ExperimentRunTokenCountProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <ExperimentRunTokenCountDetails
-            experimentRunId={props.experimentRunId}
+          <ExperimentRepeatedRunGroupTokenCountDetails
+            experimentRepeatedRunGroupId={props.experimentRepeatedRunGroupId}
           />
         </Suspense>
       </RichTooltip>

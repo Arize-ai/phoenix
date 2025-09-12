@@ -172,7 +172,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                   metadata
                 }
               }
-              runComparisonItems {
+              repeatedRunGroups {
                 experimentId
                 runs {
                   id
@@ -212,7 +212,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                                 },
                             },
                         },
-                        "runComparisonItems": [
+                        "repeatedRunGroups": [
                             {
                                 "experimentId": str(GlobalID("Experiment", str(2))),
                                 "runs": [
@@ -254,7 +254,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                                 },
                             },
                         },
-                        "runComparisonItems": [
+                        "repeatedRunGroups": [
                             {
                                 "experimentId": str(GlobalID("Experiment", str(2))),
                                 "runs": [

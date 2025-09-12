@@ -1,6 +1,8 @@
+import { ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 import { css } from "@emotion/react";
 
+import { Flex } from "@phoenix/components";
 import {
   Annotation,
   AnnotationNameAndValue,
@@ -11,8 +13,13 @@ import {
  */
 export function ExperimentAnnotationButton({
   annotation,
+  extra,
 }: {
   annotation: Annotation;
+  /**
+   * Additional content like controls that will be placed on the right
+   */
+  extra?: ReactNode;
 }) {
   return (
     <Pressable>
@@ -30,10 +37,18 @@ export function ExperimentAnnotationButton({
           }
         `}
       >
-        <AnnotationNameAndValue
-          annotation={annotation}
-          displayPreference="score"
-        />
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <AnnotationNameAndValue
+            annotation={annotation}
+            displayPreference="score"
+          />
+          {extra}
+        </Flex>
       </button>
     </Pressable>
   );

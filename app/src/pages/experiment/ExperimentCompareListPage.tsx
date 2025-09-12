@@ -65,7 +65,7 @@ const tableWrapCSS = css`
 `;
 
 type ExperimentRun =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["repeatedRunGroups"][number]["runs"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -147,7 +147,7 @@ export function ExperimentCompareListPage() {
                   referenceOutput: output
                 }
               }
-              runComparisonItems {
+              repeatedRunGroups {
                 experimentId
                 runs {
                   output
@@ -205,12 +205,11 @@ export function ExperimentCompareListPage() {
       data?.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
         const example = comparison.example;
-        const runItems = comparison.runComparisonItems;
+        const repeatedRunGroups = comparison.repeatedRunGroups;
 
-        const baseExperimentRun: ExperimentRun = runItems[0].runs[0];
-        const compareExperimentRuns: (ExperimentRun | undefined)[] = runItems
-          .slice(1)
-          .map((item) => item.runs[0]);
+        const baseExperimentRun: ExperimentRun = repeatedRunGroups[0].runs[0];
+        const compareExperimentRuns: (ExperimentRun | undefined)[] =
+          repeatedRunGroups.slice(1).map((group) => group.runs[0]);
         const tableData = {
           id: example.id,
           example: example.id,
