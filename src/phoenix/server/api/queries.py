@@ -887,8 +887,9 @@ class Query:
                 runs = (
                     await session.scalars(
                         select(models.ExperimentRun)
-                        .where(models.ExperimentRun.id == experiment_rowid)
+                        .where(models.ExperimentRun.experiment_id == experiment_rowid)
                         .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
+                        .order_by(models.ExperimentRun.repetition_number.asc())
                         .options(
                             joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
                         )
