@@ -1,5 +1,10 @@
 import { Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRefetchableFragment,
+} from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -27,10 +32,16 @@ import {
   PromptLabelConfigButton_labels$key,
 } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_labels.graphql";
 import { PromptLabelConfigButtonQuery } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonQuery.graphql";
+import { PromptLabelConfigButtonSetLabelMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonSetLabelMutation.graphql";
 
 import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
 
-export function PromptLabelConfigButton() {
+type PromptLabelConfigButtonProps = {
+  promptId: string;
+};
+
+export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
+  const { promptId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
   return (
     <>
@@ -48,6 +59,7 @@ export function PromptLabelConfigButton() {
           <Dialog>
             <Suspense fallback={<Loading />}>
               <PromptLabelSelectionDialogContent
+                promptId={promptId}
                 onNewLabelPress={() => {
                   setShowNewLabelDialog(true);
                 }}
@@ -62,27 +74,49 @@ export function PromptLabelConfigButton() {
 }
 
 function PromptLabelSelectionDialogContent(props: {
+  promptId: string;
   onNewLabelPress: () => void;
 }) {
+  const { promptId } = props;
   const query = useLazyLoadQuery<PromptLabelConfigButtonQuery>(
     graphql`
-      query PromptLabelConfigButtonQuery {
+      query PromptLabelConfigButtonQuery($promptId: ID!) {
+        prompt: node(id: $promptId) {
+          ... on Prompt {
+            labels {
+              id
+            }
+          }
+        }
         ...PromptLabelConfigButton_labels
       }
     `,
-    {}
+    { promptId }
   );
-  return <PromptLabelList query={query} {...props} />;
+  const selectedPromptIds = query.prompt.labels?.map((label) => label.id) || [];
+  return (
+    <PromptLabelList
+      query={query}
+      {...props}
+      selectedLabelIds={selectedPromptIds}
+    />
+  );
 }
 function PromptLabelList({
+  promptId,
+  selectedLabelIds,
   query,
   onNewLabelPress,
 }: {
+  promptId: string;
   query: PromptLabelConfigButton_labels$key;
   onNewLabelPress: () => void;
+  selectedLabelIds: string[];
 }) {
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Selection>(new Set([]));
+  const [selected, setSelected] = useState<Selection>(
+    () => new Set(selectedLabelIds)
+  );
   const [data] = useRefetchableFragment(
     graphql`
       fragment PromptLabelConfigButton_labels on Query
@@ -100,11 +134,53 @@ function PromptLabelList({
     `,
     query
   );
+
+  const [setPromptLabel] = useMutation<PromptLabelConfigButtonSetLabelMutation>(
+    graphql`
+      mutation PromptLabelConfigButtonSetLabelMutation(
+        $newPromptLabelDef: SetPromptLabelInput!
+        $promptId: ID!
+      ) {
+        setPromptLabel(input: $newPromptLabelDef) {
+          query {
+            ...PromptLabelConfigButton_labels
+            prompt: node(id: $promptId) {
+              ... on Prompt {
+                ...PromptLabels
+              }
+            }
+          }
+        }
+      }
+    `
+  );
   const labels = data.promptLabels.edges
     .map((edge) => edge.node)
     .filter((label) => {
       return label.name.toLowerCase().includes(search);
     });
+
+  const onSelectionChange = (selection: Selection) => {
+    if (selection === "all") {
+      return;
+    }
+    const newLabelIds = [...selection].filter((id) => {
+      return !selectedLabelIds.includes(id as string);
+    });
+
+    if (newLabelIds.length) {
+      setPromptLabel({
+        variables: {
+          newPromptLabelDef: {
+            promptId,
+            promptLabelId: newLabelIds[0] as string,
+          },
+          promptId,
+        },
+      });
+    }
+    setSelected(selection);
+  };
   return (
     <Autocomplete>
       <View
@@ -135,7 +211,7 @@ function PromptLabelList({
         items={labels}
         selectionMode="multiple"
         selectedKeys={selected}
-        onSelectionChange={setSelected}
+        onSelectionChange={onSelectionChange}
         css={css`
           height: 300px;
         `}

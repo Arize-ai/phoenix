@@ -86,6 +86,7 @@ function PromptIndexPageAside({
   const data = useFragment(
     graphql`
       fragment PromptIndexPage__aside on Prompt {
+        id
         description
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
@@ -122,7 +123,7 @@ function PromptIndexPageAside({
             alignItems="center"
           >
             <Heading level={3}>Labels</Heading>
-            <PromptLabelConfigButton />
+            <PromptLabelConfigButton promptId={data.id} />
           </Flex>
           <PromptLabels prompt={data} />
         </section>
