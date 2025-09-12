@@ -44,6 +44,10 @@ import {
   PopoverArrow,
   Separator,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -63,12 +67,6 @@ import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/E
 import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
@@ -1094,6 +1092,7 @@ function ExperimentRunOutputCell({
 
   const traceId = run?.trace?.traceId;
   const projectId = run?.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
   const runControls = (
     <>
       {experimentRepetitionCount > 1 ? (
@@ -1127,7 +1126,7 @@ function ExperimentRunOutputCell({
           view experiment run
         </Tooltip>
       </TooltipTrigger>
-      <TooltipTrigger isDisabled={!traceId || !projectId}>
+      <TooltipTrigger isDisabled={!hasTrace}>
         <IconButton
           className="trace-button"
           size="S"
@@ -1141,6 +1140,7 @@ function ExperimentRunOutputCell({
               />
             );
           }}
+          isDisabled={!hasTrace}
         >
           <Icon svg={<Icons.Trace />} />
         </IconButton>
