@@ -51,8 +51,7 @@ def is_evaluation_result(obj: Any) -> TypeGuard[EvaluationResult]:
     if is_experiment_evaluation(obj):
         return True
     if isinstance(obj, Sequence):
-        seq = cast(Sequence[Any], obj)
-        for item in seq:
+        for item in obj:  # pyright: ignore[reportUnknownVariableType]
             if not is_experiment_evaluation(item):
                 return False
         return True

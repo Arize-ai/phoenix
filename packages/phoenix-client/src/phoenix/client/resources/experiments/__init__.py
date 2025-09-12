@@ -1389,7 +1389,7 @@ class Experiments:
         if result is None:
             results_to_submit = [None]
         elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
-            results_to_submit = list(result)  # type: ignore[reportUnknownArgumentType]
+            results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
         else:
             results_to_submit = [result]
 
@@ -1431,7 +1431,7 @@ class Experiments:
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # type: ignore[reportUnknownArgumentType]
+                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # pyright: ignore[reportUnknownArgumentType]
                 except HTTPStatusError as e:
                     logger.warning(
                         f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
@@ -2423,7 +2423,7 @@ class AsyncExperiments:
         if result is None:
             results_to_submit = [None]
         elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
-            results_to_submit = list(result)  # type: ignore[reportUnknownArgumentType]
+            results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
         else:
             results_to_submit = [result]
 
@@ -2465,7 +2465,7 @@ class AsyncExperiments:
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # type: ignore[reportUnknownArgumentType]
+                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # pyright: ignore[reportUnknownArgumentType]
                 except HTTPStatusError as e:
                     logger.warning(
                         f"Failed to submit evaluation result for evaluator '{evaluator.name}': "

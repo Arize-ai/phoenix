@@ -1,7 +1,7 @@
 import functools
 import inspect
 from collections.abc import Callable
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 from phoenix.client.resources.experiments.types import (
     AnnotatorKind,
@@ -115,14 +115,14 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
         label = str(label_val) if label_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
         explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # pyright: ignore[reportUnknownArgumentType, reportUnknownArgumentType]
 
-        result_dict: EvaluationResult = {}
+        result_dict: dict[str, Any] = {}
         if score is not None:
             result_dict["score"] = score
         if label is not None:
             result_dict["label"] = label
         if explanation is not None:
             result_dict["explanation"] = explanation
-        return result_dict
+        return cast(EvaluationResult, result_dict)
     else:
         raise ValueError(f"Unsupported evaluation result type: {type(result)}")  # pyright: ignore[reportUnknownArgumentType]
 
