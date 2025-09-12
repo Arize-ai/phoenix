@@ -12,7 +12,7 @@ Prompt Learning is an algorithm developed by Arize to optimize prompts based on 
 
 See our [detailed blog on Prompt Learning](https://arize.com/blog/prompt-learning-using-english-feedback-to-optimize-llm-systems/), and/or a quick summary of the algorithm below.&#x20;
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/What is Prompt Learning_ (1).png" alt=""><figcaption></figcaption></figure>
 
 The pipeline, which uses Phoenix extensively, works as follows:
 
