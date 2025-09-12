@@ -1,5 +1,5 @@
 import re
-from base64 import b64decode, b64encode
+from base64 import b64decode
 from typing import Optional
 
 import strawberry
@@ -41,7 +41,9 @@ class ExperimentRepeatedRunGroup(Node):
 
     @strawberry.field
     def experiment_id(self) -> strawberry.ID:
-        return strawberry.ID(str(GlobalID("Experiment", str(self.experiment_rowid))))
+        from phoenix.server.api.types.Experiment import Experiment
+
+        return strawberry.ID(str(GlobalID(Experiment.__name__, str(self.experiment_rowid))))
 
     @strawberry.field
     async def average_latency_ms(self, info: Info[Context, None]) -> Optional[float]:
@@ -138,10 +140,6 @@ def parse_experiment_repeated_run_group_node_id(
     experiment_id = int(match.group(1))
     dataset_example_id = int(match.group(2))
     return experiment_id, dataset_example_id
-
-
-def _base64_encode(string: str) -> str:
-    return b64encode(string.encode()).decode()
 
 
 def _base64_decode(string: str) -> str:
