@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from sqlalchemy import select, tuple_
+from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -19,7 +20,7 @@ class ExperimentRepeatedRunGroup:
     runs: list[models.ExperimentRun]
 
 
-Result: TypeAlias = list[ExperimentRepeatedRunGroup]
+Result: TypeAlias = ExperimentRepeatedRunGroup
 
 
 class ExperimentRepeatedRunGroupsDataLoader(DataLoader[Key, Result]):
@@ -28,24 +29,22 @@ class ExperimentRepeatedRunGroupsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        repeated_run_groups_query = select(models.ExperimentRun).where(
-            tuple_(
-                models.ExperimentRun.experiment_id,
-                models.ExperimentRun.dataset_example_id,
+        repeated_run_groups_query = (
+            select(models.ExperimentRun)
+            .where(
+                tuple_(
+                    models.ExperimentRun.experiment_id,
+                    models.ExperimentRun.dataset_example_id,
+                ).in_(set(keys))
             )
-            .in_(set(keys))
-            .order_by(
-                models.ExperimentRun.experiment_id,
-                models.ExperimentRun.dataset_example_id,
-                models.ExperimentRun.repetition_number,
-            )
+            .order_by(models.ExperimentRun.repetition_number)
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
         )
+
         async with self._db() as session:
             runs_by_key: dict[Key, list[models.ExperimentRun]] = {}
-            for experiment_id, dataset_example_id, run in await session.stream(
-                repeated_run_groups_query
-            ):
-                key = (experiment_id, dataset_example_id)
+            for run in (await session.scalars(repeated_run_groups_query)).all():
+                key = (run.experiment_id, run.dataset_example_id)
                 if key not in runs_by_key:
                     runs_by_key[key] = []
                 runs_by_key[key].append(run)
@@ -54,7 +53,7 @@ class ExperimentRepeatedRunGroupsDataLoader(DataLoader[Key, Result]):
             ExperimentRepeatedRunGroup(
                 experiment_rowid=experiment_id,
                 dataset_example_rowid=dataset_example_id,
-                runs=runs_by_key[(experiment_id, dataset_example_id)],
+                runs=runs_by_key.get((experiment_id, dataset_example_id), []),
             )
             for (experiment_id, dataset_example_id) in keys
         ]

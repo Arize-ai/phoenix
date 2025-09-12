@@ -10,9 +10,12 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.ExperimentRepeatedRunGroup import ExperimentRepeatedRunGroup
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
+    ExperimentRepeatedRunGroup,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -104,15 +107,27 @@ class DatasetExample(Node):
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
     ) -> list[ExperimentRepeatedRunGroup]:
-        example_id = self.id_attr
-        repeated_run_groups = await info.context.data_loaders.experiment_repeated_run_groups.load(
-            (experiment_id, example_id) for experiment_id in experiment_ids
+        example_rowid = self.id_attr
+        experiment_rowids = []
+        for experiment_id in experiment_ids:
+            try:
+                experiment_rowid = from_global_id_with_expected_type(
+                    global_id=experiment_id,
+                    expected_type_name=models.Experiment.__name__,
+                )
+            except Exception:
+                raise BadRequest(f"Invalid experiment ID: {experiment_id}")
+            experiment_rowids.append(experiment_rowid)
+        repeated_run_groups = (
+            await info.context.data_loaders.experiment_repeated_run_groups.load_many(
+                [(experiment_rowid, example_rowid) for experiment_rowid in experiment_rowids]
+            )
         )
         return [
             ExperimentRepeatedRunGroup(
-                experiment_rowid=repeated_run_group.experiment_rowid,
-                dataset_example_rowid=repeated_run_group.dataset_example_rowid,
-                runs=[to_gql_experiment_run(run) for run in repeated_run_group.runs],
+                experiment_rowid=group.experiment_rowid,
+                dataset_example_rowid=group.dataset_example_rowid,
+                runs=[to_gql_experiment_run(run) for run in group.runs],
             )
-            for repeated_run_group in repeated_run_groups
+            for group in repeated_run_groups
         ]
