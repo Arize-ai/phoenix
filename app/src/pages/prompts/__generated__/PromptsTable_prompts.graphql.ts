@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1bc698fbef191f315cf81805e923c6ad>>
+ * @generated SignedSource<<b0c0fa91c4efd80df380c2d1379ae39d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,9 +14,13 @@ export type PromptsTable_prompts$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
-        readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
+        readonly labels: ReadonlyArray<{
+          readonly color: string;
+          readonly id: string;
+          readonly name: string;
+        }>;
         readonly name: string;
         readonly version: {
           readonly createdAt: string;
@@ -41,7 +45,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -117,20 +128,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -138,7 +137,6 @@ return {
                   "name": "description",
                   "storageKey": null
                 },
-                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -147,7 +145,33 @@ return {
                   "name": "version",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/)
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "createdAt",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptLabel",
+                  "kind": "LinkedField",
+                  "name": "labels",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "color",
+                      "storageKey": null
+                    }
                   ],
                   "storageKey": null
                 }
@@ -216,6 +240,6 @@ return {
 };
 })();
 
-(node as any).hash = "3cedad98de2e041440caa5c8c03b17fa";
+(node as any).hash = "85ad9ca649e4c99d9a97ce8f218a0da3";
 
 export default node;
