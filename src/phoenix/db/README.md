@@ -440,3 +440,270 @@ erDiagram
         float cost_per_token
     }
 ```
+
+---
+
+## Focused Relationship Views
+
+> **Note**: The following subsection diagrams show simplified table structures focusing only on foreign keys to highlight relationships. These tables contain additional columns (including primary keys and other fields) not shown here - refer to the comprehensive ERD above for complete table definitions.
+
+### Core Tracing & Projects
+
+This subgroup represents the core functionality of Phoenix - projects organize traces into sessions, traces contain spans, and retention policies manage data lifecycle:
+
+```mermaid
+erDiagram
+    ProjectTraceRetentionPolicy ||--o{ Project : applied_to
+    ProjectTraceRetentionPolicy {
+    }
+
+    Project ||--o{ ProjectSession : has
+    Project ||--o{ Trace : has
+    Project {
+        int trace_retention_policy_id FK
+    }
+
+    ProjectSession ||--o{ Trace : has
+    ProjectSession {
+        int project_id FK
+    }
+
+    Trace ||--o{ Span : contains
+    Trace {
+        int project_rowid FK
+        int project_session_rowid FK
+    }
+
+    Span {
+        int trace_rowid FK
+        string parent_id
+    }
+```
+
+### Datasets & Experiments
+
+This subgroup shows how datasets are created from spans and used in experiments for evaluation workflows:
+
+```mermaid
+erDiagram
+    Trace ||--o{ Span : contains
+    Trace {
+    }
+
+    Span ||--o{ DatasetExample : becomes
+    Span {
+        int trace_rowid FK
+    }
+
+    Dataset ||--o{ DatasetVersion : has
+    Dataset ||--o{ DatasetExample : contains
+    Dataset ||--o{ Experiment : used_in
+    Dataset {
+    }
+
+    DatasetVersion ||--o{ DatasetExampleRevision : has
+    DatasetVersion ||--o{ Experiment : used_in
+    DatasetVersion {
+        int dataset_id FK
+    }
+
+    DatasetExample ||--o{ DatasetExampleRevision : has
+    DatasetExample ||--o{ ExperimentRun : used_in
+    DatasetExample {
+        int dataset_id FK
+        int span_rowid FK
+    }
+
+    DatasetExampleRevision {
+        int dataset_example_id FK
+        int dataset_version_id FK
+    }
+
+    Experiment ||--o{ ExperimentRun : has
+    Experiment {
+        int dataset_id FK
+        int dataset_version_id FK
+    }
+
+    ExperimentRun ||--o{ ExperimentRunAnnotation : has
+    Trace ||--o{ ExperimentRun : has
+    ExperimentRun {
+        int experiment_id FK
+        int dataset_example_id FK
+        string trace_id
+    }
+
+    ExperimentRunAnnotation {
+        int experiment_run_id FK
+    }
+```
+
+### User Management & Authentication
+
+This subgroup shows how users are managed with roles and different authentication methods:
+
+```mermaid
+erDiagram
+    UserRole ||--o{ User : has
+    UserRole {
+    }
+
+    User ||--o{ ApiKey : has
+    User ||--o{ AccessToken : has
+    User ||--o{ RefreshToken : has
+    User ||--o{ PasswordResetToken : has
+    User {
+        int user_role_id FK
+    }
+
+    ApiKey {
+        int user_id FK
+    }
+
+    RefreshToken ||--o| AccessToken : creates
+    RefreshToken {
+        int user_id FK
+    }
+
+    AccessToken {
+        int user_id FK
+        int refresh_token_id FK
+    }
+
+    PasswordResetToken {
+        int user_id FK
+    }
+```
+
+### Annotations
+
+This subgroup shows how annotations are attached to spans, documents, and traces, including their configuration:
+
+```mermaid
+erDiagram
+    Project ||--o{ ProjectAnnotationConfig : has
+    Project ||--o{ Trace : has
+    Project {
+    }
+
+    Trace ||--o{ Span : contains
+    Trace ||--o{ TraceAnnotation : has
+    Trace {
+        int project_rowid FK
+    }
+
+    Span ||--o{ SpanAnnotation : has
+    Span ||--o{ DocumentAnnotation : has
+    Span {
+        int trace_rowid FK
+    }
+
+    User ||--o{ SpanAnnotation : creates
+    User ||--o{ DocumentAnnotation : creates
+    User ||--o{ TraceAnnotation : creates
+    User {
+    }
+
+    AnnotationConfig ||--o{ ProjectAnnotationConfig : configures
+    AnnotationConfig {
+    }
+
+    ProjectAnnotationConfig {
+        int project_id FK
+        int annotation_config_id FK
+    }
+
+    SpanAnnotation {
+        int span_rowid FK
+        int user_id FK
+    }
+
+    DocumentAnnotation {
+        int span_rowid FK
+        int user_id FK
+    }
+
+    TraceAnnotation {
+        int trace_rowid FK
+        int user_id FK
+    }
+```
+
+### Prompts
+
+This subgroup shows how users create and manage prompt templates, versions, labels, and tags:
+
+```mermaid
+erDiagram
+    User ||--o{ PromptVersion : creates
+    User ||--o{ PromptVersionTag : creates
+    User {
+    }
+
+    Prompt ||--o{ PromptVersion : has
+    Prompt ||--o{ PromptPromptLabel : has
+    Prompt ||--o{ PromptVersionTag : has
+    Prompt ||--o{ Prompt : derived_from
+    Prompt {
+        int source_prompt_id FK
+    }
+
+    PromptVersion ||--o{ PromptVersionTag : has
+    PromptVersion {
+        int prompt_id FK
+        int user_id FK
+    }
+
+    PromptLabel ||--o{ PromptPromptLabel : has
+    PromptLabel {
+    }
+
+    PromptPromptLabel {
+        int prompt_label_id FK
+        int prompt_id FK
+    }
+
+    PromptVersionTag {
+        int prompt_id FK
+        int prompt_version_id FK
+        int user_id FK
+    }
+```
+
+### Cost & Pricing
+
+This subgroup shows how LLM costs are calculated and tracked for spans and traces:
+
+```mermaid
+erDiagram
+    Trace ||--o{ Span : contains
+    Trace ||--o{ SpanCost : tracks
+    Trace {
+    }
+
+    Span ||--o{ SpanCost : generates
+    Span {
+        int trace_rowid FK
+    }
+
+    GenerativeModel ||--o{ TokenPrice : defines
+    GenerativeModel ||--o{ SpanCost : calculates
+    GenerativeModel {
+    }
+
+    TokenPrice {
+        int model_id FK
+    }
+
+    SpanCost ||--o{ SpanCostDetail : has
+    SpanCost {
+        int span_rowid FK
+        int trace_rowid FK
+        int model_id FK
+    }
+
+    SpanCostDetail {
+        int span_cost_id FK
+    }
+```
+
