@@ -12,6 +12,9 @@ from .average_experiment_repeated_run_group_latency import (
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
+from .dataset_examples_and_versions_by_experiment_run import (
+    DatasetExamplesAndVersionsByExperimentRunDataLoader,
+)
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -79,6 +82,7 @@ __all__ = [
     "CacheForDataLoaders",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
+    "DatasetExamplesAndVersionsByExperimentRunDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
