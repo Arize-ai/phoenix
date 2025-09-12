@@ -580,6 +580,7 @@ type DatasetExample implements Node {
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
+  experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
 }
 
 """A connection to a list of items."""

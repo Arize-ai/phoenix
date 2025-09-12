@@ -29,6 +29,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
+    ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
@@ -107,6 +108,7 @@ class DataLoaders:
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
+    experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
     experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader

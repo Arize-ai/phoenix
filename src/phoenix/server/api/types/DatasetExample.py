@@ -12,6 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import ExperimentRepeatedRunGroup
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -96,3 +97,22 @@ class DatasetExample(Node):
         async with info.context.db() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+    @strawberry.field
+    async def experiment_repeated_run_groups(
+        self,
+        info: Info[Context, None],
+        experiment_ids: list[GlobalID],
+    ) -> list[ExperimentRepeatedRunGroup]:
+        example_id = self.id_attr
+        repeated_run_groups = await info.context.data_loaders.experiment_repeated_run_groups.load(
+            (experiment_id, example_id) for experiment_id in experiment_ids
+        )
+        return [
+            ExperimentRepeatedRunGroup(
+                experiment_rowid=repeated_run_group.experiment_rowid,
+                dataset_example_rowid=repeated_run_group.dataset_example_rowid,
+                runs=[to_gql_experiment_run(run) for run in repeated_run_group.runs],
+            )
+            for repeated_run_group in repeated_run_groups
+        ]
