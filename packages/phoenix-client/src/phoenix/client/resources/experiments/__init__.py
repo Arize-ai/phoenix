@@ -33,17 +33,17 @@ from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.client.resources.experiments.evaluators import create_evaluator
-from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
-from phoenix.client.utils.rate_limiters import RateLimiter
-
-from .types import (
+from phoenix.client.resources.experiments.evaluators import (
+    create_evaluator,
+)
+from phoenix.client.resources.experiments.types import (
     DRY_RUN,
     EvaluationResult,
     Evaluator,
     EvaluatorName,
     Experiment,
     ExperimentEvaluationRun,
+    ExperimentEvaluator,
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
@@ -51,6 +51,8 @@ from .types import (
     RateLimitErrors,
     TestCase,
 )
+from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
+from phoenix.client.utils.rate_limiters import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -235,18 +237,19 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
     if obj is None:
         return evaluators_by_name
 
-    if isinstance(obj, Mapping):
-        for name, value in obj.items():
-            evaluator = (
-                create_evaluator(name=name)(value) if not isinstance(value, Evaluator) else value
-            )
+    elif isinstance(obj, Mapping):
+        mapping_obj = cast(Mapping[EvaluatorName, ExperimentEvaluator], obj)  # pyright: ignore[reportUnnecessaryCast]
+        for name, value in mapping_obj.items():
+            evaluator = create_evaluator(name=name)(value)
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
-        for value in obj:
-            evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
+        seq_obj = cast(Sequence[ExperimentEvaluator], obj)  # pyright: ignore[reportUnnecessaryCast]
+        for value in seq_obj:
+            evaluator = create_evaluator()(value)
             evaluators_by_name[evaluator.name] = evaluator
     else:
-        evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
+        single_obj = cast(ExperimentEvaluator, obj)  # pyright: ignore[reportUnnecessaryCast]
+        evaluator = create_evaluator()(single_obj)
         evaluators_by_name[evaluator.name] = evaluator
 
     return evaluators_by_name
@@ -761,9 +764,28 @@ class Experiments:
         ran_experiment["evaluation_runs"] += evaluation_runs_list
 
         if print_summary:
+            task_runs_count = len(ran_experiment["task_runs"])
+            evaluators_count = 0
+            if evaluators is not None:
+                try:
+                    evaluators_count = len(_evaluators_by_name(evaluators))
+                except Exception:
+                    evaluators_count = 0
+            evaluations_count = 0
+            for _er in ran_experiment["evaluation_runs"]:
+                _res = _er.result
+                if _res is None:
+                    continue
+                if isinstance(_res, Sequence) and not isinstance(_res, (str, bytes, dict)):
+                    evaluations_count += len(_res)  # pyright: ignore[reportUnknownArgumentType]
+                else:
+                    evaluations_count += 1
+
             print(
-                f"Experiment completed with {len(ran_experiment['task_runs'])} task runs and "
-                f"{len(ran_experiment['evaluation_runs'])} evaluation runs"
+                "Experiment completed: "
+                f"{task_runs_count} task runs, "
+                f"{evaluators_count} evaluator runs, "
+                f"{evaluations_count} evaluations"
             )
 
         return ran_experiment
@@ -1075,9 +1097,20 @@ class Experiments:
         }
 
         if print_summary:
+            evaluators_count = len(evaluators_by_name)
+            evaluations_count = 0
+            for _er in ran_experiment["evaluation_runs"]:
+                _res = _er.result
+                if _res is None:
+                    continue
+                if isinstance(_res, Sequence) and not isinstance(_res, (str, bytes, dict)):
+                    evaluations_count += len(_res)  # pyright: ignore[reportUnknownArgumentType]
+                else:
+                    evaluations_count += 1
             print(
-                f"Evaluation completed with {len(ran_experiment['evaluation_runs'])} "
-                "evaluation runs"
+                "Evaluation completed: "
+                f"{evaluators_count} evaluator runs, "
+                f"{evaluations_count} evaluations"
             )
 
         return ran_experiment
@@ -1253,7 +1286,7 @@ class Experiments:
 
         def sync_evaluate_run(
             obj: tuple[v1.DatasetExample, ExperimentRun, Evaluator],
-        ) -> Optional[ExperimentEvaluationRun]:
+        ) -> list[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return self._run_single_evaluation_sync(
                 example, run, evaluator, tracer, resource, dry_run, timeout
@@ -1273,7 +1306,12 @@ class Experiments:
         )
 
         eval_runs, _execution_details = executor.run(evaluation_input)
-        return [r for r in eval_runs if r is not None]
+        flattened: list[ExperimentEvaluationRun] = []
+        for res in eval_runs:
+            if res is None:
+                continue
+            flattened.extend(cast(list[ExperimentEvaluationRun], res))
+        return flattened
 
     def _run_single_evaluation_sync(
         self,
@@ -1284,7 +1322,7 @@ class Experiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-    ) -> Optional[ExperimentEvaluationRun]:
+    ) -> list[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
@@ -1320,15 +1358,28 @@ class Experiments:
                     kind="evaluator",
                 )
 
-            if result:
-                # Filter out None values for OpenTelemetry attributes
-                attributes: dict[str, Any] = {}
-                if (score := result.get("score")) is not None:
-                    attributes["evaluation.score"] = score
-                if (label := result.get("label")) is not None:
-                    attributes["evaluation.label"] = label
-                if attributes:
-                    span.set_attributes(attributes)
+            try:
+                eval_input_obj: dict[str, Any] = {
+                    "input": jsonify(example.get("input")),
+                    "output": jsonify(experiment_run.get("output")),
+                    "expected": jsonify(example.get("output")),
+                    "example": jsonify(example),
+                }
+                span.set_attribute(INPUT_VALUE, json.dumps(eval_input_obj, ensure_ascii=False))
+                span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
+
+            try:
+                if result is not None:
+                    span.set_attribute(
+                        OUTPUT_VALUE,
+                        json.dumps(jsonify(result), ensure_ascii=False),
+                    )
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
+
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
@@ -1341,34 +1392,63 @@ class Experiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
-        eval_run = ExperimentEvaluationRun(
-            experiment_run_id=experiment_run["id"],
-            start_time=start_time,
-            end_time=end_time,
-            name=evaluator.name,
-            annotator_kind=evaluator.kind,
-            error=repr(error) if error else None,
-            result=result,
-            trace_id=trace_id,
-        )
+        results_to_submit: list[Optional[EvaluationResult]]
+        if result is None:
+            results_to_submit = [None]
+        elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
+            results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
+        else:
+            results_to_submit = [result]
 
-        if not dry_run:
-            try:
-                resp = self._client.post(
-                    "v1/experiment_evaluations",
-                    json=jsonify(eval_run.__dict__),
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-                eval_run = replace(eval_run, id=resp.json()["data"]["id"])
-            except HTTPStatusError as e:
-                logger.warning(
-                    f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
-                    f"HTTP {e.response.status_code} - {e.response.text}"
-                )
-                # Continue even if evaluation storage fails
+        eval_runs: list[ExperimentEvaluationRun] = []
 
-        return eval_run
+        for idx, res in enumerate(results_to_submit):
+            if isinstance(res, dict):
+                name_from_res = res.get("name")
+                eval_name = (
+                    name_from_res
+                    if isinstance(name_from_res, str)
+                    else (
+                        evaluator.name
+                        if len(results_to_submit) == 1
+                        else f"{evaluator.name}-{idx + 1}"
+                    )
+                )
+            else:
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
+
+            eval_run = ExperimentEvaluationRun(
+                experiment_run_id=experiment_run["id"],
+                start_time=start_time,
+                end_time=end_time,
+                name=eval_name,
+                annotator_kind=evaluator.kind,
+                error=repr(error) if error else None,
+                result=res,  # pyright: ignore[reportUnknownArgumentType]
+                trace_id=trace_id,
+            )
+
+            if not dry_run:
+                try:
+                    resp = self._client.post(
+                        "v1/experiment_evaluations",
+                        json=jsonify(eval_run.__dict__),
+                        timeout=timeout,
+                    )
+                    resp.raise_for_status()
+                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # pyright: ignore[reportUnknownArgumentType]
+                except HTTPStatusError as e:
+                    logger.warning(
+                        f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
+                        f"HTTP {e.response.status_code} - {e.response.text}"
+                    )
+                    # Continue even if evaluation storage fails
+
+            eval_runs.append(eval_run)
+
+        return eval_runs
 
 
 class AsyncExperiments:
@@ -1720,9 +1800,27 @@ class AsyncExperiments:
             ran_experiment["evaluation_runs"] = evaluation_runs_list
 
         if print_summary:
+            task_runs_count = len(ran_experiment["task_runs"])
+            evaluators_count = 0
+            if evaluators is not None:
+                try:
+                    evaluators_count = len(_evaluators_by_name(evaluators))
+                except Exception:
+                    evaluators_count = 0
+            evaluations_count = 0
+            for _er in ran_experiment["evaluation_runs"]:
+                _res = _er.result
+                if _res is None:
+                    continue
+                if isinstance(_res, Sequence) and not isinstance(_res, (str, bytes, dict)):
+                    evaluations_count += len(_res)  # pyright: ignore[reportUnknownArgumentType]
+                else:
+                    evaluations_count += 1
             print(
-                f"Experiment completed with {len(ran_experiment['task_runs'])} task runs and "
-                f"{len(ran_experiment['evaluation_runs'])} evaluation runs"
+                "Experiment completed: "
+                f"{task_runs_count} task runs, "
+                f"{evaluators_count} evaluator runs, "
+                f"{evaluations_count} evaluations"
             )
 
         return ran_experiment
@@ -2036,9 +2134,20 @@ class AsyncExperiments:
         }
 
         if print_summary:
+            evaluators_count = len(evaluators_by_name)
+            evaluations_count = 0
+            for _er in ran_experiment["evaluation_runs"]:
+                _res = _er.result
+                if _res is None:
+                    continue
+                if isinstance(_res, Sequence) and not isinstance(_res, (str, bytes, dict)):
+                    evaluations_count += len(_res)  # pyright: ignore[reportUnknownArgumentType]
+                else:
+                    evaluations_count += 1
             print(
-                f"Evaluation completed with {len(ran_experiment['evaluation_runs'])} "
-                "evaluation runs"
+                "Evaluation completed: "
+                f"{evaluators_count} evaluators, "
+                f"{evaluations_count} evaluations"
             )
 
         return ran_experiment
@@ -2211,7 +2320,7 @@ class AsyncExperiments:
 
         async def async_evaluate_run(
             obj: tuple[v1.DatasetExample, ExperimentRun, Evaluator],
-        ) -> Optional[ExperimentEvaluationRun]:
+        ) -> list[ExperimentEvaluationRun]:
             example, run, evaluator = obj
             return await self._run_single_evaluation_async(
                 example, run, evaluator, tracer, resource, dry_run, timeout
@@ -2232,7 +2341,12 @@ class AsyncExperiments:
         )
 
         eval_runs, _execution_details = await executor.execute(evaluation_input)
-        return [r for r in eval_runs if r is not None]
+        flattened: list[ExperimentEvaluationRun] = []
+        for res in eval_runs:
+            if res is None:
+                continue
+            flattened.extend(cast(list[ExperimentEvaluationRun], res))
+        return flattened
 
     async def _run_single_evaluation_async(
         self,
@@ -2243,7 +2357,7 @@ class AsyncExperiments:
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
-    ) -> Optional[ExperimentEvaluationRun]:
+    ) -> list[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         root_span_name = f"Evaluation: {evaluator.name}"
@@ -2279,15 +2393,28 @@ class AsyncExperiments:
                     kind="evaluator",
                 )
 
-            if result:
-                # Filter out None values for OpenTelemetry attributes
-                attributes: dict[str, Any] = {}
-                if (score := result.get("score")) is not None:
-                    attributes["evaluation.score"] = score
-                if (label := result.get("label")) is not None:
-                    attributes["evaluation.label"] = label
-                if attributes:
-                    span.set_attributes(attributes)
+            try:
+                eval_input_obj: dict[str, Any] = {
+                    "input": jsonify(example.get("input")),
+                    "output": jsonify(experiment_run.get("output")),
+                    "expected": jsonify(example.get("output")),
+                    "example": jsonify(example),
+                }
+                span.set_attribute(INPUT_VALUE, json.dumps(eval_input_obj, ensure_ascii=False))
+                span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
+
+            try:
+                if result is not None:
+                    span.set_attribute(
+                        OUTPUT_VALUE,
+                        json.dumps(jsonify(result), ensure_ascii=False),
+                    )
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+            except Exception:
+                pass
+
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
@@ -2300,31 +2427,60 @@ class AsyncExperiments:
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
-        eval_run = ExperimentEvaluationRun(
-            experiment_run_id=experiment_run["id"],
-            start_time=start_time,
-            end_time=end_time,
-            name=evaluator.name,
-            annotator_kind=evaluator.kind,
-            error=repr(error) if error else None,
-            result=result,
-            trace_id=trace_id,
-        )
+        results_to_submit: list[Optional[EvaluationResult]]
+        if result is None:
+            results_to_submit = [None]
+        elif isinstance(result, Sequence) and not isinstance(result, (str, bytes, dict)):
+            results_to_submit = list(result)  # pyright: ignore[reportUnknownArgumentType]
+        else:
+            results_to_submit = [result]
 
-        if not dry_run:
-            try:
-                resp = await self._client.post(
-                    "v1/experiment_evaluations",
-                    json=jsonify(eval_run.__dict__),
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-                eval_run = replace(eval_run, id=resp.json()["data"]["id"])
-            except HTTPStatusError as e:
-                logger.warning(
-                    f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
-                    f"HTTP {e.response.status_code} - {e.response.text}"
-                )
-                # Continue even if evaluation storage fails
+        eval_runs: list[ExperimentEvaluationRun] = []
 
-        return eval_run
+        for idx, res in enumerate(results_to_submit):
+            if isinstance(res, dict):
+                name_from_res = res.get("name")
+                eval_name = (
+                    name_from_res
+                    if isinstance(name_from_res, str)
+                    else (
+                        evaluator.name
+                        if len(results_to_submit) == 1
+                        else f"{evaluator.name}-{idx + 1}"
+                    )
+                )
+            else:
+                eval_name = (
+                    evaluator.name if len(results_to_submit) == 1 else f"{evaluator.name}-{idx + 1}"
+                )
+
+            eval_run = ExperimentEvaluationRun(
+                experiment_run_id=experiment_run["id"],
+                start_time=start_time,
+                end_time=end_time,
+                name=eval_name,
+                annotator_kind=evaluator.kind,
+                error=repr(error) if error else None,
+                result=res,  # pyright: ignore[reportUnknownArgumentType]
+                trace_id=trace_id,
+            )
+
+            if not dry_run:
+                try:
+                    resp = await self._client.post(
+                        "v1/experiment_evaluations",
+                        json=jsonify(eval_run.__dict__),
+                        timeout=timeout,
+                    )
+                    resp.raise_for_status()
+                    eval_run = replace(eval_run, id=resp.json()["data"]["id"])  # pyright: ignore[reportUnknownArgumentType]
+                except HTTPStatusError as e:
+                    logger.warning(
+                        f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
+                        f"HTTP {e.response.status_code} - {e.response.text}"
+                    )
+                    # Continue even if evaluation storage fails
+
+            eval_runs.append(eval_run)
+
+        return eval_runs

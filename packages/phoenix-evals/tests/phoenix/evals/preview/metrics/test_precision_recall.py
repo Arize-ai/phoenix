@@ -98,7 +98,7 @@ def test_precision_recall_fscore_success(
     expects_exception: bool,
 ) -> None:
     evaluator = PrecisionRecallFScore(**kwargs)
-    scores = evaluator({"expected": expected, "output": output})
+    scores = evaluator.evaluate({"expected": expected, "output": output})
     names = [s.name for s in scores]
     assert names == expected_names
     by_name = _scores_by_name(scores)
@@ -161,4 +161,4 @@ def test_precision_recall_fscore_errors(
     evaluator = PrecisionRecallFScore(**kwargs)
     # Evaluators now raise exceptions instead of returning an ERROR score
     with pytest.raises(ValueError):
-        _ = evaluator({"expected": expected, "output": output})
+        _ = evaluator.evaluate({"expected": expected, "output": output})
