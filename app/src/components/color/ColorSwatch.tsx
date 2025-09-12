@@ -1,45 +1,62 @@
+import { forwardRef } from "react";
+import {
+  ColorSwatch as AriaColorSwatch,
+  ColorSwatchProps as AriaColorSwatchProps,
+} from "react-aria-components";
 import { css } from "@emotion/react";
 
 import { SizingProps } from "@phoenix/components/types";
 
 type ColorSwatchShape = "square" | "circle";
 
-export function ColorSwatch({
-  color,
-  size = "M",
-  shape = "square",
-}: { color: string; shape?: ColorSwatchShape } & SizingProps) {
-  return (
-    <span
-      data-shape={shape}
-      data-size={size}
-      css={css`
-        background-color: ${color};
-        display: inline-block;
-
-        &[data-shape="square"] {
-          border-radius: 2px;
-        }
-
-        &[data-shape="circle"] {
-          border-radius: 50%;
-        }
-
-        &[data-size="S"] {
-          width: 0.4rem;
-          height: 0.4rem;
-        }
-
-        &[data-size="M"] {
-          width: 0.6rem;
-          height: 0.6rem;
-        }
-
-        &[data-size="L"] {
-          width: 1rem;
-          height: 1rem;
-        }
-      `}
-    />
-  );
+export interface ColorSwatchProps extends AriaColorSwatchProps, SizingProps {
+  shape?: ColorSwatchShape;
 }
+
+export const ColorSwatch = forwardRef<HTMLDivElement, ColorSwatchProps>(
+  ({ color, size = "M", shape = "square" }, ref) => {
+    // We have to special case CSS variables since this is technically not part of
+    // the aria color swatch. But it's better to have a unified color swatch so going
+    // with this approach
+    const isCSSVariable = typeof color === "string" && color.startsWith("var");
+    const additionalCSS = isCSSVariable
+      ? css`
+          background-color: ${color} !important;
+        `
+      : undefined;
+    return (
+      <AriaColorSwatch
+        color={isCSSVariable ? undefined : color}
+        data-shape={shape}
+        data-size={size}
+        ref={ref}
+        css={css(
+          css`
+            --color-swatch-size: 6px;
+            width: var(--color-swatch-size);
+            height: var(--color-swatch-size);
+            display: inline-block;
+            &[data-shape="square"] {
+              border-radius: 2px;
+            }
+            &[data-shape="circle"] {
+              border-radius: 50%;
+            }
+            &[data-size="S"] {
+              --color-swatch-size: 6px;
+            }
+            &[data-size="M"] {
+              --color-swatch-size: 8px;
+            }
+            &[data-size="L"] {
+              --color-swatch-size: 20px;
+            }
+          `,
+          additionalCSS
+        )}
+      />
+    );
+  }
+);
+
+ColorSwatch.displayName = "ColorSwatch";

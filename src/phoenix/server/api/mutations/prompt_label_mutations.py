@@ -17,7 +17,7 @@ from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
-from phoenix.server.api.types.PromptLabel import PromptLabel
+from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 
 
 @strawberry.input
@@ -46,13 +46,19 @@ class SetPromptLabelsInput:
 
 
 @strawberry.input
-class UnsetPromptLabelInput:
+class UnsetPromptLabelsInput:
     prompt_id: GlobalID
-    prompt_label_id: GlobalID
+    prompt_label_ids: list[GlobalID]
 
 
 @strawberry.type
 class PromptLabelMutationPayload:
+    prompt_labels: list["PromptLabel"]
+    query: "Query"
+
+
+@strawberry.type
+class PromptLabelAssociationMutationPayload:
     query: "Query"
 
 
@@ -74,6 +80,7 @@ class PromptLabelMutationMixin:
                 raise Conflict(f"A prompt label named '{input.name}' already exists.")
 
             return PromptLabelMutationPayload(
+                prompt_labels=[to_gql_prompt_label(label_orm)],
                 query=Query(),
             )
 
@@ -102,6 +109,7 @@ class PromptLabelMutationMixin:
                 raise Conflict("Error patching PromptLabel. Possibly a name conflict?")
 
             return PromptLabelMutationPayload(
+                prompt_labels=[to_gql_prompt_label(label_orm)],
                 query=Query(),
             )
 
@@ -117,19 +125,20 @@ class PromptLabelMutationMixin:
                 from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
                 for prompt_label_id in input.prompt_label_ids
             ]
-            stmt = delete(models.PromptLabel).where(models.PromptLabel.id._in(label_ids))
+            stmt = delete(models.PromptLabel).where(models.PromptLabel.id.in_(label_ids))
             await session.execute(stmt)
 
             await session.commit()
 
             return PromptLabelMutationPayload(
+                prompt_labels=[],
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def set_prompt_labels(
         self, info: Info[Context, None], input: SetPromptLabelsInput
-    ) -> PromptLabelMutationPayload:
+    ) -> PromptLabelAssociationMutationPayload:
         async with info.context.db() as session:
             prompt_id = from_global_id_with_expected_type(input.prompt_id, Prompt.__name__)
             label_ids = [
@@ -151,34 +160,38 @@ class PromptLabelMutationMixin:
                 # - Foreign key violation => prompt_id or label_id doesn't exist
                 raise Conflict("Failed to associate PromptLabel with Prompt.") from e
 
-            return PromptLabelMutationPayload(
+            return PromptLabelAssociationMutationPayload(
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
-    async def unset_prompt_label(
-        self, info: Info[Context, None], input: UnsetPromptLabelInput
-    ) -> PromptLabelMutationPayload:
+    async def unset_prompt_labels(
+        self, info: Info[Context, None], input: UnsetPromptLabelsInput
+    ) -> PromptLabelAssociationMutationPayload:
         """
         Unsets a PromptLabel from a Prompt by removing the row in the crosswalk.
         """
         async with info.context.db() as session:
             prompt_id = from_global_id_with_expected_type(input.prompt_id, Prompt.__name__)
-            label_id = from_global_id_with_expected_type(
-                input.prompt_label_id, PromptLabel.__name__
-            )
+            label_ids = [
+                from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
+                for prompt_label_id in input.prompt_label_ids
+            ]
 
             stmt = delete(models.PromptPromptLabel).where(
                 (models.PromptPromptLabel.prompt_id == prompt_id)
-                & (models.PromptPromptLabel.prompt_label_id == label_id)
+                & (models.PromptPromptLabel.prompt_label_id.in_(label_ids))
             )
             result = await session.execute(stmt)
 
-            if result.rowcount == 0:
-                raise NotFound(f"No association between prompt={prompt_id} and label={label_id}.")
+            if result.rowcount != len(label_ids):
+                label_ids_str = ", ".join(str(i) for i in label_ids)
+                raise NotFound(
+                    f"No association between prompt={prompt_id} and labels={label_ids_str}."
+                )
 
             await session.commit()
 
-            return PromptLabelMutationPayload(
+            return PromptLabelAssociationMutationPayload(
                 query=Query(),
             )

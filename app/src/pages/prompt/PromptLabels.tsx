@@ -7,6 +7,7 @@ import { PromptLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabe
 const ulCSS = css`
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--ac-global-dimension-size-50);
 `;
 export function PromptLabels({ prompt }: { prompt: PromptLabels$key }) {

@@ -1588,8 +1588,8 @@ type Mutation {
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelMutationPayload!
-  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelMutationPayload!
-  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
+  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -1984,6 +1984,10 @@ type PromptLabel implements Node {
   color: String!
 }
 
+type PromptLabelAssociationMutationPayload {
+  query: Query!
+}
+
 """A connection to a list of items."""
 type PromptLabelConnection {
   """Pagination data for this connection"""
@@ -2003,6 +2007,7 @@ type PromptLabelEdge {
 }
 
 type PromptLabelMutationPayload {
+  promptLabels: [PromptLabel!]!
   query: Query!
 }
 
@@ -2852,9 +2857,9 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetPromptLabelInput {
+input UnsetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input UpdateAnnotationConfigInput {

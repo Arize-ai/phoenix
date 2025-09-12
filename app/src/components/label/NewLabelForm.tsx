@@ -13,6 +13,12 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import {
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+} from "@phoenix/components/color";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 
 export type LabelParams = {
   name: string;
@@ -34,7 +40,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
     defaultValues: {
       name: "",
       description: "",
-      color: "#ffffff",
+      color: "#33c5e8",
     },
   });
 
@@ -110,11 +116,58 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             </TextField>
           )}
         />
-        {/* <Controller
+        <Controller
           name="color"
           control={control}
-          render={(field: { onChange; onBlur; value }) => {}}
-        /> */}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <div css={fieldBaseCSS}>
+                <Label>Color</Label>
+                <ColorSwatchPicker
+                  value={value}
+                  onChange={(newColor) => onChange(newColor.toString())}
+                >
+                  <ColorSwatchPickerItem color="#ff9b88">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#ffa037">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#d7b300">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#98c50a">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#4ecf50">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#49cc93">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#33c5e8">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#78bbfa">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#acafff">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#cca4fd">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#f592f3">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                  <ColorSwatchPickerItem color="#ff95bd">
+                    <ColorSwatch size="L" />
+                  </ColorSwatchPickerItem>
+                </ColorSwatchPicker>
+              </div>
+            );
+          }}
+        />
       </View>
       <View
         paddingEnd="size-200"

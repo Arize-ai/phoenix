@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<723c697a4299211a662279c42f8686ee>>
+ * @generated SignedSource<<8b53e052c92d0a2c4b8e671122adacb7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,10 @@ export type PromptLabelConfigButtonQuery$variables = {
   promptId: string;
 };
 export type PromptLabelConfigButtonQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_labels">;
+  readonly prompt: {
+    readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_promptLabels">;
+  };
+  readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_allLabels">;
 };
 export type PromptLabelConfigButtonQuery = {
   response: PromptLabelConfigButtonQuery$data;
@@ -29,11 +32,32 @@ var v0 = [
     "name": "promptId"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "promptId"
+  }
+],
+v2 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
+  }
+],
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
   "storageKey": null
 };
 return {
@@ -44,15 +68,32 @@ return {
     "name": "PromptLabelConfigButtonQuery",
     "selections": [
       {
-        "args": [
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "PromptLabelConfigButton_allLabels"
+      },
+      {
+        "alias": "prompt",
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
           {
-            "kind": "Variable",
-            "name": "promptId",
-            "variableName": "promptId"
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptLabelConfigButton_promptLabels"
+              }
+            ],
+            "type": "Prompt",
+            "abstractKey": null
           }
         ],
-        "kind": "FragmentSpread",
-        "name": "PromptLabelConfigButton_labels"
+        "storageKey": null
       }
     ],
     "type": "Query",
@@ -65,52 +106,8 @@ return {
     "name": "PromptLabelConfigButtonQuery",
     "selections": [
       {
-        "alias": "prompt",
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "id",
-            "variableName": "promptId"
-          }
-        ],
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "PromptLabel",
-                "kind": "LinkedField",
-                "name": "labels",
-                "plural": true,
-                "selections": [
-                  (v1/*: any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "Prompt",
-            "abstractKey": null
-          },
-          (v1/*: any*/)
-        ],
-        "storageKey": null
-      },
-      {
         "alias": null,
-        "args": null,
+        "args": (v2/*: any*/),
         "concreteType": "PromptLabelConnection",
         "kind": "LinkedField",
         "name": "promptLabels",
@@ -132,7 +129,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -146,12 +143,86 @@ return {
                     "kind": "ScalarField",
                     "name": "color",
                     "storageKey": null
-                  }
+                  },
+                  (v4/*: any*/)
                 ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
                 "storageKey": null
               }
             ],
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": "promptLabels(first:100)"
+      },
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "PromptLabelConfigButtonAllLabels_promptLabels",
+        "kind": "LinkedHandle",
+        "name": "promptLabels"
+      },
+      {
+        "alias": "prompt",
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          (v4/*: any*/),
+          (v3/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "PromptLabel",
+                "kind": "LinkedField",
+                "name": "labels",
+                "plural": true,
+                "selections": [
+                  (v3/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Prompt",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -159,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "41b2740ceea5df6eb7af18e8dd36de49",
+    "cacheID": "67960ced83d40c14dc1d3890f90f4bcb",
     "id": null,
     "metadata": {},
     "name": "PromptLabelConfigButtonQuery",
     "operationKind": "query",
-    "text": "query PromptLabelConfigButtonQuery(\n  $promptId: ID!\n) {\n  ...PromptLabelConfigButton_labels_16seeu\n}\n\nfragment PromptLabelConfigButton_labels_16seeu on Query {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      labels {\n        id\n      }\n    }\n    id\n  }\n  promptLabels {\n    edges {\n      node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query PromptLabelConfigButtonQuery(\n  $promptId: ID!\n) {\n  ...PromptLabelConfigButton_allLabels\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      ...PromptLabelConfigButton_promptLabels\n    }\n    id\n  }\n}\n\nfragment PromptLabelConfigButton_allLabels on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment PromptLabelConfigButton_promptLabels on Prompt {\n  id\n  labels {\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fa3e4b9fa38c12cde1fa82340ca836ff";
+(node as any).hash = "6132c2b2eddbfe35151799dd19505d7e";
 
 export default node;

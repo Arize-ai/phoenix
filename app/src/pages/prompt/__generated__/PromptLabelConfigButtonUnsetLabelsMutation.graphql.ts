@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9d6a5c79eaa5e19f46c73476279656d>>
+ * @generated SignedSource<<98391e8d8f34c15bef7b5ef3e88cee6a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptLabelConfigButtonSetLabelsMutation$variables = {
+export type PromptLabelConfigButtonUnsetLabelsMutation$variables = {
   promptId: string;
   promptLabelIds: ReadonlyArray<string>;
 };
-export type PromptLabelConfigButtonSetLabelsMutation$data = {
-  readonly setPromptLabels: {
+export type PromptLabelConfigButtonUnsetLabelsMutation$data = {
+  readonly unsetPromptLabels: {
     readonly query: {
       readonly node: {
         readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_promptLabels">;
@@ -23,9 +23,9 @@ export type PromptLabelConfigButtonSetLabelsMutation$data = {
     };
   };
 };
-export type PromptLabelConfigButtonSetLabelsMutation = {
-  response: PromptLabelConfigButtonSetLabelsMutation$data;
-  variables: PromptLabelConfigButtonSetLabelsMutation$variables;
+export type PromptLabelConfigButtonUnsetLabelsMutation = {
+  response: PromptLabelConfigButtonUnsetLabelsMutation$data;
+  variables: PromptLabelConfigButtonUnsetLabelsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -78,14 +78,14 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelConfigButtonUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
-        "name": "setPromptLabels",
+        "name": "unsetPromptLabels",
         "plural": false,
         "selections": [
           {
@@ -133,14 +133,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelConfigButtonUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
-        "name": "setPromptLabels",
+        "name": "unsetPromptLabels",
         "plural": false,
         "selections": [
           {
@@ -198,16 +198,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0dee2c7f46c3544f59a4f7d1492703a9",
+    "cacheID": "61c8ef9cb3cf1be548144a198841df1f",
     "id": null,
     "metadata": {},
-    "name": "PromptLabelConfigButtonSetLabelsMutation",
+    "name": "PromptLabelConfigButtonUnsetLabelsMutation",
     "operationKind": "mutation",
-    "text": "mutation PromptLabelConfigButtonSetLabelsMutation(\n  $promptId: ID!\n  $promptLabelIds: [ID!]!\n) {\n  setPromptLabels(input: {promptId: $promptId, promptLabelIds: $promptLabelIds}) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptLabelConfigButton_promptLabels\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptLabelConfigButton_promptLabels on Prompt {\n  id\n  labels {\n    id\n  }\n}\n"
+    "text": "mutation PromptLabelConfigButtonUnsetLabelsMutation(\n  $promptId: ID!\n  $promptLabelIds: [ID!]!\n) {\n  unsetPromptLabels(input: {promptId: $promptId, promptLabelIds: $promptLabelIds}) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptLabelConfigButton_promptLabels\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptLabelConfigButton_promptLabels on Prompt {\n  id\n  labels {\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eb92a569b031b4a9bfbac8ae446cd13a";
+(node as any).hash = "e62fb77edf0bb2eccfbb2af2c85d6f82";
 
 export default node;
