@@ -137,7 +137,7 @@ server:
   grpcPort: 4317
 
   # -- Host IP to bind Phoenix server (PHOENIX_HOST)
-  host: "0.0.0.0"
+  host: "::"
 
   # -- Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH)
   hostRootPath: ""
