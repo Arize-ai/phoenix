@@ -415,6 +415,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minSize: 500,
         enableSorting: false,
         cell: ({ row }) => {
+          const repeatedRunGroup =
+            row.original.repeatedRunGroupsByExperimentId[experimentId];
+          const annotationSummaries = repeatedRunGroup.annotationSummaries;
           return (
             <ExperimentRunOutputCell
               datasetId={datasetId}
@@ -422,18 +425,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitionCount ?? 0
               }
-              repeatedRunGroup={
-                row.original.repeatedRunGroupsByExperimentId[experimentId]
-              }
+              repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
               setDialog={setDialog}
               tableRow={row.original}
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
-              annotationSummaries={
-                row.original.repeatedRunGroupsByExperimentId[experimentId]
-                  .annotationSummaries
-              }
+              annotationSummaries={annotationSummaries}
             />
           );
         },
