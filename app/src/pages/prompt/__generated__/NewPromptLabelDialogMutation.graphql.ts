@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e952c33593f88c20c63d2dc3f7c3be5>>
+ * @generated SignedSource<<ba59be206ca557589f802a1d34ee7449>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type CreatePromptLabelInput = {
   color: string;
   description?: string | null;
@@ -20,9 +19,7 @@ export type NewPromptLabelDialogMutation$variables = {
 };
 export type NewPromptLabelDialogMutation$data = {
   readonly createPromptLabel: {
-    readonly query: {
-      readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_labels">;
-    };
+    readonly __typename: "PromptLabelMutationPayload";
   };
 };
 export type NewPromptLabelDialogMutation = {
@@ -40,9 +37,28 @@ var v0 = [
 ],
 v1 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "label"
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "label"
+      }
+    ],
+    "concreteType": "PromptLabelMutationPayload",
+    "kind": "LinkedField",
+    "name": "createPromptLabel",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "__typename",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
   }
 ];
 return {
@@ -51,35 +67,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "NewPromptLabelDialogMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": "PromptLabelMutationPayload",
-        "kind": "LinkedField",
-        "name": "createPromptLabel",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "PromptLabelConfigButton_labels"
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
+    "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -88,96 +76,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "NewPromptLabelDialogMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v1/*: any*/),
-        "concreteType": "PromptLabelMutationPayload",
-        "kind": "LinkedField",
-        "name": "createPromptLabel",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "PromptLabelConnection",
-                "kind": "LinkedField",
-                "name": "promptLabels",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PromptLabelEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptLabel",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "id",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "color",
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "810443e4bcc69652bf548290822d866c",
+    "cacheID": "ca28e2c7c50a362ec42a536f0b0e5c02",
     "id": null,
     "metadata": {},
     "name": "NewPromptLabelDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation NewPromptLabelDialogMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    query {\n      ...PromptLabelConfigButton_labels\n    }\n  }\n}\n\nfragment PromptLabelConfigButton_labels on Query {\n  promptLabels {\n    edges {\n      node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation NewPromptLabelDialogMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "73a7bac9eda267ba335cb36099e62dd5";
+(node as any).hash = "c13fca0dce8f74cd2e0b155e6b71c3d6";
 
 export default node;

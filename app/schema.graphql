@@ -751,8 +751,8 @@ input DeletePromptInput {
   promptId: ID!
 }
 
-input DeletePromptLabelInput {
-  promptLabelId: ID!
+input DeletePromptLabelsInput {
+  promptLabelIds: [ID!]!
 }
 
 type DeletePromptMutationPayload {
@@ -1587,8 +1587,8 @@ type Mutation {
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
-  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
-  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelMutationPayload!
+  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelMutationPayload!
   unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -2003,7 +2003,6 @@ type PromptLabelEdge {
 }
 
 type PromptLabelMutationPayload {
-  promptLabel: PromptLabel
   query: Query!
 }
 
@@ -2224,9 +2223,9 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
-input SetPromptLabelInput {
+input SetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input SetPromptVersionTagInput {

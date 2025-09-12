@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95e5b37d075beeba9e722ee244bb1140>>
+ * @generated SignedSource<<d02ba3da3bede6010856a041e6175146>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,11 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLabelConfigButton_labels$data = {
+  readonly prompt: {
+    readonly labels?: ReadonlyArray<{
+      readonly id: string;
+    }>;
+  };
   readonly promptLabels: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -29,8 +34,22 @@ export type PromptLabelConfigButton_labels$key = {
 
 import PromptLabelConfigButtonLabelsQuery_graphql from './PromptLabelConfigButtonLabelsQuery.graphql';
 
-const node: ReaderFragment = {
-  "argumentDefinitions": [],
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "promptId"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
@@ -41,6 +60,42 @@ const node: ReaderFragment = {
   },
   "name": "PromptLabelConfigButton_labels",
   "selections": [
+    {
+      "alias": "prompt",
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "id",
+          "variableName": "promptId"
+        }
+      ],
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "node",
+      "plural": false,
+      "selections": [
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptLabel",
+              "kind": "LinkedField",
+              "name": "labels",
+              "plural": true,
+              "selections": [
+                (v0/*: any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "type": "Prompt",
+          "abstractKey": null
+        }
+      ],
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -65,13 +120,7 @@ const node: ReaderFragment = {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                },
+                (v0/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -99,7 +148,8 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "09b9b768949ee1d5ec9d8b86c5c6e1a4";
+(node as any).hash = "fdae943ac8438a04a6bfff8eba2ce4bd";
 
 export default node;

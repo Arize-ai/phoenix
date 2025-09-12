@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8ec10e311635010a2ad7fccf77e271b>>
+ * @generated SignedSource<<fae0b3465c32cf76de44a987b69e0c11>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptLabelConfigButtonLabelsQuery$variables = Record<PropertyKey, never>;
+export type PromptLabelConfigButtonLabelsQuery$variables = {
+  promptId: string;
+};
 export type PromptLabelConfigButtonLabelsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"PromptLabelConfigButton_labels">;
 };
@@ -19,15 +21,36 @@ export type PromptLabelConfigButtonLabelsQuery = {
   variables: PromptLabelConfigButtonLabelsQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "promptId"
+  }
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptLabelConfigButtonLabelsQuery",
     "selections": [
       {
-        "args": null,
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "promptId",
+            "variableName": "promptId"
+          }
+        ],
         "kind": "FragmentSpread",
         "name": "PromptLabelConfigButton_labels"
       }
@@ -37,10 +60,54 @@ const node: ConcreteRequest = {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PromptLabelConfigButtonLabelsQuery",
     "selections": [
+      {
+        "alias": "prompt",
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "id",
+            "variableName": "promptId"
+          }
+        ],
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          },
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "PromptLabel",
+                "kind": "LinkedField",
+                "name": "labels",
+                "plural": true,
+                "selections": [
+                  (v1/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Prompt",
+            "abstractKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "storageKey": null
+      },
       {
         "alias": null,
         "args": null,
@@ -65,13 +132,7 @@ const node: ConcreteRequest = {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v1/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -98,15 +159,16 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "9003544d8e1045d8e35491eb5f0c71ed",
+    "cacheID": "f4190d9ed6aeee0bd81e7038854cbbc8",
     "id": null,
     "metadata": {},
     "name": "PromptLabelConfigButtonLabelsQuery",
     "operationKind": "query",
-    "text": "query PromptLabelConfigButtonLabelsQuery {\n  ...PromptLabelConfigButton_labels\n}\n\nfragment PromptLabelConfigButton_labels on Query {\n  promptLabels {\n    edges {\n      node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query PromptLabelConfigButtonLabelsQuery(\n  $promptId: ID!\n) {\n  ...PromptLabelConfigButton_labels_16seeu\n}\n\nfragment PromptLabelConfigButton_labels_16seeu on Query {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      labels {\n        id\n      }\n    }\n    id\n  }\n  promptLabels {\n    edges {\n      node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "09b9b768949ee1d5ec9d8b86c5c6e1a4";
+(node as any).hash = "fdae943ac8438a04a6bfff8eba2ce4bd";
 
 export default node;

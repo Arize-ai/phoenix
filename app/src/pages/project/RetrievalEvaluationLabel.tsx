@@ -9,7 +9,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
-import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 interface RetrievalEvaluation {

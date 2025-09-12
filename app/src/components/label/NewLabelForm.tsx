@@ -10,6 +10,7 @@ import {
   Text,
   TextArea,
   TextField,
+  Token,
   View,
 } from "@phoenix/components";
 
@@ -27,6 +28,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
   const {
     control,
     handleSubmit,
+    watch,
     formState: { isDirty },
   } = useForm<LabelParams>({
     defaultValues: {
@@ -35,9 +37,22 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
       color: "#ffffff",
     },
   });
+
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <View padding="size-100">
+      <View padding="size-200">
+        <View paddingY="size-300">
+          <Flex
+            direction="row"
+            alignItems="center"
+            justifyContent="center"
+            width="100%"
+          >
+            <Token color={watch("color")}>
+              {watch("name") || "label preview"}
+            </Token>
+          </Flex>
+        </View>
         <Controller
           name="name"
           control={control}
@@ -95,11 +110,16 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             </TextField>
           )}
         />
+        {/* <Controller
+          name="color"
+          control={control}
+          render={(field: { onChange; onBlur; value }) => {}}
+        /> */}
       </View>
       <View
         paddingEnd="size-200"
         paddingTop="size-100"
-        paddingBottom="size-100"
+        paddingBottom="size-200"
       >
         <Flex direction="row" justifyContent="end">
           <Button

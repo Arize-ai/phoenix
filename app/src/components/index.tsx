@@ -29,7 +29,7 @@ export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./exception";
 export * from "./KeyboardToken";
-export * from "./ColorSwatch";
+export * from "./color/ColorSwatch";
 
 // design system based components
 export * from "./alert";

@@ -14,7 +14,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";

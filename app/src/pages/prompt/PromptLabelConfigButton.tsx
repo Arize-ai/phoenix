@@ -32,7 +32,7 @@ import {
   PromptLabelConfigButton_labels$key,
 } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_labels.graphql";
 import { PromptLabelConfigButtonQuery } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonQuery.graphql";
-import { PromptLabelConfigButtonSetLabelMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonSetLabelMutation.graphql";
+import { PromptLabelConfigButtonSetLabelsMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonSetLabelsMutation.graphql";
 
 import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
 
@@ -43,9 +43,13 @@ type PromptLabelConfigButtonProps = {
 export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
   const { promptId } = props;
   const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <>
-      <DialogTrigger>
+      <DialogTrigger
+        isOpen={isOpen && !showNewLabelDialog}
+        onOpenChange={(newIsOpen) => setIsOpen(newIsOpen)}
+      >
         <Button
           variant="quiet"
           size="S"
@@ -68,7 +72,17 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {showNewLabelDialog ? <NewPromptLabelDialog /> : null}
+      {showNewLabelDialog ? (
+        <NewPromptLabelDialog
+          onCompleted={() => setShowNewLabelDialog(false)}
+          onError={(error) => {
+            alert(
+              "Failed to create the label due to an error. Please try again. Error: " +
+                error.message
+            );
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -81,6 +95,28 @@ function PromptLabelSelectionDialogContent(props: {
   const query = useLazyLoadQuery<PromptLabelConfigButtonQuery>(
     graphql`
       query PromptLabelConfigButtonQuery($promptId: ID!) {
+        ...PromptLabelConfigButton_labels @arguments(promptId: $promptId)
+      }
+    `,
+    { promptId }
+  );
+
+  return <PromptLabelList query={query} {...props} />;
+}
+function PromptLabelList({
+  promptId,
+  query,
+  onNewLabelPress,
+}: {
+  promptId: string;
+  query: PromptLabelConfigButton_labels$key;
+  onNewLabelPress: () => void;
+}) {
+  const [data] = useRefetchableFragment(
+    graphql`
+      fragment PromptLabelConfigButton_labels on Query
+      @refetchable(queryName: "PromptLabelConfigButtonLabelsQuery")
+      @argumentDefinitions(promptId: { type: "ID!" }) {
         prompt: node(id: $promptId) {
           ... on Prompt {
             labels {
@@ -88,39 +124,6 @@ function PromptLabelSelectionDialogContent(props: {
             }
           }
         }
-        ...PromptLabelConfigButton_labels
-      }
-    `,
-    { promptId }
-  );
-  const selectedPromptIds = query.prompt.labels?.map((label) => label.id) || [];
-  return (
-    <PromptLabelList
-      query={query}
-      {...props}
-      selectedLabelIds={selectedPromptIds}
-    />
-  );
-}
-function PromptLabelList({
-  promptId,
-  selectedLabelIds,
-  query,
-  onNewLabelPress,
-}: {
-  promptId: string;
-  query: PromptLabelConfigButton_labels$key;
-  onNewLabelPress: () => void;
-  selectedLabelIds: string[];
-}) {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Selection>(
-    () => new Set(selectedLabelIds)
-  );
-  const [data] = useRefetchableFragment(
-    graphql`
-      fragment PromptLabelConfigButton_labels on Query
-      @refetchable(queryName: "PromptLabelConfigButtonLabelsQuery") {
         promptLabels {
           edges {
             node {
@@ -134,16 +137,21 @@ function PromptLabelList({
     `,
     query
   );
+  const selectedLabelIds = data.prompt?.labels?.map((label) => label.id) || [];
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Selection>(
+    () => new Set(selectedLabelIds)
+  );
 
-  const [setPromptLabel] = useMutation<PromptLabelConfigButtonSetLabelMutation>(
-    graphql`
-      mutation PromptLabelConfigButtonSetLabelMutation(
-        $newPromptLabelDef: SetPromptLabelInput!
+  const [setPromptLabel] =
+    useMutation<PromptLabelConfigButtonSetLabelsMutation>(graphql`
+      mutation PromptLabelConfigButtonSetLabelsMutation(
+        $newPromptLabelsDef: SetPromptLabelsInput!
         $promptId: ID!
       ) {
-        setPromptLabel(input: $newPromptLabelDef) {
+        setPromptLabels(input: $newPromptLabelsDef) {
           query {
-            ...PromptLabelConfigButton_labels
+            ...PromptLabelConfigButton_labels @arguments(promptId: $promptId)
             prompt: node(id: $promptId) {
               ... on Prompt {
                 ...PromptLabels
@@ -152,8 +160,7 @@ function PromptLabelList({
           }
         }
       }
-    `
-  );
+    `);
   const labels = data.promptLabels.edges
     .map((edge) => edge.node)
     .filter((label) => {
@@ -171,9 +178,9 @@ function PromptLabelList({
     if (newLabelIds.length) {
       setPromptLabel({
         variables: {
-          newPromptLabelDef: {
+          newPromptLabelsDef: {
             promptId,
-            promptLabelId: newLabelIds[0] as string,
+            promptLabelIds: newLabelIds as string[],
           },
           promptId,
         },
