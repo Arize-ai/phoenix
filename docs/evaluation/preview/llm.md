@@ -19,7 +19,7 @@ It allows you to invoke models using the keyword arguments you are already famil
   - `async_generate_object(prompt: str | MultimodalPrompt, schema: dict, method: str, **kwargs) -> dict`
   - `async_generate_classification(prompt: str | MultimodalPrompt, labels: list[str] | dict[str,str], include_explanation: bool = True, description: str | None = None, **kwargs) -> dict`
 
-The LLM class provides both synchronous and asynchronous methods for all operations. Use the sync methods (without the 'a' prefix) for synchronous code, and the async methods (with the 'a' prefix) for asynchronous code.
+The LLM class provides both synchronous and asynchronous methods for all operations. Use the sync methods for synchronous code, and the async methods (with the 'async_' prefix) for asynchronous code.
 
 ### Providers and clients
 - OpenAI: client="openai" (requires `openai`)

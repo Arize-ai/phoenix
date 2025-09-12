@@ -1,7 +1,7 @@
 import functools
 import inspect
 from collections.abc import Callable
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
 from phoenix.client.resources.experiments.types import (
     AnnotatorKind,
