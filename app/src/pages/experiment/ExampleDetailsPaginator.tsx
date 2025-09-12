@@ -26,29 +26,35 @@ export const ExampleDetailsPaginator = ({
   onNext: (nextId: string) => void;
   onPrevious: (previousId: string) => void;
 }) => {
-  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
-    const { nextExampleId } = getExampleNeighbors(exampleSequence, currentId);
-    if (nextExampleId) {
-      onNext(nextExampleId);
-    }
-  });
-
-  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
-    const { previousExampleId } = getExampleNeighbors(
-      exampleSequence,
-      currentId
-    );
-    if (previousExampleId) {
-      onPrevious(previousExampleId);
-    }
-  });
-
   const { nextExampleId, previousExampleId } = getExampleNeighbors(
     exampleSequence,
     currentId
   );
   const hasPrevious = !!previousExampleId;
   const hasNext = !!nextExampleId;
+
+  const handleNext = () => {
+    if (hasNext) {
+      startTransition(() => {
+        onNext(nextExampleId);
+      });
+    }
+  };
+  const handlePrevious = () => {
+    if (hasPrevious) {
+      startTransition(() => {
+        onPrevious(previousExampleId);
+      });
+    }
+  };
+
+  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
+    handleNext();
+  });
+
+  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
+    handlePrevious();
+  });
 
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
@@ -59,13 +65,7 @@ export const ExampleDetailsPaginator = ({
           leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
           aria-label="Next example"
           isDisabled={!hasNext}
-          onPress={() => {
-            startTransition(() => {
-              if (nextExampleId) {
-                onNext(nextExampleId);
-              }
-            });
-          }}
+          onPress={handleNext}
         />
         <Tooltip
           offset={4}
@@ -89,13 +89,7 @@ export const ExampleDetailsPaginator = ({
           leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
           aria-label="Previous example"
           isDisabled={!hasPrevious}
-          onPress={() => {
-            startTransition(() => {
-              if (previousExampleId) {
-                onPrevious(previousExampleId);
-              }
-            });
-          }}
+          onPress={handlePrevious}
         />
         <Tooltip
           offset={4}
