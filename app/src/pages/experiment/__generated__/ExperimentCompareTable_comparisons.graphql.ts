@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36aab213bb1e425b1b59e337e7c6a6c9>>
+ * @generated SignedSource<<63a7ca7aa2a90621890d834660e55525>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,6 +51,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly error: string | null;
             readonly id: string;
             readonly output: any | null;
+            readonly repetitionNumber: number;
             readonly startTime: string;
             readonly trace: {
               readonly projectId: string;
@@ -72,12 +73,14 @@ export type ExperimentCompareTable_comparisons$data = {
               readonly tokens: number | null;
             };
           };
+          readonly datasetVersionId: string;
           readonly id: string;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
             readonly id: string;
           } | null;
+          readonly repetitionCount: number;
           readonly runCount: number;
           readonly sequenceNumber: number;
         };
@@ -315,6 +318,13 @@ return {
                       "plural": true,
                       "selections": [
                         (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionNumber",
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -564,6 +574,13 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "kind": "ScalarField",
+                          "name": "datasetVersionId",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "Project",
                           "kind": "LinkedField",
                           "name": "project",
@@ -610,6 +627,13 @@ return {
                           "kind": "ScalarField",
                           "name": "runCount",
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "repetitionCount",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -633,6 +657,6 @@ return {
 };
 })();
 
-(node as any).hash = "d94346bf96bd527ddb757879eded860a";
+(node as any).hash = "9fe8c0cb5e73920b1753f39aad6d1884";
 
 export default node;

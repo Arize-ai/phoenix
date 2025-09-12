@@ -1,5 +1,20 @@
 # Changelog
 
+## [11.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.0...arize-phoenix-v11.32.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* support pydantic&lt;2.6 ([#9387](https://github.com/Arize-ai/phoenix/issues/9387)) ([868448e](https://github.com/Arize-ai/phoenix/commit/868448e109a809b906999837e332f596e6be398b))
+
+## [11.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.31.0...arize-phoenix-v11.32.0) (2025-09-04)
+
+
+### Features
+
+* **experiments:** experiment lists page frontend improvements ([#9353](https://github.com/Arize-ai/phoenix/issues/9353)) ([526f721](https://github.com/Arize-ai/phoenix/commit/526f7216d6db9eacfcc9b623c53eafecb5fbdb92))
+* paginate get experiment runs inside run_experiment ([#9370](https://github.com/Arize-ai/phoenix/issues/9370)) ([8882afc](https://github.com/Arize-ai/phoenix/commit/8882afc2eb1901ffaad0bc9057eb65e1ec3bc337))
+
 ## [11.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.30.0...arize-phoenix-v11.31.0) (2025-09-03)
 
 

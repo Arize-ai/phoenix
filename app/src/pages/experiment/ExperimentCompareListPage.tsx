@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -6,8 +6,10 @@ import {
   flexRender,
   getCoreRowModel,
   Getter,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import {
@@ -21,9 +23,15 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import {
+  RichTooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components/tooltip";
+import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
+  floatFormatter,
   intFormatter,
   latencyMsFormatter,
   numberFormatter,
@@ -63,33 +71,6 @@ type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-type TableRow = {
-  id: string;
-  example: string;
-  input: string;
-  referenceOutput: string;
-  outputs: {
-    baseExperimentValue: string;
-    compareExperimentValues: string[];
-  };
-  tokens: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  latencyMs: {
-    baseExperimentValue: number;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  cost: {
-    baseExperimentValue: number | null;
-    compareExperimentValues: (number | null | undefined)[];
-  };
-  annotations: {
-    baseExperimentValue: { name: string; score: number | null }[];
-    compareExperimentValues: { name: string; score: number | null }[][];
-  };
-};
-
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
@@ -119,6 +100,7 @@ export function ExperimentCompareListPage() {
                   experiment: node {
                     id
                     averageRunLatencyMs
+                    runCount
                     costSummary {
                       total {
                         tokens
@@ -182,6 +164,7 @@ export function ExperimentCompareListPage() {
                       annotation: node {
                         name
                         score
+                        label
                       }
                     }
                   }
@@ -217,7 +200,7 @@ export function ExperimentCompareListPage() {
     );
   }, [aggregateData?.dataset]);
 
-  const tableData: TableRow[] = useMemo(() => {
+  const tableData = useMemo(() => {
     return (
       data?.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
@@ -267,6 +250,7 @@ export function ExperimentCompareListPage() {
               (edge) => ({
                 name: edge.annotation.name,
                 score: edge.annotation.score,
+                label: edge.annotation.label,
               })
             ),
             compareExperimentValues: compareExperimentRuns.map(
@@ -274,6 +258,7 @@ export function ExperimentCompareListPage() {
                 run?.annotations.edges.map((edge) => ({
                   name: edge.annotation.name,
                   score: edge.annotation.score,
+                  label: edge.annotation.label,
                 })) ?? []
             ),
           },
@@ -282,6 +267,8 @@ export function ExperimentCompareListPage() {
       }) ?? []
     );
   }, [data]);
+
+  type TableRow = (typeof tableData)[number];
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -307,25 +294,35 @@ export function ExperimentCompareListPage() {
         accessorKey: "example",
         size: 80,
         cell: ({ getValue }) => (
-          <Truncate maxWidth="200px" title={getValue() as string}>
-            {getValue() as string}
-          </Truncate>
+          <TextOverflow>{getValue() as string}</TextOverflow>
         ),
       },
       {
         header: "input",
         accessorKey: "input",
         cell: ({ getValue }) => {
-          const value = getValue() as string;
-          return <JSONText json={value} maxLength={50} />;
+          const value = getValue();
+          return (
+            <ContentPreviewTooltip content={value}>
+              <LineClamp lines={experiments.length}>
+                <JSONText json={value} disableTitle />
+              </LineClamp>
+            </ContentPreviewTooltip>
+          );
         },
       },
       {
         header: "reference output",
         accessorKey: "referenceOutput",
         cell: ({ getValue }) => {
-          const value = getValue() as string;
-          return <JSONText json={value} maxLength={50} />;
+          const value = getValue();
+          return (
+            <ContentPreviewTooltip content={value}>
+              <LineClamp lines={experiments.length}>
+                <JSONText json={value} disableTitle />
+              </LineClamp>
+            </ContentPreviewTooltip>
+          );
         },
       },
       {
@@ -350,14 +347,15 @@ export function ExperimentCompareListPage() {
                   >
                     <ColorSwatch color={baseExperimentColor} shape="circle" />
                   </span>
-                  <Truncate maxWidth="200px" title={value.baseExperimentValue}>
-                    <Text size="S" fontFamily="mono">
-                      <JSONText
-                        json={value.baseExperimentValue}
-                        maxLength={50}
-                      />
-                    </Text>
-                  </Truncate>
+                  <ContentPreviewTooltip content={value.baseExperimentValue}>
+                    <TextOverflow>
+                      <Text size="S" fontFamily="mono">
+                        {isObject(value.baseExperimentValue)
+                          ? JSON.stringify(value.baseExperimentValue)
+                          : String(value.baseExperimentValue)}
+                      </Text>
+                    </TextOverflow>
+                  </ContentPreviewTooltip>
                 </Flex>
               </li>
               {value.compareExperimentValues.map((value, index) => (
@@ -374,11 +372,15 @@ export function ExperimentCompareListPage() {
                       />
                     </span>
                     {value ? (
-                      <Truncate maxWidth="200px" title={value}>
-                        <Text size="S" fontFamily="mono">
-                          <JSONText json={value} maxLength={50} />
-                        </Text>
-                      </Truncate>
+                      <ContentPreviewTooltip content={value}>
+                        <TextOverflow>
+                          <Text size="S" fontFamily="mono">
+                            {isObject(value)
+                              ? JSON.stringify(value)
+                              : String(value)}
+                          </Text>
+                        </TextOverflow>
+                      </ContentPreviewTooltip>
                     ) : (
                       <Text size="S" fontFamily="mono" color="grey-500">
                         not run
@@ -405,6 +407,10 @@ export function ExperimentCompareListPage() {
               `}
             >
               {experiments.map((experiment) => {
+                const averageTotalTokens = calculateAverage(
+                  experiment.costSummary.total.tokens,
+                  experiment.runCount
+                );
                 return (
                   <li key={experiment.id}>
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -412,7 +418,7 @@ export function ExperimentCompareListPage() {
                         AVG
                       </Text>
                       <Text size="S" fontFamily="mono">
-                        {intFormatter(experiment.costSummary.total.tokens)}
+                        {floatFormatter(averageTotalTokens)}
                       </Text>
                     </Flex>
                   </li>
@@ -423,6 +429,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "tokens",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const tokens = getValue() as TableRow["tokens"];
           return (
@@ -488,6 +495,7 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "latencyMs",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const latencyMs = getValue() as TableRow["latencyMs"];
           return (
@@ -536,23 +544,30 @@ export function ExperimentCompareListPage() {
                 gap: var(--ac-global-dimension-size-50);
               `}
             >
-              {experiments.map((experiment) => (
-                <li key={experiment.id}>
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
-                      AVG
-                    </Text>
-                    <Text size="S" fontFamily="mono">
-                      {costFormatter(experiment.costSummary.total.cost)}
-                    </Text>
-                  </Flex>
-                </li>
-              ))}
+              {experiments.map((experiment) => {
+                const averageTotalCost = calculateAverage(
+                  experiment.costSummary.total.cost,
+                  experiment.runCount
+                );
+                return (
+                  <li key={experiment.id}>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <Text size="S" fontFamily="mono" color="grey-500">
+                        AVG
+                      </Text>
+                      <Text size="S" fontFamily="mono">
+                        {costFormatter(averageTotalCost)}
+                      </Text>
+                    </Flex>
+                  </li>
+                );
+              })}
             </ul>
           </Flex>
         ),
         accessorKey: "cost",
         minSize: 150,
+        enableResizing: false,
         cell: ({ getValue }) => {
           const cost = getValue() as TableRow["cost"];
           return (
@@ -635,7 +650,7 @@ export function ExperimentCompareListPage() {
                       </Text>
                     </Flex>
                     {typeof experimentAnnotationSummary?.meanScore ===
-                      "number" && (
+                    "number" ? (
                       <ProgressBar
                         width="100%"
                         height="var(--ac-global-dimension-size-25)"
@@ -644,7 +659,10 @@ export function ExperimentCompareListPage() {
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} mean score`}
                       />
+                    ) : (
+                      <ProgressBarPlaceholder />
                     )}
                   </li>
                 );
@@ -654,12 +672,17 @@ export function ExperimentCompareListPage() {
         ),
         accessorKey: "annotations",
         minSize: 200,
+        enableResizing: false,
         cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
           const annotations = getValue();
-          const baseExperimentAnnotationScore = getAnnotationScore(
+          const baseExperimentAnnotationValue = getAnnotationValue(
             annotations.baseExperimentValue,
             annotationSummary.annotationName
           );
+          const baseExperimentAnnotationValueFormatted =
+            typeof baseExperimentAnnotationValue === "number"
+              ? numberFormatter(baseExperimentAnnotationValue)
+              : baseExperimentAnnotationValue;
 
           return (
             <ul
@@ -676,26 +699,33 @@ export function ExperimentCompareListPage() {
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <Text size="S" fontFamily="mono">
-                    {numberFormatter(baseExperimentAnnotationScore)}
+                    {baseExperimentAnnotationValueFormatted}
                   </Text>
                 </Flex>
-                {typeof baseExperimentAnnotationScore === "number" && (
+                {typeof baseExperimentAnnotationValue === "number" ? (
                   <ProgressBar
                     width="100%"
                     height="var(--ac-global-dimension-size-25)"
                     value={calculateAnnotationScorePercentile(
-                      baseExperimentAnnotationScore,
+                      baseExperimentAnnotationValue,
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
+                    aria-label={`${annotationSummary.annotationName} score`}
                   />
+                ) : (
+                  <ProgressBarPlaceholder />
                 )}
               </li>
               {annotations.compareExperimentValues.map((values, index) => {
-                const compareExperimentAnnotationScore = getAnnotationScore(
+                const compareExperimentAnnotationValue = getAnnotationValue(
                   values,
                   annotationSummary.annotationName
                 );
+                const compareExperimentAnnotationValueFormatted =
+                  typeof compareExperimentAnnotationValue === "number"
+                    ? numberFormatter(compareExperimentAnnotationValue)
+                    : compareExperimentAnnotationValue;
                 const color = getExperimentColor(index);
                 return (
                   <li
@@ -706,24 +736,22 @@ export function ExperimentCompareListPage() {
                   >
                     <Flex direction="row" gap="size-100" alignItems="center">
                       <Text size="S" fontFamily="mono">
-                        {numberFormatter(
-                          getAnnotationScore(
-                            values,
-                            annotationSummary.annotationName
-                          )
-                        )}
+                        {compareExperimentAnnotationValueFormatted}
                       </Text>
                     </Flex>
-                    {typeof compareExperimentAnnotationScore === "number" && (
+                    {typeof compareExperimentAnnotationValue === "number" ? (
                       <ProgressBar
                         width="100%"
                         height="var(--ac-global-dimension-size-25)"
                         value={calculateAnnotationScorePercentile(
-                          compareExperimentAnnotationScore,
+                          compareExperimentAnnotationValue,
                           annotationSummary.minScore,
                           annotationSummary.maxScore
                         )}
+                        aria-label={`${annotationSummary.annotationName} score`}
                       />
+                    ) : (
+                      <ProgressBarPlaceholder />
                     )}
                   </li>
                 );
@@ -740,6 +768,21 @@ export function ExperimentCompareListPage() {
     data: tableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onChange",
+  });
+
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => {
+      const numExperiments = experiments.length;
+      // 29px [cell padding + border]
+      // + 20px * numExperiments [line height per experiment metric line]
+      // + 4px * (numExperiments - 1) [gap between experiment metric lines]
+      return 29 + numExperiments * 20 + 4 * (numExperiments - 1);
+    },
+    overscan: 10,
   });
 
   /**
@@ -777,54 +820,53 @@ export function ExperimentCompareListPage() {
               ...columnSizeVars,
               width: table.getTotalSize(),
               minWidth: "100%",
+              tableLayout: "fixed",
             }}
           >
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
+                  {headerGroup.headers.map((header, index) => (
                     <th
-                      key={header.id}
+                      key={header.id + "-" + index}
                       style={{
                         width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
                         padding:
                           "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
                       }}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
+                      {header.isPlaceholder ? null : (
+                        <>
+                          {flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                          {header.column.getCanResize() && (
+                            <div
+                              {...{
+                                onMouseDown: header.getResizeHandler(),
+                                onTouchStart: header.getResizeHandler(),
+                                className: `resizer ${
+                                  header.column.getIsResizing()
+                                    ? "isResizing"
+                                    : ""
+                                }`,
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>
               ))}
             </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      style={{
-                        width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                        maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                        padding:
-                          "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+            {table.getState().columnSizingInfo.isResizingColumn ? (
+              /* When resizing any column we will render this special memoized version of our table body */
+              <MemoizedTableBody table={table} virtualizer={virtualizer} />
+            ) : (
+              <TableBody table={table} virtualizer={virtualizer} />
+            )}
           </table>
         </div>
       </Flex>
@@ -832,12 +874,162 @@ export function ExperimentCompareListPage() {
   );
 }
 
-const getAnnotationScore = (
-  values: { name: string; score: number | null }[],
+//un-memoized normal table body component - see memoized version below
+function TableBody<T>({
+  table,
+  virtualizer,
+}: {
+  table: Table<T>;
+  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
+}) {
+  const rows = table.getRowModel().rows;
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
+  return (
+    <tbody>
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell, index) => (
+              <td
+                key={cell.id + "-" + index}
+                style={{
+                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  padding:
+                    "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                  verticalAlign: "middle",
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        );
+      })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getAllColumns().length}
+        />
+      </tr>
+    </tbody>
+  );
+}
+
+//special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
+
+const getAnnotationValue = (
+  values: { name: string; score: number | null; label: string | null }[],
   annotationName: string
 ) => {
-  const score = values.find(
+  const annotation = values.find(
     (annotation) => annotation.name === annotationName
-  )?.score;
-  return score;
+  );
+  return annotation?.score ?? annotation?.label ?? "--";
 };
+
+const calculateAverage = (
+  total: number | null,
+  runCount: number
+): number | null => {
+  return total === null || runCount === 0 ? null : total / runCount;
+};
+
+function ContentPreviewTooltip({
+  content,
+  children,
+}: {
+  content: unknown;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipTrigger>
+      <TriggerWrap
+        css={css`
+          overflow: hidden;
+        `}
+      >
+        {children}
+      </TriggerWrap>
+      <RichTooltip
+        placement="right"
+        offset={3}
+        css={css`
+          overflow-y: auto;
+        `}
+      >
+        {isObject(content) ? (
+          <JSONText json={content} disableTitle space={2} />
+        ) : (
+          <Text size="S" fontFamily="mono">
+            {String(content)}
+          </Text>
+        )}
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
+const textOverflowCSS = css`
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+
+  // prevent default behavior of title tooltip showing on safari
+  &::after {
+    content: "";
+    display: block;
+  }
+`;
+
+function TextOverflow({ children }: { children: React.ReactNode }) {
+  return <div css={textOverflowCSS}>{children}</div>;
+}
+
+const lineClampCSS = (lines: number) => css`
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: ${lines};
+  overflow: hidden;
+`;
+
+function LineClamp({
+  children,
+  lines,
+}: {
+  children: React.ReactNode;
+  lines: number;
+}) {
+  return <div css={lineClampCSS(lines)}>{children}</div>;
+}
+
+const progressBarPlaceholderCSS = css`
+  width: 100%;
+  height: var(--ac-global-dimension-size-25);
+`;
+
+function ProgressBarPlaceholder() {
+  return <div css={progressBarPlaceholderCSS} />;
+}

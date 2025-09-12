@@ -1399,6 +1399,7 @@ class TestSendingAnnotationsBeforeSpan:
                         )
         return None
 
+    @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
     async def test_annotations_and_evaluations(
         self,
         _span: ReadableSpan,

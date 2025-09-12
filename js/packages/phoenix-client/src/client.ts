@@ -1,4 +1,7 @@
-import createOpenApiClient, { type ClientOptions } from "openapi-fetch";
+import createOpenApiClient, {
+  type Middleware,
+  type ClientOptions,
+} from "openapi-fetch";
 import type {
   paths as oapiPathsV1,
   components as oapiComponentsV1,
@@ -50,6 +53,20 @@ export const getMergedOptions = ({
 };
 
 /**
+ * Middleware to take non-successful API calls throw instead of being swallowed
+ */
+const middleware: Middleware = {
+  onResponse({ response }) {
+    if (!response.ok) {
+      // Will produce error messages like "https://example.org/api/v1/example: 404 Not Found".
+      throw new Error(
+        `${response.url}: ${response.status} ${response.statusText}`
+      );
+    }
+  },
+};
+
+/**
  * Create a Phoenix client.
  *
  * The client is strongly typed and uses generated openapi types.
@@ -79,8 +96,10 @@ export const createClient = (
   } = {}
 ) => {
   const mergedOptions = getMergedOptions(config);
+  const openApiClient = createOpenApiClient<pathsV1>(mergedOptions);
+  openApiClient.use(middleware);
   return {
-    ...createOpenApiClient<pathsV1>(mergedOptions),
+    ...openApiClient,
     config: mergedOptions,
   };
 };

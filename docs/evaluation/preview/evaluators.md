@@ -27,9 +27,9 @@ At the core, an Evaluator is anything that returns a Score.
 - Properties: `name`, `source`, `direction`, `input_schema`
 - Methods:
   - `evaluate(eval_input: dict, input_mapping: InputMappingType | None = None) -> list[Score]`
-  - `aevaluate(eval_input: dict, input_mapping: InputMappingType | None = None) -> list[Score]`
+  - `async_evaluate(eval_input: dict, input_mapping: InputMappingType | None = None) -> list[Score]`
   - `describe() -> dict`: Returns evaluator metadata and input schema
-  - Subclasses implement `_evaluate(eval_input) -> list[Score]` and optionally `_aevaluate(eval_input)`.
+  - Subclasses implement `_evaluate(eval_input) -> list[Score]` and optionally `_async_evaluate(eval_input)`.
 
 ### Input mapping and validation
 - Evaluators use Pydantic schemas for input validation and type safety. Many evaluator subclasses infer the `input_schema`, but users can always provide their own.
@@ -39,7 +39,7 @@ At the core, an Evaluator is anything that returns a Score.
 ### LLMEvaluator
 - Constructor: `LLMEvaluator(name: str, llm: LLM, prompt_template: str | Template, schema: dict | None = None, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`
 - Infers `input_schema` from the prompt template placeholders when not provided.
-- Synchronous `evaluate` requires a sync `LLM`. Asynchronous `aevaluate` requires the same `LLM` instance (which supports both sync and async methods).
+- Synchronous `evaluate` requires a sync `LLM`. Asynchronous `async_evaluate` requires the same `LLM` instance (which supports both sync and async methods).
 
 ### ClassificationEvaluator
 - Constructor: `ClassificationEvaluator(name: str, llm: LLM, prompt_template: str | Template, choices: list[str] | dict[str, float | int] | dict[str, tuple[float|int, str]], include_explanation: bool = True, input_schema: Optional[type[BaseModel]] = None, direction: "maximize" | "minimize" = "maximize")`

@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
-from pydantic import BaseModel, ValidationError, create_model
-from typing_extensions import Mapping
+from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
+from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
@@ -23,6 +23,13 @@ ToolSchema = Optional[Dict[str, Any]]
 SourceType = Literal["human", "llm", "heuristic"]
 DirectionType = Literal["maximize", "minimize"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
+
+
+def _coerce_to_str(value: Any) -> str:
+    return value if isinstance(value, str) else str(value)
+
+
+EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
 # --- Score model ---
@@ -88,8 +95,8 @@ class Evaluator(ABC):
 
     Evaluators support both synchronous and asynchronous evaluation:
 
-    - `evaluator.evaluate(eval_input)` or `evaluator(eval_input)`
-    - `evaluator.aevaluate(eval_input)`
+    - `evaluator.evaluate(eval_input)`
+    - `evaluator.async_evaluate(eval_input)`
 
     Single record evaluations return a list of `Score` objects. Often, this will be a list of
     length 1, but some evaluators may return multiple scores for a single `eval_input`
@@ -126,6 +133,7 @@ class Evaluator(ABC):
         self._source = source
         self._direction = direction
         self._input_schema: Optional[type[BaseModel]] = input_schema
+        self._input_mapping: Optional[InputMappingType] = None
 
     @property
     def name(self) -> str:
@@ -152,7 +160,7 @@ class Evaluator(ABC):
         """Implement core logic assuming `eval_input` has required fields per schema/mapping."""
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         """Implement async core logic assuming `eval_input` has required fields per schema/mapping.
 
         By default, this runs the synchronous _evaluate method in a thread pool.
@@ -183,9 +191,8 @@ class Evaluator(ABC):
               the provided `input_mapping`). An optional per-call `input_mapping` maps
               evaluator-required field names to keys/paths in `eval_input`.
             - Mapping is optional per-field; unspecified fields are read directly from `eval_input`.
-            - Evaluators are also directly callable: `scores = evaluator(eval_input)` is equivalent
-              to `scores = evaluator.evaluate(eval_input)`.
         """
+        input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
             eval_input,
@@ -200,7 +207,7 @@ class Evaluator(ABC):
                 raise ValueError(f"Input validation failed: {e}")
         return self._evaluate(remapped_eval_input)
 
-    async def aevaluate(
+    async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         """Async variant of `evaluate`.
@@ -218,6 +225,7 @@ class Evaluator(ABC):
         Raises:
             ValueError: If input validation fails.
         """
+        input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
         remapped_eval_input = remap_eval_input(
             eval_input,
@@ -230,12 +238,11 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return await self._aevaluate(remapped_eval_input)
+        return await self._async_evaluate(remapped_eval_input)
 
-    # allow instances to be called directly: `evaluator(eval_input)`
-    __call__ = evaluate
-    # ensure the callable inherits evaluate's docs for IDE support
-    __call__.__doc__ = evaluate.__doc__
+    def bind(self, input_mapping: InputMappingType) -> None:
+        """Binds an evaluator with a fixed input mapping."""
+        self._input_mapping = input_mapping
 
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """Determine required field names for mapping/validation.
@@ -336,7 +343,9 @@ class LLMEvaluator(Evaluator):
         # If no explicit input_schema, create a Pydantic model with all fields as required str
         if input_schema is None:
             model_name = f"{name.capitalize()}Input"
-            field_defs: Dict[str, Tuple[Any, Any]] = {var: (str, ...) for var in required_fields}
+            field_defs: Dict[str, Tuple[Any, Any]] = {
+                var: (EnforcedString, ...) for var in required_fields
+            }
             input_schema = create_model(
                 model_name,
                 **cast(Any, field_defs),
@@ -355,18 +364,18 @@ class LLMEvaluator(Evaluator):
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         raise NotImplementedError("Subclasses must implement _evaluate")
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
-        raise NotImplementedError("Subclasses must implement _aevaluate")
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+        raise NotImplementedError("Subclasses must implement _async_evaluate")
 
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
         return super().evaluate(eval_input, input_mapping)
 
-    async def aevaluate(
+    async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
-        return await super().aevaluate(eval_input, input_mapping)
+        return await super().async_evaluate(eval_input, input_mapping)
 
 
 # --- LLM ClassificationEvaluator ---
@@ -499,14 +508,14 @@ class ClassificationEvaluator(LLMEvaluator):
             )
         ]
 
-    async def _aevaluate(self, eval_input: EvalInput) -> List[Score]:
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         prompt_filled = self.prompt_template.render(variables=eval_input)
         method = (
             ObjectGenerationMethod.TOOL_CALLING
             if isinstance(self.labels, Dict)
             else ObjectGenerationMethod.AUTO
         )
-        response = await self.llm.agenerate_classification(
+        response = await self.llm.async_generate_classification(
             prompt=prompt_filled,
             labels=self.labels,
             include_explanation=self.include_explanation,
@@ -559,7 +568,7 @@ def create_evaluator(
 
     The decorated function should accept keyword args matching its required fields and return a
     value that can be converted to a Score. The returned object is an Evaluator with full support
-    for evaluate/aevaluate and direct callability.
+    for evaluate/async_evaluate and direct callability.
 
     Args:
         name (str): Identifier for the evaluator and the name used in produced Scores.
@@ -787,6 +796,9 @@ def create_evaluator(
                 score = _convert_to_score(result, name, source, direction)
                 return [score]
 
+            def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                return self._fn(*args, **kwargs)
+
         evaluator_instance = _FunctionEvaluator()
         # Preserve the original function's docstring
         evaluator_instance.__doc__ = fn.__doc__
@@ -859,89 +871,20 @@ def create_classifier(
 
 
 # --- Bound Evaluator ---
-class BoundEvaluator:
-    """A prepared evaluator with a fixed mapping specification.
-
-    Evaluates payloads without requiring per-call mapping arguments.
-
-    Args:
-        evaluator (Evaluator): The evaluator to bind.
-        mapping (InputMappingType): The input mapping to bind to the evaluator.
-
-    Notes:
-        - Mapping is optional per-field; unspecified fields will be read directly from
-          `eval_input` using their field name.
-    """
-
-    def __init__(
-        self,
-        evaluator: Evaluator,
-        mapping: InputMappingType,
-    ) -> None:
-        self._evaluator = evaluator
-        self._mapping = mapping
-
-    @property
-    def input_schema(self) -> Optional[type[BaseModel]]:
-        return self._evaluator.input_schema
-
-    @property
-    def name(self) -> str:
-        return self._evaluator.name
-
-    def evaluate(self, payload: EvalInput) -> List[Score]:
-        """Evaluate a payload using the bound evaluator.
-
-        Args:
-            payload (EvalInput): The input payload to evaluate.
-
-        Returns:
-            List[Score]: A list of scores from the evaluation.
-        """
-        return self._evaluator.evaluate(payload, input_mapping=self._mapping)
-
-    async def aevaluate(self, payload: EvalInput) -> List[Score]:
-        """Asynchronously evaluate a payload using the bound evaluator.
-
-        Args:
-            payload (EvalInput): The input payload to evaluate.
-
-        Returns:
-            List[Score]: A list of scores from the evaluation.
-        """
-        return await self._evaluator.aevaluate(payload, input_mapping=self._mapping)
-
-    def mapping_description(self) -> Dict[str, Any]:
-        """Get a description of the evaluator mapping.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing evaluator name and mapping keys.
-        """
-        keys = list(self._mapping.keys()) if self._mapping is not None else []
-        return {"evaluator": self._evaluator.name, "mapping_keys": keys}
-
-    # Introspection passthroughs
-    def describe(self) -> Dict[str, Any]:
-        """Get a description of the bound evaluator.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing evaluator metadata.
-        """
-        return self._evaluator.describe()
 
 
 def bind_evaluator(
     evaluator: Evaluator,
-    mapping: InputMappingType,
-) -> BoundEvaluator:
-    """Helper to create a `BoundEvaluator` with a fixed input mapping.
+    input_mapping: InputMappingType,
+) -> Evaluator:
+    """Helper to bind an evaluator with a fixed input mapping.
 
     Args:
         evaluator (Evaluator): The evaluator to bind.
         mapping (InputMappingType): The input mapping to bind to the evaluator.
 
     Returns:
-        BoundEvaluator: A bound evaluator with fixed input mapping.
+        Evaluator: An evaluator bound with fixed input mapping.
 
     Examples::
 
@@ -955,7 +898,8 @@ def bind_evaluator(
         [Score(name='test_evaluator', score=0.8, label='good', explanation='test explanation',
          direction='maximize', source='heuristic', metadata={})]
     """
-    return BoundEvaluator(evaluator, mapping)
+    evaluator.bind(input_mapping=input_mapping)
+    return evaluator
 
 
 def evaluate_dataframe(
@@ -1161,7 +1105,7 @@ async def async_evaluate_dataframe(
         eval_input_index, evaluator_index = task_input
         eval_input = eval_inputs[eval_input_index]
         evaluator = evaluators[evaluator_index]
-        scores = await evaluator.aevaluate(eval_input)
+        scores = await evaluator.async_evaluate(eval_input)
         return scores
 
     # Only pass parameters that were explicitly provided, otherwise use Executor defaults

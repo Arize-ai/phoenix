@@ -698,7 +698,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 0.00003,
           "is_prompt": false,
           "token_type": "output"
         },

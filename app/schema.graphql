@@ -579,7 +579,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
 }
 
 """A connection to a list of items."""
@@ -1082,6 +1082,7 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+  datasetVersionId: ID!
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1097,6 +1098,7 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  repetitionCount: Int!
 }
 
 type ExperimentAnnotationSummary {
@@ -1159,6 +1161,7 @@ type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
+  repetitionNumber: Int!
   traceId: String
   output: JSON
   startTime: DateTime!
@@ -1933,6 +1936,7 @@ type Prompt implements Node {
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
+  labels: [PromptLabel!]!
 }
 
 type PromptChatTemplate {
@@ -1976,7 +1980,7 @@ type PromptLabel implements Node {
   id: ID!
   name: Identifier!
   description: String
-  prompts: [Prompt!]!
+  color: String!
 }
 
 """A connection to a list of items."""

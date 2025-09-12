@@ -18,9 +18,9 @@ class BaseLLMAdapter(ABC):
 
     Adapters only need to implement 4 core methods:
     - generate_text (sync text generation)
-    - agenerate_text (async text generation)
+    - async_generate_text (async text generation)
     - generate_object (sync structured output)
-    - agenerate_object (async structured output)
+    - async_generate_object (async structured output)
 
     The adapter is responsible for handling all implementation details including
     tool calling, structured output, and fallback mechanisms internally.
@@ -42,7 +42,7 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    async def agenerate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Async version of generate_text."""
         pass
 
@@ -66,7 +66,7 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    async def agenerate_object(
+    async def async_generate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],

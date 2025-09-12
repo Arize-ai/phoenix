@@ -16,7 +16,6 @@ import {
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -83,7 +82,6 @@ export function Layout() {
 }
 
 function SideNav() {
-  const isDashboardsEnabled = useFeatureFlag("dashboards");
   const isSideNavExpanded = usePreferencesContext(
     (state) => state.isSideNavExpanded
   );
@@ -117,16 +115,6 @@ function SideNav() {
               isExpanded={isSideNavExpanded}
             />
           </li>
-          {isDashboardsEnabled && (
-            <li key="dashboards">
-              <NavLink
-                to="/dashboards"
-                text="Dashboards"
-                leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
-                isExpanded={isSideNavExpanded}
-              />
-            </li>
-          )}
           <li key="datasets">
             <NavLink
               to="/datasets"

@@ -290,7 +290,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List runs for an experiment */
+        /**
+         * List runs for an experiment
+         * @description Retrieve a paginated list of runs for an experiment
+         */
         get: operations["listExperimentRuns"];
         put?: never;
         /** Create run for an experiment */
@@ -1312,6 +1315,8 @@ export interface components {
         ListExperimentRunsResponseBody: {
             /** Data */
             data: components["schemas"]["ExperimentRunResponse"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -3429,7 +3434,12 @@ export interface operations {
     };
     listExperimentRuns: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Cursor for pagination (base64-encoded experiment run ID) */
+                cursor?: string | null;
+                /** @description The max number of experiment runs to return at a time. If not specified, returns all results. */
+                limit?: number | null;
+            };
             header?: never;
             path: {
                 experiment_id: string;
@@ -3465,13 +3475,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid cursor format */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };

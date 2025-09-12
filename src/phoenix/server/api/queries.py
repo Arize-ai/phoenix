@@ -56,7 +56,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     to_gql_embedding_dimension,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
@@ -909,26 +909,9 @@ class Query:
             return to_gql_dataset(dataset)
         elif type_name == DatasetExample.__name__:
             example_id = node_id
-            latest_revision_id = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
-                .scalar_subquery()
-            )
             async with info.context.db() as session:
                 example = await session.scalar(
-                    select(models.DatasetExample)
-                    .join(
-                        models.DatasetExampleRevision,
-                        onclause=models.DatasetExampleRevision.dataset_example_id
-                        == models.DatasetExample.id,
-                    )
-                    .where(
-                        and_(
-                            models.DatasetExample.id == example_id,
-                            models.DatasetExampleRevision.id == latest_revision_id,
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        )
-                    )
+                    select(models.DatasetExample).where(models.DatasetExample.id == example_id)
                 )
             if not example:
                 raise NotFound(f"Unknown dataset example: {id}")
@@ -943,15 +926,7 @@ class Query:
                 )
             if not experiment:
                 raise NotFound(f"Unknown experiment: {id}")
-            return Experiment(
-                id_attr=experiment.id,
-                name=experiment.name,
-                project_name=experiment.project_name,
-                description=experiment.description,
-                created_at=experiment.created_at,
-                updated_at=experiment.updated_at,
-                metadata=experiment.metadata_,
-            )
+            return to_gql_experiment(experiment)
         elif type_name == ExperimentRun.__name__:
             async with info.context.db() as session:
                 if not (

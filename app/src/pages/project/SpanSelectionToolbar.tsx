@@ -15,6 +15,7 @@ import {
   Modal,
   ModalOverlay,
   Popover,
+  PopoverArrow,
   Text,
   Toolbar,
   View,
@@ -190,16 +191,19 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             </Button>
             <Popover placement="top end">
               <Suspense>
-                <DatasetSelectorPopoverContent
-                  onDatasetSelected={(datasetId) => {
-                    onAddSpansToDataset(datasetId);
-                    setIsDatasetPopoverOpen(false);
-                  }}
-                  onCreateNewDataset={() => {
-                    setIsDatasetPopoverOpen(false);
-                    setIsCreatingDataset(true);
-                  }}
-                />
+                <PopoverArrow />
+                <Dialog>
+                  <DatasetSelectorPopoverContent
+                    onDatasetSelected={(datasetId) => {
+                      onAddSpansToDataset(datasetId);
+                      setIsDatasetPopoverOpen(false);
+                    }}
+                    onCreateNewDataset={() => {
+                      setIsDatasetPopoverOpen(false);
+                      setIsCreatingDataset(true);
+                    }}
+                  />
+                </Dialog>
               </Suspense>
             </Popover>
           </DialogTrigger>

@@ -1,6 +1,7 @@
 # ruff: noqa: E501
-import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional
+
+from typing_extensions import deprecated
 
 from phoenix.client.resources.spans import (
     AsyncSpans,
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 class Annotations:
     """Client for interacting with the Annotations API endpoints.
 
-    .. deprecated::
+    .. deprecated:: 1.17.0
         This class is deprecated. Use ``client.spans`` methods instead.
     """  # noqa: E501
 
@@ -24,6 +25,11 @@ class Annotations:
         """Initialize the deprecated Annotations client."""
         self._spans = spans
 
+    @deprecated(
+        "client.annotations.add_span_annotation() is deprecated. "
+        "Use client.spans.add_span_annotation() instead.",
+        stacklevel=2,
+    )
     def add_span_annotation(
         self,
         *,
@@ -39,7 +45,7 @@ class Annotations:
     ) -> Optional[InsertedSpanAnnotation]:
         """Add a single span annotation.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.add_span_annotation()`` instead.
 
         Args:
@@ -56,12 +62,6 @@ class Annotations:
         Returns:
             Optional[InsertedSpanAnnotation]: The inserted span annotation if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.add_span_annotation() is deprecated. "
-            "Use client.spans.add_span_annotation() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self._spans.add_span_annotation(
             span_id=span_id,
             annotation_name=annotation_name,
@@ -74,6 +74,11 @@ class Annotations:
             sync=sync,
         )
 
+    @deprecated(
+        "client.annotations.log_span_annotations_dataframe() is deprecated. "
+        "Use client.spans.log_span_annotations_dataframe() instead.",
+        stacklevel=2,
+    )
     def log_span_annotations_dataframe(
         self,
         *,
@@ -84,7 +89,7 @@ class Annotations:
     ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.log_span_annotations_dataframe()`` instead.
 
         Args:
@@ -96,12 +101,6 @@ class Annotations:
         Returns:
             Optional[list[InsertedSpanAnnotation]]: List of inserted annotations if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.log_span_annotations_dataframe() is deprecated. "
-            "Use client.spans.log_span_annotations_dataframe() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self._spans.log_span_annotations_dataframe(
             dataframe=dataframe,
             annotator_kind=annotator_kind,
@@ -109,6 +108,11 @@ class Annotations:
             sync=sync,
         )
 
+    @deprecated(
+        "client.annotations.log_span_annotations() is deprecated. "
+        "Use client.spans.log_span_annotations() instead.",
+        stacklevel=2,
+    )
     def log_span_annotations(
         self,
         *,
@@ -117,7 +121,7 @@ class Annotations:
     ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.log_span_annotations()`` instead.
 
         Args:
@@ -127,12 +131,6 @@ class Annotations:
         Returns:
             Optional[list[InsertedSpanAnnotation]]: List of inserted annotations if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.log_span_annotations() is deprecated. "
-            "Use client.spans.log_span_annotations() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self._spans.log_span_annotations(
             span_annotations=span_annotations,
             sync=sync,
@@ -142,7 +140,7 @@ class Annotations:
 class AsyncAnnotations:
     """Asynchronous client for interacting with the Annotations API endpoints.
 
-    .. deprecated::
+    .. deprecated:: 1.17.0
         This class is deprecated. Use ``client.spans`` methods instead.
     """
 
@@ -150,6 +148,11 @@ class AsyncAnnotations:
         """Initialize the deprecated AsyncAnnotations client."""
         self._spans = spans
 
+    @deprecated(
+        "client.annotations.add_span_annotation() is deprecated. "
+        "Use client.spans.add_span_annotation() instead.",
+        stacklevel=2,
+    )
     async def add_span_annotation(
         self,
         *,
@@ -165,7 +168,7 @@ class AsyncAnnotations:
     ) -> Optional[InsertedSpanAnnotation]:
         """Add a single span annotation asynchronously.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.add_span_annotation()`` instead.
 
         Args:
@@ -182,12 +185,6 @@ class AsyncAnnotations:
         Returns:
             Optional[InsertedSpanAnnotation]: The inserted span annotation if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.add_span_annotation() is deprecated. "
-            "Use client.spans.add_span_annotation() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return await self._spans.add_span_annotation(
             span_id=span_id,
             annotation_name=annotation_name,
@@ -200,6 +197,11 @@ class AsyncAnnotations:
             sync=sync,
         )
 
+    @deprecated(
+        "client.annotations.log_span_annotations_dataframe() is deprecated. "
+        "Use client.spans.log_span_annotations_dataframe() instead.",
+        stacklevel=2,
+    )
     async def log_span_annotations_dataframe(
         self,
         *,
@@ -210,7 +212,7 @@ class AsyncAnnotations:
     ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame asynchronously.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.log_span_annotations_dataframe()`` instead.
 
         Args:
@@ -222,12 +224,6 @@ class AsyncAnnotations:
         Returns:
             Optional[list[InsertedSpanAnnotation]]: List of inserted annotations if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.log_span_annotations_dataframe() is deprecated. "
-            "Use client.spans.log_span_annotations_dataframe() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return await self._spans.log_span_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
@@ -235,6 +231,11 @@ class AsyncAnnotations:
             sync=sync,
         )
 
+    @deprecated(
+        "client.annotations.log_span_annotations() is deprecated. "
+        "Use client.spans.log_span_annotations() instead.",
+        stacklevel=2,
+    )
     async def log_span_annotations(
         self,
         *,
@@ -243,7 +244,7 @@ class AsyncAnnotations:
     ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations asynchronously.
 
-        .. deprecated::
+        .. deprecated:: 1.17.0
             This method is deprecated. Use ``client.spans.log_span_annotations()`` instead.
 
         Args:
@@ -253,12 +254,6 @@ class AsyncAnnotations:
         Returns:
             Optional[list[InsertedSpanAnnotation]]: List of inserted annotations if sync is True, None otherwise.
         """
-        warnings.warn(
-            "client.annotations.log_span_annotations() is deprecated. "
-            "Use client.spans.log_span_annotations() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return await self._spans.log_span_annotations(
             span_annotations=span_annotations,
             sync=sync,

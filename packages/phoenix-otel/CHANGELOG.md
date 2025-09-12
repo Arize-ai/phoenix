@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.0...arize-phoenix-otel-v0.13.1) (2025-09-10)
+
+
+### Documentation
+
+* add docs links to all readmes ([#9322](https://github.com/Arize-ai/phoenix/issues/9322)) ([b0b671b](https://github.com/Arize-ai/phoenix/commit/b0b671bbabf05279ea7254e2b92972725a7a86b6))
+* **client:** fix python client docs ([#9317](https://github.com/Arize-ai/phoenix/issues/9317)) ([d94835a](https://github.com/Arize-ai/phoenix/commit/d94835aad129216fdb7d480a70aa2a501e615a8e))
+* consistent docstrings ([#9324](https://github.com/Arize-ai/phoenix/issues/9324)) ([00dcea9](https://github.com/Arize-ai/phoenix/commit/00dcea97aac7a8165395bfaefe52f771feadca2d))
+* **otel:** better docs ([#9319](https://github.com/Arize-ai/phoenix/issues/9319)) ([46ba146](https://github.com/Arize-ai/phoenix/commit/46ba1467eb445a9d0ae877e9c6237a5563ca3827))
+
 ## [0.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.1...arize-phoenix-otel-v0.13.0) (2025-08-14)
 
 

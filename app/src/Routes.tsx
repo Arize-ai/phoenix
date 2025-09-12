@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -15,17 +16,6 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
-import {
-  DashboardPage,
-  projectDashboardLoader,
-  ProjectDashboardPage,
-} from "./pages/dashboard";
-import { projectDashboardLoaderQuery$data } from "./pages/dashboard/__generated__/projectDashboardLoaderQuery.graphql";
-import {
-  dashboardsLoader,
-  DashboardsPage,
-  DashboardsRoot,
-} from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -104,7 +94,7 @@ import {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
-      {/* 
+      {/*
         Using /v1/* below redirects all /v1/* routes that don't have a GET method to the root path.
         In particular, this redirects /v1/traces to the root path (/). This route is for the
         OpenTelemetry trace collector, but users sometimes accidentally try to access Phoenix
@@ -197,34 +187,6 @@ const router = createBrowserRouter(
               </Route>
             </Route>
           </Route>
-          <Route
-            path="/dashboards"
-            handle={{ crumb: () => "Dashboards" }}
-            element={<DashboardsRoot />}
-          >
-            <Route
-              index
-              element={<DashboardsPage />}
-              loader={dashboardsLoader}
-            />
-            <Route
-              path="projects/:projectId"
-              element={<ProjectDashboardPage />}
-              loader={projectDashboardLoader}
-              handle={{
-                crumb: (data: projectDashboardLoaderQuery$data) =>
-                  data.project.name,
-              }}
-            />
-            <Route
-              path=":dashboardId"
-              handle={{
-                // TODO: add dashboard name
-                crumb: () => "dashboard",
-              }}
-              element={<DashboardPage />}
-            />
-          </Route>
           <Route path="/datasets" handle={{ crumb: () => "Datasets" }}>
             <Route index element={<DatasetsPage />} />
             <Route
@@ -249,6 +211,7 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
+                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
               </Route>
               <Route
                 path="compare"

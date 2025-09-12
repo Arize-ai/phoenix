@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9f39a9e7a9b8806cd15fd46aba5eab4>>
+ * @generated SignedSource<<195b37e17d517046389710991345ead5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetSelectorPopoverContentDatasetsQuery$variables = Record<PropertyKey, never>;
+export type DatasetSelectorPopoverContentDatasetsQuery$variables = {
+  search: string;
+};
 export type DatasetSelectorPopoverContentDatasetsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetSelectorPopoverContent_datasets">;
 };
@@ -19,15 +21,29 @@ export type DatasetSelectorPopoverContentDatasetsQuery = {
   variables: DatasetSelectorPopoverContentDatasetsQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "search"
+  }
+];
+return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetSelectorPopoverContentDatasetsQuery",
     "selections": [
       {
-        "args": null,
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "search",
+            "variableName": "search"
+          }
+        ],
         "kind": "FragmentSpread",
         "name": "DatasetSelectorPopoverContent_datasets"
       }
@@ -37,13 +53,30 @@ const node: ConcreteRequest = {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "DatasetSelectorPopoverContentDatasetsQuery",
     "selections": [
       {
         "alias": null,
-        "args": null,
+        "args": [
+          {
+            "fields": [
+              {
+                "kind": "Literal",
+                "name": "col",
+                "value": "name"
+              },
+              {
+                "kind": "Variable",
+                "name": "value",
+                "variableName": "search"
+              }
+            ],
+            "kind": "ObjectValue",
+            "name": "filter"
+          }
+        ],
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -91,15 +124,16 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "6d459b61a36b99979f025742892941f9",
+    "cacheID": "01d8b191af606c33309651b7504ffbaf",
     "id": null,
     "metadata": {},
     "name": "DatasetSelectorPopoverContentDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectorPopoverContentDatasetsQuery {\n  ...DatasetSelectorPopoverContent_datasets\n}\n\nfragment DatasetSelectorPopoverContent_datasets on Query {\n  datasets {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetSelectorPopoverContentDatasetsQuery(\n  $search: String!\n) {\n  ...DatasetSelectorPopoverContent_datasets_40zwac\n}\n\nfragment DatasetSelectorPopoverContent_datasets_40zwac on Query {\n  datasets(filter: {col: name, value: $search}) {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "40d5267ad0ec2335a73ff2a4d05bbed1";
+(node as any).hash = "60d20faa9c3d4bbb03be15dec748af49";
 
 export default node;

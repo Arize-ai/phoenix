@@ -281,7 +281,7 @@ class LLM:
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _get_output},
     )
-    async def agenerate_text(
+    async def async_generate_text(
         self,
         prompt: Union[str, MultimodalPrompt],
         tracer: Optional[Tracer] = None,
@@ -297,7 +297,7 @@ class LLM:
         Returns:
             str: The generated text.
         """
-        fn = self._async_adapter.agenerate_text
+        fn = self._async_adapter.async_generate_text
         rate_limited_generate = functools.reduce(
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
@@ -311,7 +311,7 @@ class LLM:
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
-    async def agenerate_object(
+    async def async_generate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
@@ -328,13 +328,13 @@ class LLM:
         Returns:
             Dict[str, Any]: The generated object.
         """
-        fn = self._async_adapter.agenerate_object
+        fn = self._async_adapter.async_generate_object
         rate_limited_generate = functools.reduce(
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
         return await rate_limited_generate(prompt, schema, **kwargs)
 
-    async def agenerate_classification(
+    async def async_generate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
         labels: Union[List[str], Dict[str, str]],
@@ -358,7 +358,7 @@ class LLM:
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = await self.agenerate_object(prompt, schema, **kwargs)
+        result: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
         return result
 
 
