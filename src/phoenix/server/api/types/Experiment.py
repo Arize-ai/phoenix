@@ -73,7 +73,10 @@ class Experiment(Node):
                 await session.scalars(
                     select(models.ExperimentRun)
                     .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .order_by(models.ExperimentRun.id.desc())
+                    .order_by(
+                        models.ExperimentRun.dataset_example_id.asc(),
+                        models.ExperimentRun.repetition_number.asc(),
+                    )
                     .options(
                         joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
                     )

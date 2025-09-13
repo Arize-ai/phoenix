@@ -64,8 +64,11 @@ const tableWrapCSS = css`
   }
 `;
 
-type ExperimentRun =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["repeatedRunGroups"][number]["runs"][number];
+type BaseExperimentRun = NonNullable<
+  ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
+>["edges"][number]["run"];
+type CompareExperimentRun =
+  BaseExperimentRun["example"]["experimentRepeatedRunGroups"][number]["runs"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -131,25 +134,16 @@ export function ExperimentCompareListPage() {
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
+        compareExperimentIds: { type: "[ID!]!" }
       ) {
-        compareExperiments(
-          first: $first
-          after: $after
-          baseExperimentId: $baseExperimentId
-          compareExperimentIds: $compareExperimentIds
-        ) @connection(key: "ExperimentCompareListPage_compareExperiments") {
-          edges {
-            comparison: node {
-              example {
-                id
-                revision {
-                  input
-                  referenceOutput: output
-                }
-              }
-              repeatedRunGroups {
-                experimentId
-                runs {
+        experiment: node(id: $baseExperimentId) {
+          ... on Experiment {
+            id
+            runs(first: $first, after: $after)
+              @connection(key: "ExperimentCompareListPage_runs") {
+              edges {
+                run: node {
+                  id
                   output
                   startTime
                   endTime
@@ -165,6 +159,41 @@ export function ExperimentCompareListPage() {
                         name
                         score
                         label
+                        id
+                      }
+                    }
+                  }
+                  example {
+                    id
+                    revision {
+                      input
+                      referenceOutput: output
+                    }
+                    experimentRepeatedRunGroups(
+                      experimentIds: $compareExperimentIds
+                    ) {
+                      experimentId
+                      runs {
+                        id
+                        output
+                        startTime
+                        endTime
+                        costSummary {
+                          total {
+                            tokens
+                            cost
+                          }
+                        }
+                        annotations {
+                          edges {
+                            annotation: node {
+                              name
+                              score
+                              label
+                              id
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -202,14 +231,14 @@ export function ExperimentCompareListPage() {
 
   const tableData = useMemo(() => {
     return (
-      data?.compareExperiments.edges.map((edge) => {
-        const comparison = edge.comparison;
-        const example = comparison.example;
-        const repeatedRunGroups = comparison.repeatedRunGroups;
+      data?.experiment.runs?.edges.map((edge) => {
+        const run = edge.run;
+        const example = run.example;
+        const repeatedRunGroups = example.experimentRepeatedRunGroups;
 
-        const baseExperimentRun: ExperimentRun = repeatedRunGroups[0].runs[0];
-        const compareExperimentRuns: (ExperimentRun | undefined)[] =
-          repeatedRunGroups.slice(1).map((group) => group.runs[0]);
+        const baseExperimentRun: BaseExperimentRun = run;
+        const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
+          repeatedRunGroups.map((group) => group.runs[0]);
         const tableData = {
           id: example.id,
           example: example.id,
@@ -245,13 +274,11 @@ export function ExperimentCompareListPage() {
             ),
           },
           annotations: {
-            baseExperimentValue: baseExperimentRun.annotations.edges.map(
-              (edge) => ({
-                name: edge.annotation.name,
-                score: edge.annotation.score,
-                label: edge.annotation.label,
-              })
-            ),
+            baseExperimentValue: run.annotations.edges.map((edge) => ({
+              name: edge.annotation.name,
+              score: edge.annotation.score,
+              label: edge.annotation.label,
+            })),
             compareExperimentValues: compareExperimentRuns.map(
               (run) =>
                 run?.annotations.edges.map((edge) => ({
