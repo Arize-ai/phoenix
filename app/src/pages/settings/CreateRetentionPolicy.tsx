@@ -23,7 +23,7 @@ export function CreateRetentionPolicy(props: {
 }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const [submit, isSubitting] = useMutation<CreateRetentionPolicyMutation>(
+  const [submit, isSubmitting] = useMutation<CreateRetentionPolicyMutation>(
     graphql`
       mutation CreateRetentionPolicyMutation(
         $input: CreateProjectTraceRetentionPolicyInput!
@@ -98,7 +98,7 @@ export function CreateRetentionPolicy(props: {
   return (
     <RetentionPolicyForm
       onSubmit={onSubmit}
-      isSubmitting={isSubitting}
+      isSubmitting={isSubmitting}
       mode="create"
     />
   );

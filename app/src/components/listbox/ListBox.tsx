@@ -37,6 +37,7 @@ const listBoxCSS = css`
     cursor: default;
     color: var(--ac-global-text-color-900);
     font-size: var(--ac-global-font-size-s);
+    line-height: var(--ac-global-line-height-s);
 
     position: relative;
     display: flex;

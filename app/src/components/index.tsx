@@ -16,6 +16,7 @@ export type {
   DialogTriggerProps,
   DateValue,
   TimeValue,
+  Selection,
 } from "react-aria-components";
 export { classNames } from "@arizeai/components";
 
@@ -28,7 +29,7 @@ export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./exception";
 export * from "./KeyboardToken";
-export * from "./ColorSwatch";
+export * from "./color/ColorSwatch";
 
 // design system based components
 export * from "./alert";

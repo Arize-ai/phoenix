@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<feb4fa07b26d18df4e098ab18a3c3ea4>>
+ * @generated SignedSource<<10ca50e22349cc3bdccf38e5f053d530>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,7 +74,7 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -124,13 +124,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -138,7 +132,6 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -147,8 +140,34 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "createdAt",
+                        "storageKey": null
+                      },
                       (v2/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptLabel",
+                    "kind": "LinkedField",
+                    "name": "labels",
+                    "plural": true,
+                    "selections": [
+                      (v2/*: any*/),
+                      (v3/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "color",
+                        "storageKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -226,16 +245,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d96abf0eb9e0d5b5134a3285af01f910",
+    "cacheID": "7039e9fbd62b1264862349e9fcd1d879",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_G9cLv\n}\n\nfragment PromptsTable_prompts_G9cLv on Query {\n  prompts(first: $first, after: $after, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_G9cLv\n}\n\nfragment PromptsTable_prompts_G9cLv on Query {\n  prompts(first: $first, after: $after, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3cedad98de2e041440caa5c8c03b17fa";
+(node as any).hash = "85ad9ca649e4c99d9a97ce8f218a0da3";
 
 export default node;

@@ -118,13 +118,11 @@ function ProjectSelectionDialogContent({
     { search: "" }
   );
   return (
-    <Dialog>
-      <ProjectsList
-        query={query}
-        onProjectSelect={onProjectSelect}
-        currentProjectId={currentProjectId}
-      />
-    </Dialog>
+    <ProjectsList
+      query={query}
+      onProjectSelect={onProjectSelect}
+      currentProjectId={currentProjectId}
+    />
   );
 }
 

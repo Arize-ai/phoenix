@@ -16,7 +16,14 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  LinkButton,
+  Token,
+} from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -66,9 +73,13 @@ export function PromptsTable(props: PromptsTableProps) {
                 id
                 name
                 description
-                createdAt
                 version {
                   createdAt
+                }
+                labels {
+                  id
+                  name
+                  color
                 }
               }
             }
@@ -126,15 +137,32 @@ export function PromptsTable(props: PromptsTableProps) {
         },
       },
       {
+        header: "labels",
+        accessorKey: "labels",
+        cell: ({ row }) => {
+          return (
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: row;
+                gap: var(--ac-global-dimension-size-100);
+              `}
+            >
+              {row.original.labels.map((label) => (
+                <Token key={label.id} color={label.color}>
+                  {label.name}
+                </Token>
+              ))}
+            </ul>
+          );
+        },
+      },
+      {
         header: "description",
         accessorKey: "description",
         cell: TextCell,
       },
-      {
-        header: "created at",
-        accessorKey: "createdAt",
-        cell: TimestampCell,
-      },
+
       {
         header: "last updated",
         accessorKey: "lastUpdatedAt",
