@@ -70,11 +70,10 @@ export function ExperimentCompareDetails({
               edges {
                 run: node {
                   id
+                  latencyMs
                   experimentId
                   output
                   error
-                  endTime
-                  startTime
                   costSummary {
                     total {
                       cost

@@ -9,8 +9,7 @@ import { ExperimentRunLatency } from "./ExperimentRunLatency";
 
 type ExperimentRunMetadataProps = {
   id: string;
-  startTime: string;
-  endTime: string;
+  latencyMs: number | null;
   costSummary: {
     total: {
       tokens: number | null;
@@ -20,12 +19,12 @@ type ExperimentRunMetadataProps = {
 };
 
 export function ExperimentRunMetadata(props: ExperimentRunMetadataProps) {
-  const { id, startTime, endTime, costSummary } = props;
+  const { id, latencyMs, costSummary } = props;
   const tokenCountTotal = costSummary.total.tokens;
   const costTotal = costSummary.total.cost;
   return (
     <Flex direction="row" gap="size-100">
-      <ExperimentRunLatency startTime={startTime} endTime={endTime} />
+      <ExperimentRunLatency latencyMs={latencyMs} />
       {tokenCountTotal != null && id ? (
         <ExperimentRunTokenCount
           tokenCountTotal={tokenCountTotal}
