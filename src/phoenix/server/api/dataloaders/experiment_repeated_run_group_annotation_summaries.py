@@ -55,11 +55,6 @@ class ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(DataLoader[Key, Re
                 models.ExperimentRun.dataset_example_id,
                 models.ExperimentRunAnnotation.name,
             )
-            .order_by(
-                models.ExperimentRun.experiment_id,
-                models.ExperimentRun.dataset_example_id,
-                models.ExperimentRunAnnotation.name,
-            )
         )
         async with self._db() as session:
             annotation_summaries = (await session.execute(annotation_summaries_query)).all()

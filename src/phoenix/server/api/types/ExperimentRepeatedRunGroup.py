@@ -115,12 +115,14 @@ class ExperimentRepeatedRunGroup(Node):
         info: Info[Context, None],
     ) -> list[ExperimentRepeatedRunGroupAnnotationSummary]:
         loader = info.context.data_loaders.experiment_repeated_run_group_annotation_summaries
+        summaries = await loader.load((self.experiment_rowid, self.dataset_example_rowid))
+        summaries.sort(key=lambda summary: summary.annotation_name)
         return [
             ExperimentRepeatedRunGroupAnnotationSummary(
                 annotation_name=summary.annotation_name,
                 mean_score=summary.mean_score,
             )
-            for summary in await loader.load((self.experiment_rowid, self.dataset_example_rowid))
+            for summary in summaries
         ]
 
 
