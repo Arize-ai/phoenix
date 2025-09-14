@@ -68,4 +68,10 @@ class ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(DataLoader[Key, Re
             if key not in annotation_summaries_by_key:
                 annotation_summaries_by_key[key] = []
             annotation_summaries_by_key[key].append(gql_summary)
-        return [annotation_summaries_by_key.get(key, []) for key in keys]
+        return [
+            sorted(
+                annotation_summaries_by_key.get(key, []),
+                key=lambda summary: summary.annotation_name,
+            )
+            for key in keys
+        ]
