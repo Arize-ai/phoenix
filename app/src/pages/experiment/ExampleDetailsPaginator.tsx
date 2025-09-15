@@ -3,7 +3,6 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Flex,
   Icon,
   IconButton,

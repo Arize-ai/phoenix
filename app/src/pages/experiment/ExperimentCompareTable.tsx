@@ -644,9 +644,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       <ModalOverlay
         isOpen={!!selectedExampleId}
         onOpenChange={() => {
-          // Clear the URL search params for the span selection
-          searchParams.delete("selectedSpanNodeId");
-          setSearchParams(searchParams, { replace: true });
           setSelectedExampleId(null);
         }}
       >
@@ -679,6 +676,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       <ModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
+          // Clear the URL search params for the span selection
+          searchParams.delete("selectedSpanNodeId");
+          setSearchParams(searchParams, { replace: true });
           setDialog(null);
         }}
       >
