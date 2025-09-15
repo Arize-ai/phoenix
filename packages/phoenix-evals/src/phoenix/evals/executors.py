@@ -1,10 +1,11 @@
 from phoenix.evals.legacy.executors import (
     AsyncExecutor,
-    SyncExecutor,
-    get_executor_on_sync_context,
-    Unset,
-    ExecutionStatus,
+    ConcurrencyController,
     ExecutionDetails,
+    ExecutionStatus,
+    SyncExecutor,
+    Unset,
+    get_executor_on_sync_context,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "Unset",
     "ExecutionStatus",
     "ExecutionDetails",
+    "ConcurrencyController",
 ]

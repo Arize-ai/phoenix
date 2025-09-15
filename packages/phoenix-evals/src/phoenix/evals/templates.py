@@ -1,5 +1,6 @@
 from .legacy.templates import (
     ClassificationTemplate,
+    InvalidClassificationTemplateError,
     MultimodalPrompt,
     PromptOptions,
     PromptPartContentType,
@@ -18,4 +19,5 @@ __all__ = [
     "MultimodalPrompt",
     "map_template",
     "normalize_prompt_template",
+    "InvalidClassificationTemplateError",
 ]

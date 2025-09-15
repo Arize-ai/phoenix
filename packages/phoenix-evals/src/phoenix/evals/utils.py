@@ -1,4 +1,7 @@
 from phoenix.evals.legacy.utils import (
+    _EXPLANATION,  # pyright: ignore[reportPrivateUsage]
+    _FUNCTION_NAME,  # pyright: ignore[reportPrivateUsage]
+    _RESPONSE,  # pyright: ignore[reportPrivateUsage]
     NOT_PARSABLE,
     SUPPORTED_AUDIO_FORMATS,
     SUPPORTED_IMAGE_FORMATS,
@@ -26,4 +29,7 @@ __all__ = [
     "get_audio_format_from_base64",
     "emoji_guard",
     "download_benchmark_dataset",
+    "_EXPLANATION",
+    "_RESPONSE",
+    "_FUNCTION_NAME",
 ]
