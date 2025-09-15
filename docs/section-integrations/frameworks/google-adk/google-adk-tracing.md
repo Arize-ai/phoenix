@@ -10,13 +10,13 @@ Launch Phoenix
 
 {% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
 
-### Install
+### Install <a href="#install" id="install"></a>
 
 ```bash
 pip install openinference-instrumentation-google-adk google-adk arize-phoenix-otel
 ```
 
-### Setup
+### Setup <a href="#setup" id="setup"></a>
 
 Set the `GOOGLE_API_KEY` environment variable. Refer to Google's [ADK documentation](https://google.github.io/adk-docs/) for more details on authentication and environment variables.
 
@@ -36,7 +36,7 @@ tracer_provider = register(
 )
 ```
 
-### Observe
+### Observe <a href="#observe" id="observe"></a>
 
 Now that you have tracing setup, all Google ADK SDK requests will be streamed to Phoenix for observability and evaluation.
 

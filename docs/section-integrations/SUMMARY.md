@@ -52,6 +52,8 @@
   * [DSPy Tracing](frameworks/dspy/dspy-tracing.md)
 * [Flowise](frameworks/flowise/README.md)
   * [Flowise Tracing](frameworks/flowise/flowise-tracing.md)
+* [Google ADK](frameworks/google-adk/README.md)
+  * [Google ADK Tracing](frameworks/google-adk/google-adk-tracing.md)
 * [Guardrails AI](frameworks/guardrails-ai/README.md)
   * [Guardrails AI Tracing](frameworks/guardrails-ai/guardrails-ai-tracing.md)
 * [Haystack](frameworks/haystack/README.md)
