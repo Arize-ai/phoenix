@@ -904,23 +904,17 @@ function SelectedExampleDialog({
   onPreviousExample: (previousId: string) => void;
 }) {
   return (
-    <Dialog>
+    <Dialog aria-label="Example Details">
       <DialogContent>
         <DialogHeader>
-          <Flex gap="size-50">
+          <Flex gap="size-150">
             <ExampleDetailsPaginator
               currentId={selectedExampleId}
               exampleSequence={exampleSequence}
               onNext={onNextExample}
               onPrevious={onPreviousExample}
             />
-            <DialogTitle
-              css={css`
-                margin-left: var(--ac-global-dimension-static-size-100);
-              `}
-            >
-              {selectedExampleId}
-            </DialogTitle>
+            <DialogTitle>{selectedExampleId}</DialogTitle>
           </Flex>
           <DialogTitleExtra>
             <LinkButton

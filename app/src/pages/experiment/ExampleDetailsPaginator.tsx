@@ -6,6 +6,7 @@ import {
   Button,
   Flex,
   Icon,
+  IconButton,
   Icons,
   KeyboardToken,
   Tooltip,
@@ -59,14 +60,14 @@ export const ExampleDetailsPaginator = ({
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
       <TooltipTrigger delay={100}>
-        <Button
+        <IconButton
           size="S"
-          id="next"
-          leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
           aria-label="Next example"
           isDisabled={!hasNext}
           onPress={handleNext}
-        />
+        >
+          <Icon svg={<Icons.ArrowDownwardOutline />} />
+        </IconButton>
         <Tooltip
           offset={4}
           css={css`
@@ -83,14 +84,14 @@ export const ExampleDetailsPaginator = ({
         </Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={100}>
-        <Button
+        <IconButton
           size="S"
-          id="previous"
-          leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
           aria-label="Previous example"
           isDisabled={!hasPrevious}
           onPress={handlePrevious}
-        />
+        >
+          <Icon svg={<Icons.ArrowUpwardOutline />} />
+        </IconButton>
         <Tooltip
           offset={4}
           css={css`
