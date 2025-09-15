@@ -57,6 +57,12 @@ class PromptLabelMutationPayload:
 
 
 @strawberry.type
+class PromptLabelDeleteMutationPayload:
+    deleted_prompt_label_ids: list["GlobalID"]
+    query: "Query"
+
+
+@strawberry.type
 class PromptLabelAssociationMutationPayload:
     query: "Query"
 
@@ -114,7 +120,7 @@ class PromptLabelMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_prompt_labels(
         self, info: Info[Context, None], input: DeletePromptLabelsInput
-    ) -> PromptLabelMutationPayload:
+    ) -> PromptLabelDeleteMutationPayload:
         """
         Deletes a PromptLabel (and any crosswalk references).
         """
@@ -128,8 +134,8 @@ class PromptLabelMutationMixin:
 
             await session.commit()
 
-            return PromptLabelMutationPayload(
-                prompt_labels=[],
+            return PromptLabelDeleteMutationPayload(
+                deleted_prompt_label_ids=input.prompt_label_ids,
                 query=Query(),
             )
 

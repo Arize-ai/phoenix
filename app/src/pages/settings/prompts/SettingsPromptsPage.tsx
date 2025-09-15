@@ -11,7 +11,8 @@ export function SettingsPromptsPage() {
         ...PromptLabelsSettingsCardFragment
       }
     `,
-    {}
+    {},
+    { fetchPolicy: "network-only" }
   );
   return (
     <main>

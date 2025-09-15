@@ -2,14 +2,14 @@ import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Button, Flex, Icon, Icons, Token } from "@phoenix/components";
+import { Flex, Token } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
 import { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
 
@@ -55,14 +55,10 @@ export function PromptLabelsTable({
       {
         header: "",
         id: "actions",
-        cell: () => {
+        cell: ({ row }) => {
           return (
             <Flex width="100%" alignItems="end" justifyContent="end">
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-                variant="danger"
-              />
+              <DeletePromptLabelButton promptLabelId={row.original.id} />
             </Flex>
           );
         },
@@ -70,7 +66,6 @@ export function PromptLabelsTable({
     ],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;

@@ -20,6 +20,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  LinkButton,
   ListBox,
   ListBoxItem,
   Loading,
@@ -274,6 +275,11 @@ function PromptLabelList({
       >
         {(item) => <PromptLabelListBoxItem key={item.id} item={item} />}
       </ListBox>
+      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+        <LinkButton variant="quiet" size="S" to="/settings/prompts">
+          Edit Labels
+        </LinkButton>
+      </View>
     </Autocomplete>
   );
 }

@@ -1587,7 +1587,7 @@ type Mutation {
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
-  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelMutationPayload!
+  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -1995,6 +1995,11 @@ type PromptLabelConnection {
 
   """Contains the nodes in this connection"""
   edges: [PromptLabelEdge!]!
+}
+
+type PromptLabelDeleteMutationPayload {
+  deletedPromptLabelIds: [ID!]!
+  query: Query!
 }
 
 """An edge in a connection."""

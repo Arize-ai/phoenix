@@ -4,9 +4,12 @@ import { graphql, useMutation } from "react-relay";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Flex,
-  Heading,
   Icon,
   Icons,
   Modal,
@@ -52,7 +55,12 @@ export function DeletePromptVersionTagButton({
       <ModalOverlay>
         <Modal size="S">
           <Dialog>
-            <Heading slot="title">Delete Tag</Heading>
+            <DialogHeader>
+              <DialogTitle>Delete Tag</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton />
+              </DialogTitleExtra>
+            </DialogHeader>
             <View padding="size-200">
               <View paddingBottom="size-100">
                 <Text color="danger" size="XS">
