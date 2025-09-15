@@ -204,7 +204,7 @@ function PromptLabelList({
   const labels = labelData.promptLabels.edges
     .map((edge) => edge.node)
     .filter((label) => {
-      return label.name.toLowerCase().includes(search);
+      return label.name.toLowerCase().includes(search.toLowerCase());
     });
 
   const onSelectionChange = (selection: Selection) => {
