@@ -1,4 +1,4 @@
-from phoenix.evals.templates import (
+from phoenix.evals.legacy.templates import (
     ClassificationTemplate,
     PromptPartContentType,
     PromptPartTemplate,

@@ -7,7 +7,7 @@ from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Unio
 
 import pandas as pd
 
-from phoenix.evals.exceptions import PhoenixException
+from phoenix.evals.legacy.exceptions import PhoenixException
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"

@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, ExtraInfo
-from phoenix.evals.templates import MultimodalPrompt
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo
+from phoenix.evals.legacy.templates import MultimodalPrompt
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials

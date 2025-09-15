@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import assert_never, override
 
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.models.rate_limiters import RateLimiter
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
 if TYPE_CHECKING:
     from mistralai import ChatCompletionResponse, UsageInfo

@@ -19,11 +19,14 @@ from urllib.parse import urlparse
 
 from typing_extensions import assert_never, override
 
-from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import get_audio_format_from_base64
+from phoenix.evals.legacy.exceptions import (
+    PhoenixContextLimitExceeded,
+    PhoenixUnsupportedAudioFormat,
+)
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.models.rate_limiters import RateLimiter
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.utils import get_audio_format_from_base64
 
 if TYPE_CHECKING:
     from openai.types import Completion

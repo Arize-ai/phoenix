@@ -3,17 +3,17 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 
-from phoenix.evals.executors import (
+from phoenix.evals.legacy.executors import (
     get_executor_on_sync_context,
 )
-from phoenix.evals.models import BaseModel, set_verbosity
-from phoenix.evals.templates import (
+from phoenix.evals.legacy.models import BaseModel, set_verbosity
+from phoenix.evals.legacy.templates import (
     MultimodalPrompt,
     PromptTemplate,
     map_template,
     normalize_prompt_template,
 )
-from phoenix.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.evals.legacy.utils import get_tqdm_progress_bar_formatter
 
 logger = logging.getLogger(__name__)
 
