@@ -1,10 +1,4 @@
-import sys
-import warnings
-from importlib.abc import Loader, MetaPathFinder
-from importlib.machinery import ModuleSpec
 from importlib.metadata import version
-from types import ModuleType
-from typing import Any, Dict, List, Optional, Set
 
 from .classify import llm_classify, run_evals
 from .default_templates import (
