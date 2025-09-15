@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from phoenix.evals.templates import ClassificationTemplate
+from phoenix.evals.legacy.templates import ClassificationTemplate
 
 ### These templates are designed to be used with span level callbacks ###
 

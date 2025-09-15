@@ -15,10 +15,10 @@ from phoenix.evals.exceptions import (
     PhoenixUnsupportedAudioFormat,
     PhoenixUnsupportedImageFormat,
 )
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import (
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.models.rate_limiters import RateLimiter
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.utils import (
     get_audio_format_from_base64,
     get_image_format_from_base64,
 )

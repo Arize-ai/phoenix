@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import MultimodalPrompt
-from phoenix.evals.utils import printif
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.models.rate_limiters import RateLimiter
+from phoenix.evals.legacy.templates import MultimodalPrompt
+from phoenix.evals.legacy.utils import printif
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials

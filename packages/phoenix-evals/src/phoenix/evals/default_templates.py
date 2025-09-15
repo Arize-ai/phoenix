@@ -1,4 +1,4 @@
-from .default_templates import (
+from phoenix.evals.legacy.default_templates import (
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
     CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
     CODE_READABILITY_PROMPT_RAILS_MAP,
@@ -21,6 +21,7 @@ from .default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
     USER_FRUSTRATION_PROMPT_RAILS_MAP,
     USER_FRUSTRATION_PROMPT_TEMPLATE,
+    EvalCriteria,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "TOXICITY_PROMPT_TEMPLATE",
     "USER_FRUSTRATION_PROMPT_RAILS_MAP",
     "USER_FRUSTRATION_PROMPT_TEMPLATE",
+    "EvalCriteria",
 ]

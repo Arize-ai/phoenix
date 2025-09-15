@@ -26,19 +26,19 @@ import pandas as pd
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
-from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.exceptions import PhoenixTemplateMappingError
-from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
-from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
-from phoenix.evals.models.base import Usage
-from phoenix.evals.templates import (
+from phoenix.evals.legacy.evaluators import LLMEvaluator
+from phoenix.evals.legacy.exceptions import PhoenixTemplateMappingError
+from phoenix.evals.legacy.executors import ExecutionStatus, get_executor_on_sync_context
+from phoenix.evals.legacy.models import BaseModel, OpenAIModel, set_verbosity
+from phoenix.evals.legacy.models.base import Usage
+from phoenix.evals.legacy.templates import (
     ClassificationTemplate,
     MultimodalPrompt,
     PromptOptions,
     PromptTemplate,
     normalize_classification_template,
 )
-from phoenix.evals.utils import (
+from phoenix.evals.legacy.utils import (
     NOT_PARSABLE,
     get_tqdm_progress_bar_formatter,
     openai_function_call_kwargs,

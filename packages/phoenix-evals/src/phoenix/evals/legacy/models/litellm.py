@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
 logger = logging.getLogger(__name__)
 

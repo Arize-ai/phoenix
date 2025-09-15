@@ -2,12 +2,12 @@
 from collections import OrderedDict
 from enum import Enum
 
-from phoenix.evals.span_templates import (
+from phoenix.evals.legacy.span_templates import (
     HALLUCINATION_SPAN_PROMPT_TEMPLATE,
     QA_SPAN_PROMPT_TEMPLATE,
     TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
 )
-from phoenix.evals.templates import ClassificationTemplate
+from phoenix.evals.legacy.templates import ClassificationTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """

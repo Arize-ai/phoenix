@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import override
 
-from phoenix.evals.exceptions import PhoenixContextLimitExceeded
-from phoenix.evals.models.base import BaseModel, ExtraInfo, Usage
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
+from phoenix.evals.legacy.models.rate_limiters import RateLimiter
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 
 if TYPE_CHECKING:
     from anthropic.types import Message
