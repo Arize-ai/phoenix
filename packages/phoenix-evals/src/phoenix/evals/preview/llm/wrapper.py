@@ -65,30 +65,29 @@ def _jsonify_output(result: Any) -> str:
 
 
 class LLM:
-    """
-    An LLM wrapper that simplifies the API for generating text and objects.
+    """An LLM wrapper that simplifies the API for generating text and objects.
+
     This wrapper delegates API access to SDK/client libraries that are installed in the active
     Python environment. To show supported providers, use `show_provider_availability()`.
-    Args:
-        provider: The name of the provider to use.
-        model: The name of the model to use.
-        client: Optionally, name of the client to use. If not specified, the first available client
-            for the provider will be used.
-    Examples:
-        >>> from phoenix.evals.llm import LLM, show_provider_availability
-        >>> show_provider_availability()
-        >>> llm = LLM(provider="openai", model="gpt-4o")
-        >>> llm.generate_text(prompt="Hello, world!")
+
+    The LLM class provides both synchronous and asynchronous methods for all operations.
+
+    Examples::
+
+        from phoenix.evals.llm import LLM, show_provider_availability
+        show_provider_availability()
+        llm = LLM(provider="openai", model="gpt-4o")
+        llm.generate_text(prompt="Hello, world!")
         "Hello, world!"
-        >>> llm.generate_object(
-        ...     prompt="Hello, world!",
-        ...     schema={
-        ...     "type": "object",
-        ...     "properties": {
-        ...         "text": {"type": "string"}
-        ...     },
-        ...     "required": ["text"]
-        ... })
+        llm.generate_object(
+            prompt="Hello, world!",
+            schema={
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string"}
+                },
+                "required": ["text"]
+            })
         {"text": "Hello, world!"}
     """
 
@@ -100,6 +99,16 @@ class LLM:
         client: Optional[str] = None,
         initial_per_second_request_rate: Optional[float] = None,
     ):
+        """Initialize the LLM wrapper.
+
+        Args:
+            provider (str): The name of the provider to use.
+            model (str): The name of the model to use.
+            client (Optional[str]): Optionally, name of the client to use. If not specified, the
+                first available client for the provider will be used.
+            initial_per_second_request_rate (Optional[float]): Optionally, the initial per-second
+                request rate. If not specified, the default rate limit will be used.
+        """
         self.provider = provider
         self.model = model
 
@@ -173,15 +182,15 @@ class LLM:
     def generate_text(
         self, prompt: Union[str, MultimodalPrompt], tracer: Optional[Tracer] = None, **kwargs: Any
     ) -> str:
-        """
-        Generate text given a prompt.
+        """Generate text given a prompt.
 
         Args:
-            prompt: The prompt to generate text from.
+            prompt (Union[str, MultimodalPrompt]): The prompt to generate text from.
+            tracer (Optional[Tracer]): Optional tracer for tracing operations.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated text.
+            str: The generated text.
         """
         fn = self._sync_adapter.generate_text
         rate_limited_generate = functools.reduce(
@@ -204,16 +213,16 @@ class LLM:
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Generate an object given a prompt and a schema.
+        """Generate an object given a prompt and a schema.
 
         Args:
-            prompt: The prompt to generate the object from.
-            schema: A JSON schema that describes the generated object.
+            prompt (Union[str, MultimodalPrompt]): The prompt to generate the object from.
+            schema (Dict[str, Any]): A JSON schema that describes the generated object.
+            tracer (Optional[Tracer]): Optional tracer for tracing operations.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated object.
+            Dict[str, Any]: The generated object.
         """
         fn = self._sync_adapter.generate_object
         rate_limited_generate = functools.reduce(
@@ -229,34 +238,34 @@ class LLM:
         description: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Generate a classification given a prompt and a set of labels.
+        """Generate a classification given a prompt and a set of labels.
 
         Args:
-            prompt: The prompt template to go with the tool call.
-            labels: Either:
+            prompt (Union[str, MultimodalPrompt]): The prompt template to go with the tool call.
+            labels (Union[List[str], Dict[str, str]]): Either:
                 - A list of strings, where each string is a label
                 - A dictionary where keys are labels and values are descriptions
-            include_explanation: Whether to prompt the LLM for an explanation.
-            description: A description of the classification task.
+            include_explanation (bool): Whether to prompt the LLM for an explanation.
+            description (Optional[str]): A description of the classification task.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated classification.
+            Dict[str, Any]: The generated classification.
 
-        Examples:
-            >>> from phoenix.evals.llm import LLM
-            >>> llm = LLM(provider="openai", model="gpt-4o", client="openai")
-            >>> llm.generate_classification(
-            ...     prompt="Hello, world!",
-            ...     labels=["yes", "no"],
-            ... )
+        Examples::
+
+            from phoenix.evals.llm import LLM
+            llm = LLM(provider="openai", model="gpt-4o", client="openai")
+            llm.generate_classification(
+                prompt="Hello, world!",
+                labels=["yes", "no"],
+            )
             {"label": "yes", "explanation": "The answer is yes."}
-            >>> llm.generate_classification(
-            ...     prompt="Hello, world!",
-            ...     labels={"yes": "Positive response", "no": "Negative response"},
-            ...     include_explanation=False,
-            ... )
+            llm.generate_classification(
+                prompt="Hello, world!",
+                labels={"yes": "Positive response", "no": "Negative response"},
+                include_explanation=False,
+            )
             {"label": "yes"}
         """
         # Generate schema from labels
@@ -278,16 +287,15 @@ class LLM:
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> str:
-        """
-        Asynchronously generate text given a prompt.
+        """Asynchronously generate text given a prompt.
 
         Args:
-            prompt: The prompt to generate text from.
-            tracer: The tracer to use for tracing.
+            prompt (Union[str, MultimodalPrompt]): The prompt to generate text from.
+            tracer (Optional[Tracer]): The tracer to use for tracing.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated text.
+            str: The generated text.
         """
         fn = self._async_adapter.async_generate_text
         rate_limited_generate = functools.reduce(
@@ -310,16 +318,15 @@ class LLM:
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Asynchronously generate an object given a prompt and a schema.
+        """Asynchronously generate an object given a prompt and a schema.
 
         Args:
-            prompt: The prompt to generate the object from.
-            schema: A JSON schema that describes the generated object.
+            prompt (Union[str, MultimodalPrompt]): The prompt to generate the object from.
+            schema (Dict[str, Any]): A JSON schema that describes the generated object.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated object.
+            Dict[str, Any]: The generated object.
         """
         fn = self._async_adapter.async_generate_object
         rate_limited_generate = functools.reduce(
@@ -335,20 +342,19 @@ class LLM:
         description: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Asynchronously generate a classification given a prompt and a set of labels.
+        """Asynchronously generate a classification given a prompt and a set of labels.
 
         Args:
-            prompt: The prompt template to go with the tool call.
-            labels: Either:
+            prompt (Union[str, MultimodalPrompt]): The prompt template to go with the tool call.
+            labels (Union[List[str], Dict[str, str]]): Either:
                 - A list of strings, where each string is a label
                 - A dictionary where keys are labels and values are descriptions
-            include_explanation: Whether to prompt the LLM for an explanation.
-            description: A description of the classification task.
+            include_explanation (bool): Whether to prompt the LLM for an explanation.
+            description (Optional[str]): A description of the classification task.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            The generated classification.
+            Dict[str, Any]: The generated classification.
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
@@ -357,7 +363,11 @@ class LLM:
 
 
 def show_provider_availability() -> None:
-    """Show the availability of all providers."""
+    """Show the availability of all providers.
+
+    Prints a formatted table showing which providers are available and which are disabled
+    due to missing dependencies.
+    """
     print(adapter_availability_table())
 
 
@@ -366,8 +376,7 @@ def generate_classification_schema(
     include_explanation: bool = True,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Generate a JSON Schema for an LLM function/structured output call that classifies
+    """Generate a JSON Schema for an LLM function/structured output call that classifies
     a single criterion.
 
     Args:
@@ -375,9 +384,13 @@ def generate_classification_schema(
             - A list of strings, where each string is a label
             - A dictionary where keys are labels and values are descriptions
         include_explanation (bool): Whether to include an explanation field in the schema.
-        description (str): A description of the classification task.
+        description (Optional[str]): A description of the classification task.
+
     Returns:
-        dict: A JSON Schema dict ready for use in an LLM function/structured output call.
+        Dict[str, Any]: A JSON Schema dict ready for use in an LLM function/structured output call.
+
+    Raises:
+        ValueError: If labels is empty or invalid.
     """
 
     # Validate labels
