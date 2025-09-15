@@ -4,6 +4,8 @@ from phoenix.evals.legacy.models.rate_limiters import (
     RateLimiter,
     RateLimitError,
     ParameterSpec,
+    AdaptiveTokenBucket,
+    UnavailableTokensError,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "AsyncCallable",
     "GenericType",
     "ParameterSpec",
+    "AdaptiveTokenBucket",
+    "UnavailableTokensError",
 ]
