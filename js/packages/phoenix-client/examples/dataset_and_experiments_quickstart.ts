@@ -9,6 +9,8 @@ import {
 import { AnnotatorKind } from "../src/types/annotations";
 import { Example } from "../src/types/datasets";
 import { createDataset } from "../src/datasets/createDataset";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai as aiOpenAI } from "@ai-sdk/openai";
 
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -118,9 +120,9 @@ async function main() {
     evaluate: async ({ output }) => {
       const prompt = `
         Rate the following text on a scale of 0.0 to 1.0 for conciseness (where 1.0 is perfectly concise).
-        
+
         TEXT: ${output}
-        
+
         Return only a number between 0.0 and 1.0.
       `;
 
@@ -171,6 +173,24 @@ async function main() {
     },
   });
 
+  const accuracyEval = createClassificationEvaluator({
+    model: aiOpenAI("gpt-4o"),
+    name: "accuracy",
+    promptTemplate: `
+        Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
+        Output only a single word (accurate or inaccurate).
+
+        QUESTION: {{question}}
+
+        REFERENCE_ANSWER: {{referenceAnswer}}
+
+        ANSWER: {{answer}}
+      `,
+    choices: {
+      accurate: 1,
+      inaccurate: 0,
+    },
+  });
   // 4. LLM-based accuracy evaluator
   const accuracy = asEvaluator({
     name: "accuracy",
@@ -180,39 +200,16 @@ async function main() {
       const question = (input.question as string) || "No question provided";
       const referenceAnswer =
         (expected?.answer as string) || "No reference answer provided";
+      const answer = String(output);
 
-      const evalPromptTemplate = `
-        Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
-        Output only a single word (accurate or inaccurate).
-        
-        QUESTION: {question}
-        
-        REFERENCE_ANSWER: {reference_answer}
-        
-        ANSWER: {answer}
-        
-        ACCURACY (accurate / inaccurate):
-      `;
-
-      const messageContent = evalPromptTemplate
-        .replace("{question}", question)
-        .replace("{reference_answer}", referenceAnswer)
-        .replace("{answer}", String(output));
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: messageContent }],
+      const res = await accuracyEval.evaluate({
+        question,
+        referenceAnswer,
+        answer,
       });
-
-      const responseContent =
-        response.choices[0]?.message?.content?.toLowerCase().trim() || "";
-      const isAccurate = responseContent === "accurate";
-
       return {
-        score: isAccurate ? 1.0 : 0.0,
-        label: isAccurate ? "accurate" : "inaccurate",
+        ...res,
         metadata: {},
-        explanation: `LLM determined the answer is ${isAccurate ? "accurate" : "inaccurate"}`,
       };
     },
   });

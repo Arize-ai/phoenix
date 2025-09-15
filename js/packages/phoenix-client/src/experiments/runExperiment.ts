@@ -23,7 +23,7 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
-import { SpanStatusCode, Tracer } from "@opentelemetry/api";
+import { SpanStatusCode, Tracer, TracerProvider } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -38,6 +38,7 @@ import {
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
+import { trace } from "@opentelemetry/api";
 
 /**
  * Validate that a repetition is valid
@@ -290,11 +291,6 @@ export async function runExperiment({
     runs,
   };
 
-  // Shut down the provider so that the experiments run
-  if (provider) {
-    await provider.shutdown?.();
-  }
-
   const { evaluationRuns } = await evaluateExperiment({
     experiment: ranExperiment,
     evaluators: evaluators ?? [],
@@ -302,8 +298,7 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
-    setGlobalTracerProvider,
-    useBatchSpanProcessor,
+    tracerProvider: provider,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -473,6 +468,7 @@ export async function evaluateExperiment({
   dryRun = false,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
+  tracerProvider: paramsTracerProvider,
 }: {
   /**
    * The experiment to evaluate
@@ -502,6 +498,11 @@ export async function evaluateExperiment({
    * @default true
    */
   useBatchSpanProcessor?: boolean;
+  /**
+   * The tracer provider to use. If set, the other parameters will be ignored and the passed tracer provider will get used
+   * Intended as a pass-through from runExperiment
+   */
+  tracerProvider?: NodeTracerProvider | null;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -511,7 +512,11 @@ export async function evaluateExperiment({
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
   let provider: NodeTracerProvider;
-  if (!isDryRun) {
+
+  // Always allow changing of tracer providers
+  if (paramsTracerProvider) {
+    provider = paramsTracerProvider;
+  } else if (!isDryRun) {
     provider = createProvider({
       projectName: "evaluators",
       baseUrl,
@@ -668,7 +673,11 @@ export async function evaluateExperiment({
   logger.info(`✅ Evaluation runs completed`);
 
   if (provider) {
-    await provider.shutdown?.();
+    await provider.shutdown();
+    // Make sure it's not set globally anymore
+    if (setGlobalTracerProvider) {
+      trace.disable();
+    }
   }
 
   return {
