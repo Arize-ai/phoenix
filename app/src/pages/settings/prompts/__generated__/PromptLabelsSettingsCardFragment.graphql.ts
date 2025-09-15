@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<486b790578eb76577aea7644c887ae20>>
+ * @generated SignedSource<<8bb6eab895049a3789c8d01630cbe8b9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,16 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLabelsSettingsCardFragment$data = {
-  readonly promptLabels: {
-    readonly edges: ReadonlyArray<{
-      readonly node: {
-        readonly color: string;
-        readonly description: string | null;
-        readonly id: string;
-        readonly name: string;
-      };
-    }>;
-  };
+  readonly " $fragmentSpreads": FragmentRefs<"PromptLabelsTableFragment">;
   readonly " $fragmentType": "PromptLabelsSettingsCardFragment";
 };
 export type PromptLabelsSettingsCardFragment$key = {
@@ -35,71 +26,15 @@ const node: ReaderFragment = {
   "name": "PromptLabelsSettingsCardFragment",
   "selections": [
     {
-      "alias": null,
       "args": null,
-      "concreteType": "PromptLabelConnection",
-      "kind": "LinkedField",
-      "name": "promptLabels",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "PromptLabelEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "PromptLabel",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "description",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "color",
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
+      "kind": "FragmentSpread",
+      "name": "PromptLabelsTableFragment"
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "f5203ff7ab4ab3fdb1113bf5c986073e";
+(node as any).hash = "a33febfbc1c6d2bdf5b65fdd5c292f52";
 
 export default node;

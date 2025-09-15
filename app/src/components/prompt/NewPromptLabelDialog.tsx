@@ -8,20 +8,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Modal,
-  ModalOverlay,
 } from "@phoenix/components";
 import { LabelParams, NewLabelForm } from "@phoenix/components/label";
-import { NewPromptLabelDialogMutation } from "@phoenix/pages/prompt/__generated__/NewPromptLabelDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+import { NewPromptLabelDialogMutation } from "./__generated__/NewPromptLabelDialogMutation.graphql";
 
 type NewPromptLabelDialogProps = {
   onCompleted: () => void;
-  onDismiss: () => void;
 };
 export function NewPromptLabelDialog(props: NewPromptLabelDialogProps) {
   const [error, setError] = useState("");
-  const { onCompleted, onDismiss } = props;
+  const { onCompleted } = props;
   const [addLabel, isSubmitting] = useMutation<NewPromptLabelDialogMutation>(
     graphql`
       mutation NewPromptLabelDialogMutation(
@@ -38,20 +36,23 @@ export function NewPromptLabelDialog(props: NewPromptLabelDialogProps) {
             name
             color
           }
-          query {
-            ...PromptLabelConfigButton_allLabels
-          }
         }
       }
     `
   );
   const onSubmit = (label: LabelParams) => {
-    const connectionID = ConnectionHandler.getConnectionID(
-      "client:root",
-      "PromptLabelConfigButtonAllLabels_promptLabels"
-    );
+    const connections = [
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "PromptLabelConfigButtonAllLabels_promptLabels"
+      ),
+      ConnectionHandler.getConnectionID(
+        "client:root",
+        "PromptLabelsTable__promptLabels"
+      ),
+    ];
     addLabel({
-      variables: { label, connections: [connectionID] },
+      variables: { label, connections },
       onCompleted,
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -60,30 +61,19 @@ export function NewPromptLabelDialog(props: NewPromptLabelDialogProps) {
     });
   };
   return (
-    <ModalOverlay
-      isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          onDismiss();
-        }
-      }}
-    >
-      <Modal size="S">
-        <Dialog>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Prompt Label</DialogTitle>
-              <DialogCloseButton />
-            </DialogHeader>
-            {error ? (
-              <Alert banner variant="danger">
-                {error}
-              </Alert>
-            ) : null}
-            <NewLabelForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
-          </DialogContent>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Prompt Label</DialogTitle>
+          <DialogCloseButton />
+        </DialogHeader>
+        {error ? (
+          <Alert banner variant="danger">
+            {error}
+          </Alert>
+        ) : null}
+        <NewLabelForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
+      </DialogContent>
+    </Dialog>
   );
 }

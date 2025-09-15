@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad6d56cebcc55ba847ce7bba879bed6c>>
+ * @generated SignedSource<<3625722f5f780857d19a15869fd03ec8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,15 @@ export type SettingsPromptsPageQuery = {
   variables: SettingsPromptsPageQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
+  }
+];
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -43,7 +51,7 @@ const node: ConcreteRequest = {
     "selections": [
       {
         "alias": null,
-        "args": null,
+        "args": (v0/*: any*/),
         "concreteType": "PromptLabelConnection",
         "kind": "LinkedField",
         "name": "promptLabels",
@@ -92,27 +100,76 @@ const node: ConcreteRequest = {
                     "kind": "ScalarField",
                     "name": "color",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
                   }
                 ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
                 "storageKey": null
               }
             ],
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "promptLabels(first:100)"
+      },
+      {
+        "alias": null,
+        "args": (v0/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "PromptLabelsTable__promptLabels",
+        "kind": "LinkedHandle",
+        "name": "promptLabels"
       }
     ]
   },
   "params": {
-    "cacheID": "0271778f1fb433d3e54c0158957ed284",
+    "cacheID": "1c255afec515a75c7aa19151e0718175",
     "id": null,
     "metadata": {},
     "name": "SettingsPromptsPageQuery",
     "operationKind": "query",
-    "text": "query SettingsPromptsPageQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  promptLabels {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query SettingsPromptsPageQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
+})();
 
 (node as any).hash = "ec4e42601216511601fd3c8f10c615fb";
 

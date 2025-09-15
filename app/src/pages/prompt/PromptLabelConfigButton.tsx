@@ -1,4 +1,5 @@
 import { Suspense, useState } from "react";
+import { ModalOverlay } from "react-aria-components";
 import {
   graphql,
   useFragment,
@@ -22,11 +23,13 @@ import {
   ListBox,
   ListBoxItem,
   Loading,
+  Modal,
   Popover,
   PopoverArrow,
   type Selection,
   View,
 } from "@phoenix/components";
+import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
 import {
   PromptLabelConfigButton_allLabels$data,
   PromptLabelConfigButton_allLabels$key,
@@ -36,7 +39,6 @@ import { PromptLabelConfigButtonUnsetLabelsMutation } from "@phoenix/pages/promp
 
 import { PromptLabelConfigButtonQuery } from "./__generated__/PromptLabelConfigButtonQuery.graphql";
 import { PromptLabelConfigButtonSetLabelsMutation } from "./__generated__/PromptLabelConfigButtonSetLabelsMutation.graphql";
-import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
 
 type PromptLabelConfigButtonProps = {
   promptId: string;
@@ -75,10 +77,20 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
         </Popover>
       </DialogTrigger>
       {showNewLabelDialog ? (
-        <NewPromptLabelDialog
-          onCompleted={() => setShowNewLabelDialog(false)}
-          onDismiss={() => setShowNewLabelDialog(false)}
-        />
+        <ModalOverlay
+          isOpen
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setShowNewLabelDialog(false);
+            }
+          }}
+        >
+          <Modal size="S">
+            <NewPromptLabelDialog
+              onCompleted={() => setShowNewLabelDialog(false)}
+            />
+          </Modal>
+        </ModalOverlay>
       ) : null}
     </>
   );
