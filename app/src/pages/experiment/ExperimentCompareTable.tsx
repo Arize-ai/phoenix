@@ -82,6 +82,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExampleDetailsPaginator } from "./ExampleDetailsPaginator";
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
@@ -132,9 +133,13 @@ const tableWrapCSS = css`
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
   const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
+
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
@@ -284,6 +289,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
+  const exampleIds = useMemo(() => {
+    return tableData.map((row) => row.id);
+  }, [tableData]);
+
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -362,8 +371,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [baseExperiment.datasetVersionId, displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
-    const datasetVersionId = baseExperiment.datasetVersionId;
-
     return [baseExperimentId, ...compareExperimentIds].map(
       (experimentId, experimentIndex) => ({
         header: () => {
@@ -416,19 +423,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
+
           return (
             <ExperimentRunOutputCell
-              datasetId={datasetId}
-              datasetVersionId={datasetVersionId}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitionCount ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
               setDialog={setDialog}
+              setSelectedExampleId={setSelectedExampleId}
               tableRow={row.original}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
               annotationSummaries={annotationSummaries}
             />
           );
@@ -439,11 +444,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
-    datasetId,
     displayFullText,
     experimentInfoById,
     getExperimentColor,
-    baseExperiment.datasetVersionId,
   ]);
 
   const columns = useMemo(() => {
@@ -639,6 +642,38 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         </div>
       </Flex>
       <ModalOverlay
+        isOpen={!!selectedExampleId}
+        onOpenChange={() => {
+          setSelectedExampleId(null);
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedExampleId && (
+            <SelectedExampleDialog
+              datasetId={datasetId}
+              datasetVersionId={baseExperiment.datasetVersionId}
+              selectedExampleId={selectedExampleId}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
+              exampleIds={exampleIds}
+              onNextExample={(nextId) => {
+                setSelectedExampleId(nextId);
+                if (
+                  nextId === exampleIds[exampleIds.length - 1] &&
+                  !isLoadingNext &&
+                  hasNext
+                ) {
+                  loadNext(PAGE_SIZE);
+                }
+              }}
+              onPreviousExample={(previousId) =>
+                setSelectedExampleId(previousId)
+              }
+            />
+          )}
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
           // Clear the URL search params for the span selection
@@ -648,8 +683,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {/* TODO: move this into the dialogs so the loading state is contained */}
-          <Suspense>{dialog}</Suspense>
+          {dialog}
         </Modal>
       </ModalOverlay>
     </View>
@@ -856,18 +890,32 @@ function SelectedExampleDialog({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
+  exampleIds,
+  onNextExample,
+  onPreviousExample,
 }: {
   selectedExampleId: string;
   datasetId: string;
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
+  exampleIds: string[];
+  onNextExample: (nextId: string) => void;
+  onPreviousExample: (previousId: string) => void;
 }) {
   return (
-    <Dialog>
+    <Dialog aria-label="Example Details">
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Comparing Experiments for Example: ${selectedExampleId}`}</DialogTitle>
+          <Flex gap="size-150">
+            <ExampleDetailsPaginator
+              currentId={selectedExampleId}
+              exampleIds={exampleIds}
+              onNext={onNextExample}
+              onPrevious={onPreviousExample}
+            />
+            <DialogTitle>{selectedExampleId}</DialogTitle>
+          </Flex>
           <DialogTitleExtra>
             <LinkButton
               size="S"
@@ -878,13 +926,15 @@ function SelectedExampleDialog({
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <ExperimentCompareDetails
-          datasetId={datasetId}
-          datasetExampleId={selectedExampleId}
-          datasetVersionId={datasetVersionId}
-          baseExperimentId={baseExperimentId}
-          compareExperimentIds={compareExperimentIds}
-        />
+        <Suspense>
+          <ExperimentCompareDetails
+            datasetId={datasetId}
+            datasetExampleId={selectedExampleId}
+            datasetVersionId={datasetVersionId}
+            baseExperimentId={baseExperimentId}
+            compareExperimentIds={compareExperimentIds}
+          />
+        </Suspense>
       </DialogContent>
     </Dialog>
   );
@@ -1054,25 +1104,19 @@ export function ExperimentRunCellAnnotationsList(
 }
 
 function ExperimentRunOutputCell({
-  datasetId,
-  datasetVersionId,
   experimentRepetitionCount,
   repeatedRunGroup,
   displayFullText,
   setDialog,
-  baseExperimentId,
-  compareExperimentIds,
+  setSelectedExampleId,
   tableRow,
   annotationSummaries,
 }: {
-  datasetId: string;
-  datasetVersionId: string;
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
   displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
+  setSelectedExampleId: (id: string) => void;
   tableRow: TableRow;
   annotationSummaries: readonly AnnotationSummary[];
 }) {
@@ -1118,15 +1162,7 @@ function ExperimentRunOutputCell({
           size="S"
           aria-label="View example run details"
           onPress={() => {
-            setDialog(
-              <SelectedExampleDialog
-                datasetId={datasetId}
-                datasetVersionId={datasetVersionId}
-                baseExperimentId={baseExperimentId}
-                compareExperimentIds={compareExperimentIds}
-                selectedExampleId={tableRow.id}
-              />
-            );
+            setSelectedExampleId(tableRow.id);
           }}
         >
           <Icon svg={<Icons.ExpandOutline />} />
