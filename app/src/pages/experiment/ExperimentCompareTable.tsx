@@ -289,7 +289,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-  const exampleSequence = useMemo(() => {
+  const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
   }, [tableData]);
 
@@ -655,11 +655,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               selectedExampleId={selectedExampleId}
               baseExperimentId={baseExperimentId}
               compareExperimentIds={compareExperimentIds}
-              exampleSequence={exampleSequence}
+              exampleIds={exampleIds}
               onNextExample={(nextId) => {
                 setSelectedExampleId(nextId);
                 if (
-                  nextId === exampleSequence[exampleSequence.length - 1] &&
+                  nextId === exampleIds[exampleIds.length - 1] &&
                   !isLoadingNext &&
                   hasNext
                 ) {
@@ -890,7 +890,7 @@ function SelectedExampleDialog({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
-  exampleSequence,
+  exampleIds,
   onNextExample,
   onPreviousExample,
 }: {
@@ -899,7 +899,7 @@ function SelectedExampleDialog({
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
-  exampleSequence: string[];
+  exampleIds: string[];
   onNextExample: (nextId: string) => void;
   onPreviousExample: (previousId: string) => void;
 }) {
@@ -910,7 +910,7 @@ function SelectedExampleDialog({
           <Flex gap="size-150">
             <ExampleDetailsPaginator
               currentId={selectedExampleId}
-              exampleSequence={exampleSequence}
+              exampleIds={exampleIds}
               onNext={onNextExample}
               onPrevious={onPreviousExample}
             />

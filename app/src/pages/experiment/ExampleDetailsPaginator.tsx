@@ -17,17 +17,17 @@ const PREVIOUS_EXAMPLE_HOTKEY = "k";
 
 export const ExampleDetailsPaginator = ({
   currentId,
-  exampleSequence,
+  exampleIds,
   onNext,
   onPrevious,
 }: {
   currentId: string;
-  exampleSequence: string[];
+  exampleIds: string[];
   onNext: (nextId: string) => void;
   onPrevious: (previousId: string) => void;
 }) => {
   const { nextExampleId, previousExampleId } = getExampleNeighbors(
-    exampleSequence,
+    exampleIds,
     currentId
   );
   const hasPrevious = !!previousExampleId;
@@ -110,8 +110,8 @@ export const ExampleDetailsPaginator = ({
   );
 };
 
-const getExampleNeighbors = (exampleSequence: string[], currentId: string) => {
-  const currentIndex = exampleSequence.findIndex(
+const getExampleNeighbors = (exampleIds: string[], currentId: string) => {
+  const currentIndex = exampleIds.findIndex(
     (exampleId) => exampleId === currentId
   );
 
@@ -129,10 +129,10 @@ const getExampleNeighbors = (exampleSequence: string[], currentId: string) => {
   let nextExampleId;
 
   if (previousIndex >= 0) {
-    previousExampleId = exampleSequence[previousIndex];
+    previousExampleId = exampleIds[previousIndex];
   }
-  if (nextIndex < exampleSequence.length) {
-    nextExampleId = exampleSequence[nextIndex];
+  if (nextIndex < exampleIds.length) {
+    nextExampleId = exampleIds[nextIndex];
   }
 
   return {
