@@ -58,9 +58,7 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
         <Button
           variant="quiet"
           size="S"
-          leadingVisual={
-            <Icon svg={<Icon svg={<Icons.SettingsOutline />} />} />
-          }
+          leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
           aria-label="Edit prompt labels"
         />
         <Popover>
