@@ -23,7 +23,7 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
-import { SpanStatusCode, Tracer, TracerProvider } from "@opentelemetry/api";
+import { SpanStatusCode, Tracer } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
