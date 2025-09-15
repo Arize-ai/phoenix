@@ -51,39 +51,43 @@ A dataframe of document evaluations would look something like the table below. I
 
 <table><thead><tr><th>span_id</th><th data-type="number">document_position</th><th width="109">label</th><th width="82" data-type="number">score</th><th>explanation</th></tr></thead><tbody><tr><td>5B8EF798A381</td><td>0</td><td>relevant</td><td>1</td><td>"this is ..."</td></tr><tr><td>5B8EF798A381</td><td>1</td><td>irrelevant</td><td>0</td><td>"this is ..."</td></tr><tr><td>E19B7EC3GG02</td><td>0</td><td>relevant</td><td>1</td><td>"this is ..."</td></tr></tbody></table>
 
-The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `eval_name=` parameter. In this case we name it "Relevance".
+The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `annotation_name=` parameter. In this case we name it "Relevance".
 
 ```python
-from phoenix.trace import DocumentEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(
-    DocumentEvaluations(
-        dataframe=document_relevance_eval_df,
-        eval_name="Relevance",
-    ),
+px_client = Client()
+px_client.spans.log_document_annotations_dataframe(
+    dataframe=document_relevance_eval_df,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
 )
 ```
 
 ## Logging Multiple Evaluation DataFrames
 
-Multiple sets of Evaluations can be logged by the same `px.Client().log_evaluations()` function call.
+Multiple sets of Evaluations can be logged using separate function calls with the new client.
 
 ```python
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
-    DocumentEvaluations(
-        dataframe=document_relevance_eval_df,
-        eval_name="Relevance",
-    ),
-    SpanEvaluations(
-        dataframe=hallucination_eval_df,
-        eval_name="Hallucination",
-    ),
-    # ... as many as you like
+from phoenix.client import Client
+
+px_client = Client()
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="Q&A Correctness",
+    annotator_kind="LLM",
 )
+px_client.spans.log_document_annotations_dataframe(
+    dataframe=document_relevance_eval_df,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
+)
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=hallucination_eval_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+# ... continue with additional evaluations as needed
 ```
 
 ## Specifying A Project for the Evaluations

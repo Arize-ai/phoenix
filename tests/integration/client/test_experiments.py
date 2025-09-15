@@ -787,6 +787,7 @@ class TestExperimentsIntegration:
 
         for eval_run in comprehensive_evals:
             assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
             assert eval_run.result.get("score") == 1.0
             assert "comprehensive_check" in (eval_run.result.get("label") or "")
 
@@ -797,6 +798,7 @@ class TestExperimentsIntegration:
 
         for eval_run in reference_evals:
             assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
             assert eval_run.result.get("score") == 1.0
 
         metadata_evals = [
@@ -806,6 +808,7 @@ class TestExperimentsIntegration:
 
         for eval_run in metadata_evals:
             assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
             assert eval_run.result.get("score") is not None
             assert eval_run.result.get("label") is not None
             assert eval_run.result.get("explanation") is not None
@@ -1297,11 +1300,13 @@ class TestEvaluateExperiment:
         # Verify evaluation results
         for eval_run in final_accuracy_evals:
             assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
             assert eval_run.result.get("score") == 1.0
 
         for eval_run in final_length_evals:
             assert eval_run.result is not None
-            assert "score" in eval_run.result
+            assert isinstance(eval_run.result, dict)
+            assert eval_run.result.get("score") is not None
             assert eval_run.result.get("label") == "length_score"
 
     @pytest.mark.parametrize("is_async", [True, False])

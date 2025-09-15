@@ -30,7 +30,7 @@ class MockLLM(LLM):
     def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
         return {"label": "good", "explanation": "This is a good result"}
 
-    async def agenerate_classification(
+    async def async_generate_classification(
         self, prompt: str, labels, include_explanation: bool, method
     ):
         return {"label": "good", "explanation": "This is a good result"}
@@ -303,24 +303,8 @@ class TestEvaluator:
         with expected_raises:
             evaluator.evaluate(eval_input)
 
-    def test_evaluator_callable(self):
-        """Test that evaluator is callable."""
-        from pydantic import create_model
-
-        InputModel = create_model("InputModel", input=(str, ...))
-        evaluator = self.MockEvaluator(
-            name="test_evaluator",
-            source="llm",
-            input_schema=InputModel,
-        )
-
-        result = evaluator({"input": "test"})
-
-        assert len(result) == 1
-        assert result[0].name == "test_evaluator"
-
     @pytest.mark.asyncio
-    async def test_evaluator_aevaluate_success(self):
+    async def test_evaluator_async_evaluate_success(self):
         """Test successful async evaluation."""
         from pydantic import create_model
 
@@ -331,7 +315,7 @@ class TestEvaluator:
             input_schema=InputModel,
         )
 
-        result = await evaluator.aevaluate({"input": "test"})
+        result = await evaluator.async_evaluate({"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -491,7 +475,7 @@ class TestClassificationEvaluator:
             name="test_evaluator", llm=llm, prompt_template=template, choices=choices
         )
 
-        result = await evaluator._aevaluate({"input": "test"})
+        result = await evaluator._async_evaluate({"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -538,7 +522,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, label="good", explanation="test explanation")
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -556,7 +540,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.75
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -572,7 +556,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> bool:
             return True
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -588,7 +572,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> str:
             return "good"
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -604,7 +588,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> str:
             return "This is a much longer explanation that should go into the explanation field"
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -627,7 +611,7 @@ class TestCreateEvaluatorDecorator:
                 "explanation": "This is a detailed explanation",
             }
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -643,7 +627,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> tuple:
             return (0.85, "very good", "This is a comprehensive evaluation")
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -660,7 +644,7 @@ class TestCreateEvaluatorDecorator:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
         with pytest.raises(ValueError):
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
@@ -670,7 +654,7 @@ class TestCreateEvaluatorDecorator:
             return [1, 2, 3]
 
         with pytest.raises(ValueError):
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
     def test_create_evaluator_with_unsupported_type_error_message(self):
         """Test create_evaluator provides informative error message for unsupported types."""
@@ -680,7 +664,7 @@ class TestCreateEvaluatorDecorator:
             return {1, 2, 3}
 
         with pytest.raises(ValueError) as exc_info:
-            test_func({"input_text": "test"})
+            test_func.evaluate({"input_text": "test"})
 
         error_message = str(exc_info.value)
         assert "Unsupported return type 'set' for evaluator 'error_test_evaluator'" in error_message
@@ -693,7 +677,9 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.8
 
-        result = test_func({"user_input": "test"}, input_mapping={"input_text": "user_input"})
+        result = test_func.evaluate(
+            {"user_input": "test"}, input_mapping={"input_text": "user_input"}
+        )
 
         assert len(result) == 1
         score = result[0]
@@ -724,7 +710,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str):
             return return_value
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -742,7 +728,7 @@ class TestCreateEvaluatorDecorator:
                 score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
             )
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -755,7 +741,7 @@ class TestCreateEvaluatorDecorator:
         def test_func(input_text: str) -> float:
             return 0.3
 
-        result = test_func({"input_text": "test"})
+        result = test_func.evaluate({"input_text": "test"})
 
         assert len(result) == 1
         score = result[0]
@@ -852,4 +838,3 @@ class TestEvaluatorRequiredFieldsAndBinding:
         assert len(scores) == 1 and scores[0].score == 1.0
         # Introspection passthrough
         assert be.describe()["name"] == "emph"
-        assert set(be.mapping_description()["mapping_keys"]) == {"text"}

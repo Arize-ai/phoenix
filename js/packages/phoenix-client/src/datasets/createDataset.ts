@@ -34,8 +34,8 @@ export async function createDataset({
 }: CreateDatasetParams): Promise<CreateDatasetResponse> {
   const client = _client || createClient();
   const inputs = examples.map((example) => example.input);
-  const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
-  const metadata = examples.map((example) => example.metadata);
+  const outputs = examples.map((example) => example?.output ?? {}); // Treat null as an empty object
+  const metadata = examples.map((example) => example?.metadata ?? {});
   const createDatasetResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {

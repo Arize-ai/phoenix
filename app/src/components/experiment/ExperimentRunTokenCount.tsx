@@ -17,7 +17,7 @@ type ExperimentRunTokenCountProps = {
   /**
    * The total number of tokens in the experiment run
    */
-  tokenCountTotal: number;
+  tokenCountTotal: number | null;
   /**
    * The id of the experiment run node
    */
@@ -33,7 +33,7 @@ type ExperimentRunTokenCountProps = {
  */
 export function ExperimentRunTokenCount(props: ExperimentRunTokenCountProps) {
   return (
-    <TooltipTrigger>
+    <TooltipTrigger isDisabled={props.tokenCountTotal == null}>
       <Pressable>
         <TokenCount size={props.size} role="button">
           {props.tokenCountTotal}

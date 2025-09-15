@@ -4137,6 +4137,7 @@
           },
           "repetition_number": {
             "type": "integer",
+            "exclusiveMinimum": 0.0,
             "title": "Repetition Number",
             "description": "The repetition number of the experiment run"
           },
@@ -4603,6 +4604,7 @@
           },
           "repetitions": {
             "type": "integer",
+            "exclusiveMinimum": 0.0,
             "title": "Repetitions",
             "description": "Number of times the experiment is repeated"
           },
@@ -4705,6 +4707,7 @@
           },
           "repetition_number": {
             "type": "integer",
+            "exclusiveMinimum": 0.0,
             "title": "Repetition Number",
             "description": "The repetition number of the experiment run"
           },

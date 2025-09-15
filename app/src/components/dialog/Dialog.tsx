@@ -78,6 +78,7 @@ export const DialogTitle = ({ children, ...props }: DialogTitleProps) => {
     <Heading
       level={2}
       data-testid="dialog-title"
+      slot="title"
       {...props}
       className={classNames(props.className, "ac-DialogTitle")}
     >

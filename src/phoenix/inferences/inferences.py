@@ -13,11 +13,10 @@ from pandas import DataFrame, Series, Timestamp, read_parquet
 from pandas.api.types import (
     is_numeric_dtype,
 )
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, deprecated
 
 from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR
 from phoenix.datetime_utils import normalize_timestamps
-from phoenix.utilities.deprecation import deprecated
 
 from . import errors as err
 from .schema import (

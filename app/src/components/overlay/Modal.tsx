@@ -123,12 +123,6 @@ const modalCSS = css`
     border: 1px solid var(--ac-global-border-color-light);
     outline: none;
 
-    .ac-Heading[slot="title"] {
-      padding: var(--ac-global-dimension-size-100)
-        var(--ac-global-dimension-size-200);
-      border-bottom: 1px solid var(--ac-global-border-color-light);
-    }
-
     & .ac-DialogHeader {
       position: sticky;
       top: 0;

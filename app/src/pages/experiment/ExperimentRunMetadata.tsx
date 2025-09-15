@@ -5,15 +5,26 @@ import {
 } from "@phoenix/components/experiment";
 import { TokenCount } from "@phoenix/components/trace";
 
-import { ExperimentRun } from "./ExperimentCompareTable";
 import { ExperimentRunLatency } from "./ExperimentRunLatency";
-export function ExperimentRunMetadata(props: ExperimentRun) {
-  const { id, startTime, endTime, costSummary } = props;
+
+type ExperimentRunMetadataProps = {
+  id: string;
+  latencyMs: number | null;
+  costSummary: {
+    total: {
+      tokens: number | null;
+      cost: number | null;
+    };
+  };
+};
+
+export function ExperimentRunMetadata(props: ExperimentRunMetadataProps) {
+  const { id, latencyMs, costSummary } = props;
   const tokenCountTotal = costSummary.total.tokens;
   const costTotal = costSummary.total.cost;
   return (
     <Flex direction="row" gap="size-100">
-      <ExperimentRunLatency startTime={startTime} endTime={endTime} />
+      <ExperimentRunLatency latencyMs={latencyMs} />
       {tokenCountTotal != null && id ? (
         <ExperimentRunTokenCount
           tokenCountTotal={tokenCountTotal}

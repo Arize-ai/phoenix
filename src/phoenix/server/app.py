@@ -81,15 +81,19 @@ from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
+    AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
+    DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
+    ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
@@ -117,6 +121,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostDetailSummaryEntriesBySpanDataLoader,
     SpanCostDetailSummaryEntriesByTraceDataLoader,
     SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
     SpanCostSummaryByExperimentRunDataLoader,
     SpanCostSummaryByGenerativeModelDataLoader,
     SpanCostSummaryByProjectDataLoader,
@@ -664,9 +669,15 @@ def create_graphql_router(
             event_queue=event_queue,
             data_loaders=DataLoaders(
                 annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
+                average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
+                    db
+                ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
+                dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
+                    db
+                ),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(
@@ -685,6 +696,10 @@ def create_graphql_router(
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
+                    db
+                ),
+                experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
                 experiment_repetition_counts=ExperimentRepetitionCountsDataLoader(db),
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
@@ -742,6 +757,11 @@ def create_graphql_router(
                 span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
                 span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),
                 span_cost_fields=TableFieldsDataLoader(db, models.SpanCost),
+                span_cost_summary_by_experiment=SpanCostSummaryByExperimentDataLoader(db),
+                span_cost_summary_by_experiment_repeated_run_group=SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(
+                    db
+                ),
+                span_cost_summary_by_experiment_run=SpanCostSummaryByExperimentRunDataLoader(db),
                 span_cost_summary_by_generative_model=SpanCostSummaryByGenerativeModelDataLoader(
                     db
                 ),
@@ -770,8 +790,6 @@ def create_graphql_router(
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
                 user_roles=UserRolesDataLoader(db),
-                span_cost_summary_by_experiment=SpanCostSummaryByExperimentDataLoader(db),
-                span_cost_summary_by_experiment_run=SpanCostSummaryByExperimentRunDataLoader(db),
             ),
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,

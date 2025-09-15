@@ -6,9 +6,15 @@ from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_
 
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
+from .average_experiment_repeated_run_group_latency import (
+    AverageExperimentRepeatedRunGroupLatencyDataLoader,
+)
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
+from .dataset_examples_and_versions_by_experiment_run import (
+    DatasetExamplesAndVersionsByExperimentRunDataLoader,
+)
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -17,6 +23,10 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
+from .experiment_repeated_run_group_annotation_summaries import (
+    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
+)
+from .experiment_repeated_run_groups import ExperimentRepeatedRunGroupsDataLoader
 from .experiment_repetition_counts import ExperimentRepetitionCountsDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
@@ -45,6 +55,9 @@ from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntri
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
 from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
 from .span_cost_summary_by_experiment import SpanCostSummaryByExperimentDataLoader
+from .span_cost_summary_by_experiment_repeated_run_group import (
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
+)
 from .span_cost_summary_by_experiment_run import SpanCostSummaryByExperimentRunDataLoader
 from .span_cost_summary_by_generative_model import SpanCostSummaryByGenerativeModelDataLoader
 from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, SpanCostSummaryCache
@@ -65,15 +78,19 @@ from .users import UsersDataLoader
 __all__ = [
     "AnnotationConfigsByProjectDataLoader",
     "AnnotationSummaryDataLoader",
+    "AverageExperimentRepeatedRunGroupLatencyDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
+    "DatasetExamplesAndVersionsByExperimentRunDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
+    "ExperimentRepeatedRunGroupsDataLoader",
+    "ExperimentRepeatedRunGroupAnnotationSummariesDataLoader",
     "ExperimentRepetitionCountsDataLoader",
     "ExperimentRunAnnotations",
     "ExperimentRunCountsDataLoader",
@@ -101,6 +118,7 @@ __all__ = [
     "SpanCostDetailSummaryEntriesByTraceDataLoader",
     "SpanCostDetailsBySpanCostDataLoader",
     "SpanCostSummaryByExperimentDataLoader",
+    "SpanCostSummaryByExperimentRepeatedRunGroupDataLoader",
     "SpanCostSummaryByExperimentRunDataLoader",
     "SpanCostSummaryByGenerativeModelDataLoader",
     "SpanCostSummaryByProjectDataLoader",

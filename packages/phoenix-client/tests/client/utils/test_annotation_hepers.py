@@ -32,7 +32,9 @@ class TestAnnotationDataFrameValidation:
 
         # Missing required columns (no ID columns)
         df = pd.DataFrame({"label": ["positive"]})
-        with pytest.raises(ValueError, match="DataFrame must have.*column or a string-based index"):
+        with pytest.raises(
+            ValueError, match="DataFrame must have.*column, index level, or a string-based index"
+        ):
             _validate_span_annotations_dataframe(dataframe=df)
 
     def test_annotation_column_conflicts(self) -> None:
@@ -146,6 +148,49 @@ class TestAnnotationDataFrameValidation:
         _validate_span_annotations_dataframe(
             dataframe=df_with_fields, annotation_name_required=True, annotator_kind_required=True
         )
+
+    def test_index_based_id_validation(self) -> None:
+        """Test validation for ID columns provided via index instead of columns."""
+        # Single ID in named index should pass
+        df_single_index = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "label": ["positive"],
+            },
+            index=pd.Index(["span1"], name="span_id"),
+        )
+        _validate_span_annotations_dataframe(dataframe=df_single_index)  # Should pass
+
+        # Multi-ID in MultiIndex should pass
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", 0)], names=["span_id", "document_position"]
+        )
+        df_multi_index = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "label": ["positive"],
+            },
+            index=multi_index,
+        )
+        _validate_document_annotations_dataframe(dataframe=df_multi_index)  # Should pass
+
+        # Missing ID level in MultiIndex should fail
+        incomplete_multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", "extra")],
+            names=["span_id", "extra_level"],  # Missing document_position
+        )
+        df_incomplete_index = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "label": ["positive"],
+            },
+            index=incomplete_multi_index,
+        )
+        with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
+            _validate_document_annotations_dataframe(dataframe=df_incomplete_index)
 
 
 class TestAnnotationDataFrameChunking:
@@ -294,6 +339,177 @@ class TestAnnotationDataFrameChunking:
 
         annotation = chunks[0][0]
         assert annotation["span_id"] == "span1"
+
+    def test_named_index_for_single_id(self) -> None:
+        """Test using a named index for single ID column extraction."""
+        # Create DataFrame with named index matching the ID column name
+        df = pd.DataFrame(
+            {"name": ["test"], "annotator_kind": ["HUMAN"], "label": ["positive"]},
+            index=pd.Index(["span1"], name="span_id"),
+        )
+
+        chunks = list(
+            _chunk_annotations_dataframe(
+                dataframe=df,
+                id_config=_SPAN_ID_CONFIG,
+                annotation_factory=_create_span_annotation,
+            )
+        )
+
+        annotation = chunks[0][0]
+        assert annotation["span_id"] == "span1"
+
+    def test_multiindex_for_document_annotations(self) -> None:
+        """Test using MultiIndex for document annotations with both span_id and document_position."""
+        # Create DataFrame with MultiIndex containing both required ID columns
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", 0), ("span1", 1), ("span2", 0)], names=["span_id", "document_position"]
+        )
+        df = pd.DataFrame(
+            {
+                "name": ["relevance", "accuracy", "completeness"],
+                "annotator_kind": ["HUMAN", "LLM", "CODE"],
+                "label": ["relevant", "accurate", "complete"],
+            },
+            index=multi_index,
+        )
+
+        chunks = list(
+            _chunk_annotations_dataframe(
+                dataframe=df,
+                id_config=_DOCUMENT_ID_CONFIG,
+                annotation_factory=_create_document_annotation,
+            )
+        )
+
+        # Check all three annotations were created correctly
+        assert len(chunks) == 1  # All fit in one chunk
+        annotations = chunks[0]
+        assert len(annotations) == 3
+
+        # First annotation
+        assert annotations[0]["span_id"] == "span1"
+        assert annotations[0]["document_position"] == 0
+        assert annotations[0]["name"] == "relevance"
+
+        # Second annotation
+        assert annotations[1]["span_id"] == "span1"
+        assert annotations[1]["document_position"] == 1
+        assert annotations[1]["name"] == "accuracy"
+
+        # Third annotation
+        assert annotations[2]["span_id"] == "span2"
+        assert annotations[2]["document_position"] == 0
+        assert annotations[2]["name"] == "completeness"
+
+    def test_multiindex_validation_for_document_annotations(self) -> None:
+        """Test validation passes for MultiIndex with document annotation ID columns."""
+        # Create DataFrame with MultiIndex containing both required ID columns
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", 0), ("span2", 1)], names=["span_id", "document_position"]
+        )
+        df = pd.DataFrame(
+            {
+                "name": ["relevance", "accuracy"],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["relevant", "accurate"],
+            },
+            index=multi_index,
+        )
+
+        # This should pass validation
+        _validate_document_annotations_dataframe(dataframe=df)
+
+    def test_partial_index_partial_columns_error(self) -> None:
+        """Test that having some ID columns in index and others in columns raises an error."""
+        # Create DataFrame with span_id in index but document_position in column
+        df = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "document_position": [0],  # This is in a column
+                "label": ["positive"],
+            },
+            index=pd.Index(["span1"], name="span_id"),  # This is in the index
+        )
+
+        # This should fail - mixing index and columns for multi-ID config
+        with pytest.raises(
+            ValueError,
+            match="For multi-ID configurations, all ID columns must be in the same location",
+        ):
+            _validate_document_annotations_dataframe(dataframe=df)
+
+    def test_multiindex_wrong_names_error(self) -> None:
+        """Test that MultiIndex with wrong level names fails validation."""
+        # Create MultiIndex with incorrect names
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", 0)],
+            names=["wrong_name", "document_position"],  # span_id is named incorrectly
+        )
+        df = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "label": ["positive"],
+            },
+            index=multi_index,
+        )
+
+        # This should fail validation
+        with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
+            _validate_document_annotations_dataframe(dataframe=df)
+
+    def test_multiindex_incomplete_id_columns_error(self) -> None:
+        """Test that MultiIndex missing required ID columns fails validation."""
+        # Create MultiIndex with only one of the required columns
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", "extra_data")],
+            names=["span_id", "extra_column"],  # Missing document_position
+        )
+        df = pd.DataFrame(
+            {
+                "name": ["test"],
+                "annotator_kind": ["HUMAN"],
+                "label": ["positive"],
+            },
+            index=multi_index,
+        )
+
+        # This should fail validation
+        with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
+            _validate_document_annotations_dataframe(dataframe=df)
+
+    def test_mixed_index_column_types(self) -> None:
+        """Test proper type conversion when extracting from MultiIndex."""
+        # Create MultiIndex with string document_position that should convert to int
+        multi_index = pd.MultiIndex.from_tuples(  # pyright: ignore[reportUnknownMemberType]
+            [("span1", "2"), ("span2", "0")],  # document_position as string
+            names=["span_id", "document_position"],
+        )
+        df = pd.DataFrame(
+            {
+                "name": ["test1", "test2"],
+                "annotator_kind": ["HUMAN", "LLM"],
+                "label": ["positive", "negative"],
+            },
+            index=multi_index,
+        )
+
+        chunks = list(
+            _chunk_annotations_dataframe(
+                dataframe=df,
+                id_config=_DOCUMENT_ID_CONFIG,
+                annotation_factory=_create_document_annotation,
+            )
+        )
+
+        annotations = chunks[0]
+        # Check type conversion worked
+        assert annotations[0]["document_position"] == 2
+        assert isinstance(annotations[0]["document_position"], int)
+        assert annotations[1]["document_position"] == 0
+        assert isinstance(annotations[1]["document_position"], int)
 
     def test_annotation_type_differences(self) -> None:
         """Test differences between span, trace, and span-document annotations."""

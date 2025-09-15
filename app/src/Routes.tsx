@@ -38,7 +38,6 @@ import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
-import { SessionPage } from "./pages/trace/SessionPage";
 import {
   APIsPage,
   AuthenticatedRoot,
@@ -83,8 +82,10 @@ import {
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
+  SessionPage,
   settingsGeneralPageLoader,
   SettingsPage,
+  SettingsPromptsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -346,7 +347,6 @@ const router = createBrowserRouter(
                 crumb: () => "Annotations",
               }}
             />
-
             <Route
               path="data"
               element={<SettingsDataPage />}
@@ -354,6 +354,13 @@ const router = createBrowserRouter(
                 crumb: () => "Data Retention",
               }}
               loader={settingsDataPageLoader}
+            />
+            <Route
+              path="prompts"
+              element={<SettingsPromptsPage />}
+              handle={{
+                crumb: () => "Prompts",
+              }}
             />
           </Route>
           <Route

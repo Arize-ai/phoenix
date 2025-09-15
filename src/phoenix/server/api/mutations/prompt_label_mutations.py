@@ -10,12 +10,10 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
@@ -23,37 +21,49 @@ from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_labe
 
 @strawberry.input
 class CreatePromptLabelInput:
-    name: Identifier
+    name: str
     description: Optional[str] = None
+    color: str
 
 
 @strawberry.input
 class PatchPromptLabelInput:
     prompt_label_id: GlobalID
-    name: Optional[Identifier] = None
+    name: Optional[str] = None
     description: Optional[str] = None
 
 
 @strawberry.input
-class DeletePromptLabelInput:
-    prompt_label_id: GlobalID
+class DeletePromptLabelsInput:
+    prompt_label_ids: list[GlobalID]
 
 
 @strawberry.input
-class SetPromptLabelInput:
+class SetPromptLabelsInput:
     prompt_id: GlobalID
-    prompt_label_id: GlobalID
+    prompt_label_ids: list[GlobalID]
 
 
 @strawberry.input
-class UnsetPromptLabelInput:
+class UnsetPromptLabelsInput:
     prompt_id: GlobalID
-    prompt_label_id: GlobalID
+    prompt_label_ids: list[GlobalID]
 
 
 @strawberry.type
 class PromptLabelMutationPayload:
-    prompt_label: Optional["PromptLabel"]
+    prompt_labels: list["PromptLabel"]
+    query: "Query"
+
+
+@strawberry.type
+class PromptLabelDeleteMutationPayload:
+    deleted_prompt_label_ids: list["GlobalID"]
+    query: "Query"
+
+
+@strawberry.type
+class PromptLabelAssociationMutationPayload:
     query: "Query"
 
 
@@ -64,17 +74,18 @@ class PromptLabelMutationMixin:
         self, info: Info[Context, None], input: CreatePromptLabelInput
     ) -> PromptLabelMutationPayload:
         async with info.context.db() as session:
-            name = IdentifierModel.model_validate(str(input.name))
-            label_orm = models.PromptLabel(name=name, description=input.description)
+            label_orm = models.PromptLabel(
+                name=input.name, description=input.description, color=input.color
+            )
             session.add(label_orm)
 
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"A prompt label named '{name}' already exists.")
+                raise Conflict(f"A prompt label named '{input.name}' already exists.")
 
             return PromptLabelMutationPayload(
-                prompt_label=to_gql_prompt_label(label_orm),
+                prompt_labels=[to_gql_prompt_label(label_orm)],
                 query=Query(),
             )
 
@@ -82,7 +93,6 @@ class PromptLabelMutationMixin:
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
-        validated_name = IdentifierModel.model_validate(str(input.name)) if input.name else None
         async with info.context.db() as session:
             label_id = from_global_id_with_expected_type(
                 input.prompt_label_id, PromptLabel.__name__
@@ -92,8 +102,8 @@ class PromptLabelMutationMixin:
             if not label_orm:
                 raise NotFound(f"PromptLabel with ID {input.prompt_label_id} not found")
 
-            if validated_name is not None:
-                label_orm.name = validated_name.root
+            if input.name is not None:
+                label_orm.name = input.name
             if input.description is not None:
                 label_orm.description = input.description
 
@@ -103,46 +113,48 @@ class PromptLabelMutationMixin:
                 raise Conflict("Error patching PromptLabel. Possibly a name conflict?")
 
             return PromptLabelMutationPayload(
-                prompt_label=to_gql_prompt_label(label_orm),
+                prompt_labels=[to_gql_prompt_label(label_orm)],
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
-    async def delete_prompt_label(
-        self, info: Info[Context, None], input: DeletePromptLabelInput
-    ) -> PromptLabelMutationPayload:
+    async def delete_prompt_labels(
+        self, info: Info[Context, None], input: DeletePromptLabelsInput
+    ) -> PromptLabelDeleteMutationPayload:
         """
         Deletes a PromptLabel (and any crosswalk references).
         """
         async with info.context.db() as session:
-            label_id = from_global_id_with_expected_type(
-                input.prompt_label_id, PromptLabel.__name__
-            )
-            stmt = delete(models.PromptLabel).where(models.PromptLabel.id == label_id)
-            result = await session.execute(stmt)
-
-            if result.rowcount == 0:
-                raise NotFound(f"PromptLabel with ID {input.prompt_label_id} not found")
+            label_ids = [
+                from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
+                for prompt_label_id in input.prompt_label_ids
+            ]
+            stmt = delete(models.PromptLabel).where(models.PromptLabel.id.in_(label_ids))
+            await session.execute(stmt)
 
             await session.commit()
 
-            return PromptLabelMutationPayload(
-                prompt_label=None,
+            return PromptLabelDeleteMutationPayload(
+                deleted_prompt_label_ids=input.prompt_label_ids,
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def set_prompt_label(
-        self, info: Info[Context, None], input: SetPromptLabelInput
-    ) -> PromptLabelMutationPayload:
+    async def set_prompt_labels(
+        self, info: Info[Context, None], input: SetPromptLabelsInput
+    ) -> PromptLabelAssociationMutationPayload:
         async with info.context.db() as session:
             prompt_id = from_global_id_with_expected_type(input.prompt_id, Prompt.__name__)
-            label_id = from_global_id_with_expected_type(
-                input.prompt_label_id, PromptLabel.__name__
-            )
+            label_ids = [
+                from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
+                for prompt_label_id in input.prompt_label_ids
+            ]
 
-            crosswalk = models.PromptPromptLabel(prompt_id=prompt_id, prompt_label_id=label_id)
-            session.add(crosswalk)
+            crosswalk_items = [
+                models.PromptPromptLabel(prompt_id=prompt_id, prompt_label_id=label_id)
+                for label_id in label_ids
+            ]
+            session.add_all(crosswalk_items)
 
             try:
                 await session.commit()
@@ -152,41 +164,38 @@ class PromptLabelMutationMixin:
                 # - Foreign key violation => prompt_id or label_id doesn't exist
                 raise Conflict("Failed to associate PromptLabel with Prompt.") from e
 
-            label_orm = await session.get(models.PromptLabel, label_id)
-            if not label_orm:
-                raise NotFound(f"PromptLabel with ID {input.prompt_label_id} not found")
-
-            return PromptLabelMutationPayload(
-                prompt_label=to_gql_prompt_label(label_orm),
+            return PromptLabelAssociationMutationPayload(
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
-    async def unset_prompt_label(
-        self, info: Info[Context, None], input: UnsetPromptLabelInput
-    ) -> PromptLabelMutationPayload:
+    async def unset_prompt_labels(
+        self, info: Info[Context, None], input: UnsetPromptLabelsInput
+    ) -> PromptLabelAssociationMutationPayload:
         """
         Unsets a PromptLabel from a Prompt by removing the row in the crosswalk.
         """
         async with info.context.db() as session:
             prompt_id = from_global_id_with_expected_type(input.prompt_id, Prompt.__name__)
-            label_id = from_global_id_with_expected_type(
-                input.prompt_label_id, PromptLabel.__name__
-            )
+            label_ids = [
+                from_global_id_with_expected_type(prompt_label_id, PromptLabel.__name__)
+                for prompt_label_id in input.prompt_label_ids
+            ]
 
             stmt = delete(models.PromptPromptLabel).where(
                 (models.PromptPromptLabel.prompt_id == prompt_id)
-                & (models.PromptPromptLabel.prompt_label_id == label_id)
+                & (models.PromptPromptLabel.prompt_label_id.in_(label_ids))
             )
             result = await session.execute(stmt)
 
-            if result.rowcount == 0:
-                raise NotFound(f"No association between prompt={prompt_id} and label={label_id}.")
+            if result.rowcount != len(label_ids):
+                label_ids_str = ", ".join(str(i) for i in label_ids)
+                raise NotFound(
+                    f"No association between prompt={prompt_id} and labels={label_ids_str}."
+                )
 
             await session.commit()
 
-            label_orm = await session.get(models.PromptLabel, label_id)
-            return PromptLabelMutationPayload(
-                prompt_label=to_gql_prompt_label(label_orm) if label_orm else None,
+            return PromptLabelAssociationMutationPayload(
                 query=Query(),
             )

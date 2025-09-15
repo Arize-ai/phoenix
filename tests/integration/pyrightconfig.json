@@ -5,5 +5,6 @@
   "reportMissingTypeStubs": false,
   "reportPrivateUsage": false,
   "reportUnnecessaryIsInstance": false,
-  "reportUnusedFunction": false
+  "reportUnusedFunction": false,
+  "reportDeprecated": false
 }

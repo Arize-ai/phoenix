@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.1...arize-phoenix-client-v1.18.2) (2025-09-11)
+
+
+### Bug Fixes
+
+* **experiments:** make sure repetitions is a positive integer ([#9479](https://github.com/Arize-ai/phoenix/issues/9479)) ([1b71c66](https://github.com/Arize-ai/phoenix/commit/1b71c666e88853de8bf40eec39ab634a8658f439))
+
+## [1.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.0...arize-phoenix-client-v1.18.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* **client:** handle multi-index for document annotations dataframe ([#9464](https://github.com/Arize-ai/phoenix/issues/9464)) ([042ff39](https://github.com/Arize-ai/phoenix/commit/042ff39dc21682454520bdd3b8575ad429add3e5))
+* missing version in deprecation docstring ([#9453](https://github.com/Arize-ai/phoenix/issues/9453)) ([bb5ff83](https://github.com/Arize-ai/phoenix/commit/bb5ff83f847631b4ad071836e8dd7bddaafef3ab))
+
 ## [1.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.17.1...arize-phoenix-client-v1.18.0) (2025-09-04)
 
 

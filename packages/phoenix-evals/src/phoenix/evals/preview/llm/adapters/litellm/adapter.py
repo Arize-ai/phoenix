@@ -79,7 +79,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def agenerate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -148,7 +148,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
 
-    async def agenerate_object(
+    async def async_generate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
@@ -180,12 +180,12 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 raise ValueError(
                     f"LiteLLM model {self.client.model} does not support structured output"
                 )
-            return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
+            return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             if not supports_tool_calls:
                 raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
-            return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
+            return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
             if not supports_structured_output and not supports_tool_calls:
@@ -195,9 +195,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 )
             # Prefer structured output when available
             if supports_structured_output:
-                return await self._agenerate_with_structured_output(prompt, schema, **kwargs)
+                return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
             else:
-                return await self._agenerate_with_tool_calling(prompt, schema, **kwargs)
+                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -256,7 +256,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         else:
             return cast(Dict[str, Any], arguments)
 
-    async def _agenerate_with_structured_output(
+    async def _async_generate_with_structured_output(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
@@ -285,7 +285,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             raise ValueError("LiteLLM returned no content")
         return cast(Dict[str, Any], json.loads(content))
 
-    async def _agenerate_with_tool_calling(
+    async def _async_generate_with_tool_calling(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],

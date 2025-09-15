@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b2f6186ac29b20d485b5595ac764278>>
+ * @generated SignedSource<<3a3f8bab4e76cdad0f4056cb2c3914f5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,7 +22,11 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly referenceOutput: any;
           };
         };
-        readonly runComparisonItems: ReadonlyArray<{
+        readonly repeatedRunGroups: ReadonlyArray<{
+          readonly annotationSummaries: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly meanScore: number | null;
+          }>;
           readonly experimentId: string;
           readonly runs: ReadonlyArray<{
             readonly annotations: {
@@ -47,17 +51,17 @@ export type ExperimentCompareTable_comparisons$data = {
                 readonly tokens: number | null;
               };
             };
-            readonly endTime: string;
             readonly error: string | null;
             readonly id: string;
+            readonly latencyMs: number;
             readonly output: any | null;
             readonly repetitionNumber: number;
-            readonly startTime: string;
             readonly trace: {
               readonly projectId: string;
               readonly traceId: string;
             } | null;
           }>;
+          readonly " $fragmentSpreads": FragmentRefs<"ExperimentRepeatedRunGroupMetadataFragment">;
         }>;
       };
     }>;
@@ -73,6 +77,7 @@ export type ExperimentCompareTable_comparisons$data = {
               readonly tokens: number | null;
             };
           };
+          readonly datasetVersionId: string;
           readonly id: string;
           readonly metadata: any;
           readonly name: string;
@@ -296,11 +301,41 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "RunComparisonItem",
+                  "concreteType": "ExperimentRepeatedRunGroup",
                   "kind": "LinkedField",
-                  "name": "runComparisonItems",
+                  "name": "repeatedRunGroups",
                   "plural": true,
                   "selections": [
+                    {
+                      "args": null,
+                      "kind": "FragmentSpread",
+                      "name": "ExperimentRepeatedRunGroupMetadataFragment"
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "ExperimentRepeatedRunGroupAnnotationSummary",
+                      "kind": "LinkedField",
+                      "name": "annotationSummaries",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotationName",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "meanScore",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -321,6 +356,13 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
+                          "name": "latencyMs",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
                           "name": "repetitionNumber",
                           "storageKey": null
                         },
@@ -336,20 +378,6 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "error",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "startTime",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "endTime",
                           "storageKey": null
                         },
                         (v2/*: any*/),
@@ -573,6 +601,13 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "kind": "ScalarField",
+                          "name": "datasetVersionId",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "Project",
                           "kind": "LinkedField",
                           "name": "project",
@@ -649,6 +684,6 @@ return {
 };
 })();
 
-(node as any).hash = "5fd37fda192f7e2b43a59d0b23917e43";
+(node as any).hash = "907b10e1b961ed986834eaa926e98070";
 
 export default node;

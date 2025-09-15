@@ -5,10 +5,13 @@ import { graphql, useFragment, useMutation } from "react-relay";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Flex,
   Form,
-  Heading,
   Icon,
   Icons,
   Label,
@@ -90,7 +93,12 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
       />
       <Modal size="S" isDismissable>
         <Dialog>
-          <Heading slot="title">Edit Prompt Details</Heading>
+          <DialogHeader>
+            <DialogTitle>Edit Prompt Details</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton />
+            </DialogTitleExtra>
+          </DialogHeader>
           <Form>
             <View padding="size-200">
               <Controller

@@ -5,9 +5,8 @@ from typing import Any, Optional
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk import trace
 from opentelemetry.sdk.resources import Resource
+from typing_extensions import deprecated
 from wrapt import wrap_function_wrapper
-
-from phoenix.utilities.deprecation import deprecated
 
 
 def project_override_wrapper(project_name: str) -> Callable[..., None]:

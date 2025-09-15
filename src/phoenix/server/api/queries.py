@@ -56,15 +56,25 @@ from phoenix.server.api.types.EmbeddingDimension import (
     to_gql_embedding_dimension,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentComparison import (
+    ExperimentComparison,
+)
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
+    ExperimentRepeatedRunGroup,
+    parse_experiment_repeated_run_group_node_id,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+    is_global_id,
+)
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -513,11 +523,12 @@ class Query:
 
         cursors_and_nodes = []
         for example in examples:
-            run_comparison_items = []
+            repeated_run_groups = []
             for experiment_id in experiment_rowids:
-                run_comparison_items.append(
-                    RunComparisonItem(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
+                repeated_run_groups.append(
+                    ExperimentRepeatedRunGroup(
+                        experiment_rowid=experiment_id,
+                        dataset_example_rowid=example.id,
                         runs=[
                             to_gql_experiment_run(run)
                             for run in sorted(
@@ -533,7 +544,7 @@ class Query:
                     created_at=example.created_at,
                     version_id=base_experiment.dataset_version_id,
                 ),
-                run_comparison_items=run_comparison_items,
+                repeated_run_groups=repeated_run_groups,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
 
@@ -863,8 +874,37 @@ class Query:
         return InferenceModel()
 
     @strawberry.field
-    async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name, node_id = from_global_id(id)
+    async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
+        if not is_global_id(id):
+            try:
+                experiment_rowid, dataset_example_rowid = (
+                    parse_experiment_repeated_run_group_node_id(id)
+                )
+            except Exception:
+                raise NotFound(f"Unknown node: {id}")
+
+            async with info.context.db() as session:
+                runs = (
+                    await session.scalars(
+                        select(models.ExperimentRun)
+                        .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                        .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
+                        .order_by(models.ExperimentRun.repetition_number.asc())
+                        .options(
+                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                        )
+                    )
+                ).all()
+            if not runs:
+                raise NotFound(f"Unknown experiment or dataset example: {id}")
+            return ExperimentRepeatedRunGroup(
+                experiment_rowid=experiment_rowid,
+                dataset_example_rowid=dataset_example_rowid,
+                runs=[to_gql_experiment_run(run) for run in runs],
+            )
+
+        global_id = GlobalID.from_id(id)
+        type_name, node_id = from_global_id(global_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -909,26 +949,9 @@ class Query:
             return to_gql_dataset(dataset)
         elif type_name == DatasetExample.__name__:
             example_id = node_id
-            latest_revision_id = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
-                .scalar_subquery()
-            )
             async with info.context.db() as session:
                 example = await session.scalar(
-                    select(models.DatasetExample)
-                    .join(
-                        models.DatasetExampleRevision,
-                        onclause=models.DatasetExampleRevision.dataset_example_id
-                        == models.DatasetExample.id,
-                    )
-                    .where(
-                        and_(
-                            models.DatasetExample.id == example_id,
-                            models.DatasetExampleRevision.id == latest_revision_id,
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        )
-                    )
+                    select(models.DatasetExample).where(models.DatasetExample.id == example_id)
                 )
             if not example:
                 raise NotFound(f"Unknown dataset example: {id}")
@@ -943,15 +966,7 @@ class Query:
                 )
             if not experiment:
                 raise NotFound(f"Unknown experiment: {id}")
-            return Experiment(
-                id_attr=experiment.id,
-                name=experiment.name,
-                project_name=experiment.project_name,
-                description=experiment.description,
-                created_at=experiment.created_at,
-                updated_at=experiment.updated_at,
-                metadata=experiment.metadata_,
-            )
+            return to_gql_experiment(experiment)
         elif type_name == ExperimentRun.__name__:
             async with info.context.db() as session:
                 if not (

@@ -91,7 +91,6 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 onclause=revision_ids.c.version_id == models.DatasetVersion.id,
                 isouter=True,  # keep rows where the version id is null
             )
-            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
         async with self._db() as session:
             results = {

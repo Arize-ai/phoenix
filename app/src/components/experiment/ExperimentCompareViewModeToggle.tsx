@@ -4,7 +4,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@phoenix/components";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 export type ExperimentCompareViewMode = "grid" | "list" | "metrics";
 
@@ -34,9 +33,6 @@ export function ExperimentCompareViewModeToggle({
   viewMode: ExperimentCompareViewMode;
   onViewModeChange: (newViewMode: ExperimentCompareViewMode) => void;
 }) {
-  const showExperimentCompareListPage = useFeatureFlag(
-    "experimentCompareListPage"
-  );
   return (
     <ToggleButtonGroup
       selectedKeys={[viewMode]}
@@ -57,14 +53,12 @@ export function ExperimentCompareViewModeToggle({
       <ToggleButton id="grid" leadingVisual={<Icon svg={<Icons.Grid />} />}>
         Grid
       </ToggleButton>
-      {showExperimentCompareListPage && (
-        <ToggleButton
-          id="list"
-          leadingVisual={<Icon svg={<Icons.ListOutline />} />}
-        >
-          List
-        </ToggleButton>
-      )}
+      <ToggleButton
+        id="list"
+        leadingVisual={<Icon svg={<Icons.ListOutline />} />}
+      >
+        List
+      </ToggleButton>
       <ToggleButton
         id="metrics"
         leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}

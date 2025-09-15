@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, Union, cast
 
 import pandas as pd
+from typing_extensions import deprecated
 
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
@@ -18,6 +19,7 @@ class TraceDataExtractor(ABC):
     `Session` so that they both implement the same methods.
     """
 
+    @deprecated("Migrate to client.spans.get_spans_dataframe() from arize-phoenix-client")
     @abstractmethod
     def query_spans(
         self,
@@ -30,6 +32,7 @@ class TraceDataExtractor(ABC):
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]: ...
 
+    @deprecated("Migrate to client.spans.get_spans_dataframe() from arize-phoenix-client")
     def get_spans_dataframe(
         self,
         filter_condition: Optional[str] = None,
@@ -55,11 +58,13 @@ class TraceDataExtractor(ABC):
         )
 
     @abstractmethod
+    @deprecated("Migrate to client.spans.get_span_annotations() from arize-phoenix-client")
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
     ) -> list[Evaluations]: ...
 
+    @deprecated("Migrate to client.spans.get_spans() from arize-phoenix-client")
     def get_trace_dataset(
         self,
         project_name: Optional[str] = None,
