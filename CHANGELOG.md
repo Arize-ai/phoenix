@@ -1,5 +1,29 @@
 # Changelog
 
+## [11.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.1...arize-phoenix-v11.33.0) (2025-09-15)
+
+
+### Features
+
+* **experiments:** annotation popover on details view ([#9408](https://github.com/Arize-ai/phoenix/issues/9408)) ([5a1b81a](https://github.com/Arize-ai/phoenix/commit/5a1b81a1e648b121a51db06208f6ef0fd49b7f10))
+* **experiments:** enable paging experiment compare details ([#9503](https://github.com/Arize-ai/phoenix/issues/9503)) ([d7ff955](https://github.com/Arize-ai/phoenix/commit/d7ff95578707da40675acb4abdf36905756bcc95))
+* **experiments:** minimal refactoring of experiment compare details ([#9373](https://github.com/Arize-ai/phoenix/issues/9373)) ([f4924af](https://github.com/Arize-ai/phoenix/commit/f4924af73efb857965c6273605e34ead1c1ef75c))
+* **experiments:** repetitions carousel on experiment compare grid page ([#9437](https://github.com/Arize-ai/phoenix/issues/9437)) ([a3e09d9](https://github.com/Arize-ai/phoenix/commit/a3e09d9c3207addb22bab73ce3c683057962f8c8))
+* **prompts:** add prompt labels ([#9497](https://github.com/Arize-ai/phoenix/issues/9497)) ([fc10b5c](https://github.com/Arize-ai/phoenix/commit/fc10b5c581579171f08b78cb05cedbab61835410))
+* release experiment compare list page ([#9491](https://github.com/Arize-ai/phoenix/issues/9491)) ([34a6f8a](https://github.com/Arize-ai/phoenix/commit/34a6f8a1377160cceabf0261c32b32c60dfd4ba3))
+* show prompt labels in prompt details ([#9468](https://github.com/Arize-ai/phoenix/issues/9468)) ([1d42778](https://github.com/Arize-ai/phoenix/commit/1d42778927163fbe60f95111979e2165525444fd))
+
+
+### Bug Fixes
+
+* add Gemini 2.0 Flash support ([#9440](https://github.com/Arize-ai/phoenix/issues/9440)) ([3521599](https://github.com/Arize-ai/phoenix/commit/35215995b681e021b94b670e4177f730c705d983))
+* **cost:** update built-in model token prices ([#9412](https://github.com/Arize-ai/phoenix/issues/9412)) ([05d7355](https://github.com/Arize-ai/phoenix/commit/05d7355f59e63de3f27a1147302559729f8932d5))
+* **experiments:** calculate averages of tokens + cost for experiment list header ([#9407](https://github.com/Arize-ai/phoenix/issues/9407)) ([b25b21f](https://github.com/Arize-ai/phoenix/commit/b25b21fc22cf98e4b83cd915a827fdcf2b9d7f90))
+* **experiments:** display averages on experiment compare grid page ([#9458](https://github.com/Arize-ai/phoenix/issues/9458)) ([53cbc05](https://github.com/Arize-ai/phoenix/commit/53cbc0559ac144043233f276fca2ffbf952e10c9))
+* **experiments:** explode repetitions on experiment compare list page ([#9495](https://github.com/Arize-ai/phoenix/issues/9495)) ([e08a412](https://github.com/Arize-ai/phoenix/commit/e08a412fa24d2c171cc5f912d20cdd6dc6470c77))
+* **experiments:** fix issues with experiment run details slideover ([#9466](https://github.com/Arize-ai/phoenix/issues/9466)) ([1b86afa](https://github.com/Arize-ai/phoenix/commit/1b86afa03fa96542cd8916d9a35a49bee30a7b3a))
+* **experiments:** make sure repetitions is a positive integer ([#9479](https://github.com/Arize-ai/phoenix/issues/9479)) ([1b71c66](https://github.com/Arize-ai/phoenix/commit/1b71c666e88853de8bf40eec39ab634a8658f439))
+
 ## [11.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.0...arize-phoenix-v11.32.1) (2025-09-04)
 
 
