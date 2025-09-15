@@ -1,10 +1,10 @@
 from phoenix.evals.legacy.models.rate_limiters import (
+    AdaptiveTokenBucket,
     AsyncCallable,
     GenericType,
+    ParameterSpec,
     RateLimiter,
     RateLimitError,
-    ParameterSpec,
-    AdaptiveTokenBucket,
     UnavailableTokensError,
 )
 
