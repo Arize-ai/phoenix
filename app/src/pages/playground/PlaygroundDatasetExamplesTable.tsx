@@ -206,7 +206,7 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
     <div
       data-testid="large-text-wrap"
       css={css`
-        max-height: 300px;
+        height: 200px;
         overflow-y: auto;
         padding: var(--ac-global-dimension-static-size-200);
       `}
@@ -375,7 +375,9 @@ function ExampleOutputContent({
               {errorMessage}
             </PlaygroundErrorWrap>
           ) : null}
-          {content != null ? <Text key="content">{content}</Text> : null}
+          {content != null ? (
+            <LargeTextWrap key="content">{content}</LargeTextWrap>
+          ) : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
                 toolCall == null ? null : (
@@ -429,7 +431,7 @@ function TableBody<T>({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 200, // Estimated row height for playground examples
+    estimateSize: () => 310, // estimated row height
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
