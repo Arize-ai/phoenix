@@ -5,6 +5,7 @@ from phoenix.evals.legacy.executors import (
     ExecutionStatus,
     SyncExecutor,
     Unset,
+    _running_event_loop_exists,  # pyright: ignore[reportPrivateUsage]
     get_executor_on_sync_context,
 )
 
@@ -16,4 +17,5 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionDetails",
     "ConcurrencyController",
+    "_running_event_loop_exists",
 ]
