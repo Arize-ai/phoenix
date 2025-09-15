@@ -25,6 +25,8 @@
 * [MistralAI](llm-providers/mistralai/README.md)
   * [MistralAI Tracing](llm-providers/mistralai/mistralai-tracing.md)
   * [MistralAI Evals](llm-providers/mistralai/mistralai-evals.md)
+* [OpenRouter](llm-providers/openrouter/README.md)
+  * [OpenRouter Tracing](llm-providers/openrouter/openrouter-tracing.md)
 * [OpenAI](llm-providers/openai/README.md)
   * [OpenAI Tracing](llm-providers/openai/openai-tracing.md)
   * [OpenAI Evals](llm-providers/openai/openai-evals.md)
