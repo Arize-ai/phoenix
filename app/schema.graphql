@@ -439,8 +439,9 @@ input CreateProjectTraceRetentionPolicyInput {
 }
 
 input CreatePromptLabelInput {
-  name: Identifier!
+  name: String!
   description: String = null
+  color: String!
 }
 
 input CreateSpanAnnotationInput {
@@ -751,8 +752,8 @@ input DeletePromptInput {
   promptId: ID!
 }
 
-input DeletePromptLabelInput {
-  promptLabelId: ID!
+input DeletePromptLabelsInput {
+  promptLabelIds: [ID!]!
 }
 
 type DeletePromptMutationPayload {
@@ -1604,9 +1605,9 @@ type Mutation {
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
-  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
-  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
-  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
+  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -1699,7 +1700,7 @@ input PatchPromptInput {
 
 input PatchPromptLabelInput {
   promptLabelId: ID!
-  name: Identifier = null
+  name: String = null
   description: String = null
 }
 
@@ -2001,6 +2002,10 @@ type PromptLabel implements Node {
   color: String!
 }
 
+type PromptLabelAssociationMutationPayload {
+  query: Query!
+}
+
 """A connection to a list of items."""
 type PromptLabelConnection {
   """Pagination data for this connection"""
@@ -2008,6 +2013,11 @@ type PromptLabelConnection {
 
   """Contains the nodes in this connection"""
   edges: [PromptLabelEdge!]!
+}
+
+type PromptLabelDeleteMutationPayload {
+  deletedPromptLabelIds: [ID!]!
+  query: Query!
 }
 
 """An edge in a connection."""
@@ -2020,7 +2030,7 @@ type PromptLabelEdge {
 }
 
 type PromptLabelMutationPayload {
-  promptLabel: PromptLabel
+  promptLabels: [PromptLabel!]!
   query: Query!
 }
 
@@ -2236,9 +2246,9 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
-input SetPromptLabelInput {
+input SetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input SetPromptVersionTagInput {
@@ -2865,9 +2875,9 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetPromptLabelInput {
+input UnsetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input UpdateAnnotationConfigInput {

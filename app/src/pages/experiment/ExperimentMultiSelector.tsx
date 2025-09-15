@@ -17,7 +17,7 @@ import {
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/ColorSwatch";
+import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
