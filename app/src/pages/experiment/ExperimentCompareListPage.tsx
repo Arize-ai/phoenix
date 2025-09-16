@@ -30,6 +30,8 @@ import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   RichTooltip,
+  Tooltip,
+  TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
@@ -342,18 +344,24 @@ export function ExperimentCompareListPage() {
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
               <TextOverflow>{exampleId}</TextOverflow>
-              <IconButton
-                size="S"
-                aria-label="View experiment run details"
-                onPress={() => {
-                  setSelectedExampleId(exampleId);
-                }}
-                css={css`
-                  flex: none;
-                `}
-              >
-                <Icon svg={<Icons.ExpandOutline />} />
-              </IconButton>
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  aria-label="View experiment run details"
+                  onPress={() => {
+                    setSelectedExampleId(exampleId);
+                  }}
+                  css={css`
+                    flex: none;
+                  `}
+                >
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  view experiment runs
+                </Tooltip>
+              </TooltipTrigger>
             </Flex>
           );
         },
