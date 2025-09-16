@@ -1,3 +1,45 @@
+"""
+Precision/Recall/F-score (F-beta) evaluator for single-label classification.
+
+- Supports binary and multi-class problems
+- Labels can be strings or integers (must be hashable)
+- No external dependencies
+
+Key behaviors:
+- Binary mode: If `positive_label` is provided, or labels are exactly {0, 1} with no
+  `positive_label` provided (defaults to positive=1), computes precision/recall/F exclusively
+  for the positive class (one-vs-rest). No averaging suffix is used in metric names.
+- Multi-class mode: Computes per-class metrics one-vs-rest and aggregates using the selected
+  averaging strategy: "macro" (default), "micro", or "weighted". When average is not the default
+  "macro", a suffix (e.g., `_micro`) is appended to metric names.
+
+Naming rules:
+- Defaults (beta=1.0, average="macro"): names are `precision`, `recall`, and `f1`.
+- Non-default average: e.g., `precision_micro`, `recall_weighted`, `f0_5_micro`.
+
+Zero-division handling:
+- When a denominator is zero (e.g., a class has no predicted or true instances), the metric is
+  set to `zero_division` (default 0.0), consistent with common library behavior.
+
+Examples:
+1) Multi-class (macro):
+>>> from phoenix.evals.metrics.precision_recall import PrecisionRecallFScore
+>>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
+>>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
+...               "output": ["cat", "cat", "cat", "bird"]}
+>>> scores = evaluator(eval_input)
+>>> [s.name for s in scores]
+['precision', 'recall', 'f1']
+
+2) Binary with explicit positive label:
+>>> evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
+>>> eval_input = {"expected": ["spam", "ham", "spam"],
+...               "output": ["spam", "spam", "ham"]}
+>>> scores = evaluator(eval_input)
+>>> [s.name for s in scores]
+['precision', 'recall', 'f0_5']
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
