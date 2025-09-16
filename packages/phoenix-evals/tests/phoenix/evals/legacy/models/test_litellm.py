@@ -11,7 +11,7 @@ from litellm.types.utils import (
     Usage,
 )
 
-from phoenix.evals.legacy import LiteLLMModel
+from phoenix.evals import LiteLLMModel
 
 
 def test_instantiation_by_positional_args_is_not_allowed():

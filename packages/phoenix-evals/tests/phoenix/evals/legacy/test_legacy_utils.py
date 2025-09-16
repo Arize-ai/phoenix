@@ -4,7 +4,7 @@ import wave
 
 import lameenc
 
-from phoenix.evals.legacy.utils import NOT_PARSABLE, get_audio_format_from_base64, snap_to_rail
+from phoenix.evals.utils import NOT_PARSABLE, get_audio_format_from_base64, snap_to_rail
 
 PCM_ENC_STR = "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
 "LPLZ9dn1AvoC+vn3+fdy+XL5K/cr"

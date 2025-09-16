@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from phoenix.evals.legacy import RAG_RELEVANCY_PROMPT_TEMPLATE, ClassificationTemplate
-from phoenix.evals.legacy.templates import (
+from phoenix.evals import RAG_RELEVANCY_PROMPT_TEMPLATE, ClassificationTemplate
+from phoenix.evals.templates import (
     InvalidClassificationTemplateError,
     PromptOptions,
     PromptTemplate,

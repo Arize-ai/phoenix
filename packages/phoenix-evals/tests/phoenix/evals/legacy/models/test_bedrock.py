@@ -5,7 +5,7 @@ import boto3
 import pytest
 from mypy_boto3_bedrock_runtime.type_defs import ConverseResponseTypeDef
 
-from phoenix.evals.legacy import BedrockModel
+from phoenix.evals import BedrockModel
 
 
 def test_instantiation_by_positional_args_is_not_allowed():

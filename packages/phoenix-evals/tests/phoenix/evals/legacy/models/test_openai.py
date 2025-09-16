@@ -12,7 +12,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from openai.types.completion_usage import CompletionUsage as ChatCompletionUsage
 
-from phoenix.evals.legacy.models.openai import OpenAIModel
+from phoenix.evals.models.openai import OpenAIModel
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 AZURE_OPENAI_API_KEY_ENVVAR_NAME = "AZURE_OPENAI_API_KEY"

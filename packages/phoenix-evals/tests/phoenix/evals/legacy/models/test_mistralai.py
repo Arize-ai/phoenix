@@ -9,7 +9,7 @@ from mistralai.models import (
     UsageInfo,
 )
 
-from phoenix.evals.legacy.models.mistralai import MistralAIModel
+from phoenix.evals.models.mistralai import MistralAIModel
 
 
 def test_instantiation_by_positional_args_is_not_allowed() -> None:
