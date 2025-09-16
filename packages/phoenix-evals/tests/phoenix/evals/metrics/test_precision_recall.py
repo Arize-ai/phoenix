@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from phoenix.evals.preview.metrics import PrecisionRecallFScore
+from phoenix.evals.metrics import PrecisionRecallFScore
 
 
 def _scores_by_name(scores: List[Any]) -> Dict[str, float]:

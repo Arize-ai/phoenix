@@ -424,6 +424,12 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
             which have the same number of rows as the input dataframe.
     """
+    if not all(isinstance(evaluator, LLMEvaluator) for evaluator in evaluators):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(
+            "run_evals is only works with legacy LLMEvaluators. You can import them with: "
+            "`from phoenix.evals.legacy import LLMEvaluator`"
+        )
+
     # use the minimum default concurrency of all the models
     if concurrency is None:
         if len(evaluators) == 0:

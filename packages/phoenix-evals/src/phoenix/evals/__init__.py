@@ -1,6 +1,19 @@
 from importlib.metadata import version
 
-from . import preview  # noqa: E402
+from . import llm, metrics, templating, tracing
+from .evaluators import (
+    ClassificationEvaluator,
+    EvalInput,
+    Evaluator,
+    LLMEvaluator,
+    Score,
+    SourceType,
+    ToolSchema,
+    bind_evaluator,
+    create_classifier,
+    create_evaluator,
+    list_evaluators,
+)
 from .legacy import (
     CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
@@ -57,7 +70,6 @@ from .legacy import (
     GoogleGenAIModel,
     HallucinationEvaluator,
     LiteLLMModel,
-    LLMEvaluator,
     MistralAIModel,
     OpenAIModel,
     PromptTemplate,
@@ -77,8 +89,8 @@ from .legacy import (
 __version__ = version("arize-phoenix-evals")
 
 
-# Legacy evals re-exports
 __all__ = [
+    # evals 1.0
     "compute_precisions_at_k",
     "download_benchmark_dataset",
     "llm_classify",
@@ -139,7 +151,6 @@ __all__ = [
     "USER_FRUSTRATION_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
     "run_evals",
-    "LLMEvaluator",
     "HallucinationEvaluator",
     "QAEvaluator",
     "RelevanceEvaluator",
@@ -149,5 +160,20 @@ __all__ = [
     "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
     "QA_SPAN_PROMPT_TEMPLATE",
     "TOOL_CALLING_SPAN_PROMPT_TEMPLATE",
-    "preview",
+    # evals 2.0
+    "ClassificationEvaluator",
+    "EvalInput",
+    "Evaluator",
+    "LLMEvaluator",
+    "Score",
+    "ToolSchema",
+    "SourceType",
+    "create_classifier",
+    "list_evaluators",
+    "create_evaluator",
+    "metrics",
+    "templating",
+    "llm",
+    "bind_evaluator",
+    "tracing",
 ]

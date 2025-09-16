@@ -3,7 +3,7 @@
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
-from phoenix.evals.preview.utils import (
+from phoenix.evals.utils import (
     extract_with_jsonpath,
     remap_eval_input,
 )
