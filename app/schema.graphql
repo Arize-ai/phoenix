@@ -268,20 +268,24 @@ type ChatCompletionOverDatasetMutationPayload {
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   span: Span
   experimentRun: ExperimentRun
 }
@@ -1314,6 +1318,7 @@ input FreeformAnnotationConfigInput {
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   name: String!
   arguments: String!
 }
@@ -2591,6 +2596,7 @@ type SystemApiKey implements ApiKey & Node {
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   content: String!
 }
 
@@ -2672,6 +2678,7 @@ type TokenUsage {
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   id: String!
   function: FunctionCallChunk!
 }
