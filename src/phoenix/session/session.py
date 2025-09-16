@@ -118,6 +118,7 @@ class Session(TraceDataExtractor, ABC):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         self._database_url = database_url
@@ -133,7 +134,7 @@ class Session(TraceDataExtractor, ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
-        self.root_path = _get_root_path(self.notebook_env, self.port)
+        self.root_path = root_path or _get_root_path(self.notebook_env, self.port)
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
@@ -301,6 +302,7 @@ class ProcessSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=notebook_env,
         )
         primary_inferences.to_disc()
@@ -367,6 +369,7 @@ class ThreadSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=notebook_env,
         )
         self.model = create_model_from_inferences(
@@ -398,6 +401,7 @@ class ThreadSession(Session):
                 else None
             ),
             shutdown_callbacks=instrumentation_cleanups,
+            root_path=self.root_path,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -449,6 +453,7 @@ def launch_app(
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
+    root_path: Optional[str] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
     use_temp_dir: bool = True,
@@ -474,6 +479,9 @@ def launch_app(
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
         Defaults to 6006.
+    root_path: str, optional
+        The root path to serve the application under (useful when behind a proxy).
+        Can also be set using environment variable `PHOENIX_HOST_ROOT_PATH`.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: dict[str, Union[int, float]], optional, default=None
@@ -586,6 +594,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=nb_env,
         )
         # TODO: catch exceptions from thread
@@ -599,6 +608,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=nb_env,
         )
 
