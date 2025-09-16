@@ -16,12 +16,12 @@ import type {
   ExperimentRunID,
   ExperimentTask,
   RanExperiment,
+  TaskOutput,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
 import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
-import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
 import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 import {
@@ -50,7 +50,7 @@ function isValidRepetitionParam(repetitions: number) {
  *
  * @experimental This feature is not complete, and will change in the future.
  */
-export type RunExperimentParams = ClientFn & {
+export type RunExperimentParams<TaskOutputType = TaskOutput> = ClientFn & {
   /**
    * An optional name for the experiment.
    * Defaults to the dataset name + a timestamp
@@ -72,7 +72,7 @@ export type RunExperimentParams = ClientFn & {
   /**
    * The task to run
    */
-  task: ExperimentTask;
+  task: ExperimentTask<TaskOutputType>;
   /**
    * The evaluators to use
    */
@@ -743,33 +743,6 @@ async function runEvaluator({
   };
 
   return evaluate();
-}
-
-/**
- * Wrap an evaluator function in an object with a name property.
- *
- * @experimental This feature is not complete, and will change in the future.
- *
- * @param params - The parameters for creating the evaluator
- * @param params.name - The name of the evaluator.
- * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
- * @param params.evaluate - The evaluator function.
- * @returns The evaluator object.
- */
-export function asEvaluator({
-  name,
-  kind,
-  evaluate,
-}: {
-  name: string;
-  kind: AnnotatorKind;
-  evaluate: Evaluator["evaluate"];
-}): Evaluator {
-  return {
-    name,
-    kind,
-    evaluate,
-  };
 }
 
 let _localIdIndex = 1000;

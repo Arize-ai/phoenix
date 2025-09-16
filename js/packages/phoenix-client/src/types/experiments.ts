@@ -105,9 +105,9 @@ export interface ExperimentEvaluationRun extends Node {
 
 export type TaskOutput = string | boolean | number | object | null;
 
-export type ExperimentTask = (
+export type ExperimentTask<TaskOutputType = TaskOutput> = (
   example: Example
-) => Promise<TaskOutput> | TaskOutput;
+) => Promise<TaskOutputType> | TaskOutputType;
 
 export interface ExperimentParameters {
   /**
