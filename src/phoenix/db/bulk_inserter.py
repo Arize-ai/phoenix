@@ -34,8 +34,9 @@ from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.prometheus import (
     BULK_LOADER_EVALUATION_INSERTIONS,
     BULK_LOADER_EXCEPTIONS,
-    BULK_LOADER_INSERTION_TIME,
     BULK_LOADER_LAST_ACTIVITY,
+    BULK_LOADER_SPAN_EXCEPTIONS,
+    BULK_LOADER_SPAN_INSERTION_TIME,
     SPAN_QUEUE_SIZE,
 )
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -198,7 +199,7 @@ class BulkInserter:
                         async with session.begin_nested():
                             result = await insert_span(session, span, project_name)
                     except Exception:
-                        BULK_LOADER_EXCEPTIONS.inc()
+                        BULK_LOADER_SPAN_EXCEPTIONS.inc()
                         logger.exception(
                             f"Failed to insert span with span_id={span.context.span_id}"
                         )
@@ -223,9 +224,9 @@ class BulkInserter:
                         span_cost.span_rowid = result.span_rowid
                         span_cost.trace_rowid = result.trace_rowid
                         span_costs.append(span_cost)
-            BULK_LOADER_INSERTION_TIME.observe(perf_counter() - start)
+            BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
-            BULK_LOADER_EXCEPTIONS.inc()
+            BULK_LOADER_SPAN_EXCEPTIONS.inc()
             logger.exception("Failed to insert spans")
         if project_ids:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
@@ -255,7 +256,7 @@ class BulkInserter:
                     except InsertEvaluationError as error:
                         BULK_LOADER_EXCEPTIONS.inc()
                         logger.exception(f"Failed to insert evaluation: {str(error)}")
-            BULK_LOADER_INSERTION_TIME.observe(perf_counter() - start)
+            BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_EXCEPTIONS.inc()
             logger.exception("Failed to insert evaluations")
