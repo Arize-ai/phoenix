@@ -4,10 +4,10 @@ from functools import wraps
 from math import exp
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
+from tqdm.auto import tqdm
 from typing_extensions import ParamSpec
 
-from phoenix.evals.legacy.exceptions import PhoenixException
-from phoenix.evals.legacy.utils import printif
+from phoenix.evals.exceptions import PhoenixException
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -16,6 +16,18 @@ AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 
 class UnavailableTokensError(PhoenixException):
     pass
+
+
+def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
+    """Print arguments if the condition is True.
+
+    Args:
+        condition (bool): Whether to print or not.
+        *args (Any): Positional arguments to pass to tqdm.write.
+        **kwargs (Any): Keyword arguments to pass to tqdm.write.
+    """
+    if condition:
+        tqdm.write(*args, **kwargs)
 
 
 class AdaptiveTokenBucket:
