@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 import pytest
 
-from phoenix.evals.preview.llm.wrapper import generate_classification_schema
+from phoenix.evals.llm.wrapper import generate_classification_schema
 
 
 class TestGenerateClassificationSchema:

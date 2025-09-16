@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from phoenix.evals.preview.evaluators import (
+from phoenix.evals.evaluators import (
     ClassificationEvaluator,
     Evaluator,
     LLMEvaluator,
@@ -14,8 +14,8 @@ from phoenix.evals.preview.evaluators import (
     list_evaluators,
     to_thread,
 )
-from phoenix.evals.preview.llm import LLM
-from phoenix.evals.preview.templating import Template
+from phoenix.evals.llm import LLM
+from phoenix.evals.templating import Template
 
 
 # --- Shared Mock Classes ---
