@@ -1,7 +1,7 @@
 import pytest
 from vertexai.generative_models import GenerationResponse
 
-from phoenix.evals.models.vertex import GeminiModel
+from phoenix.evals.legacy.models.vertex import GeminiModel
 
 
 class TestParseOutput:

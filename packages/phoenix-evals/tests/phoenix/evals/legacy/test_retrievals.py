@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal
 
-from phoenix.evals.retrievals import compute_precisions_at_k
+from phoenix.evals.legacy.retrievals import compute_precisions_at_k
 
 
 @pytest.mark.parametrize(

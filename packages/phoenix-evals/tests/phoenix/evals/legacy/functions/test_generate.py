@@ -10,8 +10,8 @@ import pytest
 import respx
 from respx.patterns import M
 
-from phoenix.evals import OpenAIModel, llm_generate
-from phoenix.evals.models.litellm import LiteLLMModel
+from phoenix.evals.legacy import OpenAIModel, llm_generate
+from phoenix.evals.legacy.models.litellm import LiteLLMModel
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 

@@ -9,7 +9,7 @@ from google.genai.types import (
     Part,
 )
 
-from phoenix.evals.models.google_genai import GoogleGenAIModel
+from phoenix.evals.legacy.models.google_genai import GoogleGenAIModel
 
 
 def test_instantiation_by_positional_args_is_not_allowed() -> None:
