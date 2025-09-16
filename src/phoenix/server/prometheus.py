@@ -9,6 +9,7 @@ import psutil
 from prometheus_client import (
     Counter,
     Gauge,
+    Histogram,
     Summary,
     start_http_server,
 )
@@ -36,14 +37,19 @@ CPU_METRIC = Gauge(
     name="cpu_usage_percent",
     documentation="CPU usage percent",
 )
-BULK_LOADER_INSERTION_TIME = Summary(
-    name="bulk_loader_insertion_time_seconds_summary",
-    documentation="Summary of database insertion time (seconds)",
+BULK_LOADER_SPAN_INSERTION_TIME = Histogram(
+    namespace="phoenix",
+    name="bulk_loader_span_insertion_time_seconds",
+    documentation="Histogram of span database insertion time (seconds)",
+    buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0],  # 10ms to 10s
 )
-BULK_LOADER_SPAN_INSERTIONS = Counter(
-    name="bulk_loader_span_insertions_total",
-    documentation="Total count of bulk loader span insertions",
+
+BULK_LOADER_SPAN_EXCEPTIONS = Counter(
+    namespace="phoenix",
+    name="bulk_loader_span_exceptions_total",
+    documentation="Total count of span insertion exceptions",
 )
+
 BULK_LOADER_EVALUATION_INSERTIONS = Counter(
     name="bulk_loader_evaluation_insertions_total",
     documentation="Total count of bulk loader evaluation insertions",
@@ -93,6 +99,24 @@ DB_DISK_USAGE_WARNING_EMAILS_SENT = Counter(
 DB_DISK_USAGE_WARNING_EMAIL_ERRORS = Counter(
     name="database_disk_usage_warning_email_errors_total",
     documentation="Total count of database disk usage warning email send errors",
+)
+
+SPAN_QUEUE_REJECTIONS = Counter(
+    namespace="phoenix",
+    name="span_queue_rejections_total",
+    documentation="Total count of requests rejected due to span queue being full",
+)
+
+SPAN_QUEUE_SIZE = Gauge(
+    namespace="phoenix",
+    name="span_queue_size",
+    documentation="Current number of spans in the processing queue",
+)
+
+BULK_LOADER_LAST_ACTIVITY = Gauge(
+    namespace="phoenix",
+    name="bulk_loader_last_activity_timestamp_seconds",
+    documentation="Unix timestamp when bulk loader last processed items",
 )
 
 
