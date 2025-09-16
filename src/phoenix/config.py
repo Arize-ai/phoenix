@@ -147,7 +147,7 @@ accepted or rejected before spans are deserialized, but a single accepted reques
 contain multiple spans. This behavior is intentional to balance memory protection with
 processing efficiency.
 
-Memory usage: If an average span takes ~10KiB of memory, then 20,000 spans would use ~200MiB
+Memory usage: If an average span takes ~50KiB of memory, then 20,000 spans would use ~1GiB
 of memory. Adjust this value based on your system's available memory and expected database
 throughput.
 
