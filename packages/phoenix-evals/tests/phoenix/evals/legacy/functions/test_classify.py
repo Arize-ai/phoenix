@@ -27,8 +27,8 @@ from phoenix.evals.default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
 )
-from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import ExecutionStatus
+from phoenix.evals.legacy.evaluators import LLMEvaluator
 from phoenix.evals.models.base import ExtraInfo
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 
