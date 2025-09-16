@@ -46,7 +46,11 @@ jobs:
       - name: Install Dependencies
         working-directory: ./js
         run: pnpm install --frozen-lockfile -r
-      - name: Build
+      - name: Build Packages
+        working-directory: ./js
+        run: |
+          pnpm run -r build
+      - name: Build Docs
         working-directory: ./js
         run: |
           pnpm run docs:generate
