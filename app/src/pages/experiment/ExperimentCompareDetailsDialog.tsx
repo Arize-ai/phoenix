@@ -17,6 +17,8 @@ import {
   Empty,
   Flex,
   Heading,
+  Icon,
+  Icons,
   LinkButton,
   Popover,
   PopoverArrow,
@@ -286,9 +288,9 @@ export function ExperimentCompareDetails({
                 const experimentRuns =
                   experimentRunsByExperimentId?.[experimentId] || [];
                 return experimentRuns.length > 0 ? (
-                  experimentRuns.map((run, runIndex) => (
+                  experimentRuns.map((run, repetitionIndex) => (
                     <li
-                      key={`${experimentId}-${runIndex}`}
+                      key={`${experimentId}-${repetitionIndex}`}
                       css={css`
                         // Make them all the same size
                         flex: 1 1 0px;
@@ -297,7 +299,9 @@ export function ExperimentCompareDetails({
                       <ExperimentItem
                         experiment={experiment}
                         experimentRun={run}
-                        index={experimentIndex}
+                        experimentIndex={experimentIndex}
+                        repetitionIndex={repetitionIndex}
+                        repetitionCount={experimentRuns.length}
                       />
                     </li>
                   ))
@@ -311,7 +315,7 @@ export function ExperimentCompareDetails({
                   >
                     <ExperimentItem
                       experiment={experiment}
-                      index={experimentIndex}
+                      experimentIndex={experimentIndex}
                     />
                   </li>
                 );
@@ -337,15 +341,21 @@ const experimentItemCSS = css`
 function ExperimentItem({
   experiment,
   experimentRun,
-  index,
+  experimentIndex,
+  repetitionIndex,
+  repetitionCount,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
-  index: number;
+  experimentIndex: number;
+  repetitionIndex?: number;
+  repetitionCount?: number;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
-    index === 0 ? baseExperimentColor : getExperimentColor(index - 1);
+    experimentIndex === 0
+      ? baseExperimentColor
+      : getExperimentColor(experimentIndex - 1);
 
   const hasExperimentResult = experimentRun !== undefined;
   return (
@@ -355,7 +365,15 @@ function ExperimentItem({
           <ColorSwatch color={color} shape="circle" />
           <Heading weight="heavy" level={3}>
             {experiment?.name ?? ""}
-          </Heading>{" "}
+          </Heading>
+          {repetitionCount && repetitionIndex !== undefined && (
+            <>
+              <Icon svg={<Icons.ChevronRight />} />
+              <Heading weight="heavy" level={3}>
+                repetition {repetitionIndex + 1}
+              </Heading>
+            </>
+          )}
         </Flex>
       </View>
       {!hasExperimentResult ? (
