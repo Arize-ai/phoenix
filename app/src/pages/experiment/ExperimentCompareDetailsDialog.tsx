@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -8,10 +8,16 @@ import {
   ColorSwatch,
   CopyToClipboardButton,
   Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Empty,
   Flex,
   Heading,
+  LinkButton,
   Popover,
   PopoverArrow,
   View,
@@ -20,10 +26,9 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import {
-  ExperimentCompareDetailsQuery,
-  ExperimentCompareDetailsQuery$data,
-} from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import { ExperimentCompareDetailsDialogQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsDialogQuery.graphql";
+import { ExperimentCompareDetailsQuery$data } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
@@ -44,6 +49,64 @@ type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
+export function ExperimentCompareDetailsDialog({
+  selectedExampleId,
+  datasetId,
+  datasetVersionId,
+  baseExperimentId,
+  compareExperimentIds,
+  exampleIds,
+  onNextExample,
+  onPreviousExample,
+}: {
+  selectedExampleId: string;
+  datasetId: string;
+  datasetVersionId: string;
+  baseExperimentId: string;
+  compareExperimentIds: string[];
+  exampleIds?: string[];
+  onNextExample?: (nextId: string) => void;
+  onPreviousExample?: (previousId: string) => void;
+}) {
+  return (
+    <Dialog aria-label="Example Details">
+      <DialogContent>
+        <DialogHeader>
+          <Flex gap="size-150">
+            {onNextExample && onPreviousExample && exampleIds && (
+              <ExampleDetailsPaginator
+                currentId={selectedExampleId}
+                exampleIds={exampleIds}
+                onNext={onNextExample}
+                onPrevious={onPreviousExample}
+              />
+            )}
+            <DialogTitle>{selectedExampleId}</DialogTitle>
+          </Flex>
+          <DialogTitleExtra>
+            <LinkButton
+              size="S"
+              to={`/datasets/${datasetId}/examples/${selectedExampleId}`}
+            >
+              View Example
+            </LinkButton>
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <Suspense>
+          <ExperimentCompareDetails
+            datasetId={datasetId}
+            datasetExampleId={selectedExampleId}
+            datasetVersionId={datasetVersionId}
+            baseExperimentId={baseExperimentId}
+            compareExperimentIds={compareExperimentIds}
+          />
+        </Suspense>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ExperimentCompareDetails({
   datasetId,
   datasetExampleId,
@@ -52,9 +115,9 @@ export function ExperimentCompareDetails({
   compareExperimentIds,
 }: ExperimentCompareDetailsProps) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
-  const exampleData = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
+  const exampleData = useLazyLoadQuery<ExperimentCompareDetailsDialogQuery>(
     graphql`
-      query ExperimentCompareDetailsQuery(
+      query ExperimentCompareDetailsDialogQuery(
         $datasetId: ID!
         $datasetExampleId: ID!
         $datasetVersionId: ID!

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -15,6 +15,11 @@ import { css } from "@emotion/react";
 import {
   ColorSwatch,
   Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Modal,
+  ModalOverlay,
   ProgressBar,
   Text,
   View,
@@ -28,6 +33,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
+import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
@@ -78,6 +84,10 @@ export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
 
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
+
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +103,7 @@ export function ExperimentCompareListPage() {
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
+              id
               experimentAnnotationSummaries {
                 annotationName
                 minScore
@@ -102,6 +113,7 @@ export function ExperimentCompareListPage() {
                 edges {
                   experiment: node {
                     id
+                    datasetVersionId
                     averageRunLatencyMs
                     runCount
                     costSummary {
@@ -229,6 +241,12 @@ export function ExperimentCompareListPage() {
     );
   }, [aggregateData?.dataset]);
 
+  const datasetId = aggregateData?.dataset.id;
+  const baseExperiment = experiments[0];
+  const compareExperimentIds = experiments
+    .slice(1)
+    .map((experiment) => experiment.id);
+
   const tableData = useMemo(() => {
     return (
       data?.experiment.runs?.edges.map((edge) => {
@@ -318,10 +336,27 @@ export function ExperimentCompareListPage() {
       {
         header: "example",
         accessorKey: "example",
-        size: 80,
-        cell: ({ getValue }) => (
-          <TextOverflow>{getValue() as string}</TextOverflow>
-        ),
+        size: 110,
+        cell: ({ getValue }) => {
+          const exampleId = getValue() as string;
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TextOverflow>{exampleId}</TextOverflow>
+              <IconButton
+                size="S"
+                aria-label="View experiment run details"
+                onPress={() => {
+                  setSelectedExampleId(exampleId);
+                }}
+                css={css`
+                  flex: none;
+                `}
+              >
+                <Icon svg={<Icons.ExpandOutline />} />
+              </IconButton>
+            </Flex>
+          );
+        },
       },
       {
         header: "input",
@@ -896,6 +931,24 @@ export function ExperimentCompareListPage() {
           </table>
         </div>
       </Flex>
+      <ModalOverlay
+        isOpen={!!selectedExampleId}
+        onOpenChange={() => {
+          setSelectedExampleId(null);
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedExampleId && datasetId && (
+            <ExperimentCompareDetailsDialog
+              datasetId={datasetId}
+              datasetVersionId={baseExperiment.datasetVersionId}
+              selectedExampleId={selectedExampleId}
+              baseExperimentId={baseExperiment.id}
+              compareExperimentIds={compareExperimentIds}
+            />
+          )}
+        </Modal>
+      </ModalOverlay>
     </View>
   );
 }
