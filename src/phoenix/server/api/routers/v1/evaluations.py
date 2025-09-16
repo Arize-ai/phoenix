@@ -102,7 +102,7 @@ async def post_evaluations(
             detail="Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    await request.state.queue_evaluation_for_bulk_insert(evaluation)
+    request.state.enqueue_evaluation(evaluation)
     return Response()
 
 
@@ -221,7 +221,7 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
                 explanation=explanation,
                 metadata_={},
             )
-            await state.enqueue(document_annotation)
+            state.enqueue_annotations(document_annotation)
     elif len(names) == 1 and names[0] in ("context.span_id", "span_id"):
         for index, row in dataframe.iterrows():
             score, label, explanation = _get_annotation_result(row)
@@ -235,7 +235,7 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
                 explanation=explanation,
                 metadata_={},
             )
-            await state.enqueue(span_annotation)
+            state.enqueue_annotations(span_annotation)
     elif len(names) == 1 and names[0] in ("context.trace_id", "trace_id"):
         for index, row in dataframe.iterrows():
             score, label, explanation = _get_annotation_result(row)
@@ -249,7 +249,7 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
                 explanation=explanation,
                 metadata_={},
             )
-            await state.enqueue(trace_annotation)
+            state.enqueue_annotations(trace_annotation)
 
 
 def _get_annotation_result(

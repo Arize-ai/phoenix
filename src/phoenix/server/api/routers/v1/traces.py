@@ -18,6 +18,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_503_SERVICE_UNAVAILABLE,
 )
 from strawberry.relay import GlobalID
 
@@ -29,6 +30,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
+from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -42,9 +44,18 @@ from .utils import (
 router = APIRouter(tags=["traces"])
 
 
+def is_not_at_capacity(request: Request) -> None:
+    if request.app.state.span_queue_is_full():
+        SPAN_QUEUE_REJECTIONS.inc()
+        raise HTTPException(
+            detail="Server is at capacity and cannot process more requests",
+            status_code=HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
 @router.post(
     "/traces",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(is_not_locked), Depends(is_not_at_capacity)],
     operation_id="addTraces",
     summary="Send traces",
     responses=add_errors_to_responses(
@@ -56,6 +67,10 @@ router = APIRouter(tags=["traces"])
                 ),
             },
             {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request body"},
+            {
+                "status_code": HTTP_503_SERVICE_UNAVAILABLE,
+                "description": "Server is at capacity and cannot process more requests",
+            },
         ]
     ),
     openapi_extra={
@@ -145,7 +160,7 @@ async def annotate_traces(
 
     precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
-        await request.state.enqueue(*precursors)
+        request.state.enqueue_annotations(*precursors)
         return AnnotateTracesResponseBody(data=[])
 
     trace_ids = {p.trace_id for p in precursors}
@@ -193,7 +208,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
-                await state.queue_span_for_bulk_insert(span, project_name)
+                state.enqueue_span(span, project_name)
 
 
 @router.delete(

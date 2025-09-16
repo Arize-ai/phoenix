@@ -1,5 +1,4 @@
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -11,6 +10,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
     TraceServiceServicer,
     add_TraceServiceServicer_to_server,
 )
+from starlette.concurrency import run_in_threadpool
 from typing_extensions import TypeAlias
 
 from phoenix.auth import CanReadToken
@@ -34,10 +34,10 @@ ProjectName: TypeAlias = str
 class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
     def __init__(
         self,
-        callback: Callable[[Span, ProjectName], Awaitable[None]],
+        enqueue_span: Callable[[Span, ProjectName], None],
     ) -> None:
         super().__init__()
-        self._callback = callback
+        self._enqueue_span = enqueue_span
 
     async def Export(
         self,
@@ -48,22 +48,22 @@ class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
             project_name = get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:
                 for otlp_span in scope_span.spans:
-                    span = decode_otlp_span(otlp_span)
-                    await self._callback(span, project_name)
+                    span = await run_in_threadpool(decode_otlp_span, otlp_span)
+                    self._enqueue_span(span, project_name)
         return ExportTraceServiceResponse()
 
 
 class GrpcServer:
     def __init__(
         self,
-        callback: Callable[[Span, ProjectName], Awaitable[None]],
+        enqueue_span: Callable[[Span, ProjectName], None],
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
         token_store: Optional[CanReadToken] = None,
         interceptors: Iterable[ServerInterceptor] = (),
     ) -> None:
-        self._callback = callback
+        self._enqueue_span = enqueue_span
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
@@ -106,7 +106,7 @@ class GrpcServer:
             server.add_secure_port(f"[::]:{get_env_grpc_port()}", server_credentials)
         else:
             server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
-        add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore[no-untyped-call,unused-ignore]
+        add_TraceServiceServicer_to_server(Servicer(self._enqueue_span), server)  # type: ignore[no-untyped-call,unused-ignore]
         await server.start()
         self._server = server
 

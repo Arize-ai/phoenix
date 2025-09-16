@@ -95,6 +95,18 @@ DB_DISK_USAGE_WARNING_EMAIL_ERRORS = Counter(
     documentation="Total count of database disk usage warning email send errors",
 )
 
+SPAN_QUEUE_REJECTIONS = Counter(
+    namespace="phoenix",
+    name="span_queue_rejections_total",
+    documentation="Total count of requests rejected due to span queue being full",
+)
+
+SPAN_QUEUE_SIZE = Gauge(
+    namespace="phoenix",
+    name="span_queue_size",
+    documentation="Current number of spans in the processing queue",
+)
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
