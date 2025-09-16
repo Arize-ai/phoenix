@@ -28,6 +28,7 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExperimentCompareDetailsDialogQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsDialogQuery.graphql";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
@@ -332,7 +333,7 @@ const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
   border-radius: var(--ac-global-rounding-small);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
-  min-width: 500px;
+  width: 474px;
 `;
 
 /**
@@ -362,15 +363,27 @@ function ExperimentItem({
     <div css={experimentItemCSS}>
       <View paddingX="size-200" paddingTop="size-200">
         <Flex direction="row" gap="size-100" alignItems="center">
-          <ColorSwatch color={color} shape="circle" />
-          <Heading weight="heavy" level={3}>
-            {experiment?.name ?? ""}
+          <span
+            css={css`
+              flex: none;
+            `}
+          >
+            <ColorSwatch color={color} shape="circle" />
+          </span>
+          <Heading
+            weight="heavy"
+            level={3}
+            css={css`
+              min-width: 0;
+            `}
+          >
+            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
           </Heading>
           {repetitionCount && repetitionIndex !== undefined && (
             <>
               <Icon svg={<Icons.ChevronRight />} />
               <Heading weight="heavy" level={3}>
-                repetition {repetitionIndex + 1}
+                repetition&nbsp;{repetitionIndex + 1}
               </Heading>
             </>
           )}
