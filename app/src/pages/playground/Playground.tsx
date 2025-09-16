@@ -38,6 +38,7 @@ import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
+import { PlaygroundSettingsDropdown } from "./PlaygroundSettingsDropdown";
 import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
@@ -99,6 +100,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
               <PlaygroundStreamToggle />
               <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
+              <PlaygroundSettingsDropdown />
               <PlaygroundRunButton />
             </Flex>
           </Flex>
