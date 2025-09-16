@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from phoenix.evals.models.rate_limiters import (
+from phoenix.evals.rate_limiters import (
     AdaptiveTokenBucket,
     UnavailableTokensError,
 )

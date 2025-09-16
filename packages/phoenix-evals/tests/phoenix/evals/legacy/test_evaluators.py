@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from phoenix.evals import (
+from phoenix.evals.legacy import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -15,7 +15,7 @@ from phoenix.evals import (
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
-from phoenix.evals.utils import _EXPLANATION, _RESPONSE
+from phoenix.evals.legacy.utils import _EXPLANATION, _RESPONSE
 
 
 @pytest.fixture

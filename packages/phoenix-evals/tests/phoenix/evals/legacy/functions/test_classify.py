@@ -21,16 +21,16 @@ from phoenix.evals.classify import (
     ClassificationStatus,
     run_evals,
 )
-from phoenix.evals.default_templates import (
+from phoenix.evals.legacy.default_templates import (
     RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
 )
-from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.executors import ExecutionStatus
-from phoenix.evals.models.base import ExtraInfo
-from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
+from phoenix.evals.legacy.evaluators import LLMEvaluator
+from phoenix.evals.legacy.executors import ExecutionStatus
+from phoenix.evals.legacy.models.base import ExtraInfo
+from phoenix.evals.legacy.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 
 
 @pytest.fixture
