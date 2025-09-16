@@ -872,7 +872,7 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
     <div
       css={css`
-        max-height: 300px;
+        height: 300px;
         overflow-y: auto;
         flex: 1 1 auto;
       `}
