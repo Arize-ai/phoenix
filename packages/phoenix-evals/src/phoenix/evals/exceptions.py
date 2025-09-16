@@ -1,15 +1,18 @@
-from phoenix.evals.legacy.exceptions import (
-    PhoenixContextLimitExceeded,
-    PhoenixException,
-    PhoenixTemplateMappingError,
-    PhoenixUnsupportedAudioFormat,
-    PhoenixUnsupportedImageFormat,
-)
+class PhoenixException(Exception):
+    pass
 
-__all__ = [
-    "PhoenixException",
-    "PhoenixContextLimitExceeded",
-    "PhoenixTemplateMappingError",
-    "PhoenixUnsupportedAudioFormat",
-    "PhoenixUnsupportedImageFormat",
-]
+
+class PhoenixContextLimitExceeded(PhoenixException):
+    pass
+
+
+class PhoenixTemplateMappingError(PhoenixException):
+    pass
+
+
+class PhoenixUnsupportedAudioFormat(PhoenixException):
+    pass
+
+
+class PhoenixUnsupportedImageFormat(PhoenixException):
+    pass
