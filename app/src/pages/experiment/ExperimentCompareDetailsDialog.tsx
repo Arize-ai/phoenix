@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from "react";
+import { Fragment, Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -254,78 +254,192 @@ export function ExperimentCompareDetails({
       </Panel>
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel defaultSize={65}>
-        <Flex direction="column" height="100%">
-          <View
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderBottomColor="dark"
-            borderBottomWidth="thin"
-            flex="none"
-          >
-            <Heading level={2}>Experiments</Heading>
-          </View>
-          <div
-            css={css`
-              overflow-y: auto;
-              height: 100%;
-              padding: var(--ac-global-dimension-static-size-200);
-            `}
-          >
-            <ul
-              css={css`
-                display: flex;
-                flex-direction: row;
-                flex-wrap: none;
-                gap: var(--ac-global-dimension-static-size-200);
-              `}
-            >
-              {experimentIds?.map((experimentId, experimentIndex) => {
-                const experiment = experimentsById?.[experimentId];
-                if (!experiment) {
-                  return null;
-                }
-                const experimentRuns =
-                  experimentRunsByExperimentId?.[experimentId] || [];
-                return experimentRuns.length > 0 ? (
-                  experimentRuns.map((run, repetitionIndex) => (
-                    <li
-                      key={`${experimentId}-${repetitionIndex}`}
-                      css={css`
-                        // Make them all the same size
-                        flex: 1 1 0px;
-                      `}
-                    >
-                      <ExperimentItem
-                        experiment={experiment}
-                        experimentRun={run}
-                        experimentIndex={experimentIndex}
-                        repetitionIndex={repetitionIndex}
-                        repetitionCount={experimentRuns.length}
-                      />
-                    </li>
-                  ))
-                ) : (
-                  <li
-                    key={experimentId}
-                    css={css`
-                      // Make them all the same size
-                      flex: 1 1 0px;
-                    `}
-                  >
-                    <ExperimentItem
-                      experiment={experiment}
-                      experimentIndex={experimentIndex}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </Flex>
+        <div
+          css={css`
+            overflow-y: auto;
+            height: 100%;
+            padding: var(--ac-global-dimension-static-size-200);
+          `}
+        >
+          {experimentsById && experimentRunsByExperimentId && (
+            <ExperimentRunOutputs
+              key={datasetExampleId}
+              baseExperimentId={baseExperimentId}
+              compareExperimentIds={compareExperimentIds}
+              experimentsById={experimentsById}
+              experimentRunsByExperimentId={experimentRunsByExperimentId}
+            />
+          )}
+        </div>
       </Panel>
     </PanelGroup>
+  );
+}
+
+function ExperimentRunOutputs({
+  baseExperimentId,
+  compareExperimentIds,
+  experimentsById,
+  experimentRunsByExperimentId,
+}: {
+  baseExperimentId: string;
+  compareExperimentIds: string[];
+  experimentsById: Record<string, Experiment>;
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
+}) {
+  const experimentIds = [baseExperimentId, ...compareExperimentIds];
+
+  const [selectedExperimentRuns, setSelectedExperimentRuns] = useState<
+    Set<string>
+  >(() => {
+    const allRunIds = Object.values(experimentRunsByExperimentId)
+      .map((runs) => runs.map((run) => run.id))
+      .flat();
+    return new Set(allRunIds);
+  });
+
+  const handleExperimentToggle = useCallback(
+    (experimentId: string, checked: boolean) => {
+      setSelectedExperimentRuns((prev) => {
+        if (checked) {
+          const experimentRunIds =
+            experimentRunsByExperimentId[experimentId]?.map((run) => run.id) ??
+            [];
+          return new Set([...prev, ...experimentRunIds]);
+        } else {
+          return new Set(
+            [...prev].filter(
+              (id) =>
+                !experimentRunsByExperimentId[experimentId]?.some(
+                  (run) => run.id === id
+                )
+            )
+          );
+        }
+      });
+    },
+    [experimentRunsByExperimentId]
+  );
+
+  const handleRepetitionToggle = useCallback(
+    (runId: string, checked: boolean) => {
+      setSelectedExperimentRuns((prev) => {
+        if (checked) {
+          return new Set([...prev, runId]);
+        } else {
+          return new Set([...prev].filter((id) => id !== runId));
+        }
+      });
+    },
+    []
+  );
+
+  return (
+    <Flex gap="size-200">
+      <div
+        css={css`
+          width: 340px;
+          flex: none;
+        `}
+      >
+        {experimentIds.map((experimentId) => {
+          const experiment = experimentsById[experimentId];
+          if (!experiment) {
+            return null;
+          }
+          return (
+            <Fragment key={experimentId}>
+              <label>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <input
+                    type="checkbox"
+                    checked={experimentRunsByExperimentId[experimentId]?.every(
+                      (run) => selectedExperimentRuns.has(run.id)
+                    )}
+                    onChange={(e) =>
+                      handleExperimentToggle(experimentId, e.target.checked)
+                    }
+                  />
+                  {experiment.name}
+                </Flex>
+              </label>
+              <View paddingStart="size-200">
+                {experimentRunsByExperimentId[experimentId]?.map(
+                  (run, repetitionIndex) => (
+                    <label key={run.id}>
+                      <Flex direction="row" alignItems="center" gap="size-100">
+                        <input
+                          type="checkbox"
+                          checked={selectedExperimentRuns.has(run.id)}
+                          onChange={(e) =>
+                            handleRepetitionToggle(run.id, e.target.checked)
+                          }
+                        />
+                        repetition {repetitionIndex + 1}
+                      </Flex>
+                    </label>
+                  )
+                )}
+              </View>
+            </Fragment>
+          );
+        })}
+      </div>
+      <ul
+        css={css`
+          display: flex;
+          flex-direction: row;
+          flex-wrap: none;
+          gap: var(--ac-global-dimension-static-size-200);
+          overflow-x: auto;
+        `}
+      >
+        {experimentIds.map((experimentId, experimentIndex) => {
+          const experiment = experimentsById?.[experimentId];
+          if (!experiment) {
+            return null;
+          }
+          const experimentRuns =
+            experimentRunsByExperimentId[experimentId] || [];
+          const experimentDidRun = experimentRuns.length > 0;
+          const experimentRunsToDisplay = experimentRuns.filter((run) =>
+            selectedExperimentRuns.has(run.id)
+          );
+          return experimentDidRun ? (
+            experimentRunsToDisplay.map((run, repetitionIndex) => (
+              <li
+                key={run.id}
+                css={css`
+                  // Make them all the same size
+                  flex: 1 1 0px;
+                `}
+              >
+                <ExperimentItem
+                  experiment={experiment}
+                  experimentRun={run}
+                  experimentIndex={experimentIndex}
+                  repetitionIndex={repetitionIndex}
+                  repetitionCount={experimentRuns.length}
+                />
+              </li>
+            ))
+          ) : (
+            <li
+              key={experimentId}
+              css={css`
+                // Make them all the same size
+                flex: 1 1 0px;
+              `}
+            >
+              <ExperimentItem
+                experiment={experiment}
+                experimentIndex={experimentIndex}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </Flex>
   );
 }
 
