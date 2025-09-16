@@ -949,9 +949,9 @@ export function ExperimentCompareListPage() {
           {selectedExampleId && datasetId && (
             <ExperimentCompareDetailsDialog
               datasetId={datasetId}
-              datasetVersionId={baseExperiment.datasetVersionId}
+              datasetVersionId={baseExperiment?.datasetVersionId}
               selectedExampleId={selectedExampleId}
-              baseExperimentId={baseExperiment.id}
+              baseExperimentId={baseExperiment?.id}
               compareExperimentIds={compareExperimentIds}
             />
           )}
