@@ -277,69 +277,69 @@ function ExampleOutputContent({
   const hasExperimentRun = experimentRunId != null;
   const [, setSearchParams] = useSearchParams();
   const spanControls = useMemo(() => {
-    if (hasSpan || hasExperimentRun) {
-      return (
-        <>
-          {hasExperimentRun && (
-            <DialogTrigger>
-              <TooltipTrigger>
-                <IconButton size="S" aria-label="View experiment run details">
-                  <Icon svg={<Icons.ExpandOutline />} />
-                </IconButton>
-                <Tooltip>
-                  <TooltipArrow />
-                  view experiment run
-                </Tooltip>
-              </TooltipTrigger>
-              <ModalOverlay>
-                <Modal variant="slideover" size="L">
-                  <PlaygroundExperimentRunDetailsDialog
-                    runId={experimentRunId}
-                  />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
-          )}
-          {hasSpan && (
-            <>
-              <DialogTrigger
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setSearchParams(
-                      (prev) => {
-                        const newParams = new URLSearchParams(prev);
-                        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                        return newParams;
-                      },
-                      { replace: true }
-                    );
-                  }
-                }}
-              >
-                <TooltipTrigger>
-                  <IconButton size="S" aria-label="View run trace">
-                    <Icon svg={<Icons.Trace />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    view run trace
-                  </Tooltip>
-                </TooltipTrigger>
-                <ModalOverlay>
-                  <Modal size="fullscreen" variant="slideover">
-                    <PlaygroundRunTraceDetailsDialog
-                      traceId={span.context.traceId}
-                      projectId={span.project.id}
-                      title={`Experiment Run Trace`}
-                    />
-                  </Modal>
-                </ModalOverlay>
-              </DialogTrigger>
-            </>
-          )}
-        </>
-      );
-    }
+    return (
+      <>
+        <DialogTrigger>
+          <TooltipTrigger isDisabled={!hasExperimentRun}>
+            <IconButton
+              size="S"
+              aria-label="View experiment run details"
+              isDisabled={!hasExperimentRun}
+            >
+              <Icon svg={<Icons.ExpandOutline />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              view experiment run
+            </Tooltip>
+          </TooltipTrigger>
+          <ModalOverlay>
+            <Modal variant="slideover" size="L">
+              <PlaygroundExperimentRunDetailsDialog
+                runId={experimentRunId ?? ""}
+              />
+            </Modal>
+          </ModalOverlay>
+        </DialogTrigger>
+        <DialogTrigger
+          onOpenChange={(open) => {
+            if (!open) {
+              setSearchParams(
+                (prev) => {
+                  const newParams = new URLSearchParams(prev);
+                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                  return newParams;
+                },
+                { replace: true }
+              );
+            }
+          }}
+        >
+          <TooltipTrigger isDisabled={!hasSpan}>
+            <IconButton
+              size="S"
+              aria-label="View run trace"
+              isDisabled={!hasSpan}
+            >
+              <Icon svg={<Icons.Trace />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              view run trace
+            </Tooltip>
+          </TooltipTrigger>
+          <ModalOverlay>
+            <Modal size="fullscreen" variant="slideover">
+              <PlaygroundRunTraceDetailsDialog
+                traceId={span?.context.traceId ?? ""}
+                projectId={span?.project.id ?? ""}
+                title={`Experiment Run Trace`}
+              />
+            </Modal>
+          </ModalOverlay>
+        </DialogTrigger>
+      </>
+    );
   }, [experimentRunId, hasExperimentRun, hasSpan, span, setSearchParams]);
 
   return (
