@@ -2,11 +2,10 @@ import asyncio
 import logging
 from asyncio import Queue, as_completed
 from collections import deque
-from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from time import perf_counter
-from typing import Any, Optional, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Optional, cast
 
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
@@ -101,9 +100,9 @@ class BulkInserter:
     async def __aenter__(
         self,
     ) -> tuple[
-        Callable[[Any], None],
-        Callable[[Span, ProjectName], None],
-        Callable[[pb.Evaluation], None],
+        Callable[[Any], Awaitable[None]],
+        Callable[[Span, str], Awaitable[None]],
+        Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
         self._running = True
@@ -122,17 +121,17 @@ class BulkInserter:
             self._task.cancel()
             self._task = None
 
-    def _enqueue_annotations(self, *items: Any) -> None:
-        self._queue_inserters.enqueue(*items)
+    async def _enqueue_annotations(self, *items: Any) -> None:
+        await self._queue_inserters.enqueue(*items)
 
     def _enqueue_operation(self, operation: DataManipulation) -> None:
         cast("Queue[DataManipulation]", self._operations).put_nowait(operation)
 
-    def _enqueue_span(self, span: Span, project_name: str) -> None:
+    async def _enqueue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
         SPAN_QUEUE_SIZE.set(len(self._spans))
 
-    def _enqueue_evaluation(self, evaluation: pb.Evaluation) -> None:
+    async def _enqueue_evaluation(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
 
     async def _process_events(self, events: Iterable[Optional[DataManipulationEvent]]) -> None: ...
@@ -292,27 +291,27 @@ class _QueueInserters:
     def empty(self) -> bool:
         return all(q.empty for q in self._queues)
 
-    def enqueue(self, *items: Any) -> None:
+    async def enqueue(self, *items: Any) -> None:
         for item in items:
-            self._enqueue(item)
+            await self._enqueue(item)
 
     @singledispatchmethod
-    def _enqueue(self, item: Any) -> None: ...
+    async def _enqueue(self, item: Any) -> None: ...
 
     @_enqueue.register(Precursors.SpanAnnotation)
     @_enqueue.register(Insertables.SpanAnnotation)
-    def _(self, item: Precursors.SpanAnnotation) -> None:
-        self._span_annotations.enqueue(item)
+    async def _(self, item: Precursors.SpanAnnotation) -> None:
+        await self._span_annotations.enqueue(item)
 
     @_enqueue.register(Precursors.TraceAnnotation)
     @_enqueue.register(Insertables.TraceAnnotation)
-    def _(self, item: Precursors.TraceAnnotation) -> None:
-        self._trace_annotations.enqueue(item)
+    async def _(self, item: Precursors.TraceAnnotation) -> None:
+        await self._trace_annotations.enqueue(item)
 
     @_enqueue.register(Precursors.DocumentAnnotation)
     @_enqueue.register(Insertables.DocumentAnnotation)
-    def _(self, item: Precursors.DocumentAnnotation) -> None:
-        self._document_annotations.enqueue(item)
+    async def _(self, item: Precursors.DocumentAnnotation) -> None:
+        await self._document_annotations.enqueue(item)
 
 
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME

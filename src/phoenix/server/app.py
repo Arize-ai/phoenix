@@ -439,8 +439,8 @@ class Scaffolder(DaemonTask):
     def __init__(
         self,
         config: ScaffolderConfig,
-        enqueue_span: Callable[[Span, ProjectName], None],
-        enqueue_evaluation: Callable[[pb.Evaluation], None],
+        enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
+        enqueue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
     ) -> None:
         super().__init__()
         self._db = config.db
@@ -516,9 +516,9 @@ class Scaffolder(DaemonTask):
                 project_name = fixture.project_name or fixture.name
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
-                    self._enqueue_span(span, project_name)
+                    await self._enqueue_span(span, project_name)
                 for evaluation in fixture_evals:
-                    self._enqueue_evaluation(evaluation)
+                    await self._enqueue_evaluation(evaluation)
 
             except FileNotFoundError:
                 logger.warning(f"Fixture file not found for '{fixture.name}'")

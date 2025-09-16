@@ -160,7 +160,7 @@ async def annotate_traces(
 
     precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
-        request.state.enqueue_annotations(*precursors)
+        await request.state.enqueue_annotations(*precursors)
         return AnnotateTracesResponseBody(data=[])
 
     trace_ids = {p.trace_id for p in precursors}
@@ -208,7 +208,7 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
-                state.enqueue_span(span, project_name)
+                await state.enqueue_span(span, project_name)
 
 
 @router.delete(

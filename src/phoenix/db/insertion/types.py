@@ -77,7 +77,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     def empty(self) -> bool:
         return not bool(self._queue)
 
-    def enqueue(self, *items: _PrecursorT) -> None:
+    async def enqueue(self, *items: _PrecursorT) -> None:
         self._queue.extend([Received(item) for item in items])
 
     @abstractmethod

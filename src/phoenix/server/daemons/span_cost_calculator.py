@@ -37,7 +37,7 @@ class SpanCostCalculator(DaemonTask):
         self._db = db
         self._model_store = model_store
         self._queue: deque[SpanCostCalculatorQueueItem] = deque()
-        self._max_items_per_transaction = 100
+        self._max_items_per_transaction = 1000
 
     async def _run(self) -> None:
         while self._running:

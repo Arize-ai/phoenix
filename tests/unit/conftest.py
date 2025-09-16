@@ -1,12 +1,11 @@
 import asyncio
 import contextlib
 from asyncio import AbstractEventLoop
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
-from typing import Any, Literal
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal
 
 import httpx
 import pytest
@@ -296,9 +295,9 @@ class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
     ) -> tuple[
-        Callable[[Any], None],
-        Callable[[Span, str], None],
-        Callable[[pb.Evaluation], None],
+        Callable[..., Awaitable[None]],
+        Callable[[Span, str], Awaitable[None]],
+        Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
         # Return the overridden methods
@@ -313,27 +312,22 @@ class TestBulkInserter(BulkInserter):
         # No background tasks to cancel
         pass
 
-    def _enqueue_annotations_immediate(self, *items: Any) -> None:
-        self._queue_inserters.enqueue(*items)
-        loop = asyncio.get_running_loop()
-        loop.create_task(self._process_queue_inserters())
-
-    async def _process_queue_inserters(self) -> None:
+    async def _enqueue_annotations_immediate(self, *items: Any) -> None:
+        # Process items immediately
+        await self._queue_inserters.enqueue(*items)
         async for event in self._queue_inserters.insert():
             self._event_queue.put(event)
 
     def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
         raise NotImplementedError
 
-    def _queue_span_immediate(self, span: Span, project_name: str) -> None:
+    async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
-        loop = asyncio.get_running_loop()
-        loop.create_task(self._insert_spans(1))
+        await self._insert_spans(1)
 
-    def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
+    async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
-        loop = asyncio.get_running_loop()
-        loop.create_task(self._insert_evaluations(1))
+        await self._insert_evaluations(1)
 
 
 @contextlib.asynccontextmanager

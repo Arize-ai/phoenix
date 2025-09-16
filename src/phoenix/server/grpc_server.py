@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -34,7 +34,7 @@ ProjectName: TypeAlias = str
 class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
     def __init__(
         self,
-        enqueue_span: Callable[[Span, ProjectName], None],
+        enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
     ) -> None:
         super().__init__()
         self._enqueue_span = enqueue_span
@@ -49,14 +49,14 @@ class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
             for scope_span in resource_spans.scope_spans:
                 for otlp_span in scope_span.spans:
                     span = await run_in_threadpool(decode_otlp_span, otlp_span)
-                    self._enqueue_span(span, project_name)
+                    await self._enqueue_span(span, project_name)
         return ExportTraceServiceResponse()
 
 
 class GrpcServer:
     def __init__(
         self,
-        enqueue_span: Callable[[Span, ProjectName], None],
+        enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,

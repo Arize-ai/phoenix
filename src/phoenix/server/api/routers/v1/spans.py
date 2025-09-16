@@ -897,7 +897,7 @@ async def annotate_spans(
         )
     precursors = [d.as_precursor(user_id=user_id) for d in filtered_span_annotations]
     if not sync:
-        request.state.enqueue_annotations(*precursors)
+        await request.state.enqueue_annotations(*precursors)
         return AnnotateSpansResponseBody(data=[])
 
     span_ids = {p.span_id for p in precursors}
@@ -1072,7 +1072,7 @@ async def create_spans(
 
     # All spans are valid, queue them all
     for span_for_insertion, project_name in spans_to_queue:
-        request.state.enqueue_span(span_for_insertion, project_name)
+        await request.state.enqueue_span(span_for_insertion, project_name)
 
     return CreateSpansResponseBody(
         total_received=total_received,
