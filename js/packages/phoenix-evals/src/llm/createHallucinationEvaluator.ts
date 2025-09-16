@@ -33,8 +33,8 @@ export type HallucinationEvaluationRecord = {
  * @returns A function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
  */
 export function createHallucinationEvaluator<
-  T extends Record<string, unknown> = HallucinationEvaluationRecord,
->(args: HallucinationEvaluatorArgs): ClassificationEvaluator<T> {
+  RecordType extends Record<string, unknown> = HallucinationEvaluationRecord,
+>(args: HallucinationEvaluatorArgs): ClassificationEvaluator<RecordType> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
@@ -42,7 +42,7 @@ export function createHallucinationEvaluator<
     name = "hallucination",
     ...rest
   } = args;
-  return createClassificationEvaluator<T>({
+  return createClassificationEvaluator<RecordType>({
     ...args,
     promptTemplate,
     choices,
