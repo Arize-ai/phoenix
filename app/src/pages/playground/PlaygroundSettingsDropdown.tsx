@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
+  Switch,
 } from "@arizeai/components";
 
 import {
   Flex,
-  Form,
   Heading,
   Slider,
   SliderNumberField,
@@ -17,18 +18,23 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import type { StreamToggle_data$key } from "../project/__generated__/StreamToggle_data.graphql";
-import { StreamToggle } from "../project/StreamToggle";
-
-export function PlaygroundSettingsDropdown(
-  { project }: { project: StreamToggle_data$key }
-) {
+export function PlaygroundSettingsDropdown() {
+  const [searchParams] = useSearchParams();
+  const selectedDatasetid = searchParams.get("datasetId");
+  const hasSelectedDataset = selectedDatasetid != null;
+  const [isOpen, setIsOpen] = useState(false);
+  const streaming = usePlaygroundContext((state) => state.streaming);
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
+  const setStreaming = usePlaygroundContext((state) => state.setStreaming);
+  const setRepetitions = usePlaygroundContext((state) => state.setRepetitions);
+  const setPlaygroundStreamingEnabled = usePreferencesContext(
+    (state) => state.setPlaygroundStreamingEnabled
+  );
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
     <div
       css={css`
@@ -49,41 +55,48 @@ export function PlaygroundSettingsDropdown(
         </DropdownButton>
         <DropdownMenu>
           <View padding="size-200">
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setIsOpen(false);
-              }}
-            >
-              <Heading level={2} weight="heavy">
-                Repetitions
-              </Heading>
-              <View paddingY="size-50">
-                <Text color="text-700" size="XS">
-                  Increase the number of repetitions to run each experiment task
-                  multiple times.
-                </Text>
-              </View>
-              <Flex direction="column" gap="size-100">
-                <Slider
-                  defaultValue={1}
-                  label="Repetitions"
-                  minValue={1}
-                  maxValue={30}
-                >
-                  <SliderNumberField />
-                </Slider>
-              </Flex>
-            </Form>
             <Heading level={2} weight="heavy">
-              Streaming
+              Settings
             </Heading>
-            <View paddingY="size-50">
-              <Text color="text-700" size="XS">
-                Enable streaming to see tokens as they are generated in real time.
-              </Text>
+            <View paddingTop="size-100" paddingBottom="size-50">
+              <Flex direction="column" gap="size-200">
+                {hasSelectedDataset && (
+                  <>
+                    <Slider
+                      defaultValue={1}
+                      label="Repetitions"
+                      minValue={1}
+                      maxValue={30}
+                      value={repetitions}
+                      onChange={setRepetitions}
+                    >
+                      <SliderNumberField />
+                    </Slider>
+                    <Text color="text-700" size="XS">
+                      Increase the number of repetitions to run each experiment
+                      task multiple times.
+                    </Text>
+                  </>
+                )}
+                <Flex direction="row" justifyContent="start">
+                  <Switch
+                    labelPlacement="start"
+                    isSelected={streaming}
+                    onChange={() => {
+                      setStreaming(!streaming);
+                      setPlaygroundStreamingEnabled(!streaming);
+                    }}
+                    isDisabled={isRunning}
+                  >
+                    <Text size="M">Streaming</Text>
+                  </Switch>
+                </Flex>
+                <Text color="text-700" size="XS">
+                  Enable streaming to view experiment task output as it is
+                  generated in real time.
+                </Text>
+              </Flex>
             </View>
-            {/* <StreamToggle project={project} /> */}
           </View>
         </DropdownMenu>
       </DropdownTrigger>

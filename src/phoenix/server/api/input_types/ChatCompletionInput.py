@@ -36,6 +36,7 @@ class ChatCompletionOverDatasetInput:
     tools: Optional[list[JSON]] = UNSET
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE
+    repetitions: int
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
     experiment_name: Optional[str] = None
