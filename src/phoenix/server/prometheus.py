@@ -9,6 +9,7 @@ import psutil
 from prometheus_client import (
     Counter,
     Gauge,
+    Histogram,
     Summary,
     start_http_server,
 )
@@ -36,13 +37,11 @@ CPU_METRIC = Gauge(
     name="cpu_usage_percent",
     documentation="CPU usage percent",
 )
-BULK_LOADER_INSERTION_TIME = Summary(
-    name="bulk_loader_insertion_time_seconds_summary",
-    documentation="Summary of database insertion time (seconds)",
-)
-BULK_LOADER_SPAN_INSERTIONS = Counter(
-    name="bulk_loader_span_insertions_total",
-    documentation="Total count of bulk loader span insertions",
+BULK_LOADER_INSERTION_TIME = Histogram(
+    namespace="phoenix",
+    name="bulk_loader_insertion_time_seconds",
+    documentation="Histogram of database insertion time (seconds)",
+    buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0],  # 10ms to 10s
 )
 BULK_LOADER_EVALUATION_INSERTIONS = Counter(
     name="bulk_loader_evaluation_insertions_total",
@@ -105,6 +104,12 @@ SPAN_QUEUE_SIZE = Gauge(
     namespace="phoenix",
     name="span_queue_size",
     documentation="Current number of spans in the processing queue",
+)
+
+BULK_LOADER_LAST_ACTIVITY = Gauge(
+    namespace="phoenix",
+    name="bulk_loader_last_activity_timestamp_seconds",
+    documentation="Unix timestamp when bulk loader last processed items",
 )
 
 

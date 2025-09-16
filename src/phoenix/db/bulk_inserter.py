@@ -4,7 +4,7 @@ from asyncio import Queue, as_completed
 from collections import deque
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from time import perf_counter
+from time import perf_counter, time
 from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Optional, cast
 
 from openinference.semconv.trace import SpanAttributes
@@ -35,7 +35,7 @@ from phoenix.server.prometheus import (
     BULK_LOADER_EVALUATION_INSERTIONS,
     BULK_LOADER_EXCEPTIONS,
     BULK_LOADER_INSERTION_TIME,
-    BULK_LOADER_SPAN_INSERTIONS,
+    BULK_LOADER_LAST_ACTIVITY,
     SPAN_QUEUE_SIZE,
 )
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -144,6 +144,7 @@ class BulkInserter:
             or self._spans
             or self._evaluations
         ):
+            BULK_LOADER_LAST_ACTIVITY.set(time())
             SPAN_QUEUE_SIZE.set(len(self._spans))
             if (
                 self._queue_inserters.empty
@@ -192,7 +193,6 @@ class BulkInserter:
                     if not self._spans:
                         break
                     span, project_name = self._spans.popleft()
-                    BULK_LOADER_SPAN_INSERTIONS.inc()
                     result: Optional[SpanInsertionEvent] = None
                     try:
                         async with session.begin_nested():
@@ -229,6 +229,8 @@ class BulkInserter:
             logger.exception("Failed to insert spans")
         if project_ids:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
+        if not span_costs:
+            return
         try:
             async with self._db() as session:
                 session.add_all(span_costs)
