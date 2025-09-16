@@ -24,6 +24,12 @@ const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
+interface ExampleType {
+  input: { question: string };
+  output: { answer: string };
+  metadata: Record<string, unknown>;
+}
+
 // Initialize Phoenix client
 const client = createClient();
 
@@ -36,7 +42,7 @@ async function main() {
   console.log("Creating dataset...");
 
   // Create examples without id field since it's not expected in the Example type
-  const examples = [
+  const examples: ExampleType[] = [
     {
       input: { question: "What is Paul Graham known for?" },
       output: {
@@ -173,7 +179,11 @@ async function main() {
     },
   });
 
-  const accuracyEval = createClassificationEvaluator({
+  const accuracyEval = createClassificationEvaluator<{
+    question: string;
+    answer: string;
+    referenceAnswer: string;
+  }>({
     model: aiOpenAI("gpt-4o"),
     name: "accuracy",
     promptTemplate: `
