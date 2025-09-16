@@ -89,7 +89,7 @@ importers:
         version: 4.24.2(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
       '@uiw/react-codemirror':
         specifier: ^4.24.2
-        version: 4.24.2(@babel/runtime@7.28.2)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.6)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.38.1)(codemirror@6.0.1(@lezer/common@1.2.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 4.24.2(@babel/runtime@7.28.4)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.6)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.38.1)(codemirror@6.0.1(@lezer/common@1.2.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       codemirror-json-schema:
         specifier: ^0.7.9
         version: 0.7.9(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
@@ -148,8 +148,8 @@ importers:
         specifier: ^9.1.0
         version: 9.1.0(@types/react@18.3.10)(react@18.3.1)
       react-relay:
-        specifier: ^19.0.0
-        version: 19.0.0(react@18.3.1)
+        specifier: ^20.1.1
+        version: 20.1.1(react@18.3.1)
       react-resizable:
         specifier: ^3.0.5
         version: 3.0.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -502,6 +502,10 @@ packages:
 
   '@babel/runtime@7.28.2':
     resolution: {integrity: sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.28.4':
+    resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -4272,8 +4276,8 @@ packages:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
     engines: {node: '>=0.10.0'}
 
-  react-relay@19.0.0:
-    resolution: {integrity: sha512-OaUISVLUTjfBL1tGBtmt3eDZC+KFnP4QIHq0HDacm7ntiZPgAt+udYs3zapuc8hN65wlRruaLKrWc6P/ZQRlSg==}
+  react-relay@20.1.1:
+    resolution: {integrity: sha512-pwl7wHHXCOx32dOg4TVNkhVojgGVvOBMo9pcMGeM1BIFYvmwGauKTtBB+qr5buXHGooCL8TXjMVg+ZLizIsbeQ==}
     peerDependencies:
       react: ^16.9.0 || ^17 || ^18 || ^19
 
@@ -4380,6 +4384,9 @@ packages:
 
   relay-runtime@19.0.0:
     resolution: {integrity: sha512-uQqizN6d/7ZkTm2C0sTUAFfHk65BQEFLkfp0IBsXPTsXLL3fAJ2iHkemA621vuphtiKsF06C5ZKxypmC5lduFg==}
+
+  relay-runtime@20.1.1:
+    resolution: {integrity: sha512-N98ZkkyuIHdXmHaPuljihM1QbFYXATF0gxA0CESFphszsQzXs9A/zZloVfzdOI/xg3B3CfM/5nozvIoeTDIcfw==}
 
   remark-gfm@4.0.1:
     resolution: {integrity: sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==}
@@ -4873,8 +4880,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  ua-parser-js@1.0.40:
-    resolution: {integrity: sha512-z6PJ8Lml+v3ichVojCiB8toQJBuwR42ySM4ezjXIqXK3M0HczmKQ3LF4rhU55PfD99KEEXQG6yb7iOMyvYuHew==}
+  ua-parser-js@1.0.41:
+    resolution: {integrity: sha512-LbBDqdIC5s8iROCUjMbW1f5dJQTEFB1+KO9ogbvlb3nm9n4YHa5p4KTvFPWvh2Hs8gZMBuiB1/8+pdfe/tDPug==}
     hasBin: true
 
   uc.micro@2.1.0:
@@ -5473,6 +5480,8 @@ snapshots:
       '@babel/helper-plugin-utils': 7.27.1
 
   '@babel/runtime@7.28.2': {}
+
+  '@babel/runtime@7.28.4': {}
 
   '@babel/template@7.27.2':
     dependencies:
@@ -7887,9 +7896,9 @@ snapshots:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.1
 
-  '@uiw/react-codemirror@4.24.2(@babel/runtime@7.28.2)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.6)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.38.1)(codemirror@6.0.1(@lezer/common@1.2.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@uiw/react-codemirror@4.24.2(@babel/runtime@7.28.4)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.6)(@codemirror/state@6.5.2)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.38.1)(codemirror@6.0.1(@lezer/common@1.2.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.4
       '@codemirror/commands': 6.8.1
       '@codemirror/state': 6.5.2
       '@codemirror/theme-one-dark': 6.1.2
@@ -8913,7 +8922,7 @@ snapshots:
       object-assign: 4.1.1
       promise: 7.3.1
       setimmediate: 1.0.5
-      ua-parser-js: 1.0.40
+      ua-parser-js: 1.0.41
     transitivePeerDependencies:
       - encoding
 
@@ -10396,14 +10405,14 @@ snapshots:
 
   react-refresh@0.17.0: {}
 
-  react-relay@19.0.0(react@18.3.1):
+  react-relay@20.1.1(react@18.3.1):
     dependencies:
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.4
       fbjs: 3.0.5
       invariant: 2.2.4
       nullthrows: 1.1.1
       react: 18.3.1
-      relay-runtime: 19.0.0
+      relay-runtime: 20.1.1
     transitivePeerDependencies:
       - encoding
 
@@ -10557,6 +10566,14 @@ snapshots:
   relay-runtime@19.0.0:
     dependencies:
       '@babel/runtime': 7.28.2
+      fbjs: 3.0.5
+      invariant: 2.2.4
+    transitivePeerDependencies:
+      - encoding
+
+  relay-runtime@20.1.1:
+    dependencies:
+      '@babel/runtime': 7.28.4
       fbjs: 3.0.5
       invariant: 2.2.4
     transitivePeerDependencies:
@@ -11108,7 +11125,7 @@ snapshots:
 
   typescript@5.4.5: {}
 
-  ua-parser-js@1.0.40: {}
+  ua-parser-js@1.0.41: {}
 
   uc.micro@2.1.0: {}
 
