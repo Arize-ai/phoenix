@@ -55,7 +55,7 @@
     "react-resizable-panels": "^2.1.9",
     "react-router": "^7.8.0",
     "recharts": "^3.1.0",
-    "relay-runtime": "^19.0.0",
+    "relay-runtime": "^20.1.1",
     "remark-gfm": "^4.0.1",
     "shade": "^0.1.1",
     "three": "~0.139.2",
