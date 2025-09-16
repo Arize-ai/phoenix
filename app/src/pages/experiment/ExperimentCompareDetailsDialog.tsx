@@ -278,12 +278,30 @@ export function ExperimentCompareDetails({
                 gap: var(--ac-global-dimension-static-size-200);
               `}
             >
-              {experimentIds?.map((experimentId, index) => {
+              {experimentIds?.map((experimentId, experimentIndex) => {
                 const experiment = experimentsById?.[experimentId];
                 if (!experiment) {
                   return null;
                 }
-                return (
+                const experimentRuns =
+                  experimentRunsByExperimentId?.[experimentId] || [];
+                return experimentRuns.length > 0 ? (
+                  experimentRuns.map((run, runIndex) => (
+                    <li
+                      key={`${experimentId}-${runIndex}`}
+                      css={css`
+                        // Make them all the same size
+                        flex: 1 1 0px;
+                      `}
+                    >
+                      <ExperimentItem
+                        experiment={experiment}
+                        experimentRun={run}
+                        index={experimentIndex}
+                      />
+                    </li>
+                  ))
+                ) : (
                   <li
                     key={experimentId}
                     css={css`
@@ -293,10 +311,7 @@ export function ExperimentCompareDetails({
                   >
                     <ExperimentItem
                       experiment={experiment}
-                      experimentRuns={
-                        experimentRunsByExperimentId?.[experimentId] || []
-                      }
-                      index={index}
+                      index={experimentIndex}
                     />
                   </li>
                 );
@@ -321,18 +336,18 @@ const experimentItemCSS = css`
  */
 function ExperimentItem({
   experiment,
-  experimentRuns,
+  experimentRun,
   index,
 }: {
   experiment: Experiment;
-  experimentRuns: ExperimentRun[];
+  experimentRun?: ExperimentRun;
   index: number;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
     index === 0 ? baseExperimentColor : getExperimentColor(index - 1);
 
-  const hasExperimentResult = experimentRuns.length > 0;
+  const hasExperimentResult = experimentRun !== undefined;
   return (
     <div css={experimentItemCSS}>
       <View paddingX="size-200" paddingTop="size-200">
@@ -343,59 +358,56 @@ function ExperimentItem({
           </Heading>{" "}
         </Flex>
       </View>
-      {!hasExperimentResult ? <Empty message="No Run" /> : null}
-      <ul>
-        {experimentRuns.map((run, index) => (
-          <li key={index}>
-            <div
+      {!hasExperimentResult ? (
+        <Empty message="No Run" />
+      ) : (
+        <>
+          <div
+            css={css`
+              border-bottom: 1px solid var(--ac-global-border-color-default);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-size-100);
+            `}
+          >
+            <View paddingX="size-200" paddingTop="size-100">
+              <ExperimentRunMetadata {...experimentRun} />
+            </View>
+            <ul
               css={css`
-                border-bottom: 1px solid var(--ac-global-border-color-default);
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-size-100);
+                padding: 0 var(--ac-global-dimension-size-100)
+                  var(--ac-global-dimension-size-100)
+                  var(--ac-global-dimension-size-100);
               `}
             >
-              <View paddingX="size-200" paddingTop="size-100">
-                <ExperimentRunMetadata {...run} />
-              </View>
-              <ul
-                css={css`
-                  padding: 0 var(--ac-global-dimension-size-100)
-                    var(--ac-global-dimension-size-100)
-                    var(--ac-global-dimension-size-100);
-                `}
-              >
-                {run.annotations?.edges.map((edge) => (
-                  <li key={edge.annotation.id}>
-                    <DialogTrigger>
-                      <ExperimentAnnotationButton
-                        annotation={edge.annotation}
-                      />
-                      <Popover placement="top">
-                        <PopoverArrow />
-                        <Dialog style={{ width: 400 }}>
-                          <View padding="size-200">
-                            <AnnotationDetailsContent
-                              annotation={edge.annotation}
-                            />
-                          </View>
-                        </Dialog>
-                      </Popover>
-                    </DialogTrigger>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <View>
-              {run.error ? (
-                <View padding="size-200">{run.error}</View>
-              ) : (
-                <JSONBlockWithCopy value={run.output} />
-              )}
-            </View>
-          </li>
-        ))}
-      </ul>
+              {experimentRun.annotations?.edges.map((edge) => (
+                <li key={edge.annotation.id}>
+                  <DialogTrigger>
+                    <ExperimentAnnotationButton annotation={edge.annotation} />
+                    <Popover placement="top">
+                      <PopoverArrow />
+                      <Dialog style={{ width: 400 }}>
+                        <View padding="size-200">
+                          <AnnotationDetailsContent
+                            annotation={edge.annotation}
+                          />
+                        </View>
+                      </Dialog>
+                    </Popover>
+                  </DialogTrigger>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <View>
+            {experimentRun.error ? (
+              <View padding="size-200">{experimentRun.error}</View>
+            ) : (
+              <JSONBlockWithCopy value={experimentRun.output} />
+            )}
+          </View>
+        </>
+      )}
     </div>
   );
 }
