@@ -147,11 +147,11 @@ accepted or rejected before spans are deserialized, but a single accepted reques
 contain multiple spans. This behavior is intentional to balance memory protection with
 processing efficiency.
 
-Memory usage: If an average span takes ~10KiB of memory, then 100,000 spans would use ~1GiB
+Memory usage: If an average span takes ~10KiB of memory, then 20,000 spans would use ~200MiB
 of memory. Adjust this value based on your system's available memory and expected database
 throughput.
 
-Defaults to 100000.
+Defaults to 20000.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -1447,7 +1447,7 @@ def get_env_max_spans_queue_size() -> int:
 
     Returns:
         int: The maximum number of spans to hold in queue before rejecting requests.
-             Defaults to 100000 if not set.
+             Defaults to 20,000 if not set.
 
     Raises:
         ValueError: If the value is not a positive integer.
@@ -1456,7 +1456,7 @@ def get_env_max_spans_queue_size() -> int:
         The actual queue size may exceed this limit due to batch processing where a single
         accepted request can contain multiple spans. This is a heuristic for memory protection.
     """
-    max_size = _int_val(ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE, 100_000)
+    max_size = _int_val(ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE, 20_000)
     if max_size <= 0:
         raise ValueError(
             f"Invalid value for environment variable {ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE}: "

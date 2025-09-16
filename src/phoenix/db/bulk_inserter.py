@@ -242,7 +242,6 @@ class BulkInserter:
         if not num_evals_to_insert or not self._evaluations:
             return
         try:
-            start = perf_counter()
             async with self._db() as session:
                 while num_evals_to_insert > 0:
                     num_evals_to_insert -= 1
@@ -256,7 +255,6 @@ class BulkInserter:
                     except InsertEvaluationError as error:
                         BULK_LOADER_EXCEPTIONS.inc()
                         logger.exception(f"Failed to insert evaluation: {str(error)}")
-            BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_EXCEPTIONS.inc()
             logger.exception("Failed to insert evaluations")
