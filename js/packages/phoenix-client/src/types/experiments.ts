@@ -70,11 +70,11 @@ export type EvaluatorParams<TaskOutputType = TaskOutput> = {
   metadata?: Example["metadata"];
 };
 
-export type Evaluator = {
+export type Evaluator<TaskOutputType = TaskOutput> = {
   name: string;
   kind: AnnotatorKind;
   evaluate: (
-    args: EvaluatorParams
+    args: EvaluatorParams<TaskOutputType>
   ) => Promise<EvaluationResult> | EvaluationResult;
 };
 
