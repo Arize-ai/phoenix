@@ -2,7 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import { createClassificationEvaluator } from "../../src";
 import { openai } from "@ai-sdk/openai";
 describe("createClassificationEvaluator", () => {
-  it("should throw type errors when the generic doesn't match", () => {
+  it("should support the passed in type signature", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
       model: openai("gpt-4o"),
