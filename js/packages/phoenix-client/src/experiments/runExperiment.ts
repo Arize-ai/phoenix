@@ -23,7 +23,7 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
-import { SpanStatusCode, Tracer } from "@opentelemetry/api";
+import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -38,7 +38,6 @@ import {
   getExperimentUrl,
 } from "../utils/urlUtils";
 import assert from "assert";
-import { trace } from "@opentelemetry/api";
 
 /**
  * Validate that a repetition is valid
