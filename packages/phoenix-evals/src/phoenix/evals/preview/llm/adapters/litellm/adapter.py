@@ -5,7 +5,7 @@ from typing import Any, Dict, Type, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
-from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
 from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...registries import register_provider
