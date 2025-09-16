@@ -13,7 +13,6 @@
   * [Anthropic Evals](llm-providers/anthropic/anthropic-evals.md)
 * [Google](llm-providers/google-gen-ai/README.md)
   * [Google Gen AI Tracing](llm-providers/google-gen-ai/google-genai-tracing.md)
-  * [Google ADK Tracing](llm-providers/google-gen-ai/google-adk-tracing.md)
   * [Gemini Evals](llm-providers/google-gen-ai/gemini-evals.md)
   * [Google Gen AI Evals](llm-providers/google-gen-ai/google-gen-ai-evals.md)
   * [Evaluate CrewAI Agents with Google Gen AI Evals](llm-providers/google-gen-ai/google-gen-ai-evals-1.md)
