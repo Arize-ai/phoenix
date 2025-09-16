@@ -51,7 +51,7 @@ export interface ExperimentRun extends Node {
   traceId: string | null;
 }
 
-export type EvaluatorParams = {
+export type EvaluatorParams<TaskOutputType = TaskOutput> = {
   /**
    * The input field of the Dataset Example
    */
@@ -59,7 +59,7 @@ export type EvaluatorParams = {
   /**
    * The output of the task
    */
-  output: TaskOutput;
+  output: TaskOutputType;
   /**
    * The expected or reference output of the Dataset Example
    */
