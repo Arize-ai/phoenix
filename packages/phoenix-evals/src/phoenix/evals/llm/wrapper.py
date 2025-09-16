@@ -7,8 +7,8 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry.trace import Tracer
 
 from phoenix.evals.legacy.templates import MultimodalPrompt
-from phoenix.evals.preview.tracing import trace
 from phoenix.evals.rate_limiters import RateLimiter
+from phoenix.evals.tracing import trace
 
 from .adapters import register_adapters
 from .registries import PROVIDER_REGISTRY, adapter_availability_table

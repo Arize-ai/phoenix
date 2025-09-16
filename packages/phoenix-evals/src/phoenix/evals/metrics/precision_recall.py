@@ -23,7 +23,7 @@ Zero-division handling:
 
 Examples:
 1) Multi-class (macro):
->>> from phoenix.evals.preview.metrics.precision_recall import PrecisionRecallFScore
+>>> from phoenix.evals.metrics.precision_recall import PrecisionRecallFScore
 >>> evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
 >>> eval_input = {"expected": ["cat", "dog", "cat", "bird"],
 ...               "output": ["cat", "cat", "cat", "bird"]}
