@@ -296,9 +296,9 @@ class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
     ) -> tuple[
-        Callable[..., Awaitable[None]],
-        Callable[[Span, str], Awaitable[None]],
-        Callable[[pb.Evaluation], Awaitable[None]],
+        Callable[[Any], None],
+        Callable[[Span, str], None],
+        Callable[[pb.Evaluation], None],
         Callable[[DataManipulation], None],
     ]:
         # Return the overridden methods
@@ -313,20 +313,36 @@ class TestBulkInserter(BulkInserter):
         # No background tasks to cancel
         pass
 
-    async def _enqueue_immediate(self, *items: Any) -> None:
-        # Process items immediately
-        await self._queue_inserters.enqueue(*items)
+    def _enqueue_immediate(self, *items: Any) -> None:
+        self._queue_inserters.enqueue(*items)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._process_queue_inserters())
+        except RuntimeError:
+            asyncio.run(self._process_queue_inserters())
+
+    async def _process_queue_inserters(self) -> None:
         async for event in self._queue_inserters.insert():
             self._event_queue.put(event)
 
     def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
         raise NotImplementedError
 
-    async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
-        await self._insert_spans([(span, project_name)])
+    def _queue_span_immediate(self, span: Span, project_name: str) -> None:
+        self._spans.append((span, project_name))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._insert_spans(1))
+        except RuntimeError:
+            asyncio.run(self._insert_spans(1))
 
-    async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
-        await self._insert_evaluations([evaluation])
+    def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
+        self._evaluations.append(evaluation)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._insert_evaluations(1))
+        except RuntimeError:
+            asyncio.run(self._insert_evaluations(1))
 
 
 @contextlib.asynccontextmanager

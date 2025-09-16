@@ -181,7 +181,7 @@ class BulkInserter:
             await asyncio.sleep(self._sleep)
 
     async def _insert_spans(self, num_spans_to_insert: int) -> None:
-        if not num_spans_to_insert:
+        if not num_spans_to_insert or not self._spans:
             return
         project_ids = set()
         try:
@@ -189,10 +189,10 @@ class BulkInserter:
             async with self._db() as session:
                 while num_spans_to_insert:
                     num_spans_to_insert -= 1
-                    SPAN_QUEUE_SIZE.set(len(self._spans))
                     if not self._spans:
                         break
                     span, project_name = self._spans.popleft()
+                    SPAN_QUEUE_SIZE.set(len(self._spans))
                     BULK_LOADER_SPAN_INSERTIONS.inc()
                     result: Optional[SpanInsertionEvent] = None
                     try:
@@ -225,6 +225,8 @@ class BulkInserter:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
 
     async def _insert_evaluations(self, num_evals_to_insert: int) -> None:
+        if not num_evals_to_insert or not self._evaluations:
+            return
         try:
             start = perf_counter()
             async with self._db() as session:
