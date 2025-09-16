@@ -36,7 +36,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  LinkButton,
   Loading,
   Modal,
   ModalOverlay,
@@ -70,6 +69,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
+import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -82,9 +82,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
-import { ExampleDetailsPaginator } from "./ExampleDetailsPaginator";
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
-import { ExperimentCompareDetails } from "./ExperimentCompareDetails";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
@@ -649,7 +647,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       >
         <Modal variant="slideover" size="fullscreen">
           {selectedExampleId && (
-            <SelectedExampleDialog
+            <ExperimentCompareDetailsDialog
               datasetId={datasetId}
               datasetVersionId={baseExperiment.datasetVersionId}
               selectedExampleId={selectedExampleId}
@@ -881,62 +879,6 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
     >
       {children}
     </div>
-  );
-}
-
-function SelectedExampleDialog({
-  selectedExampleId,
-  datasetId,
-  datasetVersionId,
-  baseExperimentId,
-  compareExperimentIds,
-  exampleIds,
-  onNextExample,
-  onPreviousExample,
-}: {
-  selectedExampleId: string;
-  datasetId: string;
-  datasetVersionId: string;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
-  exampleIds: string[];
-  onNextExample: (nextId: string) => void;
-  onPreviousExample: (previousId: string) => void;
-}) {
-  return (
-    <Dialog aria-label="Example Details">
-      <DialogContent>
-        <DialogHeader>
-          <Flex gap="size-150">
-            <ExampleDetailsPaginator
-              currentId={selectedExampleId}
-              exampleIds={exampleIds}
-              onNext={onNextExample}
-              onPrevious={onPreviousExample}
-            />
-            <DialogTitle>{selectedExampleId}</DialogTitle>
-          </Flex>
-          <DialogTitleExtra>
-            <LinkButton
-              size="S"
-              to={`/datasets/${datasetId}/examples/${selectedExampleId}`}
-            >
-              View Example
-            </LinkButton>
-            <DialogCloseButton />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Suspense>
-          <ExperimentCompareDetails
-            datasetId={datasetId}
-            datasetExampleId={selectedExampleId}
-            datasetVersionId={datasetVersionId}
-            baseExperimentId={baseExperimentId}
-            compareExperimentIds={compareExperimentIds}
-          />
-        </Suspense>
-      </DialogContent>
-    </Dialog>
   );
 }
 
