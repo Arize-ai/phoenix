@@ -91,7 +91,6 @@ class BulkInserter:
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
         self._span_cost_calculator = span_cost_calculator
-        SPAN_QUEUE_SIZE.set(len(self._spans))
 
     @property
     def is_full(self) -> bool:
@@ -129,7 +128,6 @@ class BulkInserter:
 
     async def _enqueue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
-        SPAN_QUEUE_SIZE.set(len(self._spans))
 
     async def _enqueue_evaluation(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
@@ -146,6 +144,7 @@ class BulkInserter:
             or self._spans
             or self._evaluations
         ):
+            SPAN_QUEUE_SIZE.set(len(self._spans))
             if (
                 self._queue_inserters.empty
                 and self._operations.empty()
@@ -193,7 +192,6 @@ class BulkInserter:
                     if not self._spans:
                         break
                     span, project_name = self._spans.popleft()
-                    SPAN_QUEUE_SIZE.set(len(self._spans))
                     BULK_LOADER_SPAN_INSERTIONS.inc()
                     result: Optional[SpanInsertionEvent] = None
                     try:
