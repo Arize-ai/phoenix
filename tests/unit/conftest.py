@@ -303,7 +303,7 @@ class TestBulkInserter(BulkInserter):
     ]:
         # Return the overridden methods
         return (
-            self._enqueue_immediate,
+            self._enqueue_annotations_immediate,
             self._queue_span_immediate,
             self._queue_evaluation_immediate,
             self._enqueue_operation_immediate,
@@ -313,13 +313,10 @@ class TestBulkInserter(BulkInserter):
         # No background tasks to cancel
         pass
 
-    def _enqueue_immediate(self, *items: Any) -> None:
+    def _enqueue_annotations_immediate(self, *items: Any) -> None:
         self._queue_inserters.enqueue(*items)
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._process_queue_inserters())
-        except RuntimeError:
-            asyncio.run(self._process_queue_inserters())
+        loop = asyncio.get_running_loop()
+        loop.create_task(self._process_queue_inserters())
 
     async def _process_queue_inserters(self) -> None:
         async for event in self._queue_inserters.insert():
@@ -330,19 +327,13 @@ class TestBulkInserter(BulkInserter):
 
     def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._insert_spans(1))
-        except RuntimeError:
-            asyncio.run(self._insert_spans(1))
+        loop = asyncio.get_running_loop()
+        loop.create_task(self._insert_spans(1))
 
     def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._insert_evaluations(1))
-        except RuntimeError:
-            asyncio.run(self._insert_evaluations(1))
+        loop = asyncio.get_running_loop()
+        loop.create_task(self._insert_evaluations(1))
 
 
 @contextlib.asynccontextmanager
