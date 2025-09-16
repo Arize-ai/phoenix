@@ -5,7 +5,7 @@
   "exclude": [
     "packages/phoenix-cli",
     "packages/phoenix-mcp",
-    "packages/phoenix-client/examples",
+    "packages/phoenix-client/examples/**",
   ],
   "packageOptions": {
     "entryPoints": ["src/**/*.ts"],
