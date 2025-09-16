@@ -244,6 +244,7 @@ input ChatCompletionOverDatasetInput {
   tools: [JSON!]
   credentials: [GenerativeCredentialInput!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
+  repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
   experimentName: String = null

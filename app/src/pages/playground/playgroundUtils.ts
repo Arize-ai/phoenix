@@ -1292,6 +1292,7 @@ export const getChatCompletionOverDatasetInput = ({
   return {
     ...baseChatCompletionVariables,
     templateFormat: playgroundStore.getState().templateFormat,
+    repetitions: playgroundStore.getState().repetitions,
     datasetId,
   };
 };
