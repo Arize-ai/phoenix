@@ -41,7 +41,7 @@ BULK_LOADER_SPAN_INSERTION_TIME = Histogram(
     namespace="phoenix",
     name="bulk_loader_span_insertion_time_seconds",
     documentation="Histogram of span database insertion time (seconds)",
-    buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0],  # 10ms to 10s
+    buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 180.0],  # 500ms to 3min
 )
 
 BULK_LOADER_SPAN_EXCEPTIONS = Counter(
