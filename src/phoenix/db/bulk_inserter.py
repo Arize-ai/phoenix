@@ -184,6 +184,7 @@ class BulkInserter:
         if not num_spans_to_insert or not self._spans:
             return
         project_ids = set()
+        span_costs: list[models.SpanCost] = []
         try:
             start = perf_counter()
             async with self._db() as session:
@@ -206,23 +207,34 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
-                    if not should_calculate_span_cost(span.attributes):
-                        continue
-                    span_cost = self._span_cost_calculator.calculate_cost(
-                        span.start_time,
-                        span.attributes,
-                    )
-                    if span_cost is None:
-                        continue
-                    span_cost.span_rowid = result.span_rowid
-                    span_cost.trace_rowid = result.trace_rowid
-                    session.add(span_cost)
+                    try:
+                        if not should_calculate_span_cost(span.attributes):
+                            continue
+                        span_cost = self._span_cost_calculator.calculate_cost(
+                            span.start_time,
+                            span.attributes,
+                        )
+                    except Exception:
+                        logger.exception(
+                            f"Failed to calculate span cost for span with span_id={span.context.span_id}"
+                        )
+                    else:
+                        if span_cost is None:
+                            continue
+                        span_cost.span_rowid = result.span_rowid
+                        span_cost.trace_rowid = result.trace_rowid
+                        span_costs.append(span_cost)
             BULK_LOADER_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_EXCEPTIONS.inc()
             logger.exception("Failed to insert spans")
         if project_ids:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
+        try:
+            async with self._db() as session:
+                session.add_all(span_costs)
+        except Exception:
+            logger.exception("Failed to insert span costs")
 
     async def _insert_evaluations(self, num_evals_to_insert: int) -> None:
         if not num_evals_to_insert or not self._evaluations:
