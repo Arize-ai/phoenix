@@ -1,6 +1,12 @@
 # Table of contents
 
 * [Release Notes](README.md)
+* [09.2025](09.2025/README.md)
+  * [09.15.2025: Prompt Labels 🏷️](09.2025/09.15.2025-prompt-labels.md)
+  * [09.12.2025: Enable Paging in Experiment Compare Details 📄](09.2025/09.12.2025-enable-paging-in-experiment-compare-details.md)
+  * [09.08.2025: Experiment Annotation Popover in Detail View 🔍](09.2025/09.08.2025-experiment-annotation-popover-in-detail-view.md)
+  * [09.04.2025: Experiment Lists Page Frontend Enhancements 💻](09.2025/09.04.2025-experiment-lists-page-frontend-enhancements.md)
+  * [09.03.2025: Add Methods to Log Document Annotations 📜](09.2025/09.03.2025-add-methods-to-log-document-annotations.md)
 * [08.2025](08.2025/README.md)
   * [08.28.2025: New arize-phoenix-client Package 📦](08.2025/08.28.2025-new-arize-phoenix-client-package.md)
   * [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
