@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Type, Union, cast
 
-from phoenix.evals.templates import MultimodalPrompt
+from phoenix.evals.legacy.templates import MultimodalPrompt
 
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod

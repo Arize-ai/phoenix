@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from phoenix.evals.templates import MultimodalPrompt
+from phoenix.evals.legacy.templates import MultimodalPrompt
 
 
 class ObjectGenerationMethod(str, Enum):
