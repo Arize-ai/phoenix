@@ -12,6 +12,7 @@ from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
+from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
@@ -188,7 +189,7 @@ class BulkInserter:
         try:
             start = perf_counter()
             async with self._db() as session:
-                while num_spans_to_insert:
+                while num_spans_to_insert > 0:
                     num_spans_to_insert -= 1
                     if not self._spans:
                         break
@@ -216,7 +217,8 @@ class BulkInserter:
                         )
                     except Exception:
                         logger.exception(
-                            f"Failed to calculate span cost for span with span_id={span.context.span_id}"
+                            f"Failed to calculate span cost for span with "
+                            f"span_id={span.context.span_id}"
                         )
                     else:
                         if span_cost is None:
@@ -242,7 +244,7 @@ class BulkInserter:
         try:
             start = perf_counter()
             async with self._db() as session:
-                while num_evals_to_insert:
+                while num_evals_to_insert > 0:
                     num_evals_to_insert -= 1
                     if not self._evaluations:
                         break

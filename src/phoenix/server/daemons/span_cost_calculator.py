@@ -52,7 +52,7 @@ class SpanCostCalculator(DaemonTask):
         if not num_items_to_insert or not self._queue:
             return
         costs: list[models.SpanCost] = []
-        while num_items_to_insert:
+        while num_items_to_insert > 0:
             num_items_to_insert -= 1
             item = self._queue.popleft()
             try:
