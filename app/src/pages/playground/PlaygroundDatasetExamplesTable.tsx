@@ -2,10 +2,12 @@ import React, {
   memo,
   PropsWithChildren,
   ReactNode,
+  SetStateAction,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
   Disposable,
@@ -270,8 +272,14 @@ function EmptyExampleOutput({
 
 function ExampleOutputContent({
   exampleData,
+  repetitionNumber,
+  setRepetitionNumber,
+  totalRepetitions,
 }: {
   exampleData: ExampleRunData;
+  repetitionNumber: number;
+  setRepetitionNumber: (n: SetStateAction<number>) => void;
+  totalRepetitions: number;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
@@ -282,9 +290,9 @@ function ExampleOutputContent({
     return (
       <>
         <ExperimentRepetitionSelector
-          repetitionNumber={1}
-          totalRepetitions={10}
-          setRepetitionNumber={() => {}}
+          repetitionNumber={repetitionNumber}
+          totalRepetitions={totalRepetitions}
+          setRepetitionNumber={setRepetitionNumber}
         />
         <DialogTrigger>
           <TooltipTrigger isDisabled={!hasExperimentRun}>
@@ -347,7 +355,16 @@ function ExampleOutputContent({
         </DialogTrigger>
       </>
     );
-  }, [experimentRunId, hasExperimentRun, hasSpan, span, setSearchParams]);
+  }, [
+    experimentRunId,
+    hasExperimentRun,
+    hasSpan,
+    span,
+    setSearchParams,
+    repetitionNumber,
+    totalRepetitions,
+    setRepetitionNumber,
+  ]);
 
   return (
     <Flex direction="column" height="100%">
@@ -398,7 +415,7 @@ function ExampleOutputContent({
   );
 }
 
-const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
+function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
@@ -411,10 +428,14 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
-  const exampleData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.exampleResponsesMap[instanceId]?.[exampleId]?.[1]
+  const [repetitionNumber, setRepetitionNumber] = useState(1);
+  const totalRepetitions = usePlaygroundContext((state) => state.repetitions);
+  const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
+    (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
   );
-
+  const exampleData = useMemo(() => {
+    return examplesByRepetitionNumber?.[repetitionNumber];
+  }, [examplesByRepetitionNumber, repetitionNumber]);
   return exampleData == null ? (
     <EmptyExampleOutput
       isRunning={isRunning}
@@ -422,9 +443,14 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       datasetExampleInput={datasetExampleInput}
     />
   ) : (
-    <ExampleOutputContent exampleData={exampleData} />
+    <ExampleOutputContent
+      exampleData={exampleData}
+      repetitionNumber={repetitionNumber}
+      totalRepetitions={totalRepetitions}
+      setRepetitionNumber={setRepetitionNumber}
+    />
   );
-});
+}
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
@@ -872,7 +898,7 @@ export function PlaygroundDatasetExamplesTable({
 
         cell: ({ row }) => {
           return (
-            <MemoizedExampleOutputCell
+            <ExampleOutputCell
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
