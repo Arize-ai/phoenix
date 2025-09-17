@@ -243,6 +243,9 @@ export function ExamplesTable({
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });
           }}
+          onSplitChange={() => {
+            refetch({}, { fetchPolicy: "store-and-network" });
+          }}
           splits={availableSplits}
         />
       ) : null}
