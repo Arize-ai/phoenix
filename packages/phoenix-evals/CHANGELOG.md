@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.0...arize-phoenix-evals-v2.0.1) (2025-09-17)
+
+
+### Documentation
+
+* fix docs preview import paths ([#9538](https://github.com/Arize-ai/phoenix/issues/9538)) ([dc771e7](https://github.com/Arize-ai/phoenix/commit/dc771e72370de513eb0fb5ae7d32f2b6b4017735))
+
 ## [2.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.29.0...arize-phoenix-evals-v2.0.0) (2025-09-17)
 
 ## What is evals 2.0?
