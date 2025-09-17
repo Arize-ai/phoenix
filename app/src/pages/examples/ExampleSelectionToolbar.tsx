@@ -47,7 +47,7 @@ type ExampleSelectionToolbarProps = {
   selectedExamples: SelectedExample[];
   onClearSelection: () => void;
   onExamplesDeleted: () => void;
-  onSplitChange?: () => void;
+  onSplitChange: () => void;
   splits: Array<{ id: string; name: string }>;
 };
 
@@ -113,6 +113,19 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       $input: AddDatasetExamplesToDatasetSplitInput!
     ) {
       addDatasetExamplesToDatasetSplit(input: $input) {
+        datasetSplit {
+          id
+          name
+        }
+      }
+    }
+  `);
+
+  const [removeExamplesFromSplit, isRemovingExamplesFromSplit] = useMutation(graphql`
+    mutation ExampleSelectionToolbarRemoveDatasetExamplesFromDatasetSplitMutation(
+      $input: RemoveDatasetExamplesFromDatasetSplitInput!
+    ) {
+      removeDatasetExamplesFromDatasetSplit(input: $input) {
         datasetSplit {
           id
           name
@@ -210,15 +223,33 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   }, [createSplit, newSplitName, notifyError, notifySuccess]);
 
   const onConfirmAddToSplits = useCallback(() => {
-    const splitIds = Array.from(selectedSplitIds);
-    if (splitIds.length === 0) {
-      notifyError({ title: "No splits selected", message: "Select at least one split." });
+    const desiredIds = new Set(Array.from(selectedSplitIds)); // D
+    const sharedIds = new Set(Array.from(sharedSplitIds)); // A
+    const splitsToAdd = Array.from(desiredIds).filter((id) => !sharedIds.has(id)); // D - A
+    const splitsToRemove = Array.from(sharedIds).filter((id) => !desiredIds.has(id)); // A - D
+
+    if (splitsToAdd.length === 0 && splitsToRemove.length === 0) {
+      notifyError({ title: "No changes", message: "There are no split changes to apply." });
       return;
     }
     const exampleIds = selectedExamples.map((e) => e.id);
+    const totalOps = splitsToAdd.length + splitsToRemove.length;
     let completed = 0;
     let hadError = false;
-    splitIds.forEach((splitId) => {
+
+    const maybeFinish = () => {
+      if (completed === totalOps && !hadError) {
+        notifySuccess({
+          title: "Updated splits",
+          message: `Applied changes for ${exampleIds.length} example${isPlural ? "s" : ""} (added ${splitsToAdd.length}, removed ${splitsToRemove.length}).`,
+        });
+        setIsAddingToDatasetSplitDialogOpen(false);
+        setSelectedSplitIds(new Set());
+        onSplitChange();
+      }
+    };
+
+    splitsToAdd.forEach((splitId) => {
       addExamplesToSplit({
         variables: {
           input: {
@@ -228,16 +259,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         },
         onCompleted: () => {
           completed += 1;
-          if (completed === splitIds.length && !hadError) {
-            notifySuccess({
-              title: "Added to split",
-              message: `Added ${exampleIds.length} example${isPlural ? "s" : ""} to ${splitIds.length} split${splitIds.length > 1 ? "s" : ""}.`,
-            });
-            setIsAddingToDatasetSplitDialogOpen(false);
-            setSelectedSplitIds(new Set());
-            // Notify parent so it can refresh data and re-derive selectedExamples/splits
-            onSplitChange?.();
-          }
+          maybeFinish();
         },
         onError: (error) => {
           hadError = true;
@@ -249,7 +271,30 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         },
       });
     });
-  }, [addExamplesToSplit, isPlural, notifyError, notifySuccess, selectedExamples, selectedSplitIds]);
+
+    splitsToRemove.forEach((splitId) => {
+      removeExamplesFromSplit({
+        variables: {
+          input: {
+            datasetSplitId: splitId,
+            exampleIds,
+          },
+        },
+        onCompleted: () => {
+          completed += 1;
+          maybeFinish();
+        },
+        onError: (error) => {
+          hadError = true;
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          notifyError({
+            title: "Failed to remove from split",
+            message: formattedError?.[0] ?? error.message,
+          });
+        },
+      });
+    });
+  }, [addExamplesToSplit, notifyError, notifySuccess, onSplitChange, selectedExamples, selectedSplitIds, sharedSplitIds, isPlural, removeExamplesFromSplit]);
   return (
     <FloatingToolbarContainer>
       <Toolbar>
@@ -416,10 +461,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                   <Button
                     variant="primary"
                     size="S"
-                    isDisabled={isAddingExamplesToSplit}
+                    isDisabled={isAddingExamplesToSplit || isRemovingExamplesFromSplit}
                     onPress={onConfirmAddToSplits}
                   >
-                    {isAddingExamplesToSplit ? "Adding..." : "Add"}
+                    {isAddingExamplesToSplit || isRemovingExamplesFromSplit ? "Updating..." : "Update"}
                   </Button>
                 </Flex>
               </View>
