@@ -62,8 +62,6 @@ The main evaluation functions that power the package:
 
 ## Usage Examples
 
-### Using the New 2.0 API
-
 ```python
 import pandas as pd
 from phoenix.evals import create_classifier, evaluate_dataframe
@@ -100,20 +98,6 @@ results_df = evaluate_dataframe(
 )
 
 print(results_df.head())
-```
-
-### Using Legacy API
-
-For backwards compatibility, you can still use the legacy API:
-
-```python
-from phoenix.evals.legacy import HallucinationEvaluator, QAEvaluator, OpenAIModel, run_evals
-
-# Legacy approach - still supported
-eval_model = OpenAIModel(model="gpt-4o")
-hallucination_evaluator = HallucinationEvaluator(eval_model)
-
-# Use run_evals as before...
 ```
 
 ## External Links
