@@ -134,7 +134,9 @@ class Session(TraceDataExtractor, ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
-        self.root_path = root_path or _get_root_path(self.notebook_env, self.port)
+        self.root_path = (
+            root_path if root_path is not None else _get_root_path(self.notebook_env, self.port)
+        )
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False

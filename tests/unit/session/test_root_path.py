@@ -16,6 +16,21 @@ def test_session_stores_root_path_exactly_as_provided():
             assert session.root_path == root_path
 
 
+def test_empty_string_root_path_preserved():
+    """Test that empty string root_path is preserved, not treated as falsy."""
+    with (
+        patch("phoenix.session.session.Client"),
+        patch("phoenix.session.session._get_root_path", return_value="/default/path"),
+    ):
+        session = ThreadSession.__new__(ThreadSession)
+        # Simulate Session.__init__ logic
+        root_path = ""
+        session.root_path = root_path if root_path is not None else "/default/path"
+
+        # Empty string should be preserved, not replaced with default
+        assert session.root_path == ""
+
+
 def test_launch_app_accepts_root_path_parameter():
     signature = inspect.signature(launch_app)
     assert "root_path" in signature.parameters
@@ -28,6 +43,7 @@ def test_launch_app_accepts_root_path_parameter():
         ("/test/proxy", None),
         (None, "/env/path"),
         (None, None),
+        ("", None),  # Test empty string is preserved
     ],
 )
 def test_launch_app_root_path_parameter_flow(

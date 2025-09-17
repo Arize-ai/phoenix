@@ -123,6 +123,7 @@ class TestLaunchApp:
         [
             ("/test/proxy", 100),
             ("test/proxy/", 200),
+            ("", 300),  # Test empty string is preserved
         ],
     )
     async def test_launch_app_with_root_path(
