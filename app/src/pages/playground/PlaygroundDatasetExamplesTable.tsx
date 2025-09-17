@@ -412,7 +412,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   datasetExampleInput: unknown;
 }) {
   const exampleData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.exampleResponsesMap[instanceId]?.[exampleId]
+    (state) => state.exampleResponsesMap[instanceId]?.[exampleId]?.[1]
   );
 
   return exampleData == null ? (
