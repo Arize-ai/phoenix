@@ -568,7 +568,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: 1,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               patch: {
                 span: chatCompletion.span,
                 experimentRunId: chatCompletion.experimentRun?.id,
@@ -582,7 +582,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: 1,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               patch: { errorMessage: chatCompletion.message },
             });
             break;
@@ -593,6 +593,7 @@ export function PlaygroundDatasetExamplesTable({
             appendExampleDataTextChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               textChunk: chatCompletion.content,
             });
             break;
@@ -603,6 +604,7 @@ export function PlaygroundDatasetExamplesTable({
             appendExampleDataToolCallChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               toolCallChunk: chatCompletion,
             });
 
@@ -1075,10 +1077,12 @@ graphql`
       ... on TextChunk {
         content
         datasetExampleId
+        repetitionNumber
       }
       ... on ToolCallChunk {
         id
         datasetExampleId
+        repetitionNumber
         function {
           name
           arguments
@@ -1091,6 +1095,7 @@ graphql`
       }
       ... on ChatCompletionSubscriptionResult {
         datasetExampleId
+        repetitionNumber
         span {
           id
           tokenCountTotal
@@ -1113,6 +1118,7 @@ graphql`
       }
       ... on ChatCompletionSubscriptionError {
         datasetExampleId
+        repetitionNumber
         message
       }
     }
