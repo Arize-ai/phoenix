@@ -33,7 +33,6 @@ import {
   ExperimentCompareDetailsDialogQuery,
   ExperimentCompareDetailsDialogQuery$data,
 } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsDialogQuery.graphql";
-
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
@@ -198,7 +197,7 @@ export function ExperimentCompareDetails({
         acc[edge.experiment.id] = edge.experiment;
         return acc;
       },
-      {} as Record<string, Experiment>
+      {} as Record<string, Experiment | undefined>
     );
   }, [experiments]);
 
@@ -211,7 +210,7 @@ export function ExperimentCompareDetails({
         ];
         return acc;
       },
-      {} as Record<string, ExperimentRun[]>
+      {} as Record<string, ExperimentRun[] | undefined>
     );
   }, [experimentRuns]);
 
@@ -294,8 +293,8 @@ function ExperimentRunOutputs({
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
-  experimentsById: Record<string, Experiment>;
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
+  experimentsById: Record<string, Experiment | undefined>;
+  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
@@ -366,7 +365,7 @@ function ExperimentRunOutputs({
                   {experiment.name}
                 </Flex>
               </label>
-              {experimentRuns?.length > 1 && (
+              {experimentRuns && experimentRuns.length > 1 && (
                 <View paddingStart="size-200">
                   {experimentRuns.map((run) => (
                     <label key={run.id}>
@@ -437,7 +436,7 @@ function ExperimentRunOutputs({
             );
           }
 
-          return experimentRunsToDisplay.map((run, repetitionIndex) => (
+          return experimentRunsToDisplay.map((run) => (
             <li
               key={run.id}
               css={css`
@@ -597,7 +596,7 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
 
 function initializeSelectionState(
   experimentIds: string[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
     const runs = experimentRunsByExperimentId[experimentId];
@@ -627,7 +626,7 @@ function areAllExperimentRunsSelected(
 function getSelectedExperimentRuns(
   experimentId: string,
   selectedExperimentRuns: ExperimentRunSelectionState[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>
 ): ExperimentRun[] {
   const experimentRuns = experimentRunsByExperimentId[experimentId] || [];
   return selectedExperimentRuns
