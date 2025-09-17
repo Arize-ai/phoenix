@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6abc09b29d39c54ac66206276ebffb6>>
+ * @generated SignedSource<<a3f4a704da646428f84e02b6fc89c4d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,9 @@ export type ExamplesTableFragment$data = {
   readonly examples: {
     readonly edges: ReadonlyArray<{
       readonly example: {
+        readonly datasetSplits: ReadonlyArray<{
+          readonly id: string;
+        }>;
         readonly id: string;
         readonly revision: {
           readonly input: any;
@@ -127,6 +130,18 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "DatasetSplit",
+                  "kind": "LinkedField",
+                  "name": "datasetSplits",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/)
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "DatasetExampleRevision",
                   "kind": "LinkedField",
                   "name": "revision",
@@ -222,6 +237,6 @@ return {
 };
 })();
 
-(node as any).hash = "a042efee74921059872b4d6812ae20be";
+(node as any).hash = "2c2e6174d9cbc3c5611fa018c0102966";
 
 export default node;
