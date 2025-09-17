@@ -70,6 +70,8 @@ import {
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
 
+import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
@@ -279,6 +281,11 @@ function ExampleOutputContent({
   const spanControls = useMemo(() => {
     return (
       <>
+        <ExperimentRepetitionSelector
+          repetitionNumber={1}
+          totalRepetitions={10}
+          setRepetitionNumber={() => {}}
+        />
         <DialogTrigger>
           <TooltipTrigger isDisabled={!hasExperimentRun}>
             <IconButton
