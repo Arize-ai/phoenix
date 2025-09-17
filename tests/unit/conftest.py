@@ -1,12 +1,11 @@
 import asyncio
 import contextlib
 from asyncio import AbstractEventLoop
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
-from typing import Any, Literal
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal
 
 import httpx
 import pytest
@@ -303,7 +302,7 @@ class TestBulkInserter(BulkInserter):
     ]:
         # Return the overridden methods
         return (
-            self._enqueue_immediate,
+            self._enqueue_annotations_immediate,
             self._queue_span_immediate,
             self._queue_evaluation_immediate,
             self._enqueue_operation_immediate,
@@ -313,7 +312,7 @@ class TestBulkInserter(BulkInserter):
         # No background tasks to cancel
         pass
 
-    async def _enqueue_immediate(self, *items: Any) -> None:
+    async def _enqueue_annotations_immediate(self, *items: Any) -> None:
         # Process items immediately
         await self._queue_inserters.enqueue(*items)
         async for event in self._queue_inserters.insert():
@@ -323,10 +322,12 @@ class TestBulkInserter(BulkInserter):
         raise NotImplementedError
 
     async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
-        await self._insert_spans([(span, project_name)])
+        self._spans.append((span, project_name))
+        await self._insert_spans(1)
 
     async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
-        await self._insert_evaluations([evaluation])
+        self._evaluations.append(evaluation)
+        await self._insert_evaluations(1)
 
 
 @contextlib.asynccontextmanager

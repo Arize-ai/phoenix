@@ -134,6 +134,25 @@ ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
 Whether to enable Prometheus. Defaults to false.
 """
+ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE = "PHOENIX_MAX_SPANS_QUEUE_SIZE"
+"""
+The maximum number of spans to hold in the processing queue before rejecting new requests.
+
+This is a heuristic to prevent memory issues when spans accumulate faster than they can be
+written to the database. When this limit is reached, new incoming requests will be rejected
+to protect system memory.
+
+Note: The actual queue size may exceed this limit due to batch processing. Requests are
+accepted or rejected before spans are deserialized, but a single accepted request may
+contain multiple spans. This behavior is intentional to balance memory protection with
+processing efficiency.
+
+Memory usage: If an average span takes ~50KiB of memory, then 20,000 spans would use ~1GiB
+of memory. Adjust this value based on your system's available memory and expected database
+throughput.
+
+Defaults to 20000.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -1422,6 +1441,30 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
+def get_env_max_spans_queue_size() -> int:
+    """
+    Gets the maximum spans queue size from the PHOENIX_MAX_SPANS_QUEUE_SIZE environment variable.
+
+    Returns:
+        int: The maximum number of spans to hold in queue before rejecting requests.
+             Defaults to 20,000 if not set.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+
+    Note:
+        The actual queue size may exceed this limit due to batch processing where a single
+        accepted request can contain multiple spans. This is a heuristic for memory protection.
+    """
+    max_size = _int_val(ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE, 20_000)
+    if max_size <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_MAX_SPANS_QUEUE_SIZE}: "
+            f"{max_size}. Value must be a positive integer."
+        )
+    return max_size
+
+
 def get_env_client_headers() -> dict[str, str]:
     headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
     if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
@@ -1684,6 +1727,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_allocated_storage_capacity_gibibytes()
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
+    get_env_max_spans_queue_size()
     validate_env_support_email()
 
     # Notify users about deprecated environment variables if they are being used.

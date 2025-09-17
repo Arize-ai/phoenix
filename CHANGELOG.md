@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.33.0...arize-phoenix-v11.34.0) (2025-09-16)
+
+
+### Features
+
+* **experiments:** add experiment compare details slideover to list view ([#9513](https://github.com/Arize-ai/phoenix/issues/9513)) ([f24ecb7](https://github.com/Arize-ai/phoenix/commit/f24ecb7ab68c919625539ad8167a72be65e30702))
+* put limit on span queue capacity ([#9512](https://github.com/Arize-ai/phoenix/issues/9512)) ([9f4e29a](https://github.com/Arize-ai/phoenix/commit/9f4e29a0d9af88a8cd750025e168281fa57d03cb))
+
+
+### Bug Fixes
+
+* higher buckets for insertion time histogram ([#9525](https://github.com/Arize-ai/phoenix/issues/9525)) ([4e43175](https://github.com/Arize-ai/phoenix/commit/4e43175e5481c381ee1135a787fc6e97a8f97fa6))
+
 ## [11.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.32.1...arize-phoenix-v11.33.0) (2025-09-15)
 
 

@@ -17,12 +17,13 @@ export interface DocumentRelevancyEvaluatorArgs
 }
 
 /**
- * An example to be evaluated by the document relevancy evaluator.
+ * A record to be evaluated by the document relevancy evaluator.
  */
-export type DocumentRelevancyExample = {
+export interface DocumentRelevancyEvaluationRecord {
   input: string;
   documentText: string;
-};
+  [key: string]: unknown;
+}
 
 /**
  * Creates a document relevancy evaluator function.
@@ -50,9 +51,12 @@ export type DocumentRelevancyExample = {
  * console.log(result.label); // "relevant" or "unrelated"
  * ```
  */
-export function createDocumentRelevancyEvaluator(
-  args: DocumentRelevancyEvaluatorArgs
-): Evaluator<DocumentRelevancyExample> {
+export function createDocumentRelevancyEvaluator<
+  RecordType extends Record<
+    string,
+    unknown
+  > = DocumentRelevancyEvaluationRecord,
+>(args: DocumentRelevancyEvaluatorArgs): Evaluator<RecordType> {
   const {
     choices = DOCUMENT_RELEVANCY_CHOICES,
     promptTemplate = DOCUMENT_RELEVANCY_TEMPLATE,
@@ -61,7 +65,7 @@ export function createDocumentRelevancyEvaluator(
     ...rest
   } = args;
 
-  return createClassificationEvaluator<DocumentRelevancyExample>({
+  return createClassificationEvaluator<RecordType>({
     ...args,
     promptTemplate,
     choices,

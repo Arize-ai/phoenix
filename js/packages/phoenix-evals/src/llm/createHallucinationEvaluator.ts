@@ -18,9 +18,9 @@ export interface HallucinationEvaluatorArgs
 }
 
 /**
- * An example to be evaluated by the hallucination evaluator.
+ * A record to be evaluated by the hallucination evaluator.
  */
-export type HallucinationExample = {
+export type HallucinationEvaluationRecord = {
   input: string;
   output: string;
   reference?: string;
@@ -32,9 +32,9 @@ export type HallucinationExample = {
  * @param args - The arguments for creating the hallucination evaluator.
  * @returns A function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
  */
-export function createHallucinationEvaluator(
-  args: HallucinationEvaluatorArgs
-): ClassificationEvaluator<HallucinationExample> {
+export function createHallucinationEvaluator<
+  RecordType extends Record<string, unknown> = HallucinationEvaluationRecord,
+>(args: HallucinationEvaluatorArgs): ClassificationEvaluator<RecordType> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
@@ -42,7 +42,7 @@ export function createHallucinationEvaluator(
     name = "hallucination",
     ...rest
   } = args;
-  return createClassificationEvaluator<HallucinationExample>({
+  return createClassificationEvaluator<RecordType>({
     ...args,
     promptTemplate,
     choices,

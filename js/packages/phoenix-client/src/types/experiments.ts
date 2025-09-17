@@ -51,7 +51,7 @@ export interface ExperimentRun extends Node {
   traceId: string | null;
 }
 
-export type EvaluatorParams = {
+export type EvaluatorParams<TaskOutputType = TaskOutput> = {
   /**
    * The input field of the Dataset Example
    */
@@ -59,7 +59,7 @@ export type EvaluatorParams = {
   /**
    * The output of the task
    */
-  output: TaskOutput;
+  output: TaskOutputType;
   /**
    * The expected or reference output of the Dataset Example
    */
@@ -79,10 +79,10 @@ export type Evaluator = {
 };
 
 export type EvaluationResult = {
-  score: number | null;
-  label: string | null;
-  metadata: Record<string, unknown>;
-  explanation: string | null;
+  score?: number | null;
+  label?: string | null;
+  metadata?: Record<string, unknown>;
+  explanation?: string | null;
 };
 
 export interface ExperimentEvaluationRun extends Node {

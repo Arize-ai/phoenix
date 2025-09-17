@@ -137,7 +137,7 @@ server:
   grpcPort: 4317
 
   # -- Host IP to bind Phoenix server (PHOENIX_HOST)
-  host: "0.0.0.0"
+  host: "::"
 
   # -- Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH)
   hostRootPath: ""
@@ -461,7 +461,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-11.32.1-nonroot
+  tag: version-11.34.0-nonroot
 
 # -- Resource configuration
 resources:

@@ -1,4 +1,4 @@
-import {
+import React, {
   memo,
   PropsWithChildren,
   ReactNode,
@@ -24,6 +24,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   GraphQLSubscriptionConfig,
   PayloadError,
@@ -205,7 +206,7 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
     <div
       data-testid="large-text-wrap"
       css={css`
-        max-height: 300px;
+        height: 200px;
         overflow-y: auto;
         padding: var(--ac-global-dimension-static-size-200);
       `}
@@ -374,7 +375,9 @@ function ExampleOutputContent({
               {errorMessage}
             </PlaygroundErrorWrap>
           ) : null}
-          {content != null ? <Text key="content">{content}</Text> : null}
+          {content != null ? (
+            <LargeTextWrap key="content">{content}</LargeTextWrap>
+          ) : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
                 toolCall == null ? null : (
@@ -417,34 +420,73 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 });
 
 // un-memoized normal table body component - see memoized version below
-function TableBody<T>({ table }: { table: Table<T> }) {
+function TableBody<T>({
+  table,
+  tableContainerRef,
+}: {
+  table: Table<T>;
+  tableContainerRef: React.RefObject<HTMLDivElement>;
+}) {
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 310, // estimated row height
+    overscan: 5,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  padding: 0,
-                  verticalAlign: "top",
-                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                  minWidth: 0,
-                  // allow long text with no symbols or spaces to wrap
-                  // otherwise, it will prevent the cell from shrinking
-                  // an alternative solution would be to set a max-width and allow
-                  // the cell to scroll itself
-                  wordBreak: "break-all",
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    padding: 0,
+                    verticalAlign: "top",
+                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    minWidth: 0,
+                    // allow long text with no symbols or spaces to wrap
+                    // otherwise, it will prevent the cell from shrinking
+                    // an alternative solution would be to set a max-width and allow
+                    // the cell to scroll itself
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getAllColumns().length}
+        />
+      </tr>
     </tbody>
   );
 }
@@ -1003,9 +1045,12 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} />
+          <MemoizedTableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+          />
         ) : (
-          <TableBody table={table} />
+          <TableBody table={table} tableContainerRef={tableContainerRef} />
         )}
       </table>
     </div>

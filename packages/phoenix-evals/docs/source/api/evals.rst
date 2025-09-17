@@ -1,25 +1,33 @@
-evals
-=====
-
+Evals
+===============
 .. contents:: :local:
 
-Core Functions
---------------
 
-llm_classify
-~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.llm_classify
+LLM Interfaces
+------------------
 
-llm_generate
-~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.llm_generate
+LLM
+~~~~~~~~~~~
+.. autoclass:: phoenix.evals.llm.LLM
+   :members:
+   :show-inheritance:
 
-run_evals
-~~~~~~~~~
-.. autofunction:: phoenix.evals.run_evals
 
-Evaluators
-----------
+Prompt Template
+~~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.templating.Template
+   :members:
+   :show-inheritance:
+
+
+Evaluator Abstractions
+----------------------
+
+Evaluator Base
+~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.Evaluator
+   :members:
+   :show-inheritance:
 
 LLMEvaluator
 ~~~~~~~~~~~~
@@ -27,123 +35,74 @@ LLMEvaluator
    :members:
    :show-inheritance:
 
+ClassificationEvaluator
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.ClassificationEvaluator
+   :members:
+   :show-inheritance:
+
+Core Functions
+--------------
+
+create_evaluator
+~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.create_evaluator
+
+create_classifier
+~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.create_classifier
+
+
+bind_evaluator
+~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.bind_evaluator
+
+evaluate_dataframe
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.evaluators.evaluate_dataframe
+
+async_evaluate_dataframe
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.evaluators.async_evaluate_dataframe
+
+
+Score
+-----
+
+Score 
+~~~~~~
+.. autoclass:: phoenix.evals.Score
+   :members:
+   :exclude-members: name, score, label, explanation, metadata, source, direction
+   :show-inheritance:
+
+
+Built-in Metrics
+------------------
+
 HallucinationEvaluator
 ~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.HallucinationEvaluator
+.. autoclass:: phoenix.evals.metrics.HallucinationEvaluator
    :members:
    :show-inheritance:
 
-QAEvaluator
+exact_match
 ~~~~~~~~~~~
-.. autoclass:: phoenix.evals.QAEvaluator
-   :members:
-   :show-inheritance:
+.. autofunction:: phoenix.evals.metrics.exact_match
 
-RelevanceEvaluator
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.RelevanceEvaluator
-   :members:
-   :show-inheritance:
-
-ToxicityEvaluator
-~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.ToxicityEvaluator
-   :members:
-   :show-inheritance:
-
-SummarizationEvaluator
-~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.SummarizationEvaluator
-   :members:
-   :show-inheritance:
-
-SQLEvaluator
-~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.SQLEvaluator
-   :members:
-   :show-inheritance:
-
-Models
-------
-
-OpenAIModel
-~~~~~~~~~~~
-.. autoclass:: phoenix.evals.OpenAIModel
-   :members:
-   :show-inheritance:
-
-AnthropicModel
-~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.AnthropicModel
-   :members:
-   :show-inheritance:
-
-GeminiModel
-~~~~~~~~~~~
-.. autoclass:: phoenix.evals.GeminiModel
-   :members:
-   :show-inheritance:
-
-GoogleGenAIModel
-~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.GoogleGenAIModel
-   :members:
-   :show-inheritance:
-
-VertexAIModel
-~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.VertexAIModel
-   :members:
-   :show-inheritance:
-
-BedrockModel
-~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.BedrockModel
-   :members:
-   :show-inheritance:
-
-LiteLLMModel
-~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.LiteLLMModel
-   :members:
-   :show-inheritance:
-
-MistralAIModel
-~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.MistralAIModel
-   :members:
-   :show-inheritance:
-
-Templates
----------
-
-PromptTemplate
-~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.PromptTemplate
-   :members:
-   :show-inheritance:
-
-ClassificationTemplate
-~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.ClassificationTemplate
+PrecisionRecallFScore
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.metrics.PrecisionRecallFScore
    :members:
    :show-inheritance:
 
 Utilities
 ---------
 
-compute_precisions_at_k
-~~~~~~~~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.compute_precisions_at_k
+remap_eval_input
+~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.utils.remap_eval_input
 
-download_benchmark_dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.download_benchmark_dataset
-
-Module Contents
----------------
-
-.. automodule:: phoenix.evals
-   :members:
-   :exclude-members: llm_classify, llm_generate, run_evals, LLMEvaluator, HallucinationEvaluator, QAEvaluator, RelevanceEvaluator, ToxicityEvaluator, SummarizationEvaluator, SQLEvaluator, OpenAIModel, AnthropicModel, GeminiModel, GoogleGenAIModel, VertexAIModel, BedrockModel, LiteLLMModel, MistralAIModel, PromptTemplate, ClassificationTemplate, compute_precisions_at_k, download_benchmark_dataset
-   :no-undoc-members: 
+extract_with_jsonpath
+~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.utils.extract_with_jsonpath  

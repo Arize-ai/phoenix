@@ -2,9 +2,14 @@
   "entryPoints": ["packages/phoenix-client", "packages/phoenix-evals"],
   "entryPointStrategy": "packages",
   "name": "Arize Phoenix TS",
-  "exclude": ["packages/phoenix-cli", "packages/phoenix-mcp"],
+  "exclude": [
+    "packages/phoenix-cli",
+    "packages/phoenix-mcp",
+    "packages/phoenix-client/examples/**",
+  ],
   "packageOptions": {
     "entryPoints": ["src/**/*.ts"],
+    "exclude": ["examples/**"],
   },
   "includeVersion": false,
   "excludeExternals": true,
