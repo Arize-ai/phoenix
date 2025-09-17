@@ -40,12 +40,14 @@ import { TextField } from "@phoenix/components/field/TextField";
 
 interface SelectedExample {
   id: string;
+  splitIds?: string[];
 }
 
 type ExampleSelectionToolbarProps = {
   selectedExamples: SelectedExample[];
   onClearSelection: () => void;
   onExamplesDeleted: () => void;
+  onSplitChange?: () => void;
   splits: Array<{ id: string; name: string }>;
 };
 
@@ -53,19 +55,35 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
-  const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
+  const { selectedExamples, onExamplesDeleted, onClearSelection, onSplitChange } = props;
   const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
     useState(false);
   const [isAddingToDatasetSplitDialogOpen, setIsAddingToDatasetSplitDialogOpen] =
     useState(false);
   const [isCreateSplitOpen, setIsCreateSplitOpen] = useState(false);
   const [newSplitName, setNewSplitName] = useState("");
-  const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(new Set());
+  
   const [localAddedSplits, setLocalAddedSplits] = useState<Array<{ id: string; name: string }>>(
     []
   );
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+
+  // precomputed selected splits
+  const sharedSplitIds = useMemo<Set<string>>(() => {
+    if (selectedExamples.length === 0) return new Set<string>();
+    
+    // Get intersection of all splitIds
+    const splitIdArrays = selectedExamples.map(ex => ex.splitIds ?? []);
+    const intersection = splitIdArrays.reduce((acc, curr) => 
+      acc.filter(id => curr.includes(id))
+    );
+    
+    return new Set(intersection);
+  }, [selectedExamples]);
+  const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(new Set());
+
+  // mutations
   const [deleteExamples, isDeletingExamples] = useMutation(graphql`
     mutation ExampleSelectionToolbarDeleteExamplesMutation(
       $input: DeleteDatasetExamplesInput!
@@ -77,33 +95,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       }
     }
   `);
-
-  const fullySelectedSplitIds = useMemo<Set<string>>(() => {
-    if (selectedExamples.length === 0) return new Set<string>();
-    const [first, ...rest] = selectedExamples as Array<{
-      id: string;
-      splitIds?: string[];
-    }>;
-    let acc = new Set<string>(first.splitIds ?? []);
-    for (const ex of rest) {
-      const ids = new Set<string>(ex.splitIds ?? []);
-      acc = new Set(Array.from(acc).filter((id) => ids.has(id)));
-      if (acc.size === 0) break;
-    }
-    return acc;
-  }, [selectedExamples]);
-  console.log("fullySelectedSplitIds", fullySelectedSplitIds);
-  console.log("selectedExamples", selectedExamples);
-  const availableSplits = useMemo(() => {
-    const serverSplits = props.splits ?? [];
-    return [
-      ...serverSplits,
-      ...localAddedSplits.filter(
-        (ls) => !serverSplits.some((s) => s && s.id === ls.id)
-      ),
-    ];
-  }, [props.splits, localAddedSplits]);
-
   const [createSplit, isCreatingSplit] = useMutation<ExampleSelectionToolbarCreateDatasetSplitMutation>(graphql`
     mutation ExampleSelectionToolbarCreateDatasetSplitMutation(
       $input: CreateDatasetSplitInput!
@@ -129,6 +120,22 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       }
     }
   `);
+
+  
+  console.log("fullySelectedSplitIds", sharedSplitIds);
+  console.log("selectedSplitIds", selectedSplitIds);
+  console.log("selectedExamples", selectedExamples);
+  const availableSplits = useMemo(() => {
+    const serverSplits = props.splits ?? [];
+    return [
+      ...serverSplits,
+      ...localAddedSplits.filter(
+        (ls) => !serverSplits.some((s) => s && s.id === ls.id)
+      ),
+    ];
+  }, [props.splits, localAddedSplits]);
+
+  
   const isPlural = selectedExamples.length !== 1;
   const onDeleteExamples = useCallback(() => {
     deleteExamples({
@@ -228,6 +235,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             });
             setIsAddingToDatasetSplitDialogOpen(false);
             setSelectedSplitIds(new Set());
+            // Notify parent so it can refresh data and re-derive selectedExamples/splits
+            onSplitChange?.();
           }
         },
         onError: (error) => {
@@ -260,7 +269,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           </Flex>
         </View>
         <Button variant="primary" size="M" onPress={() => {
-            setIsAddingToDatasetSplitDialogOpen(true);          
+            setIsAddingToDatasetSplitDialogOpen(true);
+            // Initialize selection to the fully-selected splits for current examples
+            // i.e. if all examples belong to the the test set, the test set should be selected
+            setSelectedSplitIds(new Set(sharedSplitIds));          
         }}>
           Add to Dataset Split
         </Button>
@@ -288,14 +300,16 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       <ModalOverlay
         isOpen={isAddingToDatasetSplitDialogOpen}
         onOpenChange={(isOpen) => {
+          console.log("onOpenChange", isOpen);
           if (!isOpen) {
             setIsAddingToDatasetSplitDialogOpen(false);
             setIsCreateSplitOpen(false);
             setNewSplitName("");
             setSelectedSplitIds(new Set());
           } else {
+            console.log("setting selectedSplitIds to sharedSplitIds", sharedSplitIds);
             // Initialize selection to the fully-selected splits for current examples
-            setSelectedSplitIds(new Set(fullySelectedSplitIds));
+            setSelectedSplitIds(new Set(sharedSplitIds));
           }
         }}
         isDismissable
