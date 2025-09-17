@@ -10,7 +10,7 @@ The new Phoenix evals library provides lightweight, composable building blocks f
 - Features powerful input mapping and binding for working with complex data structures.
 - Includes several pre-built metrics for common evaluation tasks.
 - Evaluators are instrumented for Open Telemetry tracing.
-- Plus, tons of convenience features to improve the developor experience!
+- Plus, tons of convenience features to improve the developer experience!
 
 ### Quickstart
 
