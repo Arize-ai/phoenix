@@ -3,7 +3,7 @@ import { OpenAI } from "openai";
 import { createClient } from "../src";
 import {
   runExperiment,
-  asEvaluator,
+  asExperimentEvaluator,
   RunExperimentParams,
 } from "../src/experiments";
 import { AnnotatorKind } from "../src/types/annotations";
@@ -98,7 +98,7 @@ async function main() {
   // Define evaluators for the experiment
 
   // 1. Code-based evaluator that checks if response contains specific keywords
-  const containsKeyword = asEvaluator({
+  const containsKeyword = asExperimentEvaluator({
     name: "contains_keyword",
     kind: "CODE" as AnnotatorKind,
     evaluate: async ({ output }) => {
@@ -120,7 +120,7 @@ async function main() {
   });
 
   // 2. LLM-based evaluator for conciseness
-  const conciseness = asEvaluator({
+  const conciseness = asExperimentEvaluator({
     name: "conciseness",
     kind: "LLM" as AnnotatorKind,
     evaluate: async ({ output }) => {
@@ -150,7 +150,7 @@ async function main() {
   });
 
   // 3. Custom Jaccard similarity evaluator
-  const jaccardSimilarity = asEvaluator({
+  const jaccardSimilarity = asExperimentEvaluator({
     name: "jaccard_similarity",
     kind: "CODE" as AnnotatorKind,
     evaluate: async ({ output, expected }) => {
@@ -202,7 +202,7 @@ async function main() {
     },
   });
   // 4. LLM-based accuracy evaluator
-  const accuracy = asEvaluator({
+  const accuracy = asExperimentEvaluator({
     name: "accuracy",
     kind: "LLM" as AnnotatorKind,
     evaluate: async ({ input, output, expected }) => {
@@ -228,7 +228,7 @@ async function main() {
   console.log("Running experiment...");
 
   // Use datasetId instead of the array of examples
-  const experiment = await runExperiment({
+  const experiment = await runExperiment<ExampleType>({
     client,
     experimentName: "initial-experiment",
     dataset: { datasetId }, // Use the string dataset ID

@@ -24,21 +24,23 @@ export type ExperimentRunID = string;
 /**
  * A map of an experiment runId to the run
  */
-export interface ExperimentRunsMap {
-  runs: Record<ExperimentRunID, ExperimentRun>;
+export interface ExperimentRunsMap<TaskOutputType> {
+  runs: Record<ExperimentRunID, ExperimentRun<TaskOutputType>>;
 }
 
 /**
  * An experiment that has been run and been recorded on the server
  */
-export interface RanExperiment extends ExperimentInfo, ExperimentRunsMap {
+export interface RanExperiment<TaskOutputType>
+  extends ExperimentInfo,
+    ExperimentRunsMap<TaskOutputType> {
   evaluationRuns?: ExperimentEvaluationRun[];
 }
 
 /**
  * The result of running an experiment on a single example
  */
-export interface ExperimentRun extends Node {
+export interface ExperimentRun<TaskOutputType = TaskOutput> extends Node {
   startTime: Date;
   endTime: Date;
   /**
@@ -46,39 +48,47 @@ export interface ExperimentRun extends Node {
    */
   experimentId: string;
   datasetExampleId: string;
-  output?: string | boolean | number | object | null;
+  output: TaskOutputType | null;
   error: string | null;
   traceId: string | null;
 }
 
-export type EvaluatorParams<TaskOutputType = TaskOutput> = {
+export type EvaluatorParams<
+  TaskOutputType, // Place first since this is the minimum
+  InputType,
+  ExpectedType,
+> = {
   /**
    * The input field of the Dataset Example
    */
-  input: Example["input"];
+  input: InputType;
   /**
    * The output of the task
    */
-  output: TaskOutputType;
+  output: TaskOutputType | null;
   /**
    * The expected or reference output of the Dataset Example
    */
-  expected?: Example["output"];
+  expected?: ExpectedType;
   /**
    * Metadata associated with the Dataset Example
    */
   metadata?: Example["metadata"];
 };
 
-export type Evaluator = {
+export type ExperimentEvaluator<
+  TaskOutputType = TaskOutput, // Place first since this is the minimum
+  InputType extends Example["input"] = Example["input"],
+  ExpectedType extends Example["output"] = Example["output"],
+> = {
   name: string;
   kind: AnnotatorKind;
   evaluate: (
-    args: EvaluatorParams
-  ) => Promise<EvaluationResult> | EvaluationResult;
+    args: EvaluatorParams<TaskOutputType, InputType, ExpectedType>
+  ) => Promise<ExperimentEvaluationResult> | ExperimentEvaluationResult;
 };
 
-export type EvaluationResult = {
+export type ExperimentEvaluationResult = {
   score?: number | null;
   label?: string | null;
   metadata?: Record<string, unknown>;
@@ -95,7 +105,7 @@ export interface ExperimentEvaluationRun extends Node {
   name: string;
   annotatorKind: AnnotatorKind;
   error: string | null;
-  result: EvaluationResult | null;
+  result: ExperimentEvaluationResult | null;
   /**
    * The trace id of the evaluation
    * This is null if the trace is deleted or never recorded
@@ -103,11 +113,12 @@ export interface ExperimentEvaluationRun extends Node {
   traceId: string | null;
 }
 
-export type TaskOutput = string | boolean | number | object | null;
+export type TaskOutput = string | boolean | number | object | null | undefined;
 
-export type ExperimentTask = (
-  example: Example
-) => Promise<TaskOutput> | TaskOutput;
+export type ExperimentTask<
+  ExampleType extends Example = Example,
+  TaskOutputType = TaskOutput,
+> = (example: ExampleType) => Promise<TaskOutputType> | TaskOutputType;
 
 export interface ExperimentParameters {
   /**

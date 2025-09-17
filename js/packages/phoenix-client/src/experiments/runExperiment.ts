@@ -9,19 +9,19 @@ import {
   ExampleWithId,
 } from "../types/datasets";
 import type {
-  Evaluator,
+  ExperimentEvaluator,
   ExperimentInfo,
   ExperimentEvaluationRun,
   ExperimentRun,
   ExperimentRunID,
   ExperimentTask,
   RanExperiment,
+  TaskOutput,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
 import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
-import { AnnotatorKind } from "../types/annotations";
 import { createProvider, createNoOpProvider } from "./instrumentation";
 import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 import {
@@ -50,7 +50,10 @@ function isValidRepetitionParam(repetitions: number) {
  *
  * @experimental This feature is not complete, and will change in the future.
  */
-export type RunExperimentParams = ClientFn & {
+export type RunExperimentParams<
+  ExampleType extends Example = Example,
+  TaskOutputType = TaskOutput,
+> = ClientFn & {
   /**
    * An optional name for the experiment.
    * Defaults to the dataset name + a timestamp
@@ -72,11 +75,15 @@ export type RunExperimentParams = ClientFn & {
   /**
    * The task to run
    */
-  task: ExperimentTask;
+  task: ExperimentTask<ExampleType, TaskOutputType>;
   /**
    * The evaluators to use
    */
-  evaluators?: Evaluator[];
+  evaluators?: ExperimentEvaluator<
+    TaskOutputType,
+    ExampleType["input"],
+    ExampleType["output"]
+  >[];
   /**
    * The logger to use
    */
@@ -90,7 +97,7 @@ export type RunExperimentParams = ClientFn & {
    */
   concurrency?: number;
   /**
-   * Whether or not to run the experiment as a dry run. If a number is privided, n examples will be run.
+   * Whether or not to run the experiment as a dry run. If a number is provided, n examples will be run.
    * @default false
    */
   dryRun?: number | boolean;
@@ -145,7 +152,10 @@ export type RunExperimentParams = ClientFn & {
  * });
  * ```
  */
-export async function runExperiment({
+export async function runExperiment<
+  ExampleType extends Example,
+  TaskOutputType = TaskOutput,
+>({
   experimentName,
   experimentDescription,
   experimentMetadata = {},
@@ -160,7 +170,9 @@ export async function runExperiment({
   setGlobalTracerProvider = true,
   repetitions = 1,
   useBatchSpanProcessor = true,
-}: RunExperimentParams): Promise<RanExperiment> {
+}: RunExperimentParams<ExampleType, TaskOutputType>): Promise<
+  RanExperiment<TaskOutputType>
+> {
   // Validation
   assert(
     isValidRepetitionParam(repetitions),
@@ -267,7 +279,7 @@ export async function runExperiment({
     )} and ${concurrency} concurrent runs`
   );
 
-  const runs: Record<ExperimentRunID, ExperimentRun> = {};
+  const runs: Record<ExperimentRunID, ExperimentRun<TaskOutputType>> = {};
   await runTaskWithExamples({
     client,
     experimentId: experiment.id,
@@ -285,7 +297,7 @@ export async function runExperiment({
   });
   logger.info(`✅ Task runs completed`);
 
-  const ranExperiment: RanExperiment = {
+  const ranExperiment: RanExperiment<TaskOutputType> = {
     ...experiment,
     runs,
   };
@@ -318,7 +330,10 @@ export async function runExperiment({
 /**
  * Run a task against n examples in a dataset.
  */
-function runTaskWithExamples({
+function runTaskWithExamples<
+  ExampleType extends Example = Example,
+  TaskOutputType = TaskOutput,
+>({
   client,
   experimentId,
   task,
@@ -336,11 +351,11 @@ function runTaskWithExamples({
   /** The id of the experiment */
   experimentId: string;
   /** The task to run */
-  task: ExperimentTask;
+  task: ExperimentTask<ExampleType, TaskOutputType>;
   /** The dataset to run the task on */
-  dataset: Dataset;
+  dataset: Dataset<ExampleType["input"], ExampleType["output"]>;
   /** A callback to call when the task is complete */
-  onComplete: (run: ExperimentRun) => void;
+  onComplete: (run: ExperimentRun<TaskOutputType>) => void;
   /** The logger to use */
   logger: Logger;
   /** The number of examples to run in parallel */
@@ -365,7 +380,7 @@ function runTaskWithExamples({
     example,
     repetitionNumber,
   }: {
-    example: ExampleWithId;
+    example: ExampleWithId<ExampleType["input"], ExampleType["output"]>;
     repetitionNumber: number;
   }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
@@ -373,7 +388,7 @@ function runTaskWithExamples({
         `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
       );
       const traceId = span.spanContext().traceId;
-      const thisRun: ExperimentRun = {
+      const thisRun: ExperimentRun<TaskOutputType> = {
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
@@ -384,8 +399,10 @@ function runTaskWithExamples({
         error: null,
       };
       try {
-        const taskOutput = await promisifyResult(task(example));
-        thisRun.output = taskOutput;
+        const taskOutput = await promisifyResult(
+          task(example as unknown as ExampleType)
+        );
+        thisRun.output = taskOutput as TaskOutputType;
       } catch (error) {
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";
@@ -458,7 +475,10 @@ function runTaskWithExamples({
  *
  * @experimental This feature is not complete, and will change in the future.
  */
-export async function evaluateExperiment({
+export async function evaluateExperiment<
+  ExampleType extends Example,
+  TaskOutputType = TaskOutput,
+>({
   experiment,
   evaluators,
   client: _client,
@@ -472,9 +492,13 @@ export async function evaluateExperiment({
   /**
    * The experiment to evaluate
    **/
-  experiment: RanExperiment;
+  experiment: RanExperiment<TaskOutputType>;
   /** The evaluators to use */
-  evaluators: Evaluator[];
+  evaluators: ExperimentEvaluator<
+    TaskOutputType,
+    ExampleType["input"],
+    ExampleType["output"]
+  >[];
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
@@ -502,7 +526,7 @@ export async function evaluateExperiment({
    * Intended as a pass-through from runExperiment
    */
   tracerProvider?: NodeTracerProvider | null;
-}): Promise<RanExperiment> {
+}): Promise<RanExperiment<TaskOutputType>> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
@@ -589,11 +613,14 @@ export async function evaluateExperiment({
     }))
   );
   const evaluatorsQueue = queue(
-    async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
+    async (evaluatorAndRun: {
+      evaluator: ExperimentEvaluator<TaskOutputType, ExampleType["input"]>;
+      run: ExperimentRun<TaskOutputType>;
+    }) => {
       return tracer.startActiveSpan(
         `Evaluation: ${evaluatorAndRun.evaluator.name}`,
         async (span) => {
-          const evalResult = await runEvaluator({
+          const evalResult = await runEvaluator<TaskOutputType, ExampleType>({
             evaluator: evaluatorAndRun.evaluator,
             run: evaluatorAndRun.run,
             exampleCache: examplesById,
@@ -690,15 +717,19 @@ export async function evaluateExperiment({
  *
  * @experimental This feature is not complete, and will change in the future.
  */
-async function runEvaluator({
+async function runEvaluator<TaskOutputType, ExampleType extends Example>({
   evaluator,
   run,
   exampleCache,
   onComplete,
   logger,
 }: {
-  evaluator: Evaluator;
-  run: ExperimentRun;
+  evaluator: ExperimentEvaluator<
+    TaskOutputType,
+    ExampleType["input"],
+    ExampleType["output"]
+  >;
+  run: ExperimentRun<TaskOutputType>;
   exampleCache: Record<string, Example>;
   logger: Logger;
   onComplete: (run: ExperimentEvaluationRun) => void;
@@ -723,7 +754,7 @@ async function runEvaluator({
     try {
       const result = await evaluator.evaluate({
         input: example.input,
-        output: run.output ?? null,
+        output: run.output,
         expected: example.output,
         metadata: example?.metadata,
       });
@@ -743,33 +774,6 @@ async function runEvaluator({
   };
 
   return evaluate();
-}
-
-/**
- * Wrap an evaluator function in an object with a name property.
- *
- * @experimental This feature is not complete, and will change in the future.
- *
- * @param params - The parameters for creating the evaluator
- * @param params.name - The name of the evaluator.
- * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
- * @param params.evaluate - The evaluator function.
- * @returns The evaluator object.
- */
-export function asEvaluator({
-  name,
-  kind,
-  evaluate,
-}: {
-  name: string;
-  kind: AnnotatorKind;
-  evaluate: Evaluator["evaluate"];
-}): Evaluator {
-  return {
-    name,
-    kind,
-    evaluate,
-  };
 }
 
 let _localIdIndex = 1000;

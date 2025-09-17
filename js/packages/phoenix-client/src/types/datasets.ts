@@ -34,8 +34,8 @@ export interface DatasetVersionInfo extends Node {
 /**
  * A dataset's examples
  */
-export interface DatasetExamples {
-  examples: ExampleWithId[];
+export interface DatasetExamples<InputType, OutputType> {
+  examples: ExampleWithId<InputType, OutputType>[];
   /**
    * The version ID of the dataset examples
    */
@@ -45,27 +45,36 @@ export interface DatasetExamples {
 /**
  * An example is a record to feed into an AI task
  */
-export interface Example {
-  input: Record<string, unknown>;
-  output?: Record<string, unknown> | null;
+export interface Example<
+  InputType = Record<string, unknown>,
+  OutputType = Record<string, unknown> | null | undefined,
+> {
+  input: InputType;
+  output?: OutputType;
   metadata?: Record<string, unknown> | null;
 }
 
 /**
  * An example that has been synced to the server
  */
-export interface ExampleWithId extends Example, Node {
+export interface ExampleWithId<InputType, OutputType>
+  extends Example<InputType, OutputType>,
+    Node {
   updatedAt: Date;
 }
 
 /**
  * A dataset is a collection of examples for an AI task
  */
-export interface Dataset extends DatasetInfo, DatasetExamples, Node {}
+export interface Dataset<InputType, OutputType>
+  extends DatasetInfo,
+    DatasetExamples<InputType, OutputType>,
+    Node {}
 
 /**
  * A dataset with its version information
  */
-export interface DatasetWithVersion extends Dataset {
+export interface DatasetWithVersion<InputType, OutputType>
+  extends Dataset<InputType, OutputType> {
   versionInfo: DatasetVersionInfo;
 }
