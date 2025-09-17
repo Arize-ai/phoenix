@@ -2,15 +2,23 @@ Evals
 ===============
 .. contents:: :local:
 
-Score
------
 
-Score 
-~~~~~~
-.. autoclass:: phoenix.evals.Score
+LLM Interfaces
+------------------
+
+LLM
+~~~~~~~~~~~
+.. autoclass:: phoenix.evals.llm.LLM
    :members:
-   :exclude-members: name, score, label, explanation, metadata, source, direction
    :show-inheritance:
+
+
+Prompt Template
+~~~~~~~~~~~~~~~
+.. autoclass:: phoenix.evals.templating.Template
+   :members:
+   :show-inheritance:
+
 
 Evaluator Abstractions
 ----------------------
@@ -58,20 +66,14 @@ async_evaluate_dataframe
 .. autofunction:: phoenix.evals.evaluators.async_evaluate_dataframe
 
 
-LLM Interfaces
-------------------
+Score
+-----
 
-LLM Wrapper
-~~~~~~~~~~~
-.. autoclass:: phoenix.evals.llm.LLM
+Score 
+~~~~~~
+.. autoclass:: phoenix.evals.Score
    :members:
-   :show-inheritance:
-
-
-Prompt Template
-~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.templating.Template
-   :members:
+   :exclude-members: name, score, label, explanation, metadata, source, direction
    :show-inheritance:
 
 
