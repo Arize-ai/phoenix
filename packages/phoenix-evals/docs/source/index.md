@@ -2,9 +2,9 @@
 
 Welcome to the Phoenix Evals Reference documentation. This package provides evaluation tools and utilities for LLM applications, including tools to determine relevance, toxicity, hallucination detection, and much more.
 
-## ✨ What's New in Phoenix Evals 2.0
+## Features
 
-Phoenix Evals 2.0 provides **lightweight, composable building blocks** for writing and running evaluations:
+Phoenix Evals provides **lightweight, composable building blocks** for writing and running evaluations:
 
 - **Works with your preferred model SDKs** via adapters (OpenAI, LiteLLM, LangChain)
 - **Powerful input mapping and binding** for working with complex data structures
