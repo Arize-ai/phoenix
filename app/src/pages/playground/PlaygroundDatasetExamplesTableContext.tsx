@@ -47,11 +47,13 @@ type PlaygroundDatasetExamplesTableActions = {
   appendExampleDataTextChunk: (args: {
     instanceId: InstanceId;
     exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
     textChunk: string;
   }) => void;
   appendExampleDataToolCallChunk: (args: {
     instanceId: InstanceId;
     exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
     toolCallChunk: ToolCallChunk;
   }) => void;
   setExampleDataForInstance: (args: {
@@ -91,11 +93,17 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
-    appendExampleDataTextChunk: ({ instanceId, exampleId, textChunk }) => {
+    appendExampleDataTextChunk: ({
+      instanceId,
+      exampleId,
+      repetitionNumber,
+      textChunk,
+    }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
-      const example = instance[exampleId] ?? {};
-      const currentContent = example[1]?.content ?? "";
+      const examplesByRepetitionNumber = instance[exampleId] ?? {};
+      const currentContent =
+        examplesByRepetitionNumber[repetitionNumber]?.content ?? "";
 
       set({
         exampleResponsesMap: {
@@ -103,8 +111,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           [instanceId]: {
             ...instance,
             [exampleId]: {
-              ...example,
-              [1]: {
+              ...examplesByRepetitionNumber,
+              [repetitionNumber]: {
                 content: currentContent + textChunk,
               },
             },
@@ -115,12 +123,14 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     appendExampleDataToolCallChunk: ({
       instanceId,
       exampleId,
+      repetitionNumber,
       toolCallChunk,
     }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
       const examplesByRepetitionNumber = instance[exampleId] ?? {};
-      const currentToolCalls = examplesByRepetitionNumber[1]?.toolCalls ?? {};
+      const currentToolCalls =
+        examplesByRepetitionNumber[repetitionNumber]?.toolCalls ?? {};
       const { id, function: toolFunction } = toolCallChunk;
       const existingToolCall = currentToolCalls[id];
       const updatedToolCall: PartialOutputToolCall = {
@@ -141,8 +151,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           [instanceId]: {
             ...instance,
             [exampleId]: {
-              ...examplesByRepetitionNumber[1],
-              [1]: {
+              ...examplesByRepetitionNumber,
+              [repetitionNumber]: {
                 toolCalls: {
                   ...currentToolCalls,
                   [id]: updatedToolCall,
