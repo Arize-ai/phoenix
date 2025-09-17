@@ -108,7 +108,7 @@ results_df.head()
 :caption: API Reference
 
 api/evals
-api/preview
+api/legacy
 ```
 
 ## Indices and tables
