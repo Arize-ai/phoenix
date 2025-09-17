@@ -60,11 +60,13 @@ type PlaygroundDatasetExamplesTableActions = {
     data: InstanceResponses;
     instanceId: InstanceId;
   }) => void;
-  resetExampleData: () => void;
+  resetData: () => void;
+  setRepetitions: (repetitions: number) => void;
 };
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
+  repetitions: number;
 } & PlaygroundDatasetExamplesTableActions;
 
 const createPlaygroundDatasetExamplesTableStore = () => {
@@ -72,6 +74,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
+    repetitions: 1,
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
@@ -172,8 +175,11 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
-    resetExampleData: () => {
-      set({ exampleResponsesMap: {} });
+    resetData: () => {
+      set({ exampleResponsesMap: {}, repetitions: 1 });
+    },
+    setRepetitions: (repetitions: number) => {
+      set({ repetitions });
     },
   });
   return create<PlaygroundDatasetExamplesTableState>()(
