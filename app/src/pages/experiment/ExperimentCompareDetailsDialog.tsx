@@ -348,6 +348,7 @@ function ExperimentRunOutputs({
           if (!experiment) {
             return null;
           }
+          const experimentRuns = experimentRunsByExperimentId[experimentId];
           return (
             <Fragment key={experimentId}>
               <label>
@@ -365,26 +366,28 @@ function ExperimentRunOutputs({
                   {experiment.name}
                 </Flex>
               </label>
-              <View paddingStart="size-200">
-                {experimentRunsByExperimentId[experimentId]?.map((run) => (
-                  <label key={run.id}>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedExperimentRuns.find(
-                            (runSelection) => runSelection.runId === run.id
-                          )?.selected
-                        }
-                        onChange={(e) =>
-                          updateRepetitionSelection(run.id, e.target.checked)
-                        }
-                      />
-                      repetition {run.repetitionNumber}
-                    </Flex>
-                  </label>
-                ))}
-              </View>
+              {experimentRuns?.length > 1 && (
+                <View paddingStart="size-200">
+                  {experimentRuns.map((run) => (
+                    <label key={run.id}>
+                      <Flex direction="row" alignItems="center" gap="size-100">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedExperimentRuns.find(
+                              (runSelection) => runSelection.runId === run.id
+                            )?.selected
+                          }
+                          onChange={(e) =>
+                            updateRepetitionSelection(run.id, e.target.checked)
+                          }
+                        />
+                        repetition {run.repetitionNumber}
+                      </Flex>
+                    </label>
+                  ))}
+                </View>
+              )}
             </Fragment>
           );
         })}
@@ -504,7 +507,7 @@ function ExperimentItem({
           >
             <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
           </Heading>
-          {repetitionCount && experimentRun && (
+          {repetitionCount && repetitionCount > 1 && experimentRun && (
             <>
               <Icon svg={<Icons.ChevronRight />} />
               <Heading weight="heavy" level={3}>
