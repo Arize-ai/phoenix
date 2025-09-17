@@ -7,7 +7,7 @@ Welcome to the Phoenix Evals Reference documentation. This package provides eval
 Install the Phoenix Evals package using pip:
 
 ```bash
-pip install arize-phoenix-evals
+pip install 'arize-phoenix-evals>=2.0.0'
 ```
 
 ## Quick Start
@@ -54,7 +54,9 @@ results = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, rails)
 ```
 
 ## Core Functions
+
 The main evaluation functions that power the package:
+
 - **`llm_classify`**: Classify data using LLM-based evaluation
 - **`llm_generate`**: Generate synthetic data or prompt an LLM over a dataframe of variables
 - **`run_evals`**: Run evaluation suites
@@ -62,6 +64,7 @@ The main evaluation functions that power the package:
 ## Usage Examples
 
 ### Hallucination and QA Evaluation
+
 ```python
 from phoenix.evals import HallucinationEvaluator, QAEvaluator, OpenAIModel, run_evals
 
@@ -83,7 +86,7 @@ hallucination_eval_df, qa_eval_df = run_evals(
     provide_explanation=True
 )
 
-# Combine results to analyze your evaluations 
+# Combine results to analyze your evaluations
 results_df = df.copy()
 results_df["hallucination_eval"] = hallucination_eval_df["label"]
 results_df["hallucination_explanation"] = hallucination_eval_df["explanation"]
@@ -112,4 +115,4 @@ api/preview
 
 - {ref}`genindex`
 - {ref}`modindex`
-- {ref}`search` 
+- {ref}`search`
