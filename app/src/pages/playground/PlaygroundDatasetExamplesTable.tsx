@@ -289,11 +289,13 @@ function ExampleOutputContent({
   const spanControls = useMemo(() => {
     return (
       <>
-        <ExperimentRepetitionSelector
-          repetitionNumber={repetitionNumber}
-          totalRepetitions={totalRepetitions}
-          setRepetitionNumber={setRepetitionNumber}
-        />
+        {totalRepetitions > 1 && (
+          <ExperimentRepetitionSelector
+            repetitionNumber={repetitionNumber}
+            totalRepetitions={totalRepetitions}
+            setRepetitionNumber={setRepetitionNumber}
+          />
+        )}
         <DialogTrigger>
           <TooltipTrigger isDisabled={!hasExperimentRun}>
             <IconButton
