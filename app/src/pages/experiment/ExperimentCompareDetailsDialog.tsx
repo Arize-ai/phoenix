@@ -337,61 +337,14 @@ function ExperimentRunOutputs({
 
   return (
     <Flex gap="size-200">
-      <div
-        css={css`
-          width: 340px;
-          flex: none;
-        `}
-      >
-        {experimentIds.map((experimentId) => {
-          const experiment = experimentsById[experimentId];
-          if (!experiment) {
-            return null;
-          }
-          const experimentRuns = experimentRunsByExperimentId[experimentId];
-          return (
-            <Fragment key={experimentId}>
-              <label>
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  <input
-                    type="checkbox"
-                    checked={areAllExperimentRunsSelected(
-                      experimentId,
-                      selectedExperimentRuns
-                    )}
-                    onChange={(e) =>
-                      updateExperimentSelection(experimentId, e.target.checked)
-                    }
-                  />
-                  {experiment.name}
-                </Flex>
-              </label>
-              {experimentRuns && experimentRuns.length > 1 && (
-                <View paddingStart="size-200">
-                  {experimentRuns.map((run) => (
-                    <label key={run.id}>
-                      <Flex direction="row" alignItems="center" gap="size-100">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedExperimentRuns.find(
-                              (runSelection) => runSelection.runId === run.id
-                            )?.selected
-                          }
-                          onChange={(e) =>
-                            updateRepetitionSelection(run.id, e.target.checked)
-                          }
-                        />
-                        repetition {run.repetitionNumber}
-                      </Flex>
-                    </label>
-                  ))}
-                </View>
-              )}
-            </Fragment>
-          );
-        })}
-      </div>
+      <ExperimentRunOutputsSidebar
+        experimentIds={experimentIds}
+        experimentsById={experimentsById}
+        experimentRunsByExperimentId={experimentRunsByExperimentId}
+        selectedExperimentRuns={selectedExperimentRuns}
+        updateExperimentSelection={updateExperimentSelection}
+        updateRepetitionSelection={updateRepetitionSelection}
+      />
       <ul
         css={css`
           display: flex;
@@ -456,6 +409,109 @@ function ExperimentRunOutputs({
         })}
       </ul>
     </Flex>
+  );
+}
+
+function ExperimentRunOutputsSidebar({
+  experimentIds,
+  experimentsById,
+  experimentRunsByExperimentId,
+  selectedExperimentRuns,
+  updateExperimentSelection,
+  updateRepetitionSelection,
+}: {
+  experimentIds: string[];
+  experimentsById: Record<string, Experiment | undefined>;
+  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>;
+  selectedExperimentRuns: ExperimentRunSelectionState[];
+  updateExperimentSelection: (experimentId: string, checked: boolean) => void;
+  updateRepetitionSelection: (runId: string, checked: boolean) => void;
+}) {
+  const { baseExperimentColor, getExperimentColor } = useExperimentColors();
+
+  return (
+    <div
+      css={css`
+        width: 340px;
+        flex: none;
+        font-size: var(--ac-global-dimension-static-font-size-100);
+        color: var(--ac-global-color-grey-700);
+      `}
+    >
+      <Flex direction="column" gap="size-200">
+        {experimentIds.map((experimentId, experimentIndex) => {
+          const experiment = experimentsById[experimentId];
+          if (!experiment) {
+            return null;
+          }
+          const experimentRuns = experimentRunsByExperimentId[experimentId];
+          return (
+            <Fragment key={experimentId}>
+              <label>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <input
+                    type="checkbox"
+                    checked={areAllExperimentRunsSelected(
+                      experimentId,
+                      selectedExperimentRuns
+                    )}
+                    onChange={(e) =>
+                      updateExperimentSelection(experimentId, e.target.checked)
+                    }
+                  />
+                  <span
+                    css={css`
+                      flex: none;
+                    `}
+                  >
+                    <ColorSwatch
+                      color={
+                        experimentIndex === 0
+                          ? baseExperimentColor
+                          : getExperimentColor(experimentIndex - 1)
+                      }
+                      shape="circle"
+                    />
+                  </span>
+                  {experiment.name}
+                </Flex>
+              </label>
+              {experimentRuns && experimentRuns.length > 1 && (
+                <View paddingStart="size-500">
+                  <Flex direction="column" gap="size-200">
+                    {experimentRuns.map((run) => (
+                      <label key={run.id}>
+                        <Flex
+                          direction="row"
+                          alignItems="center"
+                          gap="size-100"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedExperimentRuns.find(
+                                (runSelection) => runSelection.runId === run.id
+                              )?.selected
+                            }
+                            onChange={(e) =>
+                              updateRepetitionSelection(
+                                run.id,
+                                e.target.checked
+                              )
+                            }
+                          />
+                          repetition {run.repetitionNumber}
+                        </Flex>
+                      </label>
+                    ))}
+                  </Flex>
+                </View>
+              )}
+            </Fragment>
+          );
+        })}
+      </Flex>
+    </div>
   );
 }
 
