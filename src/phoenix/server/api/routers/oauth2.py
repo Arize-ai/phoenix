@@ -25,13 +25,16 @@ from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
+    set_oauth2_state_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
+    set_oauth2_code_verifier_cookie,
 )
 from phoenix.config import (
     get_env_disable_basic_auth,
@@ -123,6 +126,9 @@ async def login(
         nonce=nonce,
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
+    response = set_oauth2_code_verifier_cookie(
+        response=response, code_verifier=authorization_url_data['code_verifier'], max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES)
+    )
     return response
 
 
@@ -134,6 +140,7 @@ async def create_tokens(
     authorization_code: str = Query(alias="code"),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
+    code_verifier: str = Cookie(alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME),
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
     if state != stored_state:
@@ -157,10 +164,17 @@ async def create_tokens(
         token_data = await oauth2_client.fetch_access_token(
             state=state,
             code=authorization_code,
+            client_id=oauth2_client.client_id,
             redirect_uri=_get_create_tokens_endpoint(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
+            code_verifier=code_verifier,
+            authorization_response=str(request.url),
+            client_secret=oauth2_client.client_secret,
+
         )
+        print(f"Token Data: {token_data}")
+
     except OAuthError as error:
         return _redirect_to_login(request=request, error=str(error))
     _validate_token_data(token_data)

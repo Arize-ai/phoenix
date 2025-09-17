@@ -957,6 +957,7 @@ class OAuth2ClientConfig:
     allow_sign_up: bool
     auto_login: bool
     scopes: str
+    code_challenge_method: Optional[str]
 
 
     @classmethod
@@ -992,6 +993,7 @@ class OAuth2ClientConfig:
         allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
         auto_login = get_env_oauth2_auto_login(idp_name)
         scopes = getenv(f"PHOENIX_OAUTH2_{idp_name_upper}_SCOPES", "openid email profile")
+        code_challenge_method = getenv(f"PHOENIX_OAUTH2_{idp_name_upper}_CODE_CHALLENGE_METHOD")
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -1011,6 +1013,8 @@ class OAuth2ClientConfig:
             allow_sign_up=allow_sign_up,
             auto_login=auto_login,
             scopes=scopes,
+            code_challenge_method=code_challenge_method,
+            
         )
 
 
@@ -1033,6 +1037,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
         - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
         - PHOENIX_OAUTH2_{IDP_NAME}_SCOPES: The scopes to request from the identity provider (defaults to "openid email profile")
+        - PHOENIX_OAUTH2_{IDP_NAME}_CODE_CHALLENGE_METHOD: The PKCE code challenge method (optional, set to "S256" or "plain" to enable PKCE)
         When set to False, the system will check if the user exists in the database by their email address.
         If the user does not exist or has a password set, they will be redirected to the login page with
         an error message.
@@ -1053,10 +1058,11 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
         PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
         PHOENIX_OAUTH2_GOOGLE_SCOPES=openid email profile (optional, defaults to "openid email profile")
+        PHOENIX_OAUTH2_GOOGLE_CODE_CHALLENGE_METHOD=S256 (optional, enables PKCE when set)
     """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN|SCOPES)$"  # noqa: E501
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN|SCOPES|CODE_CHALLENGE_METHOD)$"  # noqa: E501
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
