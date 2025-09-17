@@ -261,6 +261,7 @@ export function ExperimentCompareDetails({
           css={css`
             overflow-y: auto;
             height: 100%;
+            box-sizing: border-box;
             padding: var(--ac-global-dimension-static-size-200);
           `}
         >
