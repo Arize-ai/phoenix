@@ -431,7 +431,9 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   datasetExampleInput: unknown;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
-  const totalRepetitions = usePlaygroundContext((state) => state.repetitions);
+  const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.repetitions
+  );
   const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
     (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
   );
@@ -550,8 +552,8 @@ export function PlaygroundDatasetExamplesTable({
   const setExampleDataForInstance = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setExampleDataForInstance
   );
-  const resetExampleData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.resetExampleData
+  const resetData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetData
   );
   const appendExampleDataToolCallChunk =
     usePlaygroundDatasetExamplesTableContext(
@@ -560,6 +562,10 @@ export function PlaygroundDatasetExamplesTable({
   const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
     (state) => state.appendExampleDataTextChunk
   );
+  const setRepetitions = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setRepetitions
+  );
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
 
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
@@ -700,7 +706,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
-    resetExampleData();
+    resetData();
     if (streaming) {
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
@@ -748,6 +754,7 @@ export function PlaygroundDatasetExamplesTable({
               }
             },
           };
+        setRepetitions(repetitions);
         const subscription = requestSubscription(environment, config);
         subscriptions.push(subscription);
       }
@@ -816,7 +823,9 @@ export function PlaygroundDatasetExamplesTable({
     onCompleted,
     onNext,
     playgroundStore,
-    resetExampleData,
+    repetitions,
+    resetData,
+    setRepetitions,
   ]);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
