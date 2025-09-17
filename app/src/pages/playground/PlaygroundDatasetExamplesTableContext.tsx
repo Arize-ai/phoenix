@@ -41,6 +41,7 @@ type PlaygroundDatasetExamplesTableActions = {
   updateExampleData: (args: {
     instanceId: InstanceId;
     exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
     patch: Partial<ExampleRunData>;
   }) => void;
   appendExampleDataTextChunk: (args: {
@@ -69,18 +70,22 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
-    updateExampleData: ({ instanceId, exampleId, patch }) => {
+    updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
-      const example = instance[exampleId] ?? {};
+      const examplesByRepetitionNumber = instance[exampleId] ?? {};
+      const example = examplesByRepetitionNumber[repetitionNumber] ?? {};
       set({
         exampleResponsesMap: {
           ...exampleResponsesMap,
           [instanceId]: {
             ...instance,
             [exampleId]: {
-              ...example,
-              ...patch,
+              ...examplesByRepetitionNumber,
+              [repetitionNumber]: {
+                ...example,
+                ...patch,
+              },
             },
           },
         },

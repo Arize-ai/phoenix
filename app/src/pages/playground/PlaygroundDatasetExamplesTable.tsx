@@ -568,6 +568,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: 1,
               patch: {
                 span: chatCompletion.span,
                 experimentRunId: chatCompletion.experimentRun?.id,
@@ -581,6 +582,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: 1,
               patch: { errorMessage: chatCompletion.message },
             });
             break;
