@@ -1,17 +1,17 @@
-import { useState } from "react";
 import { useSearchParams } from "react-router";
-import { css } from "@emotion/react";
+
+import { Switch } from "@arizeai/components";
 
 import {
-  DropdownButton,
-  DropdownMenu,
-  DropdownTrigger,
-  Switch,
-} from "@arizeai/components";
-
-import {
+  Button,
+  Dialog,
+  DialogTrigger,
   Flex,
   Heading,
+  Icon,
+  Icons,
+  Popover,
+  PopoverArrow,
   Slider,
   SliderNumberField,
   Text,
@@ -24,7 +24,6 @@ export function PlaygroundSettingsDropdown() {
   const [searchParams] = useSearchParams();
   const selectedDatasetid = searchParams.get("datasetId");
   const hasSelectedDataset = selectedDatasetid != null;
-  const [isOpen, setIsOpen] = useState(false);
   const streaming = usePlaygroundContext((state) => state.streaming);
   const repetitions = usePlaygroundContext((state) => state.repetitions);
   const setStreaming = usePlaygroundContext((state) => state.setStreaming);
@@ -36,24 +35,16 @@ export function PlaygroundSettingsDropdown() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
   return (
-    <div
-      css={css`
-        .ac-dropdown-button {
-          min-width: 0px;
-        }
-      `}
-    >
-      <DropdownTrigger
-        placement="bottom"
-        isOpen={isOpen}
-        onOpenChange={(isOpen) => {
-          setIsOpen(isOpen);
-        }}
-      >
-        <DropdownButton size="compact" isDisabled={isRunning}>
-          Settings
-        </DropdownButton>
-        <DropdownMenu>
+    <DialogTrigger>
+      <Button
+        size="S"
+        aria-label="Playground Settings"
+        leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        isDisabled={isRunning}
+      />
+      <Popover>
+        <PopoverArrow />
+        <Dialog>
           <View padding="size-200">
             <Heading level={2} weight="heavy">
               Settings
@@ -98,8 +89,8 @@ export function PlaygroundSettingsDropdown() {
               </Flex>
             </View>
           </View>
-        </DropdownMenu>
-      </DropdownTrigger>
-    </div>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }

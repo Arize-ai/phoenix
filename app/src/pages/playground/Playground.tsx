@@ -98,8 +98,8 @@ export function Playground(props: Partial<PlaygroundProps>) {
             <Flex direction="row" gap="size-100" alignItems="center">
               <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
-              <PlaygroundSettingsDropdown />
               <PlaygroundRunButton />
+              <PlaygroundSettingsDropdown />
             </Flex>
           </Flex>
         </View>
