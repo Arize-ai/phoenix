@@ -189,6 +189,16 @@ async def create_tokens(
     except MissingEmailScope as error:
         return _redirect_to_login(request=request, error=str(error))
 
+    # Verify token scopes match the requested scopes (strict)
+    requested_scopes = set(str(oauth2_client.client_kwargs.get("scope", "")).split(" "))
+    granted_scope_str = str(token_data.get("scope", ""))
+    granted_scopes = set(s for s in granted_scope_str.split(" ") if s)
+    if requested_scopes and not requested_scopes.issubset(granted_scopes):
+        return _redirect_to_login(
+            request=request,
+            error="Sign in is not allowed. Missing required scopes.",
+        )
+
     try:
         async with request.app.state.db() as session:
             user = await _process_oauth2_user(
