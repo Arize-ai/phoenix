@@ -8,13 +8,13 @@ from phoenix.evals import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
     HallucinationEvaluator,
-    LLMEvaluator,
     OpenAIModel,
     QAEvaluator,
     RelevanceEvaluator,
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
+from phoenix.evals.legacy.evaluators import LLMEvaluator
 from phoenix.evals.utils import _EXPLANATION, _RESPONSE
 
 
