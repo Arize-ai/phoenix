@@ -415,7 +415,7 @@ function ExampleOutputContent({
   );
 }
 
-function ExampleOutputCell({
+const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
@@ -450,7 +450,7 @@ function ExampleOutputCell({
       setRepetitionNumber={setRepetitionNumber}
     />
   );
-}
+});
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
@@ -898,7 +898,7 @@ export function PlaygroundDatasetExamplesTable({
 
         cell: ({ row }) => {
           return (
-            <ExampleOutputCell
+            <MemoizedExampleOutputCell
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
