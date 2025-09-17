@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  runExperiment,
-  asEvaluator,
-} from "../../src/experiments/runExperiment";
+import { runExperiment, asExperimentEvaluator } from "../../src/experiments";
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import type { Example } from "../../src/types/datasets";
-import type { EvaluatorParams } from "../../src/types/experiments";
 
 const mockDataset = {
   id: "dataset-1",
@@ -39,10 +35,10 @@ describe("runExperiment (dryRun)", () => {
 
   it("runs the task and evaluators in dryRun mode", async () => {
     const task = async (example: Example) => `Hello, ${example.input.name}!`;
-    const matchesEvaluator = asEvaluator({
+    const matchesEvaluator = asExperimentEvaluator({
       name: "matches",
       kind: "CODE",
-      evaluate: async ({ output, expected }: EvaluatorParams) => {
+      evaluate: async ({ output, expected }) => {
         const expectedText = (expected as { text?: string })?.text ?? "";
         const outputStr = typeof output === "string" ? output : String(output);
         return {
@@ -54,10 +50,10 @@ describe("runExperiment (dryRun)", () => {
         };
       },
     });
-    const containsHelloEvaluator = asEvaluator({
+    const containsHelloEvaluator = asExperimentEvaluator({
       name: "contains-hello",
       kind: "CODE",
-      evaluate: async ({ output }: EvaluatorParams) => {
+      evaluate: async ({ output }) => {
         const outputStr = typeof output === "string" ? output : String(output);
         return {
           label: outputStr.includes("Hello")
@@ -97,7 +93,7 @@ describe("runExperiment (dryRun)", () => {
 
   it("respects dryRun count", async () => {
     const task = (example: Example) => `Hi, ${example.input.name}`;
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "dummy",
       kind: "CODE",
       evaluate: async () => ({
@@ -122,7 +118,7 @@ describe("runExperiment (dryRun)", () => {
 
   it("runs experiments with repetitions", async () => {
     const task = (example: Example) => `Hi, ${example.input.name}`;
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "dummy",
       kind: "CODE",
       evaluate: async () => ({
@@ -151,7 +147,7 @@ describe("runExperiment (dryRun)", () => {
 
   it("defaults to 1 repetition when not specified", async () => {
     const task = (example: Example) => `Hi, ${example.input.name}`;
-    const evaluator = asEvaluator({
+    const evaluator = asExperimentEvaluator({
       name: "dummy",
       kind: "CODE",
       evaluate: async () => ({

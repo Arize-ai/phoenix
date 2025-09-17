@@ -65,7 +65,7 @@ const RUN_EXPERIMENT_PYTHON =
 function getDatasetTypeScriptCode(datasetId: string, experimentName: string) {
   return `import { createClient } from "@arizeai/phoenix-client";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
@@ -87,7 +87,7 @@ const task = async (example: Example) => {
 };
 
 /** Exact match evaluator */
-const exactMatch = asEvaluator({
+const exactMatch = asExperimentEvaluator({
   name: "Exact Match",
   kind: "custom",
   evaluate: async ({ input, output, expected }) => {

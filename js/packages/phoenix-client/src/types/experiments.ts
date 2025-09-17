@@ -24,14 +24,14 @@ export type ExperimentRunID = string;
 /**
  * A map of an experiment runId to the run
  */
-export interface ExperimentRunsMap<TaskOutputType> {
+export interface ExperimentRunsMap<TaskOutputType = TaskOutput> {
   runs: Record<ExperimentRunID, ExperimentRun<TaskOutputType>>;
 }
 
 /**
  * An experiment that has been run and been recorded on the server
  */
-export interface RanExperiment<TaskOutputType>
+export interface RanExperiment<TaskOutputType = TaskOutput>
   extends ExperimentInfo,
     ExperimentRunsMap<TaskOutputType> {
   evaluationRuns?: ExperimentEvaluationRun[];

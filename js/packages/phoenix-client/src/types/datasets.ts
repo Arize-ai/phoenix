@@ -34,7 +34,10 @@ export interface DatasetVersionInfo extends Node {
 /**
  * A dataset's examples
  */
-export interface DatasetExamples<InputType, OutputType> {
+export interface DatasetExamples<
+  InputType = Record<string, unknown>,
+  OutputType = unknown,
+> {
   examples: ExampleWithId<InputType, OutputType>[];
   /**
    * The version ID of the dataset examples
@@ -66,8 +69,10 @@ export interface ExampleWithId<InputType, OutputType>
 /**
  * A dataset is a collection of examples for an AI task
  */
-export interface Dataset<InputType, OutputType>
-  extends DatasetInfo,
+export interface Dataset<
+  InputType = Record<string, unknown>,
+  OutputType = unknown,
+> extends DatasetInfo,
     DatasetExamples<InputType, OutputType>,
     Node {}
 

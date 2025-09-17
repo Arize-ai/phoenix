@@ -141,13 +141,13 @@ export type RunExperimentParams<
  *
  * @example
  * ```ts
- * import { asEvaluator, runExperiment } from "@phoenix/client/experiments";
+ * import { asExperimentEvaluator, runExperiment } from "@phoenix/client/experiments";
  *
  * const experiment = await runExperiment({
  *   dataset: "my-dataset",
  *   task: async (example) => example.input,
  *   evaluators: [
- *     asEvaluator({ name: "my-evaluator", kind: "CODE", evaluate: async (params) => params.output }),
+ *     asExperimentEvaluator({ name: "my-evaluator", kind: "CODE", evaluate: async (params) => params.output }),
  *   ],
  * });
  * ```
@@ -353,7 +353,7 @@ function runTaskWithExamples<
   /** The task to run */
   task: ExperimentTask<ExampleType, TaskOutputType>;
   /** The dataset to run the task on */
-  dataset: Dataset<ExampleType["input"], ExampleType["output"]>;
+  dataset: Dataset;
   /** A callback to call when the task is complete */
   onComplete: (run: ExperimentRun<TaskOutputType>) => void;
   /** The logger to use */
@@ -449,7 +449,10 @@ function runTaskWithExamples<
     });
   };
   const q = queue(run, concurrency);
-  const examplesToUse = dataset.examples.slice(0, nExamples);
+  const examplesToUse = dataset.examples.slice(
+    0,
+    nExamples
+  ) as unknown as ExampleWithId<ExampleType["input"], ExampleType["output"]>[];
 
   examplesToUse
     .flatMap((example) =>
@@ -595,9 +598,9 @@ export async function evaluateExperiment<
   type EvaluationId = string;
   const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
-  const examplesById: Record<string, Example> = {};
+  const examplesById: Record<string, ExampleType> = {};
   for (const example of dataset.examples) {
-    examplesById[example.id] = example;
+    examplesById[example.id] = example as unknown as ExampleType;
   }
 
   const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
