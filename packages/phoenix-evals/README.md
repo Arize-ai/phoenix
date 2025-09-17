@@ -15,8 +15,9 @@ Phoenix Evals provides **lightweight, composable building blocks** for writing a
 
 - **Works with your preferred model SDKs** via adapters (OpenAI, LiteLLM, LangChain)
 - **Powerful input mapping and binding** for working with complex data structures
-- **Several pre-built metrics** for common evaluation tasks
-- **Evaluators are natively instrumented** for OpenTelemetry tracing
+- **Several pre-built metrics** for common evaluation tasks like hallucination detection
+- **Evaluators are natively instrumented** via OpenTelemetry tracing for observability and dataset curation
+- **Blazing fast performance** - achieve up to 20x speedup with built-in concurrency and batching
 - **Tons of convenience features** to improve the developer experience!
 
 ## Installation
