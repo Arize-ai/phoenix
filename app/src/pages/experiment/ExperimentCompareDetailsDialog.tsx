@@ -29,8 +29,11 @@ import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { ExperimentCompareDetailsDialogQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsDialogQuery.graphql";
-import { ExperimentCompareDetailsQuery$data } from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import {
+  ExperimentCompareDetailsDialogQuery,
+  ExperimentCompareDetailsDialogQuery$data,
+} from "@phoenix/pages/experiment/__generated__/ExperimentCompareDetailsDialogQuery.graphql";
+
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
@@ -45,11 +48,11 @@ type ExperimentCompareDetailsProps = {
 };
 
 type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
+  ExperimentCompareDetailsDialogQuery$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
 type ExperimentRun = NonNullable<
-  ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
+  ExperimentCompareDetailsDialogQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
 export function ExperimentCompareDetailsDialog({
@@ -136,6 +139,7 @@ export function ExperimentCompareDetails({
               edges {
                 run: node {
                   id
+                  repetitionNumber
                   latencyMs
                   experimentId
                   output
@@ -362,26 +366,24 @@ function ExperimentRunOutputs({
                 </Flex>
               </label>
               <View paddingStart="size-200">
-                {experimentRunsByExperimentId[experimentId]?.map(
-                  (run, repetitionIndex) => (
-                    <label key={run.id}>
-                      <Flex direction="row" alignItems="center" gap="size-100">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedExperimentRuns.find(
-                              (runSelection) => runSelection.runId === run.id
-                            )?.selected
-                          }
-                          onChange={(e) =>
-                            updateRepetitionSelection(run.id, e.target.checked)
-                          }
-                        />
-                        repetition {repetitionIndex + 1}
-                      </Flex>
-                    </label>
-                  )
-                )}
+                {experimentRunsByExperimentId[experimentId]?.map((run) => (
+                  <label key={run.id}>
+                    <Flex direction="row" alignItems="center" gap="size-100">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectedExperimentRuns.find(
+                            (runSelection) => runSelection.runId === run.id
+                          )?.selected
+                        }
+                        onChange={(e) =>
+                          updateRepetitionSelection(run.id, e.target.checked)
+                        }
+                      />
+                      repetition {run.repetitionNumber}
+                    </Flex>
+                  </label>
+                ))}
               </View>
             </Fragment>
           );
@@ -444,7 +446,6 @@ function ExperimentRunOutputs({
                 experiment={experiment}
                 experimentRun={run}
                 experimentIndex={experimentIndex}
-                repetitionIndex={repetitionIndex}
                 repetitionCount={experimentRuns.length}
               />
             </li>
@@ -469,13 +470,11 @@ function ExperimentItem({
   experiment,
   experimentRun,
   experimentIndex,
-  repetitionIndex,
   repetitionCount,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
   experimentIndex: number;
-  repetitionIndex?: number;
   repetitionCount?: number;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
@@ -505,11 +504,11 @@ function ExperimentItem({
           >
             <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
           </Heading>
-          {repetitionCount && repetitionIndex !== undefined && (
+          {repetitionCount && experimentRun && (
             <>
               <Icon svg={<Icons.ChevronRight />} />
               <Heading weight="heavy" level={3}>
-                repetition&nbsp;{repetitionIndex + 1}
+                repetition&nbsp;{experimentRun.repetitionNumber}
               </Heading>
             </>
           )}
