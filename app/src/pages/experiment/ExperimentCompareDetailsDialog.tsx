@@ -276,6 +276,12 @@ export function ExperimentCompareDetails({
   );
 }
 
+type ExperimentRunSelectionState = {
+  experimentId: string;
+  runId?: string;
+  selected: boolean;
+};
+
 function ExperimentRunOutputs({
   baseExperimentId,
   compareExperimentIds,
@@ -290,45 +296,36 @@ function ExperimentRunOutputs({
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
   const [selectedExperimentRuns, setSelectedExperimentRuns] = useState<
-    Set<string>
-  >(() => {
-    const allRunIds = Object.values(experimentRunsByExperimentId)
-      .map((runs) => runs.map((run) => run.id))
-      .flat();
-    return new Set(allRunIds);
-  });
-
-  const handleExperimentToggle = useCallback(
-    (experimentId: string, checked: boolean) => {
-      setSelectedExperimentRuns((prev) => {
-        if (checked) {
-          const experimentRunIds =
-            experimentRunsByExperimentId[experimentId]?.map((run) => run.id) ??
-            [];
-          return new Set([...prev, ...experimentRunIds]);
-        } else {
-          return new Set(
-            [...prev].filter(
-              (id) =>
-                !experimentRunsByExperimentId[experimentId]?.some(
-                  (run) => run.id === id
-                )
-            )
-          );
-        }
-      });
-    },
-    [experimentRunsByExperimentId]
+    ExperimentRunSelectionState[]
+  >(() =>
+    initializeSelectionState(experimentIds, experimentRunsByExperimentId)
   );
 
-  const handleRepetitionToggle = useCallback(
+  const updateExperimentSelection = useCallback(
+    (experimentId: string, checked: boolean) => {
+      setSelectedExperimentRuns((prev) => {
+        const next = [...prev];
+        next.forEach((run) => {
+          if (run.experimentId === experimentId) {
+            run.selected = checked;
+          }
+        });
+        return next;
+      });
+    },
+    []
+  );
+
+  const updateRepetitionSelection = useCallback(
     (runId: string, checked: boolean) => {
       setSelectedExperimentRuns((prev) => {
-        if (checked) {
-          return new Set([...prev, runId]);
-        } else {
-          return new Set([...prev].filter((id) => id !== runId));
-        }
+        const next = [...prev];
+        next.forEach((run) => {
+          if (run.runId === runId) {
+            run.selected = checked;
+          }
+        });
+        return next;
       });
     },
     []
@@ -353,11 +350,12 @@ function ExperimentRunOutputs({
                 <Flex direction="row" alignItems="center" gap="size-100">
                   <input
                     type="checkbox"
-                    checked={experimentRunsByExperimentId[experimentId]?.every(
-                      (run) => selectedExperimentRuns.has(run.id)
+                    checked={areAllExperimentRunsSelected(
+                      experimentId,
+                      selectedExperimentRuns
                     )}
                     onChange={(e) =>
-                      handleExperimentToggle(experimentId, e.target.checked)
+                      updateExperimentSelection(experimentId, e.target.checked)
                     }
                   />
                   {experiment.name}
@@ -370,9 +368,13 @@ function ExperimentRunOutputs({
                       <Flex direction="row" alignItems="center" gap="size-100">
                         <input
                           type="checkbox"
-                          checked={selectedExperimentRuns.has(run.id)}
+                          checked={
+                            selectedExperimentRuns.find(
+                              (runSelection) => runSelection.runId === run.id
+                            )?.selected
+                          }
                           onChange={(e) =>
-                            handleRepetitionToggle(run.id, e.target.checked)
+                            updateRepetitionSelection(run.id, e.target.checked)
                           }
                         />
                         repetition {repetitionIndex + 1}
@@ -399,16 +401,24 @@ function ExperimentRunOutputs({
           if (!experiment) {
             return null;
           }
+
           const experimentRuns =
             experimentRunsByExperimentId[experimentId] || [];
-          const experimentDidRun = experimentRuns.length > 0;
-          const experimentRunsToDisplay = experimentRuns.filter((run) =>
-            selectedExperimentRuns.has(run.id)
+          const experimentRunsToDisplay = getSelectedExperimentRuns(
+            experimentId,
+            selectedExperimentRuns,
+            experimentRunsByExperimentId
           );
-          return experimentDidRun ? (
-            experimentRunsToDisplay.map((run, repetitionIndex) => (
+          const renderNoRunCard = shouldRenderNoRunCard(
+            experimentId,
+            experimentRuns,
+            selectedExperimentRuns
+          );
+
+          if (renderNoRunCard) {
+            return (
               <li
-                key={run.id}
+                key={experimentId}
                 css={css`
                   // Make them all the same size
                   flex: 1 1 0px;
@@ -416,16 +426,15 @@ function ExperimentRunOutputs({
               >
                 <ExperimentItem
                   experiment={experiment}
-                  experimentRun={run}
                   experimentIndex={experimentIndex}
-                  repetitionIndex={repetitionIndex}
-                  repetitionCount={experimentRuns.length}
                 />
               </li>
-            ))
-          ) : (
+            );
+          }
+
+          return experimentRunsToDisplay.map((run, repetitionIndex) => (
             <li
-              key={experimentId}
+              key={run.id}
               css={css`
                 // Make them all the same size
                 flex: 1 1 0px;
@@ -433,10 +442,13 @@ function ExperimentRunOutputs({
             >
               <ExperimentItem
                 experiment={experiment}
+                experimentRun={run}
                 experimentIndex={experimentIndex}
+                repetitionIndex={repetitionIndex}
+                repetitionCount={experimentRuns.length}
               />
             </li>
-          );
+          ));
         })}
       </ul>
     </Flex>
@@ -579,4 +591,62 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
       <JSONBlock value={strValue} />
     </div>
   );
+}
+
+function initializeSelectionState(
+  experimentIds: string[],
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+): ExperimentRunSelectionState[] {
+  return experimentIds.flatMap((experimentId) => {
+    const runs = experimentRunsByExperimentId[experimentId];
+    if (!runs?.length) {
+      return {
+        experimentId,
+        selected: true,
+      };
+    }
+    return runs.map((run) => ({
+      experimentId,
+      runId: run.id,
+      selected: true,
+    }));
+  });
+}
+
+function areAllExperimentRunsSelected(
+  experimentId: string,
+  selectedExperimentRuns: ExperimentRunSelectionState[]
+): boolean {
+  return selectedExperimentRuns
+    .filter((run) => run.experimentId === experimentId)
+    .every((run) => run.selected);
+}
+
+function getSelectedExperimentRuns(
+  experimentId: string,
+  selectedExperimentRuns: ExperimentRunSelectionState[],
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+): ExperimentRun[] {
+  const experimentRuns = experimentRunsByExperimentId[experimentId] || [];
+  return selectedExperimentRuns
+    .filter((run) => run.experimentId === experimentId && run.selected)
+    .flatMap(
+      (run) =>
+        experimentRuns.find(
+          (experimentRun) => experimentRun.id === run.runId
+        ) ?? []
+    );
+}
+
+function shouldRenderNoRunCard(
+  experimentId: string,
+  experimentRuns: ExperimentRun[],
+  selectedExperimentRuns: ExperimentRunSelectionState[]
+): boolean {
+  const experimentDidRun = experimentRuns.length > 0;
+  const isExperimentSelected =
+    selectedExperimentRuns.find((run) => run.experimentId === experimentId)
+      ?.selected ?? false;
+
+  return !experimentDidRun && isExperimentSelected;
 }
