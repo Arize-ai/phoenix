@@ -49,7 +49,11 @@ export function PlaygroundSettingsDropdown() {
             <Heading level={2} weight="heavy">
               Settings
             </Heading>
-            <View paddingTop="size-100" paddingBottom="size-50">
+            <View
+              paddingTop="size-100"
+              paddingBottom="size-50"
+              paddingX="size-50"
+            >
               <Flex direction="column" gap="size-200">
                 {hasSelectedDataset && (
                   <>
