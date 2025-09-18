@@ -147,7 +147,6 @@ class DatasetSplitMutationMixin:
                 query=Query(),
             )
 
-
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_dataset_examples_to_dataset_split(
         self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitInput
