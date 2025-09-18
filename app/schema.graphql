@@ -1885,6 +1885,10 @@ type Project implements Node {
   Names of all available annotations for spans. (The list contains no duplicates.)
   """
   spanAnnotationNames: [String!]!
+
+  """
+  Names of all available annotations for sessions. (The list contains no duplicates.)
+  """
   sessionAnnotationNames: [String!]!
 
   """Names of available document evaluations."""
@@ -1953,7 +1957,6 @@ type ProjectSession implements Node {
   sessionId: String!
   startTime: DateTime!
   endTime: DateTime!
-  projectId: ID!
   project: Project!
   numTraces: Int!
   numTracesWithError: Int!
