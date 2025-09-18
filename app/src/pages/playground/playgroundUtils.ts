@@ -1262,7 +1262,7 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    repetitionNumber: 1,
+    repetitions: 1,
     template: {
       variables: variablesMap,
       format: templateFormat,
