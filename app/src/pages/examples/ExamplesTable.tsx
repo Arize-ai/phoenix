@@ -27,7 +27,6 @@ import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQue
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
 import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
-// (intentionally empty)
 
 const PAGE_SIZE = 100;
 
