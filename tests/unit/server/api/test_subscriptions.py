@@ -122,6 +122,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -256,6 +257,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -397,6 +399,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "tool_choice", "valueJson": "auto"},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -554,6 +557,7 @@ class TestChatCompletionSubscription:
                     },
                 ],
                 "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "repetitions": 1,
             }
         }
         async with gql_client.subscription(
@@ -707,6 +711,7 @@ class TestChatCompletionSubscription:
                     {"invocationName": "temperature", "valueFloat": 0.1},
                     {"invocationName": "max_tokens", "valueInt": 1024},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -958,6 +963,7 @@ class TestChatCompletionOverDatasetSubscription:
                     }
                 ],
                 "templateFormat": "F_STRING",
+                "repetitions": 1,
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1339,6 +1345,7 @@ class TestChatCompletionOverDatasetSubscription:
                     }
                 ],
                 "templateFormat": "F_STRING",
+                "repetitions": 1,
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}

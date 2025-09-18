@@ -200,7 +200,7 @@ input ChatCompletionInput {
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
-  repetitionNumber: Int!
+  repetitions: Int!
 }
 
 input ChatCompletionMessageInput {

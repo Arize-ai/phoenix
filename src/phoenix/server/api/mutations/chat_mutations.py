@@ -230,7 +230,7 @@ class ChatCompletionMutationMixin:
                                 variables=revision.input,
                             ),
                             prompt_name=input.prompt_name,
-                            repetition_number=repetition_number,
+                            repetitions=repetition_number,
                         ),
                         project_name=project_name,
                     )

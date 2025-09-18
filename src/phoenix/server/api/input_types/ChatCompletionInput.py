@@ -26,7 +26,7 @@ class ChatCompletionInput:
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
-    repetition_number: int
+    repetitions: int
 
 
 @strawberry.input
