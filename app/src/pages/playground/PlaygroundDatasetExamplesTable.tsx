@@ -369,11 +369,11 @@ function ExampleOutputContent({
     experimentRunId,
     hasExperimentRun,
     hasSpan,
-    span,
-    setSearchParams,
     repetitionNumber,
-    totalRepetitions,
     setRepetitionNumber,
+    setSearchParams,
+    span,
+    totalRepetitions,
   ]);
 
   return (
