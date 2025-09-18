@@ -2,9 +2,9 @@ import { Suspense, useMemo } from "react";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
+import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import { examplesLoader } from "./examplesLoader";
 import { ExamplesTable } from "./ExamplesTable";
-import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 
 export function ExamplesPage() {
   const loaderData = useLoaderData<typeof examplesLoader>();
