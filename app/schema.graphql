@@ -1699,8 +1699,6 @@ type Mutation {
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplit(input: DeleteDatasetSplitInput!): DatasetSplitMutationPayload!
-  setDatasetSplit(input: SetDatasetSplitInput!): DatasetSplitMutationPayload!
-  unsetDatasetSplit(input: UnsetDatasetSplitInput!): DatasetSplitMutationPayload!
   addDatasetExamplesToDatasetSplit(input: AddDatasetExamplesToDatasetSplitInput!): DatasetSplitMutationPayload!
   removeDatasetExamplesFromDatasetSplit(input: RemoveDatasetExamplesFromDatasetSplitInput!): DatasetSplitMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
@@ -2363,11 +2361,6 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
-input SetDatasetSplitInput {
-  datasetId: ID!
-  datasetSplitId: ID!
-}
-
 input SetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -2995,11 +2988,6 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
-}
-
-input UnsetDatasetSplitInput {
-  datasetId: ID!
-  datasetSplitId: ID!
 }
 
 input UnsetPromptLabelsInput {
