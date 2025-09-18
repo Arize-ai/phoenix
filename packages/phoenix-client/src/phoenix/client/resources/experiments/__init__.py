@@ -53,6 +53,7 @@ from phoenix.client.resources.experiments.types import (
 )
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
+from phoenix.client.utils.url_utils import BaseURL
 
 logger = logging.getLogger(__name__)
 
@@ -504,14 +505,14 @@ class Experiments:
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
-        self._base_url = str(client.base_url).rstrip('/')
+        self._base_url = BaseURL(str(client.base_url))
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._base_url}/datasets/{dataset_id}/experiments"
+        return self._base_url.join("datasets", dataset_id, "experiments")
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return f"{self._base_url.join('datasets', dataset_id, 'compare')}?experimentId={experiment_id}"
 
     def run_experiment(
         self,
@@ -1536,14 +1537,14 @@ class AsyncExperiments:
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
-        self._base_url = str(client.base_url).rstrip('/')
+        self._base_url = BaseURL(str(client.base_url))
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._base_url}/datasets/{dataset_id}/experiments"
+        return self._base_url.join("datasets", dataset_id, "experiments")
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return f"{self._base_url.join('datasets', dataset_id, 'compare')}?experimentId={experiment_id}"
 
     async def run_experiment(
         self,
