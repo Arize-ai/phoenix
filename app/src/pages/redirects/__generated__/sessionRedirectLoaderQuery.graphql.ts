@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<50593fc38166886b6f694885518e4c00>>
+ * @generated SignedSource<<81e0bb919d0cf4b961f6f65952a2b6fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,9 @@ export type sessionRedirectLoaderQuery$variables = {
 export type sessionRedirectLoaderQuery$data = {
   readonly session: {
     readonly id: string;
-    readonly projectId: string;
+    readonly project: {
+      readonly id: string;
+    };
   } | null;
 };
 export type sessionRedirectLoaderQuery = {
@@ -31,7 +33,14 @@ var v0 = [
     "name": "sessionId"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": "session",
     "args": [
@@ -49,17 +58,16 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "projectId",
+        "concreteType": "Project",
+        "kind": "LinkedField",
+        "name": "project",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/)
+        ],
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "id",
-        "storageKey": null
-      }
+      (v1/*: any*/)
     ],
     "storageKey": null
   }
@@ -70,7 +78,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "sessionRedirectLoaderQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -79,19 +87,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "sessionRedirectLoaderQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "db3660ac192256a7757e3572b57899cb",
+    "cacheID": "a29a29b9a8b67c409b791500981cc75d",
     "id": null,
     "metadata": {},
     "name": "sessionRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query sessionRedirectLoaderQuery(\n  $sessionId: String!\n) {\n  session: getProjectSessionById(sessionId: $sessionId) {\n    projectId\n    id\n  }\n}\n"
+    "text": "query sessionRedirectLoaderQuery(\n  $sessionId: String!\n) {\n  session: getProjectSessionById(sessionId: $sessionId) {\n    project {\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "55a0fc73eef2ceb3ec05e5dd36630eae";
+(node as any).hash = "a47554737ec41a895924c241c035078d";
 
 export default node;
