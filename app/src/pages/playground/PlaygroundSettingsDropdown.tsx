@@ -49,7 +49,11 @@ export function PlaygroundSettingsDropdown() {
             <Heading level={2} weight="heavy">
               Settings
             </Heading>
-            <View paddingTop="size-100" paddingBottom="size-50">
+            <View
+              paddingTop="size-100"
+              paddingBottom="size-50"
+              overflow="visible" // prevents the halo around the slider thumb from being clipped
+            >
               <Flex direction="column" gap="size-200">
                 {hasSelectedDataset && (
                   <>
