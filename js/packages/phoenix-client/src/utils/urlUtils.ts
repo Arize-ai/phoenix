@@ -8,9 +8,7 @@
  * @returns The base URL for the Phoenix web UI
  */
 function getWebBaseUrl(baseUrl: string): string {
-  const url = new URL(baseUrl).toString();
-  // Remove trailing slash to avoid double slashes when concatenating paths
-  return url.endsWith('/') ? url.slice(0, -1) : url;
+  return new URL(baseUrl).toString();
 }
 
 /**
@@ -30,7 +28,7 @@ export function getExperimentUrl({
   datasetId: string;
   experimentId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}/datasets/${datasetId}/compare?experimentId=${experimentId}`;
+  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/compare?experimentId=${experimentId}`;
 }
 
 /**
@@ -47,7 +45,7 @@ export function getDatasetExperimentsUrl({
   baseUrl: string;
   datasetId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}/datasets/${datasetId}/experiments`;
+  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/experiments`;
 }
 
 /**
@@ -64,5 +62,5 @@ export function getDatasetUrl({
   baseUrl: string;
   datasetId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}/datasets/${datasetId}/examples`;
+  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/examples`;
 }
