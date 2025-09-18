@@ -504,16 +504,14 @@ class Experiments:
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
-        self._base_url = str(client.base_url)
+        self._base_url = str(client.base_url).rstrip('/')
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        base_url = str(self._client.base_url).rstrip('/')
-        return f"{base_url}/datasets/{dataset_id}/experiments"
+        return f"{self._base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        base_url = str(self._client.base_url).rstrip('/')
-        return f"{base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return f"{self._base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
 
     def run_experiment(
         self,
@@ -1538,16 +1536,14 @@ class AsyncExperiments:
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
-        self._base_url = str(client.base_url)
+        self._base_url = str(client.base_url).rstrip('/')
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        base_url = str(self._client.base_url).rstrip('/')
-        return f"{base_url}/datasets/{dataset_id}/experiments"
+        return f"{self._base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        base_url = str(self._client.base_url).rstrip('/')
-        return f"{base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return f"{self._base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
 
     async def run_experiment(
         self,
