@@ -200,6 +200,7 @@ input ChatCompletionInput {
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
+  repetitionNumber: Int!
 }
 
 input ChatCompletionMessageInput {
@@ -255,6 +256,7 @@ input ChatCompletionOverDatasetInput {
 
 type ChatCompletionOverDatasetMutationExamplePayload {
   datasetExampleId: ID!
+  repetitionNumber: Int!
   experimentRunId: ID!
   result: ChatCompletionMutationPayloadChatCompletionMutationError!
 }
