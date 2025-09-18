@@ -1,29 +1,27 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import type { ExampleSelectionToolbarCreateDatasetSplitMutation } from "./__generated__/ExampleSelectionToolbarCreateDatasetSplitMutation.graphql";
-import type { ExampleSelectionToolbarAddExamplesToDatasetSplitMutation } from "./__generated__/ExampleSelectionToolbarAddExamplesToDatasetSplitMutation.graphql";
 
 import {
   Button,
   Dialog,
+  DialogTrigger,
   Flex,
   Icon,
   IconButton,
   Icons,
+  Input,
   Label,
   ListBox,
   ListBoxItem,
   Modal,
   ModalOverlay,
   Popover,
-  Input,
+  SelectChevronUpDownIcon,
   Text,
   Toolbar,
   Tooltip,
   TooltipTrigger,
   View,
-  DialogTrigger,
-  SelectChevronUpDownIcon,
 } from "@phoenix/components";
 import {
   DialogCloseButton,
@@ -32,11 +30,14 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { TextField } from "@phoenix/components/field/TextField";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { TextField } from "@phoenix/components/field/TextField";
+
+import type { ExampleSelectionToolbarAddExamplesToDatasetSplitMutation } from "./__generated__/ExampleSelectionToolbarAddExamplesToDatasetSplitMutation.graphql";
+import type { ExampleSelectionToolbarCreateDatasetSplitMutation } from "./__generated__/ExampleSelectionToolbarCreateDatasetSplitMutation.graphql";
 
 interface SelectedExample {
   id: string;
@@ -218,7 +219,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           );
           notifySuccess({
             title: "Split created",
-            message: `Created split \"${created.name}\"`,
+            message: `Created split "${created.name}"`,
           });
           setNewSplitName("");
           setIsCreateSplitOpen(false);
@@ -233,7 +234,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         });
       },
     });
-  }, [createSplit, newSplitName, notifyError, notifySuccess]);
+  }, [createSplit, newSplitName, notifyError, notifySuccess, onSplitChange]);
 
   const onConfirmAddToSplits = useCallback(() => {
     const desiredIds = new Set(Array.from(selectedSplitIds)); // D
