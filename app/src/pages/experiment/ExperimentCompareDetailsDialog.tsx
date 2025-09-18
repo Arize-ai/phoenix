@@ -307,30 +307,24 @@ function ExperimentRunOutputs({
 
   const updateExperimentSelection = useCallback(
     (experimentId: string, checked: boolean) => {
-      setSelectedExperimentRuns((prev) => {
-        const next = [...prev];
-        next.forEach((run) => {
-          if (run.experimentId === experimentId) {
-            run.selected = checked;
-          }
-        });
-        return next;
-      });
+      setSelectedExperimentRuns((prev) =>
+        prev.map((run) =>
+          run.experimentId === experimentId
+            ? { ...run, selected: checked }
+            : run
+        )
+      );
     },
     []
   );
 
   const updateRepetitionSelection = useCallback(
     (runId: string, checked: boolean) => {
-      setSelectedExperimentRuns((prev) => {
-        const next = [...prev];
-        next.forEach((run) => {
-          if (run.runId === runId) {
-            run.selected = checked;
-          }
-        });
-        return next;
-      });
+      setSelectedExperimentRuns((prev) =>
+        prev.map((run) =>
+          run.runId === runId ? { ...run, selected: checked } : run
+        )
+      );
     },
     []
   );
