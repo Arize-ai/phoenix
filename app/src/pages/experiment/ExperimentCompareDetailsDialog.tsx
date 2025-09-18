@@ -119,7 +119,10 @@ export function ExperimentCompareDetails({
   baseExperimentId,
   compareExperimentIds,
 }: ExperimentCompareDetailsProps) {
-  const experimentIds = [baseExperimentId, ...compareExperimentIds];
+  const experimentIds = useMemo(
+    () => [baseExperimentId, ...compareExperimentIds],
+    [baseExperimentId, compareExperimentIds]
+  );
   const exampleData = useLazyLoadQuery<ExperimentCompareDetailsDialogQuery>(
     graphql`
       query ExperimentCompareDetailsDialogQuery(
@@ -192,27 +195,32 @@ export function ExperimentCompareDetails({
   const experiments = exampleData.dataset.experiments?.edges;
 
   const experimentsById = useMemo(() => {
-    return experiments?.reduce(
-      (acc, edge) => {
-        acc[edge.experiment.id] = edge.experiment;
-        return acc;
-      },
-      {} as Record<string, Experiment | undefined>
-    );
+    const experimentsById: Record<string, Experiment> = {};
+    experiments?.forEach((edge) => {
+      experimentsById[edge.experiment.id] = edge.experiment;
+    });
+    return experimentsById;
   }, [experiments]);
 
   const experimentRunsByExperimentId = useMemo(() => {
-    return experimentRuns?.reduce(
-      (acc, run) => {
-        acc[run.run.experimentId] = [
-          ...(acc[run.run.experimentId] || []),
-          run.run,
-        ];
-        return acc;
-      },
-      {} as Record<string, ExperimentRun[] | undefined>
-    );
-  }, [experimentRuns]);
+    const experimentRunsByExperimentId =
+      experimentRuns?.reduce(
+        (acc, run) => {
+          acc[run.run.experimentId] = [
+            ...(acc[run.run.experimentId] || []),
+            run.run,
+          ];
+          return acc;
+        },
+        {} as Record<string, ExperimentRun[]>
+      ) ?? {};
+    experimentIds.forEach((experimentId) => {
+      if (!experimentRunsByExperimentId[experimentId]) {
+        experimentRunsByExperimentId[experimentId] = [];
+      }
+    });
+    return experimentRunsByExperimentId;
+  }, [experimentRuns, experimentIds]);
 
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
@@ -265,15 +273,13 @@ export function ExperimentCompareDetails({
             padding: var(--ac-global-dimension-static-size-200);
           `}
         >
-          {experimentsById && experimentRunsByExperimentId && (
-            <ExperimentRunOutputs
-              key={datasetExampleId}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              experimentsById={experimentsById}
-              experimentRunsByExperimentId={experimentRunsByExperimentId}
-            />
-          )}
+          <ExperimentRunOutputs
+            key={datasetExampleId}
+            baseExperimentId={baseExperimentId}
+            compareExperimentIds={compareExperimentIds}
+            experimentsById={experimentsById}
+            experimentRunsByExperimentId={experimentRunsByExperimentId}
+          />
         </div>
       </Panel>
     </PanelGroup>
@@ -294,8 +300,8 @@ function ExperimentRunOutputs({
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
-  experimentsById: Record<string, Experiment | undefined>;
-  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>;
+  experimentsById: Record<string, Experiment>;
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
@@ -352,13 +358,8 @@ function ExperimentRunOutputs({
         `}
       >
         {experimentIds.map((experimentId, experimentIndex) => {
-          const experiment = experimentsById?.[experimentId];
-          if (!experiment) {
-            return null;
-          }
-
-          const experimentRuns =
-            experimentRunsByExperimentId[experimentId] || [];
+          const experiment = experimentsById[experimentId];
+          const experimentRuns = experimentRunsByExperimentId[experimentId];
           const experimentRunsToDisplay = getSelectedExperimentRuns(
             experimentId,
             selectedExperimentRuns,
@@ -418,8 +419,8 @@ function ExperimentRunOutputsSidebar({
   updateRepetitionSelection,
 }: {
   experimentIds: string[];
-  experimentsById: Record<string, Experiment | undefined>;
-  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>;
+  experimentsById: Record<string, Experiment>;
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   selectedExperimentRuns: ExperimentRunSelectionState[];
   updateExperimentSelection: (experimentId: string, checked: boolean) => void;
   updateRepetitionSelection: (runId: string, checked: boolean) => void;
@@ -438,9 +439,6 @@ function ExperimentRunOutputsSidebar({
       <Flex direction="column" gap="size-200">
         {experimentIds.map((experimentId, experimentIndex) => {
           const experiment = experimentsById[experimentId];
-          if (!experiment) {
-            return null;
-          }
           const experimentRuns = experimentRunsByExperimentId[experimentId];
           return (
             <Fragment key={experimentId}>
@@ -473,7 +471,7 @@ function ExperimentRunOutputsSidebar({
                   {experiment.name}
                 </Flex>
               </label>
-              {experimentRuns && experimentRuns.length > 1 && (
+              {experimentRuns.length > 1 && (
                 <View paddingStart="size-500">
                   <Flex direction="column" gap="size-200">
                     {experimentRuns.map((run) => (
@@ -516,7 +514,7 @@ const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
   border-radius: var(--ac-global-rounding-small);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
-  width: 474px;
+  width: var(--ac-global-dimension-static-size-6000);
 `;
 
 /**
@@ -650,11 +648,11 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
 
 function initializeSelectionState(
   experimentIds: string[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
     const runs = experimentRunsByExperimentId[experimentId];
-    if (!runs?.length) {
+    if (!runs.length) {
       return {
         experimentId,
         selected: true,
@@ -680,9 +678,9 @@ function areAllExperimentRunsSelected(
 function getSelectedExperimentRuns(
   experimentId: string,
   selectedExperimentRuns: ExperimentRunSelectionState[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[] | undefined>
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
 ): ExperimentRun[] {
-  const experimentRuns = experimentRunsByExperimentId[experimentId] || [];
+  const experimentRuns = experimentRunsByExperimentId[experimentId];
   return selectedExperimentRuns
     .filter((run) => run.experimentId === experimentId && run.selected)
     .flatMap(
