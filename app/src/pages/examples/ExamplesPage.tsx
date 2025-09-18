@@ -9,9 +9,13 @@ import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQue
 export function ExamplesPage() {
   const loaderData = useLoaderData<typeof examplesLoader>();
   invariant(loaderData, "loaderData is required");
-  type DatasetSplitNode = NonNullable<examplesLoaderQuery$data["datasetSplits"]>["edges"][number]["node"];
+  type DatasetSplitNode = NonNullable<
+    examplesLoaderQuery$data["datasetSplits"]
+  >["edges"][number]["node"];
   const splits = useMemo<DatasetSplitNode[]>(
-    () => loaderData.datasetSplits?.edges?.map((e) => e?.node).filter(Boolean) ?? [],
+    () =>
+      loaderData.datasetSplits?.edges?.map((e) => e?.node).filter(Boolean) ??
+      [],
     [loaderData]
   );
   return (
