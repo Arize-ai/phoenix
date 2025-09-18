@@ -121,8 +121,8 @@ Validate database URL format when provided
 {{- if and ($persistenceEnabled) ($isMemoryDatabase) }}
 {{- fail "ERROR: cannot use in-memory and persistance at the same time" }}
 {{- end }}
-{{- if and (not (hasPrefix "sqlite://:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
-{{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite://:memory:` prefix." }}
+{{- if and (not (hasPrefix "sqlite:///:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
+{{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite:///:memory:` prefix." }}
 {{- end }}
 {{- end }}
 {{- end }}
