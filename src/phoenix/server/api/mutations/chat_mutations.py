@@ -208,12 +208,12 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
-        batch_items = [
+        unbatched_items = [
             (revision, repetition_number)
             for revision in revisions
             for repetition_number in range(1, input.repetitions + 1)
         ]
-        for batch in _get_batches(batch_items, batch_size):
+        for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
                 *(
                     cls._chat_completion(
@@ -246,7 +246,7 @@ class ChatCompletionMutationMixin:
             experiment_id=GlobalID(models.Experiment.__name__, str(experiment.id)),
         )
         experiment_runs = []
-        for (revision, repetition_number), result in zip(batch_items, results):
+        for (revision, repetition_number), result in zip(unbatched_items, results):
             if isinstance(result, BaseException):
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
@@ -280,7 +280,7 @@ class ChatCompletionMutationMixin:
             await session.flush()
 
         for (revision, repetition_number), experiment_run, result in zip(
-            batch_items, experiment_runs, results
+            unbatched_items, experiment_runs, results
         ):
             dataset_example_id = GlobalID(
                 models.DatasetExample.__name__, str(revision.dataset_example_id)
