@@ -1,14 +1,19 @@
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, ClassVar, Optional, Type
 
+import pandas as pd
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
 from strawberry import UNSET, Info, Private, lazy
-from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
@@ -18,6 +23,7 @@ from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.Project import Project
     from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
     from phoenix.server.api.types.Trace import Trace
 
@@ -32,10 +38,18 @@ class ProjectSession(Node):
     end_time: datetime
 
     @strawberry.field
-    async def project_id(self) -> GlobalID:
+    async def project(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Project", lazy(".Project")]:
         from phoenix.server.api.types.Project import Project
 
-        return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
+        stmt = select(models.Project).filter_by(id=self.project_rowid)
+        async with info.context.db() as session:
+            project = await session.scalar(stmt)
+            if project is None:
+                raise ValueError(f"Project with id {self.project_rowid} not found")
+            return Project(project_rowid=project.id, db_project=project)
 
     @strawberry.field
     async def num_traces(
@@ -182,6 +196,64 @@ class ProjectSession(Node):
             return [
                 to_gql_project_session_annotation(annotation) async for annotation in annotations
             ]
+
+    @strawberry.field(
+        description="Summarizes each annotation (by name) associated with the session"
+    )  # type: ignore
+    async def session_annotation_summaries(
+        self,
+        info: Info[Context, None],
+        filter: Optional[AnnotationFilter] = None,
+    ) -> list[AnnotationSummary]:
+        """
+        Retrieves and summarizes annotations associated with this span.
+
+        This method aggregates annotation data by name and label, calculating metrics
+        such as count of occurrences and sum of scores. The results are organized
+        into a structured format that can be easily converted to a DataFrame.
+
+        Args:
+            info: GraphQL context information
+            filter: Optional filter to apply to annotations before processing
+
+        Returns:
+            A list of AnnotationSummary objects, each containing:
+            - name: The name of the annotation
+            - data: A list of dictionaries with label statistics
+        """
+        # Load all annotations for this span from the data loader
+        annotations = await info.context.data_loaders.session_annotations_by_session.load(
+            self.id_attr
+        )
+
+        # Apply filter if provided to narrow down the annotations
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
+
+        @dataclass
+        class Metrics:
+            record_count: int = 0
+            label_count: int = 0
+            score_sum: float = 0
+            score_count: int = 0
+
+        summaries: defaultdict[str, defaultdict[Optional[str], Metrics]] = defaultdict(
+            lambda: defaultdict(Metrics)
+        )
+        for annotation in annotations:
+            metrics = summaries[annotation.name][annotation.label]
+            metrics.record_count += 1
+            metrics.label_count += int(annotation.label is not None)
+            metrics.score_sum += annotation.score or 0
+            metrics.score_count += int(annotation.score is not None)
+
+        result: list[AnnotationSummary] = []
+        for name, label_metrics in summaries.items():
+            rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]
+            result.append(AnnotationSummary(name=name, df=pd.DataFrame(rows), simple_avg=True))
+        return result
 
 
 def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:
