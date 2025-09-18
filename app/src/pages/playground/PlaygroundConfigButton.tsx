@@ -20,7 +20,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-export function PlaygroundSettingsDropdown() {
+export function PlaygroundConfigButton() {
   const [searchParams] = useSearchParams();
   const selectedDatasetid = searchParams.get("datasetId");
   const hasSelectedDataset = selectedDatasetid != null;
