@@ -23,7 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { FloatCell, IntCell, TextCell } from "@phoenix/components/table";
-import { Separator, Toolbar } from "@phoenix/components/toolbar";
+import { Toolbar } from "@phoenix/components/toolbar";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 
 import { IndeterminateCheckboxCell } from "../src/components/table/IndeterminateCheckboxCell";
@@ -499,17 +499,17 @@ const selectionColumn: ColumnDef<Person> = {
   maxSize: 30,
   header: ({ table }) => (
     <IndeterminateCheckboxCell
-      checked={table.getIsAllRowsSelected()}
-      indeterminate={table.getIsSomeRowsSelected()}
-      onChange={table.getToggleAllRowsSelectedHandler()}
+      isSelected={table.getIsAllRowsSelected()}
+      isIndeterminate={table.getIsSomeRowsSelected()}
+      onChange={table.toggleAllRowsSelected}
     />
   ),
   cell: ({ row }) => (
     <IndeterminateCheckboxCell
-      checked={row.getIsSelected()}
-      disabled={!row.getCanSelect()}
-      indeterminate={row.getIsSomeSelected()}
-      onChange={row.getToggleSelectedHandler()}
+      isSelected={row.getIsSelected()}
+      isDisabled={!row.getCanSelect()}
+      isIndeterminate={row.getIsSomeSelected()}
+      onChange={row.toggleSelected}
     />
   ),
   enableSorting: false,

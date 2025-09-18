@@ -39,10 +39,10 @@ const columns = [
     cell: ({ row }: CellContext<AnnotationConfig, unknown>) => (
       <IndeterminateCheckboxCell
         {...{
-          checked: row.getIsSelected(),
-          disabled: !row.getCanSelect(),
-          indeterminate: row.getIsSomeSelected(),
-          onChange: row.getToggleSelectedHandler(),
+          isSelected: row.getIsSelected(),
+          isDisabled: !row.getCanSelect(),
+          isIndeterminate: row.getIsSomeSelected(),
+          onChange: row.toggleSelected,
         }}
       />
     ),

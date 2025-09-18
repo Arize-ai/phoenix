@@ -65,3 +65,12 @@ WithChildren.args = {
     </>
   ),
 };
+
+/**
+ * Checkbox with no label
+ */
+export const NoLabel = Template.bind({});
+
+NoLabel.args = {
+  children: null,
+};

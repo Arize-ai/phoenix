@@ -1,12 +1,19 @@
 import { forwardRef, Ref } from "react";
-import { Checkbox as AriaCheckbox, CheckboxProps } from "react-aria-components";
+import { Checkbox as AriaCheckbox } from "react-aria-components";
 
 import { checkboxCSS } from "@phoenix/components/checkbox/styles";
+import { CheckboxProps } from "@phoenix/components/checkbox/types";
 
 function Checkbox(props: CheckboxProps, ref: Ref<HTMLLabelElement>) {
-  const { children, ...restProps } = props;
+  const { children, isHovered, ...restProps } = props;
+
   return (
-    <AriaCheckbox {...restProps} ref={ref} css={checkboxCSS}>
+    <AriaCheckbox
+      {...restProps}
+      ref={ref}
+      css={checkboxCSS}
+      data-is-hovered={isHovered || undefined}
+    >
       {({ isIndeterminate }) => (
         <>
           <div className="checkbox">
