@@ -5,57 +5,9 @@ from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
-import base64
-import logging
-import sys
-log = logging.getLogger(__name__)
-log.addHandler(logging.StreamHandler(sys.stdout))
-log.setLevel(logging.DEBUG)
+
 from phoenix.config import OAuth2ClientConfig
 
-
-
-#log = logging.getLogger('httpcore')
-
-#log.addHandler(logging.StreamHandler(sys.stdout))
-#log.setLevel(logging.DEBUG)
-
-
-#log = logging.getLogger('h11')
-#
-#log.addHandler(logging.StreamHandler(sys.stdout))
-#log.setLevel(logging.DEBUG)
-
-#log = logging.getLogger('anyio')
-
-#log.addHandler(logging.StreamHandler(sys.stdout))
-#log.setLevel(logging.DEBUG)
-from httpx import USE_CLIENT_DEFAULT
-
-class CustomAsyncHttpxOAuth2Client(AsyncHttpxOAuth2Client):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        #self.log = logging.getLogger('httpx')
-        #self.log.addHandler(logging.StreamHandler(sys.stdout))
-        #self.log.setLevel(logging.DEBUG)
-
-    async def _fetch_token(
-        self,
-        url,
-        body="",
-        headers=None,
-        auth=None,
-        method="POST",
-        **kwargs,
-    ):
-        auth = None
-        log.debug(f"Fetching token from {url}")
-        log.debug(f"Body: {body}")
-        log.debug(f"Headers: {headers}")
-        log.debug(f"Auth: {auth}")
-        log.debug(f"Method: {method}")
-        log.debug(f"kwargs: {kwargs}")
-        return await super()._fetch_token(url, body, headers, auth, method, **kwargs)
 
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
     """
@@ -65,7 +17,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     https://github.com/lepture/authlib/blob/904d66bebd79bf39fb8814353a22bab7d3e092c4/authlib/integrations/starlette_client/apps.py#L58
     """
 
-    client_cls = CustomAsyncHttpxOAuth2Client
+    client_cls = AsyncHttpxOAuth2Client
 
     def __init__(
         self,
@@ -115,7 +67,9 @@ class OAuth2Clients:
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
-        client_kwargs = {"scope": config.scopes}
+        client_kwargs = {"scope": config.scopes, "required_groups": config.required_groups}
+        if config.token_endpoint_auth_method:
+            client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
         if config.code_challenge_method:
             client_kwargs["code_challenge_method"] = config.code_challenge_method
         
@@ -130,7 +84,7 @@ class OAuth2Clients:
             allow_sign_up=config.allow_sign_up,
             auto_login=config.auto_login,
         )
-
+        
         if config.auto_login:
             if self._auto_login_client:
                 raise ValueError("only one auto-login client is allowed")

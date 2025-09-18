@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from random import randrange
 from typing import Any, Optional, TypedDict
@@ -164,17 +164,12 @@ async def create_tokens(
         token_data = await oauth2_client.fetch_access_token(
             state=state,
             code=authorization_code,
-            client_id=oauth2_client.client_id,
             redirect_uri=_get_create_tokens_endpoint(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
             code_verifier=code_verifier,
-            authorization_response=str(request.url),
-            client_secret=oauth2_client.client_secret,
 
         )
-        print(f"Token Data: {token_data}")
-
     except OAuthError as error:
         return _redirect_to_login(request=request, error=str(error))
     _validate_token_data(token_data)
@@ -189,23 +184,17 @@ async def create_tokens(
     except MissingEmailScope as error:
         return _redirect_to_login(request=request, error=str(error))
 
-    # Verify token scopes match the requested scopes (strict)
-    requested_scopes = set(str(oauth2_client.client_kwargs.get("scope", "")).split(" "))
-    granted_scope_str = str(token_data.get("scope", ""))
-    granted_scopes = set(s for s in granted_scope_str.split(" ") if s)
-    if requested_scopes and not requested_scopes.issubset(granted_scopes):
-        return _redirect_to_login(
-            request=request,
-            error="Sign in is not allowed. Missing required scopes.",
-        )
-
     try:
         async with request.app.state.db() as session:
+            required_keys = set(
+                g for g in (oauth2_client.client_kwargs or {}).get("required_groups", []) if g
+            )
             user = await _process_oauth2_user(
                 session,
                 oauth2_client_id=str(oauth2_client.client_id),
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
+                required_groups=required_keys,
             )
     except (EmailAlreadyInUse, SignInNotAllowed) as error:
         return _redirect_to_login(request=request, error=str(error))
@@ -237,6 +226,7 @@ class UserInfo:
     email: str
     username: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    claims: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not (idp_user_id := (self.idp_user_id or "").strip()):
@@ -277,11 +267,22 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
         isinstance(profile_picture_url := user_info.get("picture"), str)
         or profile_picture_url is None
     )
+    # Keep only non-empty claim values
+    def _has_value(v: Any) -> bool:
+        if v is None:
+            return False
+        if isinstance(v, str):
+            return bool(v.strip())
+        if isinstance(v, (list, dict, set, tuple)):
+            return len(v) > 0
+        return bool(v)
+    filtered_claims = {k: v for k, v in user_info.items() if _has_value(v)}
     return UserInfo(
         idp_user_id=idp_user_id,
         email=email,
         username=username,
         profile_picture_url=profile_picture_url,
+        claims=filtered_claims,
     )
 
 
@@ -292,6 +293,7 @@ async def _process_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     allow_sign_up: bool,
+    required_groups: set[str] = frozenset(),
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -323,6 +325,12 @@ async def _process_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist or has a password)
         EmailAlreadyInUse: When the email is already in use by another account
     """  # noqa: E501
+    # Enforce required group claim keys presence if configured
+    if required_groups:
+        missing = {k for k in required_groups if k not in user_info.claims}
+        if missing:
+            raise SignInNotAllowed("Missing required group claims.")
+
     if not allow_sign_up:
         return await _get_existing_oauth2_user(
             session,
