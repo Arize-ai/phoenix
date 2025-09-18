@@ -91,9 +91,9 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
-          splitIds: ((example.datasetSplits ?? []) as Array<{ id: string }>).map(
-            (s) => s.id
-          ),
+          splitIds: (
+            (example.datasetSplits ?? []) as Array<{ id: string }>
+          ).map((s) => s.id),
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
