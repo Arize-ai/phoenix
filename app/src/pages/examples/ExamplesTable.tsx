@@ -87,7 +87,7 @@ export function ExamplesTable({
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {
-        const example = edge.example as any;
+        const example = edge.example;
         const revision = example.revision;
         return {
           id: example.id,
