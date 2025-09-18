@@ -6,8 +6,9 @@ from phoenix.client import Client
 @pytest.mark.parametrize(
     "input, expected",
     [
+        # Note the addition of the trailing slash here
         ("https://app.phoenix.arize.com/s/me", "https://app.phoenix.arize.com/s/me/"),
-        ("http://localhost:6006/", "http://localhost:6006"),
+        ("http://localhost:6006/", "http://localhost:6006/"),
         ("http://localhost:6006", "http://localhost:6006"),
     ],
 )
