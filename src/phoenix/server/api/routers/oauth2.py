@@ -126,9 +126,13 @@ async def login(
         nonce=nonce,
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
-    response = set_oauth2_code_verifier_cookie(
-        response=response, code_verifier=authorization_url_data['code_verifier'], max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES)
-    )
+    # Set PKCE code_verifier cookie only if PKCE is enabled and a verifier is returned
+    if (cv := authorization_url_data.get("code_verifier")):
+        response = set_oauth2_code_verifier_cookie(
+            response=response,
+            code_verifier=cv,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
     return response
 
 
@@ -140,7 +144,7 @@ async def create_tokens(
     authorization_code: str = Query(alias="code"),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
-    code_verifier: str = Cookie(alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME),
+    code_verifier: Optional[str] = Cookie(default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME),
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
     if state != stored_state:
@@ -161,15 +165,17 @@ async def create_tokens(
     ):
         return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
-        token_data = await oauth2_client.fetch_access_token(
+        fetch_kwargs: dict[str, Any] = dict(
             state=state,
             code=authorization_code,
             redirect_uri=_get_create_tokens_endpoint(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
-            code_verifier=code_verifier,
-
         )
+        # Include PKCE code_verifier only when provided by client (optional cookie param)
+        if code_verifier:
+            fetch_kwargs["code_verifier"] = code_verifier
+        token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as error:
         return _redirect_to_login(request=request, error=str(error))
     _validate_token_data(token_data)
