@@ -342,14 +342,12 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       <ModalOverlay
         isOpen={isAddingToDatasetSplitDialogOpen}
         onOpenChange={(isOpen) => {
-          console.log("onOpenChange", isOpen);
           if (!isOpen) {
             setIsAddingToDatasetSplitDialogOpen(false);
             setIsCreateSplitOpen(false);
             setNewSplitName("");
             setSelectedSplitIds(new Set());
           } else {
-            console.log("setting selectedSplitIds to sharedSplitIds", sharedSplitIds);
             // Initialize selection to the fully-selected splits for current examples
             setSelectedSplitIds(new Set(sharedSplitIds));
           }
