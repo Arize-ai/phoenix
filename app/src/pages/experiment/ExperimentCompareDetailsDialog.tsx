@@ -335,6 +335,8 @@ function ExperimentRunOutputs({
     []
   );
 
+  const noRunsSelected = selectedExperimentRuns.every((run) => !run.selected);
+
   return (
     <Flex gap="size-200">
       <ExperimentRunOutputsSidebar
@@ -345,6 +347,7 @@ function ExperimentRunOutputs({
         updateExperimentSelection={updateExperimentSelection}
         updateRepetitionSelection={updateRepetitionSelection}
       />
+      {noRunsSelected && <Empty message="No runs selected" />}
       <ul
         css={css`
           display: flex;
