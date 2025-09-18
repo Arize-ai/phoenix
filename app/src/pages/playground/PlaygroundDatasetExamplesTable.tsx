@@ -680,6 +680,7 @@ export function PlaygroundDatasetExamplesTable({
         errors: PayloadError[] | null
       ) => {
         markPlaygroundInstanceComplete(instanceId);
+        setRepetitions(repetitions);
         if (errors) {
           notifyError({
             title: "Chat completion failed",
@@ -704,7 +705,9 @@ export function PlaygroundDatasetExamplesTable({
     [
       markPlaygroundInstanceComplete,
       notifyError,
+      repetitions,
       setExampleDataForInstance,
+      setRepetitions,
       updateInstance,
     ]
   );
