@@ -512,7 +512,7 @@ class Experiments:
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
         return urljoin(
-            str(self._client._base_url),  # pyright: ignore[reportPrivateUsage]
+            str(self._client.base_url),
             f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
         )
 
