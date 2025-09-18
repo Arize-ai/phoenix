@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 
 import { Switch } from "@arizeai/components";
@@ -22,8 +23,11 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 export function PlaygroundConfigButton() {
   const [searchParams] = useSearchParams();
-  const selectedDatasetid = searchParams.get("datasetId");
-  const hasSelectedDataset = selectedDatasetid != null;
+  const hasSelectedDataset = useMemo(() => {
+    const datasetId = searchParams.get("datasetId");
+    const hasSelectedDataset = datasetId != null;
+    return hasSelectedDataset;
+  }, [searchParams]);
   const streaming = usePlaygroundContext((state) => state.streaming);
   const repetitions = usePlaygroundContext((state) => state.repetitions);
   const setStreaming = usePlaygroundContext((state) => state.setStreaming);
