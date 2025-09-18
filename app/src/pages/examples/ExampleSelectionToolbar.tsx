@@ -134,10 +134,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     }
   `);
 
-  
-  console.log("fullySelectedSplitIds", sharedSplitIds);
-  console.log("selectedSplitIds", selectedSplitIds);
-  console.log("selectedExamples", selectedExamples);
   const availableSplits = useMemo(() => {
     const serverSplits = props.splits ?? [];
     return [
@@ -210,6 +206,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           });
           setNewSplitName("");
           setIsCreateSplitOpen(false);
+          onSplitChange();
         }
       },
       onError: (error) => {

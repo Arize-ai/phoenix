@@ -89,7 +89,7 @@ class DatasetSplitMutationMixin:
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"A dataset split named '{name}' already exists.")
+                raise Conflict(f"A dataset split named '{input.name}' already exists.")
             return DatasetSplitMutationPayload(
                 dataset_split=to_gql_dataset_split(dataset_split_orm), query=Query()
             )
@@ -147,19 +147,6 @@ class DatasetSplitMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def set_dataset_split(
-        self, info: Info[Context, None], input: SetDatasetSplitInput
-    ) -> DatasetSplitMutationPayload:
-        # Not yet implemented: requires a dataset <-> dataset_split relationship design.
-        raise Conflict("Setting a dataset split on a dataset is not implemented.")
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
-    async def unset_dataset_split(
-        self, info: Info[Context, None], input: UnsetDatasetSplitInput
-    ) -> DatasetSplitMutationPayload:
-        # Not yet implemented: requires a dataset <-> dataset_split relationship design.
-        raise Conflict("Unsetting a dataset split on a dataset is not implemented.")
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_dataset_examples_to_dataset_split(
