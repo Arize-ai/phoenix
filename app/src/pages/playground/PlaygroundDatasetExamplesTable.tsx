@@ -115,37 +115,45 @@ const createExampleResponsesForInstance = (
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, result, experimentRunId } = example;
-      const baseExampleResponseData: ExampleRunData = {
-        experimentRunId,
-      };
+      const { datasetExampleId, repetitionNumber, result, experimentRunId } =
+        example;
       switch (result.__typename) {
         case "ChatCompletionMutationError": {
-          return {
+          const updatedInstanceResponses: InstanceResponses = {
             ...instanceResponses,
             [datasetExampleId]: {
-              ...baseExampleResponseData,
-              errorMessage: result.message,
+              ...instanceResponses[datasetExampleId],
+              [repetitionNumber]: {
+                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
+                errorMessage: result.message,
+                experimentRunId,
+              },
             },
           };
+          return updatedInstanceResponses;
         }
         case "ChatCompletionMutationPayload": {
           const { errorMessage, content, span, toolCalls } = result;
-          return {
+          const updatedInstanceResponses: InstanceResponses = {
             ...instanceResponses,
             [datasetExampleId]: {
-              ...baseExampleResponseData,
-              span,
-              content,
-              errorMessage,
-              toolCalls: toolCalls.reduce<
-                Record<string, PartialOutputToolCall>
-              >((map, toolCall) => {
-                map[toolCall.id] = toolCall;
-                return map;
-              }, {}),
+              ...instanceResponses[datasetExampleId],
+              [repetitionNumber]: {
+                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
+                experimentRunId,
+                span,
+                content,
+                errorMessage,
+                toolCalls: toolCalls.reduce<
+                  Record<string, PartialOutputToolCall>
+                >((map, toolCall) => {
+                  map[toolCall.id] = toolCall;
+                  return map;
+                }, {}),
+              },
             },
           };
+          return updatedInstanceResponses;
         }
         case "%other":
           return instanceResponses;
@@ -1172,6 +1180,7 @@ graphql`
       examples {
         datasetExampleId
         experimentRunId
+        repetitionNumber
         result {
           __typename
           ... on ChatCompletionMutationError {

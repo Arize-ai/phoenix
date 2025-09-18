@@ -112,6 +112,7 @@ class ChatCompletionMutationError:
 @strawberry.type
 class ChatCompletionOverDatasetMutationExamplePayload:
     dataset_example_id: GlobalID
+    repetition_number: int
     experiment_run_id: GlobalID
     result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
 
@@ -207,7 +208,14 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
-        for batch in _get_batches(revisions, batch_size):
+        for batch in _get_batches(
+            [
+                (revision, repetition_number)
+                for revision in revisions
+                for repetition_number in range(1, input.repetitions + 1)
+            ],
+            batch_size,
+        ):
             batch_results = await asyncio.gather(
                 *(
                     cls._chat_completion(
@@ -224,10 +232,11 @@ class ChatCompletionMutationMixin:
                                 variables=revision.input,
                             ),
                             prompt_name=input.prompt_name,
+                            repetition_number=repetition_number,
                         ),
                         project_name=project_name,
                     )
-                    for revision in batch
+                    for revision, repetition_number in batch
                 ),
                 return_exceptions=True,
             )
@@ -279,6 +288,7 @@ class ChatCompletionMutationMixin:
             experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
             example_payload = ChatCompletionOverDatasetMutationExamplePayload(
                 dataset_example_id=dataset_example_id,
+                repetition_number=1,
                 experiment_run_id=experiment_run_id,
                 result=result
                 if isinstance(result, ChatCompletionMutationPayload)
