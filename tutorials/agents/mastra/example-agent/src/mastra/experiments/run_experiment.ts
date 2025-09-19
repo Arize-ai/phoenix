@@ -1,6 +1,6 @@
 import { createClient } from "@arizeai/phoenix-client";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
@@ -19,7 +19,7 @@ const task = async (example: Example) => {
 };
 
 /** LLM Judge evaluator */
-const correctnessEvaluator = asEvaluator({
+const correctnessEvaluator = asExperimentEvaluator({
   name: "Correctness",
   kind: "LLM",
   evaluate: async ({ input, output }) => {
@@ -33,7 +33,7 @@ const correctnessEvaluator = asEvaluator({
           1. Did it directly address the user's question?
           2. Was the response accurate and helpful?
           3. Was the response complete?
-          
+
           Respond in JSON format with:
           {
             "score": <float between 0.0 and 1.0>,
@@ -50,7 +50,7 @@ const correctnessEvaluator = asEvaluator({
     });
 
     const evaluation = JSON.parse(
-      response.choices[0]?.message?.content ?? "{}",
+      response.choices[0]?.message?.content ?? "{}"
     );
 
     return {
