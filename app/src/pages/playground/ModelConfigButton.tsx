@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -44,10 +45,7 @@ import {
   ModelProviders,
 } from "@phoenix/constants/generativeConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   httpHeadersJSONSchema,
@@ -428,34 +426,18 @@ function AwsModelConfigFormField({
   );
 }
 
+/**
+ * Format headers object for JSON editor with proper indentation and empty state handling
+ */
 const formatHeadersForEditor = (
   headers: Record<string, string> | null | undefined
 ): string => {
-  if (!headers || Object.keys(headers).length === 0) {
+  if (!headers) {
     return "{\n  \n}";
   }
-  return JSON.stringify(headers, null, 2);
-};
 
-// Check if two JSON strings represent the same headers (ignoring key order)
-const headersEqual = (json1: string, json2: string): boolean => {
-  try {
-    const obj1 = JSON.parse(json1);
-    const obj2 = JSON.parse(json2);
-    const keys1 = Object.keys(obj1).sort();
-    const keys2 = Object.keys(obj2).sort();
-
-    if (keys1.length !== keys2.length) return false;
-
-    for (let i = 0; i < keys1.length; i++) {
-      if (keys1[i] !== keys2[i] || obj1[keys1[i]] !== obj2[keys1[i]]) {
-        return false;
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  const hasContent = Object.keys(headers).length > 0;
+  return hasContent ? JSON.stringify(headers, null, 2) : "{\n  \n}";
 };
 
 function CustomHeadersModelConfigFormField({
@@ -466,75 +448,67 @@ function CustomHeadersModelConfigFormField({
   container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const store = usePlaygroundStore();
-  const instanceProvider = instance.model.provider;
+  const { provider, customHeaders } = instance.model;
 
   const [editorValue, setEditorValue] = useState(() =>
-    formatHeadersForEditor(instance.model.customHeaders)
+    formatHeadersForEditor(customHeaders)
   );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const isUserEditingRef = useRef(false);
 
-  // Reset editor when provider changes
+  // Reset user editing flag when provider changes
   useEffect(() => {
-    const state = store.getState();
-    const currentInstance = state.instances.find((i) => i.id === instance.id);
-    if (currentInstance == null) {
+    isUserEditingRef.current = false;
+  }, [provider]);
+
+  // Reset editor only when provider changes or external updates (not user typing)
+  useEffect(() => {
+    // Don't reset editor while user is actively typing
+    if (isUserEditingRef.current) {
       return;
     }
-    const newEditorValue = formatHeadersForEditor(
-      currentInstance.model.customHeaders
-    );
 
-    // Only update if the content is actually different (not just key order)
-    if (!headersEqual(editorValue, newEditorValue)) {
-      setEditorValue(newEditorValue);
-      setErrorMessage(undefined);
-    }
-  }, [instanceProvider, store, instance.id, editorValue]);
+    const newValue = formatHeadersForEditor(customHeaders);
+    setEditorValue(newValue);
+    setErrorMessage(undefined);
+  }, [provider, customHeaders]);
 
-  const onChange = useCallback(
+  const handleChange = useCallback(
     (value: string) => {
+      isUserEditingRef.current = true;
       setEditorValue(value);
 
-      const { success, data, error } =
-        stringToHttpHeadersSchema.safeParse(value);
-      if (success) {
+      const result = stringToHttpHeadersSchema.safeParse(value);
+      if (result.success) {
         setErrorMessage(undefined);
         updateModel({
           instanceId: instance.id,
-          patch: { customHeaders: data },
+          patch: { customHeaders: result.data },
         });
       } else {
-        setErrorMessage(error.errors[0]?.message || "Invalid headers format");
+        const firstError = result.error.errors[0];
+        setErrorMessage(
+          firstError?.message ??
+            firstError?.path?.join(".") ??
+            "Invalid headers format"
+        );
       }
+
+      // Allow external updates after a brief delay (regardless of validation result)
+      setTimeout(() => {
+        isUserEditingRef.current = false;
+      }, 100);
     },
     [instance.id, updateModel]
   );
 
   return (
-    <div
-      css={css`
-        & .ac-view {
-          width: 100%;
-        }
-      `}
-    >
+    <div css={fieldContainerCSS}>
       <Field
         label={
-          <div
-            css={css`
-              display: flex;
-              align-items: center;
-              gap: var(--ac-global-dimension-size-75);
-            `}
-          >
-            <GenerativeProviderIcon
-              provider={instance.model.provider}
-              height={16}
-            />
-            <span>
-              Custom Headers for {ModelProviders[instance.model.provider]}
-            </span>
+          <div css={labelCSS}>
+            <GenerativeProviderIcon provider={provider} height={16} />
+            <span>Custom Headers for {ModelProviders[provider]}</span>
           </div>
         }
         description="Custom HTTP headers to send with requests to the LLM provider"
@@ -543,9 +517,9 @@ function CustomHeadersModelConfigFormField({
       >
         <CodeWrap>
           <JSONEditor
-            key={`custom-headers-${instance.model.provider}-${instance.id}`}
+            key={`custom-headers-${provider}-${instance.id}`}
             value={editorValue}
-            onChange={onChange}
+            onChange={handleChange}
             jsonSchema={httpHeadersJSONSchema as JSONSchema7}
             optionalLint
             placeholder={`{"X-Custom-Header": "custom-value"}`}
@@ -555,6 +529,18 @@ function CustomHeadersModelConfigFormField({
     </div>
   );
 }
+
+const fieldContainerCSS = css`
+  & .ac-view {
+    width: 100%;
+  }
+`;
+
+const labelCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--ac-global-dimension-size-75);
+`;
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 
