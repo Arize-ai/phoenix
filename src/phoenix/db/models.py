@@ -597,7 +597,7 @@ class Span(Base):
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
     )
-    span_id: Mapped[str] = mapped_column(index=True)
+    span_id: Mapped[str]
     parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     span_kind: Mapped[str]
@@ -901,8 +901,8 @@ class SpanAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -941,8 +941,8 @@ class TraceAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -979,8 +979,8 @@ class DocumentAnnotation(Base):
     )
     document_position: Mapped[int]
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -1012,6 +1012,43 @@ class DocumentAnnotation(Base):
     )
 
 
+class ProjectSessionAnnotation(Base):
+    __tablename__ = "project_session_annotations"
+    project_session_id: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "name",
+            "project_session_id",
+            "identifier",
+        ),
+    )
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
     name: Mapped[str] = mapped_column(unique=True)
@@ -1020,6 +1057,12 @@ class Dataset(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="dataset"
+    )
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset"
     )
 
     @hybrid_property
@@ -1071,6 +1114,38 @@ class Dataset(Base):
             )
 
 
+class DatasetLabel(Base):
+    __tablename__ = "dataset_labels"
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, server_default=text("'#ffffff'"), nullable=False)
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset_label"
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class DatasetsDatasetLabel(Base):
+    __tablename__ = "datasets_dataset_labels"
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    dataset_label_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_labels.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
+    dataset_label: Mapped["DatasetLabel"] = relationship(
+        "DatasetLabel", back_populates="datasets_dataset_labels"
+    )
+
+    __table_args__ = (UniqueConstraint("dataset_id", "dataset_label_id"),)
+
+
 class DatasetVersion(Base):
     __tablename__ = "dataset_versions"
     dataset_id: Mapped[int] = mapped_column(
@@ -1102,7 +1177,6 @@ class DatasetExampleRevision(Base):
     __tablename__ = "dataset_example_revisions"
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_version_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
@@ -1141,9 +1215,14 @@ class Experiment(Base):
     repetitions: Mapped[int]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="experiment"
     )
 
 
@@ -1151,7 +1230,6 @@ class ExperimentRun(Base):
     __tablename__ = "experiment_runs"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
@@ -1196,7 +1274,6 @@ class ExperimentRunAnnotation(Base):
     __tablename__ = "experiment_run_annotations"
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
-        index=True,
     )
     name: Mapped[str]
     annotator_kind: Mapped[str] = mapped_column(
@@ -1221,6 +1298,30 @@ class ExperimentRunAnnotation(Base):
             "name",
         ),
     )
+
+
+class ExperimentTag(Base):
+    __tablename__ = "experiment_tags"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
+    user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("dataset_id", "name"),)
 
 
 class UserRole(Base):
@@ -1647,10 +1748,12 @@ class SpanCost(Base):
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     span_start_time: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
@@ -1758,9 +1861,8 @@ class SpanCostDetail(Base):
     span_cost_id: Mapped[int] = mapped_column(
         ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    token_type: Mapped[str]
+    token_type: Mapped[str] = mapped_column(index=True)
     is_prompt: Mapped[bool]
 
     cost: Mapped[Optional[float]]

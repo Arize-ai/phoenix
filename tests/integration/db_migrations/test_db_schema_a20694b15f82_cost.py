@@ -119,6 +119,9 @@ class TestGenerativeModel(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                ["start_time", "deleted_at"]
+            ),  # These columns are nullable
         )
 
     def test_db_schema(
@@ -184,6 +187,7 @@ class TestTokenPrices(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(["customization"]),  # This column is nullable
         )
 
     def test_db_schema(
@@ -257,6 +261,17 @@ class TestSpanCosts(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                [
+                    "model_id",
+                    "total_cost",
+                    "total_tokens",
+                    "prompt_cost",
+                    "prompt_tokens",
+                    "completion_cost",
+                    "completion_tokens",
+                ]
+            ),  # These columns are nullable
         )
 
     def test_db_schema(
@@ -324,6 +339,9 @@ class TestSpanCostDetails(DBSchemaComparisonTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                ["cost", "tokens", "cost_per_token"]
+            ),  # These columns are nullable
         )
 
     def test_db_schema(
