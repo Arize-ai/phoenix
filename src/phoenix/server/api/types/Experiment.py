@@ -33,6 +33,7 @@ class Experiment(Node):
     name: str
     project_name: Optional[str]
     description: Optional[str]
+    repetitions: int
     dataset_version_id: GlobalID
     metadata: JSON
     created_at: datetime
@@ -210,6 +211,7 @@ def to_gql_experiment(
         name=experiment.name,
         project_name=experiment.project_name,
         description=experiment.description,
+        repetitions=experiment.repetitions,
         dataset_version_id=GlobalID(DatasetVersion.__name__, str(experiment.dataset_version_id)),
         metadata=experiment.metadata_,
         created_at=experiment.created_at,
