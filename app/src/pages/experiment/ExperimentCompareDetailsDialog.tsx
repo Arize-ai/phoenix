@@ -338,6 +338,12 @@ function ExperimentRunOutputs({
 
   const noRunsSelected = selectedExperimentRuns.every((run) => !run.selected);
 
+  const includeRepetitions = useMemo(() => {
+    return Object.values(experimentsById).some(
+      (experiment) => experiment.repetitions > 1
+    );
+  }, [experimentsById]);
+
   return (
     <Flex gap="size-200">
       <ExperimentRunOutputsSidebar
@@ -347,6 +353,7 @@ function ExperimentRunOutputs({
         selectedExperimentRuns={selectedExperimentRuns}
         updateExperimentSelection={updateExperimentSelection}
         updateRepetitionSelection={updateRepetitionSelection}
+        includeRepetitions={includeRepetitions}
       />
       {noRunsSelected && <Empty message="No runs selected" />}
       <ul
@@ -384,6 +391,7 @@ function ExperimentRunOutputs({
                 <ExperimentItem
                   experiment={experiment}
                   experimentIndex={experimentIndex}
+                  includeRepetitions={includeRepetitions}
                 />
               </li>
             );
@@ -401,7 +409,7 @@ function ExperimentRunOutputs({
                 experiment={experiment}
                 experimentRun={run}
                 experimentIndex={experimentIndex}
-                repetitionCount={experiment.repetitions}
+                includeRepetitions={includeRepetitions}
               />
             </li>
           ));
@@ -418,6 +426,7 @@ function ExperimentRunOutputsSidebar({
   selectedExperimentRuns,
   updateExperimentSelection,
   updateRepetitionSelection,
+  includeRepetitions,
 }: {
   experimentIds: string[];
   experimentsById: Record<string, Experiment>;
@@ -425,6 +434,7 @@ function ExperimentRunOutputsSidebar({
   selectedExperimentRuns: ExperimentRunSelectionState[];
   updateExperimentSelection: (experimentId: string, checked: boolean) => void;
   updateRepetitionSelection: (runId: string, checked: boolean) => void;
+  includeRepetitions: boolean;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
@@ -472,7 +482,7 @@ function ExperimentRunOutputsSidebar({
                   {experiment.name}
                 </Flex>
               </label>
-              {experimentRuns.length > 1 && (
+              {includeRepetitions && (
                 <View paddingStart="size-500">
                   <Flex direction="column" gap="size-200">
                     {experimentRuns.map((run) => (
@@ -525,12 +535,12 @@ function ExperimentItem({
   experiment,
   experimentRun,
   experimentIndex,
-  repetitionCount,
+  includeRepetitions,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
   experimentIndex: number;
-  repetitionCount?: number;
+  includeRepetitions: boolean;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
@@ -559,7 +569,7 @@ function ExperimentItem({
           >
             <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
           </Heading>
-          {repetitionCount && repetitionCount > 1 && experimentRun && (
+          {includeRepetitions && experimentRun && (
             <>
               <Icon svg={<Icons.ChevronRight />} />
               <Heading weight="heavy" level={3}>
