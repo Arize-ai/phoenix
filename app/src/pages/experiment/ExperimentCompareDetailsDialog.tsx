@@ -241,12 +241,7 @@ export function ExperimentCompareDetails({
                 flex={1}
                 scrollBody={true}
               >
-                <Flex height="100%">
-                  <JSONBlock
-                    value={JSON.stringify(input, null, 2)}
-                    height="100%"
-                  />
-                </Flex>
+                <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
               </Card>
               <Card
                 title="Reference Output"
@@ -259,12 +254,9 @@ export function ExperimentCompareDetails({
                 flex={1}
                 scrollBody={true}
               >
-                <Flex height="100%">
-                  <JSONBlock
-                    value={JSON.stringify(referenceOutput, null, 2)}
-                    height="100%"
-                  />
-                </Flex>
+                <FullSizeJSONBlock
+                  value={JSON.stringify(referenceOutput, null, 2)}
+                />
               </Card>
             </Flex>
           </View>
@@ -636,6 +628,24 @@ function ExperimentItem({
           </View>
         </>
       )}
+    </div>
+  );
+}
+
+function FullSizeJSONBlock({ value }: { value: string }) {
+  return (
+    <div
+      css={css`
+        height: 100%;
+        width: 100%;
+        & .cm-theme,
+        & .cm-editor {
+          height: 100%;
+          width: 100%;
+        }
+      `}
+    >
+      <JSONBlock value={value} />
     </div>
   );
 }
