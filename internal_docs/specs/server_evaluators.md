@@ -20,7 +20,7 @@ We will use the word `task` to denote a function that is under test. These tasks
 
 ### Evaluation Target
 
-The `tasks` performed will be recorded as artifacts in the form of `spans`, `traces`, `sessions`, and `experiment` runs. These artifacts will be able to serve as the target of evaluation. Each one of these artifacts captures the task's `input`, `output`, and other relevant context and metadata that can be used for evaluation.
+The `tasks` performed will be recorded as artifacts in the form of `spans`, `traces`, `sessions`, and `experiment runs`. These artifacts will be able to serve as the target of evaluation. Each one of these artifacts captures the task's `input`, `output`, and other relevant context and metadata that can be used for evaluation.
 
 ### Score
 
