@@ -10,6 +10,10 @@ Server-side evaluators, sometimes called "online" evals, is the idea of having e
 
 We will define an Evaluator as a function that grades particular task. The `evaluator` can be powered by an llm, be based on code, or be a very simple heuristic. Some evaluators are well understood (e.x. JSON distance, cosine similarity), while others are user defined to try to catch failure modes of a particular task.
 
+### LLM Evaluators
+
+LLM Evaluators are functions that use an LLM to perform an evaluation. For simplicity we will think of LLM evaluators to be a single-shot prompt, where a set of inputs is passed into a well formed prompt template to produce a score.
+
 ### Task
 
 We will use the word `task` to denote a function that is under test. These tasks are LLM powered and thus have a level of indeterminism that needs `evaluation`.
@@ -17,6 +21,19 @@ We will use the word `task` to denote a function that is under test. These tasks
 ### Evaluation Target
 
 The `tasks` performed will be recorded as artifacts in the form of `spans`, `traces`, `sessions`, and `experiment` runs. These artifacts will be able to serve as the target of evaluation. Each one of these artifacts capture the task's `input`, `output` and other relevant context and metadata that can be used for evaluation.
+
+### Score
+
+Score is the output of an evaluator (evaluators are referred to as scorers as well.). A score may not necessarily be numeric however. It's meant to capture judgement and thus can be made up of:
+
+- label - typically a classification of discrete values
+- score - a floating point or integer grade
+- explanation - the reasoning for why the grade was given or purely a textual assesment
+
+In addition to the above a score can have meta information or a definition. Notably:
+
+- direction - also known as optimization direction, to refer to the desired goal (e.g. 'maximize' denotes we want the metric to be higher)
+- metadata - any kv value to describe the judgement (e.x. performed by `gpt`)
 
 ### Annotation
 
@@ -36,14 +53,47 @@ Annotations capture the scores that are the result of evaluation. They are named
 
 ### Evaluator Definitions
 
-As a user of Phoenix, I want to define different evaluation metrics to be re-used across the platform. These metric definitions will have 3 types:
+As a user of Phoenix, I want to define different evaluation metrics to be re-used across the platform. These metric definitions will have various types:
 
 - LLM-as-a-judge
 - Heuristic / Code (e.x. JSON distance, exact match, similarity, contains regex)
 - Custom Code
+- Remote (webhook-based)
 
 To make the eval definitions re-usable across various targets, the evaluators will be described as having:
 
 - `input schema` - what data is required to perform the evaluation at a record level
 - `annotation config` - the definition of the score it produces
-- `source` - how the evaluation is performed
+- `source` - how the evaluation is performed (e.x. 'LLM')
+
+### LLM Evaluator Prompts
+
+As a user of Phoenix, the prompts used for LLM judgement need to be tracked carefully as they could have a drastic impact on the quality (e.x. true-positive rate) of the evaluator. For this reason prompts used for LLM judgement must be tracked via Phoenix's built in prompt management system.
+
+For a prompt to be deemed sufficiently good for an evaluator, it should be testable via Phoenix's built-in prompt playground. Once the evaluator prompt is sufficiently benchmarked (e.g. has a sufficiently good experiment backing it's performance), the prompt will be promoted via a prompt version tag and will be picked up by the evaluator.
+
+### Dataset Evaluators
+
+As a user of Phoenix, datasets contain examples for a particular task. In the case of prompt engineering, the dataset contains examples of inputs to the prompt. Evaluators will serve as "test cases" that automatically score the prompt output. Examples are:
+
+- Does the output call the right tool
+- Is the output similar to the desired reference output
+- Does the output match the desired output exactly (heuristic / code evaluator)
+- Does the output hallucinate or properly say that it lacks knowledge (LLM)
+
+These evaluators will always run when an experiment is performed using the dataset unless otherwise specified.
+
+Metaphorically speaking, datasets now define a workbench. When you load a particular dataset into the prompt playground, it automatically sets up the evaluators, which form a metaphorical "unit" testing suite.
+
+### Project Evaluators (e.g. online evals)
+
+As a user of Phoenix, once I start production tracing, I want certain segments of my data to be automatically evaluated at or after ingestion so that I can monitor and triage critical or potential failures. Project evaluators are the use of the above evaluation methedoligies but with an associated automation. An example of a project evaluator definition might be:
+
+- Filter for LLM spans with a particular attribute ("final synthesis")
+- Sample down to 80% of traffic
+- Perform evaluation
+
+As a user, I am tapping into different types of "events" in the system and performing particular types of automation (e.g. a trigger). An automation might look like:
+
+- event: ingestion - A trace gets marked as "incorrect" by an evaluator.
+- trigger: add to dataset - the trace gets captured as a dataset for human review and / or regression testing
