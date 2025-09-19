@@ -112,6 +112,7 @@ class ChatCompletionMutationError:
 @strawberry.type
 class ChatCompletionOverDatasetMutationExamplePayload:
     dataset_example_id: GlobalID
+    repetition_number: int
     experiment_run_id: GlobalID
     result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
 
@@ -207,7 +208,12 @@ class ChatCompletionMutationMixin:
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
-        for batch in _get_batches(revisions, batch_size):
+        unbatched_items = [
+            (revision, repetition_number)
+            for revision in revisions
+            for repetition_number in range(1, input.repetitions + 1)
+        ]
+        for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
                 *(
                     cls._chat_completion(
@@ -224,10 +230,11 @@ class ChatCompletionMutationMixin:
                                 variables=revision.input,
                             ),
                             prompt_name=input.prompt_name,
+                            repetitions=repetition_number,
                         ),
                         project_name=project_name,
                     )
-                    for revision in batch
+                    for revision, repetition_number in batch
                 ),
                 return_exceptions=True,
             )
@@ -239,13 +246,13 @@ class ChatCompletionMutationMixin:
             experiment_id=GlobalID(models.Experiment.__name__, str(experiment.id)),
         )
         experiment_runs = []
-        for revision, result in zip(revisions, results):
+        for (revision, repetition_number), result in zip(unbatched_items, results):
             if isinstance(result, BaseException):
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
                     dataset_example_id=revision.dataset_example_id,
                     output={},
-                    repetition_number=1,
+                    repetition_number=repetition_number,
                     start_time=start_time,
                     end_time=start_time,
                     error=str(result),
@@ -261,7 +268,7 @@ class ChatCompletionMutationMixin:
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
-                    repetition_number=1,
+                    repetition_number=repetition_number,
                     start_time=db_span.start_time,
                     end_time=db_span.end_time,
                     error=str(result.error_message) if result.error_message else None,
@@ -272,13 +279,16 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
-        for revision, experiment_run, result in zip(revisions, experiment_runs, results):
+        for (revision, repetition_number), experiment_run, result in zip(
+            unbatched_items, experiment_runs, results
+        ):
             dataset_example_id = GlobalID(
                 models.DatasetExample.__name__, str(revision.dataset_example_id)
             )
             experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
             example_payload = ChatCompletionOverDatasetMutationExamplePayload(
                 dataset_example_id=dataset_example_id,
+                repetition_number=repetition_number,
                 experiment_run_id=experiment_run_id,
                 result=result
                 if isinstance(result, ChatCompletionMutationPayload)

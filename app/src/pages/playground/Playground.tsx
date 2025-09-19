@@ -32,13 +32,13 @@ import { PlaygroundProps } from "@phoenix/store";
 import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
+import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
-import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 
@@ -96,9 +96,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              <PlaygroundStreamToggle />
               <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
+              <PlaygroundConfigButton />
               <PlaygroundRunButton />
             </Flex>
           </Flex>
