@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from random import randrange
 from typing import Any, Optional, TypedDict
@@ -25,13 +25,16 @@ from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
+    set_oauth2_state_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
+    set_oauth2_code_verifier_cookie,
 )
 from phoenix.config import (
     get_env_disable_basic_auth,
@@ -123,6 +126,13 @@ async def login(
         nonce=nonce,
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
+    # Set PKCE code_verifier cookie only if PKCE is enabled and a verifier is returned
+    if (cv := authorization_url_data.get("code_verifier")):
+        response = set_oauth2_code_verifier_cookie(
+            response=response,
+            code_verifier=cv,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
     return response
 
 
@@ -134,6 +144,7 @@ async def create_tokens(
     authorization_code: str = Query(alias="code"),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
+    code_verifier: Optional[str] = Cookie(default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME),
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
     if state != stored_state:
@@ -154,13 +165,17 @@ async def create_tokens(
     ):
         return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
-        token_data = await oauth2_client.fetch_access_token(
+        fetch_kwargs: dict[str, Any] = dict(
             state=state,
             code=authorization_code,
             redirect_uri=_get_create_tokens_endpoint(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
+        # Include PKCE code_verifier only when provided by client (optional cookie param)
+        if code_verifier:
+            fetch_kwargs["code_verifier"] = code_verifier
+        token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as error:
         return _redirect_to_login(request=request, error=str(error))
     _validate_token_data(token_data)
@@ -177,11 +192,15 @@ async def create_tokens(
 
     try:
         async with request.app.state.db() as session:
+            required_keys = set(
+                g for g in (oauth2_client.client_kwargs or {}).get("required_groups", []) if g
+            )
             user = await _process_oauth2_user(
                 session,
                 oauth2_client_id=str(oauth2_client.client_id),
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
+                required_groups=required_keys,
             )
     except (EmailAlreadyInUse, SignInNotAllowed) as error:
         return _redirect_to_login(request=request, error=str(error))
@@ -213,6 +232,7 @@ class UserInfo:
     email: str
     username: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    claims: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not (idp_user_id := (self.idp_user_id or "").strip()):
@@ -253,11 +273,22 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
         isinstance(profile_picture_url := user_info.get("picture"), str)
         or profile_picture_url is None
     )
+    # Keep only non-empty claim values
+    def _has_value(v: Any) -> bool:
+        if v is None:
+            return False
+        if isinstance(v, str):
+            return bool(v.strip())
+        if isinstance(v, (list, dict, set, tuple)):
+            return len(v) > 0
+        return bool(v)
+    filtered_claims = {k: v for k, v in user_info.items() if _has_value(v)}
     return UserInfo(
         idp_user_id=idp_user_id,
         email=email,
         username=username,
         profile_picture_url=profile_picture_url,
+        claims=filtered_claims,
     )
 
 
@@ -268,6 +299,7 @@ async def _process_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     allow_sign_up: bool,
+    required_groups: set[str] = frozenset(),
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -299,6 +331,12 @@ async def _process_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist or has a password)
         EmailAlreadyInUse: When the email is already in use by another account
     """  # noqa: E501
+    # Enforce required group claim keys presence if configured
+    if required_groups:
+        missing = {k for k in required_groups if k not in user_info.claims}
+        if missing:
+            raise SignInNotAllowed("Missing required group claims.")
+
     if not allow_sign_up:
         return await _get_existing_oauth2_user(
             session,

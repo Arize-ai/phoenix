@@ -67,16 +67,24 @@ class OAuth2Clients:
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
+        client_kwargs = {"scope": config.scopes, "required_groups": config.required_groups}
+        if config.token_endpoint_auth_method:
+            client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
+        if config.code_challenge_method:
+            client_kwargs["code_challenge_method"] = config.code_challenge_method
+        
+        
         client = OAuth2Client(
             name=config.idp_name,
             client_id=config.client_id,
             client_secret=config.client_secret,
             server_metadata_url=config.oidc_config_url,
-            client_kwargs={"scope": "openid email profile"},
+            client_kwargs=client_kwargs,
             display_name=config.idp_display_name,
             allow_sign_up=config.allow_sign_up,
             auto_login=config.auto_login,
         )
+        
         if config.auto_login:
             if self._auto_login_client:
                 raise ValueError("only one auto-login client is allowed")
