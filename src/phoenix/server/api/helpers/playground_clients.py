@@ -707,18 +707,21 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
         # Add custom headers support via boto3 event system
         if self.custom_headers:
-            self._setup_custom_headers()
+            self._setup_custom_headers(self.client, self.custom_headers)
 
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
 
-    def _setup_custom_headers(self) -> None:
+    @staticmethod
+    def _setup_custom_headers(client: Any, custom_headers: Mapping[str, str]) -> None:
         """Setup custom headers using boto3's event system."""
+        if not custom_headers:
+            return
 
         def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-            request.headers.update(self.custom_headers)
+            request.headers.update(custom_headers)
 
-        self.client.meta.events.register("before-send.*", add_custom_headers)
+        client.meta.events.register("before-send.*", add_custom_headers)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -778,7 +781,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             )
             # Re-setup custom headers for the new client
             if self.custom_headers:
-                self._setup_custom_headers()
+                self._setup_custom_headers(self.client, self.custom_headers)
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
