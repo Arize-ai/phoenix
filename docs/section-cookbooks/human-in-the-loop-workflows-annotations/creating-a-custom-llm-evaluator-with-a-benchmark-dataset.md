@@ -13,7 +13,7 @@ In this tutorial, you’ll learn how to build a custom LLM-as-a-Judge Evaluator 
 
 So how can you achieve the same level of rigor when your use case falls outside the scope of standard evaluators?
 
-We’ll walk through how to create your own benchmark dataset using a small set of annotated examples. This dataset will allow you to build and refine a custom evaluator by revealing failure cases and guiding iteration.
+We’ll walk through how to create your own benchmark dataset using a small set of human annotated examples. This dataset will allow you to build and refine a custom evaluator by revealing failure cases and guiding iteration.
 
 The diagram below provides an overview of the process we will follow in this walkthrough.
 
