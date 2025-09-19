@@ -229,38 +229,43 @@ export function ExperimentCompareDetails({
       <Panel defaultSize={35}>
         <div
           css={css`
-            overflow: auto;
             height: 100%;
           `}
         >
-          <View overflow="hidden" padding="size-200">
-            <Flex direction="row" gap="size-200" flex="1 1 auto">
-              <View width="50%">
-                <Card
-                  title="Input"
-                  extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
-                >
-                  <View maxHeight="300px" overflow="auto">
-                    <JSONBlock value={JSON.stringify(input, null, 2)} />
-                  </View>
-                </Card>
-              </View>
-              <View width="50%">
-                <Card
-                  title="Reference Output"
-                  extra={
-                    <CopyToClipboardButton
-                      text={JSON.stringify(referenceOutput)}
-                    />
-                  }
-                >
-                  <View maxHeight="300px" overflow="auto">
-                    <JSONBlock
-                      value={JSON.stringify(referenceOutput, null, 2)}
-                    />
-                  </View>
-                </Card>
-              </View>
+          <View overflow="hidden" padding="size-200" height="100%">
+            <Flex direction="row" gap="size-200" flex="1 1 auto" height="100%">
+              <Card
+                title="Input"
+                extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
+                height="100%"
+                flex={1}
+                scrollBody={true}
+              >
+                <Flex height="100%">
+                  <JSONBlock
+                    value={JSON.stringify(input, null, 2)}
+                    height="100%"
+                  />
+                </Flex>
+              </Card>
+              <Card
+                title="Reference Output"
+                extra={
+                  <CopyToClipboardButton
+                    text={JSON.stringify(referenceOutput)}
+                  />
+                }
+                height="100%"
+                flex={1}
+                scrollBody={true}
+              >
+                <Flex height="100%">
+                  <JSONBlock
+                    value={JSON.stringify(referenceOutput, null, 2)}
+                    height="100%"
+                  />
+                </Flex>
+              </Card>
             </Flex>
           </View>
         </div>
@@ -272,7 +277,6 @@ export function ExperimentCompareDetails({
             overflow-y: auto;
             height: 100%;
             box-sizing: border-box;
-            padding: var(--ac-global-dimension-static-size-200);
           `}
         >
           <ExperimentRunOutputs
@@ -364,6 +368,7 @@ function ExperimentRunOutputs({
           flex-wrap: none;
           gap: var(--ac-global-dimension-static-size-200);
           overflow-x: auto;
+          padding: var(--ac-global-dimension-static-size-200);
         `}
       >
         {experimentIds.map((experimentId, experimentIndex) => {
@@ -446,6 +451,7 @@ function ExperimentRunOutputsSidebar({
         flex: none;
         font-size: var(--ac-global-dimension-static-font-size-100);
         color: var(--ac-global-color-grey-700);
+        padding: var(--ac-global-dimension-static-size-200);
       `}
     >
       <Flex direction="column" gap="size-200">
