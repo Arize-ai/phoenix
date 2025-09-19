@@ -1,7 +1,17 @@
-import { memo, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
+
+import { Field } from "@arizeai/components";
 
 import {
   Button,
@@ -26,6 +36,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -36,9 +47,14 @@ import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
+  httpHeadersJSONSchema,
+  httpHeadersSchema,
+} from "@phoenix/schemas/httpHeadersSchema";
+import {
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
@@ -411,6 +427,103 @@ function AwsModelConfigFormField({
   );
 }
 
+function CustomHeadersModelConfigFormField({
+  instance,
+  container: _container, // Required by interface but not used for this component
+}: {
+  instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const instanceProvider = instance.model.provider;
+
+  const [editorValue, setEditorValue] = useState(() => {
+    const currentHeaders = instance.model.customHeaders || {};
+    return Object.keys(currentHeaders).length === 0
+      ? ""
+      : JSON.stringify(currentHeaders, null, 2);
+  });
+
+  useEffect(() => {
+    const currentHeaders = instance.model.customHeaders || {};
+    const newEditorValue =
+      Object.keys(currentHeaders).length === 0
+        ? ""
+        : JSON.stringify(currentHeaders, null, 2);
+    setEditorValue(newEditorValue);
+  }, [instanceProvider]);
+
+  const onChange = useCallback(
+    (value: string) => {
+      setEditorValue(value);
+
+      if (value.trim() === "") {
+        updateModel({
+          instanceId: instance.id,
+          patch: { customHeaders: null },
+        });
+        return;
+      }
+
+      const { json: parsedValue } = safelyParseJSON(value);
+      if (parsedValue == null && value !== "") {
+        return; // Keep invalid JSON in editor without saving
+      }
+
+      const validation = httpHeadersSchema.safeParse(parsedValue);
+      if (validation.success) {
+        updateModel({
+          instanceId: instance.id,
+          patch: { customHeaders: validation.data },
+        });
+      }
+    },
+    [instance.id, updateModel]
+  );
+
+  return (
+    <div
+      css={css`
+        & .ac-view {
+          width: 100%;
+        }
+      `}
+    >
+      <Field
+        label={
+          <div
+            css={css`
+              display: flex;
+              align-items: center;
+              gap: var(--ac-global-dimension-size-75);
+            `}
+          >
+            <GenerativeProviderIcon
+              provider={instance.model.provider}
+              height={16}
+            />
+            <span>
+              Custom Headers for {ModelProviders[instance.model.provider]}
+            </span>
+          </div>
+        }
+        description="Custom HTTP headers to send with requests to the LLM provider"
+      >
+        <CodeWrap>
+          <JSONEditor
+            key={`custom-headers-${instance.model.provider}-${instance.id}`}
+            value={editorValue}
+            onChange={onChange}
+            jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+            optionalLint
+            placeholder={`{"X-Custom-Header": "custom-value"}`}
+          />
+        </CodeWrap>
+      </Field>
+    </div>
+  );
+}
+
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 
 function ModelConfigButton(props: ModelConfigButtonProps) {
@@ -640,6 +753,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
+
+      {instance.model.provider !== "GOOGLE" ? (
+        <CustomHeadersModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
+      ) : null}
+
       <div ref={setContainer} />
     </form>
   );

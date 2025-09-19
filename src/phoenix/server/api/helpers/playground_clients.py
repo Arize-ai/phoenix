@@ -57,6 +57,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 if TYPE_CHECKING:
     import httpx
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
+    from botocore.awsrequest import AWSPreparedRequest  # type: ignore[import-untyped]
     from google.generativeai.types import ContentType
     from openai import AsyncAzureOpenAI, AsyncOpenAI
     from openai.types import CompletionUsage
@@ -546,6 +547,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url or "https://api.deepseek.com",
+            default_headers=model.custom_headers or None,
         )
         super().__init__(client=client, model=model, credentials=credentials)
         # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
@@ -587,6 +589,7 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url or "https://api.x.ai/v1",
+            default_headers=model.custom_headers or None,
         )
         super().__init__(client=client, model=model, credentials=credentials)
         # xAI uses OpenAI-compatible API but we'll track it as a separate provider
@@ -624,7 +627,11 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         if not base_url:
             raise BadRequest("An Ollama base URL is required for Ollama models")
         api_key = "ollama"
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            default_headers=model.custom_headers or None,
+        )
         super().__init__(client=client, model=model, credentials=credentials)
         # Ollama uses OpenAI-compatible API but we'll track it as a separate provider
         # Adding a custom "ollama" provider value to make it distinguishable in traces
@@ -679,6 +686,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, credentials=credentials)
         self.region = model.region or "us-east-1"
         self.api = "converse"
+        self.custom_headers = model.custom_headers or {}
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
             "AWS_ACCESS_KEY_ID"
         )
@@ -697,8 +705,20 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             aws_session_token=self.aws_session_token,
         )
 
+        # Add custom headers support via boto3 event system
+        if self.custom_headers:
+            self._setup_custom_headers()
+
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
+
+    def _setup_custom_headers(self) -> None:
+        """Setup custom headers using boto3's event system."""
+
+        def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
+            request.headers.update(self.custom_headers)
+
+        self.client.meta.events.register("before-send.*", add_custom_headers)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -756,6 +776,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
             )
+            # Re-setup custom headers for the new client
+            if self.custom_headers:
+                self._setup_custom_headers()
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
@@ -1140,7 +1163,12 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
 
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=30)
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            default_headers=model.custom_headers or None,
+            timeout=30,
+        )
         super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
@@ -1295,6 +1323,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
                 api_key=api_key,
                 azure_endpoint=endpoint,
                 api_version=api_version,
+                default_headers=model.custom_headers or None,
             )
         else:
             try:
@@ -1312,6 +1341,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
                 ),
                 azure_endpoint=endpoint,
                 api_version=api_version,
+                default_headers=model.custom_headers or None,
             )
         super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
@@ -1459,7 +1489,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         if not api_key:
             raise BadRequest("An API key is required for Anthropic models")
 
-        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.client = anthropic.AsyncAnthropic(
+            api_key=api_key,
+            default_headers=model.custom_headers or None,
+        )
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
         self.client._client = _HttpxClient(self.client._client, self._attributes)

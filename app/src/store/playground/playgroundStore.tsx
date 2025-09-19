@@ -437,6 +437,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               apiVersion: null,
               endpoint: null,
               region: null,
+              customHeaders: null,
               provider,
             },
         toolChoice:
