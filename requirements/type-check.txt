@@ -4,6 +4,7 @@ grpcio
 litellm>=1.0.3
 openai>=1.0.0
 boto3
+mypy-boto3-bedrock-runtime
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-grpc

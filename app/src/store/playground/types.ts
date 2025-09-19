@@ -74,6 +74,10 @@ export type ModelConfig = {
    * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
    */
   region?: string | null;
+  /**
+   * Custom headers to be sent with requests to the LLM provider
+   */
+  customHeaders?: Record<string, string> | null;
   invocationParameters: InvocationParameterInput[];
   supportedInvocationParameters: InvocationParameter[];
 };

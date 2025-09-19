@@ -1,7 +1,18 @@
-import { memo, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
+
+import { Field } from "@arizeai/components";
 
 import {
   Button,
@@ -26,6 +37,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -35,6 +47,10 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  httpHeadersJSONSchema,
+  stringToHttpHeadersSchema,
+} from "@phoenix/schemas/httpHeadersSchema";
 import {
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
@@ -63,7 +79,6 @@ const modelConfigFormCSS = css`
   .ac-slider {
     width: 100%;
   }
-  // Makes the filled slider track blue
   .ac-slider-controls > .ac-slider-track:first-child::before {
     background: var(--ac-global-color-primary);
   }
@@ -411,6 +426,122 @@ function AwsModelConfigFormField({
   );
 }
 
+/**
+ * Format headers object for JSON editor with proper indentation and empty state handling
+ */
+const formatHeadersForEditor = (
+  headers: Record<string, string> | null | undefined
+): string => {
+  if (!headers) {
+    return "{\n  \n}";
+  }
+
+  const hasContent = Object.keys(headers).length > 0;
+  return hasContent ? JSON.stringify(headers, null, 2) : "{\n  \n}";
+};
+
+function CustomHeadersModelConfigFormField({
+  instance,
+  container: _container,
+}: {
+  instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const { provider, customHeaders } = instance.model;
+
+  const [editorValue, setEditorValue] = useState(() =>
+    formatHeadersForEditor(customHeaders)
+  );
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const isUserEditingRef = useRef(false);
+
+  // Reset user editing flag when provider changes
+  useEffect(() => {
+    isUserEditingRef.current = false;
+  }, [provider]);
+
+  // Reset editor only when provider changes or external updates (not user typing)
+  useEffect(() => {
+    // Don't reset editor while user is actively typing
+    if (isUserEditingRef.current) {
+      return;
+    }
+
+    const newValue = formatHeadersForEditor(customHeaders);
+    setEditorValue(newValue);
+    setErrorMessage(undefined);
+  }, [provider, customHeaders]);
+
+  const handleChange = useCallback(
+    (value: string) => {
+      isUserEditingRef.current = true;
+      setEditorValue(value);
+
+      const result = stringToHttpHeadersSchema.safeParse(value);
+      if (result.success) {
+        setErrorMessage(undefined);
+        updateModel({
+          instanceId: instance.id,
+          patch: { customHeaders: result.data },
+        });
+      } else {
+        const firstError = result.error.errors[0];
+        setErrorMessage(
+          firstError?.message ??
+            firstError?.path?.join(".") ??
+            "Invalid headers format"
+        );
+      }
+
+      // Allow external updates after a brief delay (regardless of validation result)
+      setTimeout(() => {
+        isUserEditingRef.current = false;
+      }, 100);
+    },
+    [instance.id, updateModel]
+  );
+
+  return (
+    <div css={fieldContainerCSS}>
+      <Field
+        label={
+          <div css={labelCSS}>
+            <GenerativeProviderIcon provider={provider} height={16} />
+            <span>Custom Headers for {ModelProviders[provider]}</span>
+          </div>
+        }
+        description="Custom HTTP headers to send with requests to the LLM provider"
+        errorMessage={errorMessage}
+        validationState={errorMessage ? "invalid" : undefined}
+      >
+        <CodeWrap>
+          <JSONEditor
+            key={`custom-headers-${provider}-${instance.id}`}
+            value={editorValue}
+            onChange={handleChange}
+            jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+            optionalLint
+            placeholder={`{"X-Custom-Header": "custom-value"}`}
+          />
+        </CodeWrap>
+      </Field>
+    </div>
+  );
+}
+
+const fieldContainerCSS = css`
+  & .ac-view {
+    width: 100%;
+  }
+`;
+
+const labelCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--ac-global-dimension-size-75);
+`;
+
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 
 function ModelConfigButton(props: ModelConfigButtonProps) {
@@ -640,6 +771,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
+
+      {instance.model.provider !== "GOOGLE" && (
+        <CustomHeadersModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
+      )}
+
       <div ref={setContainer} />
     </form>
   );

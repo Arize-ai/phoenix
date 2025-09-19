@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76fde2199b541df2fec45b82c19dccff>>
+ * @generated SignedSource<<553e94657e1ecb9e079e9485072939b3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,6 +36,7 @@ export type ChatCompletionMessageInput = {
 export type GenerativeModelInput = {
   apiVersion?: string | null;
   baseUrl?: string | null;
+  customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
