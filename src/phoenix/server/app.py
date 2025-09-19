@@ -85,6 +85,7 @@ from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -667,6 +668,7 @@ def create_graphql_router(
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
+                dataset_example_splits=DatasetExampleSplitsDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(

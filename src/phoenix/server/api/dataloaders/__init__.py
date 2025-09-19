@@ -9,6 +9,7 @@ from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataL
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
+from .dataset_example_splits import DatasetExampleSplitsDataLoader
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -69,6 +70,7 @@ __all__ = [
     "CacheForDataLoaders",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
+    "DatasetExampleSplitsDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",

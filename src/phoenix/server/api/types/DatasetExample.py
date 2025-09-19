@@ -11,6 +11,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -83,3 +84,13 @@ class DatasetExample(Node):
         async with info.context.db() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+    ) -> list[DatasetSplit]:
+        return [
+            to_gql_dataset_split(split)
+            for split in await info.context.data_loaders.dataset_example_splits.load(self.id_attr)
+        ]
