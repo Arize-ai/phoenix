@@ -174,6 +174,7 @@ export function ExperimentCompareDetails({
                 experiment: node {
                   id
                   name
+                  repetitions
                 }
               }
             }
