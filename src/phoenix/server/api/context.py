@@ -21,6 +21,7 @@ from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -89,6 +90,7 @@ class DataLoaders:
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
+    dataset_example_splits: DatasetExampleSplitsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
