@@ -87,7 +87,7 @@ As a user of Phoenix, datasets contain examples for a particular task. In the ca
 - Does the output match the desired output exactly (heuristic/code evaluator)
 - Does the output hallucinate or properly say that it lacks knowledge (LLM)
 
-These evaluators will always run when an experiment is performed using the dataset unless otherwise specified.
+These evaluators will run by default when an experiment is performed using the dataset unless otherwise specified.
 
 Metaphorically speaking, datasets now define a workbench. When you load a particular dataset into the prompt playground, it automatically sets up the evaluators, which form a metaphorical "unit" testing suite.
 
