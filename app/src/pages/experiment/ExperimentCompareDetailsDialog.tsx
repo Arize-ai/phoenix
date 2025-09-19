@@ -28,6 +28,7 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   ExperimentCompareDetailsDialogQuery,
@@ -479,7 +480,7 @@ function ExperimentRunOutputsSidebar({
                       shape="circle"
                     />
                   </span>
-                  {experiment.name}
+                  <LineClamp lines={2}>{experiment.name}</LineClamp>
                 </Flex>
               </label>
               {includeRepetitions && (
