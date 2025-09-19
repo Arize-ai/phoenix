@@ -44,17 +44,19 @@ import {
   ModelProviders,
 } from "@phoenix/constants/generativeConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   httpHeadersJSONSchema,
-  httpHeadersSchema,
+  stringToHttpHeadersSchema,
 } from "@phoenix/schemas/httpHeadersSchema";
 import {
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
@@ -79,7 +81,6 @@ const modelConfigFormCSS = css`
   .ac-slider {
     width: 100%;
   }
-  // Makes the filled slider track blue
   .ac-slider-controls > .ac-slider-track:first-child::before {
     background: var(--ac-global-color-primary);
   }
@@ -427,55 +428,84 @@ function AwsModelConfigFormField({
   );
 }
 
+const formatHeadersForEditor = (
+  headers: Record<string, string> | null | undefined
+): string => {
+  if (!headers || Object.keys(headers).length === 0) {
+    return "{\n  \n}";
+  }
+  return JSON.stringify(headers, null, 2);
+};
+
+// Check if two JSON strings represent the same headers (ignoring key order)
+const headersEqual = (json1: string, json2: string): boolean => {
+  try {
+    const obj1 = JSON.parse(json1);
+    const obj2 = JSON.parse(json2);
+    const keys1 = Object.keys(obj1).sort();
+    const keys2 = Object.keys(obj2).sort();
+
+    if (keys1.length !== keys2.length) return false;
+
+    for (let i = 0; i < keys1.length; i++) {
+      if (keys1[i] !== keys2[i] || obj1[keys1[i]] !== obj2[keys1[i]]) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 function CustomHeadersModelConfigFormField({
   instance,
-  container: _container, // Required by interface but not used for this component
+  container: _container,
 }: {
   instance: PlaygroundNormalizedInstance;
   container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const store = usePlaygroundStore();
   const instanceProvider = instance.model.provider;
 
-  const [editorValue, setEditorValue] = useState(() => {
-    const currentHeaders = instance.model.customHeaders || {};
-    return Object.keys(currentHeaders).length === 0
-      ? ""
-      : JSON.stringify(currentHeaders, null, 2);
-  });
+  const [editorValue, setEditorValue] = useState(() =>
+    formatHeadersForEditor(instance.model.customHeaders)
+  );
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
+  // Reset editor when provider changes
   useEffect(() => {
-    const currentHeaders = instance.model.customHeaders || {};
-    const newEditorValue =
-      Object.keys(currentHeaders).length === 0
-        ? ""
-        : JSON.stringify(currentHeaders, null, 2);
-    setEditorValue(newEditorValue);
-  }, [instanceProvider]);
+    const state = store.getState();
+    const currentInstance = state.instances.find((i) => i.id === instance.id);
+    if (currentInstance == null) {
+      return;
+    }
+    const newEditorValue = formatHeadersForEditor(
+      currentInstance.model.customHeaders
+    );
+
+    // Only update if the content is actually different (not just key order)
+    if (!headersEqual(editorValue, newEditorValue)) {
+      setEditorValue(newEditorValue);
+      setErrorMessage(undefined);
+    }
+  }, [instanceProvider, store, instance.id, editorValue]);
 
   const onChange = useCallback(
     (value: string) => {
       setEditorValue(value);
 
-      if (value.trim() === "") {
+      const { success, data, error } =
+        stringToHttpHeadersSchema.safeParse(value);
+      if (success) {
+        setErrorMessage(undefined);
         updateModel({
           instanceId: instance.id,
-          patch: { customHeaders: null },
+          patch: { customHeaders: data },
         });
-        return;
-      }
-
-      const { json: parsedValue } = safelyParseJSON(value);
-      if (parsedValue == null && value !== "") {
-        return; // Keep invalid JSON in editor without saving
-      }
-
-      const validation = httpHeadersSchema.safeParse(parsedValue);
-      if (validation.success) {
-        updateModel({
-          instanceId: instance.id,
-          patch: { customHeaders: validation.data },
-        });
+      } else {
+        setErrorMessage(error.errors[0]?.message || "Invalid headers format");
       }
     },
     [instance.id, updateModel]
@@ -508,6 +538,8 @@ function CustomHeadersModelConfigFormField({
           </div>
         }
         description="Custom HTTP headers to send with requests to the LLM provider"
+        errorMessage={errorMessage}
+        validationState={errorMessage ? "invalid" : undefined}
       >
         <CodeWrap>
           <JSONEditor
@@ -754,12 +786,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
 
-      {instance.model.provider !== "GOOGLE" ? (
+      {instance.model.provider !== "GOOGLE" && (
         <CustomHeadersModelConfigFormField
           instance={instance}
           container={container ?? null}
         />
-      ) : null}
+      )}
 
       <div ref={setContainer} />
     </form>
