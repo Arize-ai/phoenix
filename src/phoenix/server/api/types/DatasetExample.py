@@ -134,18 +134,11 @@ class DatasetExample(Node):
         ]
 
     @strawberry.field
-    async def dataset_splits(self, info: Info[Context, None]) -> list[DatasetSplit]:
-        stmt = (
-            select(models.DatasetSplit)
-            .join(
-                models.DatasetSplitDatasetExample,
-                onclause=(
-                    models.DatasetSplit.id == models.DatasetSplitDatasetExample.dataset_split_id
-                ),
-            )
-            .where(models.DatasetSplitDatasetExample.dataset_example_id == self.id_attr)
-            .order_by(models.DatasetSplit.name)
-        )
-        async with info.context.db() as session:
-            splits = await session.scalars(stmt)
-        return [to_gql_dataset_split(split) for split in splits]
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+    ) -> list[DatasetSplit]:
+        return [
+            to_gql_dataset_split(split)
+            for split in await info.context.data_loaders.dataset_example_splits.load(self.id_attr)
+        ]
