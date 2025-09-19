@@ -72,6 +72,12 @@ As a user of Phoenix, the prompts used for LLM judgement need to be tracked care
 
 For a prompt to be deemed sufficiently good for an evaluator, it should be testable via Phoenix's built-in prompt playground. Once the evaluator prompt is sufficiently benchmarked (e.g. has a sufficiently good experiment backing it's performance), the prompt will be promoted via a prompt version tag and will be picked up by the evaluator.
 
+An example user flow:
+
+1. Create an LLM Evaluator (Dataset or otherwise)
+2. A prompt is scaffolded and saved with the initial version. The evaluator is tracking "heads/latest" implicitly or a specific tag
+3. The user then iterates on the prompt and when sufficiently confident marks the prompt via a tag as ready to be used for the evaluator
+
 ### Dataset Evaluators
 
 As a user of Phoenix, datasets contain examples for a particular task. In the case of prompt engineering, the dataset contains examples of inputs to the prompt. Evaluators will serve as "test cases" that automatically score the prompt output. Examples are:
@@ -97,3 +103,9 @@ As a user, I am tapping into different types of "events" in the system and perfo
 
 - event: ingestion - A trace gets marked as "incorrect" by an evaluator.
 - trigger: add to dataset - the trace gets captured as a dataset for human review and / or regression testing
+
+### Evaluator Traces
+
+As a user of Phoenix that is trying to audit or improve the evaluators, I want a clear project that captures all my evaluator traces. These traces can be annotated for corrective measures and even be used for training on my next iteration on the prompt (e.g. building out a train split)
+
+In a larger sense, as a user of Phoenix Evaluators, I want resources. Resources can be scaffolded initially (e.g. a training dataset) but also can be created from evaluator traces (e.x. corrected judgements).
