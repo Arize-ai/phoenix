@@ -401,7 +401,7 @@ function ExperimentRunOutputs({
                 experiment={experiment}
                 experimentRun={run}
                 experimentIndex={experimentIndex}
-                repetitionCount={experimentRuns.length}
+                repetitionCount={experiment.repetitions}
               />
             </li>
           ));
