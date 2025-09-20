@@ -63,7 +63,7 @@ All OpenRouter model calls are automatically traced and include:
 * **API Key**: Use your OpenRouter API key, not OpenAI's
 * **Model Names**: Use exact model names from [OpenRouter's documentation](https://openrouter.ai/models)
 * **Rate Limits**: Check your [OpenRouter dashboard](https://openrouter.ai/keys) for usage limits
-* **Base URL**: Ensure you're using `https://openrouter.ai/api/v1` as the base UR\
+* **Base URL**: Ensure you're using `https://openrouter.ai/api/v1` as the base URL\
 
 
 ## Resources
