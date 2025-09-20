@@ -11,4 +11,4 @@ description: >-
 
 **Website**: [https://openrouter.ai/](https://openrouter.ai/)
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="image">Cover image</th></tr></thead><tbody><tr><td>OpenRouter Tracing</td><td><a href="https://storage.googleapis.com/arize-assets/gitbook_openrouter.png">https://storage.googleapis.com/arize-assets/gitbook_openrouter.png</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="image">Cover image</th></tr></thead><tbody><tr><td><a href="https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing">OpenRouter Tracing</a></td><td><a href="https://storage.googleapis.com/arize-assets/gitbook_openrouter.png">https://storage.googleapis.com/arize-assets/gitbook_openrouter.png</a></td></tr></tbody></table>
