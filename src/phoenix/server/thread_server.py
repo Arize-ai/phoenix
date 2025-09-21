@@ -3,10 +3,10 @@ import logging
 from collections.abc import Generator
 from threading import Thread
 from time import sleep, time
+from typing import Literal
 
 from fastapi import FastAPI
 from uvicorn import Config, Server
-from uvicorn.config import LoopSetupType
 
 
 def _nest_asyncio_applied() -> bool:
@@ -31,7 +31,7 @@ class ThreadServer(Server):
     ) -> None:
         # Must use asyncio loop if nest_asyncio is applied
         # Otherwise the app crashes when the server is run in a thread
-        loop: LoopSetupType = "asyncio" if _nest_asyncio_applied() else "auto"
+        loop: Literal["asyncio", "auto"] = "asyncio" if _nest_asyncio_applied() else "auto"
         config = Config(
             app=app,
             host=host,
