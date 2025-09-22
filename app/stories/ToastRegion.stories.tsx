@@ -1,6 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
-import { Button, Flex, ToastRegion } from "@phoenix/components";
 import { ComponentProps } from "react";
+import { Meta, StoryFn } from "@storybook/react";
+
+import { Button, Flex, ToastRegion } from "@phoenix/components";
 import {
   NotificationProvider,
   useNotify,
@@ -94,7 +95,7 @@ const TriggerToasts = () => {
   );
 };
 
-export const Template: StoryFn<ComponentProps<typeof ToastRegion>> = (args) => (
+export const Template: StoryFn<ComponentProps<typeof ToastRegion>> = () => (
   <NotificationProvider>
     <TriggerToasts />
   </NotificationProvider>
