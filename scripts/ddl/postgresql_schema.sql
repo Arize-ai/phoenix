@@ -28,11 +28,10 @@ CREATE TABLE public.dataset_splits (
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_dataset_splits PRIMARY KEY (id)
+    CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_splits_name
+        UNIQUE (name)
 );
-
-CREATE UNIQUE INDEX ix_dataset_splits_name ON public.dataset_splits
-    USING btree (name);
 
 
 -- Table: datasets
@@ -412,11 +411,6 @@ CREATE TABLE public.dataset_splits_dataset_examples (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_dataset_splits_dataset_examples_dataset_example_id ON public.dataset_splits_dataset_examples
-    USING btree (dataset_example_id);
-CREATE INDEX ix_dataset_splits_dataset_examples_dataset_split_id ON public.dataset_splits_dataset_examples
-    USING btree (dataset_split_id);
-
 
 -- Table: span_costs
 -- -----------------
@@ -676,33 +670,6 @@ CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 
 
--- Table: experiment_dataset_splits
--- --------------------------------
-CREATE TABLE public.experiment_dataset_splits (
-    id bigserial NOT NULL,
-    experiment_id BIGINT NOT NULL,
-    dataset_split_id BIGINT NOT NULL,
-    CONSTRAINT pk_experiment_dataset_splits PRIMARY KEY (id),
-    CONSTRAINT uq_experiment_dataset_splits_experiment_id_dataset_split_id
-        UNIQUE (experiment_id, dataset_split_id),
-    CONSTRAINT fk_experiment_dataset_splits_dataset_split_id_dataset_splits
-        FOREIGN KEY
-        (dataset_split_id)
-        REFERENCES public.dataset_splits (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_experiment_dataset_splits_experiment_id_experiments
-        FOREIGN KEY
-        (experiment_id)
-        REFERENCES public.experiments (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_experiment_dataset_splits_dataset_split_id ON public.experiment_dataset_splits
-    USING btree (dataset_split_id);
-CREATE INDEX ix_experiment_dataset_splits_experiment_id ON public.experiment_dataset_splits
-    USING btree (experiment_id);
-
-
 -- Table: experiment_runs
 -- ----------------------
 CREATE TABLE public.experiment_runs (
@@ -796,6 +763,28 @@ CREATE INDEX ix_experiment_tags_experiment_id ON public.experiment_tags
     USING btree (experiment_id);
 CREATE INDEX ix_experiment_tags_user_id ON public.experiment_tags
     USING btree (user_id);
+
+
+-- Table: experiments_dataset_splits
+-- ---------------------------------
+CREATE TABLE public.experiments_dataset_splits (
+    id bigserial NOT NULL,
+    experiment_id BIGINT NOT NULL,
+    dataset_split_id BIGINT NOT NULL,
+    CONSTRAINT pk_experiments_dataset_splits PRIMARY KEY (id),
+    CONSTRAINT uq_experiments_dataset_splits_experiment_id_dataset_split_id
+        UNIQUE (experiment_id, dataset_split_id),
+    CONSTRAINT fk_experiments_dataset_splits_dataset_split_id_dataset_splits
+        FOREIGN KEY
+        (dataset_split_id)
+        REFERENCES public.dataset_splits (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_experiments_dataset_splits_experiment_id_experiments
+        FOREIGN KEY
+        (experiment_id)
+        REFERENCES public.experiments (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: password_reset_tokens

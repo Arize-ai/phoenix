@@ -56,7 +56,7 @@ def upgrade() -> None:
     op.create_table(
         "dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True, index=True),
+        sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("color", sa.String, nullable=True),
         sa.Column("metadata", JSON_, nullable=False),
@@ -84,14 +84,12 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column(
             "dataset_example_id",
             _Integer,
             sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.UniqueConstraint(
             "dataset_split_id",
@@ -105,21 +103,19 @@ def upgrade() -> None:
     # examples belong to a experiment.
 
     op.create_table(
-        "experiment_dataset_splits",
+        "experiments_dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "experiment_id",
             _Integer,
             sa.ForeignKey("experiments.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column(
             "dataset_split_id",
             _Integer,
             sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.UniqueConstraint(
             "experiment_id",
