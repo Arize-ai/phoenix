@@ -1288,3 +1288,105 @@ class TestEvaluateDataframe:
         exec_details = result_df["async_test_eval_execution_details"].tolist()
         assert len(exec_details) == 3, f"Expected 3 execution details, got {len(exec_details)}"
         assert all(detail is not None for detail in exec_details), "Some execution details are None"
+
+    def test_evaluate_dataframe_with_failures(self):
+        """Test evaluate_dataframe handles evaluation failures gracefully without crashing."""
+
+        class FailingEvaluator(Evaluator):
+            def __init__(self, name="failing_eval", fail_on_text=None):
+                from pydantic import create_model
+
+                InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                self.fail_on_text = fail_on_text
+
+            def _evaluate(self, eval_input):
+                text = eval_input["text"]
+                if self.fail_on_text and self.fail_on_text in text:
+                    raise ValueError(f"Intentional failure for text: {text}")
+                return [Score(name=self.name, score=0.8, explanation=f"Success: {text}")]
+
+        evaluator = FailingEvaluator(fail_on_text="FAIL")
+        df = pd.DataFrame(
+            {"text": ["Success text", "FAIL this one"], "reference": ["Ref1", "Ref2"]},
+            index=[1, 2],
+        )
+
+        # Should not crash even with failures
+        result_df = evaluate_dataframe(df, [evaluator], exit_on_error=False, max_retries=0)
+
+        # Verify structure is preserved
+        assert list(result_df.index) == [1, 2]
+        assert "failing_eval_score" in result_df.columns
+        assert "failing_eval_execution_details" in result_df.columns
+
+        # Check scores: success should have score, failure should be None
+        scores = result_df["failing_eval_score"].tolist()
+        assert scores[0] is not None  # Success
+        assert scores[1] is None  # Failure
+
+        # Check execution details: failure should have FAILED status
+        import json
+
+        exec_details = [
+            json.loads(detail) for detail in result_df["failing_eval_execution_details"]
+        ]
+        assert exec_details[0]["status"] == "COMPLETED"
+        assert exec_details[1]["status"] == "FAILED"
+        assert len(exec_details[1]["exceptions"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_async_evaluate_dataframe_with_failures(self):
+        """Test async_evaluate_dataframe handles evaluation failures gracefully without crashing."""
+        from phoenix.evals.evaluators import async_evaluate_dataframe
+
+        class AsyncFailingEvaluator(Evaluator):
+            def __init__(self, name="async_failing_eval", fail_on_text=None):
+                from pydantic import create_model
+
+                InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                self.fail_on_text = fail_on_text
+
+            def _evaluate(self, eval_input):
+                text = eval_input["text"]
+                if self.fail_on_text and self.fail_on_text in text:
+                    raise ValueError(f"Async intentional failure for text: {text}")
+                return [Score(name=self.name, score=0.9, explanation=f"Async success: {text}")]
+
+            async def async_evaluate(self, eval_input):
+                text = eval_input["text"]
+                if self.fail_on_text and self.fail_on_text in text:
+                    raise ValueError(f"Async intentional failure for text: {text}")
+                return [Score(name=self.name, score=0.9, explanation=f"Async success: {text}")]
+
+        evaluator = AsyncFailingEvaluator(fail_on_text="ASYNC_FAIL")
+        df = pd.DataFrame(
+            {"text": ["Async success", "ASYNC_FAIL this"], "reference": ["Ref1", "Ref2"]},
+            index=[10, 20],
+        )
+
+        # Should not crash even with failures
+        result_df = await async_evaluate_dataframe(
+            df, [evaluator], exit_on_error=False, max_retries=0
+        )
+
+        # Verify structure is preserved
+        assert list(result_df.index) == [10, 20]
+        assert "async_failing_eval_score" in result_df.columns
+        assert "async_failing_eval_execution_details" in result_df.columns
+
+        # Check scores: success should have score, failure should be None
+        scores = result_df["async_failing_eval_score"].tolist()
+        assert scores[0] is not None  # Success
+        assert scores[1] is None  # Failure
+
+        # Check execution details: failure should have FAILED status
+        import json
+
+        exec_details = [
+            json.loads(detail) for detail in result_df["async_failing_eval_execution_details"]
+        ]
+        assert exec_details[0]["status"] == "COMPLETED"
+        assert exec_details[1]["status"] == "FAILED"
+        assert len(exec_details[1]["exceptions"]) > 0
