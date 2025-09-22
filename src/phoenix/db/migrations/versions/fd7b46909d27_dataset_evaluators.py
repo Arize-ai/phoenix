@@ -62,7 +62,7 @@ def upgrade() -> None:
             "evaluator_id",
             sa.Integer,
             sa.ForeignKey("evaluators.id"),
-            ondelete="RESTRICT",
+            ondelete="CASCADE",
             nullable=False,
         ),
         sa.Column("name", sa.String, nullable=False),
@@ -83,13 +83,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
             onupdate=sa.func.now(),
-        ),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
         ),
         # Force uniqueness of name on a given dataset
         sa.UniqueConstraint("name", "dataset_id"),
