@@ -125,6 +125,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("experiment_dataset_splits")
+    op.drop_table("experiments_dataset_splits")
     op.drop_table("dataset_splits_dataset_examples")
     op.drop_table("dataset_splits")
