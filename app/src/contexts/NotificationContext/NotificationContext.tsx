@@ -8,6 +8,11 @@ type NotificationContext = {
   queue: ToastQueue<NotificationParams>;
 };
 
+/**
+ * Default duration in milliseconds before toasts expire by default.
+ */
+const DEFAULT_EXPIRY = 5_000;
+
 const NotificationContext = createContext<NotificationContext | null>(null);
 
 type NotificationVariant = "success" | "error";
@@ -79,8 +84,12 @@ export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
    * A good rule of thumb is to allow 5000ms to pass before dismissing the notification.
    * If the toast is hovered or focused, the toast will not be dismissed, and the timer will restart
    * when focus/hover is lost.
+   *
+   * Pass null to unset the expiration timer.
+   *
+   * @default 5000 - 5 seconds
    */
-  expireMs?: number;
+  expireMs?: number | null;
 };
 
 export const useNotificationQueue = () => {
@@ -103,7 +112,10 @@ export const useNotificationQueue = () => {
 export const useNotify = () => {
   const queue = useNotificationQueue();
   return ({ expireMs, ...params }: NotificationHookParams) =>
-    queue.add({ ...params }, { timeout: expireMs });
+    queue.add(
+      { ...params },
+      expireMs === null ? undefined : { timeout: expireMs }
+    );
 };
 
 /**
@@ -123,14 +135,14 @@ export const useNotify = () => {
  */
 export const useNotifySuccess = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs, ...params }: NotificationHookParams) =>
+  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
     queue.add(
       {
         ...params,
         variant: "success",
         icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
       },
-      { timeout: expireMs }
+      expireMs === null ? undefined : { timeout: expireMs }
     );
 };
 
@@ -158,6 +170,6 @@ export const useNotifyError = () => {
         variant: "error",
         icon: <Icon svg={<Icons.AlertCircleFilled />} />,
       },
-      { timeout: expireMs }
+      expireMs === null ? undefined : { timeout: expireMs }
     );
 };
