@@ -14,7 +14,7 @@ type NotificationVariant = "success" | "error";
 
 export type NotificationParams = {
   title: string;
-  message: string;
+  message?: string;
   icon?: React.ReactNode;
   variant?: NotificationVariant;
   /**
@@ -72,6 +72,13 @@ export const NotificationProvider = ({
 };
 
 export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
+  /**
+   * Duration in milliseconds before the notification expires.
+   *
+   * A good rule of thumb is to allow 5000ms to pass before dismissing the notification.
+   * If the toast is hovered or focused, the toast will not be dismissed, and the timer will restart
+   * when focus/hover is lost.
+   */
   expireMs?: number;
 };
 

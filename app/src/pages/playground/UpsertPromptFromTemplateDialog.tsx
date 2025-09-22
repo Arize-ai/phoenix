@@ -133,6 +133,7 @@ export const UpsertPromptFromTemplateDialog = ({
                 navigate(`/prompts/${response.createChatPrompt.id}`);
               },
             },
+            expireMs: 5000,
           });
           onSuccess(
             response.createChatPrompt.id,
@@ -182,6 +183,7 @@ export const UpsertPromptFromTemplateDialog = ({
         onCompleted: (response) => {
           notifySuccess({
             title: `Prompt successfully updated`,
+            expireMs: 5000,
             action: {
               text: "View Prompt",
               onClick: () => {
