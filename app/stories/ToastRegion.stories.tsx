@@ -37,7 +37,7 @@ const TriggerToasts = () => {
         Default Toast
       </Button>
       <Button
-        onClick={() =>
+        onPress={() =>
           notifySuccess({
             title: "Success Toast",
             message: "This is a success toast message.",
@@ -47,7 +47,7 @@ const TriggerToasts = () => {
         Success Toast
       </Button>
       <Button
-        onClick={() =>
+        onPress={() =>
           notifyError({
             title: "Error Toast",
             message: "This is an error toast message.",
@@ -57,7 +57,7 @@ const TriggerToasts = () => {
         Error Toast
       </Button>
       <Button
-        onClick={() =>
+        onPress={() =>
           notifySuccess({
             title: "Expiring Toast",
             message: "This toast will expire soon.",
@@ -68,7 +68,7 @@ const TriggerToasts = () => {
         Expiring Toast
       </Button>
       <Button
-        onClick={() =>
+        onPress={() =>
           notifySuccess({
             title: "Action Toast",
             message:
