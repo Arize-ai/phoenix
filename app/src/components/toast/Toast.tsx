@@ -24,18 +24,22 @@ export const ToastRegion = <Q extends AriaToastQueue<NotificationParams>>({
       className="react-aria-ToastRegion"
     >
       {({ toast }) => {
-        return <Toast toast={toast} />;
+        return <Toast toast={toast} queue={queue} />;
       }}
     </AriaToastRegion>
   );
 };
 
-export const Toast = <T extends QueuedToast<NotificationParams>>({
+export const Toast = <
+  T extends QueuedToast<NotificationParams>,
+  Q extends AriaToastQueue<NotificationParams>,
+>({
   toast,
+  queue,
 }: {
   toast: T;
+  queue?: Q;
 }) => {
-  const queue = useNotificationQueue();
   return (
     <AriaToast
       toast={toast}
@@ -81,7 +85,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
                   // close on click by default
                   const closeOnClick = action.closeOnClick ?? true;
                   const close = () => {
-                    queue.close(toast.key);
+                    queue?.close(toast.key);
                   };
                   // pass close callback to action for manual close ability
                   action.onClick(close);

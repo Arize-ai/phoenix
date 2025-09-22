@@ -98,6 +98,11 @@ export const toastCss = css`
 
     &[data-focus-visible] {
       border: 1px solid var(--ac-global-input-field-border-color-active);
+      background: var(--toast-background-color);
+    }
+
+    &[data-hovered] {
+      background: var(--toast-background-color);
     }
 
     &[data-pressed] {

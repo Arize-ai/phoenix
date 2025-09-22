@@ -3,6 +3,7 @@ import { Button, Flex, ToastRegion } from "@phoenix/components";
 import { ComponentProps } from "react";
 import {
   NotificationProvider,
+  useNotify,
   useNotifyError,
   useNotifySuccess,
 } from "@phoenix/contexts";
@@ -21,10 +22,20 @@ const meta: Meta = {
 export default meta;
 
 const TriggerToasts = () => {
+  const notify = useNotify();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   return (
     <Flex direction="column" gap="size-100">
+      <Button
+        onPress={() => {
+          notify({
+            title: "Default Toast",
+          });
+        }}
+      >
+        Default Toast
+      </Button>
       <Button
         onClick={() =>
           notifySuccess({
