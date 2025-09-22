@@ -736,7 +736,7 @@ def evaluate_dataframe(
     task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
 
     # Pre-allocate columns for efficient assignment
-    score_lists: Dict[str, List[Optional[str]]] = {}
+    score_dicts: Dict[str, Dict[Any, Optional[str]]] = {}
     for evaluator in evaluators:
         evaluator_name = evaluator.name
         execution_details_col = f"{evaluator_name}_execution_details"
@@ -773,7 +773,10 @@ def evaluate_dataframe(
         # Process and add execution details to dataframe
         details = execution_details[i]
         execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
+        # Use positional assignment rather than index assignment
+        result_df.iloc[eval_input_index, result_df.columns.get_loc(execution_details_col)] = (
+            _process_execution_details(details)
+        )
 
         # Process scores
         if results is None:
@@ -782,16 +785,18 @@ def evaluate_dataframe(
         if scores is None:
             continue
         for score in scores:
-            if not score.name:  # this shouldn't happen
-                score_col = f"{evaluators[evaluator_index].name}_{i}"
-            else:
-                score_col = f"{score.name}_score"
-            if score_col not in score_lists:
-                score_lists[score_col] = [None] * len(dataframe)
-            score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
+            if not score.name:
+                raise ValueError(f"Score has no name: {score}")
+            score_col = f"{score.name}_score"
+            if score_col not in score_dicts:
+                score_dicts[score_col] = {}
+            # Use positional assignment to handle duplicate indices correctly
+            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
 
     # Add scores to dataframe
-    for score_col, score_list in score_lists.items():
+    for score_col, score_dict in score_dicts.items():
+        # Convert dictionary to list using positional indices
+        score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
         result_df[score_col] = score_list
 
     return result_df
