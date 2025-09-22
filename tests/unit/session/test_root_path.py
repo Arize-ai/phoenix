@@ -6,7 +6,7 @@ import pytest
 from phoenix.session.session import ThreadSession, launch_app
 
 
-def test_session_stores_root_path_exactly_as_provided():
+def test_session_stores_root_path_exactly_as_provided() -> None:
     test_root_paths = ["/proxy/6006", "proxy/6006", "/proxy/6006/", "", "/"]
 
     for root_path in test_root_paths:
@@ -16,7 +16,7 @@ def test_session_stores_root_path_exactly_as_provided():
             assert session.root_path == root_path
 
 
-def test_empty_string_root_path_preserved():
+def test_empty_string_root_path_preserved() -> None:
     """Test that empty string root_path is preserved, not treated as falsy."""
     with (
         patch("phoenix.session.session.Client"),
@@ -31,7 +31,7 @@ def test_empty_string_root_path_preserved():
         assert session.root_path == ""
 
 
-def test_launch_app_accepts_root_path_parameter():
+def test_launch_app_accepts_root_path_parameter() -> None:
     signature = inspect.signature(launch_app)
     assert "root_path" in signature.parameters
     assert signature.parameters["root_path"].default is None
@@ -48,7 +48,7 @@ def test_launch_app_accepts_root_path_parameter():
 )
 def test_launch_app_root_path_parameter_flow(
     monkeypatch: pytest.MonkeyPatch, root_path: str, env_var: str
-):
+) -> None:
     if env_var:
         monkeypatch.setenv("PHOENIX_HOST_ROOT_PATH", env_var)
     else:
@@ -69,7 +69,7 @@ def test_launch_app_root_path_parameter_flow(
         assert session is not None
 
 
-def test_cli_parameter_overrides_environment_variable(monkeypatch: pytest.MonkeyPatch):
+def test_cli_parameter_overrides_environment_variable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_HOST_ROOT_PATH", "/env/path")
 
     with (
