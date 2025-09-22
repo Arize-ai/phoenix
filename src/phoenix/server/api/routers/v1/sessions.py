@@ -69,7 +69,7 @@ async def annotate_sessions(
         )
     precursors = [d.as_precursor(user_id=user_id) for d in filtered_session_annotations]
     if not sync:
-        await request.state.enqueue(*precursors)
+        await request.state.enqueue_annotations(*precursors)
         return AnnotateSessionsResponseBody(data=[])
 
     session_ids = {p.session_id for p in precursors}
