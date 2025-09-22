@@ -579,7 +579,7 @@ function ExperimentItem({
         </Flex>
       </View>
       {!hasExperimentResult ? (
-        <Empty message="No Run" />
+        <Empty message="No Runs" />
       ) : (
         <>
           <div
@@ -632,13 +632,16 @@ function ExperimentItem({
   );
 }
 
+/**
+ * Wrapper to make JSONBlock fill available vertical and horizontal space in this dialog
+ */
 function FullSizeJSONBlock({ value }: { value: string }) {
   return (
     <div
       css={css`
         height: 100%;
         width: 100%;
-        & .cm-theme,
+        & .cm-theme, // CodeMirror wrapper component
         & .cm-editor {
           height: 100%;
           width: 100%;
