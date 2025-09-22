@@ -99,7 +99,11 @@ def upgrade() -> None:
         ),
     )
 
-    # Create experiments_dataset_splits table
+    # Create experiments_dataset_splits table The rational of this table is to
+    # gather examples for a specific dataset split for a specific experiment.
+    # Select all dataset examples where examples belong to a dataset split and
+    # examples belong to a experiment.
+
     op.create_table(
         "experiment_dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
