@@ -32,6 +32,7 @@ class Mutation(
     ApiKeyMutationMixin,
     ChatCompletionMutationMixin,
     DatasetMutationMixin,
+    DatasetSplitMutationMixin,
     ExperimentMutationMixin,
     ExportEventsMutationMixin,
     ModelMutationMixin,
@@ -45,6 +46,5 @@ class Mutation(
     TraceAnnotationMutationMixin,
     TraceMutationMixin,
     UserMutationMixin,
-    DatasetSplitMutationMixin,
 ):
     pass
