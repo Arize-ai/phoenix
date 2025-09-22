@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from uvicorn import Config, Server
 
 try:
-    from uvicorn.config import LoopSetupType
+    from uvicorn.config import LoopSetupType  # type: ignore[attr-defined]
 except ImportError:
     # LoopSetupType was removed in uvicorn 0.36.0
     LoopSetupType = Literal["none", "auto", "asyncio", "uvloop"]
