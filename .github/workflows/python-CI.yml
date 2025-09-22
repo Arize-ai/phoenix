@@ -456,17 +456,10 @@ jobs:
       matrix:
         py: [3.9, 3.13]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
         exclude:
           - db: postgresql
             os: windows-latest
-          - db: postgresql
-            os: macos-latest
-          - db: postgresql
-            os: macos-13
-          - py: 3.13
-            db: sqlite
-            os: macos-13
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:

@@ -26,7 +26,7 @@ Upload a dataset.
 {% tab title="Python" %}
 ```python
 import pandas as pd
-import phoenix as px
+from phoenix.client import Client
 
 df = pd.DataFrame(
     [
@@ -37,10 +37,10 @@ df = pd.DataFrame(
         }
     ]
 )
-phoenix_client = px.Client()
-dataset = phoenix_client.upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=df,
-    dataset_name="test-dataset",
+    name="test-dataset",
     input_keys=["question"],
     output_keys=["answer"],
     metadata_keys=["metadata"],
@@ -380,7 +380,7 @@ Run an experiment and evaluate the results.
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
     dataset,
@@ -414,7 +414,7 @@ Run more evaluators after the fact.
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.experiments import evaluate_experiment
+from phoenix.client.experiments import evaluate_experiment
 
 experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
 ```

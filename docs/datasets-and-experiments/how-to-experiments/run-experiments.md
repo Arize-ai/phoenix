@@ -59,13 +59,14 @@ The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `outpu
 **Upload dataset to Phoenix**
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=df,
     input_keys=["question"],
     output_keys=[],
-    dataset_name="nba-questions",
+    name="nba-questions",
 )
 ```
 
@@ -188,7 +189,7 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(dataset, task=task, evaluators=[no_error, has_results])
 ```
@@ -198,7 +199,7 @@ experiment = run_experiment(dataset, task=task, evaluators=[no_error, has_result
 #### If you want to attach more evaluations to the same experiment after the fact, you can do so with `evaluate_experiment`.
 
 ```python
-from phoenix.experiments import evaluate_experiment
+from phoenix.client.experiments import evaluate_experiment
 
 evaluators = [
     # add evaluators here
@@ -209,11 +210,12 @@ experiment = evaluate_experiment(experiment, evaluators)
 If you no longer have access to the original `experiment` object, you can retrieve it from Phoenix using the `get_experiment` client method.
 
 ```python
-from phoenix.experiments import evaluate_experiment
-import phoenix as px
+from phoenix.client.experiments import evaluate_experiment
+from phoenix.client import Client
 
 experiment_id = "experiment-id" # set your experiment ID here
-experiment = px.Client().get_experiment(experiment_id=experiment_id)
+px_client = Client()
+experiment = px_client.get_experiment(experiment_id=experiment_id)
 evaluators = [
     # add evaluators here
 ]

@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.29.0"
+version = "2.0.1"
 dependencies = [
   "pandas",
   "tqdm",
@@ -114,6 +114,7 @@ line-ending = "native"
 [tool.mypy]
 explicit_package_bases = true
 strict = true
+namespace_packages = true
 exclude = [
   "dist/",
   "tests/",
@@ -126,6 +127,7 @@ module = [
   "langchain_anthropic",
   "mistralai",
   "mistralai.*",
+  "opentelemetry.*",
 ]
 ignore_missing_imports = true
 

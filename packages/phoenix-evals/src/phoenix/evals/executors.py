@@ -25,7 +25,7 @@ from typing import (
 from tqdm.auto import tqdm  # pyright: ignore[reportMissingTypeStubs]
 
 from phoenix.evals.exceptions import PhoenixException
-from phoenix.evals.models.rate_limiters import RateLimitError
+from phoenix.evals.rate_limiters import RateLimitError
 
 logger = logging.getLogger(__name__)
 

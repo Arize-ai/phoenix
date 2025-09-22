@@ -1,5 +1,23 @@
 # Changelog
 
+## [11.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.34.0...arize-phoenix-v11.35.0) (2025-09-22)
+
+
+### Features
+
+* **helm:** add IPv6 support ([#9482](https://github.com/Arize-ai/phoenix/issues/9482)) ([a9b590c](https://github.com/Arize-ai/phoenix/commit/a9b590ccd7886d7e64031faa54225d3fbd9f372e))
+* **helm:** allow image registry configuration ([#9485](https://github.com/Arize-ai/phoenix/issues/9485)) ([da7778e](https://github.com/Arize-ai/phoenix/commit/da7778ed80b7527ab3d9540fc7732ad740c8dc6c))
+
+
+### Bug Fixes
+
+* **helm:** make SQLite support work ([#9483](https://github.com/Arize-ai/phoenix/issues/9483)) ([198005f](https://github.com/Arize-ai/phoenix/commit/198005ff9ba8f8531a05217c25e01f7290859b57))
+* improper sqlite sqlalchemy URL ([#9536](https://github.com/Arize-ai/phoenix/issues/9536)) ([73dc015](https://github.com/Arize-ai/phoenix/commit/73dc0155f138cc568e1373dc3834243571271490))
+* nix llama-index extra ([#9561](https://github.com/Arize-ai/phoenix/issues/9561)) ([de185da](https://github.com/Arize-ai/phoenix/commit/de185da72f825b05857666221f4229670316a0b8))
+* update llama-index pin ([#9465](https://github.com/Arize-ai/phoenix/issues/9465)) ([8896883](https://github.com/Arize-ai/phoenix/commit/8896883bf43811d5f17a1210f478d4a8ecb6b820))
+* Update Phoenix evals requirement to 2.0 ([#9537](https://github.com/Arize-ai/phoenix/issues/9537)) ([4f700a1](https://github.com/Arize-ai/phoenix/commit/4f700a110e161da38552d9706850262bf19e0f1d))
+* uvicorn type import ([#9571](https://github.com/Arize-ai/phoenix/issues/9571)) ([44a39e7](https://github.com/Arize-ai/phoenix/commit/44a39e7a3c36c486c91ca28037ea2a9041cc80ab))
+
 ## [11.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.33.0...arize-phoenix-v11.34.0) (2025-09-16)
 
 

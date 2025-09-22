@@ -37,7 +37,7 @@ class ThreadServer(Server):
     ) -> None:
         # Must use asyncio loop if nest_asyncio is applied
         # Otherwise the app crashes when the server is run in a thread
-        loop: LoopSetupType = "asyncio" if _nest_asyncio_applied() else "auto"
+        loop = "asyncio" if _nest_asyncio_applied() else "auto"
         config = Config(
             app=app,
             host=host,

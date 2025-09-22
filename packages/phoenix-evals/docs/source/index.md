@@ -2,94 +2,102 @@
 
 Welcome to the Phoenix Evals Reference documentation. This package provides evaluation tools and utilities for LLM applications, including tools to determine relevance, toxicity, hallucination detection, and much more.
 
+## Features
+
+Phoenix Evals provides **lightweight, composable building blocks** for writing and running evaluations:
+
+- **Works with your preferred model SDKs** via adapters (OpenAI, LiteLLM, LangChain)
+- **Powerful input mapping and binding** for working with complex data structures
+- **Several pre-built metrics** for common evaluation tasks like hallucination detection
+- **Evaluators are natively instrumented** via OpenTelemetry tracing for observability and dataset curation
+- **Blazing fast performance** - achieve up to 20x speedup with built-in concurrency and batching
+- **Tons of convenience features** to improve the developer experience!
+
 ## Installation
 
 Install the Phoenix Evals package using pip:
 
 ```bash
-pip install arize-phoenix-evals
+pip install 'arize-phoenix-evals>=2.0.0' openai
 ```
 
 ## Quick Start
 
 ```python
-import os
-from phoenix.evals import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    OpenAIModel,
-    llm_classify,
+from phoenix.evals import create_classifier
+from phoenix.evals.llm import LLM
+
+# Create an LLM instance
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Create an evaluator
+evaluator = create_classifier(
+    name="helpfulness",
+    prompt_template="Rate the response to the user query as helpful or not:\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"helpful": 1.0, "not_helpful": 0.0},
 )
 
-# Set your API key
-os.environ["OPENAI_API_KEY"] = "your-openai-key"
+# Simple evaluation
+scores = evaluator.evaluate({"input": "How do I reset?", "output": "Go to settings > reset."})
+scores[0].pretty_print()
 
-# Create a model
-model = OpenAIModel(model="gpt-4", temperature=0.0)
-
-# Prepare your dataset
-import pandas as pd
-
-df = pd.DataFrame([
-    {
-        "reference": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
-        "query": "Where is the Eiffel Tower located?",
-        "response": "The Eiffel Tower is located in Paris, France.",
-    },
-    {
-        "reference": "The Great Wall of China is over 13,000 miles long. It was built over many centuries by various Chinese dynasties to protect against nomadic invasions.",
-        "query": "How long is the Great Wall of China?",
-        "response": "The Great Wall of China is approximately 13,171 miles (21,196 kilometers) long.",
-    },
-    {
-        "reference": "The Amazon rainforest is the largest tropical rainforest in the world. It covers much of northwestern Brazil and extends into Colombia, Peru and other South American countries.",
-        "query": "What is the largest tropical rainforest?",
-        "response": "The Amazon rainforest is the largest tropical rainforest in the world. It is home to the largest number of plant and animal species in the world.",
-    },
-])
-
-# Evaluate your data
-rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-results = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, rails)
+# With input mapping for nested data
+scores = evaluator.evaluate(
+    {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
+    input_mapping={"input": "data.query", "output": "data.response"}
+)
+scores[0].pretty_print()
 ```
 
 ## Core Functions
+
 The main evaluation functions that power the package:
-- **`llm_classify`**: Classify data using LLM-based evaluation
-- **`llm_generate`**: Generate synthetic data or prompt an LLM over a dataframe of variables
-- **`run_evals`**: Run evaluation suites
+
+- **`create_classifier`**: Create LLM-based classification evaluators
+- **`create_evaluator`**: Create custom evaluators from functions
+- **`bind_evaluator`**: Bind evaluators with input mappings
+- **`evaluate_dataframe`**: Evaluate dataframes with multiple evaluators
+- **Legacy functions**: `llm_classify`, `llm_generate`, and `run_evals` (available in `phoenix.evals.legacy`)
 
 ## Usage Examples
 
-### Hallucination and QA Evaluation
 ```python
-from phoenix.evals import HallucinationEvaluator, QAEvaluator, OpenAIModel, run_evals
+import pandas as pd
+from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals.llm import LLM
 
-# Prepare columns as required by evaluators
-# for `hallucination_evaluator` the input df needs to have columns 'output', 'input', 'context'
-# for `qa_evaluator` the input df needs to have columns 'output', 'input', 'reference'
-df["context"] = df["reference"]
-df.rename(columns={"query": "input", "response": "output"}, inplace=True)
+# Create an LLM instance
+llm = LLM(provider="openai", model="gpt-4o")
 
-# Set up evaluators
-eval_model = OpenAIModel(model="gpt-4o")
-hallucination_evaluator = HallucinationEvaluator(eval_model)
-qa_evaluator = QAEvaluator(eval_model)
-
-# Run evaluations
-hallucination_eval_df, qa_eval_df = run_evals(
-    dataframe=df,
-    evaluators=[hallucination_evaluator, qa_evaluator],
-    provide_explanation=True
+# Create evaluators
+relevance_evaluator = create_classifier(
+    name="relevance",
+    prompt_template="Is the response relevant to the query?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"relevant": 1.0, "irrelevant": 0.0},
 )
 
-# Combine results to analyze your evaluations 
-results_df = df.copy()
-results_df["hallucination_eval"] = hallucination_eval_df["label"]
-results_df["hallucination_explanation"] = hallucination_eval_df["explanation"]
-results_df["qa_eval"] = qa_eval_df["label"]
-results_df["qa_explanation"] = qa_eval_df["explanation"]
-results_df.head()
+helpfulness_evaluator = create_classifier(
+    name="helpfulness",
+    prompt_template="Is the response helpful?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"helpful": 1.0, "not_helpful": 0.0},
+)
+
+# Prepare your dataframe
+df = pd.DataFrame([
+    {"input": "How do I reset my password?", "output": "Go to settings > account > reset password."},
+    {"input": "What's the weather like?", "output": "I can help you with password resets."},
+])
+
+# Evaluate the dataframe
+results_df = evaluate_dataframe(
+    dataframe=df,
+    evaluators=[relevance_evaluator, helpfulness_evaluator],
+)
+
+print(results_df.head())
 ```
 
 ## External Links
@@ -105,11 +113,11 @@ results_df.head()
 :caption: API Reference
 
 api/evals
-api/preview
+api/legacy
 ```
 
 ## Indices and tables
 
 - {ref}`genindex`
 - {ref}`modindex`
-- {ref}`search` 
+- {ref}`search`
