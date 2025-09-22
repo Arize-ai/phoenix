@@ -18,14 +18,6 @@ export async function examplesLoader(args: LoaderFunctionArgs) {
           id
           ...ExamplesTableFragment
         }
-        datasetSplits(first: 200) {
-          edges {
-            node {
-              id
-              name
-            }
-          }
-        }
       }
     `,
     {

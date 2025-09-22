@@ -23,7 +23,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
-import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
+import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
 import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
@@ -32,10 +32,8 @@ const PAGE_SIZE = 100;
 
 export function ExamplesTable({
   dataset,
-  splits,
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
-  splits: Array<{ id: string; name: string }>;
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -58,9 +56,6 @@ export function ExamplesTable({
             edges {
               example: node {
                 id
-                datasetSplits {
-                  id
-                }
                 revision {
                   input
                   output
@@ -91,9 +86,6 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
-          splitIds: (
-            (example.datasetSplits ?? []) as Array<{ id: string }>
-          ).map((s) => s.id),
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
@@ -162,7 +154,6 @@ export function ExamplesTable({
   const isEmpty = rows.length === 0;
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExamples = selectedRows.map((row) => row.original);
-  const availableSplits = useMemo(() => splits, [splits]);
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
@@ -242,10 +233,6 @@ export function ExamplesTable({
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });
           }}
-          onSplitChange={() => {
-            refetch({}, { fetchPolicy: "store-and-network" });
-          }}
-          splits={availableSplits}
         />
       ) : null}
     </div>

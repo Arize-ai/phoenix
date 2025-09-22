@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e243cd036053d20bb400518b2eab5a9c>>
+ * @generated SignedSource<<b90db326dac7bb245ccdd12f2d49f8b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,14 +17,6 @@ export type examplesLoaderQuery$data = {
   readonly dataset: {
     readonly id: string;
     readonly " $fragmentSpreads": FragmentRefs<"ExamplesTableFragment">;
-  };
-  readonly datasetSplits: {
-    readonly edges: ReadonlyArray<{
-      readonly node: {
-        readonly id: string;
-        readonly name: string;
-      };
-    }>;
   };
 };
 export type examplesLoaderQuery = {
@@ -56,59 +48,12 @@ v2 = {
 },
 v3 = {
   "alias": null,
-  "args": [
-    {
-      "kind": "Literal",
-      "name": "first",
-      "value": 200
-    }
-  ],
-  "concreteType": "DatasetSplitConnection",
-  "kind": "LinkedField",
-  "name": "datasetSplits",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetSplitEdge",
-      "kind": "LinkedField",
-      "name": "edges",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DatasetSplit",
-          "kind": "LinkedField",
-          "name": "node",
-          "plural": false,
-          "selections": [
-            (v2/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "name",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": "datasetSplits(first:200)"
-},
-v4 = {
-  "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v5 = [
+v4 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -138,8 +83,7 @@ return {
           }
         ],
         "storageKey": null
-      },
-      (v3/*: any*/)
+      }
     ],
     "type": "Query",
     "abstractKey": null
@@ -158,14 +102,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v3/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -188,18 +132,6 @@ return {
                         "plural": false,
                         "selections": [
                           (v2/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "DatasetSplit",
-                            "kind": "LinkedField",
-                            "name": "datasetSplits",
-                            "plural": true,
-                            "selections": [
-                              (v2/*: any*/)
-                            ],
-                            "storageKey": null
-                          },
                           {
                             "alias": null,
                             "args": null,
@@ -250,7 +182,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v3/*: any*/),
                           (v2/*: any*/)
                         ],
                         "storageKey": null
@@ -288,7 +220,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v4/*: any*/),
                 "filters": [
                   "datasetVersionId"
                 ],
@@ -303,21 +235,20 @@ return {
           }
         ],
         "storageKey": null
-      },
-      (v3/*: any*/)
+      }
     ]
   },
   "params": {
-    "cacheID": "676fb56bf6cefaaf4622cc01170d70ce",
+    "cacheID": "3199afe500e1707d9a6eda312c67b0f1",
     "id": null,
     "metadata": {},
     "name": "examplesLoaderQuery",
     "operationKind": "query",
-    "text": "query examplesLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ...ExamplesTableFragment\n  }\n  datasetSplits(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment ExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        datasetSplits {\n          id\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query examplesLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ...ExamplesTableFragment\n  }\n}\n\nfragment ExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3311cf5964265076102460d923bb90d7";
+(node as any).hash = "87c9a24e8d6450699d9fd403b3653108";
 
 export default node;
