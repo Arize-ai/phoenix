@@ -27,7 +27,7 @@ class Client:
         Args:
             base_url (Optional[str | httpx.URL]): The base URL for the API endpoint.
                 If not provided, it will be read from the environment variables or
-                fall back to http://localhost:6006/.
+                fall back to http://localhost:6006.
             api_key (Optional[str]): The API key for authentication. If provided, it
                 will be included in the Authorization header as a bearer token.
             headers (Optional[Mapping[str, str]]): Additional headers to be included
@@ -131,7 +131,7 @@ class AsyncClient:
         Args:
             base_url (Optional[str | httpx.URL]): The base URL for the API endpoint.
                 If not provided, it will be read from the environment variables or
-                fall back to http://localhost:6006/.
+                fall back to http://localhost:6006.
             api_key (Optional[str]): The API key for authentication. If provided, it
                 will be included in the Authorization header as a bearer token.
             headers (Optional[Mapping[str, str]]): Additional headers to be included

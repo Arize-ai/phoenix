@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.0...arize-phoenix-client-v1.19.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* **client:** make sure printed url work for proxied urls ([#9552](https://github.com/Arize-ai/phoenix/issues/9552)) ([9135531](https://github.com/Arize-ai/phoenix/commit/9135531c75c6f7199145a1794648088b1c7b0d75))
+
+## [1.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.2...arize-phoenix-client-v1.19.0) (2025-09-17)
+
+
+### Features
+
+* Experiments&lt;-&gt;Evals 2.0 compatibility ([#9442](https://github.com/Arize-ai/phoenix/issues/9442)) ([90e4dbc](https://github.com/Arize-ai/phoenix/commit/90e4dbc08e63ee707f3ab7e42dc5146ad6054e82))
+
 ## [1.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.1...arize-phoenix-client-v1.18.2) (2025-09-11)
 
 

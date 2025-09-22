@@ -508,10 +508,13 @@ class Experiments:
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
+        return urljoin(str(self._client.base_url), f"datasets/{dataset_id}/experiments")
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return urljoin(
+            str(self._client.base_url),
+            f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
+        )
 
     def run_experiment(
         self,
@@ -1540,10 +1543,13 @@ class AsyncExperiments:
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
+        return urljoin(str(self._client.base_url), f"datasets/{dataset_id}/experiments")
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+        return urljoin(
+            str(self._client.base_url),
+            f"datasets/{dataset_id}/compare?experimentId={experiment_id}",
+        )
 
     async def run_experiment(
         self,
