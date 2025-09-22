@@ -1206,7 +1206,7 @@ class DatasetExampleRevision(Base):
 
 class DatasetSplit(Base):
     __tablename__ = "dataset_splits"
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
     color: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
@@ -1228,11 +1228,9 @@ class DatasetSplitDatasetExample(Base):
     __tablename__ = "dataset_splits_dataset_examples"
     dataset_split_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_splits.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_split: Mapped["DatasetSplit"] = relationship(
         "DatasetSplit", back_populates="dataset_splits_dataset_examples"
@@ -1279,14 +1277,12 @@ class Experiment(Base):
 
 
 class ExperimentDatasetSplit(Base):
-    __tablename__ = "experiment_dataset_splits"
+    __tablename__ = "experiments_dataset_splits"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_split_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_splits.id", ondelete="CASCADE"),
-        index=True,
     )
     experiment: Mapped["Experiment"] = relationship(
         "Experiment", back_populates="experiment_dataset_splits"
