@@ -167,11 +167,6 @@ class ExperimentRunMetricComparisons:
     completion_cost: ExperimentRunMetricComparison
 
 
-@strawberry.type
-class DatasetSplitSelectionInfo:
-    dataset_split: DatasetSplit
-    selected_example_count: int
-
 
 @strawberry.type
 class Query:
@@ -1178,46 +1173,6 @@ class Query:
                 args=args,
             )
 
-    @strawberry.field
-    async def dataset_splits_for_examples(
-        self,
-        info: Info[Context, None],
-        example_ids: list[GlobalID],
-    ) -> list[DatasetSplitSelectionInfo]:
-        if not example_ids:
-            return []
-        example_rowids = [
-            from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
-            for example_id in example_ids
-        ]
-        stmt = (
-            select(
-                models.DatasetSplit,
-                func.count(models.DatasetSplitDatasetExample.dataset_example_id).label(
-                    "selected_count"
-                ),
-            )
-            .join(
-                models.DatasetSplitDatasetExample,
-                onclause=(
-                    models.DatasetSplit.id == models.DatasetSplitDatasetExample.dataset_split_id
-                ),
-            )
-            .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_rowids))
-            .group_by(models.DatasetSplit.id)
-            .order_by(models.DatasetSplit.name)
-        )
-        async with info.context.db() as session:
-            rows = await session.execute(stmt)
-        results: list[DatasetSplitSelectionInfo] = []
-        for dataset_split, selected_count in rows:
-            results.append(
-                DatasetSplitSelectionInfo(
-                    dataset_split=to_gql_dataset_split(dataset_split),
-                    selected_example_count=int(selected_count or 0),
-                )
-            )
-        return results
 
     @strawberry.field
     async def annotation_configs(
