@@ -52,6 +52,21 @@ export const toastCss = css`
   background-color: var(--toast-background-color);
   border: var(--toast-border);
   color: var(--toast-color);
+  position: relative;
+  overflow: hidden;
+
+  &:after {
+    transition: width 500ms linear;
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    background: var(--toast-color);
+    border-radius: 2px 0 2px 0;
+    border-top: var(--toast-border);
+    height: 1px;
+    width: calc(var(--toast-timeout-percent) * 1%);
+  }
 
   &[data-focus-visible] {
     outline: 2px solid slateblue;

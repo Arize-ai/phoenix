@@ -11,6 +11,7 @@ import { Button } from "@phoenix/components/button";
 import { Text } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
 import { toastCss, toastRegionCss } from "@phoenix/components/toast/styles";
+import { useTimeoutRemainingPercentage } from "@phoenix/components/toast/useTimeoutRemainingPercentage";
 import { NotificationParams, useTheme } from "@phoenix/contexts";
 
 export const ToastRegion = <Q extends AriaToastQueue<NotificationParams>>({
@@ -54,15 +55,20 @@ export const Toast = <
   toast: T;
   queue?: Q;
 }) => {
+  const { timePercentageRemaining, pauseTimer, unpauseTimer } =
+    useTimeoutRemainingPercentage(toast.timeout);
   const { theme } = useTheme();
   return (
     <AriaToast
       toast={toast}
       css={toastCss}
       className="react-aria-Toast"
+      onPointerEnter={pauseTimer}
+      onPointerLeave={unpauseTimer}
       style={{
         viewTransitionName: toast.key,
-        // @ts-expect-error incorrect react types
+        // @ts-expect-error css vars are not typed properly by react
+        "--toast-timeout-percent": timePercentageRemaining,
         "--ac-internal-token-color": colorFromVariant(toast.content.variant),
       }}
       data-variant={toast.content.variant}
