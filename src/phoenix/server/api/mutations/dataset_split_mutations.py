@@ -20,7 +20,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 class CreateDatasetSplitInput:
     name: str
     description: Optional[str] = None
-    color: Optional[str] = None
+    color: str
 
 
 @strawberry.input
@@ -52,6 +52,7 @@ class RemoveDatasetExamplesFromDatasetSplitsInput:
 class CreateDatasetSplitWithExamplesInput:
     name: str
     description: Optional[str] = None
+    color: str = None
     example_ids: list[GlobalID]
 
 
@@ -87,6 +88,7 @@ class DatasetSplitMutationMixin:
             dataset_split_orm = models.DatasetSplit(
                 name=str(input.name),
                 description=input.description,
+                color=input.color,
             )
             session.add(dataset_split_orm)
             try:
@@ -114,6 +116,8 @@ class DatasetSplitMutationMixin:
                 dataset_split_orm.name = validated_name
             if input.description is not None:
                 dataset_split_orm.description = input.description
+            if input.color is not None:
+                dataset_split_orm.color = input.color
 
             try:
                 await session.commit()
@@ -261,6 +265,7 @@ class DatasetSplitMutationMixin:
             dataset_split_orm = models.DatasetSplit(
                 name=validated_name,
                 description=input.description,
+                color=input.color,
             )
             session.add(dataset_split_orm)
             try:
