@@ -2,11 +2,12 @@ import { forwardRef, ReactNode, Ref, useCallback } from "react";
 import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 import { useSize } from "@phoenix/contexts";
 
 import { buttonCSS } from "./styles";
 import { ButtonProps } from "./types";
-import { classNames } from "@arizeai/components";
 
 function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   const {

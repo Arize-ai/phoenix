@@ -1,6 +1,6 @@
 import { createContext, PropsWithChildren, useContext, useState } from "react";
-import { flushSync } from "react-dom";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
+import { flushSync } from "react-dom";
 
 import { Icon, Icons, ToastRegion } from "@phoenix/components";
 

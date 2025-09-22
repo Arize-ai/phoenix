@@ -1,16 +1,17 @@
+import {
+  QueuedToast,
+  UNSTABLE_Toast as AriaToast,
+  UNSTABLE_ToastContent as AriaToastContent,
+  UNSTABLE_ToastQueue as AriaToastQueue,
+  UNSTABLE_ToastRegion as AriaToastRegion,
+} from "react-aria-components";
 import { css } from "@emotion/react";
+
 import { Button } from "@phoenix/components/button";
 import { Text } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
 import { toastCss, toastRegionCss } from "@phoenix/components/toast/styles";
-import { NotificationParams, useNotificationQueue } from "@phoenix/contexts";
-import {
-  UNSTABLE_Toast as AriaToast,
-  UNSTABLE_ToastQueue as AriaToastQueue,
-  QueuedToast,
-  UNSTABLE_ToastContent as AriaToastContent,
-  UNSTABLE_ToastRegion as AriaToastRegion,
-} from "react-aria-components";
+import { NotificationParams } from "@phoenix/contexts";
 
 export const ToastRegion = <Q extends AriaToastQueue<NotificationParams>>({
   queue,
