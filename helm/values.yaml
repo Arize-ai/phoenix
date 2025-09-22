@@ -48,14 +48,16 @@ ingress:
     # -- Enable TLS/HTTPS for ingress
     enabled: false
 
-# Simple PostgreSQL Configuration (using groundhog2k/postgres chart)
+# PostgreSQL Configuration (using groundhog2k/postgres chart)
+# groundhog2k provides a simple, StatefulSet-based PostgreSQL deployment
+# without operators or complex RBAC requirements
 
 postgresql:
   # -- Enable PostgreSQL deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
   # When disabled, you must configure database.url or database.postgres settings to point to your external database
   # IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite)
   # Choose one persistence strategy:
-  #   - PostgreSQL: postgresql.enabled=true, persistence.enabled=false
+  #   - groundhog2k PostgreSQL: postgresql.enabled=true, persistence.enabled=false
   #   - SQLite: postgresql.enabled=false, persistence.enabled=true
   #   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured
   enabled: true
@@ -210,7 +212,7 @@ persistence:
   # Choose one persistence strategy:
   #   - SQLite: persistence.enabled=true, postgresql.enabled=false
   #   - SQLite In-memory: persistence.inMemory=true , postgresql.enabled=false
-  #   - CloudNativePG PostgreSQL: persistence.enabled=false, postgresql.enabled=true
+  #   - groundhog2k PostgreSQL: persistence.enabled=false, postgresql.enabled=true
   #   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured
   enabled: false
 
@@ -242,10 +244,10 @@ persistence:
 # 3. Leave database.url empty (Phoenix will automatically use SQLite in the persistent volume)
 # NOTE: SQLite database will be created at: ${PHOENIX_WORKING_DIR}/phoenix.db
 #
-# Strategy 2 - CloudNativePG PostgreSQL (for production with managed state):
+# Strategy 2 - groundhog2k PostgreSQL (for production with managed state):
 # 1. Set persistence.enabled=false
 # 2. Set postgresql.enabled=true (default)
-# 3. PostgreSQL data will be stored in CloudNativePG managed persistent volumes
+# 3. PostgreSQL data will be stored in StatefulSet managed persistent volumes
 #
 # Strategy 3 - External database (for production with external managed database):
 # 1. Set persistence.enabled=false
@@ -270,7 +272,7 @@ database:
     db: "phoenix"
 
     # -- Postgres Host (PHOENIX_POSTGRES_HOST)
-    # Default points to the PostgreSQL service when postgresql.enabled=true
+    # Default points to the groundhog2k PostgreSQL service when postgresql.enabled=true
     # IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty)
     # Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com"
     host: ""
