@@ -2036,3 +2036,64 @@ class SpanCostDetail(HasId):
             "is_prompt",
         ),
     )
+
+
+class Evaluator(Base):
+    __tablename__ = "evaluators"
+    name: Mapped["str"]
+    kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'REMOTE')", name="valid_evaluator_kind"),
+    )
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class LLMEvaluator(Base):
+    __tablename__ = "llm_evaluators"
+    name: Mapped["str"]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("evaluators.id", ondelete="CASCADE"), nullable=False
+    )
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    prompt_id: Mapped[int] = mapped_column(sa.ForeignKey("prompts.id", ondelete="CASCADE"))
+    prompt: Mapped["Prompt"] = relationship("Prompt")
+    prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
+        sa.ForeignKey("prompt_version_tags.id", ondelete="SET NULL")
+    )
+    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship("PromptVersionTag")
+    user_id: Mapped[Optional[int]] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
+    output_score_mapping: Mapped[dict[str, Any]] = mapped_column("output_score_mapping")
+
+
+class DatasetEvaluator(Base):
+    """A mapping from a dataset to the evaluators table"""
+
+    __tablename__ = "dataset_evaluators"
+    name: Mapped["str"]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    dataset_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset: Mapped["Dataset"] = relationship("Dataset")
+    # The evaluator it is a sub-type for
+    evaluator_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("evaluators.id", ondelete="CASCADE"), nullable=False
+    )
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    user_id: Mapped[Optional[int]] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")

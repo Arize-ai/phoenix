@@ -438,29 +438,11 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
-input CreateDatasetLabelInput {
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
   name: String!
   description: String
-  color: String!
-}
-
-type CreateDatasetLabelMutationPayload {
-  datasetLabel: DatasetLabel!
-}
-
-input CreateDatasetSplitInput {
-  name: String!
-  description: String
-  color: String!
-  metadata: JSON
-}
-
-input CreateDatasetSplitWithExamplesInput {
-  name: String!
-  description: String
-  color: String!
-  metadata: JSON
-  exampleIds: [ID!]!
+  promptVersion: ChatPromptVersionInput!
 }
 
 input CreateModelMutationInput {
@@ -613,6 +595,7 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+  evaluators(first: Int = 50, last: Int, after: String, before: String): EvaluatorConnection!
   lastUpdatedAt: DateTime
 }
 
@@ -637,6 +620,11 @@ type DatasetEdge {
 
   """The item at the end of the edge"""
   node: Dataset!
+}
+
+type DatasetEvaluatorMutationPayload {
+  dataset: Dataset!
+  query: Query!
 }
 
 type DatasetExample implements Node {
@@ -1126,12 +1114,12 @@ type EmbeddingDimension implements Node {
   ): DataQualityTimeSeries!
 
   """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
   """
   driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
-  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.           
+  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.
   """
   retrievalMetricTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
@@ -1193,6 +1181,32 @@ enum EvalAttr {
 input EvalResultKey {
   name: String!
   attr: EvalAttr!
+}
+
+interface Evaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of the evaluator"""
+  name: String!
+}
+
+"""A connection to a list of items."""
+type EvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [EvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type EvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Evaluator!
 }
 
 type Event {
@@ -1724,12 +1738,6 @@ type Mutation {
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
-  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
-  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
-  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
-  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
-  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -1778,6 +1786,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
