@@ -44,12 +44,7 @@ class ProjectSession(Node):
     ) -> Annotated["Project", lazy(".Project")]:
         from phoenix.server.api.types.Project import Project
 
-        stmt = select(models.Project).filter_by(id=self.project_rowid)
-        async with info.context.db() as session:
-            project = await session.scalar(stmt)
-            if project is None:
-                raise ValueError(f"Project with id {self.project_rowid} not found")
-            return Project(project_rowid=project.id, db_project=project)
+        return Project(project_rowid=self.project_rowid)
 
     @strawberry.field
     async def num_traces(
