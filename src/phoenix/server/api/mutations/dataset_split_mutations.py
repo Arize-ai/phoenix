@@ -52,7 +52,7 @@ class RemoveDatasetExamplesFromDatasetSplitsInput:
 class CreateDatasetSplitWithExamplesInput:
     name: str
     description: Optional[str] = None
-    color: str = None
+    color: str
     example_ids: list[GlobalID]
 
 

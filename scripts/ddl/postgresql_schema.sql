@@ -24,7 +24,7 @@ CREATE TABLE public.dataset_splits (
     id bigserial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    color VARCHAR,
+    color VARCHAR NOT NULL,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

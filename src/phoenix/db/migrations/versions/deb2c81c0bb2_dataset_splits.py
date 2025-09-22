@@ -58,7 +58,7 @@ def upgrade() -> None:
         sa.Column("id", _Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("color", sa.String, nullable=True),
+        sa.Column("color", sa.String, nullable=False),
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
