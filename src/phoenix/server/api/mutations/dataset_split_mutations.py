@@ -13,7 +13,6 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -40,13 +39,13 @@ class DeleteDatasetSplitInput:
 
 
 @strawberry.input
-class AddDatasetExamplesToDatasetSplitInput:
+class AddDatasetExamplesToDatasetSplitsInput:
     dataset_split_ids: list[GlobalID]
     example_ids: list[GlobalID]
 
 
 @strawberry.input
-class RemoveDatasetExamplesFromDatasetSplitInput:
+class RemoveDatasetExamplesFromDatasetSplitsInput:
     dataset_split_ids: list[GlobalID]
     example_ids: list[GlobalID]
 
@@ -63,21 +62,23 @@ class DatasetSplitMutationPayload:
     dataset_split: DatasetSplit
     query: "Query"
 
+
 @strawberry.type
 class DeleteDatasetSplitsMutationPayload:
     dataset_splits: list[DatasetSplit]
     query: "Query"
 
+
 @strawberry.type
 class AddDatasetExamplesToDatasetSplitsMutationPayload:
     dataset_splits: list[DatasetSplit]
-    examples: list[DatasetExample]
     query: "Query"
+
 
 @strawberry.type
 class RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
-    dataset_splits: list[DatasetSplit]
     query: "Query"
+
 
 @strawberry.type
 class DatasetSplitMutationMixin:
@@ -138,20 +139,26 @@ class DatasetSplitMutationMixin:
                 for dataset_split_id in input.dataset_split_ids
             ]
 
-            stmt = delete(models.DatasetSplit).where(models.DatasetSplit.id.in_(dataset_split_ids)).returning(models.DatasetSplit)
+            stmt = (
+                delete(models.DatasetSplit)
+                .where(models.DatasetSplit.id.in_(dataset_split_ids))
+                .returning(models.DatasetSplit)
+            )
             result = (await session.scalars(stmt)).all()
             if len(result) != len(dataset_split_ids):
                 raise NotFound("One or more Dataset Splits not found")
             await session.commit()
 
             return DeleteDatasetSplitsMutationPayload(
-                dataset_splits=[to_gql_dataset_split(dataset_split_orm) for dataset_split_orm in result],
+                dataset_splits=[
+                    to_gql_dataset_split(dataset_split_orm) for dataset_split_orm in result
+                ],
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def add_dataset_examples_to_dataset_split(
-        self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitInput
+    async def add_dataset_examples_to_dataset_splits(
+        self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitsInput
     ) -> AddDatasetExamplesToDatasetSplitsMutationPayload:
         async with info.context.db() as session:
             dataset_split_ids = [
@@ -188,9 +195,10 @@ class DatasetSplitMutationMixin:
                     # if the keys already exists, skip
                     if (dataset_split_id, example_id) in unique_dataset_example_split_keys:
                         continue
+                    dataset_split_id_key = models.DatasetSplitDatasetExample.dataset_split_id.key
                     values.append(
                         {
-                            models.DatasetSplitDatasetExample.dataset_split_id.key: dataset_split_id,
+                            dataset_split_id_key: dataset_split_id,
                             models.DatasetSplitDatasetExample.dataset_example_id.key: example_id,
                         }
                     )
@@ -202,23 +210,27 @@ class DatasetSplitMutationMixin:
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add examples to dataset splits.") from e
 
-            dataset_split_orm = await session.execute(select(models.DatasetSplit, models.DatasetExample)
-            .where(models.DatasetSplit.id.in_(dataset_split_ids) and models.DatasetExample.id.in_(example_ids)))
-            assert dataset_split_orm is not None
+            dataset_split_orms = await session.scalars(
+                select(models.DatasetSplit).where(models.DatasetSplit.id.in_(dataset_split_ids))
+            )
+            assert dataset_split_orms is not None
             return AddDatasetExamplesToDatasetSplitsMutationPayload(
-                dataset_splits=to_gql_dataset_split(dataset_split_orm),
-                examples=to_gql_dataset_example(dataset_example_orm),
+                dataset_splits=[
+                    to_gql_dataset_split(dataset_split_orm)
+                    for dataset_split_orm in dataset_split_orms
+                ],
                 query=Query(),
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
-    async def remove_dataset_examples_from_dataset_split(
-        self, info: Info[Context, None], input: RemoveDatasetExamplesFromDatasetSplitInput
-    ) -> DatasetSplitMutationPayload:
+    async def remove_dataset_examples_from_dataset_splits(
+        self, info: Info[Context, None], input: RemoveDatasetExamplesFromDatasetSplitsInput
+    ) -> RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
         async with info.context.db() as session:
-            dataset_split_id = from_global_id_with_expected_type(
-                input.dataset_split_id, DatasetSplit.__name__
-            )
+            dataset_split_ids = [
+                from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
+                for dataset_split_id in input.dataset_split_ids
+            ]
             example_ids = [
                 from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
                 for example_id in input.example_ids
@@ -227,17 +239,14 @@ class DatasetSplitMutationMixin:
                 raise Conflict("No examples provided.")
 
             stmt = delete(models.DatasetSplitDatasetExample).where(
-                (models.DatasetSplitDatasetExample.dataset_split_id == dataset_split_id)
-                & (models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
+                models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
+                & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids)
             )
+
             await session.execute(stmt)
             await session.flush()
 
-            dataset_split_orm = await session.get(models.DatasetSplit, dataset_split_id)
-            if not dataset_split_orm:
-                raise NotFound(f"DatasetSplit with ID {input.dataset_split_id} not found")
-            return DatasetSplitMutationPayload(
-                dataset_split=to_gql_dataset_split(dataset_split_orm),
+            return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
                 query=Query(),
             )
 

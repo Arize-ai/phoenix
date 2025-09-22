@@ -167,7 +167,6 @@ class ExperimentRunMetricComparisons:
     completion_cost: ExperimentRunMetricComparison
 
 
-
 @strawberry.type
 class Query:
     @strawberry.field
@@ -1172,7 +1171,6 @@ class Query:
                 data=data,
                 args=args,
             )
-
 
     @strawberry.field
     async def annotation_configs(
