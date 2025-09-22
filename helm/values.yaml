@@ -48,8 +48,10 @@ ingress:
     # -- Enable TLS/HTTPS for ingress
     enabled: false
 
+# Simple PostgreSQL Configuration (using groundhog2k/postgres chart)
+
 postgresql:
-  # -- Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
+  # -- Enable PostgreSQL deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
   # When disabled, you must configure database.url or database.postgres settings to point to your external database
   # IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite)
   # Choose one persistence strategy:
@@ -58,43 +60,59 @@ postgresql:
   #   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured
   enabled: true
 
-  auth:
-    # -- Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided
-    postgresPassword: "postgres"
-    # -- Name for a custom user to create
-    username: ""
-    # -- Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided
-    password: ""
-    # -- Name for a custom database to create
-    database: "phoenix"
-    # -- Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret.
-    existingSecret: ""
-    secretKeys:
-      # --  Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-      adminPasswordKey: ""
-      # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-      userPasswordKey: ""
-      # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-      replicationPasswordKey: ""
-  primary:
-    persistence:
-      # -- Enable persistent storage for PostgreSQL data
-      enabled: true
-      # -- Size of the persistent volume for PostgreSQL
-      size: "20Gi"
-      # -- Kubernetes storage class for PostgreSQL volume
-      storageClass: ""
-    persistentVolumeClaimRetentionPolicy:
-      # -- Set to true if you want the volume to persist helm uninstalls
-      enabled: false
-      # -- Volume retention behavior when the replica count of the StatefulSet is reduced
-      whenScaled: Retain
-      # -- Volume retention behavior that applies when the StatefulSet is deleted
-      whenDeleted: Retain
-    service:
-      ports:
-        # -- Port to run postgres service on
-        postgresql: "5432"
+  # PostgreSQL configuration (groundhog2k/postgres chart values)
+  image:
+    registry: "docker.io"
+    repository: "postgres"
+    tag: "16"
+
+  # -- Security context for PostgreSQL container
+  podSecurityContext:
+    fsGroup: 999
+    supplementalGroups:
+      - 999
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsGroup: 999
+    runAsUser: 999
+
+  # -- Database settings
+  settings:
+    superuserPassword:
+      value: "postgres"
+
+  # -- User database configuration
+  userDatabase:
+    name:
+      value: "phoenix"
+    user:
+      value: "phoenix"
+    password:
+      value: "phoenix"
+
+  # -- Storage configuration
+  storage:
+    requestedSize: "20Gi"
+    accessModes:
+      - ReadWriteOnce
+
+  # -- Service configuration
+  service:
+    type: ClusterIP
+    port: 5432
+
+  # -- Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
 
 ## DEPRECATED
 postgres:
@@ -192,7 +210,7 @@ persistence:
   # Choose one persistence strategy:
   #   - SQLite: persistence.enabled=true, postgresql.enabled=false
   #   - SQLite In-memory: persistence.inMemory=true , postgresql.enabled=false
-  #   - PostgreSQL: persistence.enabled=false, postgresql.enabled=true
+  #   - CloudNativePG PostgreSQL: persistence.enabled=false, postgresql.enabled=true
   #   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured
   enabled: false
 
@@ -224,10 +242,10 @@ persistence:
 # 3. Leave database.url empty (Phoenix will automatically use SQLite in the persistent volume)
 # NOTE: SQLite database will be created at: ${PHOENIX_WORKING_DIR}/phoenix.db
 #
-# Strategy 2 - Built-in PostgreSQL (for production with managed state):
+# Strategy 2 - CloudNativePG PostgreSQL (for production with managed state):
 # 1. Set persistence.enabled=false
 # 2. Set postgresql.enabled=true (default)
-# 3. PostgreSQL data will be stored in its own persistent volume
+# 3. PostgreSQL data will be stored in CloudNativePG managed persistent volumes
 #
 # Strategy 3 - External database (for production with external managed database):
 # 1. Set persistence.enabled=false
@@ -252,10 +270,10 @@ database:
     db: "phoenix"
 
     # -- Postgres Host (PHOENIX_POSTGRES_HOST)
-    # Default points to the built-in PostgreSQL service when postgresql.enabled=true
+    # Default points to the PostgreSQL service when postgresql.enabled=true
     # IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty)
     # Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com"
-    host: "phoenix-postgresql"
+    host: ""
 
     # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
     password: "postgres"
