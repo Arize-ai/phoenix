@@ -19,10 +19,82 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("dataset_evaluators", sa.Column("id", sa.Integer, primary_key=True))
-    pass
+    # The polymorphic root for all evaluations
+    op.create_table(
+        "evaluators",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("description", sa.String),
+        # The type discriminator
+        # TODO
+        sa.Column(
+            "kind",
+            sa.String,
+            sa.CheckConstraint("kind IN ('LLM', 'CODE', 'REMOTE')"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+            onupdate=sa.func.now(),
+        ),
+        # To facilitate global uniqueness. If created through datasets, we might want
+        # to auto-generate the name
+        sa.UniqueConstraint("name"),
+    )
+    op.create_table(
+        "dataset_evaluators",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("dataset_id", sa.Integer, sa.ForeignKey("datasets.id"), ondelete="CASCADE"),
+        sa.Column(
+            "evaluator_id",
+            sa.Integer,
+            sa.ForeignKey("evaluators.id"),
+            ondelete="RESTRICT",
+            nullable=False,
+        ),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("description", sa.String),
+        sa.Column(
+            "created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+            onupdate=sa.func.now(),
+        ),
+        # Force uniqueness of name on a given dataset
+        sa.UniqueConstraint("name", "dataset_id"),
+    )
+
+    # Sub-type evaluators
+    op.create_table(
+        "llm_evaluators",
+        sa.Column(
+            "prompt_id",
+            sa.Integer,
+            sa.ForeignKey("prompts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        # If specified, the specific version gets tied to the evaluator, not latest
+        sa.Column(
+            "prompt_version_tag_id",
+            sa.Integer,
+            sa.ForeignKey("prompt_version_tags.id"),
+            nullable=True,
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("llm_evaluators")
     op.drop_table("dataset_evaluators")
-    pass
+    op.drop_table("evaluators")
