@@ -16,7 +16,6 @@ input AddDatasetExamplesToDatasetSplitsInput {
 }
 
 type AddDatasetExamplesToDatasetSplitsMutationPayload {
-  datasetSplits: [DatasetSplit!]!
   query: Query!
 }
 
@@ -422,14 +421,15 @@ input CreateDatasetInput {
 }
 
 input CreateDatasetSplitInput {
-  name: Identifier!
+  name: String!
   description: String = null
-  color: String = null
+  color: String!
 }
 
 input CreateDatasetSplitWithExamplesInput {
-  name: Identifier!
+  name: String!
   description: String = null
+  color: String!
   exampleIds: [ID!]!
 }
 
@@ -1654,6 +1654,12 @@ type Mutation {
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
+  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
+  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
+  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
+  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
+  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -1702,12 +1708,6 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
-  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
-  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
-  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
-  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
-  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -1773,7 +1773,7 @@ input PatchDatasetInput {
 
 input PatchDatasetSplitInput {
   datasetSplitId: ID!
-  name: Identifier = null
+  name: String = null
   description: String = null
   color: String = null
 }
