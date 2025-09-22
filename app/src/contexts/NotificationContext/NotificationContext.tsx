@@ -111,7 +111,7 @@ export const useNotificationQueue = () => {
  */
 export const useNotify = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs, ...params }: NotificationHookParams) =>
+  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
     queue.add(
       { ...params },
       expireMs === null ? undefined : { timeout: expireMs }
@@ -163,7 +163,7 @@ export const useNotifySuccess = () => {
  */
 export const useNotifyError = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs, ...params }: NotificationHookParams) =>
+  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
     queue.add(
       {
         ...params,
