@@ -54,7 +54,8 @@ export const NotificationProvider = ({
       // Wrap state updates in a CSS view transition.
       wrapUpdate(fn) {
         if ("startViewTransition" in document) {
-          document.startViewTransition(() => {
+          // @ts-expect-error this will error until we upgrade our version of typescript
+          document?.startViewTransition(() => {
             flushSync(fn);
           });
         } else {
