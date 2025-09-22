@@ -1209,3 +1209,82 @@ class TestEvaluateDataframe:
             assert "test_eval_score" in result_df.columns, f"Score column missing for {desc}"
             assert len(result_df) == 3, f"Row count wrong for {desc}: {len(result_df)}"
             assert result_df["test_eval_score"].notna().all(), f"Some scores are None for {desc}"
+
+    @pytest.mark.asyncio
+    async def test_async_evaluate_dataframe_duplicate_indices(self):
+        """Test async_evaluate_dataframe with duplicate indices to ensure it works correctly."""
+        from phoenix.evals.evaluators import async_evaluate_dataframe
+
+        class AsyncTestEvaluator(Evaluator):
+            def __init__(self, name="async_test_eval"):
+                from pydantic import create_model
+
+                InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+
+            def _evaluate(self, eval_input):
+                # Return a score that includes the text content to verify ordering
+                text = eval_input["text"]
+                score_value = 0.5 + (0.1 * len(text))  # Different score based on text length
+                return [
+                    Score(name=self.name, score=score_value, explanation=f"Async evaluated: {text}")
+                ]
+
+        evaluator = AsyncTestEvaluator()
+
+        # Create DataFrame with duplicate indices and distinct content
+        df = pd.DataFrame(
+            {
+                "text": ["Short", "Medium length", "Very long text here"],
+                "reference": ["Ref1", "Ref2", "Ref3"],
+            },
+            index=[5, 5, 10],  # Duplicate indices with different content
+        )
+
+        result_df = await async_evaluate_dataframe(df, [evaluator])
+
+        # Verify original index is preserved exactly
+        assert list(result_df.index) == [
+            5,
+            5,
+            10,
+        ], f"Index not preserved: {result_df.index.tolist()}"
+
+        # Verify original data is preserved exactly
+        assert result_df["text"].tolist() == ["Short", "Medium length", "Very long text here"]
+        assert result_df["reference"].tolist() == ["Ref1", "Ref2", "Ref3"]
+
+        # Verify scores are assigned to correct positions
+        scores = result_df["async_test_eval_score"].tolist()
+        assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
+        assert all(score is not None for score in scores), "Some scores are None"
+
+        # Parse scores to verify they match the expected content
+        import json
+
+        parsed_scores = [json.loads(score) for score in scores]
+
+        # Verify each score corresponds to the correct row
+        assert "Async evaluated: Short" in parsed_scores[0]["explanation"], (
+            "First score doesn't match first row"
+        )
+        assert "Async evaluated: Medium length" in parsed_scores[1]["explanation"], (
+            "Second score doesn't match second row"
+        )
+        assert "Async evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+            "Third score doesn't match third row"
+        )
+
+        # Verify score values are different (based on text length)
+        score_values = [score["score"] for score in parsed_scores]
+        assert score_values[0] != score_values[1] != score_values[2], (
+            "Score values should be different"
+        )
+        assert score_values[0] < score_values[1] < score_values[2], (
+            "Scores should increase with text length"
+        )
+
+        # Verify execution details are also assigned correctly
+        exec_details = result_df["async_test_eval_execution_details"].tolist()
+        assert len(exec_details) == 3, f"Expected 3 execution details, got {len(exec_details)}"
+        assert all(detail is not None for detail in exec_details), "Some execution details are None"
