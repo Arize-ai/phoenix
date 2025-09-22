@@ -43,6 +43,13 @@ def upgrade() -> None:
             nullable=False,
             onupdate=sa.func.now(),
         ),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         # To facilitate global uniqueness. If created through datasets, we might want
         # to auto-generate the name
         sa.UniqueConstraint("name"),
@@ -64,11 +71,25 @@ def upgrade() -> None:
             "created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
         ),
         sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
             "updated_at",
             sa.TIMESTAMP(timezone=True),
             server_default=sa.func.now(),
             nullable=False,
             onupdate=sa.func.now(),
+        ),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
         ),
         # Force uniqueness of name on a given dataset
         sa.UniqueConstraint("name", "dataset_id"),
@@ -77,6 +98,17 @@ def upgrade() -> None:
     # Sub-type evaluators
     op.create_table(
         "llm_evaluators",
+        sa.Column("id", sa.Integer, primary_key=True),
+        # TODO - how to reference these if we decide to share evaluators across
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("description", sa.String),
+        sa.Column(
+            "evaluator_id",
+            sa.Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column(
             "prompt_id",
             sa.Integer,
@@ -88,9 +120,17 @@ def upgrade() -> None:
         sa.Column(
             "prompt_version_tag_id",
             sa.Integer,
-            sa.ForeignKey("prompt_version_tags.id"),
+            sa.ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
             nullable=True,
         ),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        # TODO - there's some sort of choices mapping for label -> score
     )
 
 

@@ -1878,3 +1878,42 @@ class SpanCostDetail(Base):
             "is_prompt",
         ),
     )
+
+
+class Evaluator(Base):
+    __tablename__ = "evaluators"
+    name: Mapped["str"]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class LLMEvaluator(Base):
+    __tablename__ = "llm_evaluators"
+    name: Mapped["str"]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    prompt: Mapped["Prompt"] = relationship("Prompt")
+    prompt_version_tag: Mapped[Optional["PromptVersionTag"]] = relationship("PromptVersionTag")
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class DatasetEvaluator(Base):
+    __tablename__ = "dataset_evaluators"
+    name: Mapped["str"]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    dataset: Mapped["Dataset"] = relationship("Dataset")
+    # The evaluator it is a sub-type for
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    user: Mapped[Optional["User"]] = relationship("User")
