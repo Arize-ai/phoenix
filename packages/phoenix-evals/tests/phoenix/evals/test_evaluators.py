@@ -2,6 +2,7 @@
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from phoenix.evals.evaluators import (
@@ -11,6 +12,7 @@ from phoenix.evals.evaluators import (
     Score,
     create_classifier,
     create_evaluator,
+    evaluate_dataframe,
     list_evaluators,
     to_thread,
 )
@@ -838,3 +840,372 @@ class TestEvaluatorRequiredFieldsAndBinding:
         assert len(scores) == 1 and scores[0].score == 1.0
         # Introspection passthrough
         assert be.describe()["name"] == "emph"
+
+
+class TestEvaluateDataframe:
+    """Test the evaluate_dataframe function with various DataFrame index types."""
+
+    class MockEvaluator(Evaluator):
+        """Mock evaluator for testing evaluate_dataframe."""
+
+        def __init__(self, name: str = "mock_evaluator", score_value: float = 0.8):
+            from pydantic import create_model
+
+            # Create a simple input schema that accepts any fields
+            InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+            super().__init__(name=name, source="heuristic", input_schema=InputModel)
+            self.score_value = score_value
+
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=self.score_value, explanation="Mock evaluation")]
+
+    @pytest.fixture
+    def mock_evaluator(self):
+        """Fixture providing a mock evaluator."""
+        return self.MockEvaluator()
+
+    @pytest.fixture
+    def sample_dataframe(self):
+        """Fixture providing a sample DataFrame with continuous numeric index."""
+        return pd.DataFrame(
+            {
+                "text": ["This is a test.", "Another test.", "Third test."],
+                "reference": ["This is a test.", "Another test.", "Third test."],
+            },
+            index=[0, 1, 2],
+        )
+
+    def test_evaluate_dataframe_continuous_numeric_index(self, sample_dataframe, mock_evaluator):
+        """Test evaluate_dataframe with continuous numeric index (baseline test)."""
+        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == [0, 1, 2]
+
+        # Verify original columns are preserved
+        assert "text" in result_df.columns
+        assert "reference" in result_df.columns
+
+        # Verify new columns are added
+        assert "mock_evaluator_execution_details" in result_df.columns
+        assert "mock_evaluator_score" in result_df.columns
+
+        # Verify all rows have scores
+        assert result_df["mock_evaluator_score"].notna().all()
+
+    def test_evaluate_dataframe_non_continuous_numeric_index(self, mock_evaluator):
+        """Test evaluate_dataframe with non-continuous numeric index."""
+        df = pd.DataFrame(
+            {
+                "text": ["This is a test.", "Another test.", "Third test."],
+                "reference": ["This is a test.", "Another test.", "Third test."],
+            },
+            index=[10, 20, 30],
+        )  # Non-continuous indices
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == [10, 20, 30]
+
+        # Verify scores are assigned to correct rows
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 3
+
+    def test_evaluate_dataframe_string_index(self, mock_evaluator):
+        """Test evaluate_dataframe with string index."""
+        df = pd.DataFrame(
+            {
+                "text": ["This is a test.", "Another test.", "Third test."],
+                "reference": ["This is a test.", "Another test.", "Third test."],
+            },
+            index=["row_a", "row_b", "row_c"],
+        )  # String indices
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == ["row_a", "row_b", "row_c"]
+
+        # Verify scores are assigned to correct rows
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 3
+
+    def test_evaluate_dataframe_mixed_index_types(self, mock_evaluator):
+        """Test evaluate_dataframe with mixed index types."""
+        df = pd.DataFrame(
+            {
+                "text": ["This is a test.", "Another test.", "Third test."],
+                "reference": ["This is a test.", "Another test.", "Third test."],
+            },
+            index=[1, "b", 3.0],
+        )  # Mixed types
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == [1, "b", 3.0]
+
+        # Verify scores are assigned to correct rows
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 3
+
+    def test_evaluate_dataframe_single_row(self, mock_evaluator):
+        """Test evaluate_dataframe with single row DataFrame."""
+        df = pd.DataFrame(
+            {"text": ["Single test."], "reference": ["Single test."]}, index=[42]
+        )  # Single row with non-zero index
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == [42]
+
+        # Verify scores are assigned
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 1
+
+    def test_evaluate_dataframe_empty_dataframe(self, mock_evaluator):
+        """Test evaluate_dataframe with empty DataFrame."""
+        df = pd.DataFrame({"text": [], "reference": []}, index=pd.Index([], dtype="int64"))
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved (empty)
+        assert len(result_df.index) == 0
+        assert len(result_df) == 0
+
+        # Verify execution details column is added (scores column won't be added for empty DataFrame)
+        assert "mock_evaluator_execution_details" in result_df.columns
+        # Score column is not added for empty DataFrames since no evaluations occur
+
+    def test_evaluate_dataframe_multiple_evaluators(self, sample_dataframe):
+        """Test evaluate_dataframe with multiple evaluators."""
+        evaluator1 = self.MockEvaluator("evaluator1", 0.8)
+        evaluator2 = self.MockEvaluator("evaluator2", 0.9)
+
+        result_df = evaluate_dataframe(sample_dataframe, [evaluator1, evaluator2])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == [0, 1, 2]
+
+        # Verify both evaluators' columns are added
+        assert "evaluator1_execution_details" in result_df.columns
+        assert "evaluator1_score" in result_df.columns
+        assert "evaluator2_execution_details" in result_df.columns
+        assert "evaluator2_score" in result_df.columns
+
+        # Verify scores are assigned correctly
+        assert result_df["evaluator1_score"].notna().all()
+        assert result_df["evaluator2_score"].notna().all()
+
+    def test_evaluate_dataframe_execution_details_preserved(self, sample_dataframe, mock_evaluator):
+        """Test that execution details are properly recorded."""
+        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+
+        # Verify execution details column exists
+        assert "mock_evaluator_execution_details" in result_df.columns
+
+        # Verify execution details are recorded for all rows
+        assert result_df["mock_evaluator_execution_details"].notna().all()
+
+        # Verify execution details contain expected fields
+        import json
+
+        details = json.loads(result_df["mock_evaluator_execution_details"].iloc[0])
+        assert "status" in details
+        assert "exceptions" in details
+        assert "execution_seconds" in details
+
+    def test_evaluate_dataframe_preserves_original_data(self, sample_dataframe, mock_evaluator):
+        """Test that original DataFrame data is preserved."""
+        original_text = sample_dataframe["text"].tolist()
+        original_reference = sample_dataframe["reference"].tolist()
+
+        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+
+        # Verify original data is unchanged
+        assert result_df["text"].tolist() == original_text
+        assert result_df["reference"].tolist() == original_reference
+
+    def test_evaluate_dataframe_with_custom_parameters(self, sample_dataframe, mock_evaluator):
+        """Test evaluate_dataframe with custom tqdm_bar_format and other parameters."""
+        result_df = evaluate_dataframe(
+            sample_dataframe,
+            [mock_evaluator],
+            tqdm_bar_format="Testing: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}",
+            exit_on_error=False,
+            max_retries=5,
+        )
+
+        # Verify the function still works with custom parameters
+        assert list(result_df.index) == [0, 1, 2]
+        assert "mock_evaluator_score" in result_df.columns
+        assert result_df["mock_evaluator_score"].notna().all()
+
+    def test_evaluate_dataframe_large_dataframe(self, mock_evaluator):
+        """Test evaluate_dataframe with a larger DataFrame."""
+        # Create a larger DataFrame with non-continuous indices
+        data = {
+            "text": [f"Test text {i}" for i in range(100)],
+            "reference": [f"Reference {i}" for i in range(100)],
+        }
+        df = pd.DataFrame(data, index=list(range(100, 200)))  # Indices 100-199
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved
+        assert list(result_df.index) == list(range(100, 200))
+
+        # Verify all rows have scores
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 100
+
+    def test_evaluate_dataframe_index_with_duplicates(self, mock_evaluator):
+        """Test evaluate_dataframe with duplicate indices (edge case)."""
+        df = pd.DataFrame(
+            {
+                "text": ["First test.", "Second test.", "Third test."],
+                "reference": ["First test.", "Second test.", "Third test."],
+            },
+            index=[1, 1, 2],
+        )  # Duplicate indices
+
+        result_df = evaluate_dataframe(df, [mock_evaluator])
+
+        # Verify original index is preserved (including duplicates)
+        assert list(result_df.index) == [1, 1, 2]
+
+        # Verify scores are assigned to all rows
+        assert result_df["mock_evaluator_score"].notna().all()
+        assert len(result_df) == 3
+
+    def test_evaluate_dataframe_ordering_preservation_with_duplicates(self):
+        """Test that evaluate_dataframe preserves exact ordering and assigns scores correctly with duplicate indices."""
+
+        # Create a custom evaluator that returns different scores based on input
+        class PositionAwareEvaluator(Evaluator):
+            def __init__(self, name="position_aware"):
+                from pydantic import create_model
+
+                InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+
+            def _evaluate(self, eval_input):
+                # Return a score that includes the text content to verify ordering
+                text = eval_input["text"]
+                score_value = 0.5 + (0.1 * len(text))  # Different score based on text length
+                return [Score(name=self.name, score=score_value, explanation=f"Evaluated: {text}")]
+
+        evaluator = PositionAwareEvaluator()
+
+        # Create DataFrame with duplicate indices and distinct content
+        df = pd.DataFrame(
+            {
+                "text": ["Short", "Medium length", "Very long text here"],
+                "reference": ["Ref1", "Ref2", "Ref3"],
+            },
+            index=[5, 5, 10],  # Duplicate indices with different content
+        )
+
+        result_df = evaluate_dataframe(df, [evaluator])
+
+        # Verify original index is preserved exactly
+        assert list(result_df.index) == [
+            5,
+            5,
+            10,
+        ], f"Index not preserved: {result_df.index.tolist()}"
+
+        # Verify original data is preserved exactly
+        assert result_df["text"].tolist() == ["Short", "Medium length", "Very long text here"]
+        assert result_df["reference"].tolist() == ["Ref1", "Ref2", "Ref3"]
+
+        # Verify scores are assigned to correct positions
+        scores = result_df["position_aware_score"].tolist()
+        assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
+        assert all(score is not None for score in scores), "Some scores are None"
+
+        # Parse scores to verify they match the expected content
+        import json
+
+        parsed_scores = [json.loads(score) for score in scores]
+
+        # Verify each score corresponds to the correct row
+        assert "Evaluated: Short" in parsed_scores[0]["explanation"], (
+            "First score doesn't match first row"
+        )
+        assert "Evaluated: Medium length" in parsed_scores[1]["explanation"], (
+            "Second score doesn't match second row"
+        )
+        assert "Evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+            "Third score doesn't match third row"
+        )
+
+        # Verify score values are different (based on text length)
+        score_values = [score["score"] for score in parsed_scores]
+        assert score_values[0] != score_values[1] != score_values[2], (
+            "Score values should be different"
+        )
+        assert score_values[0] < score_values[1] < score_values[2], (
+            "Scores should increase with text length"
+        )
+
+        # Verify execution details are also assigned correctly
+        exec_details = result_df["position_aware_execution_details"].tolist()
+        assert len(exec_details) == 3, f"Expected 3 execution details, got {len(exec_details)}"
+        assert all(detail is not None for detail in exec_details), "Some execution details are None"
+
+    def test_evaluate_dataframe_exact_dataframe_structure(self):
+        """Test that the returned DataFrame has the exact expected structure."""
+
+        class TestEvaluator(Evaluator):
+            def __init__(self, name="test_eval"):
+                from pydantic import create_model
+
+                InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
+                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=0.8, explanation="Test")]
+
+        evaluator = TestEvaluator()
+
+        # Test with various index types to ensure structure is preserved
+        test_cases = [
+            # (description, index, expected_index)
+            ("continuous_numeric", [0, 1, 2], [0, 1, 2]),
+            ("non_continuous_numeric", [10, 20, 30], [10, 20, 30]),
+            ("string_index", ["a", "b", "c"], ["a", "b", "c"]),
+            ("duplicate_numeric", [1, 1, 2], [1, 1, 2]),
+            ("duplicate_string", ["x", "x", "y"], ["x", "x", "y"]),
+            ("mixed_types", [1, "b", 3.0], [1, "b", 3.0]),
+        ]
+
+        for desc, index, expected_index in test_cases:
+            df = pd.DataFrame(
+                {
+                    "text": ["A", "B", "C"],
+                    "reference": ["Ref1", "Ref2", "Ref3"],
+                },
+                index=index,
+            )
+
+            result_df = evaluate_dataframe(df, [evaluator])
+
+            # Verify exact structure
+            assert list(result_df.index) == expected_index, (
+                f"Index mismatch for {desc}: {result_df.index.tolist()} != {expected_index}"
+            )
+            assert result_df["text"].tolist() == ["A", "B", "C"], f"Text data corrupted for {desc}"
+            assert result_df["reference"].tolist() == [
+                "Ref1",
+                "Ref2",
+                "Ref3",
+            ], f"Reference data corrupted for {desc}"
+            assert "test_eval_execution_details" in result_df.columns, (
+                f"Execution details column missing for {desc}"
+            )
+            assert "test_eval_score" in result_df.columns, f"Score column missing for {desc}"
+            assert len(result_df) == 3, f"Row count wrong for {desc}: {len(result_df)}"
+            assert result_df["test_eval_score"].notna().all(), f"Some scores are None for {desc}"
