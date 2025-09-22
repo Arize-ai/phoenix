@@ -9,9 +9,11 @@ from .evaluators import (
     Score,
     SourceType,
     ToolSchema,
+    async_evaluate_dataframe,
     bind_evaluator,
     create_classifier,
     create_evaluator,
+    evaluate_dataframe,
     list_evaluators,
 )
 from .legacy import (
@@ -171,6 +173,8 @@ __all__ = [
     "create_classifier",
     "list_evaluators",
     "create_evaluator",
+    "async_evaluate_dataframe",
+    "evaluate_dataframe",
     "metrics",
     "templating",
     "llm",
