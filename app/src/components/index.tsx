@@ -56,6 +56,7 @@ export * from "./alert";
 export * from "./select";
 export * from "./media";
 export * from "./dialog";
+export * from "./toast";
 export * from "./tooltip";
 export * from "./breadcrumbs";
 export * from "./progress";

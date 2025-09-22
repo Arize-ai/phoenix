@@ -1,0 +1,155 @@
+import { createContext, PropsWithChildren, useContext, useState } from "react";
+import { flushSync } from "react-dom";
+import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
+
+import { Icon, Icons, ToastRegion } from "@phoenix/components";
+
+type NotificationContext = {
+  queue: ToastQueue<NotificationParams>;
+};
+
+const NotificationContext = createContext<NotificationContext | null>(null);
+
+type NotificationVariant = "success" | "error";
+
+export type NotificationParams = {
+  title: string;
+  message: string;
+  icon?: React.ReactNode;
+  variant?: NotificationVariant;
+  /**
+   * Action to be taken when the notification is interacted with.
+   * By default, this will render as a button, but a custom component can be provided.
+   * By default, the toast will close when the action is clicked.
+   */
+  action?:
+    | {
+        /**
+         * Text to display in the action button.
+         */
+        text: string;
+        /**
+         * Callback function to be called when the action is clicked.
+         * The function receives a `close` function as an argument, which can be called to close the toast.
+         */
+        onClick: (close: () => void) => void;
+        /**
+         * Whether to close the toast when the action is clicked.
+         * @default true
+         */
+        closeOnClick?: boolean;
+      }
+    | React.ReactNode;
+};
+
+const createToastQueue = (
+  ...args: ConstructorParameters<typeof ToastQueue<NotificationParams>>
+) => new ToastQueue<NotificationParams>(...args);
+
+export const NotificationProvider = ({
+  children,
+}: PropsWithChildren): JSX.Element => {
+  const [queue] = useState(() =>
+    createToastQueue({
+      // Wrap state updates in a CSS view transition.
+      wrapUpdate(fn) {
+        if ("startViewTransition" in document) {
+          document.startViewTransition(() => {
+            flushSync(fn);
+          });
+        } else {
+          fn();
+        }
+      },
+    })
+  );
+  return (
+    <NotificationContext.Provider value={{ queue }}>
+      <ToastRegion queue={queue} />
+      {children}
+    </NotificationContext.Provider>
+  );
+};
+
+export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
+  expireMs?: number;
+};
+
+export const useNotificationQueue = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error(
+      "useNotificationContext must be used within a NotificationProvider"
+    );
+  }
+  return context.queue;
+};
+
+/**
+ * Trigger a notification with the default variant.
+ *
+ * @param params Notification parameters.
+ * @returns A callback that triggers a notification.
+ * The callback returns a key that can be later used to programmatically dismiss the notification.
+ */
+export const useNotify = () => {
+  const queue = useNotificationQueue();
+  return ({ expireMs, ...params }: NotificationHookParams) =>
+    queue.add({ ...params }, { timeout: expireMs });
+};
+
+/**
+ * Trigger a notification with the success variant.
+ *
+ * @param params Notification parameters.
+ * @returns A callback that triggers a notification. The callback returns a key that can be later used to programmatically dismiss the notification.
+ * @example // Timed dismissal after 5 seconds
+ * const notifySuccess = useNotifySuccess();
+ * notifySuccess({ title: "Success", message: "Operation completed successfully.", expireMs: 5000 });
+ * @example // Programmatic dismissal
+ * const queue = useNotificationQueue();
+ * const notifySuccess = useNotifySuccess();
+ * const key = notifySuccess({ title: "Success", message: "Operation completed successfully." });
+ * // later on...
+ * queue.dismiss(key);
+ */
+export const useNotifySuccess = () => {
+  const queue = useNotificationQueue();
+  return ({ expireMs, ...params }: NotificationHookParams) =>
+    queue.add(
+      {
+        ...params,
+        variant: "success",
+        icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
+      },
+      { timeout: expireMs }
+    );
+};
+
+/**
+ * Trigger a notification with the error variant.
+ *
+ * @param params Notification parameters.
+ * @returns A callback that triggers a notification. The callback returns a key that can be later used to programmatically dismiss the notification.
+ * @example // Timed dismissal after 5 seconds
+ * const notifyError = useNotifyError();
+ * notifyError({ title: "Error", message: "Operation failed.", expireMs: 5000 });
+ * @example // Programmatic dismissal
+ * const queue = useNotificationQueue();
+ * const notifyError = useNotifyError();
+ * const key = notifyError({ title: "Error", message: "Operation failed." });
+ * // later on...
+ * queue.dismiss(key);
+ */
+export const useNotifyError = () => {
+  const queue = useNotificationQueue();
+  return ({ expireMs, ...params }: NotificationHookParams) =>
+    queue.add(
+      {
+        ...params,
+        variant: "error",
+        icon: <Icon svg={<Icons.AlertCircleFilled />} />,
+      },
+      { timeout: expireMs }
+    );
+};
