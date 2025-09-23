@@ -533,10 +533,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          python-version: 3.13
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v6
         with:
@@ -570,7 +570,7 @@ jobs:
           alembic history
           alembic upgrade head
           alembic current
-      - name: test down migrations
+      - name: Test down migrations
         working-directory: ${{ env.PHOENIX_PATH }}
         run: |
           alembic downgrade base
