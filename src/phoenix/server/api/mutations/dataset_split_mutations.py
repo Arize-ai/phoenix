@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -112,7 +112,9 @@ class DatasetSplitMutationMixin:
             )
             dataset_split_orm = await session.get(models.DatasetSplit, dataset_split_id)
             if not dataset_split_orm:
-                raise NotFound(f"DatasetSplit with ID {input.dataset_split_id} not found")
+                raise NotFound(f"Dataset split with ID {input.dataset_split_id} not found")
+            if dataset_split_orm.deleted_at is not None:
+                raise BadRequest("Cannot patch a deleted dataset split")
 
             if validated_name:
                 dataset_split_orm.name = validated_name
@@ -135,25 +137,38 @@ class DatasetSplitMutationMixin:
     async def delete_dataset_splits(
         self, info: Info[Context, None], input: DeleteDatasetSplitInput
     ) -> DeleteDatasetSplitsMutationPayload:
-        async with info.context.db() as session:
-            dataset_split_ids = [
-                from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
-                for dataset_split_id in input.dataset_split_ids
-            ]
+        unique_dataset_split_rowids: dict[int, None] = {}  # use a dict to preserve ordering
+        for dataset_split_gid in input.dataset_split_ids:
+            try:
+                dataset_split_rowid = from_global_id_with_expected_type(
+                    dataset_split_gid, DatasetSplit.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset split ID: {dataset_split_gid}")
+            unique_dataset_split_rowids[dataset_split_rowid] = None
+        dataset_split_rowids = list(unique_dataset_split_rowids.keys())
 
-            stmt = (
-                delete(models.DatasetSplit)
-                .where(models.DatasetSplit.id.in_(dataset_split_ids))
-                .returning(models.DatasetSplit)
-            )
-            result = (await session.scalars(stmt)).all()
-            if len(result) != len(dataset_split_ids):
-                raise NotFound("One or more Dataset Splits not found")
+        async with info.context.db() as session:
+            deleted_splits_by_id = {
+                split.id: split
+                for split in (
+                    await session.scalars(
+                        update(models.DatasetSplit)
+                        .where(models.DatasetSplit.id.in_(dataset_split_rowids))
+                        .values(deleted_at=func.now())
+                        .returning(models.DatasetSplit)
+                    )
+                ).all()
+            }
+            if len(deleted_splits_by_id) < len(dataset_split_rowids):
+                await session.rollback()
+                raise NotFound("One or more dataset splits not found")
             await session.commit()
 
         return DeleteDatasetSplitsMutationPayload(
             dataset_splits=[
-                to_gql_dataset_split(dataset_split_orm) for dataset_split_orm in result
+                to_gql_dataset_split(deleted_splits_by_id[dataset_split_rowid])
+                for dataset_split_rowid in dataset_split_rowids
             ],
             query=Query(),
         )
@@ -162,19 +177,43 @@ class DatasetSplitMutationMixin:
     async def add_dataset_examples_to_dataset_splits(
         self, info: Info[Context, None], input: AddDatasetExamplesToDatasetSplitsInput
     ) -> AddDatasetExamplesToDatasetSplitsMutationPayload:
+        if not input.example_ids:
+            raise BadRequest("No examples provided.")
+        if not input.dataset_split_ids:
+            raise BadRequest("No dataset splits provided.")
+
+        unique_dataset_split_rowids: set[int] = set()
+        for dataset_split_gid in input.dataset_split_ids:
+            try:
+                dataset_split_rowid = from_global_id_with_expected_type(
+                    dataset_split_gid, DatasetSplit.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset split ID: {dataset_split_gid}")
+            unique_dataset_split_rowids.add(dataset_split_rowid)
+        dataset_split_rowids = list(unique_dataset_split_rowids)
+
+        unique_example_rowids: set[int] = set()
+        for example_gid in input.example_ids:
+            try:
+                example_rowid = from_global_id_with_expected_type(
+                    example_gid, models.DatasetExample.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid example ID: {example_gid}")
+            unique_example_rowids.add(example_rowid)
+        example_rowids = list(unique_example_rowids)
+
         async with info.context.db() as session:
-            dataset_split_ids = [
-                from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
-                for dataset_split_id in input.dataset_split_ids
-            ]
-            example_ids = [
-                from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
-                for example_id in input.example_ids
-            ]
-            if not example_ids:
-                raise Conflict("No examples provided.")
-            if not dataset_split_ids:
-                raise Conflict("No dataset splits provided.")
+            existing_dataset_split_ids = (
+                await session.scalars(
+                    select(models.DatasetSplit.id)
+                    .where(models.DatasetSplit.id.in_(dataset_split_rowids))
+                    .where(models.DatasetSplit.deleted_at.is_(None))
+                )
+            ).all()
+            if len(existing_dataset_split_ids) != len(dataset_split_rowids):
+                raise NotFound("One or more dataset splits not found")
 
             # Find existing (dataset_split_id, dataset_example_id) keys to avoid duplicates
             # Users can submit multiple examples at once which can have
@@ -184,24 +223,27 @@ class DatasetSplitMutationMixin:
                     models.DatasetSplitDatasetExample.dataset_split_id,
                     models.DatasetSplitDatasetExample.dataset_example_id,
                 ).where(
-                    models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
-                    & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids)
+                    models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_rowids)
+                    & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_rowids)
                 )
             )
             unique_dataset_example_split_keys = set(existing_dataset_example_split_keys.all())
 
             # Compute all desired pairs and insert only missing
             values = []
-            for dataset_split_id in dataset_split_ids:
-                for example_id in example_ids:
+            for dataset_split_rowid in dataset_split_rowids:
+                for example_rowid in example_rowids:
                     # if the keys already exists, skip
-                    if (dataset_split_id, example_id) in unique_dataset_example_split_keys:
+                    if (dataset_split_rowid, example_rowid) in unique_dataset_example_split_keys:
                         continue
                     dataset_split_id_key = models.DatasetSplitDatasetExample.dataset_split_id.key
+                    dataset_example_id_key = (
+                        models.DatasetSplitDatasetExample.dataset_example_id.key
+                    )
                     values.append(
                         {
-                            dataset_split_id_key: dataset_split_id,
-                            models.DatasetSplitDatasetExample.dataset_example_id.key: example_id,
+                            dataset_split_id_key: dataset_split_rowid,
+                            dataset_example_id_key: example_rowid,
                         }
                     )
 
@@ -224,19 +266,44 @@ class DatasetSplitMutationMixin:
             raise BadRequest("No dataset splits provided.")
         if not input.example_ids:
             raise BadRequest("No examples provided.")
-        dataset_split_ids = [
-            from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
-            for dataset_split_id in input.dataset_split_ids
-        ]
-        example_ids = [
-            from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
-            for example_id in input.example_ids
-        ]
+
+        unique_dataset_split_rowids: set[int] = set()
+        for dataset_split_gid in input.dataset_split_ids:
+            try:
+                dataset_split_rowid = from_global_id_with_expected_type(
+                    dataset_split_gid, DatasetSplit.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset split ID: {dataset_split_gid}")
+            unique_dataset_split_rowids.add(dataset_split_rowid)
+        dataset_split_rowids = list(unique_dataset_split_rowids)
+
+        unique_example_rowids: set[int] = set()
+        for example_gid in input.example_ids:
+            try:
+                example_rowid = from_global_id_with_expected_type(
+                    example_gid, models.DatasetExample.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid example ID: {example_gid}")
+            unique_example_rowids.add(example_rowid)
+        example_rowids = list(unique_example_rowids)
+
         stmt = delete(models.DatasetSplitDatasetExample).where(
-            models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
-            & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids)
+            models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_rowids)
+            & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_rowids)
         )
         async with info.context.db() as session:
+            existing_dataset_split_ids = (
+                await session.scalars(
+                    select(models.DatasetSplit.id)
+                    .where(models.DatasetSplit.id.in_(dataset_split_rowids))
+                    .where(models.DatasetSplit.deleted_at.is_(None))
+                )
+            ).all()
+            if len(existing_dataset_split_ids) != len(dataset_split_rowids):
+                raise NotFound("One or more dataset splits not found")
+
             await session.execute(stmt)
 
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
@@ -248,19 +315,25 @@ class DatasetSplitMutationMixin:
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
     ) -> DatasetSplitMutationPayload:
         validated_name = _validated_name(input.name)
-        example_ids = [
-            from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
-            for example_id in input.example_ids
-        ]
+        unique_example_rowids: set[int] = set()
+        for example_gid in input.example_ids:
+            try:
+                example_rowid = from_global_id_with_expected_type(
+                    example_gid, models.DatasetExample.__name__
+                )
+                unique_example_rowids.add(example_rowid)
+            except ValueError:
+                raise BadRequest(f"Invalid example ID: {example_gid}")
+        example_rowids = list(unique_example_rowids)
         async with info.context.db() as session:
             # Optionally verify all examples exist to provide better error messages
-            if example_ids:
+            if example_rowids:
                 found_count = await session.scalar(
                     select(func.count(models.DatasetExample.id)).where(
-                        models.DatasetExample.id.in_(example_ids)
+                        models.DatasetExample.id.in_(example_rowids)
                     )
                 )
-                if found_count is None or int(found_count) != len(example_ids):
+                if found_count is None or found_count < len(example_rowids):
                     raise NotFound("One or more dataset examples were not found.")
 
             dataset_split_orm = models.DatasetSplit(
@@ -274,13 +347,13 @@ class DatasetSplitMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset split named '{validated_name}' already exists.")
 
-            if example_ids:
+            if example_rowids:
                 values = [
                     {
                         models.DatasetSplitDatasetExample.dataset_split_id.key: dataset_split_orm.id,  # noqa: E501
                         models.DatasetSplitDatasetExample.dataset_example_id.key: example_id,
                     }
-                    for example_id in example_ids
+                    for example_id in example_rowids
                 ]
                 try:
                     await session.execute(insert(models.DatasetSplitDatasetExample), values)

@@ -1214,6 +1214,11 @@ class DatasetSplit(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        UtcTimeStamp,
+        nullable=True,
+        server_default=None,
+    )
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",

@@ -73,6 +73,12 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
+        sa.Column(
+            "deleted_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+            server_default=None,
+        ),
     )
 
     # Create crosswalk table: dataset_splits_dataset_examples
