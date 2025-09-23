@@ -40,6 +40,7 @@ JSON_ = (
 
 # revision identifiers, used by Alembic.
 revision: str = "10460e46d750"
+
 down_revision: Union[str, None] = "cf03bd6bae1d"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
