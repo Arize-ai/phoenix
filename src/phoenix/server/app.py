@@ -92,6 +92,7 @@ from phoenix.server.api.dataloaders import (
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -714,6 +715,7 @@ def create_graphql_router(
                 dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
                     db
                 ),
+                dataset_example_splits=DatasetExampleSplitsDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(
