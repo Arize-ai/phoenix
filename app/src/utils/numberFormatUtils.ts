@@ -43,7 +43,12 @@ export function formatFloat(float: number): string {
   const absValue = Math.abs(float);
   if (absValue === 0.0) return "0.00";
   else if (absValue < 0.01) return format(".2e")(float);
-  else if (absValue < 1000) return format("0.2f")(float);
+  else if (absValue < 1000) {
+    // truncate instead of rounding to avoid displaying misleading values for averages
+    // and draw attention to outliers (e.g. showing "0.99" instead of "1.00" when the actual value is 0.9999)
+    const truncatedFloat = truncate(float, 2);
+    return format("0.2f")(truncatedFloat);
+  }
   return format("0.2s")(float);
 }
 
@@ -136,3 +141,18 @@ export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
 export const costFormatter = createNumberFormatter(formatCost);
 export const latencyMsFormatter = createNumberFormatter(formatLatencyMs);
+
+/**
+ * Truncates a number to a given precision.
+ * e.g. truncate(0.9999, 2) => 0.99
+ * @param number
+ * @param precision
+ * @returns {number} the truncated number
+ */
+function truncate(number: number, precision: number): number {
+  const parts = number.toString().split(".");
+  if (parts.length < 2) {
+    return number;
+  }
+  return Number(parts[0] + "." + parts[1].substring(0, precision));
+}
