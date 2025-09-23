@@ -10,6 +10,15 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
+input AddDatasetExamplesToDatasetSplitsInput {
+  datasetSplitIds: [ID!]!
+  exampleIds: [ID!]!
+}
+
+type AddDatasetExamplesToDatasetSplitsMutationPayload {
+  query: Query!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -411,6 +420,21 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetSplitInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+}
+
+input CreateDatasetSplitWithExamplesInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+  exampleIds: [ID!]!
+}
+
 input CreateModelMutationInput {
   name: String!
   provider: String = null
@@ -594,6 +618,7 @@ type DatasetExample implements Node {
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
   experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
+  datasetSplits: [DatasetSplit!]!
 }
 
 """A connection to a list of items."""
@@ -660,6 +685,40 @@ type DatasetMutationPayload {
 input DatasetSort {
   col: DatasetColumn!
   dir: SortDir!
+}
+
+type DatasetSplit implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  metadata: JSON!
+  color: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetSplitConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetSplitEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetSplitEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetSplit!
+}
+
+type DatasetSplitMutationPayload {
+  datasetSplit: DatasetSplit!
+  query: Query!
 }
 
 type DatasetValues {
@@ -741,6 +800,15 @@ input DeleteDatasetExamplesInput {
 
 input DeleteDatasetInput {
   datasetId: ID!
+}
+
+input DeleteDatasetSplitInput {
+  datasetSplitIds: [ID!]!
+}
+
+type DeleteDatasetSplitsMutationPayload {
+  datasetSplits: [DatasetSplit!]!
+  query: Query!
 }
 
 input DeleteExperimentsInput {
@@ -1589,6 +1657,12 @@ type Mutation {
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
+  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
+  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
+  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
+  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
+  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -1697,6 +1771,14 @@ input PatchDatasetInput {
   datasetId: ID!
   name: String
   description: String
+  metadata: JSON
+}
+
+input PatchDatasetSplitInput {
+  datasetSplitId: ID!
+  name: String
+  description: String
+  color: String
   metadata: JSON
 }
 
@@ -2197,6 +2279,7 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
@@ -2241,6 +2324,15 @@ input RemoveAnnotationConfigFromProjectInput {
 type RemoveAnnotationConfigFromProjectPayload {
   query: Query!
   project: Project!
+}
+
+input RemoveDatasetExamplesFromDatasetSplitsInput {
+  datasetSplitIds: [ID!]!
+  exampleIds: [ID!]!
+}
+
+type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
+  query: Query!
 }
 
 type ResponseFormat {
