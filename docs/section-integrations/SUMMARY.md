@@ -114,3 +114,4 @@
 * [Qdrant](vector-databases/qdrant.md)
 * [Weaviate](vector-databases/weaviate.md)
 * [Zilliz / Milvus](vector-databases/zilliz-milvus.md)
+* [Couchbase](vector-databases/couchbase.md)
