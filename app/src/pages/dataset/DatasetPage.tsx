@@ -5,7 +5,21 @@ import { css } from "@emotion/react";
 
 import { ActionMenu, Item } from "@arizeai/components";
 
-import { Button, Counter, Flex, Icon, Icons, LazyTabPanel, Loading, ModalOverlay, Tab, TabList, Tabs, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Counter,
+  Flex,
+  Icon,
+  Icons,
+  LazyTabPanel,
+  Loading,
+  ModalOverlay,
+  Tab,
+  TabList,
+  Tabs,
+  Text,
+  View,
+} from "@phoenix/components";
 import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
@@ -189,11 +203,15 @@ function DatasetPageContent({
             </ActionMenu>
             <DatasetCodeButton />
             <RunExperimentButton />
-          {isSplitsEnabled ? (
-            <Button leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />} size="S" onPress={() => setIsCreateSplitOpen(true)}>
-              Create Split
-            </Button>
-          ) : null}
+            {isSplitsEnabled ? (
+              <Button
+                leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+                size="S"
+                onPress={() => setIsCreateSplitOpen(true)}
+              >
+                Create Split
+              </Button>
+            ) : null}
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
@@ -225,7 +243,9 @@ function DatasetPageContent({
             if (!open) setIsCreateSplitOpen(false);
           }}
         >
-          <NewDatasetSplitDialog onCompleted={() => setIsCreateSplitOpen(false)} />
+          <NewDatasetSplitDialog
+            onCompleted={() => setIsCreateSplitOpen(false)}
+          />
         </ModalOverlay>
       ) : null}
       <Tabs

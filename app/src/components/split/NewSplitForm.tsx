@@ -49,8 +49,15 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
     <Form onSubmit={handleSubmit(onSubmit)}>
       <View padding="size-200">
         <View paddingY="size-300">
-          <Flex direction="row" alignItems="center" justifyContent="center" width="100%">
-            <Token color={watch("color")}>{watch("name") || "split preview"}</Token>
+          <Flex
+            direction="row"
+            alignItems="center"
+            justifyContent="center"
+            width="100%"
+          >
+            <Token color={watch("color")}>
+              {watch("name") || "split preview"}
+            </Token>
           </Flex>
         </View>
         <Controller
@@ -58,11 +65,25 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
           control={control}
           rules={{
             required: "split name is required",
-            minLength: { value: 1, message: "split name must be at least 1 character long" },
-            maxLength: { value: 30, message: "split name must be less than 30 characters long" },
+            minLength: {
+              value: 1,
+              message: "split name must be at least 1 character long",
+            },
+            maxLength: {
+              value: 30,
+              message: "split name must be less than 30 characters long",
+            },
           }}
-          render={({ field: { onChange, onBlur, value }, fieldState: { invalid, error } }) => (
-            <TextField isInvalid={invalid} onChange={onChange} onBlur={onBlur} value={value.toString()}>
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextField
+              isInvalid={invalid}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            >
               <Label>Split Name</Label>
               <Input placeholder="e.x. test" />
               {error?.message ? (
@@ -76,8 +97,16 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
         <Controller
           name="description"
           control={control}
-          render={({ field: { onChange, onBlur, value }, fieldState: { invalid, error } }) => (
-            <TextField isInvalid={invalid} onChange={onChange} onBlur={onBlur} value={value.toString()}>
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextField
+              isInvalid={invalid}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            >
               <Label>Description</Label>
               <TextArea placeholder="A short description" />
               {error?.message ? (
@@ -94,7 +123,10 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
           render={({ field: { onChange, value } }) => (
             <div css={fieldBaseCSS}>
               <Label>Color</Label>
-              <ColorSwatchPicker value={value} onChange={(newColor) => onChange(newColor.toString())}>
+              <ColorSwatchPicker
+                value={value}
+                onChange={(newColor) => onChange(newColor.toString())}
+              >
                 <ColorSwatchPickerItem color="#ff9b88">
                   <ColorSwatch size="L" />
                 </ColorSwatchPickerItem>
@@ -136,9 +168,18 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
           )}
         />
       </View>
-      <View paddingEnd="size-200" paddingTop="size-100" paddingBottom="size-200">
+      <View
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-200"
+      >
         <Flex direction="row" justifyContent="end">
-          <Button isDisabled={isSubmitting} variant={isDirty ? "primary" : "default"} size="M" type="submit">
+          <Button
+            isDisabled={isSubmitting}
+            variant={isDirty ? "primary" : "default"}
+            size="M"
+            type="submit"
+          >
             Create Split
           </Button>
         </Flex>
@@ -146,5 +187,3 @@ export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
     </Form>
   );
 }
-
-
