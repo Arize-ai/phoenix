@@ -11,6 +11,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Checkbox,
   Flex,
   Icon,
   Icons,
@@ -54,14 +55,6 @@ const annotationListBoxCSS = css`
       }
     }
   }
-`;
-
-const annotationLabelCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ac-global-dimension-size-100);
 `;
 
 const annotationTypeLabelMap: Record<AnnotationType, string> = {
@@ -264,18 +257,30 @@ export function AnnotationConfigList(props: {
       config.node.name?.toLowerCase().includes(filter.toLowerCase())
     );
   }, [allAnnotationConfigs, filter]);
-  const toggleAnnotationConfigInProject = useCallback(
-    (annotationConfigId: string) => {
-      if (annotationConfigIdInProject.has(annotationConfigId)) {
-        removeAnnotationConfigFromProject(annotationConfigId);
-      } else {
-        addAnnotationConfigToProject(annotationConfigId);
-      }
+  const updateSelectedAnnotationConfigIds = useCallback(
+    (selectedAnnotationConfigIds: Set<string>) => {
+      filteredAnnotationConfigs.forEach((config) => {
+        if (!config.node.id) {
+          return;
+        }
+        if (
+          selectedAnnotationConfigIds.has(config.node.id) &&
+          !annotationConfigIdInProject.has(config.node.id)
+        ) {
+          addAnnotationConfigToProject(config.node.id);
+        } else if (
+          !selectedAnnotationConfigIds.has(config.node.id) &&
+          annotationConfigIdInProject.has(config.node.id)
+        ) {
+          removeAnnotationConfigFromProject(config.node.id);
+        }
+      });
     },
     [
-      annotationConfigIdInProject,
+      filteredAnnotationConfigs,
       addAnnotationConfigToProject,
       removeAnnotationConfigFromProject,
+      annotationConfigIdInProject,
     ]
   );
   return (
@@ -316,7 +321,7 @@ export function AnnotationConfigList(props: {
             </View>
             <ListBox
               css={annotationListBoxCSS}
-              selectionMode="single"
+              selectionMode="multiple"
               selectionBehavior="toggle"
               aria-label="Annotation Configs"
               renderEmptyState={() => (
@@ -345,11 +350,8 @@ export function AnnotationConfigList(props: {
                 </View>
               )}
               onSelectionChange={(keys) => {
-                if (keys === "all" || keys.size === 0) {
-                  return;
-                }
-                const annotationConfigId = keys.values().next().value;
-                toggleAnnotationConfigInProject(annotationConfigId);
+                const keysArray = Array.from(keys) as string[];
+                updateSelectedAnnotationConfigIds(new Set(keysArray));
               }}
             >
               {filteredAnnotationConfigs.map((config) => (
@@ -359,32 +361,32 @@ export function AnnotationConfigList(props: {
                   textValue={config.node.name}
                 >
                   <Flex direction="row" alignItems="center">
-                    <label css={annotationLabelCSS}>
-                      <Flex direction="row" alignItems="center" gap="size-100">
-                        <input
-                          type="checkbox"
-                          checked={annotationConfigIdInProject.has(
-                            config.node.id
-                          )}
-                          readOnly
-                        />
-                        <AnnotationLabel
-                          key={config.node.name}
-                          annotation={{
-                            name: config.node.name || "",
-                          }}
-                          annotationDisplayPreference="none"
-                          css={css`
-                            width: fit-content;
-                          `}
-                        />
-                      </Flex>
-                      <span>
+                    <Checkbox
+                      isSelected={annotationConfigIdInProject.has(
+                        config.node.id
+                      )}
+                      isReadOnly
+                    >
+                      <AnnotationLabel
+                        key={config.node.name}
+                        annotation={{
+                          name: config.node.name || "",
+                        }}
+                        annotationDisplayPreference="none"
+                        css={css`
+                          width: fit-content;
+                        `}
+                      />
+                      <span
+                        css={css`
+                          margin-left: auto;
+                        `}
+                      >
                         {annotationTypeLabelMap[
                           config.node.annotationType as AnnotationType
                         ] || config.node.annotationType}
                       </span>
-                    </label>
+                    </Checkbox>
                   </Flex>
                 </ListBoxItem>
               ))}

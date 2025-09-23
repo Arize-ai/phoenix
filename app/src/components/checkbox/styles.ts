@@ -14,8 +14,7 @@ export const checkboxCSS = css`
   /* This is needed so the HiddenInput is positioned correctly */
   position: relative;
   align-items: center;
-  gap: 0.571rem;
-  font-size: var(--checkbox-size);
+  gap: var(--ac-global-dimension-size-100);
   forced-color-adjust: none;
   cursor: pointer;
 
@@ -24,7 +23,7 @@ export const checkboxCSS = css`
     width: var(--checkbox-size);
     height: var(--checkbox-size);
     border: 2px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: var(--ac-global-rounding-small);
     transition: all 200ms;
     display: flex;
     align-items: center;
@@ -32,7 +31,7 @@ export const checkboxCSS = css`
     flex-shrink: 0;
   }
 
-  svg {
+  .checkbox svg {
     width: 1rem;
     height: 1rem;
     fill: none;
@@ -68,15 +67,20 @@ export const checkboxCSS = css`
       background: var(--selected-color-pressed);
     }
 
-    svg {
+    .checkbox svg {
       stroke-dashoffset: 44;
     }
   }
 
   &[data-indeterminate] {
-    & svg {
+    & .checkbox svg {
       stroke: none;
       fill: var(--checkmark-color);
     }
+  }
+
+  &[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 `;
