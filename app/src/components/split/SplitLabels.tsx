@@ -31,5 +31,3 @@ export function SplitLabels({ labels }: { labels: SplitLabel[] }) {
     </ul>
   );
 }
-
-

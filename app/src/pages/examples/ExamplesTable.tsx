@@ -8,7 +8,6 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import {
   ColumnDef,
   flexRender,
@@ -18,6 +17,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components/Link";
+import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -88,7 +88,7 @@ export function ExamplesTable({
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {
-        const example = edge.example as any;
+        const example = edge.example;
         const revision = example.revision;
         return {
           id: example.id,
@@ -136,7 +136,12 @@ export function ExamplesTable({
       header: "splits",
       accessorKey: "splits",
       cell: ({ row }) => {
-        const labels = (row.original.splits ?? []).map((s: any) => ({ name: s.name, color: s.color }));
+        const labels = (row.original.splits ?? []).map(
+          (s: { name: string; color?: string | null }) => ({
+            name: s.name,
+            color: s.color,
+          })
+        );
         return <SplitLabels labels={labels} />;
       },
     },
