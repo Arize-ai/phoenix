@@ -1045,3 +1045,108 @@ class TestCreateExperimentExamplesSnapshotInsert:
             with pytest.raises(Exception):
                 await session.execute(insert_stmt2)
                 await session.flush()
+
+    async def test_snapshot_insert_no_duplicates_multi_split_example(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that examples belonging to multiple splits don't create duplicate junction records."""
+        async with db() as session:
+            # Create an example that belongs to BOTH train and test splits
+            dataset = await session.get(models.Dataset, _test_data_with_splits["dataset1_id"])
+            assert dataset is not None
+
+            multi_split_example = models.DatasetExample(dataset_id=dataset.id)
+            session.add(multi_split_example)
+            await session.flush()
+
+            # Create revision for this example
+            version = await session.get(
+                models.DatasetVersion, _test_data_with_splits["version1_id"]
+            )
+            assert version is not None
+
+            multi_split_revision = models.DatasetExampleRevision(
+                dataset_example_id=multi_split_example.id,
+                dataset_version_id=version.id,
+                input={"input": "multi_split"},
+                output={"output": "multi_split"},
+                metadata_={},
+                revision_kind="CREATE",
+            )
+            session.add(multi_split_revision)
+            await session.flush()
+
+            # Assign this example to BOTH splits
+            train_split = await session.get(
+                models.DatasetSplit, _test_data_with_splits["split_train_id"]
+            )
+            test_split = await session.get(
+                models.DatasetSplit, _test_data_with_splits["split_test_id"]
+            )
+            assert train_split is not None
+            assert test_split is not None
+
+            session.add(
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=train_split.id, dataset_example_id=multi_split_example.id
+                )
+            )
+            session.add(
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=test_split.id, dataset_example_id=multi_split_example.id
+                )
+            )
+            await session.flush()
+
+            # Create an experiment that uses BOTH splits
+            multi_split_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="Multi Split Experiment",
+                description="Test",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(multi_split_experiment)
+            await session.flush()
+
+            # Assign both splits to the experiment
+            session.add(
+                models.ExperimentDatasetSplit(
+                    experiment_id=multi_split_experiment.id, dataset_split_id=train_split.id
+                )
+            )
+            session.add(
+                models.ExperimentDatasetSplit(
+                    experiment_id=multi_split_experiment.id, dataset_split_id=test_split.id
+                )
+            )
+            await session.flush()
+
+            # Generate snapshot insert
+            insert_stmt = create_experiment_examples_snapshot_insert(multi_split_experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Verify exactly ONE junction record exists for the multi-split example
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id
+                            == multi_split_experiment.id,
+                            models.ExperimentDatasetExample.dataset_example_id
+                            == multi_split_example.id,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 1, (
+                f"Expected exactly 1 junction record for multi-split example, got {len(junction_records)}"
+            )
+            assert junction_records[0].dataset_example_revision_id == multi_split_revision.id

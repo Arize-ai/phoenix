@@ -16,10 +16,9 @@ _Integer = sa.Integer().with_variant(
     "postgresql",
 )
 
-
 # revision identifiers, used by Alembic.
 revision: str = "e76cbd66ffc3"
-down_revision: Union[str, None] = "deb2c81c0bb2"
+down_revision: Union[str, None] = "58228d933c91"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
