@@ -513,8 +513,8 @@ jobs:
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }})
     runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.migrations == 'true' }}
+    # needs: changes
+    # if: ${{ needs.changes.outputs.migrations == 'true' }}
     strategy:
       fail-fast: false
       matrix:
