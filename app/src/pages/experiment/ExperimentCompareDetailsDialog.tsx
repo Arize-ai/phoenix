@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  Checkbox,
   ColorSwatch,
   CopyToClipboardButton,
   Dialog,
@@ -450,64 +451,58 @@ function ExperimentRunOutputsSidebar({
         {experimentIds.map((experimentId, experimentIndex) => {
           const experiment = experimentsById[experimentId];
           const experimentRuns = experimentRunsByExperimentId[experimentId];
+          const allExperimentRunsSelected = areAllExperimentRunsSelected(
+            experimentId,
+            selectedExperimentRuns
+          );
+          const someExperimentRunsSelected = areSomeExperimentRunsSelected(
+            experimentId,
+            selectedExperimentRuns
+          );
           return (
             <Fragment key={experimentId}>
-              <label>
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  <input
-                    type="checkbox"
-                    checked={areAllExperimentRunsSelected(
-                      experimentId,
-                      selectedExperimentRuns
-                    )}
-                    onChange={(e) =>
-                      updateExperimentSelection(experimentId, e.target.checked)
+              <Checkbox
+                isSelected={allExperimentRunsSelected}
+                isIndeterminate={
+                  someExperimentRunsSelected && !allExperimentRunsSelected
+                }
+                onChange={(isSelected) =>
+                  updateExperimentSelection(experimentId, isSelected)
+                }
+              >
+                <span
+                  css={css`
+                    flex: none;
+                  `}
+                >
+                  <ColorSwatch
+                    color={
+                      experimentIndex === 0
+                        ? baseExperimentColor
+                        : getExperimentColor(experimentIndex - 1)
                     }
+                    shape="circle"
                   />
-                  <span
-                    css={css`
-                      flex: none;
-                    `}
-                  >
-                    <ColorSwatch
-                      color={
-                        experimentIndex === 0
-                          ? baseExperimentColor
-                          : getExperimentColor(experimentIndex - 1)
-                      }
-                      shape="circle"
-                    />
-                  </span>
-                  <LineClamp lines={2}>{experiment.name}</LineClamp>
-                </Flex>
-              </label>
+                </span>
+                <LineClamp lines={2}>{experiment.name}</LineClamp>
+              </Checkbox>
               {includeRepetitions && (
                 <View paddingStart="size-500">
                   <Flex direction="column" gap="size-200">
                     {experimentRuns.map((run) => (
-                      <label key={run.id}>
-                        <Flex
-                          direction="row"
-                          alignItems="center"
-                          gap="size-100"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedExperimentRuns.find(
-                                (runSelection) => runSelection.runId === run.id
-                              )?.selected
-                            }
-                            onChange={(e) =>
-                              updateRepetitionSelection(
-                                run.id,
-                                e.target.checked
-                              )
-                            }
-                          />
-                          repetition {run.repetitionNumber}
-                        </Flex>
-                      </label>
+                      <Checkbox
+                        key={run.id}
+                        isSelected={
+                          selectedExperimentRuns.find(
+                            (runSelection) => runSelection.runId === run.id
+                          )?.selected
+                        }
+                        onChange={(isSelected) =>
+                          updateRepetitionSelection(run.id, isSelected)
+                        }
+                      >
+                        repetition {run.repetitionNumber}
+                      </Checkbox>
                     ))}
                   </Flex>
                 </View>
@@ -704,6 +699,15 @@ function areAllExperimentRunsSelected(
   return selectedExperimentRuns
     .filter((run) => run.experimentId === experimentId)
     .every((run) => run.selected);
+}
+
+function areSomeExperimentRunsSelected(
+  experimentId: string,
+  selectedExperimentRuns: ExperimentRunSelectionState[]
+): boolean {
+  return selectedExperimentRuns
+    .filter((run) => run.experimentId === experimentId)
+    .some((run) => run.selected);
 }
 
 function getSelectedExperimentRuns(
