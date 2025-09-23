@@ -1811,25 +1811,21 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             messages
         )
 
-        # Get the model from the client
-        model = self.client.models.get(name=f"models/{self.model_name}")
-
-        # Build generation config
-        generation_config = google_genai.GenerationConfig(
-            **invocation_parameters,
-        )
-
         # Prepare contents for the new API
         contents = google_message_history.copy()
         if current_message:
             contents.append({"role": "user", "parts": [{"text": current_message}]})
 
-        # Use the new generate_content method with streaming
-        stream = await model.generate_content_async(
+        # Build config object for the new API
+        config = dict(invocation_parameters)
+        if system_prompt:
+            config["system_instruction"] = system_prompt
+
+        # Use the client's async models.generate_content_stream method
+        stream = await self.client.aio.models.generate_content_stream(
+            model=f"models/{self.model_name}",
             contents=contents,
-            generation_config=generation_config,
-            stream=True,
-            system_instruction=system_prompt if system_prompt else None,
+            config=config if config else None,
         )
         async for event in stream:
             self._attributes.update(
