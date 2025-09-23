@@ -138,7 +138,6 @@ print(response.choices[0].message.content)
 
 const openaiClientTemplateTypeScript = template(
   `
-from openai import OpenAI;
 import { Client } from "@arizeai/phoenix-client";
 import { toSDK, getPrompt } from "@arizeai/phoenix-client/prompts";
 
