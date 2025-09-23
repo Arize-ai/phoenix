@@ -12,7 +12,12 @@ from typing_extensions import assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, date_trunc, get_dataset_example_revisions
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    create_experiment_examples_snapshot_insert,
+    date_trunc,
+    get_dataset_example_revisions,
+)
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
@@ -602,3 +607,441 @@ class TestGetDatasetExampleRevisions:
             revisions = (await session.execute(query)).scalars().all()
 
             assert len(revisions) == 0
+
+
+class TestCreateExperimentExamplesSnapshotInsert:
+    @pytest.fixture
+    async def _test_data_with_splits(
+        self,
+        db: DbSessionFactory,
+    ) -> dict[str, int]:
+        """Create test data including dataset splits for snapshot tests."""
+        async with db() as session:
+            # Create datasets
+            dataset1 = models.Dataset(name="test_dataset_1", description="Test Dataset 1")
+            dataset2 = models.Dataset(name="test_dataset_2", description="Test Dataset 2")
+            session.add_all([dataset1, dataset2])
+            await session.flush()
+
+            # Create dataset versions
+            version1 = models.DatasetVersion(dataset_id=dataset1.id, description="Version 1")
+            version2 = models.DatasetVersion(dataset_id=dataset1.id, description="Version 2")
+            session.add_all([version1, version2])
+            await session.flush()
+
+            # Create dataset examples
+            example1 = models.DatasetExample(dataset_id=dataset1.id)
+            example2 = models.DatasetExample(dataset_id=dataset1.id)
+            example3 = models.DatasetExample(dataset_id=dataset1.id)
+            session.add_all([example1, example2, example3])
+            await session.flush()
+
+            # Create dataset splits
+            split_train = models.DatasetSplit(
+                name="train",
+                description="Training split",
+                color="#FF0000",
+                metadata_={"split_type": "percentage", "split_value": 0.8},
+            )
+            split_test = models.DatasetSplit(
+                name="test",
+                description="Test split",
+                color="#00FF00",
+                metadata_={"split_type": "percentage", "split_value": 0.2},
+            )
+            session.add_all([split_train, split_test])
+            await session.flush()
+
+            # Assign examples to splits
+            split_example1 = models.DatasetSplitDatasetExample(
+                dataset_split_id=split_train.id, dataset_example_id=example1.id
+            )
+            split_example2 = models.DatasetSplitDatasetExample(
+                dataset_split_id=split_train.id, dataset_example_id=example2.id
+            )
+            split_example3 = models.DatasetSplitDatasetExample(
+                dataset_split_id=split_test.id, dataset_example_id=example3.id
+            )
+            session.add_all([split_example1, split_example2, split_example3])
+            await session.flush()
+
+            # Create dataset example revisions
+            revisions = [
+                # Example 1: CREATE in version 1
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version1.id,
+                    input={"test": "example1_v1"},
+                    output={"result": "example1_v1"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+                # Example 1: PATCH in version 2
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version2.id,
+                    input={"test": "example1_v2"},
+                    output={"result": "example1_v2"},
+                    metadata_={},
+                    revision_kind="PATCH",
+                ),
+                # Example 2: CREATE in version 1
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version1.id,
+                    input={"test": "example2_v1"},
+                    output={"result": "example2_v1"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+                # Example 2: DELETE in version 2
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version2.id,
+                    input={"test": "deleted"},
+                    output={"result": "deleted"},
+                    metadata_={},
+                    revision_kind="DELETE",
+                ),
+                # Example 3: CREATE in version 2
+                models.DatasetExampleRevision(
+                    dataset_example_id=example3.id,
+                    dataset_version_id=version2.id,
+                    input={"test": "example3_v2"},
+                    output={"result": "example3_v2"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+            ]
+            session.add_all(revisions)
+            await session.flush()
+
+            # Create experiments
+            # Experiment 1: Version 1, no splits
+            experiment1 = models.Experiment(
+                dataset_id=dataset1.id,
+                dataset_version_id=version1.id,
+                name="experiment_1",
+                description="Experiment 1",
+                repetitions=1,
+                metadata_={},
+            )
+
+            # Experiment 2: Version 2, train split only
+            experiment2 = models.Experiment(
+                dataset_id=dataset1.id,
+                dataset_version_id=version2.id,
+                name="experiment_2",
+                description="Experiment 2",
+                repetitions=1,
+                metadata_={},
+            )
+
+            # Experiment 3: Version 2, test split only
+            experiment3 = models.Experiment(
+                dataset_id=dataset1.id,
+                dataset_version_id=version2.id,
+                name="experiment_3",
+                description="Experiment 3",
+                repetitions=1,
+                metadata_={},
+            )
+
+            session.add_all([experiment1, experiment2, experiment3])
+            await session.flush()
+
+            # Assign splits to experiments
+            exp2_split = models.ExperimentDatasetSplit(
+                experiment_id=experiment2.id, dataset_split_id=split_train.id
+            )
+            exp3_split = models.ExperimentDatasetSplit(
+                experiment_id=experiment3.id, dataset_split_id=split_test.id
+            )
+            session.add_all([exp2_split, exp3_split])
+            await session.flush()
+
+            return {
+                "dataset1_id": dataset1.id,
+                "dataset2_id": dataset2.id,
+                "version1_id": version1.id,
+                "version2_id": version2.id,
+                "example1_id": example1.id,
+                "example2_id": example2.id,
+                "example3_id": example3.id,
+                "split_train_id": split_train.id,
+                "split_test_id": split_test.id,
+                "experiment1_id": experiment1.id,
+                "experiment2_id": experiment2.id,
+                "experiment3_id": experiment3.id,
+                "revision1_1_id": revisions[0].id,
+                "revision1_2_id": revisions[1].id,
+                "revision2_1_id": revisions[2].id,
+                "revision2_2_id": revisions[3].id,
+                "revision3_2_id": revisions[4].id,
+            }
+
+    async def test_snapshot_insert_without_splits(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test creating snapshot INSERT for experiment without splits."""
+        async with db() as session:
+            # Get experiment 1 (no splits, version 1)
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment1_id"]
+            )
+            assert experiment is not None
+
+            # Create the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+
+            # Verify it's an INSERT statement
+            assert hasattr(insert_stmt, "table")
+            assert insert_stmt.table.name == "experiments_dataset_examples"
+
+            # Execute the INSERT and verify results
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Query the junction table to verify results
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id == experiment.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 2
+
+            record_map = {r.dataset_example_id: r for r in junction_records}
+            assert _test_data_with_splits["example1_id"] in record_map
+            assert _test_data_with_splits["example2_id"] in record_map
+            assert (
+                record_map[_test_data_with_splits["example1_id"]].dataset_example_revision_id
+                == _test_data_with_splits["revision1_1_id"]
+            )
+            assert (
+                record_map[_test_data_with_splits["example2_id"]].dataset_example_revision_id
+                == _test_data_with_splits["revision2_1_id"]
+            )
+
+    async def test_snapshot_insert_with_train_split(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test creating snapshot INSERT for experiment with train split only."""
+        async with db() as session:
+            # Get experiment 2 (train split, version 2)
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment2_id"]
+            )
+            assert experiment is not None
+
+            # Create and execute the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Query the junction table
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id == experiment.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 1
+
+            record = junction_records[0]
+            assert record.dataset_example_id == _test_data_with_splits["example1_id"]
+            assert record.dataset_example_revision_id == _test_data_with_splits["revision1_2_id"]
+
+    async def test_snapshot_insert_with_test_split(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test creating snapshot INSERT for experiment with test split only."""
+        async with db() as session:
+            # Get experiment 3 (test split, version 2)
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment3_id"]
+            )
+            assert experiment is not None
+
+            # Create and execute the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Query the junction table
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id == experiment.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 1
+
+            record = junction_records[0]
+            assert record.dataset_example_id == _test_data_with_splits["example3_id"]
+            assert record.dataset_example_revision_id == _test_data_with_splits["revision3_2_id"]
+
+    async def test_snapshot_insert_excludes_delete_revisions(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that DELETE revisions are excluded from snapshots."""
+        async with db() as session:
+            # Get experiment 1 (no splits, version 1)
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment1_id"]
+            )
+            assert experiment is not None
+
+            # Update experiment to use version 2 (where example2 is deleted)
+            experiment.dataset_version_id = _test_data_with_splits["version2_id"]
+            await session.flush()
+
+            # Create and execute the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Query the junction table
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id == experiment.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 2
+
+            example_ids = {r.dataset_example_id for r in junction_records}
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example3_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] not in example_ids
+
+    async def test_snapshot_insert_statement_structure(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that the INSERT statement has the correct structure."""
+        async with db() as session:
+            # Get any experiment
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment1_id"]
+            )
+            assert experiment is not None
+
+            # Create the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+
+            # Verify statement structure
+            assert hasattr(insert_stmt, "table")
+            assert insert_stmt.table.name == "experiments_dataset_examples"
+
+            assert len(insert_stmt.table.columns) == 3
+            column_names = {col.name for col in insert_stmt.table.columns}
+            expected_columns = {
+                "experiment_id",
+                "dataset_example_id",
+                "dataset_example_revision_id",
+            }
+            assert column_names == expected_columns
+
+    async def test_snapshot_insert_empty_dataset(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test creating snapshot INSERT for experiment with no examples."""
+        async with db() as session:
+            # Create a dataset with no examples
+            dataset = models.Dataset(name="empty_dataset", description="Empty Dataset")
+            session.add(dataset)
+            await session.flush()
+
+            version = models.DatasetVersion(dataset_id=dataset.id, description="Empty Version")
+            session.add(version)
+            await session.flush()
+
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="empty_experiment",
+                description="Empty Experiment",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+
+            # Create and execute the INSERT statement
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            junction_records = (
+                (
+                    await session.execute(
+                        sa.select(models.ExperimentDatasetExample).where(
+                            models.ExperimentDatasetExample.experiment_id == experiment.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            assert len(junction_records) == 0
+
+    async def test_snapshot_insert_idempotent(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that running the same INSERT multiple times doesn't create duplicates."""
+        async with db() as session:
+            # Get experiment
+            experiment = await session.get(
+                models.Experiment, _test_data_with_splits["experiment1_id"]
+            )
+            assert experiment is not None
+
+            # Create and execute the INSERT statement twice
+            insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(insert_stmt)
+            await session.flush()
+
+            # Execute the same statement again
+            insert_stmt2 = create_experiment_examples_snapshot_insert(experiment)
+
+            with pytest.raises(Exception):
+                await session.execute(insert_stmt2)
+                await session.flush()
