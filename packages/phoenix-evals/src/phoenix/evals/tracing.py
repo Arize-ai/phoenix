@@ -5,7 +5,7 @@ from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVa
 
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from opentelemetry import trace as trace_api
+import opentelemetry.trace as trace_api
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.util.types import AttributeValue
 from typing_extensions import ParamSpec
