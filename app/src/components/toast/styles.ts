@@ -16,7 +16,7 @@ export const toastCss = css`
   flex-direction: column;
   gap: var(--ac-global-dimension-static-size-100);
   padding: var(--ac-global-dimension-static-size-100)
-    var(--ac-global-dimension-static-size-200);
+    var(--ac-global-dimension-static-size-100);
   border-radius: 8px;
   outline: none;
   width: 400px;
@@ -105,9 +105,8 @@ export const toastCss = css`
     border: none;
     appearance: none;
     border-radius: 50%;
-    height: 20px;
-    width: 20px;
-    font-size: 16px;
+    height: 18px;
+    width: 18px;
     border: none;
     color: var(--toast-color);
     padding: 0;

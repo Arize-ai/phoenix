@@ -40,7 +40,7 @@ const colorFromVariant = (
     case "error":
       return "var(--ac-global-color-danger)";
     default:
-      return "var(--ac-global-popover-background-color)";
+      return "var(--ac-global-background-color-dark)";
   }
 };
 
