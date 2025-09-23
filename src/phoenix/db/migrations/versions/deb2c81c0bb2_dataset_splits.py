@@ -90,6 +90,9 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
             nullable=False,
+            # index on the second element of the unique constraint tuple is needed
+            # only the first element is sorted in the composite index behind the unique constraint
+            index=True,
         ),
         sa.UniqueConstraint(
             "dataset_split_id",
@@ -116,6 +119,9 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
             nullable=False,
+            # index on the second element of the unique constraint tuple is needed
+            # only the first element is sorted in the composite index behind the unique constraint
+            index=True,
         ),
         sa.UniqueConstraint(
             "experiment_id",
