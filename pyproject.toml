@@ -121,7 +121,6 @@ pg = [
 ]
 container = [
   "anthropic>=0.49.0",
-  "google-generativeai",
   "google-genai",
   "prometheus-client",
   "openai>=1.0.0",

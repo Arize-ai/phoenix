@@ -1805,14 +1805,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        google_message_history, current_message, system_prompt = self._build_google_messages(
-            messages
-        )
-
-        # Prepare contents for the new API
-        contents = google_message_history.copy()
-        if current_message:
-            contents.append({"role": "user", "parts": [{"text": current_message}]})
+        contents, system_prompt = self._build_google_messages_all(messages)
 
         # Build config object for the new API
         config = dict(invocation_parameters)
@@ -1859,6 +1852,27 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             prompt = ""
 
         return google_message_history, prompt, "\n".join(system_prompts)
+
+    def _build_google_messages_all(
+        self,
+        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+    ) -> tuple[list["ContentType"], str]:
+        """Build Google messages following the standard pattern - process ALL messages."""
+        google_messages: list["ContentType"] = []
+        system_prompts = []
+        for role, content, _tool_call_id, _tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                google_messages.append({"role": "user", "parts": [{"text": content}]})
+            elif role == ChatCompletionMessageRole.AI:
+                google_messages.append({"role": "model", "parts": [{"text": content}]})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompts.append(content)
+            elif role == ChatCompletionMessageRole.TOOL:
+                raise NotImplementedError
+            else:
+                assert_never(role)
+
+        return google_messages, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
