@@ -1231,6 +1231,7 @@ class DatasetSplitDatasetExample(Base):
     )
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
     )
     dataset_split: Mapped["DatasetSplit"] = relationship(
         "DatasetSplit", back_populates="dataset_splits_dataset_examples"
@@ -1283,6 +1284,7 @@ class ExperimentDatasetSplit(Base):
     )
     dataset_split_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+        index=True,
     )
     experiment: Mapped["Experiment"] = relationship(
         "Experiment", back_populates="experiment_dataset_splits"
