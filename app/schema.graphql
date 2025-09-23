@@ -422,13 +422,13 @@ input CreateDatasetInput {
 
 input CreateDatasetSplitInput {
   name: String!
-  description: String = null
+  description: String
   color: String!
 }
 
 input CreateDatasetSplitWithExamplesInput {
   name: String!
-  description: String = null
+  description: String
   color: String!
   exampleIds: [ID!]!
 }
@@ -1773,9 +1773,9 @@ input PatchDatasetInput {
 
 input PatchDatasetSplitInput {
   datasetSplitId: ID!
-  name: String = null
-  description: String = null
-  color: String = null
+  name: String
+  description: String
+  color: String
 }
 
 input PatchProjectTraceRetentionPolicyInput {

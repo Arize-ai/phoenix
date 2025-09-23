@@ -4,13 +4,14 @@ import strawberry
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import Conflict, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -19,16 +20,16 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.input
 class CreateDatasetSplitInput:
     name: str
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     color: str
 
 
 @strawberry.input
 class PatchDatasetSplitInput:
     dataset_split_id: GlobalID
-    name: Optional[str] = None
-    description: Optional[str] = None
-    color: Optional[str] = None
+    name: Optional[str] = UNSET
+    description: Optional[str] = UNSET
+    color: Optional[str] = UNSET
 
 
 @strawberry.input
@@ -51,7 +52,7 @@ class RemoveDatasetExamplesFromDatasetSplitsInput:
 @strawberry.input
 class CreateDatasetSplitWithExamplesInput:
     name: str
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     color: str
     example_ids: list[GlobalID]
 
@@ -84,9 +85,10 @@ class DatasetSplitMutationMixin:
     async def create_dataset_split(
         self, info: Info[Context, None], input: CreateDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
+        validated_name = _validated_name(input.name)
         async with info.context.db() as session:
             dataset_split_orm = models.DatasetSplit(
-                name=str(input.name),
+                name=validated_name,
                 description=input.description,
                 color=input.color,
             )
@@ -103,7 +105,7 @@ class DatasetSplitMutationMixin:
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
-        validated_name = str(input.name) if input.name else None
+        validated_name = _validated_name(input.name) if input.name else None
         async with info.context.db() as session:
             dataset_split_id = from_global_id_with_expected_type(
                 input.dataset_split_id, DatasetSplit.__name__
@@ -112,11 +114,11 @@ class DatasetSplitMutationMixin:
             if not dataset_split_orm:
                 raise NotFound(f"DatasetSplit with ID {input.dataset_split_id} not found")
 
-            if validated_name is not None:
+            if validated_name:
                 dataset_split_orm.name = validated_name
-            if input.description is not None:
+            if input.description:
                 dataset_split_orm.description = input.description
-            if input.color is not None:
+            if input.color:
                 dataset_split_orm.color = input.color
 
             try:
@@ -246,7 +248,7 @@ class DatasetSplitMutationMixin:
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
     ) -> DatasetSplitMutationPayload:
-        validated_name = input.name
+        validated_name = _validated_name(input.name)
         example_ids = [
             from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
             for example_id in input.example_ids
@@ -295,3 +297,10 @@ class DatasetSplitMutationMixin:
             dataset_split=to_gql_dataset_split(dataset_split_orm),
             query=Query(),
         )
+
+
+def _validated_name(name: str) -> str:
+    validated_name = name.strip()
+    if not validated_name:
+        raise BadRequest("Name cannot be empty")
+    return validated_name
