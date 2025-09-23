@@ -43,12 +43,12 @@ export function formatFloat(float: number): string {
   const absValue = Math.abs(float);
   if (absValue === 0.0) return "0.00";
   else if (absValue < 0.01) return format(".2e")(float);
-  else if (absValue < 1000) {
+  else if (absValue < 1) {
     // truncate instead of rounding to avoid displaying misleading values for averages
     // and draw attention to outliers (e.g. showing "0.99" instead of "1.00" when the actual value is 0.9999)
     const truncatedFloat = truncate(float, 2);
     return format("0.2f")(truncatedFloat);
-  }
+  } else if (absValue < 1000) return format("0.2f")(float);
   return format("0.2s")(float);
 }
 

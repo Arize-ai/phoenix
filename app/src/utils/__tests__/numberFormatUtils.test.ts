@@ -27,6 +27,7 @@ describe("formatFloat", () => {
     expect(formatFloat(123)).toEqual("123.00");
     expect(formatFloat(123.23)).toEqual("123.23");
     expect(formatFloat(12.23)).toEqual("12.23");
+    expect(formatFloat(0.9999)).toEqual("0.99");
   });
 });
 
