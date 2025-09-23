@@ -1,12 +1,12 @@
 import { css } from "@emotion/react";
 
 export const checkboxCSS = css`
-  --selected-color: var(--ac-global-color-grey-800);
-  --selected-color-pressed: var(--ac-global-color-grey-900);
-  --checkmark-color: var(--ac-global-color-grey-50);
-  --border-color: var(--ac-global-color-grey-300);
-  --border-color-pressed: var(--ac-global-color-grey-400);
-  --border-color-hover: var(--ac-global-color-grey-400);
+  --selected-color: var(--ac-global-checkbox-selected-color);
+  --selected-color-pressed: var(--ac-global-checkbox-selected-color-pressed);
+  --checkmark-color: var(--ac-global-checkbox-checkmark-color);
+  --border-color: var(--ac-global-checkbox-border-color);
+  --border-color-pressed: var(--ac-global-checkbox-border-color-pressed);
+  --border-color-hover: var(--ac-global-checkbox-border-color-hover);
   --focus-ring-color: var(--ac-focus-ring-color);
   --checkbox-size: var(--ac-global-dimension-static-size-200);
 

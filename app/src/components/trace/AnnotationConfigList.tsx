@@ -249,7 +249,7 @@ export function AnnotationConfigList(props: {
   const allAnnotationConfigs = data.allAnnotationConfigs.edges;
   const projectAnnotationConfigs =
     projectAnnotationData.annotationConfigs?.edges;
-  const annotationConfigIdInProject = useMemo(() => {
+  const annotationConfigIdsInProject = useMemo(() => {
     return new Set(projectAnnotationConfigs?.map((config) => config.node.id));
   }, [projectAnnotationConfigs]);
   const filteredAnnotationConfigs = useMemo(() => {
@@ -265,12 +265,12 @@ export function AnnotationConfigList(props: {
         }
         if (
           selectedAnnotationConfigIds.has(config.node.id) &&
-          !annotationConfigIdInProject.has(config.node.id)
+          !annotationConfigIdsInProject.has(config.node.id)
         ) {
           addAnnotationConfigToProject(config.node.id);
         } else if (
           !selectedAnnotationConfigIds.has(config.node.id) &&
-          annotationConfigIdInProject.has(config.node.id)
+          annotationConfigIdsInProject.has(config.node.id)
         ) {
           removeAnnotationConfigFromProject(config.node.id);
         }
@@ -280,7 +280,7 @@ export function AnnotationConfigList(props: {
       filteredAnnotationConfigs,
       addAnnotationConfigToProject,
       removeAnnotationConfigFromProject,
-      annotationConfigIdInProject,
+      annotationConfigIdsInProject,
     ]
   );
   return (
@@ -362,7 +362,7 @@ export function AnnotationConfigList(props: {
                 >
                   <Flex direction="row" alignItems="center">
                     <Checkbox
-                      isSelected={annotationConfigIdInProject.has(
+                      isSelected={annotationConfigIdsInProject.has(
                         config.node.id
                       )}
                       isReadOnly
