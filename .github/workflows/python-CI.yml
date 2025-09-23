@@ -558,6 +558,7 @@ jobs:
         run: |
           alembic history
           alembic upgrade head
+          alembic current
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install Phoenix from current branch
@@ -568,6 +569,12 @@ jobs:
         run: |
           alembic history
           alembic upgrade head
+          alembic current
+      - name: test down migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic downgrade base
+          alembic current
 
   phoenix-client-canary-tests-sdk:
     name: Phoenix Client Canary Tests for Third-Party SDKs
