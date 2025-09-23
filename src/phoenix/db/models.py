@@ -1206,7 +1206,7 @@ class DatasetExampleRevision(Base):
 
 class DatasetSplit(Base):
     __tablename__ = "dataset_splits"
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(String, nullable=False)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
@@ -1226,6 +1226,16 @@ class DatasetSplit(Base):
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="dataset_split",
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_dataset_splits_check_unique_name",
+            "name",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
     )
 
 
