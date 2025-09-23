@@ -1805,8 +1805,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import google.genai as google_genai
-
         google_message_history, current_message, system_prompt = self._build_google_messages(
             messages
         )
