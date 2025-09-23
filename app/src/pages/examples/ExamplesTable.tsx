@@ -8,6 +8,7 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
+import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import {
   ColumnDef,
   flexRender,
@@ -56,6 +57,11 @@ export function ExamplesTable({
             edges {
               example: node {
                 id
+                datasetSplits {
+                  id
+                  name
+                  color
+                }
                 revision {
                   input
                   output
@@ -82,10 +88,11 @@ export function ExamplesTable({
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {
-        const example = edge.example;
+        const example = edge.example as any;
         const revision = example.revision;
         return {
           id: example.id,
+          splits: example.datasetSplits,
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
@@ -123,6 +130,14 @@ export function ExamplesTable({
       cell: ({ getValue, row }) => {
         const exampleId = row.original.id;
         return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+      },
+    },
+    {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => {
+        const labels = (row.original.splits ?? []).map((s: any) => ({ name: s.name, color: s.color }));
+        return <SplitLabels labels={labels} />;
       },
     },
     {
