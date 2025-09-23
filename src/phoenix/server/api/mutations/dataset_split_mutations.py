@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -22,6 +23,7 @@ class CreateDatasetSplitInput:
     name: str
     description: Optional[str] = UNSET
     color: str
+    metadata: Optional[JSON] = UNSET
 
 
 @strawberry.input
@@ -30,6 +32,7 @@ class PatchDatasetSplitInput:
     name: Optional[str] = UNSET
     description: Optional[str] = UNSET
     color: Optional[str] = UNSET
+    metadata: Optional[JSON] = UNSET
 
 
 @strawberry.input
@@ -54,6 +57,7 @@ class CreateDatasetSplitWithExamplesInput:
     name: str
     description: Optional[str] = UNSET
     color: str
+    metadata: Optional[JSON] = UNSET
     example_ids: list[GlobalID]
 
 
@@ -91,6 +95,7 @@ class DatasetSplitMutationMixin:
                 name=validated_name,
                 description=input.description,
                 color=input.color,
+                metadata_=input.metadata or {},
             )
             session.add(dataset_split_orm)
             try:
@@ -122,6 +127,8 @@ class DatasetSplitMutationMixin:
                 dataset_split_orm.description = input.description
             if input.color:
                 dataset_split_orm.color = input.color
+            if isinstance(input.metadata, dict):
+                dataset_split_orm.metadata_ = input.metadata
 
             try:
                 await session.commit()
@@ -326,7 +333,6 @@ class DatasetSplitMutationMixin:
                 raise BadRequest(f"Invalid example ID: {example_gid}")
         example_rowids = list(unique_example_rowids)
         async with info.context.db() as session:
-            # Optionally verify all examples exist to provide better error messages
             if example_rowids:
                 found_count = await session.scalar(
                     select(func.count(models.DatasetExample.id)).where(
@@ -338,8 +344,9 @@ class DatasetSplitMutationMixin:
 
             dataset_split_orm = models.DatasetSplit(
                 name=validated_name,
-                description=input.description,
+                description=input.description or None,
                 color=input.color,
+                metadata_=input.metadata or {},
             )
             session.add(dataset_split_orm)
             try:
@@ -364,7 +371,6 @@ class DatasetSplitMutationMixin:
                         "Failed to associate examples with the new dataset split."
                     ) from e
 
-            await session.commit()
         return DatasetSplitMutationPayload(
             dataset_split=to_gql_dataset_split(dataset_split_orm),
             query=Query(),

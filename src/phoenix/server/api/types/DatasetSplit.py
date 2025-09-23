@@ -26,7 +26,7 @@ def to_gql_dataset_split(dataset_split: models.DatasetSplit) -> DatasetSplit:
         name=dataset_split.name,
         description=dataset_split.description,
         color=dataset_split.color or "#ffffff",
-        metadata=dataset_split.metadata,
+        metadata=dataset_split.metadata_,
         created_at=dataset_split.created_at,
         updated_at=dataset_split.updated_at,
     )

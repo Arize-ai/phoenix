@@ -424,12 +424,14 @@ input CreateDatasetSplitInput {
   name: String!
   description: String
   color: String!
+  metadata: JSON
 }
 
 input CreateDatasetSplitWithExamplesInput {
   name: String!
   description: String
   color: String!
+  metadata: JSON
   exampleIds: [ID!]!
 }
 
@@ -1776,6 +1778,7 @@ input PatchDatasetSplitInput {
   name: String
   description: String
   color: String
+  metadata: JSON
 }
 
 input PatchProjectTraceRetentionPolicyInput {

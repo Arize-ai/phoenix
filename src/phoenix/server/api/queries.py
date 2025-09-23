@@ -1165,7 +1165,9 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            splits = await session.stream_scalars(select(models.DatasetSplit))
+            splits = await session.stream_scalars(
+                select(models.DatasetSplit).where(models.DatasetSplit.deleted_at.is_(None))
+            )
             data = [to_gql_dataset_split(split) async for split in splits]
             return connection_from_list(
                 data=data,

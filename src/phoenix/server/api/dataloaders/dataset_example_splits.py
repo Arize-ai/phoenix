@@ -24,6 +24,7 @@ class DatasetExampleSplitsDataLoader(DataLoader[Key, Result]):
 
             async for example_id, split in await session.stream(
                 select(models.DatasetSplitDatasetExample.dataset_example_id, models.DatasetSplit)
+                .select_from(models.DatasetSplit)
                 .join(
                     models.DatasetSplitDatasetExample,
                     onclause=(
@@ -31,6 +32,7 @@ class DatasetExampleSplitsDataLoader(DataLoader[Key, Result]):
                     ),
                 )
                 .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
+                .where(models.DatasetSplit.deleted_at.is_(None))
             ):
                 if example_id not in splits:
                     splits[example_id] = []
