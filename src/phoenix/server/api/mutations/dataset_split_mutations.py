@@ -238,7 +238,6 @@ class DatasetSplitMutationMixin:
         )
         async with info.context.db() as session:
             await session.execute(stmt)
-            await session.flush()
 
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
             query=Query(),
