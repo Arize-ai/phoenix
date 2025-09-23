@@ -220,23 +220,23 @@ class DatasetSplitMutationMixin:
     async def remove_dataset_examples_from_dataset_splits(
         self, info: Info[Context, None], input: RemoveDatasetExamplesFromDatasetSplitsInput
     ) -> RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
+        if not input.dataset_split_ids:
+            raise BadRequest("No dataset splits provided.")
+        if not input.example_ids:
+            raise BadRequest("No examples provided.")
+        dataset_split_ids = [
+            from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
+            for dataset_split_id in input.dataset_split_ids
+        ]
+        example_ids = [
+            from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
+            for example_id in input.example_ids
+        ]
+        stmt = delete(models.DatasetSplitDatasetExample).where(
+            models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
+            & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids)
+        )
         async with info.context.db() as session:
-            dataset_split_ids = [
-                from_global_id_with_expected_type(dataset_split_id, DatasetSplit.__name__)
-                for dataset_split_id in input.dataset_split_ids
-            ]
-            example_ids = [
-                from_global_id_with_expected_type(example_id, models.DatasetExample.__name__)
-                for example_id in input.example_ids
-            ]
-            if not example_ids:
-                raise Conflict("No examples provided.")
-
-            stmt = delete(models.DatasetSplitDatasetExample).where(
-                models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
-                & models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids)
-            )
-
             await session.execute(stmt)
             await session.flush()
 
