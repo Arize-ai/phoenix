@@ -74,7 +74,7 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
       <Dialog aria-label="Create dataset split">
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Split</DialogTitle>
+            <DialogTitle>Create Dataset Split</DialogTitle>
             <DialogTitleExtra>
               <DialogCloseButton />
             </DialogTitleExtra>
