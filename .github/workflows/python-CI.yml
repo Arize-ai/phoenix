@@ -561,6 +561,8 @@ jobs:
           alembic current
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: src/phoenix/
       - name: Install Phoenix from current branch
         run: |
           uv pip install --system --reinstall-package arize-phoenix .
