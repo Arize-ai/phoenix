@@ -28,6 +28,7 @@ CREATE TABLE public.dataset_splits (
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
     CONSTRAINT uq_dataset_splits_name
         UNIQUE (name)
@@ -411,6 +412,9 @@ CREATE TABLE public.dataset_splits_dataset_examples (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_dataset_splits_dataset_examples_dataset_example_id ON public.dataset_splits_dataset_examples
+    USING btree (dataset_example_id);
+
 
 -- Table: span_costs
 -- -----------------
@@ -785,6 +789,9 @@ CREATE TABLE public.experiments_dataset_splits (
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiments_dataset_splits_dataset_split_id ON public.experiments_dataset_splits
+    USING btree (dataset_split_id);
 
 
 -- Table: password_reset_tokens
