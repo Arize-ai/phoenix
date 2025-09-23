@@ -40,6 +40,7 @@ jobs:
       phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -67,6 +68,8 @@ jobs:
             phoenix_otel:
               - "packages/phoenix-otel/**"
               - "tox.ini"
+            migrations:
+              - "src/phoenix/db/migrations/versions/**"
       - name: Print Filters
         run: |
           echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
@@ -76,6 +79,7 @@ jobs:
           echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
           echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
           echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
+          echo "migrations: ${{ steps.filter.outputs.migrations }}"
 
   phoenix-client:
     name: Phoenix Client
@@ -505,6 +509,65 @@ jobs:
       - name: Run integration tests
         timeout-minutes: 10
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x --reruns 5
+
+  test-migrations:
+    name: DB Migration Continuity (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.migrations == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgresql]
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+      - name: Install arize-phoenix and database dependencies
+        run: |
+          uv pip install --system -qU 'arize-phoenix[pg]'
+          PHOENIX_PATH=$(python -c "import phoenix.db; print(phoenix.db.__path__[0])")
+          echo "PHOENIX_PATH=$PHOENIX_PATH" >> $GITHUB_ENV
+      - name: Set database environment variable
+        run: |
+          if [ "${{ matrix.db }}" = "postgresql" ]; then
+            echo "PHOENIX_SQL_DATABASE_URL=postgresql://postgres:phoenix@localhost:5432/postgres" >> $GITHUB_ENV
+          else
+            echo "PHOENIX_SQL_DATABASE_URL=sqlite:///phoenix_test.db" >> $GITHUB_ENV
+          fi
+      - name: Run migrations on installed Phoenix
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic history
+          alembic upgrade head
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Phoenix from current branch
+        run: |
+          uv pip install --system --reinstall-package arize-phoenix .
+      - name: Test new migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic history
+          alembic upgrade head
 
   phoenix-client-canary-tests-sdk:
     name: Phoenix Client Canary Tests for Third-Party SDKs
