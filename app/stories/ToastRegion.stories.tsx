@@ -65,7 +65,7 @@ const TriggerToasts = () => {
           notifySuccess({
             title: "Expiring Toast",
             message: "This toast will expire soon.",
-            expireMs: 3000,
+            expireMs: 5_000,
           })
         }
       >
