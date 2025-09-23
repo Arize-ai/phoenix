@@ -12,7 +12,7 @@ from typing_extensions import assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.db.helpers import SupportedSQLDialect, date_trunc, get_dataset_example_revisions
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
@@ -339,3 +339,266 @@ class TestDateTrunc:
             assert isinstance(actual, str)
             actual = normalize_datetime(datetime.fromisoformat(actual), timezone.utc)
         assert actual == expected_dt
+
+
+class TestGetDatasetExampleRevisions:
+    @pytest.fixture
+    async def _test_data(
+        self,
+        db: DbSessionFactory,
+    ) -> dict[str, int]:
+        """Create test data for dataset example revisions tests."""
+        async with db() as session:
+            # Create datasets
+            dataset1 = models.Dataset(name="test_dataset_1", description="Test Dataset 1")
+            dataset2 = models.Dataset(name="test_dataset_2", description="Test Dataset 2")
+            session.add_all([dataset1, dataset2])
+            await session.flush()
+
+            # Create dataset versions
+            version1 = models.DatasetVersion(dataset_id=dataset1.id, description="Version 1")
+            version2 = models.DatasetVersion(dataset_id=dataset1.id, description="Version 2")
+            version3 = models.DatasetVersion(dataset_id=dataset1.id, description="Version 3")
+            version_other = models.DatasetVersion(dataset_id=dataset2.id, description="Version 1")
+            session.add_all([version1, version2, version3, version_other])
+            await session.flush()
+
+            # Create dataset examples
+            example1 = models.DatasetExample(dataset_id=dataset1.id)
+            example2 = models.DatasetExample(dataset_id=dataset1.id)
+            example3 = models.DatasetExample(dataset_id=dataset1.id)
+            example_other = models.DatasetExample(dataset_id=dataset2.id)
+            session.add_all([example1, example2, example3, example_other])
+            await session.flush()
+
+            # Create dataset example revisions
+            revisions = [
+                # Example 1: Multiple revisions across versions
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version1.id,
+                    input={"test": "v1"},
+                    output={"result": "v1"},
+                    metadata={},
+                    revision_kind="CREATE",
+                ),
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version2.id,
+                    input={"test": "v2"},
+                    output={"result": "v2"},
+                    metadata={},
+                    revision_kind="PATCH",
+                ),
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version3.id,
+                    input={"test": "v3"},
+                    output={"result": "v3"},
+                    metadata={},
+                    revision_kind="PATCH",
+                ),
+                # Example 2: CREATE then DELETE
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version1.id,
+                    input={"test": "create"},
+                    output={"result": "create"},
+                    metadata={},
+                    revision_kind="CREATE",
+                ),
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version2.id,
+                    input={"test": "deleted"},
+                    output={"result": "deleted"},
+                    metadata={},
+                    revision_kind="DELETE",
+                ),
+                # Example 3: Only in version 3
+                models.DatasetExampleRevision(
+                    dataset_example_id=example3.id,
+                    dataset_version_id=version3.id,
+                    input={"test": "new"},
+                    output={"result": "new"},
+                    metadata={},
+                    revision_kind="CREATE",
+                ),
+                # Example in different dataset
+                models.DatasetExampleRevision(
+                    dataset_example_id=example_other.id,
+                    dataset_version_id=version_other.id,
+                    input={"test": "other"},
+                    output={"result": "other"},
+                    metadata={},
+                    revision_kind="CREATE",
+                ),
+            ]
+            session.add_all(revisions)
+            await session.flush()
+
+            # Return IDs for use in tests
+            return {
+                "dataset1_id": dataset1.id,
+                "dataset2_id": dataset2.id,
+                "version1_id": version1.id,
+                "version2_id": version2.id,
+                "version3_id": version3.id,
+                "version_other_id": version_other.id,
+                "example1_id": example1.id,
+                "example2_id": example2.id,
+                "example3_id": example3.id,
+                "example_other_id": example_other.id,
+                "revision1_1_id": revisions[0].id,
+                "revision1_2_id": revisions[1].id,
+                "revision1_3_id": revisions[2].id,
+                "revision2_1_id": revisions[3].id,
+                "revision2_2_id": revisions[4].id,  # DELETE
+                "revision3_3_id": revisions[5].id,
+                "revision_other_id": revisions[6].id,
+            }
+
+    async def test_get_latest_revisions_basic(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test getting latest revisions for a dataset version."""
+        async with db() as session:
+            # Test version 1 - should get example1 v1 and example2 v1
+            query = get_dataset_example_revisions(_test_data["version1_id"])
+            revisions = (await session.execute(query)).scalars().all()
+
+            revision_ids = [r.id for r in revisions]
+            example_ids = [r.dataset_example_id for r in revisions]
+
+            # Should get 2 revisions
+            assert len(revisions) == 2
+            assert _test_data["revision1_1_id"] in revision_ids
+            assert _test_data["revision2_1_id"] in revision_ids
+            assert _test_data["example1_id"] in example_ids
+            assert _test_data["example2_id"] in example_ids
+
+    async def test_get_latest_revisions_with_updates(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test getting latest revisions when examples have multiple revisions."""
+        async with db() as session:
+            # Test version 2 - should get only example1 v2 (example2 is DELETEd)
+            query = get_dataset_example_revisions(_test_data["version2_id"])
+            revisions = (await session.execute(query)).scalars().all()
+
+            revision_ids = [r.id for r in revisions]
+            example_ids = [r.dataset_example_id for r in revisions]
+
+            # Should get 1 revision: only example1's v2 revision
+            assert len(revisions) == 1
+            assert _test_data["revision1_2_id"] in revision_ids  # Latest for example1
+            assert _test_data["example1_id"] in example_ids
+            # example2 should NOT be included because its latest revision is DELETE
+            assert _test_data["example2_id"] not in example_ids
+
+    async def test_exclude_delete_revisions(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that DELETE revisions are properly excluded."""
+        async with db() as session:
+            # Test version 2 - example2 has DELETE revision, should be excluded entirely
+            query = get_dataset_example_revisions(_test_data["version2_id"])
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = [r.dataset_example_id for r in revisions]
+
+            # example2 should NOT be included because its latest revision is DELETE
+            assert (
+                _test_data["example2_id"] not in example_ids
+            )  # Should be excluded due to DELETE revision
+
+    async def test_get_all_revisions_latest_version(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test getting revisions for the latest version includes all non-deleted examples."""
+        async with db() as session:
+            # Test version 3 - should get example1 v3 and example3 v3 (example2 remains deleted)
+            query = get_dataset_example_revisions(_test_data["version3_id"])
+            revisions = (await session.execute(query)).scalars().all()
+
+            revision_ids = [r.id for r in revisions]
+            example_ids = [r.dataset_example_id for r in revisions]
+
+            # Should get 2 revisions (example2 remains deleted)
+            assert len(revisions) == 2
+            assert _test_data["revision1_3_id"] in revision_ids  # Latest for example1
+            assert _test_data["revision3_3_id"] in revision_ids  # New example3
+            assert _test_data["example1_id"] in example_ids
+            assert _test_data["example3_id"] in example_ids
+            # example2 should still NOT be included because it was deleted and not recreated
+            assert _test_data["example2_id"] not in example_ids
+
+    async def test_no_duplicate_dataset_example_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that no duplicate dataset_example_ids are returned."""
+        async with db() as session:
+            for version_id in [
+                _test_data["version1_id"],
+                _test_data["version2_id"],
+                _test_data["version3_id"],
+            ]:
+                query = get_dataset_example_revisions(version_id)
+                revisions = (await session.execute(query)).scalars().all()
+
+                example_ids = [r.dataset_example_id for r in revisions]
+                unique_example_ids = set(example_ids)
+
+                # No duplicates
+                assert len(example_ids) == len(unique_example_ids), (
+                    f"Duplicate example IDs found for version {version_id}: {example_ids}"
+                )
+
+    async def test_cross_dataset_isolation(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that results are isolated to the correct dataset."""
+        async with db() as session:
+            # Test other dataset version
+            query = get_dataset_example_revisions(_test_data["version_other_id"])
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = [r.dataset_example_id for r in revisions]
+
+            # Should only get the one example from dataset2
+            assert len(revisions) == 1
+            assert _test_data["example_other_id"] in example_ids
+
+            # Should NOT contain any examples from dataset1
+            dataset1_examples = [
+                _test_data["example1_id"],
+                _test_data["example2_id"],
+                _test_data["example3_id"],
+            ]
+            for example_id in dataset1_examples:
+                assert example_id not in example_ids
+
+    async def test_empty_result_for_nonexistent_version(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that query returns empty result for non-existent version."""
+        async with db() as session:
+            # Use a non-existent version ID
+            query = get_dataset_example_revisions(99999)
+            revisions = (await session.execute(query)).scalars().all()
+
+            assert len(revisions) == 0

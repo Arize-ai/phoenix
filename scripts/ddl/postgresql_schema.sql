@@ -770,6 +770,36 @@ CREATE INDEX ix_experiment_tags_user_id ON public.experiment_tags
     USING btree (user_id);
 
 
+-- Table: experiments_dataset_examples
+-- -----------------------------------
+CREATE TABLE public.experiments_dataset_examples (
+    experiment_id BIGINT NOT NULL,
+    dataset_example_id BIGINT NOT NULL,
+    dataset_example_revision_id BIGINT NOT NULL,
+    CONSTRAINT pk_experiments_dataset_examples PRIMARY KEY (experiment_id, dataset_example_id),
+    CONSTRAINT fk_experiments_dataset_examples_dataset_example_id_data_7c5c
+        FOREIGN KEY
+        (dataset_example_id)
+        REFERENCES public.dataset_examples (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_experiments_dataset_examples_dataset_example_revisio_7f42
+        FOREIGN KEY
+        (dataset_example_revision_id)
+        REFERENCES public.dataset_example_revisions (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_experiments_dataset_examples_experiment_id_experiments
+        FOREIGN KEY
+        (experiment_id)
+        REFERENCES public.experiments (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_experiments_dataset_examples_dataset_example_id ON public.experiments_dataset_examples
+    USING btree (dataset_example_id);
+CREATE INDEX ix_experiments_dataset_examples_dataset_example_revision_id ON public.experiments_dataset_examples
+    USING btree (dataset_example_revision_id);
+
+
 -- Table: experiments_dataset_splits
 -- ---------------------------------
 CREATE TABLE public.experiments_dataset_splits (

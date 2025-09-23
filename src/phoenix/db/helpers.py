@@ -121,46 +121,66 @@ def dedup(
 
 def get_dataset_example_revisions(
     dataset_version_id: int,
+    dataset_id: Optional[int] = None,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
-    version = (
+    """
+    Get the latest revisions for all dataset examples within a specific dataset version.
+
+    Excludes examples where the latest revision is a DELETE.
+
+    Args:
+        dataset_version_id: The dataset version to get revisions for
+        dataset_id: Optional dataset ID - if provided, avoids extra subquery lookup
+    """
+    # Use ROW_NUMBER() to rank revisions per example
+    ranked_revisions_query = (
         select(
-            models.DatasetVersion.id,
-            models.DatasetVersion.dataset_id,
-        )
-        .filter_by(id=dataset_version_id)
-        .subquery()
-    )
-    table = models.DatasetExampleRevision
-    revision = (
-        select(
-            table.dataset_example_id,
-            func.max(table.dataset_version_id).label("dataset_version_id"),
+            models.DatasetExampleRevision.id,
+            models.DatasetExampleRevision.dataset_example_id,
+            models.DatasetExampleRevision.dataset_version_id,
+            models.DatasetExampleRevision.revision_kind,
+            func.row_number()
+            .over(
+                partition_by=models.DatasetExampleRevision.dataset_example_id,
+                order_by=[
+                    models.DatasetExampleRevision.dataset_version_id.desc(),
+                    models.DatasetExampleRevision.id.desc(),
+                ],
+            )
+            .label("rn"),
         )
         .join_from(
-            table,
+            models.DatasetExampleRevision,
             models.DatasetExample,
-            table.dataset_example_id == models.DatasetExample.id,
+            models.DatasetExampleRevision.dataset_example_id == models.DatasetExample.id,
         )
-        .join_from(
-            models.DatasetExample,
-            version,
-            models.DatasetExample.dataset_id == version.c.dataset_id,
-        )
-        .where(models.DatasetExample.dataset_id == version.c.dataset_id)
-        .where(table.dataset_version_id <= version.c.id)
-        .group_by(table.dataset_example_id)
-        .subquery()
+        .where(models.DatasetExampleRevision.dataset_version_id <= dataset_version_id)
     )
-    return (
-        select(table)
-        .where(table.revision_kind != "DELETE")
-        .join(
-            revision,
-            onclause=and_(
-                revision.c.dataset_example_id == table.dataset_example_id,
-                revision.c.dataset_version_id == table.dataset_version_id,
-            ),
+
+    if dataset_id is None:
+        version_subquery = (
+            select(models.DatasetVersion.dataset_id)
+            .filter_by(id=dataset_version_id)
+            .scalar_subquery()
         )
+        ranked_revisions_query = ranked_revisions_query.where(
+            models.DatasetExample.dataset_id == version_subquery
+        )
+    else:
+        ranked_revisions_query = ranked_revisions_query.where(
+            models.DatasetExample.dataset_id == dataset_id
+        )
+
+    ranked_revisions = ranked_revisions_query.subquery()
+
+    # Get the full revision records for latest revisions, excluding DELETE
+    return select(models.DatasetExampleRevision).join(
+        ranked_revisions,
+        and_(
+            models.DatasetExampleRevision.id == ranked_revisions.c.id,
+            ranked_revisions.c.rn == 1,
+            ranked_revisions.c.revision_kind != "DELETE",
+        ),
     )
 
 
