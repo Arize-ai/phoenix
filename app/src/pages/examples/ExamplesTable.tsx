@@ -33,8 +33,10 @@ const PAGE_SIZE = 100;
 
 export function ExamplesTable({
   dataset,
+  splits,
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
+  splits: examplesLoaderQuery$data["datasetSplits"];
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -249,6 +251,7 @@ export function ExamplesTable({
       {selectedRows.length ? (
         <ExampleSelectionToolbar
           selectedExamples={selectedExamples}
+          splits={splits}
           onClearSelection={clearSelection}
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });

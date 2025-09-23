@@ -8,6 +8,9 @@ import {
   Icon,
   IconButton,
   Icons,
+  Label,
+  ListBox,
+  ListBoxItem,
   Modal,
   ModalOverlay,
   Text,
@@ -16,24 +19,20 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/dialog";
+import { DialogCloseButton, DialogContent, DialogHeader, DialogTitle, DialogTitleExtra } from "@phoenix/components/dialog";
+import { AssignSplitsDialog } from "@phoenix/components/split/AssignSplitsDialog";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-
+import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 interface SelectedExample {
   id: string;
 }
 
 type ExampleSelectionToolbarProps = {
   selectedExamples: SelectedExample[];
+  splits: examplesLoaderQuery$data["datasetSplits"];
   onClearSelection: () => void;
   onExamplesDeleted: () => void;
 };
@@ -42,9 +41,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
-  const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
+  const { selectedExamples, onExamplesDeleted, onClearSelection, splits } = props;
   const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
     useState(false);
+  const [isAssignSplitsOpen, setIsAssignSplitsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [deleteExamples, isDeletingExamples] = useMutation(graphql`
@@ -58,7 +58,19 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       }
     }
   `);
+  const [addExamplesToSplits, isAssigningSplits] = useMutation(graphql`
+    mutation ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation(
+      $input: AddDatasetExamplesToDatasetSplitsInput!
+    ) {
+      addDatasetExamplesToDatasetSplits(input: $input) {
+        query { __typename }
+      }
+    }
+  `);
   const isPlural = selectedExamples.length !== 1;
+  const availableSplits = (splits?.edges ?? [])
+    .map((e) => e?.node)
+    .filter(Boolean) as Array<{ id: string; name: string }>;
   const onDeleteExamples = useCallback(() => {
     deleteExamples({
       variables: {
@@ -114,6 +126,14 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           </Flex>
         </View>
         <Button
+          size="M"
+          onPress={() => {
+            setIsAssignSplitsOpen(true);
+          }}
+        >
+          Assign Splits
+        </Button>
+        <Button
           variant="danger"
           size="M"
           leadingVisual={
@@ -134,6 +154,41 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
+      <AssignSplitsDialog
+        isOpen={isAssignSplitsOpen}
+        onOpenChange={setIsAssignSplitsOpen}
+        splits={availableSplits}
+        defaultSelectedIds={[]}
+        onConfirm={(selectedIds) => {
+          if (!selectedIds.length) {
+            notifyError({ title: "No splits selected", message: "Select at least one split." });
+            return;
+          }
+          console.log(selectedExamples);
+          const exampleIds = selectedExamples.map((e) => e.id);
+          addExamplesToSplits({
+            variables: {
+              input: {
+                datasetSplitIds: selectedIds,
+                exampleIds,
+              },
+            },
+            onCompleted: () => {
+              notifySuccess({
+                title: "Splits assigned",
+                message: `Assigned ${exampleIds.length} example${exampleIds.length === 1 ? "" : "s"} to ${selectedIds.length} split${selectedIds.length === 1 ? "" : "s"}.`,
+              });
+            },
+            onError: (error) => {
+              const formattedError = getErrorMessagesFromRelayMutationError(error);
+              notifyError({
+                title: "Failed to assign splits",
+                message: formattedError?.[0] ?? error.message,
+              });
+            },
+          });
+        }}
+      />
       <ModalOverlay
         isOpen={isDeleteConfirmationDialogOpen}
         onOpenChange={(isOpen) => {
