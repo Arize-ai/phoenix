@@ -29,10 +29,11 @@ CREATE TABLE public.dataset_splits (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_splits_name
-        UNIQUE (name)
+    CONSTRAINT pk_dataset_splits PRIMARY KEY (id)
 );
+
+CREATE UNIQUE INDEX ix_dataset_splits_check_unique_name ON public.dataset_splits
+    USING btree (name) WHERE (deleted_at IS NULL);
 
 
 -- Table: datasets
