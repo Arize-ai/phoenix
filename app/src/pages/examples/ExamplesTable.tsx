@@ -17,6 +17,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components/Link";
+import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -56,6 +57,11 @@ export function ExamplesTable({
             edges {
               example: node {
                 id
+                datasetSplits {
+                  id
+                  name
+                  color
+                }
                 revision {
                   input
                   output
@@ -86,6 +92,7 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
+          splits: example.datasetSplits,
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
@@ -123,6 +130,19 @@ export function ExamplesTable({
       cell: ({ getValue, row }) => {
         const exampleId = row.original.id;
         return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+      },
+    },
+    {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => {
+        const labels = (row.original.splits ?? []).map(
+          (s: { name: string; color?: string | null }) => ({
+            name: s.name,
+            color: s.color,
+          })
+        );
+        return <SplitLabels labels={labels} />;
       },
     },
     {
