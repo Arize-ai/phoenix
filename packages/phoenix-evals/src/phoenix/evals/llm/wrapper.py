@@ -98,6 +98,7 @@ class LLM:
         model: Optional[str] = None,
         client: Optional[str] = None,
         initial_per_second_request_rate: Optional[float] = None,
+        **kwargs: Any,
     ):
         """Initialize the LLM wrapper.
 
@@ -108,6 +109,9 @@ class LLM:
                 first available client for the provider will be used.
             initial_per_second_request_rate (Optional[float]): Optionally, the initial per-second
                 request rate. If not specified, the default rate limit will be used.
+            **kwargs (Any): Additional keyword arguments forwarded to the underlying SDK client
+                constructor(s) if applicable. Use this to pass provider/client-specific options
+                such as API keys, timeouts, base URLs, etc.
         """
         self.provider = provider
         self.model = model
@@ -140,8 +144,8 @@ class LLM:
                 registration = provider_registrations[0]
 
             try:
-                sync_client = registration.client_factory(model=model, is_async=False)
-                async_client = registration.client_factory(model=model, is_async=True)
+                sync_client = registration.client_factory(model=model, is_async=False, **kwargs)
+                async_client = registration.client_factory(model=model, is_async=True, **kwargs)
                 rate_limit_errors = (
                     registration.get_rate_limit_errors()
                     if registration.get_rate_limit_errors
