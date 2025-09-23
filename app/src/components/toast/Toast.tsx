@@ -76,7 +76,7 @@ export const Toast = <
         `}
       >
         <AriaToastContent>
-          <Text slot="title">
+          <Text slot="title" size="M">
             {toast.content.icon}
             {toast.content.title}
           </Text>

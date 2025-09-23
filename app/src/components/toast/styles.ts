@@ -87,6 +87,7 @@ export const toastCss = css`
     min-width: 0px;
 
     [slot="title"] {
+      align-items: center;
       color: var(--toast-color);
       font-weight: bold;
       display: flex;
