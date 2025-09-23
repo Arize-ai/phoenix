@@ -1,14 +1,6 @@
-import { ChangeEvent } from "react";
-import { css } from "@emotion/react";
+import { Checkbox } from "@phoenix/components/checkbox";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
-
-const fieldCSS = css`
-  display: flex;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-size-50);
-  align-items: center;
-`;
 
 type VisibilityCheckboxFieldProps = {
   /**
@@ -34,7 +26,7 @@ type VisibilityCheckboxFieldProps = {
   /**
    * The change callback for the checkbox.
    */
-  onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (isSelected: boolean) => void;
 };
 /**
  * A form field that controls the visibility of a group of points.
@@ -43,15 +35,9 @@ export function VisibilityCheckboxField(props: VisibilityCheckboxFieldProps) {
   const { name, checked, onChange, color, iconShape = Shape.circle } = props;
 
   return (
-    <label key={name} css={fieldCSS}>
-      <input
-        type="checkbox"
-        checked={checked}
-        name={name}
-        onChange={onChange}
-      />
+    <Checkbox isSelected={checked} name={name} onChange={onChange} key={name}>
       <ShapeIcon shape={iconShape} color={color} />
       {name}
-    </label>
+    </Checkbox>
   );
 }

@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -33,11 +33,10 @@ export function InferencesVisibilitySettings({
   );
 
   const handleInferencesVisibilityChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = event.target;
+    (isSelected: boolean, name: string) => {
       setInferencesVisibility({
         ...inferencesVisibility,
-        [name]: checked,
+        [name]: isSelected,
       });
     },
     [inferencesVisibility, setInferencesVisibility]
@@ -83,6 +82,7 @@ export function InferencesVisibilitySettings({
       css={css`
         display: flex;
         flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-50);
         padding: var(--ac-global-dimension-static-size-100);
       `}
     >
@@ -90,13 +90,17 @@ export function InferencesVisibilitySettings({
         checked={inferencesVisibility.primary}
         name="primary"
         color={primaryColor}
-        onChange={handleInferencesVisibilityChange}
+        onChange={(isSelected) =>
+          handleInferencesVisibilityChange(isSelected, "primary")
+        }
       />
       {hasReference ? (
         <VisibilityCheckboxField
           checked={inferencesVisibility.reference}
           name="reference"
-          onChange={handleInferencesVisibilityChange}
+          onChange={(isSelected) =>
+            handleInferencesVisibilityChange(isSelected, "reference")
+          }
           color={referenceColor}
           iconShape={referenceShape}
         />
@@ -105,7 +109,9 @@ export function InferencesVisibilitySettings({
         <VisibilityCheckboxField
           checked={inferencesVisibility.corpus}
           name="corpus"
-          onChange={handleInferencesVisibilityChange}
+          onChange={(isSelected) =>
+            handleInferencesVisibilityChange(isSelected, "corpus")
+          }
           color={corpusColor}
           iconShape={corpusShape}
         />

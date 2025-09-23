@@ -232,19 +232,19 @@ export function ExperimentsTable({
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
+            isSelected: table.getIsAllRowsSelected(),
+            isIndeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.toggleAllRowsSelected,
           }}
         />
       ),
       cell: ({ row }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
+            isSelected: row.getIsSelected(),
+            isDisabled: !row.getCanSelect(),
+            isIndeterminate: row.getIsSomeSelected(),
+            onChange: row.toggleSelected,
           }}
         />
       ),
