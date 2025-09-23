@@ -26,7 +26,10 @@ from typing_extensions import assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import get_dataset_example_revisions
+from phoenix.db.helpers import (
+    create_experiment_examples_snapshot_insert,
+    get_dataset_example_revisions,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -206,6 +209,9 @@ class ChatCompletionMutationMixin:
             )
             session.add(experiment)
             await session.flush()
+
+            junction_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(junction_stmt)
 
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3

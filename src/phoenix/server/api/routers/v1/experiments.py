@@ -6,7 +6,7 @@ from typing import Any, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from pydantic import Field
-from sqlalchemy import and_, func, insert, literal, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
@@ -15,7 +15,10 @@ from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESS
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    create_experiment_examples_snapshot_insert,
+)
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -181,21 +184,7 @@ async def create_experiment(
         session.add(experiment)
         await session.flush()
 
-        junction_stmt = insert(models.ExperimentDatasetExample).from_select(
-            [
-                models.ExperimentDatasetExample.experiment_id,
-                models.ExperimentDatasetExample.dataset_example_id,
-                models.ExperimentDatasetExample.dataset_example_revision_id,
-            ],
-            get_dataset_example_revisions(
-                dataset_version_id=experiment.dataset_version_id,
-                dataset_id=experiment.dataset_id,
-            ).with_only_columns(
-                literal(experiment.id),
-                models.DatasetExampleRevision.dataset_example_id,
-                models.DatasetExampleRevision.id,
-            ),
-        )
+        junction_stmt = create_experiment_examples_snapshot_insert(experiment)
         await session.execute(junction_stmt)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)

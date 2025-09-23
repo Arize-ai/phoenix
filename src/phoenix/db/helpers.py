@@ -383,3 +383,36 @@ def truncate_name(name: str, max_len: int = 63) -> str:
     if len(name) > max_len:
         return name[0 : max_len - 8] + "_" + util.md5_hex(name)[-4:]
     return name
+
+
+def create_experiment_examples_snapshot_insert(
+    experiment: "models.Experiment",
+):
+    """
+    Create an INSERT statement to snapshot dataset examples for an experiment.
+
+    This captures which examples belong to the experiment at the time of creation.
+
+    Args:
+        experiment: The experiment to create the snapshot for
+
+    Returns:
+        SQLAlchemy INSERT statement ready for execution
+    """
+    from sqlalchemy import insert, literal
+
+    return insert(models.ExperimentDatasetExample).from_select(
+        [
+            models.ExperimentDatasetExample.experiment_id,
+            models.ExperimentDatasetExample.dataset_example_id,
+            models.ExperimentDatasetExample.dataset_example_revision_id,
+        ],
+        get_dataset_example_revisions(
+            dataset_version_id=experiment.dataset_version_id,
+            dataset_id=experiment.dataset_id,
+        ).with_only_columns(
+            literal(experiment.id),
+            models.DatasetExampleRevision.dataset_example_id,
+            models.DatasetExampleRevision.id,
+        ),
+    )

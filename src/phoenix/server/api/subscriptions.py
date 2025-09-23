@@ -26,6 +26,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import create_experiment_examples_snapshot_insert
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -317,6 +318,9 @@ class Subscription:
             )
             session.add(experiment)
             await session.flush()
+
+            junction_stmt = create_experiment_examples_snapshot_insert(experiment)
+            await session.execute(junction_stmt)
         yield ChatCompletionSubscriptionExperiment(
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
