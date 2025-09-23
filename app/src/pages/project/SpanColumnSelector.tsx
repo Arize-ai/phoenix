@@ -69,6 +69,14 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
     });
   }, [columns, columnVisibility]);
 
+  const someVisible = useMemo(() => {
+    return columns.some((column) => {
+      const stateValue = columnVisibility[column.id];
+      const isVisible = stateValue == null ? true : stateValue;
+      return isVisible;
+    });
+  }, [columns, columnVisibility]);
+
   const onCheckboxChange = useCallback(
     (name: string, isSelected: boolean) => {
       setColumnVisibility({ ...columnVisibility, [name]: isSelected });
@@ -103,6 +111,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
             <Checkbox
               name="toggle-all"
               isSelected={allVisible}
+              isIndeterminate={someVisible && !allVisible}
               onChange={onToggleAll}
             >
               span columns
@@ -162,6 +171,13 @@ function EvaluationColumnSelector({
     });
   }, [data.spanAnnotationNames, annotationColumnVisibility]);
 
+  const someVisible = useMemo(() => {
+    return data.spanAnnotationNames.some((name) => {
+      const stateValue = annotationColumnVisibility[name];
+      return stateValue || false;
+    });
+  }, [data.spanAnnotationNames, annotationColumnVisibility]);
+
   const onToggleAnnotations = useCallback(() => {
     const newVisibilityState = data.spanAnnotationNames.reduce((acc, name) => {
       return { ...acc, [name]: !allVisible };
@@ -181,6 +197,7 @@ function EvaluationColumnSelector({
           <Checkbox
             name="toggle-annotations-all"
             isSelected={allVisible}
+            isIndeterminate={someVisible && !allVisible}
             onChange={onToggleAnnotations}
           >
             annotations
