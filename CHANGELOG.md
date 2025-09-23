@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.36.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.35.0...arize-phoenix-v11.36.0) (2025-09-23)
+
+
+### Features
+
+* **experiments:** break out repetitions in experiments compare slideover ([#9546](https://github.com/Arize-ai/phoenix/issues/9546)) ([4ba38c8](https://github.com/Arize-ai/phoenix/commit/4ba38c838c0235f73832292aae911a24545c653a))
+* Port notifications to react-aria toasts ([#9573](https://github.com/Arize-ai/phoenix/issues/9573)) ([b79d67b](https://github.com/Arize-ai/phoenix/commit/b79d67b7988714d52f7cdd83260da9090b127fb6))
+
+
+### Bug Fixes
+
+* Remove extra line from typescript client code snippet ([#9594](https://github.com/Arize-ai/phoenix/issues/9594)) ([881fbe3](https://github.com/Arize-ai/phoenix/commit/881fbe30aab86b911d8bd939ac86458ad6936520))
+
 ## [11.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.34.0...arize-phoenix-v11.35.0) (2025-09-22)
 
 
