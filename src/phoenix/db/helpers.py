@@ -219,13 +219,8 @@ def get_dataset_example_revisions(
         dataset_version_id: The dataset version to get revisions for
         dataset_id: Optional dataset ID - if provided, avoids extra subquery lookup
     """
-    # Build the ranked revisions query
     ranked_query = _build_ranked_revisions_query(dataset_version_id)
-
-    # Apply dataset filtering
     filtered_query = _apply_dataset_filter(ranked_query, dataset_id, dataset_version_id)
-
-    # Create subquery and select latest non-deleted revisions
     ranked_subquery = filtered_query.subquery()
     return _select_latest_non_deleted_revisions(ranked_subquery)
 
@@ -443,12 +438,10 @@ def _get_experiment_split_example_ids(experiment_id: int) -> Select[tuple[int]]:
     Returns:
         SQLAlchemy SELECT statement for dataset_example_id values
     """
-    # Check if experiment has any splits
     experiment_splits_subquery = select(models.ExperimentDatasetSplit.dataset_split_id).where(
         models.ExperimentDatasetSplit.experiment_id == experiment_id
     )
 
-    # Get examples from experiment's splits
     split_examples_subquery = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
         models.DatasetSplitDatasetExample.dataset_split_id.in_(experiment_splits_subquery)
     )
@@ -473,22 +466,18 @@ def get_dataset_example_revisions_filtered(
         SQLAlchemy SELECT statement for DatasetExampleRevision records
     """
     if example_ids is None:
-        # No additional filtering needed - use base function
         return get_dataset_example_revisions(
             dataset_version_id=dataset_version_id,
             dataset_id=dataset_id,
         )
 
-    # Build query with example ID filtering
     ranked_query = _build_ranked_revisions_query(dataset_version_id)
     filtered_query = _apply_dataset_filter(ranked_query, dataset_id, dataset_version_id)
 
-    # Add example ID filtering
     filtered_query = filtered_query.where(
         models.DatasetExampleRevision.dataset_example_id.in_(example_ids)
     )
 
-    # Select latest non-deleted revisions
     ranked_subquery = filtered_query.subquery()
     return _select_latest_non_deleted_revisions(ranked_subquery)
 
@@ -510,32 +499,25 @@ def get_dataset_example_revisions_for_experiment(
     Returns:
         SQLAlchemy SELECT statement for DatasetExampleRevision records
     """
-    # Build ranked revisions query
     ranked_query = _build_ranked_revisions_query(experiment.dataset_version_id)
 
-    # Apply dataset filtering
     filtered_query = _apply_dataset_filter(
         ranked_query, experiment.dataset_id, experiment.dataset_version_id
     )
 
-    # Apply split filtering if experiment has splits
     experiment_splits_subquery = select(models.ExperimentDatasetSplit.dataset_split_id).where(
         models.ExperimentDatasetSplit.experiment_id == experiment.id
     )
 
     split_examples_subquery = _get_experiment_split_example_ids(experiment.id)
 
-    # Add split filtering using OR logic
     filtered_query = filtered_query.where(
         or_(
-            # No splits assigned to experiment
             ~exists(experiment_splits_subquery),
-            # Example belongs to one of the experiment's splits
             models.DatasetExampleRevision.dataset_example_id.in_(split_examples_subquery),
         )
     )
 
-    # Select latest non-deleted revisions
     ranked_subquery = filtered_query.subquery()
     return _select_latest_non_deleted_revisions(ranked_subquery)
 
