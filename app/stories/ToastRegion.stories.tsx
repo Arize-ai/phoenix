@@ -32,6 +32,7 @@ const TriggerToasts = () => {
         onPress={() => {
           notify({
             title: "Default Toast",
+            expireMs: null,
           });
         }}
       >
@@ -42,6 +43,7 @@ const TriggerToasts = () => {
           notifySuccess({
             title: "Success Toast",
             message: "This is a success toast message.",
+            expireMs: null,
           })
         }
       >
@@ -52,6 +54,7 @@ const TriggerToasts = () => {
           notifyError({
             title: "Error Toast",
             message: "This is an error toast message.",
+            expireMs: null,
           })
         }
       >
@@ -86,6 +89,7 @@ const TriggerToasts = () => {
                 }, 1000);
               },
             },
+            expireMs: null,
           })
         }
       >

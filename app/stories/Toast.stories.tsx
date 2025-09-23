@@ -1,9 +1,9 @@
-import { Meta, StoryFn } from "@storybook/react";
-import { css } from "@emotion/react";
-import { Icon, Icons, Toast } from "@phoenix/components";
 import { ComponentProps } from "react";
-import { NotificationParams } from "@phoenix/contexts";
 import { QueuedToast } from "react-aria-components";
+import { Meta, StoryFn } from "@storybook/react";
+
+import { Icon, Icons, Toast } from "@phoenix/components";
+import { NotificationParams } from "@phoenix/contexts";
 
 const meta: Meta = {
   title: "Toast",
@@ -91,9 +91,10 @@ ActionToast.args = {
       title: "Action Toast",
       message: "This is an action toast message.",
       action: {
-        text: "Undo",
+        text: "Action",
         onClick: () => {
-          console.log("Undo clicked");
+          // eslint-disable-next-line no-console
+          console.log("Action clicked");
         },
       },
     },
