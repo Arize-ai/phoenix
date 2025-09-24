@@ -736,7 +736,7 @@ def evaluate_dataframe(
     task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
 
     # Pre-allocate columns for efficient assignment
-    score_dicts: Dict[str, Dict[Any, Optional[str]]] = {}
+    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
     for evaluator in evaluators:
         evaluator_name = evaluator.name
         execution_details_col = f"{evaluator_name}_execution_details"
