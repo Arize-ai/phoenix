@@ -280,11 +280,8 @@ def format_as_annotation_dataframe(
     # Infer annotator_kind from score.source in first non-null score
     annotator_kind = "LLM"  # default
     if not eval_df[score_column].isna().all():
-        first_score = (
-            eval_df[score_column].dropna().iloc[0]
-            if not eval_df[score_column].dropna().empty
-            else None
-        )
+        no_na = eval_df[score_column].dropna()
+        first_score = None if no_na.empty else no_na.iloc[0]
         if first_score and "source" in first_score:
             source = first_score["source"]
             if source == "heuristic":
