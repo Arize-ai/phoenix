@@ -27,6 +27,11 @@ describe("formatFloat", () => {
     expect(formatFloat(123)).toEqual("123.00");
     expect(formatFloat(123.23)).toEqual("123.23");
     expect(formatFloat(12.23)).toEqual("12.23");
+  });
+
+  it("should truncate for values between 0.01 and 1", () => {
+    expect(formatFloat(0.5555)).toEqual("0.55");
+    expect(formatFloat(0.1111)).toEqual("0.11");
     expect(formatFloat(0.9999)).toEqual("0.99");
   });
 });
