@@ -904,10 +904,9 @@ async def async_evaluate_dataframe(
         if scores is None:
             continue
         for score in scores:
-            if not score.name:  # this shouldn't happen
-                score_col = f"{evaluators[evaluator_index].name}_{i}"
-            else:
-                score_col = f"{score.name}_score"
+            if not score.name:
+                raise ValueError(f"Score has no name: {score}")
+            score_col = f"{score.name}_score"
             if score_col not in score_dicts:
                 score_dicts[score_col] = {}
             score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
