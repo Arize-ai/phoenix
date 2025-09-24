@@ -1,5 +1,21 @@
 # Changelog
 
+## [11.37.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.36.0...arize-phoenix-v11.37.0) (2025-09-24)
+
+
+### Features
+
+* add new checkbox ([#9595](https://github.com/Arize-ai/phoenix/issues/9595)) ([4a5151e](https://github.com/Arize-ai/phoenix/commit/4a5151ee19c3b27362972322716865240ac4a118))
+* **playground:** custom http headers for playground requests ([#9560](https://github.com/Arize-ai/phoenix/issues/9560)) ([ee570ef](https://github.com/Arize-ai/phoenix/commit/ee570efce1bc22d88e55735f49072fa705c24e66))
+
+
+### Bug Fixes
+
+* **helm:** remove hook annotations ([#9486](https://github.com/Arize-ai/phoenix/issues/9486)) ([286e802](https://github.com/Arize-ai/phoenix/commit/286e802b24fd773900a1ccc29b278efc33cbae07))
+* null value in pagination cursor ([#9575](https://github.com/Arize-ai/phoenix/issues/9575)) ([0a5e7c9](https://github.com/Arize-ai/phoenix/commit/0a5e7c999f6e8b26491403035ca8ba532e0f012b))
+* truncate rather than round in formatFloat ([#9607](https://github.com/Arize-ai/phoenix/issues/9607)) ([72c3c90](https://github.com/Arize-ai/phoenix/commit/72c3c9026b3ee78e7554116733cb537cf7153bdf))
+* wrap notification functions in useCallback ([#9613](https://github.com/Arize-ai/phoenix/issues/9613)) ([871ce45](https://github.com/Arize-ai/phoenix/commit/871ce4566da240f7f900d54687ed570e1ec35e25))
+
 ## [11.36.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.35.0...arize-phoenix-v11.36.0) (2025-09-23)
 
 
