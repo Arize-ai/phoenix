@@ -40,6 +40,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
 from .session_num_traces_with_error import SessionNumTracesWithErrorDataLoader
@@ -69,6 +70,7 @@ from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .table_fields import TableFieldsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
+from .trace_annotations_by_trace import TraceAnnotationsByTraceDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
@@ -104,6 +106,7 @@ __all__ = [
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
+    "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",
     "SessionNumTracesWithErrorDataLoader",
@@ -130,6 +133,7 @@ __all__ = [
     "SpanProjectsDataLoader",
     "TableFieldsDataLoader",
     "TokenCountDataLoader",
+    "TraceAnnotationsByTraceDataLoader",
     "TraceByTraceIdsDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
     "TraceRootSpansDataLoader",

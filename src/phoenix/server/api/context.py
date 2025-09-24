@@ -43,6 +43,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
     SessionNumTracesWithErrorDataLoader,
@@ -68,6 +69,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
@@ -124,6 +126,7 @@ class DataLoaders:
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
+    session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
@@ -158,6 +161,7 @@ class DataLoaders:
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
+    trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader

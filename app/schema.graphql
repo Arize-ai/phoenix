@@ -89,6 +89,17 @@ input AnnotationConfigInput @oneOf {
   freeform: FreeformAnnotationConfigInput
 }
 
+input AnnotationFilter {
+  include: AnnotationFilterCondition
+  exclude: AnnotationFilterCondition
+}
+
+input AnnotationFilterCondition {
+  names: [String!]
+  sources: [AnnotationSource!]
+  userIds: [ID]
+}
+
 enum AnnotationSource {
   API
   APP
@@ -1883,6 +1894,11 @@ type Project implements Node {
   """
   spanAnnotationNames: [String!]!
 
+  """
+  Names of all available annotations for sessions. (The list contains no duplicates.)
+  """
+  sessionAnnotationNames: [String!]!
+
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
@@ -1949,7 +1965,7 @@ type ProjectSession implements Node {
   sessionId: String!
   startTime: DateTime!
   endTime: DateTime!
-  projectId: ID!
+  project: Project!
   numTraces: Int!
   numTracesWithError: Int!
   firstInput: SpanIOValue
@@ -1960,6 +1976,9 @@ type ProjectSession implements Node {
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   sessionAnnotations: [ProjectSessionAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the session"""
+  sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 }
 
 type ProjectSessionAnnotation implements Node {
@@ -2453,13 +2472,13 @@ type Span implements Node {
   """
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
+  spanAnnotations(sort: SpanAnnotationSort, filter: AnnotationFilter = null): [SpanAnnotation!]!
 
   """Notes associated with the span."""
   spanNotes: [SpanAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the span"""
-  spanAnnotationSummaries(filter: SpanAnnotationFilter = null): [AnnotationSummary!]!
+  spanAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
@@ -2535,17 +2554,6 @@ type SpanAnnotation implements Node & Annotation {
 enum SpanAnnotationColumn {
   createdAt
   name
-}
-
-input SpanAnnotationFilter {
-  include: SpanAnnotationFilterCondition
-  exclude: SpanAnnotationFilterCondition
-}
-
-input SpanAnnotationFilterCondition {
-  names: [String!]
-  sources: [AnnotationSource!]
-  userIds: [ID]
 }
 
 type SpanAnnotationMutationPayload {
@@ -2876,6 +2884,9 @@ type Trace implements Node {
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the trace"""
+  traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }

@@ -8,7 +8,7 @@
 # ///
 from datetime import datetime, timedelta, timezone
 from io import StringIO
-from random import randint, random, sample
+from random import choice, randint, random, sample
 from secrets import token_hex
 from typing import Iterator, Optional, cast
 
@@ -210,6 +210,7 @@ for t in sorted(generate_timestamps(), reverse=True):
         token_hex(6),
         start_time=start_time,
         end_on_exit=False,
+        attributes={"session.id": choice(range(10))},
     ) as root_span:
         # Generate 1-3 LLM spans
         num_llm_spans = randint(1, 3)
@@ -225,14 +226,14 @@ for t in sorted(generate_timestamps(), reverse=True):
     spans.append(root_span)
     span_id = format_span_id(root_span.get_span_context().span_id)
     score = np.random.beta(2, 5)
-    client.annotations.add_span_annotation(
+    client.spans.add_span_annotation(
         span_id=span_id,
         annotation_name="helpfulness",
         score=score,
         label="helpful" if score > 0.5 else "not helpful",
     )
     score = np.random.beta(5, 2)
-    client.annotations.add_span_annotation(
+    client.spans.add_span_annotation(
         span_id=span_id,
         annotation_name="relevant",
         score=score,
