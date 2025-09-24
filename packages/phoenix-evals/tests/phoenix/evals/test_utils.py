@@ -1,10 +1,14 @@
 # type: ignore
 
+import json
+
+import pandas as pd
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.utils import (
     extract_with_jsonpath,
+    format_as_annotation_dataframe,
     remap_eval_input,
 )
 
@@ -298,3 +302,483 @@ class TestExtractWithJsonPath:
         """Test error handling for various error cases."""
         with pytest.raises(error_type, match=error_match):
             extract_with_jsonpath(payload, path)
+
+
+class TestFormatAsAnnotationDataframe:
+    """Test the format_as_annotation_dataframe utility function."""
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_columns",
+        [
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "label": "good",
+                    "explanation": "The response is accurate and helpful",
+                    "metadata": {"model": "gpt-4"},
+                    "source": "llm",
+                    "direction": "maximize",
+                },
+                "hallucination",
+                [
+                    "span_id",
+                    "score",
+                    "label",
+                    "explanation",
+                    "metadata",
+                    "annotation_name",
+                    "annotator_kind",
+                ],
+                id="complete_score_data",
+            ),
+        ],
+    )
+    def test_output_column_structure(self, score_data, score_name, expected_columns):
+        """Test that output has correct column structure."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert list(result.columns) == expected_columns
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_score",
+        [
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "test",
+                0.85,
+                id="numeric_score",
+            ),
+            pytest.param(
+                {"score": 1.0, "source": "llm"},
+                "test",
+                1.0,
+                id="perfect_score",
+            ),
+            pytest.param(
+                {"score": 0, "source": "llm"},
+                "test",
+                0,
+                id="zero_score",
+            ),
+        ],
+    )
+    def test_score_extraction(self, score_data, score_name, expected_score):
+        """Test that score values are extracted correctly."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["score"].iloc[0] == expected_score
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_label",
+        [
+            pytest.param(
+                {"score": 0.85, "label": "good", "source": "llm"},
+                "test",
+                "good",
+                id="string_label",
+            ),
+            pytest.param(
+                {"score": 0.85, "label": "excellent", "source": "llm"},
+                "test",
+                "excellent",
+                id="different_label",
+            ),
+        ],
+    )
+    def test_label_extraction(self, score_data, score_name, expected_label):
+        """Test that label values are extracted correctly."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["label"].iloc[0] == expected_label
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_explanation",
+        [
+            pytest.param(
+                {"score": 0.85, "explanation": "The response is accurate", "source": "llm"},
+                "test",
+                "The response is accurate",
+                id="string_explanation",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "explanation": "Long detailed explanation with multiple words",
+                    "source": "llm",
+                },
+                "test",
+                "Long detailed explanation with multiple words",
+                id="long_explanation",
+            ),
+        ],
+    )
+    def test_explanation_extraction(self, score_data, score_name, expected_explanation):
+        """Test that explanation values are extracted correctly."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["explanation"].iloc[0] == expected_explanation
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_metadata",
+        [
+            pytest.param(
+                {"score": 0.85, "metadata": {"model": "gpt-4"}, "source": "llm"},
+                "test",
+                {"model": "gpt-4"},
+                id="simple_metadata",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": {
+                        "model": "gpt-4",
+                        "temperature": 0.7,
+                        "tokens": {"input": 100, "output": 50},
+                        "nested": {"key": "value"},
+                    },
+                    "source": "llm",
+                },
+                "test",
+                {
+                    "model": "gpt-4",
+                    "temperature": 0.7,
+                    "tokens": {"input": 100, "output": 50},
+                    "nested": {"key": "value"},
+                },
+                id="complex_metadata",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": {"model": "gpt-4"},
+                    "direction": "maximize",
+                    "source": "llm",
+                },
+                "test",
+                {"model": "gpt-4", "direction": "maximize"},
+                id="metadata_with_direction",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "direction": "minimize",
+                    "source": "llm",
+                },
+                "test",
+                {"direction": "minimize"},
+                id="direction_only_metadata",
+            ),
+        ],
+    )
+    def test_metadata_extraction(self, score_data, score_name, expected_metadata):
+        """Test that metadata values are extracted correctly."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["metadata"].iloc[0] == expected_metadata
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,score_display_name,expected_annotation_name",
+        [
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "precision",
+                None,
+                "precision",
+                id="default_display_name",
+            ),
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "precision",
+                "Precision Score",
+                "Precision Score",
+                id="custom_display_name",
+            ),
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "hallucination",
+                "Hallucination Detection",
+                "Hallucination Detection",
+                id="different_custom_name",
+            ),
+        ],
+    )
+    def test_annotation_name_assignment(
+        self, score_data, score_name, score_display_name, expected_annotation_name
+    ):
+        """Test that annotation names are assigned correctly."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name, score_display_name)
+        assert result["annotation_name"].iloc[0] == expected_annotation_name
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_annotator_kind",
+        [
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "test",
+                "LLM",
+                id="llm_source",
+            ),
+            pytest.param(
+                {"score": 1.0, "source": "heuristic"},
+                "test",
+                "CODE",
+                id="heuristic_source",
+            ),
+            pytest.param(
+                {"score": 0.8, "source": "human"},
+                "test",
+                "HUMAN",
+                id="human_source",
+            ),
+            pytest.param(
+                {"score": 0.6, "source": "unknown_source"},
+                "test",
+                "LLM",
+                id="unknown_source_defaults_to_llm",
+            ),
+        ],
+    )
+    def test_annotator_kind_inference(self, score_data, score_name, expected_annotator_kind):
+        """Test that annotator kind is inferred correctly from source."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["annotator_kind"].iloc[0] == expected_annotator_kind
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_span_id",
+        [
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "test",
+                "span_1",
+                id="basic_span_id",
+            ),
+            pytest.param(
+                {"score": 0.85, "source": "llm"},
+                "test",
+                "custom_span_123",
+                id="custom_span_id",
+            ),
+        ],
+    )
+    def test_span_id_preservation(self, score_data, score_name, expected_span_id):
+        """Test that span_id values are preserved correctly."""
+        df = pd.DataFrame(
+            {"span_id": [expected_span_id], f"{score_name}_score": [json.dumps(score_data)]}
+        )
+        result = format_as_annotation_dataframe(df, score_name)
+        assert result["span_id"].iloc[0] == expected_span_id
+
+    @pytest.mark.parametrize(
+        "span_id_column,score_data,score_name",
+        [
+            pytest.param(
+                "span_id",
+                {"score": 0.9, "source": "llm"},
+                "test",
+                id="lowercase_span_id",
+            ),
+            pytest.param(
+                "context.span_id",
+                {"score": 0.9, "source": "llm"},
+                "test",
+                id="context.span_id",
+            ),
+            pytest.param(
+                "Span_Id",
+                {"score": 0.9, "source": "llm"},
+                "test",
+                id="mixed_case_span_id",
+            ),
+            pytest.param(
+                "trace_span_id",
+                {"score": 0.9, "source": "llm"},
+                "test",
+                id="prefixed_span_id",
+            ),
+            pytest.param(
+                "my_span_id_column",
+                {"score": 0.9, "source": "llm"},
+                "test",
+                id="long_span_id_name",
+            ),
+        ],
+    )
+    def test_span_id_column_detection(self, span_id_column, score_data, score_name):
+        """Test that different span_id column names are detected correctly."""
+        df = pd.DataFrame(
+            {span_id_column: ["span_1"], f"{score_name}_score": [json.dumps(score_data)]}
+        )
+        result = format_as_annotation_dataframe(df, score_name)
+        assert span_id_column in result.columns
+
+    @pytest.mark.parametrize(
+        "score_data,score_name,expected_value",
+        [
+            pytest.param(
+                {"score": 0.5, "source": "llm"},
+                "test",
+                None,
+                id="missing_label",
+            ),
+            pytest.param(
+                {"score": 0.5, "source": "llm"},
+                "test",
+                None,
+                id="missing_explanation",
+            ),
+            pytest.param(
+                {"score": 0.5, "source": "llm"},
+                "test",
+                None,
+                id="missing_metadata",
+            ),
+        ],
+    )
+    def test_missing_optional_fields(self, score_data, score_name, expected_value):
+        """Test handling of missing optional fields."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        # Test that missing fields are None
+        assert pd.isna(result["label"].iloc[0]) or result["label"].iloc[0] is None
+        assert pd.isna(result["explanation"].iloc[0]) or result["explanation"].iloc[0] is None
+        assert pd.isna(result["metadata"].iloc[0]) or result["metadata"].iloc[0] is None
+
+    @pytest.mark.parametrize(
+        "score_column_value,score_name,expected_score",
+        [
+            pytest.param(
+                None,
+                "test",
+                None,
+                id="none_score_value",
+            ),
+            pytest.param(
+                "",
+                "test",
+                None,
+                id="empty_string_score",
+            ),
+            pytest.param(
+                json.dumps({"score": None, "source": "llm"}),
+                "test",
+                None,
+                id="none_score_in_json",
+            ),
+        ],
+    )
+    def test_none_and_empty_score_handling(self, score_column_value, score_name, expected_score):
+        """Test handling of None and empty score values."""
+        df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [score_column_value]})
+        result = format_as_annotation_dataframe(df, score_name)
+        assert pd.isna(result["score"].iloc[0]) or result["score"].iloc[0] is None
+
+    def test_multiple_scores_use_first_source_for_annotator_kind(self):
+        """Test that annotator kind uses source from first non-null score."""
+        df = pd.DataFrame(
+            {
+                "span_id": ["span_1", "span_2", "span_3"],
+                "mixed_score": [
+                    json.dumps({"score": 0.8, "source": "heuristic"}),  # First non-null
+                    json.dumps({"score": 0.9, "source": "llm"}),
+                    json.dumps({"score": 0.7, "source": "human"}),
+                ],
+            }
+        )
+        result = format_as_annotation_dataframe(df, "mixed")
+        # Should use "heuristic" from first non-null score
+        assert all(result["annotator_kind"] == "CODE")
+
+    def test_all_none_scores_default_to_llm_annotator_kind(self):
+        """Test that all None scores default to LLM annotator kind."""
+        df = pd.DataFrame({"span_id": ["span_1", "span_2"], "none_score": [None, None]})
+        result = format_as_annotation_dataframe(df, "none")
+        # Should default to LLM when no source can be determined
+        assert all(result["annotator_kind"] == "LLM")
+
+    def test_original_dataframe_preservation(self):
+        """Test that original dataframe is not modified."""
+        original_score = json.dumps({"score": 0.8, "source": "llm"})
+        df = pd.DataFrame({"span_id": ["span_1"], "preserve_score": [original_score]})
+        original_df = df.copy()
+        format_as_annotation_dataframe(df, "preserve")
+        # Original dataframe should be unchanged
+        pd.testing.assert_frame_equal(df, original_df)
+
+    def test_large_dataframe_handling(self):
+        """Test formatting with a larger dataframe."""
+        n_rows = 1000
+        score_data = {
+            "score": 0.75,
+            "label": "good",
+            "explanation": "Standard response",
+            "metadata": {"model": "gpt-3.5"},
+            "source": "llm",
+        }
+        df = pd.DataFrame(
+            {
+                "span_id": [f"span_{i}" for i in range(n_rows)],
+                "large_score": [json.dumps(score_data) for _ in range(n_rows)],
+            }
+        )
+        result = format_as_annotation_dataframe(df, "large")
+        assert len(result) == n_rows
+
+    @pytest.mark.parametrize(
+        "score_name,expected_score_column",
+        [
+            ("precision", "precision_score"),
+            ("hallucination", "hallucination_score"),
+            ("relevance", "relevance_score"),
+            ("quality", "quality_score"),
+        ],
+    )
+    def test_score_column_naming(self, score_name, expected_score_column):
+        """Test that score column names are constructed correctly."""
+        score_data = {"score": 0.8, "source": "llm"}
+        df = pd.DataFrame({"span_id": ["span_1"], expected_score_column: [json.dumps(score_data)]})
+        result = format_as_annotation_dataframe(df, score_name)
+        # Should work without error
+        assert len(result) == 1
+
+    @pytest.mark.parametrize(
+        "dataframe_columns,score_name,expected_error",
+        [
+            pytest.param(
+                {"span_id": ["span_1"], "other_column": ["value"]},
+                "missing",
+                "Score column 'missing_score' not found in DataFrame",
+                id="missing_score_column",
+            ),
+        ],
+    )
+    def test_missing_score_column_error(self, dataframe_columns, score_name, expected_error):
+        """Test error when score column is missing."""
+        df = pd.DataFrame(dataframe_columns)
+        with pytest.raises(ValueError, match=expected_error):
+            format_as_annotation_dataframe(df, score_name)
+
+    @pytest.mark.parametrize(
+        "dataframe_columns,score_name,expected_error",
+        [
+            pytest.param(
+                {"other_column": ["value"], "test_score": [json.dumps({"score": 0.5})]},
+                "test",
+                "No column containing 'span_id' found in DataFrame",
+                id="missing_span_id_column",
+            ),
+        ],
+    )
+    def test_missing_span_id_column_error(self, dataframe_columns, score_name, expected_error):
+        """Test error when no span_id column is found."""
+        df = pd.DataFrame(dataframe_columns)
+        with pytest.raises(ValueError, match=expected_error):
+            format_as_annotation_dataframe(df, score_name)
+
+    def test_invalid_json_in_score_column_error(self):
+        """Test error handling for invalid JSON in score column."""
+        df = pd.DataFrame({"span_id": ["span_1"], "invalid_score": ["invalid json string"]})
+        # Should handle JSON parsing errors gracefully
+        with pytest.raises(json.JSONDecodeError):
+            format_as_annotation_dataframe(df, "invalid")
