@@ -2,7 +2,6 @@ import { forwardRef, ReactNode, Ref, useCallback } from "react";
 import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
 import { useSize } from "@phoenix/contexts";
 
 import { buttonCSS } from "./styles";
@@ -16,7 +15,6 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
     trailingVisual,
     children,
     css: propCSS,
-    className,
     ...otherProps
   } = props;
   // If the toggle button is nested under a button group, use the size of the button group
@@ -43,7 +41,6 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-variant={variant}
       data-childless={!children}
       css={css(buttonCSS, propCSS)}
-      className={classNames("react-aria-Button", className)}
     >
       {renderContent}
     </AriaButton>

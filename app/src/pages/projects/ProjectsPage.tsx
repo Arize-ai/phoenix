@@ -28,6 +28,8 @@ import { formatDistance } from "date-fns";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
+import { useNotification } from "@arizeai/components";
+
 import {
   DebouncedSearch,
   Flex,
@@ -52,7 +54,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import { usePreferencesContext } from "@phoenix/contexts";
 import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
@@ -135,7 +137,7 @@ export function ProjectsPageContent({
   }));
   const sortQueryParams = useProjectSortQueryParams();
   const [filter, setFilter] = useState<string>("");
-  const notifySuccess = useNotifySuccess();
+  const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
     return {
@@ -251,7 +253,8 @@ export function ProjectsPageContent({
       startTransition(() => {
         refetch({
           onComplete: () => {
-            notifySuccess({
+            notify({
+              variant: "success",
               title: "Project Deleted",
               message: `Project ${projectName} has been deleted.`,
             });
@@ -259,7 +262,7 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notifySuccess, refetch]
+    [notify, refetch]
   );
 
   const onClear = useCallback(
@@ -267,7 +270,8 @@ export function ProjectsPageContent({
       startTransition(() => {
         refetch({
           onComplete: () => {
-            notifySuccess({
+            notify({
+              variant: "success",
               title: "Project Cleared",
               message: `Project ${projectName} has been cleared of traces.`,
             });
@@ -275,7 +279,7 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notifySuccess, refetch]
+    [notify, refetch]
   );
 
   const onRemove = useCallback(
@@ -283,7 +287,8 @@ export function ProjectsPageContent({
       startTransition(() => {
         refetch({
           onComplete: () => {
-            notifySuccess({
+            notify({
+              variant: "success",
               title: "Project Data Removed",
               message: `Old data from project ${projectName} have been removed.`,
             });
@@ -291,7 +296,7 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notifySuccess, refetch]
+    [notify, refetch]
   );
 
   const loadNextWithArgs = useCallback(() => {
@@ -391,6 +396,7 @@ export function ProjectsPageContent({
           />
         </div>
       )}
+      {holder}
     </div>
   );
 }
