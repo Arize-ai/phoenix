@@ -1,11 +1,11 @@
-import { ChangeEvent, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 import { Dropdown } from "@arizeai/components";
 
-import { Flex, Icon, Icons, View } from "@phoenix/components";
+import { Checkbox, Flex, Icon, Icons, View } from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
@@ -69,19 +69,25 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
     });
   }, [columns, columnVisibility]);
 
+  const someVisible = useMemo(() => {
+    return columns.some((column) => {
+      const stateValue = columnVisibility[column.id];
+      const isVisible = stateValue == null ? true : stateValue;
+      return isVisible;
+    });
+  }, [columns, columnVisibility]);
+
   const onCheckboxChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = event.target;
-      setColumnVisibility({ ...columnVisibility, [name]: checked });
+    (name: string, isSelected: boolean) => {
+      setColumnVisibility({ ...columnVisibility, [name]: isSelected });
     },
     [columnVisibility, setColumnVisibility]
   );
 
   const onToggleAll = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { checked } = event.target;
+    (isSelected: boolean) => {
       const newVisibilityState = columns.reduce((acc, column) => {
-        return { ...acc, [column.id]: checked };
+        return { ...acc, [column.id]: isSelected };
       }, {});
       setColumnVisibility(newVisibilityState);
     },
@@ -102,15 +108,14 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
           paddingBottom="size-50"
         >
           <div css={columCheckboxItemCSS}>
-            <label>
-              <input
-                type="checkbox"
-                name={"toggle-all"}
-                checked={allVisible}
-                onChange={onToggleAll}
-              />
+            <Checkbox
+              name="toggle-all"
+              isSelected={allVisible}
+              isIndeterminate={someVisible && !allVisible}
+              onChange={onToggleAll}
+            >
               span columns
-            </label>
+            </Checkbox>
           </div>
         </View>
         <ul>
@@ -123,15 +128,15 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
                 : column.id;
             return (
               <li key={column.id} css={columCheckboxItemCSS}>
-                <label>
-                  <input
-                    type="checkbox"
-                    name={column.id}
-                    checked={isVisible}
-                    onChange={onCheckboxChange}
-                  />
+                <Checkbox
+                  name={column.id}
+                  isSelected={isVisible}
+                  onChange={(isSelected) =>
+                    onCheckboxChange(column.id, isSelected)
+                  }
+                >
                   {name}
-                </label>
+                </Checkbox>
               </li>
             );
           })}
@@ -166,6 +171,13 @@ function EvaluationColumnSelector({
     });
   }, [data.spanAnnotationNames, annotationColumnVisibility]);
 
+  const someVisible = useMemo(() => {
+    return data.spanAnnotationNames.some((name) => {
+      const stateValue = annotationColumnVisibility[name];
+      return stateValue || false;
+    });
+  }, [data.spanAnnotationNames, annotationColumnVisibility]);
+
   const onToggleAnnotations = useCallback(() => {
     const newVisibilityState = data.spanAnnotationNames.reduce((acc, name) => {
       return { ...acc, [name]: !allVisible };
@@ -182,15 +194,14 @@ function EvaluationColumnSelector({
         borderBottomWidth="thin"
       >
         <div css={columCheckboxItemCSS}>
-          <label>
-            <input
-              type="checkbox"
-              name={"toggle-annotations-all"}
-              checked={allVisible}
-              onChange={onToggleAnnotations}
-            />
+          <Checkbox
+            name="toggle-annotations-all"
+            isSelected={allVisible}
+            isIndeterminate={someVisible && !allVisible}
+            onChange={onToggleAnnotations}
+          >
             annotations
-          </label>
+          </Checkbox>
         </div>
       </View>
       <ul>
@@ -198,20 +209,18 @@ function EvaluationColumnSelector({
           const isVisible = annotationColumnVisibility[name] ?? false;
           return (
             <li key={name} css={columCheckboxItemCSS}>
-              <label>
-                <input
-                  type="checkbox"
-                  name={name}
-                  checked={isVisible}
-                  onChange={() => {
-                    setAnnotationColumnVisibility({
-                      ...annotationColumnVisibility,
-                      [name]: !isVisible,
-                    });
-                  }}
-                />
+              <Checkbox
+                name={name}
+                isSelected={isVisible}
+                onChange={(isSelected) =>
+                  setAnnotationColumnVisibility({
+                    ...annotationColumnVisibility,
+                    [name]: isSelected,
+                  })
+                }
+              >
                 {name}
-              </label>
+              </Checkbox>
             </li>
           );
         })}

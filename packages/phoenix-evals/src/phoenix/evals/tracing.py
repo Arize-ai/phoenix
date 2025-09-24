@@ -3,8 +3,9 @@ from functools import wraps
 from inspect import BoundArguments, iscoroutinefunction, signature
 from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVar, cast, overload
 
+import opentelemetry.trace as trace_api
+from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from opentelemetry import trace as trace_api
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.util.types import AttributeValue
 from typing_extensions import ParamSpec
@@ -28,11 +29,12 @@ def get_tracer(tracer: Optional[Tracer] = None) -> Tracer:
     """
 
     try:
-        if tracer is not None:
-            return tracer
-
-        global_tracer_provider = trace_api.get_tracer_provider()
-        return global_tracer_provider.get_tracer(__name__)
+        if tracer is None:
+            global_tracer_provider = trace_api.get_tracer_provider()
+            tracer = global_tracer_provider.get_tracer(__name__)
+        if not isinstance(tracer, OITracer):
+            return OITracer(tracer, config=TraceConfig())
+        return tracer
 
     except Exception:
         logger.debug("Failed to get tracer, falling back to NoOpTracer")
