@@ -468,6 +468,48 @@ class TestFormatAsAnnotationDataframe:
                 {"direction": "minimize"},
                 id="direction_only_metadata",
             ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": {},
+                    "source": "llm",
+                },
+                "test",
+                None,
+                id="empty_metadata_no_direction",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": {},
+                    "direction": "maximize",
+                    "source": "llm",
+                },
+                "test",
+                {"direction": "maximize"},
+                id="empty_metadata_with_direction",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": None,
+                    "source": "llm",
+                },
+                "test",
+                None,
+                id="null_metadata_no_direction",
+            ),
+            pytest.param(
+                {
+                    "score": 0.85,
+                    "metadata": None,
+                    "direction": "minimize",
+                    "source": "llm",
+                },
+                "test",
+                {"direction": "minimize"},
+                id="null_metadata_with_direction",
+            ),
         ],
     )
     def test_metadata_extraction(self, score_data, score_name, expected_metadata):
@@ -612,6 +654,41 @@ class TestFormatAsAnnotationDataframe:
         )
         result = format_as_annotation_dataframe(df, score_name)
         assert span_id_column in result.columns
+
+    def test_multiple_span_id_columns_preserved(self):
+        """Test that multiple span_id columns are preserved in the output."""
+        score_data = {"score": 0.85, "source": "llm"}
+        df = pd.DataFrame(
+            {
+                "span_id": ["span_1"],
+                "parent_span_id": ["parent_1"],
+                "child_span_id": ["child_1"],
+                "context.span_id": ["context_span_1"],
+                "test_score": [json.dumps(score_data)],
+            }
+        )
+        result = format_as_annotation_dataframe(df, "test")
+
+        # All span_id columns should be preserved
+        expected_span_id_columns = ["span_id", "parent_span_id", "child_span_id", "context.span_id"]
+        for col in expected_span_id_columns:
+            assert col in result.columns, f"Expected column {col} not found in result"
+
+        # Plus the annotation columns
+        expected_annotation_columns = [
+            "score",
+            "label",
+            "explanation",
+            "metadata",
+            "annotation_name",
+            "annotator_kind",
+        ]
+        for col in expected_annotation_columns:
+            assert col in result.columns, f"Expected column {col} not found in result"
+
+        # Should have exactly the expected columns
+        expected_total_columns = expected_span_id_columns + expected_annotation_columns
+        assert set(result.columns) == set(expected_total_columns)
 
     @pytest.mark.parametrize(
         "score_data,score_name,expected_value",

@@ -1,12 +1,8 @@
 import inspect
 import json
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Set, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
 
 import pandas as pd
-
-if TYPE_CHECKING:
-    pass
-
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
 
@@ -205,20 +201,21 @@ def _merge_metadata_with_direction(score_data: Dict[str, Any]) -> Optional[Dict[
     Returns:
         Merged metadata dictionary with direction field added, or None if no metadata exists
     """
-    metadata = score_data.get("metadata", {})
+    metadata = score_data.get("metadata")
     direction = score_data.get("direction")
 
-    if metadata is None:
-        metadata = {}
+    # If no metadata and no direction, return None
+    if not metadata and not direction:
+        return None
 
-    # Create a copy to avoid modifying the original
-    merged_metadata = dict(metadata)
+    # Start with existing metadata or empty dict
+    result = dict(metadata) if metadata else {}
 
     # Add direction if it exists
     if direction is not None:
-        merged_metadata["direction"] = direction
+        result["direction"] = direction
 
-    return merged_metadata if merged_metadata else None
+    return result
 
 
 def format_as_annotation_dataframe(
@@ -259,30 +256,31 @@ def format_as_annotation_dataframe(
     if score_column not in dataframe.columns:
         raise ValueError(f"Score column '{score_column}' not found in DataFrame")
 
-    # Find span_id column (look for column containing "span_id")
-    span_id_col = None
-    for col in dataframe.columns:
-        if "span_id" in col.lower():
-            span_id_col = col
-            break
-
-    if span_id_col is None:
+    # Find span_id columns (look for column containing "span_id")
+    span_id_cols = [col for col in dataframe.columns if "span_id" in col.lower()]
+    if not span_id_cols:
         raise ValueError("No column containing 'span_id' found in DataFrame")
 
-    # Create working copy with required columns
-    eval_df = dataframe[[span_id_col, score_column]].copy()
+    # Create working copy with required columns (all span_id columns + score column)
+    eval_df = dataframe[span_id_cols + [score_column]].copy()
 
     # Parse JSON score data
     cols = ["score", "label", "explanation", "source"]
-    parsed = eval_df[score_column].apply(lambda x: json.loads(x) if isinstance(x, str) and x else None)
-    eval_df[cols] = parsed.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
+    parsed_score_col = eval_df[score_column].apply(
+        lambda x: json.loads(x) if isinstance(x, str) and x else None
+    )
+    eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
+
+    eval_df["metadata"] = parsed_score_col.apply(
+        lambda d: _merge_metadata_with_direction(d) if d else None
+    )
 
     # Infer annotator_kind from score.source in first non-null score
     annotator_kind = "LLM"  # default
-    if not eval_df[score_column].isna().all():
-        no_na = eval_df[score_column].dropna()
+    if not parsed_score_col.isna().all():
+        no_na = parsed_score_col.dropna()
         first_score = None if no_na.empty else no_na.iloc[0]
-        if first_score and "source" in first_score:
+        if first_score and isinstance(first_score, dict) and "source" in first_score:
             source = first_score["source"]
             if source == "heuristic":
                 annotator_kind = "CODE"
@@ -295,9 +293,8 @@ def format_as_annotation_dataframe(
     eval_df["annotation_name"] = score_display_name
     eval_df["annotator_kind"] = annotator_kind
 
-    # Keep only required columns
-    columns_to_keep = [
-        span_id_col,
+    # Keep only required columns (all span_id columns + annotation columns)
+    columns_to_keep = span_id_cols + [
         "score",
         "label",
         "explanation",
