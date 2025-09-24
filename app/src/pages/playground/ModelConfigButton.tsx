@@ -505,12 +505,7 @@ function CustomHeadersModelConfigFormField({
   return (
     <div css={fieldContainerCSS}>
       <Field
-        label={
-          <div css={labelCSS}>
-            <GenerativeProviderIcon provider={provider} height={16} />
-            <span>Custom Headers for {ModelProviders[provider]}</span>
-          </div>
-        }
+        label={<div css={labelCSS}>Custom Headers</div>}
         description="Custom HTTP headers to send with requests to the LLM provider"
         errorMessage={errorMessage}
         validationState={errorMessage ? "invalid" : undefined}
