@@ -46,7 +46,7 @@ FROM (
         JOIN dataset_examples de ON de.dataset_id = e.dataset_id
         JOIN dataset_example_revisions der ON der.dataset_example_id = de.id
     WHERE der.dataset_version_id <= e.dataset_version_id
-    ) ranked
+) ranked
 WHERE ranked.rn = 1
     AND ranked.revision_kind != 'DELETE'
 """

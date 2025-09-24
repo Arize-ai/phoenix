@@ -13,6 +13,7 @@ from sqlalchemy import (
     Insert,
     Integer,
     Select,
+    SelectBase,
     SQLColumnExpression,
     and_,
     case,
@@ -26,7 +27,6 @@ from sqlalchemy import (
     util,
 )
 from sqlalchemy.orm import QueryableAttribute
-from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
@@ -178,9 +178,9 @@ def get_dataset_example_revisions(
     /,
     *,
     dataset_id: Optional[int] = None,
-    example_ids: Optional[Union[Sequence[int], InElementRole]] = None,
-    split_ids: Optional[Union[Sequence[int], InElementRole]] = None,
-    split_names: Optional[Union[Sequence[str], InElementRole]] = None,
+    example_ids: Optional[Union[Sequence[int], SelectBase[tuple[int]]]] = None,
+    split_ids: Optional[Union[Sequence[int], SelectBase[tuple[int]]]] = None,
+    split_names: Optional[Union[Sequence[str], SelectBase[tuple[str]]]] = None,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
     """
     Get the latest revisions for all dataset examples within a specific dataset version.
@@ -191,19 +191,22 @@ def get_dataset_example_revisions(
         dataset_version_id: The dataset version to get revisions for
         dataset_id: Optional dataset ID - if provided, avoids extra subquery lookup
         example_ids: Optional filter by specific example IDs (subquery or list of IDs).
-            None or [] = no filtering (empty sequences auto-converted to None)
+            - None or [] = no filtering (empty sequences auto-converted to None)
+            - Empty subquery = returns all results (acts like no filtering)
         split_ids: Optional filter by split IDs (subquery or list of split IDs).
-            None or [] = no filtering (empty sequences auto-converted to None)
+            - None or [] = no filtering (empty sequences auto-converted to None)
+            - Empty subquery = returns all results (acts like no filtering)
         split_names: Optional filter by split names (subquery or list of split names).
-            None or [] = no filtering (empty sequences auto-converted to None)
+            - None or [] = no filtering (empty sequences auto-converted to None)
+            - Empty subquery = returns all results (acts like no filtering)
 
     Note:
         - split_ids and split_names are mutually exclusive
         - Use split_ids for better performance when IDs are available (avoids JOIN)
-        - Filtering behavior: None or empty sequences mean "no filtering" (empty sequences
-            auto-converted to None)
+        - Consistent empty subquery behavior:
+          * All parameters: Empty subquery means no filtering (returns all results)
+        - Empty sequences ([], not subqueries) are auto-converted to None for consistency
     """
-    # Convert empty sequences to None for more intuitive behavior
     if isinstance(example_ids, Sequence) and not len(example_ids):
         example_ids = None
     if isinstance(split_ids, Sequence) and not len(split_ids):
@@ -225,20 +228,46 @@ def get_dataset_example_revisions(
     )
 
     if example_ids is not None:
-        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+        if isinstance(example_ids, Sequence):
+            stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+        else:
+            stmt = stmt.where(
+                or_(
+                    ~exists(example_ids),
+                    models.DatasetExampleRevision.dataset_example_id.in_(example_ids),
+                )
+            )
 
     if split_ids is not None or split_names is not None:
         if split_names is not None:
-            split_examples_subquery = (
-                select(models.DatasetSplitDatasetExample.dataset_example_id)
-                .join(models.DatasetSplit)
-                .where(models.DatasetSplit.name.in_(split_names))
-            )
-        else:
-            assert split_ids is not None
             split_examples_subquery = select(
                 models.DatasetSplitDatasetExample.dataset_example_id
-            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids))
+            ).join(models.DatasetSplit)
+            if isinstance(split_names, Sequence):
+                split_examples_subquery = split_examples_subquery.where(
+                    models.DatasetSplit.name.in_(split_names)
+                )
+            else:
+                split_examples_subquery = split_examples_subquery.where(
+                    or_(
+                        ~exists(split_names),
+                        models.DatasetSplit.name.in_(split_names),
+                    ),
+                )
+        else:
+            assert split_ids is not None
+            split_examples_subquery = select(models.DatasetSplitDatasetExample.dataset_example_id)
+            if isinstance(split_ids, Sequence):
+                split_examples_subquery = split_examples_subquery.where(
+                    models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids)
+                )
+            else:
+                split_examples_subquery = split_examples_subquery.where(
+                    or_(
+                        ~exists(split_ids),
+                        models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids),
+                    ),
+                )
         stmt = stmt.where(models.DatasetExample.id.in_(split_examples_subquery))
 
     ranked_subquery = stmt.subquery()
@@ -270,7 +299,7 @@ def create_experiment_examples_snapshot_insert(
     Returns:
         SQLAlchemy INSERT statement ready for execution
     """
-    ranked_query = _build_ranked_revisions_query(
+    stmt = _build_ranked_revisions_query(
         experiment.dataset_version_id,
         dataset_id=experiment.dataset_id,
     ).add_columns(
@@ -282,19 +311,19 @@ def create_experiment_examples_snapshot_insert(
     experiment_splits_subquery = select(models.ExperimentDatasetSplit.dataset_split_id).where(
         models.ExperimentDatasetSplit.experiment_id == experiment.id
     )
+
     split_examples_subquery = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
         models.DatasetSplitDatasetExample.dataset_split_id.in_(experiment_splits_subquery)
     )
 
-    # Filter by splits: include all examples if no splits,
-    # otherwise only examples in assigned splits
-    ranked_subquery = ranked_query.where(
+    stmt = stmt.where(
         or_(
-            ~exists(experiment_splits_subquery),
+            ~exists(experiment_splits_subquery),  # If no splits, include all
             models.DatasetExampleRevision.dataset_example_id.in_(split_examples_subquery),
         )
-    ).subquery()
+    )
 
+    ranked_subquery = stmt.subquery()
     return insert(models.ExperimentDatasetExample).from_select(
         [
             models.ExperimentDatasetExample.experiment_id,
@@ -304,7 +333,7 @@ def create_experiment_examples_snapshot_insert(
         select(
             literal(experiment.id),
             ranked_subquery.c.dataset_example_id,
-            ranked_subquery.c.id,  # This is the revision ID
+            ranked_subquery.c.id,
         ).where(
             ranked_subquery.c.rn == 1,
             ranked_subquery.c.revision_kind != "DELETE",

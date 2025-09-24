@@ -670,12 +670,12 @@ class TestGetDatasetExampleRevisions:
             # Should not include example2 (it was deleted)
             assert _test_data["example2_id"] not in revision_example_ids
 
-    async def test_get_revisions_example_ids_empty_result(
+    async def test_get_revisions_example_ids_empty_subquery_returns_all(
         self,
         db: DbSessionFactory,
         _test_data: dict[str, int],
     ) -> None:
-        """Test that empty example_ids query returns no results."""
+        """Test that empty example_ids subquery returns all results (acts like no filtering)."""
         async with db() as session:
             # Create a query that returns no example IDs
             example_ids_query = select(literal(99999)).where(literal(False))
@@ -685,7 +685,10 @@ class TestGetDatasetExampleRevisions:
             )
             revisions = (await session.execute(query)).scalars().all()
 
-            assert len(revisions) == 0
+            # Empty subquery should return all results (like no filtering)
+            # version2_id should contain example1's v2 revision (example2 is deleted)
+            assert len(revisions) == 1
+            assert revisions[0].dataset_example_id == _test_data["example1_id"]
 
     async def test_get_revisions_example_ids_excludes_deletes(
         self,
@@ -1254,6 +1257,56 @@ class TestGetDatasetExampleRevisions:
             assert _test_data_with_splits["example4_id"] in example_ids  # train split
             # Should not get example2 (test split only)
             assert _test_data_with_splits["example2_id"] not in example_ids
+
+    async def test_get_revisions_split_ids_empty_subquery_returns_all(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty split_ids subquery returns all results (acts like no filtering)."""
+        async with db() as session:
+            # Create a query that returns no split IDs
+            split_ids_query = select(literal(99999)).where(literal(False))
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_ids=split_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Empty subquery should return all results (like no filtering)
+            # version1_id should contain all 4 examples
+            assert len(revisions) == 4
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example3_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+
+    async def test_get_revisions_split_names_empty_subquery_returns_all(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty split_names subquery returns all results (acts like no filtering)."""
+        async with db() as session:
+            # Create a query that returns no split names
+            split_names_query = select(literal("nonexistent")).where(literal(False))
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_names=split_names_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Empty subquery should return all results (like no filtering)
+            # version1_id should contain all 4 examples
+            assert len(revisions) == 4
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example3_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
 
     async def test_get_revisions_split_ids_and_names_mutual_exclusion(
         self,

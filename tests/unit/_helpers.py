@@ -1,14 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from functools import singledispatch
 from secrets import token_hex
-from typing import Any, Dict, Optional, Type, TypeVar, cast
+from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
 
@@ -155,3 +157,170 @@ async def _add_project_session(
         models.ProjectSession,
     )
     return project_session
+
+
+_ExperimentGlobalId: TypeAlias = str
+_DatasetExampleGlobalId: TypeAlias = str
+_DatasetExampleRevisionGlobalId: TypeAlias = str
+
+_ExperimentId: TypeAlias = int
+_DatasetExampleId: TypeAlias = int
+_DatasetExampleRevisionId: TypeAlias = int
+
+
+async def verify_experiment_examples_junction_table(
+    session: AsyncSession,
+    experiment_id: Union[_ExperimentGlobalId, _ExperimentId],
+    expected_examples: Optional[
+        Union[
+            Sequence[tuple[_DatasetExampleId, _DatasetExampleRevisionId]],
+            Sequence[tuple[_DatasetExampleGlobalId, _DatasetExampleRevisionGlobalId]],
+        ]
+    ] = None,
+) -> None:
+    """
+    Verify that the experiments_dataset_examples junction table contains the expected entries.
+
+    This function uses **independent verification logic** that does NOT call the same
+    implementation functions being tested. This ensures robust testing by avoiding the
+    anti-pattern of testing implementation against itself.
+
+    ## Verification Approach
+
+    When expected_examples=None, this function:
+    1. **Gets all revisions** for the experiment's dataset version
+    2. **Finds latest revision** for each example using simple Python logic
+    3. **Filters out DELETE** revisions
+    4. **Checks experiment splits** independently
+    5. **Applies split filtering** if splits are assigned, otherwise includes all examples
+
+    This independent approach catches bugs that would be missed if we used the same
+    implementation code (like get_dataset_example_revisions) for both creating AND verifying.
+
+    ## Split Behavior
+
+    - **Experiment has assigned splits**: Only examples from those splits are expected
+    - **Experiment has no splits**: ALL non-deleted examples from the dataset version are expected
+    - **Empty subquery behavior**: Consistent with implementation - empty results = no filtering
+
+    Args:
+        session: Database session
+        experiment_id: Experiment ID (can be global ID string or row ID integer)
+        expected_examples: Optional sequence of tuples (dataset_example_id, dataset_example_revision_id).
+            Tuples can contain either global ID strings or row ID integers.
+            If None, derives expected examples from the experiment's dataset version,
+            automatically filtering by assigned splits using independent logic.
+
+    Raises:
+        AssertionError: If the junction table doesn't match expectations
+    """
+    if isinstance(experiment_id, str):
+        _, experiment_rowid = from_global_id(GlobalID.from_id(experiment_id))
+    else:
+        experiment_rowid = experiment_id
+
+    if expected_examples is None:
+        experiment = await session.get(models.Experiment, experiment_rowid)
+        assert experiment is not None, f"Experiment with ID {experiment_rowid} not found"
+        dataset_version_id = experiment.dataset_version_id
+
+        # Independent verification logic
+        # Step 1: Get ALL revisions for this dataset version
+        all_revisions = (
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_version_id == dataset_version_id)
+                .order_by(
+                    models.DatasetExampleRevision.dataset_example_id,
+                    models.DatasetExampleRevision.created_at.desc(),
+                    models.DatasetExampleRevision.id.desc(),
+                )
+            )
+        ).all()
+
+        # Step 2: Find the latest revision for each example (simple Python logic)
+        latest_revisions_by_example = {}
+        for revision in all_revisions:
+            example_id = revision.dataset_example_id
+            if example_id not in latest_revisions_by_example:
+                # First revision we see for this example (latest due to ordering)
+                latest_revisions_by_example[example_id] = revision
+
+        # Step 3: Filter out DELETE revisions
+        non_deleted_revisions = [
+            revision
+            for revision in latest_revisions_by_example.values()
+            if revision.revision_kind != "DELETE"
+        ]
+
+        # Step 4: Check if experiment has assigned splits
+        assigned_splits = (
+            await session.scalars(
+                select(models.ExperimentDatasetSplit.dataset_split_id).where(
+                    models.ExperimentDatasetSplit.experiment_id == experiment_rowid
+                )
+            )
+        ).all()
+
+        # Step 5: Filter by splits if any are assigned
+        if assigned_splits:
+            # Get examples that belong to the assigned splits
+            split_examples = (
+                await session.scalars(
+                    select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+                        models.DatasetSplitDatasetExample.dataset_split_id.in_(assigned_splits)
+                    )
+                )
+            ).all()
+            split_example_set = set(split_examples)
+
+            # Only include revisions for examples in the assigned splits
+            expected_revisions = [
+                revision
+                for revision in non_deleted_revisions
+                if revision.dataset_example_id in split_example_set
+            ]
+        else:
+            # No splits assigned = include all non-deleted examples
+            expected_revisions = non_deleted_revisions
+
+        expected_examples_set = {
+            (revision.dataset_example_id, revision.id) for revision in expected_revisions
+        }
+    else:
+        expected_examples_set = set()
+        for ex_id, rev_id in expected_examples:
+            if isinstance(ex_id, str):
+                # Both are global IDs
+                assert isinstance(rev_id, str), (
+                    "If example_id is global ID, revision_id must be too"
+                )
+                _, example_rowid = from_global_id(GlobalID.from_id(ex_id))
+                _, revision_rowid = from_global_id(GlobalID.from_id(rev_id))
+                expected_examples_set.add((example_rowid, revision_rowid))
+            else:
+                # Both are row IDs
+                assert isinstance(rev_id, int), "If example_id is row ID, revision_id must be too"
+                expected_examples_set.add((ex_id, rev_id))
+
+    expected_count = len(expected_examples_set)
+
+    junction_records = (
+        await session.scalars(
+            select(models.ExperimentDatasetExample).where(
+                models.ExperimentDatasetExample.experiment_id == experiment_rowid
+            )
+        )
+    ).all()
+
+    assert len(junction_records) == expected_count, (
+        f"Expected {expected_count} junction table entries, got {len(junction_records)}"
+    )
+
+    actual_examples_set = {
+        (record.dataset_example_id, record.dataset_example_revision_id)
+        for record in junction_records
+    }
+    assert actual_examples_set == expected_examples_set, (
+        f"Junction table entries {actual_examples_set} don't match expected {expected_examples_set}"
+    )
