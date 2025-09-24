@@ -49,8 +49,8 @@ data:
   # Database configuration
   {{- if .Values.database.url }}
   PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
-  {{- else if and (not .Values.persistence.enabled) .Values.database.postgres.host .Values.database.postgres.port .Values.database.postgres.user .Values.database.postgres.db }}
-  PHOENIX_POSTGRES_HOST: {{ .Values.database.postgres.host | quote }}
+  {{- else if and (not .Values.persistence.enabled) (include "phoenix.postgres" .) .Values.database.postgres.port .Values.database.postgres.user .Values.database.postgres.db }}
+  PHOENIX_POSTGRES_HOST: {{ include "phoenix.postgres" . | quote }}
   PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
   PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
   PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
