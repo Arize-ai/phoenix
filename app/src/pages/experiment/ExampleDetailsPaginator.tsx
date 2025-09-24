@@ -55,7 +55,7 @@ export const ExampleDetailsPaginator = ({
       <TooltipTrigger delay={100}>
         <Button
           size="S"
-          aria-label="Next example"
+          aria-label="Next"
           isDisabled={!hasNext}
           onPress={handleNext}
           leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
@@ -70,7 +70,7 @@ export const ExampleDetailsPaginator = ({
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Next example</span>
+            <span>Next</span>
             <KeyboardToken>{NEXT_EXAMPLE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
@@ -78,7 +78,7 @@ export const ExampleDetailsPaginator = ({
       <TooltipTrigger delay={100}>
         <Button
           size="S"
-          aria-label="Previous example"
+          aria-label="Previous"
           isDisabled={!hasPrevious}
           onPress={handlePrevious}
           leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
@@ -93,7 +93,7 @@ export const ExampleDetailsPaginator = ({
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Previous example</span>
+            <span>Previous</span>
             <KeyboardToken>{PREVIOUS_EXAMPLE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
