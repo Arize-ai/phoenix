@@ -3,8 +3,21 @@ import inspect
 import itertools
 import json
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import pandas as pd
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
@@ -787,8 +800,6 @@ def evaluate_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            if score_col not in score_dicts:
-                score_dicts[score_col] = {}
             score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
 
     # Add scores to dataframe
@@ -852,7 +863,7 @@ async def async_evaluate_dataframe(
     task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
 
     # Pre-allocate columns for efficient assignment
-    score_dicts: Dict[str, Dict[Any, Optional[str]]] = {}
+    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
     for evaluator in evaluators:
         evaluator_name = evaluator.name
         execution_details_col = f"{evaluator_name}_execution_details"
@@ -905,8 +916,6 @@ async def async_evaluate_dataframe(
             if not score.name:
                 raise ValueError(f"Score has no name: {score}")
             score_col = f"{score.name}_score"
-            if score_col not in score_dicts:
-                score_dicts[score_col] = {}
             score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
 
     # Add scores to dataframe
