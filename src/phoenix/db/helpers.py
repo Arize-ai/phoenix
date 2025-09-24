@@ -178,9 +178,9 @@ def get_dataset_example_revisions(
     /,
     *,
     dataset_id: Optional[int] = None,
-    example_ids: Optional[Union[Sequence[int], SelectBase[tuple[int]]]] = None,
-    split_ids: Optional[Union[Sequence[int], SelectBase[tuple[int]]]] = None,
-    split_names: Optional[Union[Sequence[str], SelectBase[tuple[str]]]] = None,
+    example_ids: Optional[Union[Sequence[int], SelectBase]] = None,
+    split_ids: Optional[Union[Sequence[int], SelectBase]] = None,
+    split_names: Optional[Union[Sequence[str], SelectBase]] = None,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
     """
     Get the latest revisions for all dataset examples within a specific dataset version.
@@ -191,29 +191,20 @@ def get_dataset_example_revisions(
         dataset_version_id: The dataset version to get revisions for
         dataset_id: Optional dataset ID - if provided, avoids extra subquery lookup
         example_ids: Optional filter by specific example IDs (subquery or list of IDs).
-            - None or [] = no filtering (empty sequences auto-converted to None)
-            - Empty subquery = returns all results (acts like no filtering)
+            - None = no filtering
+            - Empty sequences/subqueries = no matches (strict filtering)
         split_ids: Optional filter by split IDs (subquery or list of split IDs).
-            - None or [] = no filtering (empty sequences auto-converted to None)
-            - Empty subquery = returns all results (acts like no filtering)
+            - None = no filtering
+            - Empty sequences/subqueries = no matches (strict filtering)
         split_names: Optional filter by split names (subquery or list of split names).
-            - None or [] = no filtering (empty sequences auto-converted to None)
-            - Empty subquery = returns all results (acts like no filtering)
+            - None = no filtering
+            - Empty sequences/subqueries = no matches (strict filtering)
 
     Note:
         - split_ids and split_names are mutually exclusive
         - Use split_ids for better performance when IDs are available (avoids JOIN)
-        - Consistent empty subquery behavior:
-          * All parameters: Empty subquery means no filtering (returns all results)
-        - Empty sequences ([], not subqueries) are auto-converted to None for consistency
+        - Empty filters use strict behavior: empty inputs return zero results
     """
-    if isinstance(example_ids, Sequence) and not len(example_ids):
-        example_ids = None
-    if isinstance(split_ids, Sequence) and not len(split_ids):
-        split_ids = None
-    if isinstance(split_names, Sequence) and not len(split_names):
-        split_names = None
-
     if split_ids is not None and split_names is not None:
         raise ValueError(
             "Cannot specify both split_ids and split_names - they are mutually exclusive"
@@ -228,46 +219,20 @@ def get_dataset_example_revisions(
     )
 
     if example_ids is not None:
-        if isinstance(example_ids, Sequence):
-            stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
-        else:
-            stmt = stmt.where(
-                or_(
-                    ~exists(example_ids),
-                    models.DatasetExampleRevision.dataset_example_id.in_(example_ids),
-                )
-            )
+        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
 
     if split_ids is not None or split_names is not None:
         if split_names is not None:
-            split_examples_subquery = select(
-                models.DatasetSplitDatasetExample.dataset_example_id
-            ).join(models.DatasetSplit)
-            if isinstance(split_names, Sequence):
-                split_examples_subquery = split_examples_subquery.where(
-                    models.DatasetSplit.name.in_(split_names)
-                )
-            else:
-                split_examples_subquery = split_examples_subquery.where(
-                    or_(
-                        ~exists(split_names),
-                        models.DatasetSplit.name.in_(split_names),
-                    ),
-                )
+            split_examples_subquery = (
+                select(models.DatasetSplitDatasetExample.dataset_example_id)
+                .join(models.DatasetSplit)
+                .where(models.DatasetSplit.name.in_(split_names))
+            )
         else:
             assert split_ids is not None
-            split_examples_subquery = select(models.DatasetSplitDatasetExample.dataset_example_id)
-            if isinstance(split_ids, Sequence):
-                split_examples_subquery = split_examples_subquery.where(
-                    models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids)
-                )
-            else:
-                split_examples_subquery = split_examples_subquery.where(
-                    or_(
-                        ~exists(split_ids),
-                        models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids),
-                    ),
-                )
+            split_examples_subquery = select(
+                models.DatasetSplitDatasetExample.dataset_example_id
+            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids))
         stmt = stmt.where(models.DatasetExample.id.in_(split_examples_subquery))
 
     ranked_subquery = stmt.subquery()

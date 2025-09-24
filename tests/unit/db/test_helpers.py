@@ -489,7 +489,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Test version 1 - should get example1 v1 and example2 v1
             query = get_dataset_example_revisions(_test_data["version1_id"])
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             revision_ids = [r.id for r in revisions]
             example_ids = [r.dataset_example_id for r in revisions]
@@ -510,7 +510,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Test version 2 - should get only example1 v2 (example2 is DELETEd)
             query = get_dataset_example_revisions(_test_data["version2_id"])
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             revision_ids = [r.id for r in revisions]
             example_ids = [r.dataset_example_id for r in revisions]
@@ -531,7 +531,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Test version 2 - example2 has DELETE revision, should be excluded entirely
             query = get_dataset_example_revisions(_test_data["version2_id"])
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = [r.dataset_example_id for r in revisions]
 
@@ -549,7 +549,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Test version 3 - should get example1 v3 and example3 v3 (example2 remains deleted)
             query = get_dataset_example_revisions(_test_data["version3_id"])
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             revision_ids = [r.id for r in revisions]
             example_ids = [r.dataset_example_id for r in revisions]
@@ -576,7 +576,7 @@ class TestGetDatasetExampleRevisions:
                 _test_data["version3_id"],
             ]:
                 query = get_dataset_example_revisions(version_id)
-                revisions = (await session.execute(query)).scalars().all()
+                revisions = (await session.scalars(query)).all()
 
                 example_ids = [r.dataset_example_id for r in revisions]
                 unique_example_ids = set(example_ids)
@@ -595,7 +595,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Test other dataset version
             query = get_dataset_example_revisions(_test_data["version_other_id"])
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = [r.dataset_example_id for r in revisions]
 
@@ -621,7 +621,7 @@ class TestGetDatasetExampleRevisions:
         async with db() as session:
             # Use a non-existent version ID
             query = get_dataset_example_revisions(99999)
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             assert len(revisions) == 0
 
@@ -638,7 +638,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data["version2_id"], example_ids=example_ids_query
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should only get example1's latest revision
             assert len(revisions) == 1
@@ -660,7 +660,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data["version3_id"], example_ids=example_ids_query
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should get revisions for both example1 and example3
             revision_example_ids = {r.dataset_example_id for r in revisions}
@@ -670,25 +670,24 @@ class TestGetDatasetExampleRevisions:
             # Should not include example2 (it was deleted)
             assert _test_data["example2_id"] not in revision_example_ids
 
-    async def test_get_revisions_example_ids_empty_subquery_returns_all(
+    async def test_get_revisions_example_ids_empty_subquery_returns_zero(
         self,
         db: DbSessionFactory,
         _test_data: dict[str, int],
     ) -> None:
-        """Test that empty example_ids subquery returns all results (acts like no filtering)."""
+        """Test that empty example_ids subquery returns zero results (strict filtering)."""
         async with db() as session:
             # Create a query that returns no example IDs
             example_ids_query = select(literal(99999)).where(literal(False))
 
             query = get_dataset_example_revisions(
-                _test_data["version2_id"], example_ids=example_ids_query
+                _test_data["version2_id"],
+                example_ids=example_ids_query,
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
-            # Empty subquery should return all results (like no filtering)
-            # version2_id should contain example1's v2 revision (example2 is deleted)
-            assert len(revisions) == 1
-            assert revisions[0].dataset_example_id == _test_data["example1_id"]
+            # Empty subquery should return zero results (strict filtering)
+            assert len(revisions) == 0
 
     async def test_get_revisions_example_ids_excludes_deletes(
         self,
@@ -703,7 +702,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data["version2_id"], example_ids=example_ids_query
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should return empty since example2's latest revision is DELETE
             assert len(revisions) == 0
@@ -723,7 +722,7 @@ class TestGetDatasetExampleRevisions:
                 dataset_id=_test_data["dataset1_id"],
                 example_ids=example_ids_query,
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should get the same result as without dataset_id
             assert len(revisions) == 1
@@ -744,7 +743,7 @@ class TestGetDatasetExampleRevisions:
                 _test_data["version_other_id"],  # This is for dataset2
                 example_ids=example_ids_query,  # This example belongs to dataset1
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should return empty since example1 doesn't belong to dataset2
             assert len(revisions) == 0
@@ -895,7 +894,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_names=["train"]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = get_example_ids(revisions)
             expected_ids = {
@@ -918,7 +917,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_names=["train", "test"]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -936,22 +935,16 @@ class TestGetDatasetExampleRevisions:
         db: DbSessionFactory,
         _test_data_with_splits: dict[str, int],
     ) -> None:
-        """Test that empty split_names gets converted to None (returns all results)."""
+        """Test that empty split_names returns zero results (strict filtering)."""
         async with db() as session:
-            # Test with empty split_names list - should be converted to None, returning all results
+            # Test with empty split_names list - should return zero results
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_names=[]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
-            example_ids = {r.dataset_example_id for r in revisions}
-
-            # Should return all results since empty list is converted to None (no filtering)
-            assert len(revisions) == 4
-            assert _test_data_with_splits["example1_id"] in example_ids
-            assert _test_data_with_splits["example2_id"] in example_ids
-            assert _test_data_with_splits["example3_id"] in example_ids
-            assert _test_data_with_splits["example4_id"] in example_ids
+            # Empty list should return zero results (strict filtering)
+            assert len(revisions) == 0
 
     async def test_get_revisions_with_nonexistent_split_name(
         self,
@@ -964,7 +957,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_names=["nonexistent"]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should return no results
             assert len(revisions) == 0
@@ -980,7 +973,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version2_id"], split_names=["test"]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1008,7 +1001,7 @@ class TestGetDatasetExampleRevisions:
                 example_ids=example_ids_query,
                 split_names=["train"],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1030,7 +1023,7 @@ class TestGetDatasetExampleRevisions:
                 dataset_id=_test_data_with_splits["dataset_id"],
                 split_names=["validation"],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1056,7 +1049,7 @@ class TestGetDatasetExampleRevisions:
                 example_ids=example_ids_query,
                 split_names=["train", "validation"],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1081,7 +1074,7 @@ class TestGetDatasetExampleRevisions:
                 _test_data_with_splits["version1_id"],
                 split_ids=[_test_data_with_splits["split_train_id"]],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1108,7 +1101,7 @@ class TestGetDatasetExampleRevisions:
                     _test_data_with_splits["split_test_id"],
                 ],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1126,22 +1119,16 @@ class TestGetDatasetExampleRevisions:
         db: DbSessionFactory,
         _test_data_with_splits: dict[str, int],
     ) -> None:
-        """Test that empty split_ids gets converted to None (returns all results)."""
+        """Test that empty split_ids returns zero results (strict filtering)."""
         async with db() as session:
-            # Test with empty split_ids list - should be converted to None, returning all results
+            # Test with empty split_ids list - should return zero results
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_ids=[]
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
-            example_ids = {r.dataset_example_id for r in revisions}
-
-            # Should return all results since empty list is converted to None (no filtering)
-            assert len(revisions) == 4
-            assert _test_data_with_splits["example1_id"] in example_ids
-            assert _test_data_with_splits["example2_id"] in example_ids
-            assert _test_data_with_splits["example3_id"] in example_ids
-            assert _test_data_with_splits["example4_id"] in example_ids
+            # Empty list should return zero results (strict filtering)
+            assert len(revisions) == 0
 
     async def test_get_revisions_with_nonexistent_split_id(
         self,
@@ -1155,7 +1142,7 @@ class TestGetDatasetExampleRevisions:
                 _test_data_with_splits["version1_id"],
                 split_ids=[NONEXISTENT_ID],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             # Should return no results
             assert len(revisions) == 0
@@ -1172,7 +1159,7 @@ class TestGetDatasetExampleRevisions:
                 _test_data_with_splits["version2_id"],
                 split_ids=[_test_data_with_splits["split_test_id"]],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1200,7 +1187,7 @@ class TestGetDatasetExampleRevisions:
                 example_ids=example_ids_query,
                 split_ids=[_test_data_with_splits["split_train_id"]],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1222,7 +1209,7 @@ class TestGetDatasetExampleRevisions:
                 dataset_id=_test_data_with_splits["dataset_id"],
                 split_ids=[_test_data_with_splits["split_val_id"]],
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1246,7 +1233,7 @@ class TestGetDatasetExampleRevisions:
             query = get_dataset_example_revisions(
                 _test_data_with_splits["version1_id"], split_ids=split_ids_query
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
             example_ids = {r.dataset_example_id for r in revisions}
 
@@ -1258,55 +1245,135 @@ class TestGetDatasetExampleRevisions:
             # Should not get example2 (test split only)
             assert _test_data_with_splits["example2_id"] not in example_ids
 
-    async def test_get_revisions_split_ids_empty_subquery_returns_all(
+    async def test_get_revisions_split_ids_empty_subquery_returns_zero(
         self,
         db: DbSessionFactory,
         _test_data_with_splits: dict[str, int],
     ) -> None:
-        """Test that empty split_ids subquery returns all results (acts like no filtering)."""
+        """Test that empty split_ids subquery returns zero results (strict filtering)."""
         async with db() as session:
             # Create a query that returns no split IDs
             split_ids_query = select(literal(99999)).where(literal(False))
 
             query = get_dataset_example_revisions(
-                _test_data_with_splits["version1_id"], split_ids=split_ids_query
+                _test_data_with_splits["version1_id"],
+                split_ids=split_ids_query,
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
-            example_ids = {r.dataset_example_id for r in revisions}
+            # Empty subquery should return zero results (strict filtering)
+            assert len(revisions) == 0
 
-            # Empty subquery should return all results (like no filtering)
-            # version1_id should contain all 4 examples
-            assert len(revisions) == 4
-            assert _test_data_with_splits["example1_id"] in example_ids
-            assert _test_data_with_splits["example2_id"] in example_ids
-            assert _test_data_with_splits["example3_id"] in example_ids
-            assert _test_data_with_splits["example4_id"] in example_ids
-
-    async def test_get_revisions_split_names_empty_subquery_returns_all(
+    async def test_get_revisions_split_names_empty_subquery_returns_zero(
         self,
         db: DbSessionFactory,
         _test_data_with_splits: dict[str, int],
     ) -> None:
-        """Test that empty split_names subquery returns all results (acts like no filtering)."""
+        """Test that empty split_names subquery returns zero results (strict filtering)."""
         async with db() as session:
             # Create a query that returns no split names
             split_names_query = select(literal("nonexistent")).where(literal(False))
 
             query = get_dataset_example_revisions(
-                _test_data_with_splits["version1_id"], split_names=split_names_query
+                _test_data_with_splits["version1_id"],
+                split_names=split_names_query,
             )
-            revisions = (await session.execute(query)).scalars().all()
+            revisions = (await session.scalars(query)).all()
 
-            example_ids = {r.dataset_example_id for r in revisions}
+            # Empty subquery should return zero results (strict filtering)
+            assert len(revisions) == 0
 
-            # Empty subquery should return all results (like no filtering)
-            # version1_id should contain all 4 examples
-            assert len(revisions) == 4
-            assert _test_data_with_splits["example1_id"] in example_ids
-            assert _test_data_with_splits["example2_id"] in example_ids
-            assert _test_data_with_splits["example3_id"] in example_ids
-            assert _test_data_with_splits["example4_id"] in example_ids
+    async def test_get_revisions_empty_sequences_strict_filtering(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty sequences return 0 results with strict filtering."""
+        async with db() as session:
+            # Test empty example_ids list
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"],
+                example_ids=[],
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+            # Test empty split_ids list
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_ids=[],
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+            # Test empty split_names list
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_names=[],
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+    async def test_get_revisions_empty_subqueries_strict_filtering(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty subqueries return 0 results with strict filtering."""
+        async with db() as session:
+            # Test empty example_ids subquery
+            example_ids_query = select(literal(99999)).where(literal(False))
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"],
+                example_ids=example_ids_query,
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+            # Test empty split_ids subquery
+            split_ids_query = select(literal(99999)).where(literal(False))
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_ids=split_ids_query,
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+            # Test empty split_names subquery
+            split_names_query = select(literal("nonexistent")).where(literal(False))
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_names=split_names_query,
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+    async def test_get_revisions_mixed_empty_filters_strict(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test combinations of empty filters with strict filtering."""
+        async with db() as session:
+            # Empty example_ids list + valid split_ids should return 0 results
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                example_ids=[],
+                split_ids=[_test_data_with_splits["split_train_id"]],
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
+
+            # Valid example_ids + empty split_ids should return 0 results
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                example_ids=[_test_data_with_splits["example1_id"]],
+                split_ids=[],
+            )
+            revisions = (await session.scalars(query)).all()
+            assert len(revisions) == 0
 
     async def test_get_revisions_split_ids_and_names_mutual_exclusion(
         self,

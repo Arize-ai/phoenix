@@ -188,7 +188,7 @@ async def verify_experiment_examples_junction_table(
     ## Verification Approach
 
     When expected_examples=None, this function:
-    1. **Gets all revisions** for the experiment's dataset version
+    1. **Gets all revisions** up to and including the experiment's dataset version
     2. **Finds latest revision** for each example using simple Python logic
     3. **Filters out DELETE** revisions
     4. **Checks experiment splits** independently
@@ -225,11 +225,11 @@ async def verify_experiment_examples_junction_table(
         dataset_version_id = experiment.dataset_version_id
 
         # Independent verification logic
-        # Step 1: Get ALL revisions for this dataset version
+        # Step 1: Get ALL revisions up to and including this dataset version
         all_revisions = (
             await session.scalars(
                 select(models.DatasetExampleRevision)
-                .where(models.DatasetExampleRevision.dataset_version_id == dataset_version_id)
+                .where(models.DatasetExampleRevision.dataset_version_id <= dataset_version_id)
                 .order_by(
                     models.DatasetExampleRevision.dataset_example_id,
                     models.DatasetExampleRevision.created_at.desc(),
