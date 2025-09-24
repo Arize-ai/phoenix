@@ -23,6 +23,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -33,12 +34,11 @@ const PAGE_SIZE = 100;
 
 export function ExamplesTable({
   dataset,
-  splits,
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
-  splits: examplesLoaderQuery$data["datasetSplits"];
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
+  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -134,19 +134,19 @@ export function ExamplesTable({
         return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
       },
     },
-    {
-      header: "splits",
-      accessorKey: "splits",
-      cell: ({ row }) => {
-        const labels = (row.original.splits ?? []).map(
-          (s: { name: string; color?: string | null }) => ({
-            name: s.name,
-            color: s.color,
-          })
-        );
-        return <SplitLabels labels={labels} />;
-      },
-    },
+    // {
+    //   header: "splits",
+    //   accessorKey: "splits",
+    //   cell: ({ row }) => {
+    //     const labels = (row.original.splits ?? []).map(
+    //       (s: { name: string; color?: string | null }) => ({
+    //         name: s.name,
+    //         color: s.color,
+    //       })
+    //     );
+    //     return <SplitLabels labels={labels} />;
+    //   },
+    // },
     {
       header: "input",
       accessorKey: "input",
@@ -163,6 +163,13 @@ export function ExamplesTable({
       cell: CompactJSONCell,
     },
   ];
+  if (isSplitsEnabled) {
+    columns.splice(2, 0, {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => <SplitLabels labels={row.original.splits} />,
+    });
+  }
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -251,7 +258,6 @@ export function ExamplesTable({
       {selectedRows.length ? (
         <ExampleSelectionToolbar
           selectedExamples={selectedExamples}
-          splits={splits}
           onClearSelection={clearSelection}
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });

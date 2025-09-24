@@ -10,7 +10,7 @@ export function ExamplesPage() {
   invariant(loaderData, "loaderData is required");
   return (
     <>
-      <ExamplesTable dataset={loaderData.dataset} splits={loaderData.datasetSplits} />{" "}
+      <ExamplesTable dataset={loaderData.dataset} />{" "}
       <Suspense>
         <Outlet />
       </Suspense>
