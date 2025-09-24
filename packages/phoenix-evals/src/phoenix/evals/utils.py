@@ -1,5 +1,11 @@
 import inspect
-from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
+import json
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Set, Union
+
+import pandas as pd
+
+if TYPE_CHECKING:
+    pass
 
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
@@ -190,6 +196,133 @@ def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = 
     return [m.value for m in matches] if match_all else matches[0].value
 
 
+def _merge_metadata_with_direction(score_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Merge existing metadata with direction field from score data.
+
+    Args:
+        score_data: Dictionary containing score information including metadata and direction
+
+    Returns:
+        Merged metadata dictionary with direction field added, or None if no metadata exists
+    """
+    metadata = score_data.get("metadata", {})
+    direction = score_data.get("direction")
+
+    if metadata is None:
+        metadata = {}
+
+    # Create a copy to avoid modifying the original
+    merged_metadata = dict(metadata)
+
+    # Add direction if it exists
+    if direction is not None:
+        merged_metadata["direction"] = direction
+
+    return merged_metadata if merged_metadata else None
+
+
+def format_as_annotation_dataframe(
+    dataframe: pd.DataFrame,
+    score_name: str,
+    score_display_name: Union[str, None] = None,
+) -> pd.DataFrame:
+    """Format scores as annotations for logging to Phoenix.
+
+    This function takes the output of evaluate_dataframe, extracts a specific score column, and
+    formats it for Phoenix logging. Score, label, explanation, and metadata are extracted from the
+    score column and exploded into separate columns. Annotation name and kind are also added as
+    columns. If score_display_name is not provided, the score_name is used.
+
+    Args:
+        dataframe (pd.DataFrame): DataFrame returned by (async_)evaluate_dataframe
+        score_name (str): Name of the score column to log (e.g., "precision", "hallucination")
+        score_display_name (str): Desired display name for the score, if different from the
+        score_name. Defaults to None.
+
+    Returns:
+        pd.DataFrame: DataFrame with the score column, annotation name, and annotator kind columns.
+
+    Examples::
+        from phoenix.client import Client
+        from phoenix.evals import evaluate_dataframe
+        from phoenix.evals.utils import format_as_annotation_dataframe
+
+        client = Client()
+        results = evaluate_dataframe(df, evaluators)
+        hallucination_annotations = format_as_annotation_dataframe(results, "hallucination")
+        client.spans.log_span_annotations_dataframe(dataframe=hallucination_annotations)
+    """
+
+    score_column = f"{score_name}_score"
+    score_display_name = score_display_name or score_name
+
+    if score_column not in dataframe.columns:
+        raise ValueError(f"Score column '{score_column}' not found in DataFrame")
+
+    # Find span_id column (look for column containing "span_id")
+    span_id_col = None
+    for col in dataframe.columns:
+        if "span_id" in col.lower():
+            span_id_col = col
+            break
+
+    if span_id_col is None:
+        raise ValueError("No column containing 'span_id' found in DataFrame")
+
+    # Create working copy with required columns
+    eval_df = dataframe[[span_id_col, score_column]].copy()
+
+    # Parse JSON score data
+    eval_df[score_column] = eval_df[score_column].apply(
+        lambda x: json.loads(x) if isinstance(x, str) and x else None
+    )
+
+    # Extract score components
+    eval_df["score"] = eval_df[score_column].apply(lambda x: x.get("score", None) if x else None)
+    eval_df["label"] = eval_df[score_column].apply(lambda x: x.get("label", None) if x else None)
+    eval_df["explanation"] = eval_df[score_column].apply(
+        lambda x: x.get("explanation", None) if x else None
+    )
+    eval_df["metadata"] = eval_df[score_column].apply(
+        lambda x: _merge_metadata_with_direction(x) if x else None
+    )
+
+    # Infer annotator_kind from score.source in first non-null score
+    annotator_kind = "LLM"  # default
+    if not eval_df[score_column].isna().all():
+        first_score = (
+            eval_df[score_column].dropna().iloc[0]
+            if not eval_df[score_column].dropna().empty
+            else None
+        )
+        if first_score and "source" in first_score:
+            source = first_score["source"]
+            if source == "heuristic":
+                annotator_kind = "CODE"
+            elif source == "llm":
+                annotator_kind = "LLM"
+            elif source == "human":
+                annotator_kind = "HUMAN"
+
+    # Add annotation name and kind columns
+    eval_df["annotation_name"] = score_display_name
+    eval_df["annotator_kind"] = annotator_kind
+
+    # Keep only required columns
+    columns_to_keep = [
+        span_id_col,
+        "score",
+        "label",
+        "explanation",
+        "metadata",
+        "annotation_name",
+        "annotator_kind",
+    ]
+    eval_df = eval_df[columns_to_keep]
+
+    return eval_df
+
+
 __all__ = [
     # evals 1.0
     "NOT_PARSABLE",
@@ -211,4 +344,6 @@ __all__ = [
     "InputMappingType",
     "remap_eval_input",
     "extract_with_jsonpath",
+    # logging utilities
+    "format_as_annotation_dataframe",
 ]
