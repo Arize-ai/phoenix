@@ -273,19 +273,9 @@ def format_as_annotation_dataframe(
     eval_df = dataframe[[span_id_col, score_column]].copy()
 
     # Parse JSON score data
-    eval_df[score_column] = eval_df[score_column].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x else None
-    )
-
-    # Extract score components
-    eval_df["score"] = eval_df[score_column].apply(lambda x: x.get("score", None) if x else None)
-    eval_df["label"] = eval_df[score_column].apply(lambda x: x.get("label", None) if x else None)
-    eval_df["explanation"] = eval_df[score_column].apply(
-        lambda x: x.get("explanation", None) if x else None
-    )
-    eval_df["metadata"] = eval_df[score_column].apply(
-        lambda x: _merge_metadata_with_direction(x) if x else None
-    )
+    cols = ["score", "label", "explanation", "source"]
+    parsed = eval_df[score_column].apply(lambda x: json.loads(x) if isinstance(x, str) and x else None)
+    eval_df[cols] = parsed.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
 
     # Infer annotator_kind from score.source in first non-null score
     annotator_kind = "LLM"  # default
