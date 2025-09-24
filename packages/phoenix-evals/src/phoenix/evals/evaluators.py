@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import inspect
 import itertools
 import json
@@ -269,6 +270,10 @@ class Evaluator(ABC):
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
+
+    def unbind(self) -> None:
+        """Unbinds an evaluator from an input mapping."""
+        self._input_mapping = None
 
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
@@ -1053,8 +1058,9 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator.bind(input_mapping=input_mapping)
-    return evaluator
+    evaluator_copy = cast(Evaluator, copy.deepcopy(evaluator))
+    evaluator_copy.bind(input_mapping=input_mapping)
+    return evaluator_copy
 
 
 # --- Helper functions for dataframe evaluation ---
