@@ -1,13 +1,14 @@
 import itertools
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Iterable, Literal, cast
+from typing import Any, Iterable, Literal, Sequence, Union, cast
 
 import pandas as pd
 import pytest
 import sqlalchemy as sa
 from faker import Faker
-from sqlalchemy import func
+from sqlalchemy import Select, func, literal, select
+from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
 
 from phoenix.datetime_utils import normalize_datetime
@@ -21,6 +22,22 @@ from phoenix.db.helpers import (
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
+
+# Test constants
+NONEXISTENT_ID = 99999
+
+
+def get_example_ids(revisions: Sequence[Any]) -> set[int]:
+    """Extract dataset_example_id from a list of revisions."""
+    return {r.dataset_example_id for r in revisions}
+
+
+def create_id_subquery(*values: int) -> Union[Select[tuple[int]], CompoundSelect[tuple[int]]]:
+    """Create a subquery with literal ID values for testing."""
+    query = select(literal(values[0]))
+    for value in values[1:]:
+        query = query.union_all(select(literal(value)))  # type: ignore[assignment]
+    return query
 
 
 class TestDateTrunc:
@@ -607,6 +624,655 @@ class TestGetDatasetExampleRevisions:
             revisions = (await session.execute(query)).scalars().all()
 
             assert len(revisions) == 0
+
+    async def test_get_revisions_with_example_ids_filter(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test filtering revisions by specific example IDs."""
+        async with db() as session:
+            # Create a query that returns specific example IDs
+            example_ids_query = select(literal(_test_data["example1_id"]))
+
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"], example_ids=example_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should only get example1's latest revision
+            assert len(revisions) == 1
+            assert revisions[0].dataset_example_id == _test_data["example1_id"]
+            assert revisions[0].id == _test_data["revision1_2_id"]  # Latest revision for example1
+
+    async def test_get_revisions_with_multiple_example_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test filtering with multiple example IDs."""
+        async with db() as session:
+            # Create a query that returns multiple example IDs
+            example_ids_query = select(literal(_test_data["example1_id"])).union_all(
+                select(literal(_test_data["example3_id"]))
+            )
+
+            query = get_dataset_example_revisions(
+                _test_data["version3_id"], example_ids=example_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should get revisions for both example1 and example3
+            revision_example_ids = {r.dataset_example_id for r in revisions}
+            assert len(revisions) == 2
+            assert _test_data["example1_id"] in revision_example_ids
+            assert _test_data["example3_id"] in revision_example_ids
+            # Should not include example2 (it was deleted)
+            assert _test_data["example2_id"] not in revision_example_ids
+
+    async def test_get_revisions_example_ids_empty_result(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that empty example_ids query returns no results."""
+        async with db() as session:
+            # Create a query that returns no example IDs
+            example_ids_query = select(literal(99999)).where(literal(False))
+
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"], example_ids=example_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            assert len(revisions) == 0
+
+    async def test_get_revisions_example_ids_excludes_deletes(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that example_ids filtering still excludes DELETE revisions."""
+        async with db() as session:
+            # Filter for example2, which has a DELETE revision as its latest
+            example_ids_query = select(literal(_test_data["example2_id"]))
+
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"], example_ids=example_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should return empty since example2's latest revision is DELETE
+            assert len(revisions) == 0
+
+    async def test_get_revisions_example_ids_with_dataset_id_optimization(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that example_ids works correctly with dataset_id optimization."""
+        async with db() as session:
+            # Use both dataset_id and example_ids parameters
+            example_ids_query = select(literal(_test_data["example1_id"]))
+
+            query = get_dataset_example_revisions(
+                _test_data["version2_id"],
+                dataset_id=_test_data["dataset1_id"],
+                example_ids=example_ids_query,
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should get the same result as without dataset_id
+            assert len(revisions) == 1
+            assert revisions[0].dataset_example_id == _test_data["example1_id"]
+            assert revisions[0].id == _test_data["revision1_2_id"]
+
+    async def test_get_revisions_example_ids_cross_dataset_isolation(
+        self,
+        db: DbSessionFactory,
+        _test_data: dict[str, int],
+    ) -> None:
+        """Test that example_ids filtering respects dataset boundaries."""
+        async with db() as session:
+            # Try to get example from dataset1 using dataset2's version
+            example_ids_query = select(literal(_test_data["example1_id"]))
+
+            query = get_dataset_example_revisions(
+                _test_data["version_other_id"],  # This is for dataset2
+                example_ids=example_ids_query,  # This example belongs to dataset1
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should return empty since example1 doesn't belong to dataset2
+            assert len(revisions) == 0
+
+    @pytest.fixture
+    async def _test_data_with_splits(
+        self,
+        db: DbSessionFactory,
+    ) -> dict[str, int]:
+        """Create test data including dataset splits for split_names testing."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(
+                name="test_dataset_splits", description="Test Dataset with Splits"
+            )
+            session.add(dataset)
+            await session.flush()
+
+            # Create dataset versions
+            version1 = models.DatasetVersion(dataset_id=dataset.id, description="Version 1")
+            version2 = models.DatasetVersion(dataset_id=dataset.id, description="Version 2")
+            session.add_all([version1, version2])
+            await session.flush()
+
+            # Create dataset examples
+            example1 = models.DatasetExample(dataset_id=dataset.id)
+            example2 = models.DatasetExample(dataset_id=dataset.id)
+            example3 = models.DatasetExample(dataset_id=dataset.id)
+            example4 = models.DatasetExample(dataset_id=dataset.id)  # For multi-split testing
+            session.add_all([example1, example2, example3, example4])
+            await session.flush()
+
+            # Create dataset splits
+            split_train = models.DatasetSplit(
+                name="train", description="Training split", color="#FF0000", metadata_={}
+            )
+            split_test = models.DatasetSplit(
+                name="test", description="Test split", color="#00FF00", metadata_={}
+            )
+            split_val = models.DatasetSplit(
+                name="validation", description="Validation split", color="#0000FF", metadata_={}
+            )
+            session.add_all([split_train, split_test, split_val])
+            await session.flush()
+
+            # Assign examples to splits
+            # example1 -> train only
+            # example2 -> test only
+            # example3 -> validation only
+            # example4 -> both train and test (for multi-split testing)
+            split_assignments = [
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split_train.id, dataset_example_id=example1.id
+                ),
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split_test.id, dataset_example_id=example2.id
+                ),
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split_val.id, dataset_example_id=example3.id
+                ),
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split_train.id, dataset_example_id=example4.id
+                ),
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split_test.id, dataset_example_id=example4.id
+                ),
+            ]
+            session.add_all(split_assignments)
+            await session.flush()
+
+            # Create dataset example revisions
+            revisions = [
+                # Example 1 (train split)
+                models.DatasetExampleRevision(
+                    dataset_example_id=example1.id,
+                    dataset_version_id=version1.id,
+                    input={"train": "example1"},
+                    output={"result": "train1"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+                # Example 2 (test split)
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version1.id,
+                    input={"test": "example2"},
+                    output={"result": "test2"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+                # Example 2 - DELETE in version 2
+                models.DatasetExampleRevision(
+                    dataset_example_id=example2.id,
+                    dataset_version_id=version2.id,
+                    input={},
+                    output={},
+                    metadata_={},
+                    revision_kind="DELETE",
+                ),
+                # Example 3 (validation split)
+                models.DatasetExampleRevision(
+                    dataset_example_id=example3.id,
+                    dataset_version_id=version1.id,
+                    input={"val": "example3"},
+                    output={"result": "val3"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+                # Example 4 (train + test splits)
+                models.DatasetExampleRevision(
+                    dataset_example_id=example4.id,
+                    dataset_version_id=version1.id,
+                    input={"multi": "example4"},
+                    output={"result": "multi4"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                ),
+            ]
+            session.add_all(revisions)
+            await session.flush()
+
+            return {
+                "dataset_id": dataset.id,
+                "version1_id": version1.id,
+                "version2_id": version2.id,
+                "example1_id": example1.id,
+                "example2_id": example2.id,
+                "example3_id": example3.id,
+                "example4_id": example4.id,
+                "split_train_id": split_train.id,
+                "split_test_id": split_test.id,
+                "split_val_id": split_val.id,
+                "revision1_id": revisions[0].id,
+                "revision2_id": revisions[1].id,
+                "revision2_delete_id": revisions[2].id,
+                "revision3_id": revisions[3].id,
+                "revision4_id": revisions[4].id,
+            }
+
+    async def test_get_revisions_with_single_split_name(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering revisions by a single split name."""
+        async with db() as session:
+            # Test filtering by "train" split
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_names=["train"]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = get_example_ids(revisions)
+            expected_ids = {
+                _test_data_with_splits["example1_id"],
+                _test_data_with_splits["example4_id"],
+            }
+
+            # Should get example1 (train only) and example4 (train + test)
+            assert len(revisions) == 2
+            assert example_ids == expected_ids
+
+    async def test_get_revisions_with_multiple_split_names(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering revisions by multiple split names."""
+        async with db() as session:
+            # Test filtering by both "train" and "test" splits
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_names=["train", "test"]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get example1 (train), example2 (test), and example4 (both)
+            # Should not get duplicates for example4 despite being in both splits
+            assert len(revisions) == 3
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+            # Should not get example3 (validation only)
+            assert _test_data_with_splits["example3_id"] not in example_ids
+
+    async def test_get_revisions_with_empty_split_names(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty split_names gets converted to None (returns all results)."""
+        async with db() as session:
+            # Test with empty split_names list - should be converted to None, returning all results
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_names=[]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should return all results since empty list is converted to None (no filtering)
+            assert len(revisions) == 4
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example3_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+
+    async def test_get_revisions_with_nonexistent_split_name(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering by a split name that doesn't exist."""
+        async with db() as session:
+            # Test filtering by non-existent split
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_names=["nonexistent"]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should return no results
+            assert len(revisions) == 0
+
+    async def test_get_revisions_split_names_excludes_deletes(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that split filtering still excludes DELETE revisions."""
+        async with db() as session:
+            # Test filtering by "test" split with version 2 (where example2 is deleted)
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version2_id"], split_names=["test"]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should only get example4 (belongs to test split, not deleted)
+            # Should NOT get example2 (belongs to test split but is deleted)
+            assert len(revisions) == 1
+            assert _test_data_with_splits["example4_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] not in example_ids
+
+    async def test_get_revisions_split_names_with_example_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test combining split_names with example_ids filtering."""
+        async with db() as session:
+            # Filter by both split_names and example_ids
+            example_ids_query = create_id_subquery(
+                _test_data_with_splits["example1_id"],
+                _test_data_with_splits["example4_id"],
+            )
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                example_ids=example_ids_query,
+                split_names=["train"],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get intersection: examples that are both in example_ids AND train split
+            assert len(revisions) == 2
+            assert _test_data_with_splits["example1_id"] in example_ids  # In both filters
+            assert _test_data_with_splits["example4_id"] in example_ids  # In both filters
+
+    async def test_get_revisions_split_names_with_dataset_id(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test combining split_names with dataset_id optimization."""
+        async with db() as session:
+            # Test with both dataset_id and split_names
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                dataset_id=_test_data_with_splits["dataset_id"],
+                split_names=["validation"],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get only example3 (validation split)
+            assert len(revisions) == 1
+            assert _test_data_with_splits["example3_id"] in example_ids
+
+    async def test_get_revisions_all_parameters_combined(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test using dataset_id, example_ids, and split_names all together."""
+        async with db() as session:
+            # Create example_ids query for examples 1 and 4
+            example_ids_query = select(literal(_test_data_with_splits["example1_id"])).union_all(
+                select(literal(_test_data_with_splits["example4_id"]))
+            )
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                dataset_id=_test_data_with_splits["dataset_id"],
+                example_ids=example_ids_query,
+                split_names=["train", "validation"],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get intersection of all filters:
+            # - example_ids: [1, 4]
+            # - split_names: examples in train OR validation
+            # - Result: example1 (in example_ids AND train split)
+            # - example4 is in example_ids and train split, so should be included too
+            assert len(revisions) == 2
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+
+    async def test_get_revisions_with_single_split_id(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering revisions by a single split ID (more efficient than split_names)."""
+        async with db() as session:
+            # Test filtering by train split ID
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_ids=[_test_data_with_splits["split_train_id"]],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get example1 (train only) and example4 (train + test)
+            assert len(revisions) == 2
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+            # Should not get example2 (test only) or example3 (validation only)
+            assert _test_data_with_splits["example2_id"] not in example_ids
+            assert _test_data_with_splits["example3_id"] not in example_ids
+
+    async def test_get_revisions_with_multiple_split_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering revisions by multiple split IDs."""
+        async with db() as session:
+            # Test filtering by both train and test split IDs
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_ids=[
+                    _test_data_with_splits["split_train_id"],
+                    _test_data_with_splits["split_test_id"],
+                ],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get example1 (train), example2 (test), and example4 (both)
+            # Should not get duplicates for example4 despite being in both splits
+            assert len(revisions) == 3
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+            # Should not get example3 (validation only)
+            assert _test_data_with_splits["example3_id"] not in example_ids
+
+    async def test_get_revisions_with_empty_split_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that empty split_ids gets converted to None (returns all results)."""
+        async with db() as session:
+            # Test with empty split_ids list - should be converted to None, returning all results
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_ids=[]
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should return all results since empty list is converted to None (no filtering)
+            assert len(revisions) == 4
+            assert _test_data_with_splits["example1_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] in example_ids
+            assert _test_data_with_splits["example3_id"] in example_ids
+            assert _test_data_with_splits["example4_id"] in example_ids
+
+    async def test_get_revisions_with_nonexistent_split_id(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test filtering by a split ID that doesn't exist."""
+        async with db() as session:
+            # Test filtering by non-existent split ID
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                split_ids=[NONEXISTENT_ID],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            # Should return no results
+            assert len(revisions) == 0
+
+    async def test_get_revisions_split_ids_excludes_deletes(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that split ID filtering still excludes DELETE revisions."""
+        async with db() as session:
+            # Test filtering by test split ID with version 2 (where example2 is deleted)
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version2_id"],
+                split_ids=[_test_data_with_splits["split_test_id"]],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should only get example4 (belongs to test split, not deleted)
+            # Should NOT get example2 (belongs to test split but is deleted)
+            assert len(revisions) == 1
+            assert _test_data_with_splits["example4_id"] in example_ids
+            assert _test_data_with_splits["example2_id"] not in example_ids
+
+    async def test_get_revisions_split_ids_with_example_ids(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test combining split_ids with example_ids filtering."""
+        async with db() as session:
+            # Filter by both split_ids and example_ids
+            example_ids_query = create_id_subquery(
+                _test_data_with_splits["example1_id"],
+                _test_data_with_splits["example4_id"],
+            )
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                example_ids=example_ids_query,
+                split_ids=[_test_data_with_splits["split_train_id"]],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get intersection: examples that are both in example_ids AND train split
+            assert len(revisions) == 2
+            assert _test_data_with_splits["example1_id"] in example_ids  # In both filters
+            assert _test_data_with_splits["example4_id"] in example_ids  # In both filters
+
+    async def test_get_revisions_split_ids_with_dataset_id(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test combining split_ids with dataset_id optimization."""
+        async with db() as session:
+            # Test with both dataset_id and split_ids
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"],
+                dataset_id=_test_data_with_splits["dataset_id"],
+                split_ids=[_test_data_with_splits["split_val_id"]],
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get only example3 (validation split)
+            assert len(revisions) == 1
+            assert _test_data_with_splits["example3_id"] in example_ids
+
+    async def test_get_revisions_split_ids_with_subquery(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test using split_ids with a subquery instead of a list."""
+        async with db() as session:
+            # Create a subquery for split IDs (train and validation)
+            split_ids_query = create_id_subquery(
+                _test_data_with_splits["split_train_id"],
+                _test_data_with_splits["split_val_id"],
+            )
+
+            query = get_dataset_example_revisions(
+                _test_data_with_splits["version1_id"], split_ids=split_ids_query
+            )
+            revisions = (await session.execute(query)).scalars().all()
+
+            example_ids = {r.dataset_example_id for r in revisions}
+
+            # Should get example1 (train), example3 (validation), and example4 (train + test)
+            assert len(revisions) == 3
+            assert _test_data_with_splits["example1_id"] in example_ids  # train split
+            assert _test_data_with_splits["example3_id"] in example_ids  # validation split
+            assert _test_data_with_splits["example4_id"] in example_ids  # train split
+            # Should not get example2 (test split only)
+            assert _test_data_with_splits["example2_id"] not in example_ids
+
+    async def test_get_revisions_split_ids_and_names_mutual_exclusion(
+        self,
+        db: DbSessionFactory,
+        _test_data_with_splits: dict[str, int],
+    ) -> None:
+        """Test that providing both split_ids and split_names raises an error."""
+        async with db() as session:
+            # Test that providing both split_ids and split_names raises ValueError
+            with pytest.raises(
+                ValueError,
+                match="Cannot specify both split_ids and split_names - they are mutually exclusive",
+            ):
+                query = get_dataset_example_revisions(
+                    _test_data_with_splits["version1_id"],
+                    split_ids=[_test_data_with_splits["split_train_id"]],
+                    split_names=["train"],
+                )
+                await session.execute(query)
 
 
 class TestCreateExperimentExamplesSnapshotInsert:

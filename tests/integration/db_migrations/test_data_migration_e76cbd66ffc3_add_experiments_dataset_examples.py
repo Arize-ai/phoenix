@@ -45,8 +45,8 @@ def test_experiments_dataset_examples_backfill_migration(
     with pytest.raises(BaseException, match="alembic_version"):
         _version_num(_engine, _schema)
 
-    # Migrate to the revision before our target migration (deb2c81c0bb2)
-    _up(_engine, _alembic_config, "deb2c81c0bb2", _schema)
+    # Migrate to the revision before our target migration
+    _up(_engine, _alembic_config, "58228d933c91", _schema)
 
     # Set up test data before migration
     test_data = _setup_test_data(_engine)
@@ -61,7 +61,7 @@ def test_experiments_dataset_examples_backfill_migration(
     _verify_post_migration_state(_engine, test_data)
 
     # Test downgrade
-    _down(_engine, _alembic_config, "deb2c81c0bb2", _schema)
+    _down(_engine, _alembic_config, "58228d933c91", _schema)
 
     # Verify table is dropped
     _verify_downgrade_state(_engine)
