@@ -236,6 +236,7 @@ class OpenAIModel(BaseModel):
                 api_key=self.api_key,
                 organization=self.organization,
                 default_headers=self.default_headers,
+                max_retries=0,
             )
             self._async_client = self._openai.AsyncAzureOpenAI(
                 azure_endpoint=azure_options.azure_endpoint,
@@ -246,6 +247,7 @@ class OpenAIModel(BaseModel):
                 api_key=self.api_key,
                 organization=self.organization,
                 default_headers=self.default_headers,
+                max_retries=0,
             )
             # return early since we don't need to check the model
             return
@@ -256,6 +258,7 @@ class OpenAIModel(BaseModel):
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
             default_headers=self.default_headers,
+            max_retries=0,
         )
 
         # The client is not azure, so it must be openai

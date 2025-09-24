@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.1...arize-phoenix-evals-v2.1.0) (2025-09-24)
+
+
+### Features
+
+* Add Azure provider support ([#9605](https://github.com/Arize-ai/phoenix/issues/9605)) ([edf448a](https://github.com/Arize-ai/phoenix/commit/edf448a14954a63ec0251cdf6b4f2e24b0b09bc2))
+
+
+### Bug Fixes
+
+* Remove openai sdk retries ([#9587](https://github.com/Arize-ai/phoenix/issues/9587)) ([08d78f9](https://github.com/Arize-ai/phoenix/commit/08d78f9d12d0e29c0a154b93ee99d18657c0fe13))
+* Use OITracer ([#9588](https://github.com/Arize-ai/phoenix/issues/9588)) ([8bb7743](https://github.com/Arize-ai/phoenix/commit/8bb7743c8fbbe231d500d49109c04a56624328bf))
+
 ## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.0...arize-phoenix-evals-v2.0.1) (2025-09-17)
 
 

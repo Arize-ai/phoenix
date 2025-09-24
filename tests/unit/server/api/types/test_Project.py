@@ -2,6 +2,7 @@ import base64
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from random import random
 from secrets import token_hex
 from typing import Any, Literal, Optional
 
@@ -4231,6 +4232,155 @@ async def test_record_count_returns_expected_count(
     assert not response.errors
     assert response.data is not None
     assert response.data["project"]["recordCount"] == 1
+
+
+async def test_pagination_spans_by_annotation_score(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test pagination of spans sorted by annotation score.
+
+    Creates 3 spans:
+    - First span has annotation scores
+    - Last two spans have annotation labels but no scores
+    Tests that pagination works correctly with score-based sorting.
+    """
+    spans = []
+    traces = []
+    score = random()
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session, name="annotation-score-test")
+
+        for i in range(3):
+            trace = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=i * 10),
+                end_time=base_time + timedelta(minutes=i * 10 + 5),
+            )
+            traces.append(trace)
+
+            span = await _add_span(
+                session,
+                trace=trace,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+                span_kind="LLM",
+            )
+            spans.append(span)
+
+            if i < 1:
+                annotation = models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="Quality",
+                    label=None,
+                    score=score,
+                    explanation=f"Quality annotation for span {i + 1}",
+                    metadata_={},
+                    annotator_kind="LLM",
+                    source="APP",
+                )
+            else:
+                annotation = models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="Quality",
+                    label="good",
+                    score=None,  # No score
+                    explanation=f"Quality annotation for span {i + 1}",
+                    metadata_={},
+                    annotator_kind="LLM",
+                    source="APP",
+                )
+            session.add(annotation)
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    query = """
+        query ($projectId: ID!, $first: Int, $after: String, $sort: SpanSort) {
+            node(id: $projectId) {
+                ... on Project {
+                    spans(
+                        first: $first,
+                        after: $after,
+                        sort: $sort
+                    ) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                            cursor
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    assert len(edges) == 2
+    assert edges[0]["node"]["name"] == spans[0].name
+    assert edges[1]["node"]["name"] == spans[2].name
+    assert page_info["hasNextPage"] is True
+    assert page_info["hasPreviousPage"] is False
+
+    start_cursor = Cursor.from_string(page_info["startCursor"])
+    assert start_cursor.sort_column is not None
+    assert start_cursor.sort_column.type == CursorSortColumnDataType.FLOAT
+    assert start_cursor.sort_column.value == score
+
+    end_cursor = Cursor.from_string(page_info["endCursor"])
+    assert end_cursor.sort_column is not None
+    assert end_cursor.sort_column.type == CursorSortColumnDataType.NULL
+    assert end_cursor.sort_column.value is None
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+            "after": page_info["endCursor"],
+            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == spans[1].name
+    assert page_info["hasNextPage"] is False
+
+    start_cursor = Cursor.from_string(page_info["startCursor"])
+    assert start_cursor.sort_column is not None
+    assert start_cursor.sort_column.type == CursorSortColumnDataType.NULL
+    assert start_cursor.sort_column.value is None
 
 
 async def test_trace_count_returns_expected_count(

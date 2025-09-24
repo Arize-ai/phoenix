@@ -58,3 +58,19 @@ For app.phoenix.arize.com, this may fail due to security reasons. In that case, 
 
 If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix-support@arize.com](mailto://phoenix-support@arize.com)
 {% endhint %}
+
+## Custom Headers
+
+Phoenix supports adding custom HTTP headers to requests sent to AI providers. This is useful for additional credentials, routing needs, or cost tracking when using custom LLM proxies.
+
+### Configuring Custom Headers
+
+1. Click on the model configuration button in the playground
+2. Scroll down to the "Custom Headers" section
+3. Add your headers in JSON format:
+
+```json
+{
+  "application-name": "phoenix"
+}
+```

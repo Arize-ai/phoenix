@@ -1158,6 +1158,7 @@ const getBaseChatCompletionInput = ({
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
+      customHeaders: instance.model.customHeaders,
       ...azureModelParams,
       ...awsModelParams,
     },

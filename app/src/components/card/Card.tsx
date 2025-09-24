@@ -15,6 +15,7 @@ function Card(
     children,
     collapsible = false,
     defaultOpen = true,
+    scrollBody = false,
     extra,
     ...otherProps
   }: CardProps,
@@ -80,6 +81,7 @@ function Card(
           id={bodyId}
           aria-labelledby={headerId}
           aria-hidden={isCollapsed}
+          data-scrollable={scrollBody}
         >
           {children}
         </div>

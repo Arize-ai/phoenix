@@ -1,5 +1,52 @@
 # Changelog
 
+## [11.37.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.36.0...arize-phoenix-v11.37.0) (2025-09-24)
+
+
+### Features
+
+* add new checkbox ([#9595](https://github.com/Arize-ai/phoenix/issues/9595)) ([4a5151e](https://github.com/Arize-ai/phoenix/commit/4a5151ee19c3b27362972322716865240ac4a118))
+* **playground:** custom http headers for playground requests ([#9560](https://github.com/Arize-ai/phoenix/issues/9560)) ([ee570ef](https://github.com/Arize-ai/phoenix/commit/ee570efce1bc22d88e55735f49072fa705c24e66))
+
+
+### Bug Fixes
+
+* **helm:** remove hook annotations ([#9486](https://github.com/Arize-ai/phoenix/issues/9486)) ([286e802](https://github.com/Arize-ai/phoenix/commit/286e802b24fd773900a1ccc29b278efc33cbae07))
+* null value in pagination cursor ([#9575](https://github.com/Arize-ai/phoenix/issues/9575)) ([0a5e7c9](https://github.com/Arize-ai/phoenix/commit/0a5e7c999f6e8b26491403035ca8ba532e0f012b))
+* truncate rather than round in formatFloat ([#9607](https://github.com/Arize-ai/phoenix/issues/9607)) ([72c3c90](https://github.com/Arize-ai/phoenix/commit/72c3c9026b3ee78e7554116733cb537cf7153bdf))
+* wrap notification functions in useCallback ([#9613](https://github.com/Arize-ai/phoenix/issues/9613)) ([871ce45](https://github.com/Arize-ai/phoenix/commit/871ce4566da240f7f900d54687ed570e1ec35e25))
+
+## [11.36.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.35.0...arize-phoenix-v11.36.0) (2025-09-23)
+
+
+### Features
+
+* **experiments:** break out repetitions in experiments compare slideover ([#9546](https://github.com/Arize-ai/phoenix/issues/9546)) ([4ba38c8](https://github.com/Arize-ai/phoenix/commit/4ba38c838c0235f73832292aae911a24545c653a))
+* Port notifications to react-aria toasts ([#9573](https://github.com/Arize-ai/phoenix/issues/9573)) ([b79d67b](https://github.com/Arize-ai/phoenix/commit/b79d67b7988714d52f7cdd83260da9090b127fb6))
+
+
+### Bug Fixes
+
+* Remove extra line from typescript client code snippet ([#9594](https://github.com/Arize-ai/phoenix/issues/9594)) ([881fbe3](https://github.com/Arize-ai/phoenix/commit/881fbe30aab86b911d8bd939ac86458ad6936520))
+
+## [11.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.34.0...arize-phoenix-v11.35.0) (2025-09-22)
+
+
+### Features
+
+* **helm:** add IPv6 support ([#9482](https://github.com/Arize-ai/phoenix/issues/9482)) ([a9b590c](https://github.com/Arize-ai/phoenix/commit/a9b590ccd7886d7e64031faa54225d3fbd9f372e))
+* **helm:** allow image registry configuration ([#9485](https://github.com/Arize-ai/phoenix/issues/9485)) ([da7778e](https://github.com/Arize-ai/phoenix/commit/da7778ed80b7527ab3d9540fc7732ad740c8dc6c))
+
+
+### Bug Fixes
+
+* **helm:** make SQLite support work ([#9483](https://github.com/Arize-ai/phoenix/issues/9483)) ([198005f](https://github.com/Arize-ai/phoenix/commit/198005ff9ba8f8531a05217c25e01f7290859b57))
+* improper sqlite sqlalchemy URL ([#9536](https://github.com/Arize-ai/phoenix/issues/9536)) ([73dc015](https://github.com/Arize-ai/phoenix/commit/73dc0155f138cc568e1373dc3834243571271490))
+* nix llama-index extra ([#9561](https://github.com/Arize-ai/phoenix/issues/9561)) ([de185da](https://github.com/Arize-ai/phoenix/commit/de185da72f825b05857666221f4229670316a0b8))
+* update llama-index pin ([#9465](https://github.com/Arize-ai/phoenix/issues/9465)) ([8896883](https://github.com/Arize-ai/phoenix/commit/8896883bf43811d5f17a1210f478d4a8ecb6b820))
+* Update Phoenix evals requirement to 2.0 ([#9537](https://github.com/Arize-ai/phoenix/issues/9537)) ([4f700a1](https://github.com/Arize-ai/phoenix/commit/4f700a110e161da38552d9706850262bf19e0f1d))
+* uvicorn type import ([#9571](https://github.com/Arize-ai/phoenix/issues/9571)) ([44a39e7](https://github.com/Arize-ai/phoenix/commit/44a39e7a3c36c486c91ca28037ea2a9041cc80ab))
+
 ## [11.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.33.0...arize-phoenix-v11.34.0) (2025-09-16)
 
 
