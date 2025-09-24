@@ -1351,6 +1351,7 @@ input GenerativeModelInput {
   endpoint: String
   apiVersion: String
   region: String
+  customHeaders: JSON
 }
 
 enum GenerativeModelKind {
