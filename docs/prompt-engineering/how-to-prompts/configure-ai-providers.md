@@ -61,89 +61,16 @@ If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix
 
 ## Custom Headers
 
-Phoenix supports adding custom HTTP headers to requests sent to AI providers. This feature is particularly useful when working with custom LLM proxies or when you need additional functionality beyond standard authentication.
+Phoenix supports adding custom HTTP headers to requests sent to AI providers. This is useful for additional credentials, routing needs, or cost tracking when using custom LLM proxies.
 
-### When to Use Custom Headers
+### Configuring Custom Headers
 
-Custom headers are helpful in several scenarios:
-
-- **Additional Credentials**: When your LLM proxy requires extra authentication tokens or API keys beyond the standard authorization header
-- **Request Routing**: When using load balancers or proxies that route requests based on custom header values
-- **Cost Tracking**: When you need to include tracking identifiers for billing or usage analytics
-- **Custom Metadata**: When your infrastructure requires additional metadata to be passed with each request
-
-### Configuring Custom Headers in the Playground
-
-To add custom headers to your AI provider configuration:
-
-1. **Open Model Configuration**: In the playground, click on the model configuration button (showing your current model name) next to the provider selection
-2. **Navigate to Custom Headers**: Scroll down to the "Custom Headers" section in the configuration dialog
-3. **Add Headers**: Enter your headers in JSON format in the provided editor
-
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/custom_headers_config.png" alt="Custom Headers Configuration"><figcaption><p>Configure custom headers in the model configuration dialog</p></figcaption></figure>
-
-### Header Format
-
-Custom headers should be provided as a JSON object with string keys and values:
+1. Click on the model configuration button in the playground
+2. Scroll down to the "Custom Headers" section
+3. Add your headers in JSON format:
 
 ```json
 {
-  "X-Custom-Auth": "your-token-here",
-  "X-Request-ID": "unique-request-identifier",
-  "X-Cost-Center": "team-alpha"
+  "application-name": "phoenix"
 }
 ```
-
-### Examples
-
-#### Example 1: Additional Authentication
-```json
-{
-  "X-API-Token": "secondary-auth-token",
-  "X-Client-ID": "your-client-identifier"
-}
-```
-
-#### Example 2: Request Routing
-```json
-{
-  "X-Route-To": "us-west-2",
-  "X-Load-Balancer-Pool": "premium-tier"
-}
-```
-
-#### Example 3: Cost and Usage Tracking
-```json
-{
-  "X-Cost-Center": "engineering-team",
-  "X-Project-ID": "phoenix-evaluation",
-  "X-User-ID": "user-123"
-}
-```
-
-### How Custom Headers Work
-
-- Custom headers are sent **in addition to** the standard authentication headers (like `Authorization` for API keys)
-- Headers are passed through as-is to the LLM provider without modification
-- The headers are included with every request made during prompt iteration in the playground
-- Headers are validated to ensure they follow proper HTTP header format
-
-### Provider Compatibility
-
-Custom headers are supported for most AI providers in Phoenix, including:
-- OpenAI and OpenAI-compatible providers
-- Azure OpenAI
-- Anthropic
-- DeepSeek
-- Custom LLM proxies
-
-{% hint style="info" %}
-Custom headers are not available for Google AI Studio (Gemini) models due to API limitations.
-{% endhint %}
-
-### Best Practices
-
-- **Security**: Never include sensitive credentials directly in header values. Use environment variables or secure credential management systems when possible
-- **Naming**: Use descriptive header names with appropriate prefixes (e.g., `X-` for custom headers)
-- **Documentation**: Document the purpose of each custom header for your team
-- **Testing**: Test your configuration with a simple prompt to ensure headers are being sent correctly
