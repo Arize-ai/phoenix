@@ -1,4 +1,10 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
 import { flushSync } from "react-dom";
 
@@ -135,15 +141,18 @@ export const useNotify = () => {
  */
 export const useNotifySuccess = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-    queue.add(
-      {
-        ...params,
-        variant: "success",
-        icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
-      },
-      expireMs === null ? undefined : { timeout: expireMs }
-    );
+  return useCallback(
+    ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
+      queue.add(
+        {
+          ...params,
+          variant: "success",
+          icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
+        },
+        expireMs === null ? undefined : { timeout: expireMs }
+      ),
+    [queue]
+  );
 };
 
 /**
@@ -163,13 +172,16 @@ export const useNotifySuccess = () => {
  */
 export const useNotifyError = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-    queue.add(
-      {
-        ...params,
-        variant: "error",
-        icon: <Icon svg={<Icons.AlertCircleFilled />} />,
-      },
-      expireMs === null ? undefined : { timeout: expireMs }
-    );
+  return useCallback(
+    ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
+      queue.add(
+        {
+          ...params,
+          variant: "error",
+          icon: <Icon svg={<Icons.AlertCircleFilled />} />,
+        },
+        expireMs === null ? undefined : { timeout: expireMs }
+      ),
+    [queue]
+  );
 };
