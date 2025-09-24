@@ -774,9 +774,8 @@ def evaluate_dataframe(
         details = execution_details[i]
         execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
         # note: we use iloc because we can't modify the index, so we must use positional assignment
-        # ignoring the type error here will only cause problems if there are duplicate columns
         col_idx = result_df.columns.get_loc(execution_details_col)
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
@@ -893,9 +892,8 @@ async def async_evaluate_dataframe(
         details = execution_details[i]
         execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
         # note: we use iloc because we can't modify the index, so we must use positional assignment
-        # ignoring the type error here will only cause problems if there are duplicate columns
         col_idx = result_df.columns.get_loc(execution_details_col)
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
