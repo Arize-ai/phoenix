@@ -2054,9 +2054,7 @@ class Evaluator(Base):
 
 
 class LLMEvaluator(Base):
-    __tablename__ = "llm_evaluators"
-    name: Mapped["str"]
-    description: Mapped[Optional[str]]
+    __tablename__ = "llm_evaluator_definitions"
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

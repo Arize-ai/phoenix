@@ -118,13 +118,10 @@ def upgrade() -> None:
         sa.UniqueConstraint("dataset_id", "evaluator_id"),
     )
 
-    # Sub-type evaluators
+    # Sub-type evaluator
     op.create_table(
-        "llm_evaluators",
+        "llm_evaluator_definitions",
         sa.Column("id", sa.Integer, primary_key=True),
-        # TODO - how to reference these if we decide to share evaluators across datasets
-        sa.Column("name", sa.String, nullable=False),
-        sa.Column("description", sa.String),
         sa.Column(
             "evaluator_id",
             sa.Integer,
