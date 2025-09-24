@@ -773,10 +773,10 @@ def evaluate_dataframe(
         # Process and add execution details to dataframe
         details = execution_details[i]
         execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        # Use positional assignment rather than index assignment
-        result_df.iloc[eval_input_index, result_df.columns.get_loc(execution_details_col)] = (
-            _process_execution_details(details)
-        )
+        # note: we use iloc because we can't modify the index, so we must use positional assignment
+        # ignoring the type error here will only cause problems if there are duplicate columns
+        col_idx = result_df.columns.get_loc(execution_details_col)
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore
 
         # Process scores
         if results is None:
@@ -790,7 +790,6 @@ def evaluate_dataframe(
             score_col = f"{score.name}_score"
             if score_col not in score_dicts:
                 score_dicts[score_col] = {}
-            # Use positional assignment to handle duplicate indices correctly
             score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
 
     # Add scores to dataframe
@@ -893,10 +892,10 @@ async def async_evaluate_dataframe(
         # Process and add execution details to dataframe
         details = execution_details[i]
         execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        # Use positional assignment to handle duplicate indices correctly
-        result_df.iloc[eval_input_index, result_df.columns.get_loc(execution_details_col)] = (
-            _process_execution_details(details)
-        )
+        # note: we use iloc because we can't modify the index, so we must use positional assignment
+        # ignoring the type error here will only cause problems if there are duplicate columns
+        col_idx = result_df.columns.get_loc(execution_details_col)
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore
 
         # Process scores
         if results is None:
@@ -911,7 +910,6 @@ async def async_evaluate_dataframe(
                 score_col = f"{score.name}_score"
             if score_col not in score_dicts:
                 score_dicts[score_col] = {}
-            # Use positional assignment to handle duplicate indices correctly
             score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
 
     # Add scores to dataframe
