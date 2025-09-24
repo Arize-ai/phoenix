@@ -1,4 +1,11 @@
-import { memo, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
@@ -435,9 +442,11 @@ const formatHeadersForEditor = (
 function CustomHeadersModelConfigFormField({
   instance,
   container: _container,
+  onErrorChange,
 }: {
   instance: PlaygroundNormalizedInstance;
   container: HTMLElement | null;
+  onErrorChange?: (hasError: boolean) => void;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const { customHeaders } = instance.model;
@@ -447,6 +456,11 @@ function CustomHeadersModelConfigFormField({
   );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
+  // Cleanup: reset error state when component unmounts
+  useEffect(() => {
+    return () => onErrorChange?.(false);
+  }, [onErrorChange]);
+
   const handleChange = useCallback(
     (value: string) => {
       setEditorValue(value);
@@ -454,6 +468,7 @@ function CustomHeadersModelConfigFormField({
       const result = stringToHttpHeadersSchema.safeParse(value);
       if (result.success) {
         setErrorMessage(undefined);
+        onErrorChange?.(false);
         updateModel({
           instanceId: instance.id,
           patch: { customHeaders: result.data },
@@ -465,9 +480,10 @@ function CustomHeadersModelConfigFormField({
             firstError?.path?.join(".") ??
             "Invalid headers format"
         );
+        onErrorChange?.(true);
       }
     },
-    [instance.id, updateModel]
+    [instance.id, updateModel, onErrorChange]
   );
 
   return (
@@ -582,6 +598,8 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
   );
 
   const notifySuccess = useNotifySuccess();
+
+  const [hasCustomHeadersError, setHasCustomHeadersError] = useState(false);
   const onSaveConfig = useCallback(() => {
     const {
       // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
@@ -610,20 +628,27 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
                 size="S"
                 variant="default"
                 onPress={onSaveConfig}
+                isDisabled={hasCustomHeadersError}
                 leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
               >
                 Save as Default
               </Button>
               <Tooltip placement="bottom" offset={5}>
-                Saves the current configuration as the default for{" "}
-                {ModelProviders[instance.model.provider] ?? "this provider"}.
+                {hasCustomHeadersError
+                  ? "Fix custom headers validation errors before saving"
+                  : `Saves the current configuration as the default for ${
+                      ModelProviders[instance.model.provider] ?? "this provider"
+                    }.`}
               </Tooltip>
             </TooltipTrigger>
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
         <Suspense>
-          <ModelConfigDialogContent {...props} />
+          <ModelConfigDialogContent
+            {...props}
+            onCustomHeadersErrorChange={setHasCustomHeadersError}
+          />
         </Suspense>
       </DialogContent>
     </Dialog>
@@ -634,17 +659,18 @@ const MemoizedModelConfigButton = memo(ModelConfigButton);
 
 export { MemoizedModelConfigButton as ModelConfigButton };
 
-interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
-function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
-  const { playgroundInstanceId } = props;
+function ModelConfigDialogContent(
+  props: ModelConfigButtonProps & {
+    onCustomHeadersErrorChange?: (hasError: boolean) => void;
+  }
+) {
+  const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
 
   if (!instance) {
-    throw new Error(
-      `Playground instance ${props.playgroundInstanceId} not found`
-    );
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
@@ -739,6 +765,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           key={instance.model.provider}
           instance={instance}
           container={container ?? null}
+          onErrorChange={onCustomHeadersErrorChange}
         />
       )}
 
