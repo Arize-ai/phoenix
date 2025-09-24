@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -454,20 +453,9 @@ function CustomHeadersModelConfigFormField({
     formatHeadersForEditor(customHeaders)
   );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
-  const isUserEditingRef = useRef(false);
-
-  // Reset user editing flag when provider changes
-  useEffect(() => {
-    isUserEditingRef.current = false;
-  }, [provider]);
 
   // Reset editor only when provider changes or external updates (not user typing)
   useEffect(() => {
-    // Don't reset editor while user is actively typing
-    if (isUserEditingRef.current) {
-      return;
-    }
-
     const newValue = formatHeadersForEditor(customHeaders);
     setEditorValue(newValue);
     setErrorMessage(undefined);
@@ -475,7 +463,6 @@ function CustomHeadersModelConfigFormField({
 
   const handleChange = useCallback(
     (value: string) => {
-      isUserEditingRef.current = true;
       setEditorValue(value);
 
       const result = stringToHttpHeadersSchema.safeParse(value);
@@ -493,11 +480,6 @@ function CustomHeadersModelConfigFormField({
             "Invalid headers format"
         );
       }
-
-      // Allow external updates after a brief delay (regardless of validation result)
-      setTimeout(() => {
-        isUserEditingRef.current = false;
-      }, 100);
     },
     [instance.id, updateModel]
   );
