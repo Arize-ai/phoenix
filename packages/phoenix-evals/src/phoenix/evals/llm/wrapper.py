@@ -112,6 +112,17 @@ class LLM:
             **kwargs (Any): Additional keyword arguments forwarded to the underlying SDK client
                 constructor(s) if applicable. Use this to pass provider/client-specific options
                 such as API keys, timeouts, base URLs, etc.
+
+        Example::
+
+            from phoenix.evals.llm import LLM
+            llm = LLM(
+                provider="azure",
+                model="gpt-5o",
+                api_key="your-api-key",
+                api_version="api-version",
+                base_url="base-url",
+            )
         """
         self.provider = provider
         self.model = model
