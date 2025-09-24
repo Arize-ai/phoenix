@@ -22,3 +22,16 @@ def create_openai_client(model: str, is_async: bool, **kwargs: Any) -> Any:
         return OpenAIClientWrapper(client, model)
     except ImportError:
         raise ImportError("OpenAI package not installed. Run: pip install openai")
+
+
+def create_azure_openai_client(model: str, is_async: bool, **kwargs: Any) -> Any:
+    try:
+        from openai import AsyncAzureOpenAI, AzureOpenAI
+
+        if is_async:
+            client: Union[AsyncAzureOpenAI, AzureOpenAI] = AsyncAzureOpenAI(**kwargs)
+        else:
+            client = AzureOpenAI(**kwargs)
+        return OpenAIClientWrapper(client, model)
+    except ImportError:
+        raise ImportError("OpenAI package not installed. Run: pip install openai")

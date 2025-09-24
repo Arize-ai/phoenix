@@ -10,7 +10,7 @@ from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_b
 
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
-from .factories import OpenAIClientWrapper, create_openai_client
+from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,12 @@ def get_openai_rate_limit_errors() -> list[Type[Exception]]:
 @register_provider(
     provider="openai",
     client_factory=create_openai_client,
+    get_rate_limit_errors=get_openai_rate_limit_errors,
+    dependencies=["openai"],
+)
+@register_provider(
+    provider="azure",
+    client_factory=create_azure_openai_client,
     get_rate_limit_errors=get_openai_rate_limit_errors,
     dependencies=["openai"],
 )
