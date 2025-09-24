@@ -101,9 +101,9 @@ export function ExperimentCompareListPage({
     [searchParams]
   );
 
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
-  );
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
@@ -360,7 +360,7 @@ export function ExperimentCompareListPage({
         header: "example",
         accessorKey: "example",
         size: 110,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const exampleId = getValue() as string;
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -370,7 +370,7 @@ export function ExperimentCompareListPage({
                   size="S"
                   aria-label="View experiment run details"
                   onPress={() => {
-                    setSelectedExampleId(exampleId);
+                    setSelectedExampleIndex(row.index);
                   }}
                   css={css`
                     flex: none;
@@ -896,6 +896,10 @@ export function ExperimentCompareListPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
+  const exampleIds = useMemo(() => {
+    return rows.map((row) => row.original.example);
+  }, [rows]);
+
   return (
     <View overflow="auto">
       <Flex direction="column" height="100%">
@@ -961,19 +965,26 @@ export function ExperimentCompareListPage({
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!selectedExampleId}
-        onOpenChange={() => {
-          setSelectedExampleId(null);
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleId && datasetId && (
+          {selectedExampleIndex !== null && datasetId && (
             <ExperimentCompareDetailsDialog
               datasetId={datasetId}
               datasetVersionId={baseExperiment?.datasetVersionId}
-              selectedExampleId={selectedExampleId}
+              selectedExampleIndex={selectedExampleIndex}
+              selectedExampleId={rows[selectedExampleIndex].original.example}
               baseExperimentId={baseExperiment?.id}
               compareExperimentIds={compareExperimentIds}
+              exampleIds={exampleIds}
+              onExampleChange={(exampleIndex) => {
+                setSelectedExampleIndex(exampleIndex);
+              }}
             />
           )}
         </Modal>
