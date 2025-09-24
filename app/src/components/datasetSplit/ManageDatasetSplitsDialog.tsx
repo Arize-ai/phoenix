@@ -44,6 +44,8 @@ export function ManageDatasetSplitsDialog(
     new Set(sharedSplitIds)
   );
 
+  // TODO: this is a code smell
+  // TODO: unnecessary state change, should be tracked in this component
   useEffect(() => {
     if (isOpen) {
       setSelectedSplitIds(new Set(sharedSplitIds));
@@ -54,9 +56,6 @@ export function ManageDatasetSplitsDialog(
     <ModalOverlay
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          setSelectedSplitIds(new Set());
-        }
         onOpenChange(open);
       }}
       isDismissable
