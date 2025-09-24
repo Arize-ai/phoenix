@@ -1,4 +1,11 @@
-import { memo, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
@@ -449,6 +456,11 @@ function CustomHeadersModelConfigFormField({
   );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
+  // Cleanup: reset error state when component unmounts
+  useEffect(() => {
+    return () => onErrorChange?.(false);
+  }, [onErrorChange]);
+
   const handleChange = useCallback(
     (value: string) => {
       setEditorValue(value);
@@ -587,8 +599,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
 
   const notifySuccess = useNotifySuccess();
 
-  const [hasCustomHeadersError, setHasCustomHeadersError] =
-    useState<boolean>(false);
+  const [hasCustomHeadersError, setHasCustomHeadersError] = useState(false);
   const onSaveConfig = useCallback(() => {
     const {
       // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
@@ -653,15 +664,13 @@ function ModelConfigDialogContent(
     onCustomHeadersErrorChange?: (hasError: boolean) => void;
   }
 ) {
-  const { playgroundInstanceId } = props;
+  const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
 
   if (!instance) {
-    throw new Error(
-      `Playground instance ${props.playgroundInstanceId} not found`
-    );
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
@@ -756,7 +765,7 @@ function ModelConfigDialogContent(
           key={instance.model.provider}
           instance={instance}
           container={container ?? null}
-          onErrorChange={props.onCustomHeadersErrorChange}
+          onErrorChange={onCustomHeadersErrorChange}
         />
       )}
 
