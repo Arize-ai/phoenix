@@ -902,6 +902,7 @@ export function ExperimentCompareListPage({
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
    */
+  const tableState = table.getState();
   const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
@@ -915,7 +916,11 @@ export function ExperimentCompareListPage({
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [
+    tableState.columnSizingInfo,
+    tableState.columnSizing,
+    tableState.columnVisibility,
+  ]);
 
   const exampleIds = useMemo(() => {
     return rows.map((row) => row.original.example);
