@@ -225,6 +225,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
 
           const exampleIds = selectedExamples.map((e) => e.id);
           splitsToAdd.length > 0 &&
+            !isAssigningSplits &&
             addExamplesToSplits({
               variables: {
                 input: {
@@ -233,11 +234,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                 },
               },
               onCompleted: () => {
-                notifySuccess({
-                  title: "Splits assigned",
-                  message: `Assigned ${exampleIds.length} example${exampleIds.length === 1 ? "" : "s"} to ${selectedIds.length} split${selectedIds.length === 1 ? "" : "s"}.`,
-                });
-                // Refresh examples to reflect updated split labels
                 refreshLatestVersion();
               },
               onError: (error) => {
@@ -251,6 +247,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             });
 
           splitsToRemove.length > 0 &&
+            !isRemovingExamplesFromSplit &&
             removeExamplesFromSplit({
               variables: {
                 input: {
@@ -259,11 +256,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                 },
               },
               onCompleted: () => {
-                notifySuccess({
-                  title: "Splits removed",
-                  message: `Removed ${exampleIds.length} example${exampleIds.length === 1 ? "" : "s"} from ${splitsToRemove.length} split${splitsToRemove.length === 1 ? "" : "s"}.`,
-                });
-                // Refresh examples to reflect updated split labels
                 refreshLatestVersion();
               },
               onError: (error) => {

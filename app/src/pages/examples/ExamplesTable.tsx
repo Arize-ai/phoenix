@@ -134,19 +134,6 @@ export function ExamplesTable({
         return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
       },
     },
-    // {
-    //   header: "splits",
-    //   accessorKey: "splits",
-    //   cell: ({ row }) => {
-    //     const labels = (row.original.splits ?? []).map(
-    //       (s: { name: string; color?: string | null }) => ({
-    //         name: s.name,
-    //         color: s.color,
-    //       })
-    //     );
-    //     return <SplitLabels labels={labels} />;
-    //   },
-    // },
     {
       header: "input",
       accessorKey: "input",
