@@ -203,15 +203,6 @@ function DatasetPageContent({
             </ActionMenu>
             <DatasetCodeButton />
             <RunExperimentButton />
-            {isSplitsEnabled ? (
-              <Button
-                leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-                size="S"
-                onPress={() => setIsCreateSplitOpen(true)}
-              >
-                Create Split
-              </Button>
-            ) : null}
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
@@ -223,6 +214,15 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            {isSplitsEnabled ? (
+              <Button
+                leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+                size="S"
+                onPress={() => setIsCreateSplitOpen(true)}
+              >
+                Create Split
+              </Button>
+            ) : null}
             <Button
               size="S"
               variant="primary"
