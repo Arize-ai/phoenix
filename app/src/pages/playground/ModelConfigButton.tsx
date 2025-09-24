@@ -1,11 +1,4 @@
-import {
-  memo,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { memo, Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
@@ -447,19 +440,12 @@ function CustomHeadersModelConfigFormField({
   container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const { provider, customHeaders } = instance.model;
+  const { customHeaders } = instance.model;
 
   const [editorValue, setEditorValue] = useState(() =>
     formatHeadersForEditor(customHeaders)
   );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
-
-  // Reset editor only when provider changes or external updates (not user typing)
-  useEffect(() => {
-    const newValue = formatHeadersForEditor(customHeaders);
-    setEditorValue(newValue);
-    setErrorMessage(undefined);
-  }, [provider, customHeaders]);
 
   const handleChange = useCallback(
     (value: string) => {
@@ -494,7 +480,6 @@ function CustomHeadersModelConfigFormField({
       >
         <CodeWrap>
           <JSONEditor
-            key={`custom-headers-${provider}-${instance.id}`}
             value={editorValue}
             onChange={handleChange}
             jsonSchema={httpHeadersJSONSchema as JSONSchema7}
@@ -751,6 +736,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
       {instance.model.provider !== "GOOGLE" && (
         <CustomHeadersModelConfigFormField
+          key={instance.model.provider}
           instance={instance}
           container={container ?? null}
         />
