@@ -794,7 +794,7 @@ def evaluate_dataframe(
     # Add scores to dataframe
     for score_col, score_dict in score_dicts.items():
         # Convert dictionary to list using positional indices
-        score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
+        score_list = [score_dict.get(pos) for pos in range(len(result_df))]
         result_df[score_col] = score_list
 
     return result_df
