@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd6d38fd1751027abd831267b152544b>>
+ * @generated SignedSource<<99238115743f2560f83049982eff610f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AssignSplitsDialogQuery$variables = Record<PropertyKey, never>;
-export type AssignSplitsDialogQuery$data = {
+export type ManageDatasetSplitsDialogQuery$variables = Record<PropertyKey, never>;
+export type ManageDatasetSplitsDialogQuery$data = {
   readonly datasetSplits: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -21,9 +21,9 @@ export type AssignSplitsDialogQuery$data = {
     }>;
   };
 };
-export type AssignSplitsDialogQuery = {
-  response: AssignSplitsDialogQuery$data;
-  variables: AssignSplitsDialogQuery$variables;
+export type ManageDatasetSplitsDialogQuery = {
+  response: ManageDatasetSplitsDialogQuery$data;
+  variables: ManageDatasetSplitsDialogQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -123,14 +123,14 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "AssignSplitsDialogQuery",
+    "name": "ManageDatasetSplitsDialogQuery",
     "selections": [
       {
         "alias": "datasetSplits",
         "args": null,
         "concreteType": "DatasetSplitConnection",
         "kind": "LinkedField",
-        "name": "__AssignSplitsDialog_datasetSplits_connection",
+        "name": "__ManageDatasetSplitsDialog_datasetSplits_connection",
         "plural": false,
         "selections": (v0/*: any*/),
         "storageKey": null
@@ -143,7 +143,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "AssignSplitsDialogQuery",
+    "name": "ManageDatasetSplitsDialogQuery",
     "selections": [
       {
         "alias": null,
@@ -160,14 +160,14 @@ return {
         "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "AssignSplitsDialog_datasetSplits",
+        "key": "ManageDatasetSplitsDialog_datasetSplits",
         "kind": "LinkedHandle",
         "name": "datasetSplits"
       }
     ]
   },
   "params": {
-    "cacheID": "1dde7fa7883aa208c61da417658b8391",
+    "cacheID": "92aadb1e6034de31009e1f8c1538195e",
     "id": null,
     "metadata": {
       "connection": [
@@ -181,13 +181,13 @@ return {
         }
       ]
     },
-    "name": "AssignSplitsDialogQuery",
+    "name": "ManageDatasetSplitsDialogQuery",
     "operationKind": "query",
-    "text": "query AssignSplitsDialogQuery {\n  datasetSplits(first: 200) {\n    edges {\n      node {\n        id\n        name\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ManageDatasetSplitsDialogQuery {\n  datasetSplits(first: 200) {\n    edges {\n      node {\n        id\n        name\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d63798e1c88582915b9c3328c7a74756";
+(node as any).hash = "9bcf1e46a3f2d672d00613ea78d6cbec";
 
 export default node;

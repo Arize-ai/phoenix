@@ -16,8 +16,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
-import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -154,7 +154,7 @@ export function ExamplesTable({
     columns.splice(2, 0, {
       header: "splits",
       accessorKey: "splits",
-      cell: ({ row }) => <SplitLabels labels={row.original.splits} />,
+      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
   }
   const table = useReactTable<TableRow>({

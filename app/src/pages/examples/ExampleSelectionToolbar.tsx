@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { ManageDatasetSplitsDialog } from "@phoenix/components/datasetSplit/ManageDatasetSplitsDialog";
 import {
   DialogCloseButton,
   DialogContent,
@@ -23,7 +24,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { AssignSplitsDialog } from "@phoenix/components/split/AssignSplitsDialog";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
@@ -53,22 +53,23 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
   const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
     useState(false);
-  const [isAssignSplitsOpen, setIsAssignSplitsOpen] = useState(false);
+  const [isManageSplitsOpen, setIsManageSplitsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
 
+  // Get all splits ids among all selected examples
   const partialSplitIds = useMemo<string[]>(() => {
     if (selectedExamples.length === 0) return [];
-    // Get intersection of all splitIds
     const splitIdArrays = selectedExamples
       .map((ex) => ex.splits.map((s) => s.id) ?? [])
       .reduce((acc, curr) => acc.concat(curr), []);
     return [...new Set(splitIdArrays)];
   }, [selectedExamples]);
 
+  // Get split ids that are shared by all selected examples
+  // THis will always be a subset of the partialSplitIds
   const sharedSplitIds = useMemo<Set<string>>(() => {
     if (selectedExamples.length === 0) return new Set<string>();
-    // Get intersection of all splitIds
     const splitIdArrays = selectedExamples.map(
       (ex) => ex.splits.map((s) => s.id) ?? []
     );
@@ -90,7 +91,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       }
     }
   `);
-  const [addExamplesToSplits, isAssigningSplits] = useMutation(graphql`
+  // TODO: Update mutation to fetch updated examples
+  const [addExamplesToSplits, isAddingExamplesToSplits] = useMutation(graphql`
     mutation ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation(
       $input: AddDatasetExamplesToDatasetSplitsInput!
     ) {
@@ -173,7 +175,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           <Button
             size="M"
             onPress={() => {
-              setIsAssignSplitsOpen(true);
+              setIsManageSplitsOpen(true);
             }}
           >
             Manage Splits
@@ -200,9 +202,9 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
-      <AssignSplitsDialog
-        isOpen={isAssignSplitsOpen}
-        onOpenChange={setIsAssignSplitsOpen}
+      <ManageDatasetSplitsDialog
+        isOpen={isManageSplitsOpen}
+        onOpenChange={setIsManageSplitsOpen}
         sharedSplitIds={Array.from(sharedSplitIds)}
         partialSplitIds={partialSplitIds}
         onConfirm={(selectedIds) => {
@@ -225,7 +227,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
 
           const exampleIds = selectedExamples.map((e) => e.id);
           splitsToAdd.length > 0 &&
-            !isAssigningSplits &&
+            !isAddingExamplesToSplits &&
             addExamplesToSplits({
               variables: {
                 input: {

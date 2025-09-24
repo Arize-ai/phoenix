@@ -2,16 +2,16 @@ import { graphql, useMutation } from "react-relay";
 
 import { Dialog, Modal } from "@phoenix/components";
 import {
+  NewSplitForm,
+  type SplitParams,
+} from "@phoenix/components/datasetSplit/NewSplitForm";
+import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import {
-  NewSplitForm,
-  type SplitParams,
-} from "@phoenix/components/split/NewSplitForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

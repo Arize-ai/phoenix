@@ -9,13 +9,13 @@ const ulCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
-export type SplitLabel = {
+export type DatasetSplit = {
   readonly name: string;
   readonly color: string;
   readonly id: string;
 };
 
-export function SplitLabels({ labels }: { labels: readonly SplitLabel[] }) {
+export function DatasetSplits({ labels }: { labels: readonly DatasetSplit[] }) {
   const isEmpty = !labels || labels.length === 0;
   if (isEmpty) {
     return <Text color="text-700">No Splits</Text>;

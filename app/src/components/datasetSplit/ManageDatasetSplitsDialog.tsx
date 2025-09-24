@@ -23,11 +23,11 @@ import {
 import { DebouncedSearch } from "@phoenix/components/field/DebouncedSearch";
 
 import type {
-  AssignSplitsDialogQuery,
-  AssignSplitsDialogQuery$data,
-} from "./__generated__/AssignSplitsDialogQuery.graphql";
+  ManageDatasetSplitsDialogQuery,
+  ManageDatasetSplitsDialogQuery$data,
+} from "./__generated__/ManageDatasetSplitsDialogQuery.graphql";
 
-type AssignSplitsDialogProps = {
+type ManageDatasetSplitsDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (selectedIds: string[]) => void;
@@ -35,7 +35,9 @@ type AssignSplitsDialogProps = {
   partialSplitIds: string[];
 };
 
-export function AssignSplitsDialog(props: AssignSplitsDialogProps) {
+export function ManageDatasetSplitsDialog(
+  props: ManageDatasetSplitsDialogProps
+) {
   const { isOpen, onOpenChange, onConfirm, sharedSplitIds, partialSplitIds } =
     props;
   const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(
@@ -69,7 +71,7 @@ export function AssignSplitsDialog(props: AssignSplitsDialogProps) {
               </DialogTitleExtra>
             </DialogHeader>
             <Suspense fallback={<Loading />}>
-              <AssignSplitsDialogContent
+              <ManageDatasetSplitsDialogContent
                 selectedSplitIds={selectedSplitIds}
                 setSelectedSplitIds={(s) => setSelectedSplitIds(new Set(s))}
                 partialSplitIds={partialSplitIds}
@@ -83,7 +85,7 @@ export function AssignSplitsDialog(props: AssignSplitsDialogProps) {
   );
 }
 
-function AssignSplitsDialogContent(props: {
+function ManageDatasetSplitsDialogContent(props: {
   selectedSplitIds: Set<string>;
   setSelectedSplitIds: (s: Set<string>) => void;
   onConfirm: (ids: string[]) => void;
@@ -92,11 +94,11 @@ function AssignSplitsDialogContent(props: {
   const { selectedSplitIds, setSelectedSplitIds, onConfirm, partialSplitIds } =
     props;
   const [search, setSearch] = useState("");
-  const query = useLazyLoadQuery<AssignSplitsDialogQuery>(
+  const query = useLazyLoadQuery<ManageDatasetSplitsDialogQuery>(
     graphql`
-      query AssignSplitsDialogQuery {
+      query ManageDatasetSplitsDialogQuery {
         datasetSplits(first: 200)
-          @connection(key: "AssignSplitsDialog_datasetSplits") {
+          @connection(key: "ManageDatasetSplitsDialog_datasetSplits") {
           edges {
             node {
               id
@@ -111,8 +113,9 @@ function AssignSplitsDialogContent(props: {
   );
   const allSplits = (query.datasetSplits?.edges ?? [])
     .map(
-      (e: AssignSplitsDialogQuery$data["datasetSplits"]["edges"][number]) =>
-        e?.node
+      (
+        e: ManageDatasetSplitsDialogQuery$data["datasetSplits"]["edges"][number]
+      ) => e?.node
     )
     .filter(Boolean) as Array<{
     id: string;
