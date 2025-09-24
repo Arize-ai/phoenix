@@ -1,3 +1,4 @@
+from base64 import b64decode
 from datetime import datetime
 
 from strawberry.relay.types import Connection
@@ -209,3 +210,24 @@ class TestCursor:
         assert sort_column.value == timestamp
         assert isinstance(sort_column_value := sort_column.value, datetime)
         assert sort_column_value.tzinfo is not None
+
+    def test_to_and_from_string_with_rowid_and_null_deserializes_original(
+        self,
+    ) -> None:
+        original = Cursor(
+            rowid=10,
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.NULL, value=None),
+        )
+        cursor_string = str(original)
+        assert b64decode(cursor_string.encode()).decode() == "10:NULL:"
+        deserialized = Cursor.from_string(cursor_string)
+        assert deserialized.rowid == 10
+        assert (sort_column := deserialized.sort_column) is not None
+        assert sort_column.type == CursorSortColumnDataType.NULL
+        assert sort_column.value is None
+
+    def test_cursor_sort_column_auto_sets_null_type_for_none_value(self) -> None:
+        # Test that __post_init__ automatically sets type to NULL when value is None
+        sort_column = CursorSortColumn(type=CursorSortColumnDataType.STRING, value=None)
+        assert sort_column.type == CursorSortColumnDataType.NULL
+        assert sort_column.value is None

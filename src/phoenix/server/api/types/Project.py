@@ -355,12 +355,16 @@ class Project(Node):
             if sort_config and cursor.sort_column:
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
-                stmt = stmt.where(
-                    compare(
-                        tuple_(sort_config.orm_expression, models.Span.id),
-                        (sort_column.value, cursor.rowid),
+                if sort_column.type is CursorSortColumnDataType.NULL:
+                    stmt = stmt.where(sort_config.orm_expression.is_(None))
+                    stmt = stmt.where(compare(models.Span.id, cursor.rowid))
+                else:
+                    stmt = stmt.where(
+                        compare(
+                            tuple_(sort_config.orm_expression, models.Span.id),
+                            (sort_column.value, cursor.rowid),
+                        )
                     )
-                )
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
