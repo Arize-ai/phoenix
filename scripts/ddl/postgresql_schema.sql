@@ -395,12 +395,9 @@ CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_e
 -- Table: dataset_splits_dataset_examples
 -- --------------------------------------
 CREATE TABLE public.dataset_splits_dataset_examples (
-    id bigserial NOT NULL,
     dataset_split_id BIGINT NOT NULL,
     dataset_example_id BIGINT NOT NULL,
-    CONSTRAINT pk_dataset_splits_dataset_examples PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_splits_dataset_examples_dataset_split_id_dat_9586
-        UNIQUE (dataset_split_id, dataset_example_id),
+    CONSTRAINT pk_dataset_splits_dataset_examples PRIMARY KEY (dataset_split_id, dataset_example_id),
     CONSTRAINT fk_dataset_splits_dataset_examples_dataset_example_id_d_63b2
         FOREIGN KEY
         (dataset_example_id)
@@ -803,12 +800,9 @@ CREATE INDEX ix_experiments_dataset_examples_dataset_example_revision_id ON publ
 -- Table: experiments_dataset_splits
 -- ---------------------------------
 CREATE TABLE public.experiments_dataset_splits (
-    id bigserial NOT NULL,
     experiment_id BIGINT NOT NULL,
     dataset_split_id BIGINT NOT NULL,
-    CONSTRAINT pk_experiments_dataset_splits PRIMARY KEY (id),
-    CONSTRAINT uq_experiments_dataset_splits_experiment_id_dataset_split_id
-        UNIQUE (experiment_id, dataset_split_id),
+    CONSTRAINT pk_experiments_dataset_splits PRIMARY KEY (experiment_id, dataset_split_id),
     CONSTRAINT fk_experiments_dataset_splits_dataset_split_id_dataset_splits
         FOREIGN KEY
         (dataset_split_id)
