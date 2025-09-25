@@ -1123,7 +1123,7 @@ class DatasetLabel(HasId):
     __tablename__ = "dataset_labels"
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
-    color: Mapped[str] = mapped_column(String, server_default=text("'#ffffff'"), nullable=False)
+    color: Mapped[str] = mapped_column(String, nullable=False)
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset_label"
     )
