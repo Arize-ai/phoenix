@@ -289,7 +289,7 @@ def _format_score_data(
     return eval_df
 
 
-def format_as_annotation_dataframe(
+def to_annotation_dataframe(
     dataframe: pd.DataFrame,
     score_names: Optional[List[str]] = None,
 ) -> pd.DataFrame:
@@ -313,17 +313,17 @@ def format_as_annotation_dataframe(
     Examples::
         from phoenix.client import Client
         from phoenix.evals import evaluate_dataframe
-        from phoenix.evals.utils import format_as_annotation_dataframe
+        from phoenix.evals.utils import to_annotation_dataframe
 
         client = Client()
         results = evaluate_dataframe(df, evaluators)
 
         # Log only hallucination annotations
-        hallucination_annotations = format_as_annotation_dataframe(results, ["hallucination"])
+        hallucination_annotations = to_annotation_dataframe(results, ["hallucination"])
         client.spans.log_span_annotations_dataframe(dataframe=hallucination_annotations)
 
         # Log all scores as annotations
-        all_annotations = format_as_annotation_dataframe(results)
+        all_annotations = to_annotation_dataframe(results)
         client.spans.log_span_annotations_dataframe(dataframe=all_annotations)
     """
 
@@ -392,6 +392,5 @@ __all__ = [
     "InputMappingType",
     "remap_eval_input",
     "extract_with_jsonpath",
-    # logging utilities
-    "format_as_annotation_dataframe",
+    "to_annotation_dataframe",
 ]
