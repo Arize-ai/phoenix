@@ -1,6 +1,6 @@
 from importlib.metadata import version
 
-from . import llm, metrics, templating, tracing
+from . import llm, metrics, templating, tracing, utils
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -180,4 +180,5 @@ __all__ = [
     "llm",
     "bind_evaluator",
     "tracing",
+    "utils",
 ]

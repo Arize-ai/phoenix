@@ -8,8 +8,8 @@ from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.utils import (
     extract_with_jsonpath,
-    format_as_annotation_dataframe,
     remap_eval_input,
+    to_annotation_dataframe,
 )
 
 
@@ -305,7 +305,7 @@ class TestExtractWithJsonPath:
 
 
 class TestFormatAsAnnotationDataframe:
-    """Test the format_as_annotation_dataframe utility function."""
+    """Test the to_annotation_dataframe utility function."""
 
     @pytest.mark.parametrize(
         "score_data,score_name,expected_columns",
@@ -336,7 +336,7 @@ class TestFormatAsAnnotationDataframe:
     def test_output_column_structure(self, score_data, score_name, expected_columns):
         """Test that output has correct column structure."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert list(result.columns) == expected_columns
 
     @pytest.mark.parametrize(
@@ -365,7 +365,7 @@ class TestFormatAsAnnotationDataframe:
     def test_score_extraction(self, score_data, score_name, expected_score):
         """Test that score values are extracted correctly."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["score"].iloc[0] == expected_score
 
     @pytest.mark.parametrize(
@@ -388,7 +388,7 @@ class TestFormatAsAnnotationDataframe:
     def test_label_extraction(self, score_data, score_name, expected_label):
         """Test that label values are extracted correctly."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["label"].iloc[0] == expected_label
 
     @pytest.mark.parametrize(
@@ -415,7 +415,7 @@ class TestFormatAsAnnotationDataframe:
     def test_explanation_extraction(self, score_data, score_name, expected_explanation):
         """Test that explanation values are extracted correctly."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["explanation"].iloc[0] == expected_explanation
 
     @pytest.mark.parametrize(
@@ -515,7 +515,7 @@ class TestFormatAsAnnotationDataframe:
     def test_metadata_extraction(self, score_data, score_name, expected_metadata):
         """Test that metadata values are extracted correctly."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["metadata"].iloc[0] == expected_metadata
 
     @pytest.mark.parametrize(
@@ -544,7 +544,7 @@ class TestFormatAsAnnotationDataframe:
     def test_annotation_name_assignment(self, score_data, score_name, expected_annotation_name):
         """Test that annotation names use the score name by default."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["annotation_name"].iloc[0] == expected_annotation_name
 
     @pytest.mark.parametrize(
@@ -579,7 +579,7 @@ class TestFormatAsAnnotationDataframe:
     def test_annotator_kind_inference(self, score_data, score_name, expected_annotator_kind):
         """Test that annotator kind is inferred correctly from source."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["annotator_kind"].iloc[0] == expected_annotator_kind
 
     @pytest.mark.parametrize(
@@ -604,7 +604,7 @@ class TestFormatAsAnnotationDataframe:
         df = pd.DataFrame(
             {"span_id": [expected_span_id], f"{score_name}_score": [json.dumps(score_data)]}
         )
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert result["span_id"].iloc[0] == expected_span_id
 
     @pytest.mark.parametrize(
@@ -647,7 +647,7 @@ class TestFormatAsAnnotationDataframe:
         df = pd.DataFrame(
             {span_id_column: ["span_1"], f"{score_name}_score": [json.dumps(score_data)]}
         )
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert span_id_column in result.columns
 
     def test_multiple_span_id_columns_preserved(self):
@@ -662,7 +662,7 @@ class TestFormatAsAnnotationDataframe:
                 "test_score": [json.dumps(score_data)],
             }
         )
-        result = format_as_annotation_dataframe(df, ["test"])
+        result = to_annotation_dataframe(df, ["test"])
 
         # All span_id columns should be preserved
         expected_span_id_columns = ["span_id", "parent_span_id", "child_span_id", "context.span_id"]
@@ -711,7 +711,7 @@ class TestFormatAsAnnotationDataframe:
     def test_missing_optional_fields(self, score_data, score_name, expected_value):
         """Test handling of missing optional fields."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         # Test that missing fields are None
         assert pd.isna(result["label"].iloc[0]) or result["label"].iloc[0] is None
         assert pd.isna(result["explanation"].iloc[0]) or result["explanation"].iloc[0] is None
@@ -743,7 +743,7 @@ class TestFormatAsAnnotationDataframe:
     def test_none_and_empty_score_handling(self, score_column_value, score_name, expected_score):
         """Test handling of None and empty score values."""
         df = pd.DataFrame({"span_id": ["span_1"], f"{score_name}_score": [score_column_value]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         assert pd.isna(result["score"].iloc[0]) or result["score"].iloc[0] is None
 
     def test_multiple_scores_use_first_source_for_annotator_kind(self):
@@ -758,14 +758,14 @@ class TestFormatAsAnnotationDataframe:
                 ],
             }
         )
-        result = format_as_annotation_dataframe(df, ["mixed"])
+        result = to_annotation_dataframe(df, ["mixed"])
         # Should use "heuristic" from first non-null score
         assert all(result["annotator_kind"] == "CODE")
 
     def test_all_none_scores_default_to_llm_annotator_kind(self):
         """Test that all None scores default to LLM annotator kind."""
         df = pd.DataFrame({"span_id": ["span_1", "span_2"], "none_score": [None, None]})
-        result = format_as_annotation_dataframe(df, ["none"])
+        result = to_annotation_dataframe(df, ["none"])
         # Should default to LLM when no source can be determined
         assert all(result["annotator_kind"] == "LLM")
 
@@ -774,7 +774,7 @@ class TestFormatAsAnnotationDataframe:
         original_score = json.dumps({"score": 0.8, "source": "llm"})
         df = pd.DataFrame({"span_id": ["span_1"], "preserve_score": [original_score]})
         original_df = df.copy()
-        format_as_annotation_dataframe(df, ["preserve"])
+        to_annotation_dataframe(df, ["preserve"])
         # Original dataframe should be unchanged
         pd.testing.assert_frame_equal(df, original_df)
 
@@ -794,7 +794,7 @@ class TestFormatAsAnnotationDataframe:
                 "large_score": [json.dumps(score_data) for _ in range(n_rows)],
             }
         )
-        result = format_as_annotation_dataframe(df, ["large"])
+        result = to_annotation_dataframe(df, ["large"])
         assert len(result) == n_rows
 
     @pytest.mark.parametrize(
@@ -810,7 +810,7 @@ class TestFormatAsAnnotationDataframe:
         """Test that score column names are constructed correctly."""
         score_data = {"score": 0.8, "source": "llm"}
         df = pd.DataFrame({"span_id": ["span_1"], expected_score_column: [json.dumps(score_data)]})
-        result = format_as_annotation_dataframe(df, [score_name])
+        result = to_annotation_dataframe(df, [score_name])
         # Should work without error
         assert len(result) == 1
 
@@ -829,7 +829,7 @@ class TestFormatAsAnnotationDataframe:
         """Test error when score column is missing."""
         df = pd.DataFrame(dataframe_columns)
         with pytest.raises(ValueError, match=expected_error):
-            format_as_annotation_dataframe(df, [score_name])
+            to_annotation_dataframe(df, [score_name])
 
     @pytest.mark.parametrize(
         "dataframe_columns,score_name,expected_error",
@@ -846,14 +846,14 @@ class TestFormatAsAnnotationDataframe:
         """Test error when no span_id column is found."""
         df = pd.DataFrame(dataframe_columns)
         with pytest.raises(ValueError, match=expected_error):
-            format_as_annotation_dataframe(df, [score_name])
+            to_annotation_dataframe(df, [score_name])
 
     def test_invalid_json_in_score_column_error(self):
         """Test error handling for invalid JSON in score column."""
         df = pd.DataFrame({"span_id": ["span_1"], "invalid_score": ["invalid json string"]})
         # Should handle JSON parsing errors gracefully
         with pytest.raises(json.JSONDecodeError):
-            format_as_annotation_dataframe(df, ["invalid"])
+            to_annotation_dataframe(df, ["invalid"])
 
     # New tests for multiple score names and enhanced functionality
 
@@ -883,7 +883,7 @@ class TestFormatAsAnnotationDataframe:
             df_data[f"{score_name}_score"] = [json.dumps(score_data), json.dumps(score_data)]
 
         df = pd.DataFrame(df_data)
-        result = format_as_annotation_dataframe(df, score_names)
+        result = to_annotation_dataframe(df, score_names)
 
         assert len(result) == expected_rows
         if expected_annotation_names:
@@ -913,9 +913,9 @@ class TestFormatAsAnnotationDataframe:
 
         if should_raise:
             with pytest.raises(ValueError, match="No column containing 'span_id' found"):
-                format_as_annotation_dataframe(df, ["precision"])
+                to_annotation_dataframe(df, ["precision"])
         else:
-            result = format_as_annotation_dataframe(df, ["precision"])
+            result = to_annotation_dataframe(df, ["precision"])
             for col in expected_span_id_cols:
                 assert col in result.columns
             assert len(result) == 2
@@ -934,7 +934,7 @@ class TestFormatAsAnnotationDataframe:
         )
         df.index.name = "span_id"
 
-        result = format_as_annotation_dataframe(df, ["precision"])
+        result = to_annotation_dataframe(df, ["precision"])
 
         # Should have all span_id sources
         expected_cols = ["span_id", "parent_span_id", "span_id_from_index"]
@@ -961,9 +961,9 @@ class TestFormatAsAnnotationDataframe:
 
         if should_raise:
             with pytest.raises(ValueError, match="Score column .* not found"):
-                format_as_annotation_dataframe(df, score_names)
+                to_annotation_dataframe(df, score_names)
         else:
-            result = format_as_annotation_dataframe(df, score_names)
+            result = to_annotation_dataframe(df, score_names)
             assert len(result) == 1
 
     def test_none_scores_and_index_reset(self):
@@ -979,7 +979,7 @@ class TestFormatAsAnnotationDataframe:
             index=[10, 20],  # Non-sequential index
         )
 
-        result = format_as_annotation_dataframe(df, ["precision", "hallucination"])
+        result = to_annotation_dataframe(df, ["precision", "hallucination"])
 
         # Should have sequential index and handle None scores
         assert list(result.index) == [0, 1, 2, 3]
@@ -1027,7 +1027,7 @@ class TestFormatAsAnnotationDataframe:
             df_data[col] = [json.dumps(score_data), json.dumps(score_data)]
 
         df = pd.DataFrame(df_data)
-        result = format_as_annotation_dataframe(df, score_names=None)
+        result = to_annotation_dataframe(df, score_names=None)
 
         assert len(result) == expected_rows
         if expected_score_names:
@@ -1079,9 +1079,9 @@ class TestFormatAsAnnotationDataframe:
 
         if expected_behavior == "error":
             with pytest.raises(json.JSONDecodeError):
-                format_as_annotation_dataframe(df, score_names=None)
+                to_annotation_dataframe(df, score_names=None)
         else:
-            result = format_as_annotation_dataframe(df, score_names=None)
+            result = to_annotation_dataframe(df, score_names=None)
             assert len(result) == 1
             assert "precision" in result["annotation_name"].values
 
@@ -1098,7 +1098,7 @@ class TestFormatAsAnnotationDataframe:
 
         # Should raise JSONDecodeError when encountering invalid JSON
         with pytest.raises(json.JSONDecodeError):
-            format_as_annotation_dataframe(df, score_names=None)
+            to_annotation_dataframe(df, score_names=None)
 
     def test_auto_detect_vs_explicit_score_names(self):
         """Test that auto-detection produces same results as explicit score names."""
@@ -1114,10 +1114,10 @@ class TestFormatAsAnnotationDataframe:
         )
 
         # Test auto-detection
-        result_auto = format_as_annotation_dataframe(df, score_names=None)
+        result_auto = to_annotation_dataframe(df, score_names=None)
 
         # Test explicit score names
-        result_explicit = format_as_annotation_dataframe(
+        result_explicit = to_annotation_dataframe(
             df, score_names=["precision", "hallucination", "relevance"]
         )
 
@@ -1138,10 +1138,10 @@ class TestFormatAsAnnotationDataframe:
         )
 
         # Auto-detection should find all 3 scores
-        result_auto = format_as_annotation_dataframe(df, score_names=None)
+        result_auto = to_annotation_dataframe(df, score_names=None)
         assert len(result_auto) == 6  # 2 spans × 3 scores
 
         # Explicit should only process specified scores
-        result_explicit = format_as_annotation_dataframe(df, score_names=["precision"])
+        result_explicit = to_annotation_dataframe(df, score_names=["precision"])
         assert len(result_explicit) == 2  # 2 spans × 1 score
         assert set(result_explicit["annotation_name"].unique()) == {"precision"}
