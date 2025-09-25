@@ -770,8 +770,7 @@ def _process_results_and_add_to_dataframe(
         details = execution_details[i]
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
-        # adding type ignore because we know eval_input_index, col_idx are integers
-        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
 
         # Process scores
         if results is None:
