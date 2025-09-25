@@ -40,7 +40,7 @@ FROM (
         der.revision_kind,
         ROW_NUMBER() OVER (
             PARTITION BY e.id, der.dataset_example_id
-            ORDER BY der.dataset_version_id DESC, der.id DESC
+            ORDER BY der.dataset_version_id DESC
         ) as rn
     FROM experiments e
         JOIN dataset_examples de ON de.dataset_id = e.dataset_id

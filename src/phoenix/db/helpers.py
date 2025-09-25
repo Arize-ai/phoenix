@@ -149,10 +149,7 @@ def _build_ranked_revisions_query(
             func.row_number()
             .over(
                 partition_by=models.DatasetExampleRevision.dataset_example_id,
-                order_by=[
-                    models.DatasetExampleRevision.dataset_version_id.desc(),
-                    models.DatasetExampleRevision.id.desc(),
-                ],
+                order_by=models.DatasetExampleRevision.dataset_version_id.desc(),
             )
             .label("rn"),
         )
