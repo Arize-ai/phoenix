@@ -999,32 +999,36 @@ export function ExperimentCompareListPage({
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleIndex !== null && datasetId && (
-            <ExperimentCompareDetailsDialog
-              repetitionNumber={
-                baseExperiment.repetitions > 1
-                  ? rows[selectedExampleIndex].original.repetitionNumber
-                  : undefined
-              }
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment?.datasetVersionId}
-              selectedExampleIndex={selectedExampleIndex}
-              selectedExampleId={rows[selectedExampleIndex].original.example}
-              baseExperimentId={baseExperiment?.id}
-              compareExperimentIds={compareExperimentIds}
-              exampleIds={exampleIds}
-              onExampleChange={(exampleIndex) => {
-                if (
-                  exampleIndex === exampleIds.length - 1 &&
-                  !isLoadingNext &&
-                  hasNext
-                ) {
-                  loadNext(PAGE_SIZE);
+          {selectedExampleIndex !== null &&
+            datasetId &&
+            rows[selectedExampleIndex] && (
+              <ExperimentCompareDetailsDialog
+                repetitionNumber={
+                  baseExperiment?.repetitions > 1
+                    ? rows[selectedExampleIndex].original.repetitionNumber
+                    : undefined
                 }
-                setSelectedExampleIndex(exampleIndex);
-              }}
-            />
-          )}
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment?.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={rows[selectedExampleIndex].original.example}
+                baseExperimentId={baseExperiment?.id}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
     </View>

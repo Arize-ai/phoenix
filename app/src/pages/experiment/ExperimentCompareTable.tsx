@@ -662,27 +662,30 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleIndex !== null && (
-            <ExperimentCompareDetailsDialog
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment.datasetVersionId}
-              selectedExampleIndex={selectedExampleIndex}
-              selectedExampleId={exampleIds[selectedExampleIndex]}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              exampleIds={exampleIds}
-              onExampleChange={(exampleIndex) => {
-                if (
-                  exampleIndex === exampleIds.length - 1 &&
-                  !isLoadingNext &&
-                  hasNext
-                ) {
-                  loadNext(PAGE_SIZE);
-                }
-                setSelectedExampleIndex(exampleIndex);
-              }}
-            />
-          )}
+          {selectedExampleIndex !== null &&
+            exampleIds[selectedExampleIndex] && (
+              <ExperimentCompareDetailsDialog
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={exampleIds[selectedExampleIndex]}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
       <ModalOverlay
