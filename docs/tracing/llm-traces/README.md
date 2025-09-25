@@ -26,8 +26,17 @@ Using Phoenix's tracing capabilities can provide important insights into the inn
 
 By using tracing in Phoenix, you can gain increased visibility into your LLM application, empowering you to identify and address performance bottlenecks, optimize resource utilization, and ensure the overall reliability and effectiveness of your system.
 
+## Features
+
+Below are some of the main capabilities:
+
+* [projects.md](projects.md "mention")
+* [how-to-annotate-traces.md](how-to-annotate-traces.md "mention")
+* [sessions.md](sessions.md "mention")
+* [metrics.md](metrics.md "mention")
+
 ## Next steps
 
-* To get started, check out the [Quickstart guide](llm-traces-1/).
+* To get started, check out the [Quickstart guide](../llm-traces-1/).
 * Read more about [What are Traces](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/what-are-traces "mention") and [How Tracing Works](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/how-tracing-works "mention").
-* Check out the [How-To Guides](how-to-tracing/) for specific tutorials.
+* Check out the [How-To Guides](../how-to-tracing/) for specific tutorials.
