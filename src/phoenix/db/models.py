@@ -155,7 +155,7 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
-UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER"]
+UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
