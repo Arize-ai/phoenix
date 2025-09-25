@@ -106,3 +106,7 @@ remap_eval_input
 extract_with_jsonpath
 ~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: phoenix.evals.utils.extract_with_jsonpath  
+
+to_annotation_dataframe
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: phoenix.evals.utils.to_annotation_dataframe
