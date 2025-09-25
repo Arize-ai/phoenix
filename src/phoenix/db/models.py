@@ -2038,7 +2038,7 @@ class SpanCostDetail(HasId):
     )
 
 
-class Evaluator(Base):
+class Evaluator(HasId):
     __tablename__ = "evaluators"
     name: Mapped["str"]
     kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -2053,7 +2053,7 @@ class Evaluator(Base):
     user: Mapped[Optional["User"]] = relationship("User")
 
 
-class LLMEvaluatorDefinition(Base):
+class LLMEvaluatorDefinition(HasId):
     __tablename__ = "llm_evaluator_definitions"
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -2074,7 +2074,7 @@ class LLMEvaluatorDefinition(Base):
     output_score_mapping: Mapped[dict[str, Any]] = mapped_column("output_score_mapping")
 
 
-class DatasetEvaluator(Base):
+class DatasetEvaluator(HasId):
     """A mapping from a dataset to the evaluators table"""
 
     __tablename__ = "dataset_evaluators"

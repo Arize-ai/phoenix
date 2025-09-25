@@ -53,7 +53,6 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String),
         # The type discriminator
-        # TODO
         sa.Column(
             "kind",
             sa.String,
