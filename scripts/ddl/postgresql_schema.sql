@@ -36,40 +36,6 @@ CREATE UNIQUE INDEX ix_dataset_splits_check_unique_name ON public.dataset_splits
     USING btree (name) WHERE (deleted_at IS NULL);
 
 
--- Table: datasets
--- ---------------
-CREATE TABLE public.datasets (
-    id serial NOT NULL,
-    name VARCHAR NOT NULL,
-    description VARCHAR,
-    metadata JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_datasets PRIMARY KEY (id),
-    CONSTRAINT uq_datasets_name
-        UNIQUE (name)
-);
-
-
--- Table: dataset_versions
--- -----------------------
-CREATE TABLE public.dataset_versions (
-    id serial NOT NULL,
-    dataset_id INTEGER NOT NULL,
-    description VARCHAR,
-    metadata JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_dataset_versions PRIMARY KEY (id),
-    CONSTRAINT fk_dataset_versions_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
-        REFERENCES public.datasets (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_dataset_versions_dataset_id ON public.dataset_versions
-    USING btree (dataset_id);
-
-
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (
@@ -333,87 +299,6 @@ CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
 
 
--- Table: dataset_examples
--- -----------------------
-CREATE TABLE public.dataset_examples (
-    id serial NOT NULL,
-    dataset_id INTEGER NOT NULL,
-    span_rowid INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_dataset_examples PRIMARY KEY (id),
-    CONSTRAINT fk_dataset_examples_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
-        REFERENCES public.datasets (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_examples_span_rowid_spans FOREIGN KEY
-        (span_rowid)
-        REFERENCES public.spans (id)
-        ON DELETE SET NULL
-);
-
-CREATE INDEX ix_dataset_examples_dataset_id ON public.dataset_examples
-    USING btree (dataset_id);
-CREATE INDEX ix_dataset_examples_span_rowid ON public.dataset_examples
-    USING btree (span_rowid);
-
-
--- Table: dataset_example_revisions
--- --------------------------------
-CREATE TABLE public.dataset_example_revisions (
-    id serial NOT NULL,
-    dataset_example_id INTEGER NOT NULL,
-    dataset_version_id INTEGER NOT NULL,
-    input JSONB NOT NULL,
-    output JSONB NOT NULL,
-    metadata JSONB NOT NULL,
-    revision_kind VARCHAR NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_dataset_example_revisions PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
-        UNIQUE (dataset_example_id, dataset_version_id),
-    CHECK (((revision_kind)::text = ANY ((ARRAY[
-            'CREATE'::character varying,
-            'PATCH'::character varying,
-            'DELETE'::character varying
-        ])::text[]))),
-    CONSTRAINT fk_dataset_example_revisions_dataset_example_id_dataset_c72a
-        FOREIGN KEY
-        (dataset_example_id)
-        REFERENCES public.dataset_examples (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_example_revisions_dataset_version_id_dataset_3a56
-        FOREIGN KEY
-        (dataset_version_id)
-        REFERENCES public.dataset_versions (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_example_revisions
-    USING btree (dataset_version_id);
-
-
--- Table: dataset_splits_dataset_examples
--- --------------------------------------
-CREATE TABLE public.dataset_splits_dataset_examples (
-    dataset_split_id BIGINT NOT NULL,
-    dataset_example_id BIGINT NOT NULL,
-    CONSTRAINT pk_dataset_splits_dataset_examples PRIMARY KEY (dataset_split_id, dataset_example_id),
-    CONSTRAINT fk_dataset_splits_dataset_examples_dataset_example_id_d_63b2
-        FOREIGN KEY
-        (dataset_example_id)
-        REFERENCES public.dataset_examples (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_splits_dataset_examples_dataset_split_id_dat_a90c
-        FOREIGN KEY
-        (dataset_split_id)
-        REFERENCES public.dataset_splits (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_dataset_splits_dataset_examples_dataset_example_id ON public.dataset_splits_dataset_examples
-    USING btree (dataset_example_id);
-
-
 -- Table: span_costs
 -- -----------------
 CREATE TABLE public.span_costs (
@@ -565,6 +450,126 @@ CREATE TABLE public.dataset_labels (
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
+
+
+-- Table: datasets
+-- ---------------
+CREATE TABLE public.datasets (
+    id serial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    metadata JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    user_id INTEGER,
+    CONSTRAINT pk_datasets PRIMARY KEY (id),
+    CONSTRAINT uq_datasets_name
+        UNIQUE (name),
+    CONSTRAINT fk_datasets_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
+-- Table: dataset_examples
+-- -----------------------
+CREATE TABLE public.dataset_examples (
+    id serial NOT NULL,
+    dataset_id INTEGER NOT NULL,
+    span_rowid INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_examples PRIMARY KEY (id),
+    CONSTRAINT fk_dataset_examples_dataset_id_datasets FOREIGN KEY
+        (dataset_id)
+        REFERENCES public.datasets (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_examples_span_rowid_spans FOREIGN KEY
+        (span_rowid)
+        REFERENCES public.spans (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_dataset_examples_dataset_id ON public.dataset_examples
+    USING btree (dataset_id);
+CREATE INDEX ix_dataset_examples_span_rowid ON public.dataset_examples
+    USING btree (span_rowid);
+
+
+-- Table: dataset_splits_dataset_examples
+-- --------------------------------------
+CREATE TABLE public.dataset_splits_dataset_examples (
+    dataset_split_id BIGINT NOT NULL,
+    dataset_example_id BIGINT NOT NULL,
+    CONSTRAINT pk_dataset_splits_dataset_examples PRIMARY KEY (dataset_split_id, dataset_example_id),
+    CONSTRAINT fk_dataset_splits_dataset_examples_dataset_example_id_d_63b2
+        FOREIGN KEY
+        (dataset_example_id)
+        REFERENCES public.dataset_examples (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_splits_dataset_examples_dataset_split_id_dat_a90c
+        FOREIGN KEY
+        (dataset_split_id)
+        REFERENCES public.dataset_splits (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_dataset_splits_dataset_examples_dataset_example_id ON public.dataset_splits_dataset_examples
+    USING btree (dataset_example_id);
+
+
+-- Table: dataset_versions
+-- -----------------------
+CREATE TABLE public.dataset_versions (
+    id serial NOT NULL,
+    dataset_id INTEGER NOT NULL,
+    description VARCHAR,
+    metadata JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_versions PRIMARY KEY (id),
+    CONSTRAINT fk_dataset_versions_dataset_id_datasets FOREIGN KEY
+        (dataset_id)
+        REFERENCES public.datasets (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_dataset_versions_dataset_id ON public.dataset_versions
+    USING btree (dataset_id);
+
+
+-- Table: dataset_example_revisions
+-- --------------------------------
+CREATE TABLE public.dataset_example_revisions (
+    id serial NOT NULL,
+    dataset_example_id INTEGER NOT NULL,
+    dataset_version_id INTEGER NOT NULL,
+    input JSONB NOT NULL,
+    output JSONB NOT NULL,
+    metadata JSONB NOT NULL,
+    revision_kind VARCHAR NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_example_revisions PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
+        UNIQUE (dataset_example_id, dataset_version_id),
+    CHECK (((revision_kind)::text = ANY ((ARRAY[
+            'CREATE'::character varying,
+            'PATCH'::character varying,
+            'DELETE'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_dataset_example_revisions_dataset_example_id_dataset_c72a
+        FOREIGN KEY
+        (dataset_example_id)
+        REFERENCES public.dataset_examples (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_example_revisions_dataset_version_id_dataset_3a56
+        FOREIGN KEY
+        (dataset_version_id)
+        REFERENCES public.dataset_versions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_example_revisions
+    USING btree (dataset_version_id);
 
 
 -- Table: datasets_dataset_labels
