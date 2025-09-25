@@ -130,6 +130,7 @@ def _build_ranked_revisions_query(
     /,
     *,
     dataset_id: Optional[int] = None,
+    example_ids: Optional[Union[Sequence[int], InElementRole]] = None,
 ) -> Select[tuple[int]]:
     """
     Build a query that ranks revisions per example within a dataset version.
@@ -166,6 +167,9 @@ def _build_ranked_revisions_query(
         stmt = stmt.where(models.DatasetExample.dataset_id == version_subquery)
     else:
         stmt = stmt.where(models.DatasetExample.dataset_id == dataset_id)
+
+    if example_ids is not None:
+        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
 
     return stmt
 
@@ -210,13 +214,11 @@ def get_dataset_example_revisions(
     stmt = _build_ranked_revisions_query(
         dataset_version_id,
         dataset_id=dataset_id,
+        example_ids=example_ids,
     ).add_columns(
         models.DatasetExampleRevision.id,
         models.DatasetExampleRevision.revision_kind,
     )
-
-    if example_ids is not None:
-        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
 
     if split_ids is not None or split_names is not None:
         if split_names is not None:
