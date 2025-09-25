@@ -22,7 +22,7 @@ down_revision: Union[str, None] = "58228d933c91"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-BACKFILL_SQL = """\
+BACKFILL = """\
 INSERT INTO experiments_dataset_examples (
     experiment_id,
     dataset_example_id,
@@ -80,8 +80,7 @@ def upgrade() -> None:
             "dataset_example_id",
         ),
     )
-    conn = op.get_bind()
-    conn.execute(sa.text(BACKFILL_SQL))
+    op.execute(BACKFILL)
 
 
 def downgrade() -> None:
