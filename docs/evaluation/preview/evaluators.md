@@ -286,6 +286,30 @@ result = await async_evaluate_dataframe(df, [hallucination_evaluator], concurren
 result.head()
 ```
 
+### Logging Evaluation Results to Phoenix
+
+The evals library provides a utility for formatting the output of `evaluate_dataframe` or `async_evaluate_dataframe` as annotations so they can be added to your project traces using the Phoenix client's `log_span_annotations_dataframe` method. 
+
+Use `to_annotation_dataframe` to format evaluations as annotations and easily sync them with Phoenix traces. By default, the method will pull all scores from the dataframe, but you can also specify a subset of scores by name. The `to_annotation_dataframe` method returns a dataframe that preserves any span_id columns (e.g. "context.span_id", "span_id", or a span index), with added columns for score, label, explanation, metadata, annotation_name, and annotator_kind. 
+
+```python
+from phoenix.client import Client
+from phoenix.evals import evaluate_dataframe
+from phoenix.evals.utils import to_annotation_dataframe
+
+client = Client()
+results = evaluate_dataframe(df, evaluators)
+
+# Log only hallucination annotations
+hallucination_annotations = to_annotation_dataframe(results, score_names=["hallucination"])
+client.spans.log_span_annotations_dataframe(dataframe=hallucination_annotations)
+
+# Log all scores as annotations
+all_annotations = to_annotation_dataframe(results)
+client.spans.log_span_annotations_dataframe(dataframe=all_annotations)
+```
+
+
 ## FAQ
 
 ### Why do evaluators accept a payload and an input_mapping vs. kwargs?
