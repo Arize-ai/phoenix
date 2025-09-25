@@ -20,24 +20,27 @@ import {
 } from "@phoenix/components/color";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 
-export type SplitParams = {
+export type DatasetSplitParams = {
   name: string;
   description: string;
   color: string;
 };
 
-type NewSplitFormProps = {
-  onSubmit: (params: SplitParams) => void;
+type NewDatasetSplitFormProps = {
+  onSubmit: (params: DatasetSplitParams) => void;
   isSubmitting: boolean;
 };
 
-export function NewSplitForm({ onSubmit, isSubmitting }: NewSplitFormProps) {
+export function NewDatasetSplitForm({
+  onSubmit,
+  isSubmitting,
+}: NewDatasetSplitFormProps) {
   const {
     control,
     handleSubmit,
     watch,
     formState: { isDirty },
-  } = useForm<SplitParams>({
+  } = useForm<DatasetSplitParams>({
     defaultValues: {
       name: "",
       description: "",

@@ -2,16 +2,16 @@ import { graphql, useMutation } from "react-relay";
 
 import { Dialog, Modal } from "@phoenix/components";
 import {
+  type DatasetSplitParams,
+  NewDatasetSplitForm,
+} from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import {
-  NewSplitForm,
-  type SplitParams,
-} from "@phoenix/components/split/NewSplitForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -40,8 +40,9 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
       }
     `);
 
-  const onSubmit = (params: SplitParams) => {
+  const onSubmit = (params: DatasetSplitParams) => {
     const trimmed = params.name.trim();
+    // TODO: Validate params
     if (!trimmed) return;
     commit({
       variables: {
@@ -79,7 +80,7 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
               <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
-          <NewSplitForm onSubmit={onSubmit} isSubmitting={isInFlight} />
+          <NewDatasetSplitForm onSubmit={onSubmit} isSubmitting={isInFlight} />
         </DialogContent>
       </Dialog>
     </Modal>
