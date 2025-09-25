@@ -8,7 +8,7 @@ No text normalization is performed.
 
 Examples
 ```python
-from phoenix.evals.preview.metrics.exact_match import exact_match
+from phoenix.evals.metrics.exact_match import exact_match
 
 # 1) No mapping
 scores = exact_match({"output": "no", "expected": "yes"})
@@ -31,8 +31,8 @@ Evaluation to determine if a response to a query is grounded in the context or h
 
 Examples
 ```python
-from phoenix.evals.preview.metrics.hallucination import HallucinationEvaluator
-from phoenix.evals.preview.llm import LLM
+from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.llm import LLM
 
 llm = LLM(provider="openai", model="gpt-4o-mini", client="openai")
 hallucination = HallucinationEvaluator(llm=llm)
@@ -63,7 +63,7 @@ Notes:
 
 Examples
 ```python
-from phoenix.evals.preview.metrics.precision_recall import PrecisionRecallFScore
+from phoenix.evals.metrics.precision_recall import PrecisionRecallFScore
 
 precision_recall_fscore = PrecisionRecallFScore(positive_label="yes") # can also specify beta and averaging technique
 result = precision_recall_fscore({"output": ["no", "yes", "yes"], "expected": ["yes", "no", "yes"]})
