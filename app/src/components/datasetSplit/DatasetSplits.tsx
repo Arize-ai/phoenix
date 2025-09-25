@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Text, Token } from "@phoenix/components";
+import { Token } from "@phoenix/components";
 
 const ulCSS = css`
   display: flex;
@@ -9,15 +9,16 @@ const ulCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
-export type SplitLabel = {
-  name: string;
-  color?: string | null;
+export type DatasetSplit = {
+  readonly name: string;
+  readonly color: string;
+  readonly id: string;
 };
 
-export function SplitLabels({ labels }: { labels: SplitLabel[] }) {
+export function DatasetSplits({ labels }: { labels: readonly DatasetSplit[] }) {
   const isEmpty = !labels || labels.length === 0;
   if (isEmpty) {
-    return <Text color="text-700">No Splits</Text>;
+    return <></>;
   }
   return (
     <ul css={ulCSS}>

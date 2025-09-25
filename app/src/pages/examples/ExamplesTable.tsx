@@ -16,13 +16,14 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
-import { SplitLabels } from "@phoenix/components/split/SplitLabels";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -37,6 +38,7 @@ export function ExamplesTable({
   dataset: examplesLoaderQuery$data["dataset"];
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
+  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -133,19 +135,6 @@ export function ExamplesTable({
       },
     },
     {
-      header: "splits",
-      accessorKey: "splits",
-      cell: ({ row }) => {
-        const labels = (row.original.splits ?? []).map(
-          (s: { name: string; color?: string | null }) => ({
-            name: s.name,
-            color: s.color,
-          })
-        );
-        return <SplitLabels labels={labels} />;
-      },
-    },
-    {
       header: "input",
       accessorKey: "input",
       cell: CompactJSONCell,
@@ -161,6 +150,13 @@ export function ExamplesTable({
       cell: CompactJSONCell,
     },
   ];
+  if (isSplitsEnabled) {
+    columns.splice(2, 0, {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+    });
+  }
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
