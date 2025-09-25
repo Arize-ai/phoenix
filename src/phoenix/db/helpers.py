@@ -222,26 +222,21 @@ def get_dataset_example_revisions(
 
     if split_ids is not None or split_names is not None:
         if split_names is not None:
-            stmt = stmt.join(
-                models.DatasetSplitDatasetExample,
-                models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
-            ).join(
-                models.DatasetSplit,
-                and_(
+            split_example_ids_subquery = (
+                select(models.DatasetSplitDatasetExample.dataset_example_id)
+                .join(
+                    models.DatasetSplit,
                     models.DatasetSplit.id == models.DatasetSplitDatasetExample.dataset_split_id,
-                    models.DatasetSplit.name.in_(split_names),
-                ),
+                )
+                .where(models.DatasetSplit.name.in_(split_names))
             )
+            stmt = stmt.where(models.DatasetExample.id.in_(split_example_ids_subquery))
         else:
             assert split_ids is not None
-            stmt = stmt.join(
-                models.DatasetSplitDatasetExample,
-                and_(
-                    models.DatasetSplitDatasetExample.dataset_example_id
-                    == models.DatasetExample.id,
-                    models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids),
-                ),
-            )
+            split_example_ids_subquery = select(
+                models.DatasetSplitDatasetExample.dataset_example_id
+            ).where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_ids))
+            stmt = stmt.where(models.DatasetExample.id.in_(split_example_ids_subquery))
 
     ranked_subquery = stmt.subquery()
     return (
@@ -284,18 +279,17 @@ def create_experiment_examples_snapshot_insert(
     experiment_splits_subquery = select(models.ExperimentDatasetSplit.dataset_split_id).where(
         models.ExperimentDatasetSplit.experiment_id == experiment.id
     )
+    has_splits_condition = exists(experiment_splits_subquery)
+    split_filtered_example_ids = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+        models.DatasetSplitDatasetExample.dataset_split_id.in_(experiment_splits_subquery)
+    )
 
-    stmt = stmt.outerjoin(
-        models.DatasetSplitDatasetExample,
-        and_(
-            models.DatasetSplitDatasetExample.dataset_example_id
-            == models.DatasetExampleRevision.dataset_example_id,
-            models.DatasetSplitDatasetExample.dataset_split_id.in_(experiment_splits_subquery),
-        ),
-    ).where(
+    stmt = stmt.where(
         or_(
-            ~exists(experiment_splits_subquery),  # If no splits, include all
-            models.DatasetSplitDatasetExample.dataset_split_id.isnot(None),  # Has matching split
+            ~has_splits_condition,  # No splits = include all examples
+            models.DatasetExampleRevision.dataset_example_id.in_(
+                split_filtered_example_ids
+            ),  # Has splits = filter by splits
         )
     )
 
