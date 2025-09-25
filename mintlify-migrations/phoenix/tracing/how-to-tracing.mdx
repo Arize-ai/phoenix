@@ -1,0 +1,121 @@
+---
+title: "How To: Tracing"
+sidebarTitle: "Overview"
+description: Guides on how to use traces
+---
+
+## Setup Tracing
+
+* Setup Tracing in [Python](/phoenix/tracing/how-to-tracing#instrument-python-using-openinference-helpers) or [Typescript](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
+
+* Add Integrations via [Auto Instrumentation](https://arize.com/docs/phoenix/integrations)
+
+* [Manually Instrument](/phoenix/tracing/how-to-tracing#manual-instrumentation) your application
+
+## [Customize Traces & Spans](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans)
+
+How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
+
+* [How to track sessions](/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions)
+
+* [How to create custom spans](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans)
+
+* [Setting metadata](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_metadata)
+
+* [Setting tags](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-tags)
+
+* [Setting a user](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_user)
+
+* [Setting prompt template attributes](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-the-prompt-template)
+
+* [How to read attributes from context](/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_attributes)
+
+* [Masking attributes on spans](/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes)
+
+## [Auto Instrumentation](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md)
+
+Phoenix natively works with a variety of frameworks and SDKs across [Python](/phoenix/tracing/how-to-tracing#python) and [JavaScript](/phoenix/tracing/how-to-tracing#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md) and [LiteLLM proxy](https://github.com/Arize-ai/phoenix/blob/docs/docs/tracing/how-to-tracing/broken-reference/README.md).
+
+## Manual Instrumentation
+
+Create and customize spans for your use-case
+
+### [Instrument: Python using OpenInference Helpers](/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python)
+
+### [Instrument: Python using Base OTEL](/phoenix/tracing/how-to-tracing#instrument-python-using-base-otel)
+
+* [How to acquire a Tracer](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#acquire-tracer)
+
+* [How to create spans](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans)
+
+* [How to create nested spans](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-nested-spans)
+
+* [How to create spans with decorators](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans-with-decorators)
+
+* [How to get the current span](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#get-the-current-span)
+
+* [How to add attributes to a span](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#add-attributes-to-a-span)
+
+* [How to add semantic attributes](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#add-semantic-attributes)
+
+* [How to add events](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#adding-events)
+
+* [How to set a span's status](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#set-span-status)
+
+* [How to record exceptions](/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#record-exceptions-in-spans)
+
+### [Setup Tracing (TS)](/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
+
+## [Querying Spans](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+
+How to query spans to construct DataFrames to use for evaluation
+
+* [How to run a query](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-run-a-query)
+
+* [How to specify a project](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-specify-a-project)
+
+* [How to query for documents](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents)
+
+* [How to apply filters](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#filtering-spans)
+
+* [How to extract attributes](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extracting-span-attributes)
+
+* [How to use data for evaluation](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-use-data-for-evaluation)
+
+* [How to use pre-defined queries](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#predefined-queries)
+
+## [Annotate Traces](/phoenix/tracing/how-to-tracing/feedback-and-annotations)
+
+* [Annotating in the UI](/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui)
+
+* [Annotating via the Client](/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback)
+
+## [Log Evaluation Results](/phoenix/tracing/how-to-tracing#log-evaluation-results)
+
+How to log evaluation results to annotate traces with evals
+
+* [How to log span evaluations](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#span-evaluations)
+
+* [How to log document evaluations](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#document-evaluations)
+
+* [How to specify a project for logging evaluations](/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#specifying-a-project-for-the-evaluations)
+
+## [Save and Load Traces](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+
+* [Saving Traces](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+
+* [Loading Traces](/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces)
+
+## [Cost Tracking](/phoenix/tracing/how-to-tracing/cost-tracking)
+
+How to track token-based costs for your LLM applications
+
+* [Setting up cost tracking](/phoenix/tracing/how-to-tracing/cost-tracking#send-token-counts)
+
+* [Model pricing configuration](/phoenix/tracing/how-to-tracing/cost-tracking#model-pricing-configuration)
+
+* [Viewing cost data](/phoenix/tracing/how-to-tracing/cost-tracking#viewing-cost-data)
+
+* [Session and experiment costs](/phoenix/tracing/how-to-tracing/cost-tracking#session-level-costs)
+
+
