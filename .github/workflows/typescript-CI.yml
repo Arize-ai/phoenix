@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - feat/version-12
+      - version-13
   pull_request:
     paths:
       - "app/**"
