@@ -46,7 +46,7 @@ _Integer = sa.Integer().with_variant(
 
 # revision identifiers, used by Alembic.
 revision: str = "deb2c81c0bb2"
-down_revision: Union[str, None] = "58228d933c91"
+down_revision: Union[str, None] = "e76cbd66ffc3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

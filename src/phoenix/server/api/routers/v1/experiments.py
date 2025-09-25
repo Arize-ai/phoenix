@@ -15,7 +15,10 @@ from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESS
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    insert_experiment_with_examples_snapshot,
+)
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -178,8 +181,7 @@ async def create_experiment(
             project_name=project_name,
             user_id=user_id,
         )
-        session.add(experiment)
-        await session.flush()
+        await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         project_rowid = await session.scalar(
