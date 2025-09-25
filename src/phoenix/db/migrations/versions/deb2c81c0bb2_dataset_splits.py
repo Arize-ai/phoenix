@@ -93,7 +93,6 @@ def upgrade() -> None:
     # Create crosswalk table: dataset_splits_dataset_examples
     op.create_table(
         "dataset_splits_dataset_examples",
-        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "dataset_split_id",
             _Integer,
@@ -105,11 +104,10 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
             nullable=False,
-            # index on the second element of the unique constraint tuple is needed
-            # only the first element is sorted in the composite index behind the unique constraint
+            # index on the second element of the composite primary key
             index=True,
         ),
-        sa.UniqueConstraint(
+        sa.PrimaryKeyConstraint(
             "dataset_split_id",
             "dataset_example_id",
         ),
@@ -122,7 +120,6 @@ def upgrade() -> None:
 
     op.create_table(
         "experiments_dataset_splits",
-        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "experiment_id",
             _Integer,
@@ -134,11 +131,10 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("dataset_splits.id", ondelete="CASCADE"),
             nullable=False,
-            # index on the second element of the unique constraint tuple is needed
-            # only the first element is sorted in the composite index behind the unique constraint
+            # index on the second element of the composite primary key
             index=True,
         ),
-        sa.UniqueConstraint(
+        sa.PrimaryKeyConstraint(
             "experiment_id",
             "dataset_split_id",
         ),

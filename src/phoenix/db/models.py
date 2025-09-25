@@ -1253,7 +1253,7 @@ class DatasetSplit(HasId):
     )
 
 
-class DatasetSplitDatasetExample(HasId):
+class DatasetSplitDatasetExample(Base):
     __tablename__ = "dataset_splits_dataset_examples"
     dataset_split_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_splits.id", ondelete="CASCADE"),
@@ -1269,7 +1269,7 @@ class DatasetSplitDatasetExample(HasId):
         "DatasetExample", back_populates="dataset_splits_dataset_examples"
     )
     __table_args__ = (
-        UniqueConstraint(
+        PrimaryKeyConstraint(
             "dataset_split_id",
             "dataset_example_id",
         ),
@@ -1310,7 +1310,7 @@ class Experiment(HasId):
     )
 
 
-class ExperimentDatasetSplit(HasId):
+class ExperimentDatasetSplit(Base):
     __tablename__ = "experiments_dataset_splits"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
@@ -1326,7 +1326,7 @@ class ExperimentDatasetSplit(HasId):
         "DatasetSplit", back_populates="experiment_dataset_splits"
     )
     __table_args__ = (
-        UniqueConstraint(
+        PrimaryKeyConstraint(
             "experiment_id",
             "dataset_split_id",
         ),
