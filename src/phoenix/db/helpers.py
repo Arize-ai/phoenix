@@ -25,6 +25,7 @@ from sqlalchemy import (
     select,
     util,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
@@ -309,6 +310,19 @@ def create_experiment_examples_snapshot_insert(
             ranked_subquery.c.revision_kind != "DELETE",
         ),
     )
+
+
+async def insert_experiment_with_examples_snapshot(
+    session: AsyncSession,
+    experiment: models.Experiment,
+) -> None:
+    """
+    Insert an experiment with its snapshot of dataset examples.
+    """
+    session.add(experiment)
+    await session.flush()
+    insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+    await session.execute(insert_stmt)
 
 
 _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])

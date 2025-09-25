@@ -17,7 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
-    create_experiment_examples_snapshot_insert,
+    insert_experiment_with_examples_snapshot,
 )
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -181,11 +181,7 @@ async def create_experiment(
             project_name=project_name,
             user_id=user_id,
         )
-        session.add(experiment)
-        await session.flush()
-
-        junction_stmt = create_experiment_examples_snapshot_insert(experiment)
-        await session.execute(junction_stmt)
+        await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         project_rowid = await session.scalar(

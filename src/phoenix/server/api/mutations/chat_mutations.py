@@ -27,8 +27,8 @@ from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
-    create_experiment_examples_snapshot_insert,
     get_dataset_example_revisions,
+    insert_experiment_with_examples_snapshot,
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
@@ -207,11 +207,7 @@ class ChatCompletionMutationMixin:
                 project_name=project_name,
                 user_id=user_id,
             )
-            session.add(experiment)
-            await session.flush()
-
-            junction_stmt = create_experiment_examples_snapshot_insert(experiment)
-            await session.execute(junction_stmt)
+            await insert_experiment_with_examples_snapshot(session, experiment)
 
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
