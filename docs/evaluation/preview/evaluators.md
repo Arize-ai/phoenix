@@ -225,7 +225,7 @@ Both methods run multiple evaluators over a pandas dataframe. The output is an a
 ```python
 import pandas as pd
 
-from phoenix.evals.preview.evaluators import evaluate_dataframe
+from phoenix.evals.preview import evaluate_dataframe
 from phoenix.evals.preview.metrics import PrecisionRecallFScore
 
 precision_recall_fscore = PrecisionRecallFScore(positive_label="Yes")
@@ -243,7 +243,7 @@ result.head()
 2) Running multiple evaluators, one bound with an input_mapping:
 ```python
 from phoenix.evals.preview.llm import LLM
-from phoenix.evals.preview.evaluators import bind_evaluator, evaluate_dataframe
+from phoenix.evals.preview import bind_evaluator, evaluate_dataframe
 from phoenix.evals.preview.metrics import HallucinationEvaluator, exact_match
 
 df = pd.DataFrame(

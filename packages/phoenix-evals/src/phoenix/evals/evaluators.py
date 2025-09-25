@@ -3,8 +3,21 @@ import inspect
 import itertools
 import json
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import pandas as pd
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
@@ -687,6 +700,97 @@ def bind_evaluator(
     return evaluator
 
 
+# --- Helper functions for dataframe evaluation ---
+
+
+def _prepare_dataframe_evaluation(
+    dataframe: pd.DataFrame, evaluators: List[Evaluator]
+) -> Tuple[
+    pd.DataFrame,
+    Dict[int, Dict[str, Any]],
+    List[Tuple[int, int]],
+]:
+    """
+    Prepare common data structures for dataframe evaluation.
+
+    Returns:
+        result_df: Copy of input dataframe
+        eval_inputs: Dictionary mapping row indices to evaluation inputs
+        task_inputs: List of (row_index, evaluator_index) tuples
+    """
+    # Create a copy to avoid modifying the original dataframe
+    result_df = dataframe.copy()
+
+    # Prepare task inputs - direct DataFrame iteration for better performance
+    records = result_df.to_dict("records")
+    eval_inputs: Dict[int, Dict[str, Any]] = {}
+    for i, row in enumerate(records):
+        eval_inputs[i] = {str(k): v for k, v in row.items()}
+    task_inputs = list(itertools.product(range(len(result_df)), range(len(evaluators))))
+
+    # Pre-allocate execution details columns
+    for evaluator in evaluators:
+        evaluator_name = evaluator.name
+        execution_details_col = f"{evaluator_name}_execution_details"
+        result_df[execution_details_col] = [None] * len(dataframe)
+
+    return result_df, eval_inputs, task_inputs
+
+
+def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
+    """Process execution details into JSON string."""
+    result: Dict[str, Any] = {
+        "status": eval_execution_details.status.value,
+        "exceptions": [repr(exc) for exc in eval_execution_details.exceptions],
+        "execution_seconds": eval_execution_details.execution_seconds,
+    }
+    return json.dumps(result)
+
+
+def _process_results_and_add_to_dataframe(
+    results: Optional[List[Optional[List[Score]]]],
+    execution_details: List[ExecutionDetails],
+    task_inputs: List[Tuple[int, int]],
+    evaluators: List[Evaluator],
+    result_df: pd.DataFrame,
+) -> None:
+    """
+    Process evaluation results and add them directly to the dataframe.
+    """
+    # Pre-compute column locations for efficiency
+    execution_details_cols = {
+        evaluator.name: result_df.columns.get_loc(f"{evaluator.name}_execution_details")
+        for evaluator in evaluators
+    }
+
+    # Pre-allocate score dictionaries
+    score_dicts: DefaultDict[str, Dict[int, Optional[str]]] = defaultdict(dict)
+    for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
+        # Process and add execution details to dataframe
+        details = execution_details[i]
+        evaluator_name = evaluators[evaluator_index].name
+        col_idx = execution_details_cols[evaluator_name]
+        result_df.iloc[eval_input_index, col_idx] = _process_execution_details(details)
+
+        # Process scores
+        if results is None:
+            continue
+        scores = results[i]
+        if scores is None:
+            continue
+        for score in scores:
+            if not score.name:
+                raise ValueError(f"Score has no name: {score}")
+            score_col = f"{score.name}_score"
+            score_dicts[score_col][eval_input_index] = json.dumps(score.to_dict())
+
+    # Add scores to dataframe
+    for score_col, score_dict in score_dicts.items():
+        # Convert dictionary to list using positional indices
+        score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
+        result_df[score_col] = score_list
+
+
 def evaluate_dataframe(
     dataframe: pd.DataFrame,
     evaluators: List[Evaluator],
@@ -726,21 +830,8 @@ def evaluate_dataframe(
     - Failed evaluations: If an evaluation fails, the failure details will be recorded
       in the execution_details column and the score will be None.
     """
-    # Create a copy to avoid modifying the original dataframe
-    result_df = dataframe.copy()
-
-    # Prepare task inputs
-    records = [{str(k): v for k, v in record.items()} for record in result_df.to_dict("records")]
-    eval_inputs: Dict[int, Dict[str, Any]] = dict(enumerate(records))
-    evaluator_mapping = {i: evaluator for i, evaluator in enumerate(evaluators)}
-    task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
-
-    # Pre-allocate columns for efficient assignment
-    score_lists: Dict[str, List[Optional[str]]] = {}
-    for evaluator in evaluators:
-        evaluator_name = evaluator.name
-        execution_details_col = f"{evaluator_name}_execution_details"
-        result_df[execution_details_col] = [None] * len(dataframe)
+    # Prepare common data structures
+    result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
 
     # Execution task: evaluate an eval_input with an evaluator
     def _task(task_input: Tuple[int, int]) -> List[Score]:
@@ -762,37 +853,10 @@ def evaluate_dataframe(
     executor = SyncExecutor(**executor_kwargs)
     results, execution_details = executor.run(task_inputs)
 
-    def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-        result: Dict[str, Any] = {}
-        result["status"] = eval_execution_details.status.value
-        result["exceptions"] = [repr(exc) for exc in eval_execution_details.exceptions]
-        result["execution_seconds"] = eval_execution_details.execution_seconds
-        return json.dumps(result)
-
-    for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
-        # Process and add execution details to dataframe
-        details = execution_details[i]
-        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
-
-        # Process scores
-        if results is None:
-            continue
-        scores = results[i]
-        if scores is None:
-            continue
-        for score in scores:
-            if not score.name:  # this shouldn't happen
-                score_col = f"{evaluators[evaluator_index].name}_{i}"
-            else:
-                score_col = f"{score.name}_score"
-            if score_col not in score_lists:
-                score_lists[score_col] = [None] * len(dataframe)
-            score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
-
-    # Add scores to dataframe
-    for score_col, score_list in score_lists.items():
-        result_df[score_col] = score_list
+    # Process results and scores
+    _process_results_and_add_to_dataframe(
+        results, execution_details, task_inputs, evaluators, result_df
+    )
 
     return result_df
 
@@ -839,21 +903,8 @@ async def async_evaluate_dataframe(
     - Failed evaluations: If an evaluation fails, the failure details will be recorded
       in the execution_details column and the score will be None.
     """
-    # Create a copy to avoid modifying the original dataframe
-    result_df = dataframe.copy()
-
-    # Prepare task inputs
-    records = [{str(k): v for k, v in record.items()} for record in result_df.to_dict("records")]
-    eval_inputs: Dict[int, Dict[str, Any]] = dict(enumerate(records))
-    evaluator_mapping = {i: evaluator for i, evaluator in enumerate(evaluators)}
-    task_inputs = list(itertools.product(eval_inputs.keys(), evaluator_mapping.keys()))
-
-    # Pre-allocate columns for efficient assignment
-    score_lists: Dict[str, List[Optional[str]]] = {}
-    for evaluator in evaluators:
-        evaluator_name = evaluator.name
-        execution_details_col = f"{evaluator_name}_execution_details"
-        result_df[execution_details_col] = [None] * len(dataframe)
+    # Prepare common data structures
+    result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
 
     # Execution task: evaluate an eval_input with an evaluator
     async def _task(task_input: Tuple[int, int]) -> List[Score]:
@@ -877,37 +928,10 @@ async def async_evaluate_dataframe(
     executor = AsyncExecutor(**executor_kwargs)
     results, execution_details = await executor.execute(task_inputs)
 
-    def _process_execution_details(eval_execution_details: ExecutionDetails) -> str:
-        result: Dict[str, Any] = {}
-        result["status"] = eval_execution_details.status.value
-        result["exceptions"] = [repr(exc) for exc in eval_execution_details.exceptions]
-        result["execution_seconds"] = eval_execution_details.execution_seconds
-        return json.dumps(result)
-
-    for i, (eval_input_index, evaluator_index) in enumerate(task_inputs):
-        # Process and add execution details to dataframe
-        details = execution_details[i]
-        execution_details_col = f"{evaluators[evaluator_index].name}_execution_details"
-        result_df.at[eval_input_index, execution_details_col] = _process_execution_details(details)
-
-        # Process scores
-        if results is None:
-            continue
-        scores = results[i]
-        if scores is None:
-            continue
-        for score in scores:
-            if not score.name:  # this shouldn't happen
-                score_col = f"{evaluators[evaluator_index].name}_{i}"
-            else:
-                score_col = f"{score.name}_score"
-            if score_col not in score_lists:
-                score_lists[score_col] = [None] * len(dataframe)
-            score_lists[score_col][eval_input_index] = json.dumps(score.to_dict())
-
-    # Add scores to dataframe
-    for score_col, score_list in score_lists.items():
-        result_df[score_col] = score_list
+    # Process results and scores
+    _process_results_and_add_to_dataframe(
+        results, execution_details, task_inputs, evaluators, result_df
+    )
 
     return result_df
 
