@@ -8,7 +8,6 @@ Create Date: 2025-08-11 20:52:47.477712
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -20,19 +19,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.execute(
-        sa.text(
-            "CREATE INDEX ix_traces_project_rowid_start_time "
-            "ON traces (project_rowid, start_time DESC)"
-        )
+        "CREATE INDEX IF NOT EXISTS ix_traces_project_rowid_start_time "
+        "ON traces (project_rowid, start_time DESC)"
     )
     op.execute(
-        sa.text(
-            "CREATE INDEX ix_project_sessions_project_id_start_time "
-            "ON project_sessions (project_id, start_time DESC)"
-        )
+        "CREATE INDEX IF NOT EXISTS ix_project_sessions_project_id_start_time "
+        "ON project_sessions (project_id, start_time DESC)"
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_traces_project_rowid_start_time", table_name="traces")
-    op.drop_index("ix_project_sessions_project_id_start_time", table_name="project_sessions")
+    op.drop_index(
+        "ix_traces_project_rowid_start_time",
+        table_name="traces",
+        if_exists=True,
+    )
+    op.drop_index(
+        "ix_project_sessions_project_id_start_time",
+        table_name="project_sessions",
+        if_exists=True,
+    )
