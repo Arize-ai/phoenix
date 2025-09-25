@@ -5876,7 +5876,8 @@
             "enum": [
               "SYSTEM",
               "ADMIN",
-              "MEMBER"
+              "MEMBER",
+              "VIEWER"
             ],
             "title": "Role"
           },
@@ -5922,7 +5923,8 @@
             "enum": [
               "SYSTEM",
               "ADMIN",
-              "MEMBER"
+              "MEMBER",
+              "VIEWER"
             ],
             "title": "Role"
           },
@@ -5988,7 +5990,8 @@
             "enum": [
               "SYSTEM",
               "ADMIN",
-              "MEMBER"
+              "MEMBER",
+              "VIEWER"
             ],
             "title": "Role"
           },
@@ -6037,7 +6040,8 @@
             "enum": [
               "SYSTEM",
               "ADMIN",
-              "MEMBER"
+              "MEMBER",
+              "VIEWER"
             ],
             "title": "Role"
           },
