@@ -8,7 +8,7 @@ The standard for evaluating text is human labeling. However, high-quality LLM ou
 
 Phoenix Evals provides **lightweight, composable building blocks** for writing and running evaluations on LLM applications. It can be installed completely independently of the `arize-phoenix` package and is available in both **Python** and **TypeScript** versions.
 
-* **Works with your preferred model SDKs** via SDK adapters (OpenAI, LiteLLM, LangChain, AI SDK) - Phoenix lets you configure which foundation model you'd like to use as a judge. This includes OpenAI, Anthropic, Gemini, and much more. See [evaluation-models.md](../how-to-evals/evaluation-models.md "mention")
+* **Works with your preferred model SDKs** via SDK adapters (OpenAI, LiteLLM, LangChain, AI SDK) - Phoenix lets you configure which foundation model you'd like to use as a judge. This includes OpenAI, Anthropic, Gemini, and much more. See [evaluation-models.md](../how-to-evals/evaluation-models.md)
 * **Powerful input mapping and binding** for working with complex data structures - easily map nested data and complex inputs to evaluator requirements
 * **Several pre-built metrics** for common evaluation tasks like hallucination detection - Phoenix provides pre-tested eval templates for common tasks such as RAG and function calling. Learn more about pretested templates [here](../how-to-evals/running-pre-tested-evals/). Each eval is pre-tested on a variety of eval models. Find the most up-to-date template on [GitHub](https://github.com/Arize-ai/phoenix/tree/main/tutorials/evals).
 * **Evaluators are natively instrumented** via OpenTelemetry tracing for observability and dataset curation
