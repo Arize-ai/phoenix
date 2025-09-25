@@ -2053,7 +2053,7 @@ class Evaluator(Base):
     user: Mapped[Optional["User"]] = relationship("User")
 
 
-class LLMEvaluator(Base):
+class LLMEvaluatorDefinition(Base):
     __tablename__ = "llm_evaluator_definitions"
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

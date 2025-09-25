@@ -68,9 +68,7 @@ class EvaluatorMutationMixin:
 
             # Next we construct the llm evaluator to wrap the prompt
             # and we point it to the evaluator
-            llm_evaluator = models.LLMEvaluator(
-                # TODO(evaluators): figure out if naming
-                name=f"{input.name}-{input.dataset_id}-evaluator",
+            llm_evaluator = models.LLMEvaluatorDefinition(
                 description=input.description,
                 prompt=prompt,
                 evaluator=evaluator,

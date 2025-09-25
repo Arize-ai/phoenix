@@ -77,6 +77,7 @@ def upgrade() -> None:
             nullable=True,
             index=True,
         ),
+        # TODO(evaluators) - how do we store annotation definition like optimization direction
     )
     op.create_table(
         "dataset_evaluators",
