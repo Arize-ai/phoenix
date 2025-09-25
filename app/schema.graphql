@@ -200,6 +200,7 @@ input ChatCompletionInput {
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
+  repetitions: Int!
 }
 
 input ChatCompletionMessageInput {
@@ -244,6 +245,7 @@ input ChatCompletionOverDatasetInput {
   tools: [JSON!]
   credentials: [GenerativeCredentialInput!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
+  repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
   experimentName: String = null
@@ -254,6 +256,7 @@ input ChatCompletionOverDatasetInput {
 
 type ChatCompletionOverDatasetMutationExamplePayload {
   datasetExampleId: ID!
+  repetitionNumber: Int!
   experimentRunId: ID!
   result: ChatCompletionMutationPayloadChatCompletionMutationError!
 }
@@ -267,20 +270,24 @@ type ChatCompletionOverDatasetMutationPayload {
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   span: Span
   experimentRun: ExperimentRun
 }
@@ -1313,6 +1320,7 @@ input FreeformAnnotationConfigInput {
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   name: String!
   arguments: String!
 }
@@ -2590,6 +2598,7 @@ type SystemApiKey implements ApiKey & Node {
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   content: String!
 }
 
@@ -2671,6 +2680,7 @@ type TokenUsage {
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   id: String!
   function: FunctionCallChunk!
 }
