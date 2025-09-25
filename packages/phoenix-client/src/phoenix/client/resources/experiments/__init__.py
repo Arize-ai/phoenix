@@ -18,6 +18,7 @@ from urllib.parse import urljoin
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
 from httpx import HTTPStatusError
+from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -173,7 +174,7 @@ def _get_tracer(
         span_processor = _NoOpProcessor()
 
     tracer_provider.add_span_processor(span_processor)
-    return tracer_provider.get_tracer(__name__), resource
+    return OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()), resource
 
 
 def get_tqdm_progress_bar_formatter(title: str) -> str:
