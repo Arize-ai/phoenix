@@ -208,14 +208,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         sharedSplitIds={Array.from(sharedSplitIds)}
         partialSplitIds={partialSplitIds}
         onConfirm={(selectedIds) => {
-          if (!selectedIds.length) {
-            notifyError({
-              title: "No splits selected",
-              message: "Select at least one split.",
-            });
-            return;
-          }
-
           const desiredIds = new Set(Array.from(selectedIds)); // D
           const sharedIds = new Set(Array.from(sharedSplitIds)); // A
           const splitsToAdd = Array.from(desiredIds).filter(

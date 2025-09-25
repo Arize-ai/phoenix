@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Text, Token } from "@phoenix/components";
+import { Token } from "@phoenix/components";
 
 const ulCSS = css`
   display: flex;
@@ -18,7 +18,7 @@ export type DatasetSplit = {
 export function DatasetSplits({ labels }: { labels: readonly DatasetSplit[] }) {
   const isEmpty = !labels || labels.length === 0;
   if (isEmpty) {
-    return <Text color="text-700">No Splits</Text>;
+    return <></>;
   }
   return (
     <ul css={ulCSS}>
