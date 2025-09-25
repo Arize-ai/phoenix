@@ -29,7 +29,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SortDir import SortDir
 
-from .Evaluator import Evaluator
+from .Evaluator import Evaluator, to_gql_evaluator
 
 
 @strawberry.type
@@ -313,7 +313,8 @@ class Dataset(Node):
             for label in await info.context.data_loaders.dataset_labels.load(self.id_attr)
         ]
 
-    def evaluators(
+    @strawberry.field
+    async def evaluators(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
@@ -327,7 +328,16 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        return connection_from_list([], args=args)
+        dataset_id = self.id_attr
+        async with info.context.db() as session:
+            evaluators = await session.scalars(
+                select(models.Evaluator).join(
+                    models.DatasetEvaluator, models.DatasetEvaluator.dataset_id == dataset_id
+                )
+            )
+            return connection_from_list(
+                [to_gql_evaluator(evaluator) for evaluator in evaluators], args=args
+            )
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
