@@ -1,6 +1,6 @@
 import inspect
 import json
-from typing import Any, Callable, Dict, Mapping, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
 
 import pandas as pd
 from jsonpath_ng import parse  # type: ignore
@@ -218,36 +218,23 @@ def _merge_metadata_with_direction(score_data: Dict[str, Any]) -> Optional[Dict[
     return result
 
 
-def format_as_annotation_dataframe(
+def _format_score_data(
     dataframe: pd.DataFrame,
+    span_id_cols: List[str],
     score_name: str,
-    score_display_name: Union[str, None] = None,
+    score_display_name: Optional[str] = None,
 ) -> pd.DataFrame:
-    """Format scores as annotations for logging to Phoenix.
-
-    This function takes the output of evaluate_dataframe, extracts a specific score column, and
-    formats it for Phoenix logging. Score, label, explanation, and metadata are extracted from the
-    score column and exploded into separate columns. Annotation name and kind are also added as
-    columns. If score_display_name is not provided, the score_name is used.
+    """Format score data as an annotation dataframe.
 
     Args:
-        dataframe (pd.DataFrame): DataFrame returned by (async_)evaluate_dataframe
-        score_name (str): Name of the score column to log (e.g., "precision", "hallucination")
+        dataframe: The dataframe to format score data from.
+        span_id_cols: The list of span_id columns to keep.
+        score_name: The name of the score column to add.
         score_display_name (str): Desired display name for the score, if different from the
         score_name. Defaults to None.
 
     Returns:
-        pd.DataFrame: DataFrame with the score column, annotation name, and annotator kind columns.
-
-    Examples::
-        from phoenix.client import Client
-        from phoenix.evals import evaluate_dataframe
-        from phoenix.evals.utils import format_as_annotation_dataframe
-
-        client = Client()
-        results = evaluate_dataframe(df, evaluators)
-        hallucination_annotations = format_as_annotation_dataframe(results, "hallucination")
-        client.spans.log_span_annotations_dataframe(dataframe=hallucination_annotations)
+        The dataframe with the score data added and formatted as an annotation dataframe.
     """
 
     score_column = f"{score_name}_score"
@@ -256,12 +243,7 @@ def format_as_annotation_dataframe(
     if score_column not in dataframe.columns:
         raise ValueError(f"Score column '{score_column}' not found in DataFrame")
 
-    # Find span_id columns (look for column containing "span_id")
-    span_id_cols = [col for col in dataframe.columns if "span_id" in col.lower()]
-    if not span_id_cols:
-        raise ValueError("No column containing 'span_id' found in DataFrame")
-
-    # Create working copy with required columns (all span_id columns + score column)
+    # Create copy with all span_id columns + score column
     eval_df = dataframe[span_id_cols + [score_column]].copy()
 
     # Parse JSON score data
@@ -305,6 +287,88 @@ def format_as_annotation_dataframe(
     eval_df = eval_df[columns_to_keep]
 
     return eval_df
+
+
+def format_as_annotation_dataframe(
+    dataframe: pd.DataFrame,
+    score_names: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Format scores as annotations for logging to Phoenix.
+
+    This function takes the output of evaluate_dataframe, and a list of score names,
+    formats it for Phoenix logging. If no score names are provided, the function will extract all
+    scores from the dataframe (_score columns). Score, label, explanation, and metadata are
+    extracted from the score column and exploded into separate columns. Annotation name and kind
+    are also added as columns.
+
+    Args:
+        dataframe (pd.DataFrame): DataFrame returned by (async_)evaluate_dataframe
+        score_names (List[str]): Names of the score columns to log (e.g., ["precision",
+        "hallucination"]). If None, all columns ending with _score will be used.
+
+    Returns:
+        pd.DataFrame: DataFrame with the score column, annotation name, and annotator kind columns
+        for the specified score names.
+
+    Examples::
+        from phoenix.client import Client
+        from phoenix.evals import evaluate_dataframe
+        from phoenix.evals.utils import format_as_annotation_dataframe
+
+        client = Client()
+        results = evaluate_dataframe(df, evaluators)
+
+        # Log only hallucination annotations
+        hallucination_annotations = format_as_annotation_dataframe(results, ["hallucination"])
+        client.spans.log_span_annotations_dataframe(dataframe=hallucination_annotations)
+
+        # Log all scores as annotations
+        all_annotations = format_as_annotation_dataframe(results)
+        client.spans.log_span_annotations_dataframe(dataframe=all_annotations)
+    """
+
+    # Step 1: Identify all span_id sources
+    span_id_cols = [col for col in dataframe.columns if "span_id" in col.lower()]
+    index_is_span_id = dataframe.index.name and "span_id" in dataframe.index.name.lower()
+
+    # Step 2: Create a working copy and preserve all span info
+    working_df = dataframe.copy()
+
+    if index_is_span_id:
+        # Add index as a span_id column if it isn't already a column
+        index_col_name = dataframe.index.name or "span_id"
+        if index_col_name not in working_df.columns:
+            working_df[index_col_name] = working_df.index
+            span_id_cols.append(index_col_name)
+        else:
+            # Index name matches existing column - just add the index values
+            working_df[f"{index_col_name}_from_index"] = working_df.index
+            span_id_cols.append(f"{index_col_name}_from_index")
+
+    # Step 3: Reset index to avoid conflicts during concatenation
+    working_df = working_df.reset_index(drop=True)
+
+    # Step 4: Validate we have span_id information
+    if not span_id_cols:
+        raise ValueError("No column containing 'span_id' found in DataFrame")
+
+    # Step 5: Process each score name
+    if not score_names:  # Both None and empty list trigger auto-detection
+        # use names from columns in dataframe ending with _score
+        score_names = [col[:-6] for col in working_df.columns if col.endswith("_score")]
+
+    result_dfs = []
+    for score_name in score_names:
+        eval_df = _format_score_data(working_df, span_id_cols, score_name)
+        result_dfs.append(eval_df)
+
+    if not result_dfs:
+        return pd.DataFrame()
+
+    # Step 6: Concatenate with new sequential indices
+    result_df = pd.concat(result_dfs, ignore_index=True)
+
+    return result_df
 
 
 __all__ = [
