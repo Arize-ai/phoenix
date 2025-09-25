@@ -240,6 +240,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   const { instances, instanceMessages } = getInitialInstances(props);
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
+    repetitions: 1,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -700,6 +701,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
+    },
+    setRepetitions: (repetitions: number) => {
+      set({ repetitions });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,

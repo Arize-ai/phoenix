@@ -233,8 +233,8 @@ result.head()
 ```
 2) Running multiple evaluators, one bound with an input_mapping:
 ```python
+from phoenix.evals import bind_evaluator, evaluate_dataframe
 from phoenix.evals.llm import LLM
-from phoenix.evals.evaluators import bind_evaluator, evaluate_dataframe
 from phoenix.evals.metrics import HallucinationEvaluator, exact_match
 
 df = pd.DataFrame(
