@@ -1708,11 +1708,6 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
-        "gemini-2.5-pro-preview-03-25",
-        "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
         "gemini-2.0-flash-001",
         "gemini-2.0-flash-thinking-exp-01-21",
@@ -1808,7 +1803,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         contents, system_prompt = self._build_google_messages(messages)
 
         # Build config object for the new API
-        config = dict(invocation_parameters)
+        config = invocation_parameters
         if system_prompt:
             config["system_instruction"] = system_prompt
 
@@ -1848,6 +1843,53 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 assert_never(role)
 
         return google_messages, "\n".join(system_prompts)
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro-preview-03-25",
+    ],
+)
+class Gemini25GoogleStreamingClient(GoogleStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_output_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Output Tokens",
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop_sequences",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            FloatInvocationParameter(
+                invocation_name="top_k",
+                label="Top K",
+            ),
+        ]
 
 
 def initialize_playground_clients() -> None:
