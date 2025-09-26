@@ -454,6 +454,9 @@ CREATE TABLE public.dataset_splits (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_dataset_splits_user_id ON public.dataset_splits
+    USING btree (user_id);
+
 
 -- Table: datasets
 -- ---------------
