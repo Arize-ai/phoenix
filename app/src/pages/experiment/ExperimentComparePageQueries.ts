@@ -14,3 +14,13 @@ export const ExperimentComparePageQueriesMultiSelectorQuery = graphql`
       )
   }
 `;
+
+export const ExperimentComparePageQueriesSelectedCompareExperimentsQuery = graphql`
+  query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(
+    $datasetId: ID!
+    $experimentIds: [ID!]!
+  ) {
+    ...ExperimentComparePage_selectedCompareExperiments
+      @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
+  }
+`;

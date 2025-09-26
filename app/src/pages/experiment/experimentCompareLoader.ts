@@ -36,8 +36,6 @@ export async function experimentCompareLoader(
         $includeListView: Boolean!
         $includeMetricsView: Boolean!
       ) {
-        ...ExperimentComparePage_selectedCompareExperiments
-          @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
         ...ExperimentCompareTable_comparisons
           @include(if: $includeGridView)
           @arguments(
