@@ -10,38 +10,32 @@ An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame mus
 
 ## Connect to Phoenix
 
-Before accessing px.Client(), be sure you've set the following environment variables:
+Initialize the Phoenix client to connect to your Phoenix instance:
 
 ```python
-import os
+from phoenix.client import Client
 
-# Used by local phoenix deployments with auth:
-os.environ["PHOENIX_API_KEY"] = "..."
+# Initialize client - automatically reads from environment variables:
+# PHOENIX_BASE_URL and PHOENIX_API_KEY (if using Phoenix Cloud)
+client = Client()
 
-# Used by Phoenix Cloud deployments:
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
-
-# Be sure to modify this if you're self-hosting Phoenix:
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+# Or explicitly configure for your Phoenix instance:
+# client = Client(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 ```
 
 ## Span Evaluations
 
-A dataframe of span evaluations would look similar like the table below. It must contain `span_id` as an index or as a column. Once ingested, Phoenix uses the `span_id` to associate the evaluation with its target span.
+A dataframe of span evaluations would look similar to the table below. It must contain `span_id` as an index or as a column. Once ingested, Phoenix uses the `span_id` to associate the evaluation with its target span.
 
 <table><thead><tr><th>span_id</th><th>label</th><th data-type="number">score</th><th>explanation</th></tr></thead><tbody><tr><td>5B8EF798A381</td><td>correct</td><td>1</td><td>"this is correct ..."</td></tr><tr><td>E19B7EC3GG02</td><td>incorrect</td><td>0</td><td>"this is incorrect ..."</td></tr></tbody></table>
 
-The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `eval_name=` parameter. In this case we name it "Q\&A Correctness".
+The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `annotation_name=` parameter. In this case we name it "Q\&A Correctness".
 
 ```python
-from phoenix.trace import SpanEvaluations
-import os
-
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
+client.spans.log_span_annotations_dataframe(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="Q&A Correctness",
+    annotator_kind="LLM",
 )
 ```
 
@@ -54,10 +48,7 @@ A dataframe of document evaluations would look something like the table below. I
 The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `annotation_name=` parameter. In this case we name it "Relevance".
 
 ```python
-from phoenix.client import Client
-
-px_client = Client()
-px_client.spans.log_document_annotations_dataframe(
+client.spans.log_document_annotations_dataframe(
     dataframe=document_relevance_eval_df,
     annotation_name="Relevance",
     annotator_kind="LLM",
@@ -69,39 +60,20 @@ px_client.spans.log_document_annotations_dataframe(
 Multiple sets of Evaluations can be logged using separate function calls with the new client.
 
 ```python
-from phoenix.client import Client
-
-px_client = Client()
-px_client.spans.log_span_annotations_dataframe(
+client.spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_eval_df,
     annotation_name="Q&A Correctness",
     annotator_kind="LLM",
 )
-px_client.spans.log_document_annotations_dataframe(
+client.spans.log_document_annotations_dataframe(
     dataframe=document_relevance_eval_df,
     annotation_name="Relevance",
     annotator_kind="LLM",
 )
-px_client.spans.log_span_annotations_dataframe(
+client.spans.log_span_annotations_dataframe(
     dataframe=hallucination_eval_df,
     annotation_name="Hallucination",
     annotator_kind="LLM",
 )
 # ... continue with additional evaluations as needed
-```
-
-## Specifying A Project for the Evaluations
-
-By default the client will push traces to the project specified in the `PHOENIX_PROJECT_NAME` environment variable or to the `default` project. If you want to specify the destination project explicitly, you can pass the project name as a parameter.
-
-```python
-from phoenix.trace import SpanEvaluations
-
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
-    project_name="<my-project>"
-)
 ```
