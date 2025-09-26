@@ -241,3 +241,10 @@ class Context(BaseContext):
     @cached_property
     def user(self) -> PhoenixUser:
         return cast(PhoenixUser, self.get_request().user)
+
+    @cached_property
+    def user_id(self) -> Optional[int]:
+        try:
+            return int(self.user.identity)
+        except Exception:
+            return None

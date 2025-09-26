@@ -1063,6 +1063,8 @@ class Dataset(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
     )
@@ -1166,6 +1168,8 @@ class DatasetVersion(HasId):
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
 
 
 class DatasetExample(HasId):
