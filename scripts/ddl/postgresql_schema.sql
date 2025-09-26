@@ -18,22 +18,6 @@ CREATE TABLE public.annotation_configs (
 );
 
 
--- Table: dataset_splits
--- ---------------------
-CREATE TABLE public.dataset_splits (
-    id bigserial NOT NULL,
-    name VARCHAR NOT NULL,
-    description VARCHAR,
-    color VARCHAR NOT NULL,
-    metadata JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_splits_name
-        UNIQUE (name)
-);
-
-
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (
@@ -444,6 +428,27 @@ CREATE TABLE public.dataset_labels (
     CONSTRAINT uq_dataset_labels_name
         UNIQUE (name),
     CONSTRAINT fk_dataset_labels_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
+-- Table: dataset_splits
+-- ---------------------
+CREATE TABLE public.dataset_splits (
+    id bigserial NOT NULL,
+    user_id INTEGER,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    color VARCHAR NOT NULL,
+    metadata JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_splits_name
+        UNIQUE (name),
+    CONSTRAINT fk_dataset_splits_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
