@@ -1,5 +1,5 @@
-import { startTransition, useCallback, useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import { startTransition, useCallback, useEffect, useMemo } from "react";
+import { graphql, useFragment, useQueryLoader } from "react-relay";
 import {
   useLoaderData,
   useNavigate,
@@ -16,7 +16,9 @@ import {
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 
 import type {
@@ -35,6 +37,12 @@ type Experiment = NonNullable<
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required on ExperimentComparePage");
+
+  const [multiSelectorQueryReference, loadMultiSelectorQuery] =
+    useQueryLoader<ExperimentComparePageQueriesMultiSelectorQueryType>(
+      ExperimentComparePageQueriesMultiSelectorQuery
+    );
+
   // The text of most IO is too long so default to showing truncated text
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
@@ -57,6 +65,18 @@ export function ExperimentComparePage() {
     },
     [datasetId, navigate, searchParams]
   );
+
+  useEffect(() => {
+    loadMultiSelectorQuery({
+      datasetId,
+      hasBaseExperiment: baseExperimentId != null,
+      baseExperimentId: baseExperimentId ?? "",
+    });
+  }, [baseExperimentId, datasetId, loadMultiSelectorQuery]);
+
+  if (multiSelectorQueryReference == null) {
+    return null;
+  }
 
   return (
     <main
@@ -82,7 +102,7 @@ export function ExperimentComparePage() {
           alignItems="end"
         >
           <ExperimentMultiSelector
-            dataRef={loaderData}
+            queryRef={multiSelectorQueryReference}
             selectedBaseExperimentId={baseExperimentId}
             selectedCompareExperimentIds={compareExperimentIds}
             onChange={(newBaseExperimentId, newCompareExperimentIds) => {
