@@ -555,7 +555,7 @@ CREATE TABLE public.dataset_labels (
     id serial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    color VARCHAR NOT NULL,
+    color VARCHAR NOT NULL DEFAULT '#ffffff'::character varying,
     user_id INTEGER,
     CONSTRAINT pk_dataset_labels PRIMARY KEY (id),
     CONSTRAINT uq_dataset_labels_name
@@ -738,10 +738,9 @@ CREATE TABLE public.experiment_tags (
     id serial NOT NULL,
     experiment_id INTEGER NOT NULL,
     dataset_id INTEGER NOT NULL,
-    user_id INTEGER,
     name VARCHAR NOT NULL,
+    user_id INTEGER,
     description VARCHAR,
-    color VARCHAR NOT NULL,
     CONSTRAINT pk_experiment_tags PRIMARY KEY (id),
     CONSTRAINT uq_experiment_tags_dataset_id_name
         UNIQUE (dataset_id, name),

@@ -35,6 +35,7 @@ def upgrade() -> None:
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("name", sa.String, nullable=False),
         sa.Column(
             "user_id",
             sa.Integer,
@@ -42,9 +43,7 @@ def upgrade() -> None:
             nullable=True,
             index=True,
         ),
-        sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("color", sa.String, nullable=False),
         sa.UniqueConstraint("dataset_id", "name"),
     )
 

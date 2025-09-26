@@ -1452,14 +1452,14 @@ class ExperimentTag(HasId):
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
-    name: Mapped[str]
-    description: Mapped[Optional[str]]
-    color: Mapped[str]
+
     experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
     user: Mapped[Optional["User"]] = relationship("User")
