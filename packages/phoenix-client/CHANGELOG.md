@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.1...arize-phoenix-client-v1.20.0) (2025-09-26)
+
+
+### Features
+
+* support repetitions ([#9657](https://github.com/Arize-ai/phoenix/issues/9657)) ([0365f7f](https://github.com/Arize-ai/phoenix/commit/0365f7f3c72fc53b39d275f24d48426b7c547933))
+
+
+### Bug Fixes
+
+* Experiment tracing should respect OITracer configs ([#9640](https://github.com/Arize-ai/phoenix/issues/9640)) ([f08b212](https://github.com/Arize-ai/phoenix/commit/f08b212f6d9857d25c19daeaec833227ef2061f1))
+
 ## [1.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.0...arize-phoenix-client-v1.19.1) (2025-09-19)
 
 
