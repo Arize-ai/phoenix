@@ -419,3 +419,154 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
+
+
+class TestDatasetDeleting:
+    """Test delete_examples method."""
+
+    @pytest.fixture
+    def mock_datasets_client(self) -> Any:
+        """Create a mock Datasets client with a mock httpx client."""
+        from phoenix.client.resources.datasets import Datasets
+
+        mock_client = Mock()
+        datasets_client = Datasets(mock_client)
+        return datasets_client
+
+    @pytest.fixture
+    def mock_dataset_response(self) -> Any:
+        """Mock response from get_dataset."""
+        from phoenix.client.__generated__ import v1
+        from phoenix.client.resources.datasets import Dataset
+
+        dataset_info = v1.DatasetWithExampleCount(
+            id="dataset123",
+            name="Test Dataset",
+            description="A test dataset",
+            metadata={"key": "value"},
+            created_at="2024-01-15T10:00:00",
+            updated_at="2024-01-15T11:00:00",
+            example_count=1,
+        )
+
+        examples_data = v1.ListDatasetExamplesData(
+            dataset_id="dataset123",
+            version_id="version456",
+            examples=[
+                v1.DatasetExample(
+                    id="ex1",
+                    input={"text": "updated hello"},
+                    output={"response": "updated hi"},
+                    metadata={"source": "updated test"},
+                    updated_at="2024-01-15T12:00:00",
+                ),
+            ],
+        )
+
+        return Dataset(dataset_info, examples_data)
+
+    def test_delete_examples_single_id(
+        self, mock_datasets_client: Any, mock_dataset_response: Any
+    ) -> None:
+        """Test deleting a single example from dataset."""
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
+
+        mock_datasets_client._client.request.return_value = rest_response
+
+        # Test default behavior (returns None)
+        result = mock_datasets_client.delete_examples(example_ids="ex1")
+
+        # Verify REST API was called correctly
+        mock_datasets_client._client.request.assert_called_once()
+        call_args = mock_datasets_client._client.request.call_args
+        assert call_args[1]["method"] == "DELETE"
+        assert call_args[1]["url"] == "v1/datasets/examples/delete"
+
+        # Verify payload structure (REST format)
+        import json
+        payload = json.loads(call_args[1]["content"])
+        assert payload["example_ids"] == ["ex1"]
+        assert "version_description" not in payload
+        assert "version_metadata" not in payload
+
+        # Verify method returns None
+        assert result is None
+
+    def test_delete_examples_returns_none(self, mock_datasets_client: Any) -> None:
+        """Test that delete_examples always returns None (simplified API)."""
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
+
+        mock_datasets_client._client.request.return_value = rest_response
+
+        result = mock_datasets_client.delete_examples(example_ids="ex1")
+
+        # Verify method returns None (simplified delete pattern)
+        assert result is None
+
+    def test_delete_examples_multiple_ids(self, mock_datasets_client: Any) -> None:
+        """Test deleting multiple examples from dataset."""
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
+
+        mock_datasets_client._client.request.return_value = rest_response
+
+        result = mock_datasets_client.delete_examples(example_ids=["ex1", "ex2", "ex3"])
+
+        # Verify payload structure (REST format)
+        call_args = mock_datasets_client._client.request.call_args
+        import json
+        payload = json.loads(call_args[1]["content"])
+        assert payload["example_ids"] == ["ex1", "ex2", "ex3"]
+
+        # Verify method returns None
+        assert result is None
+
+    def test_delete_examples_empty_ids_error(self, mock_datasets_client: Any) -> None:
+        """Test that deleting with empty example_ids raises ValueError."""
+        with pytest.raises(ValueError, match="example_ids cannot be empty"):
+            mock_datasets_client.delete_examples(example_ids=[])
+
+    def test_delete_examples_http_error(self, mock_datasets_client: Any) -> None:
+        """Test handling of HTTP errors in delete operation."""
+        # Mock HTTP error response
+        import httpx
+
+        rest_response = Mock()
+        rest_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "404 Not Found", request=Mock(), response=Mock(status_code=404)
+        )
+
+        mock_datasets_client._client.request.return_value = rest_response
+
+        with pytest.raises(httpx.HTTPStatusError):
+            mock_datasets_client.delete_examples(example_ids=["nonexistent"])
+
+    def test_delete_examples_with_version_info(self, mock_datasets_client: Any) -> None:
+        """Test deleting with version description and metadata."""
+        # Mock successful REST response
+        rest_response = Mock()
+        rest_response.raise_for_status.return_value = None
+
+        mock_datasets_client._client.request.return_value = rest_response
+
+        result = mock_datasets_client.delete_examples(
+            example_ids=["ex1"],
+            version_description="Removed example",
+            version_metadata={"operation": "delete"},
+        )
+
+        # Verify version fields were included (REST format)
+        call_args = mock_datasets_client._client.request.call_args
+        import json
+        payload = json.loads(call_args[1]["content"])
+        assert payload["example_ids"] == ["ex1"]
+        assert payload["version_description"] == "Removed example"
+        assert payload["version_metadata"] == {"operation": "delete"}
+
+        # Verify method returns None
+        assert result is None
