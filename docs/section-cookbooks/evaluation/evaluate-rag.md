@@ -56,7 +56,7 @@ import os
 from getpass import getpass
 
 import pandas as pd
-import phoenix as px
+from phoenix.client import Client
 from llama_index import SimpleDirectoryReader, VectorStoreIndex, set_global_handler
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
@@ -65,6 +65,8 @@ from llama_index.node_parser import SimpleNodeParser
 During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, simply start the phoenix application and instrument LlamaIndex.
 
 ```python
+import phoenix as px
+client = Client()
 px.launch_app()
 ```
 
@@ -570,12 +572,45 @@ Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies t
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 
 ```python
-from phoenix.trace import SpanEvaluations
+# Expect dataframes indexed by context.span_id
+qac_rows = qa_correctness_eval_df.reset_index()[
+    ["context.span_id", "score", "label", "explanation"]
+].dropna(how="all", subset=["score", "label", "explanation"])
+hall_rows = hallucination_eval_df.reset_index()[
+    ["context.span_id", "score", "label", "explanation"]
+].dropna(how="all", subset=["score", "label", "explanation"])
 
-px.Client().log_evaluations(
-    SpanEvaluations(dataframe=qa_correctness_eval_df, eval_name="Q&A Correctness"),
-    SpanEvaluations(dataframe=hallucination_eval_df, eval_name="Hallucination"),
-)
+# Construct annotations in the same style as retrieval metrics
+qa_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
+        name="Q&A Correctness",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="LLM",
+        result={
+            **({"score": float(row["score"])} if pd.notna(row["score"]) else {}),
+            **({"label": str(row["label"])} if pd.notna(row["label"]) else {}),
+            **({"explanation": str(row["explanation"])} if pd.notna(row["explanation"]) else {}),
+        },
+    )
+    for _, row in qac_rows.iterrows()
+]
+
+hall_annotations: list[SpanAnnotationData] = [
+    SpanAnnotationData(
+        name="Hallucination",
+        span_id=str(row["context.span_id"]),
+        annotator_kind="LLM",
+        result={
+            **({"score": float(row["score"])} if pd.notna(row["score"]) else {}),
+            **({"label": str(row["label"])} if pd.notna(row["label"]) else {}),
+            **({"explanation": str(row["explanation"])} if pd.notna(row["explanation"]) else {}),
+        },
+    )
+    for _, row in hall_rows.iterrows()
+]
+
+client.annotations.log_span_annotations(span_annotations=qa_annotations, sync=False)
+client.annotations.log_span_annotations(span_annotations=hall_annotations, sync=False)
 ```
 
 We now have sent all our evaluations to Phoenix. Let's go to the Phoenix application and view the results! Since we've sent all the evals to Phoenix, we can analyze the results together to make a determination on whether or not poor retrieval or irrelevant context has an effect on the LLM's ability to generate the correct response.

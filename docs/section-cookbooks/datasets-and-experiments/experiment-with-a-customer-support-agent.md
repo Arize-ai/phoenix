@@ -240,11 +240,11 @@ With our dataset of questions we generated above, we can use our experiments fea
 ```python
 from uuid import uuid1
 
-client = px.Client()
+px_client = Client()
 
-dataset = client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=questions_df,
-    dataset_name="agents-cookbook-" + str(uuid1()),
+    name="agents-cookbook-" + str(uuid1()),
     input_keys=["question"],
 )
 ```

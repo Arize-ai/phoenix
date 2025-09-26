@@ -76,7 +76,7 @@ After generating traces, open Phoenix to begin annotating your dataset. In this 
 
 ```python
 import pandas as pd
-import phoenix as px
+from phoenix.client import Client
 from phoenix.client import Client
 from phoenix.client.types import spans
 
@@ -87,9 +87,10 @@ spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="rec
 annotations_df = client.spans.get_span_annotations_dataframe(spans_dataframe = spans_df, project_identifier="receipt-classification")
 full_df = annotations_df.join(spans_df, how = "inner")
 
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=full_df,
-    dataset_name="annotated-receipts",
+    name="annotated-receipts",
     input_keys=["attributes.input.value"],
     output_keys=["attributes.llm.output_messages"],
     metadata_keys=["result.label", "result.score", "result.explanation"],
@@ -170,9 +171,9 @@ def evaluate_response(output, metadata):
 ```
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
-dataset = px.Client().get_dataset(name="annotated-receipts")
+dataset = px_client.datasets.get_dataset(dataset="annotated-receipts")
 
 initial_experiment = run_experiment(
     dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
