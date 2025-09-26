@@ -29,29 +29,29 @@ document text contains an answer to the question.
 
 class DocumentRelevanceEvaluator(ClassificationEvaluator):
     """
-    A specialized evaluator for determining document relevance to a given question.
+    A specialized evaluator for determining document relevance to a given
+    question.
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
 
     Notes:
-        - Evaluates whether a document contains information relevant to answering a specific question.
-        - Returns one `Score` with `label` (relevant or unrelated), `score` (1.0 if relevant, 0.0
-          if unrelated), and an `explanation` from the LLM judge.
+        - Evaluates whether a document contains information relevant to
+          answering a specific question.
+        - Returns one `Score` with `label` (relevant or unrelated), `score` (1.0
+          if relevant, 0.0 if unrelated), and an `explanation` from the LLM
+          judge.
         - Requires an LLM that supports tool calling or structured output.
 
     Examples::
 
-        from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
-        from phoenix.evals.llm import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
-        relevance_eval = DocumentRelevanceEvaluator(llm=llm)
-        eval_input = {
-            "input": "What is the capital of France?",
-            "document": "Paris is the capital and largest city of France"
-            }
-        scores = relevance_eval.evaluate(eval_input)
-        print(scores)
+        from phoenix.evals.metrics.document_relevance import
+        DocumentRelevanceEvaluator from phoenix.evals.llm import LLM llm =
+        LLM(provider="openai", model="gpt-4o-mini") relevance_eval =
+        DocumentRelevanceEvaluator(llm=llm) eval_input = {
+            "input": "What is the capital of France?", "document": "Paris is the
+            capital and largest city of France" }
+        scores = relevance_eval.evaluate(eval_input) print(scores)
     """
 
     NAME = "document_relevance"
