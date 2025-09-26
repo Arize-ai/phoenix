@@ -1705,11 +1705,6 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
-        "gemini-2.5-pro-preview-03-25",
-        "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
         "gemini-2.0-flash-001",
         "gemini-2.0-flash-thinking-exp-01-21",
@@ -1725,7 +1720,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         model: GenerativeModelInput,
         credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
-        import google.generativeai as google_genai
+        import google.genai as google_genai
 
         super().__init__(model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
@@ -1742,12 +1737,12 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         if not api_key:
             raise BadRequest("An API key is required for Gemini models")
 
-        google_genai.configure(api_key=api_key)
+        self.client = google_genai.Client(api_key=api_key)
         self.model_name = model.name
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
-        return [Dependency(name="google-generativeai", module_name="google.generativeai")]
+        return [Dependency(name="google-genai", module_name="google.genai")]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -1802,28 +1797,19 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import google.generativeai as google_genai
+        contents, system_prompt = self._build_google_messages(messages)
 
-        google_message_history, current_message, system_prompt = self._build_google_messages(
-            messages
-        )
-
-        model_args = {"model_name": self.model_name}
+        # Build config object for the new API
+        config = invocation_parameters
         if system_prompt:
-            model_args["system_instruction"] = system_prompt
-        client = google_genai.GenerativeModel(**model_args)
+            config["system_instruction"] = system_prompt
 
-        google_config = google_genai.GenerationConfig(
-            **invocation_parameters,
+        # Use the client's async models.generate_content_stream method
+        stream = await self.client.aio.models.generate_content_stream(
+            model=f"models/{self.model_name}",
+            contents=contents,
+            config=config if config else None,
         )
-        google_params = {
-            "content": current_message,
-            "generation_config": google_config,
-            "stream": True,
-        }
-
-        chat = client.start_chat(history=google_message_history)
-        stream = await chat.send_message_async(**google_params)
         async for event in stream:
             self._attributes.update(
                 {
@@ -1837,26 +1823,70 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
     def _build_google_messages(
         self,
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
-    ) -> tuple[list["ContentType"], str, str]:
-        google_message_history: list["ContentType"] = []
+    ) -> tuple[list["ContentType"], str]:
+        """Build Google messages following the standard pattern - process ALL messages."""
+        google_messages: list["ContentType"] = []
         system_prompts = []
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                google_message_history.append({"role": "user", "parts": content})
+                google_messages.append({"role": "user", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.AI:
-                google_message_history.append({"role": "model", "parts": content})
+                google_messages.append({"role": "model", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
                 assert_never(role)
-        if google_message_history:
-            prompt = google_message_history.pop()["parts"]
-        else:
-            prompt = ""
 
-        return google_message_history, prompt, "\n".join(system_prompts)
+        return google_messages, "\n".join(system_prompts)
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro-preview-03-25",
+    ],
+)
+class Gemini25GoogleStreamingClient(GoogleStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_output_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Output Tokens",
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop_sequences",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            FloatInvocationParameter(
+                invocation_name="top_k",
+                label="Top K",
+            ),
+        ]
 
 
 def initialize_playground_clients() -> None:
