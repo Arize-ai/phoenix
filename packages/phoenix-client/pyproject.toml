@@ -27,6 +27,7 @@ dependencies = [
   "tqdm",
   "typing-extensions",
   "openinference-semantic-conventions",
+  "openinference-instrumentation>=0.1.20",
   "opentelemetry-sdk",
   "opentelemetry-exporter-otlp",
 ]
