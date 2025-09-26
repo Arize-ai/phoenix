@@ -46,6 +46,7 @@ type ExperimentCompareDetailsProps = {
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
+  defaultSelectedRepetitionNumber?: number;
 };
 
 type Experiment = NonNullable<
@@ -58,37 +59,44 @@ type ExperimentRun = NonNullable<
 
 export function ExperimentCompareDetailsDialog({
   selectedExampleId,
+  selectedExampleIndex,
   datasetId,
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
   exampleIds,
-  onNextExample,
-  onPreviousExample,
+  onExampleChange,
+  repetitionNumber,
 }: {
   selectedExampleId: string;
+  selectedExampleIndex: number;
   datasetId: string;
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
-  exampleIds?: string[];
-  onNextExample?: (nextId: string) => void;
-  onPreviousExample?: (previousId: string) => void;
+  exampleIds: string[];
+  onExampleChange: (exampleIndex: number) => void;
+  repetitionNumber?: number;
 }) {
   return (
     <Dialog aria-label="Example Details">
       <DialogContent>
         <DialogHeader>
           <Flex gap="size-150">
-            {onNextExample && onPreviousExample && exampleIds && (
-              <ExampleDetailsPaginator
-                currentId={selectedExampleId}
-                exampleIds={exampleIds}
-                onNext={onNextExample}
-                onPrevious={onPreviousExample}
-              />
-            )}
-            <DialogTitle>{selectedExampleId}</DialogTitle>
+            <ExampleDetailsPaginator
+              currentExampleIndex={selectedExampleIndex}
+              exampleIds={exampleIds}
+              onExampleChange={onExampleChange}
+            />
+            <DialogTitle
+              css={css`
+                display: flex;
+                align-items: center;
+                gap: var(--ac-global-dimension-size-100);
+              `}
+            >
+              {selectedExampleId}
+            </DialogTitle>
           </Flex>
           <DialogTitleExtra>
             <LinkButton
@@ -107,6 +115,7 @@ export function ExperimentCompareDetailsDialog({
             datasetVersionId={datasetVersionId}
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
+            defaultSelectedRepetitionNumber={repetitionNumber}
           />
         </Suspense>
       </DialogContent>
@@ -120,6 +129,7 @@ export function ExperimentCompareDetails({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
+  defaultSelectedRepetitionNumber,
 }: ExperimentCompareDetailsProps) {
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
@@ -273,11 +283,12 @@ export function ExperimentCompareDetails({
           `}
         >
           <ExperimentRunOutputs
-            key={datasetExampleId}
+            key={datasetExampleId + "-" + defaultSelectedRepetitionNumber}
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             experimentsById={experimentsById}
             experimentRunsByExperimentId={experimentRunsByExperimentId}
+            defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
           />
         </div>
       </Panel>
@@ -296,18 +307,25 @@ function ExperimentRunOutputs({
   compareExperimentIds,
   experimentsById,
   experimentRunsByExperimentId,
+  defaultSelectedRepetitionNumber,
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
+  defaultSelectedRepetitionNumber?: number;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
   const [selectedExperimentRuns, setSelectedExperimentRuns] = useState<
     ExperimentRunSelectionState[]
   >(() =>
-    initializeSelectionState(experimentIds, experimentRunsByExperimentId)
+    initializeSelectionState(
+      experimentIds,
+      baseExperimentId,
+      experimentRunsByExperimentId,
+      defaultSelectedRepetitionNumber
+    )
   );
 
   const updateExperimentSelection = useCallback(
@@ -674,21 +692,31 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
 
 function initializeSelectionState(
   experimentIds: string[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+  baseExperimentId: string,
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>,
+  defaultSelectedRepetitionNumber?: number
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
     const runs = experimentRunsByExperimentId[experimentId];
     if (!runs.length) {
+      return [
+        {
+          experimentId,
+          selected: true,
+        } as ExperimentRunSelectionState,
+      ];
+    }
+    return runs.map((run) => {
       return {
         experimentId,
-        selected: true,
+        runId: run.id,
+        selected:
+          experimentId === baseExperimentId &&
+          defaultSelectedRepetitionNumber !== undefined
+            ? run.repetitionNumber === defaultSelectedRepetitionNumber
+            : true,
       };
-    }
-    return runs.map((run) => ({
-      experimentId,
-      runId: run.id,
-      selected: true,
-    }));
+    });
   });
 }
 
