@@ -1134,13 +1134,14 @@ class DatasetLabel(HasId):
     user: Mapped[Optional["User"]] = relationship("User")
 
 
-class DatasetsDatasetLabel(HasId):
+class DatasetsDatasetLabel(Base):
     __tablename__ = "datasets_dataset_labels"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
     )
     dataset_label_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_labels.id", ondelete="CASCADE"),
+        # index on the second element of the composite primary key
         index=True,
     )
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
@@ -1148,7 +1149,12 @@ class DatasetsDatasetLabel(HasId):
         "DatasetLabel", back_populates="datasets_dataset_labels"
     )
 
-    __table_args__ = (UniqueConstraint("dataset_id", "dataset_label_id"),)
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dataset_id",
+            "dataset_label_id",
+        ),
+    )
 
 
 class DatasetVersion(HasId):
