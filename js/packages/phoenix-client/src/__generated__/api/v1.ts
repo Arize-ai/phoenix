@@ -1452,7 +1452,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1473,7 +1473,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1509,7 +1509,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1532,7 +1532,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            role: "SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
