@@ -1,5 +1,11 @@
 import { startTransition, useCallback, useEffect, useMemo } from "react";
-import { graphql, useFragment, useQueryLoader } from "react-relay";
+import {
+  graphql,
+  PreloadedQuery,
+  useFragment,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import {
   useLoaderData,
   useNavigate,
@@ -17,8 +23,12 @@ import {
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
 import { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
+import { ExperimentComparePageQueriesSelectedCompareExperimentsQuery as ExperimentComparePageQueriesSelectedCompareExperimentsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesSelectedCompareExperimentsQuery.graphql";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
-import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import {
+  ExperimentComparePageQueriesMultiSelectorQuery,
+  ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
+} from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 
 import type {
@@ -41,6 +51,14 @@ export function ExperimentComparePage() {
   const [multiSelectorQueryReference, loadMultiSelectorQuery] =
     useQueryLoader<ExperimentComparePageQueriesMultiSelectorQueryType>(
       ExperimentComparePageQueriesMultiSelectorQuery
+    );
+
+  const [
+    selectedCompareExperimentsQueryReference,
+    loadSelectedCompareExperimentsQuery,
+  ] =
+    useQueryLoader<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>(
+      ExperimentComparePageQueriesSelectedCompareExperimentsQuery
     );
 
   // The text of most IO is too long so default to showing truncated text
@@ -72,7 +90,20 @@ export function ExperimentComparePage() {
       hasBaseExperiment: baseExperimentId != null,
       baseExperimentId: baseExperimentId ?? "",
     });
-  }, [baseExperimentId, datasetId, loadMultiSelectorQuery]);
+    loadSelectedCompareExperimentsQuery({
+      datasetId,
+      experimentIds: [
+        ...(baseExperimentId ? [baseExperimentId] : []),
+        ...compareExperimentIds,
+      ],
+    });
+  }, [
+    baseExperimentId,
+    compareExperimentIds,
+    datasetId,
+    loadMultiSelectorQuery,
+    loadSelectedCompareExperimentsQuery,
+  ]);
 
   if (multiSelectorQueryReference == null) {
     return null;
@@ -101,30 +132,36 @@ export function ExperimentComparePage() {
           gap="size-150"
           alignItems="end"
         >
-          <ExperimentMultiSelector
-            queryRef={multiSelectorQueryReference}
-            selectedBaseExperimentId={baseExperimentId}
-            selectedCompareExperimentIds={compareExperimentIds}
-            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
-              startTransition(() => {
-                if (newBaseExperimentId == null) {
-                  navigate(`/datasets/${datasetId}/compare`);
-                } else {
-                  searchParams.delete("experimentId");
-                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
-                    (experimentId) => {
-                      searchParams.append("experimentId", experimentId);
-                    }
-                  );
-                  navigate(
-                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
-                  );
-                }
-              });
-            }}
-          />
+          {multiSelectorQueryReference && (
+            <ExperimentMultiSelector
+              queryRef={multiSelectorQueryReference}
+              selectedBaseExperimentId={baseExperimentId}
+              selectedCompareExperimentIds={compareExperimentIds}
+              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+                startTransition(() => {
+                  if (newBaseExperimentId == null) {
+                    navigate(`/datasets/${datasetId}/compare`);
+                  } else {
+                    searchParams.delete("experimentId");
+                    [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                      (experimentId) => {
+                        searchParams.append("experimentId", experimentId);
+                      }
+                    );
+                    navigate(
+                      `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                    );
+                  }
+                });
+              }}
+            />
+          )}
           <View flex="1" paddingBottom={5}>
-            <SelectedCompareExperiments dataRef={loaderData} />
+            {selectedCompareExperimentsQueryReference && (
+              <SelectedCompareExperiments
+                queryRef={selectedCompareExperimentsQueryReference}
+              />
+            )}
           </View>
           {
             <ExperimentCompareViewModeToggle
@@ -167,13 +204,19 @@ function ExperimentComparePageContent() {
 }
 
 export function SelectedCompareExperiments({
-  dataRef,
+  queryRef,
 }: {
-  dataRef: ExperimentComparePage_selectedCompareExperiments$key;
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>;
 }) {
   const [searchParams] = useSearchParams();
   const [, ...compareExperimentIds] = searchParams.getAll("experimentId");
   const { getExperimentColor } = useExperimentColors();
+
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>(
+      ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
+      queryRef
+    );
   const data =
     useFragment<ExperimentComparePage_selectedCompareExperiments$key>(
       graphql`
@@ -197,7 +240,7 @@ export function SelectedCompareExperiments({
           }
         }
       `,
-      dataRef
+      preloadedData
     );
   const idToExperiment = useMemo(() => {
     const idToExperiment: Record<string, Experiment> = {};
