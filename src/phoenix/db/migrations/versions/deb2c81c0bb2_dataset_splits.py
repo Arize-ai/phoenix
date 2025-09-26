@@ -75,15 +75,6 @@ def upgrade() -> None:
         ),
     )
 
-    op.create_index(
-        "ix_dataset_splits_check_unique_name",
-        "dataset_splits",
-        ["name"],
-        unique=True,
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
-    )
-
     # Create crosswalk table: dataset_splits_dataset_examples
     op.create_table(
         "dataset_splits_dataset_examples",
