@@ -773,8 +773,6 @@ CREATE TABLE public.experiment_tags (
 
 CREATE INDEX ix_experiment_tags_experiment_id ON public.experiment_tags
     USING btree (experiment_id);
-CREATE INDEX ix_experiment_tags_user_id ON public.experiment_tags
-    USING btree (user_id);
 
 
 -- Table: experiments_dataset_examples

@@ -1448,7 +1448,6 @@ class ExperimentTag(HasId):
     )
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
-        index=True,
         nullable=True,
     )
     name: Mapped[str]
