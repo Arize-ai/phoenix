@@ -1223,6 +1223,7 @@ class DatasetSplit(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]]

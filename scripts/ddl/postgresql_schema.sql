@@ -548,6 +548,8 @@ CREATE TABLE public.dataset_splits (
 
 CREATE UNIQUE INDEX ix_dataset_splits_check_unique_name ON public.dataset_splits
     USING btree (name) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_dataset_splits_user_id ON public.dataset_splits
+    USING btree (user_id);
 
 
 -- Table: dataset_splits_dataset_examples
