@@ -96,6 +96,7 @@ class DatasetSplitMutationMixin:
                 description=input.description,
                 color=input.color,
                 metadata_=input.metadata or {},
+                user_id=None,
             )
             session.add(dataset_split_orm)
             try:
@@ -345,6 +346,7 @@ class DatasetSplitMutationMixin:
                 description=input.description or None,
                 color=input.color,
                 metadata_=input.metadata or {},
+                user_id=None,
             )
             session.add(dataset_split_orm)
             try:
