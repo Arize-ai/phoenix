@@ -35,7 +35,6 @@ def upgrade() -> None:
 
     op.create_table(
         "datasets_dataset_labels",
-        sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "dataset_id",
             sa.Integer,
@@ -47,9 +46,13 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("dataset_labels.id", ondelete="CASCADE"),
             nullable=False,
+            # index on the second element of the composite primary key
             index=True,
         ),
-        sa.UniqueConstraint("dataset_id", "dataset_label_id"),
+        sa.PrimaryKeyConstraint(
+            "dataset_id",
+            "dataset_label_id",
+        ),
     )
 
 
