@@ -30,6 +30,8 @@ interface ExampleType {
   metadata: Record<string, unknown>;
 }
 
+type TaskOutputType = string;
+
 // Initialize Phoenix client
 const client = createClient();
 
