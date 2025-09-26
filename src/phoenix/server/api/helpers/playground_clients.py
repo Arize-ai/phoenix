@@ -64,9 +64,6 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
     from opentelemetry.util.types import AttributeValue
 
-    # Type alias for Google content - will be compatible with new google-genai package
-    ContentType = dict[str, Any]
-
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
