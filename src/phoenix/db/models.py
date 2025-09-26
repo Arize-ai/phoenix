@@ -1459,7 +1459,6 @@ class ExperimentTag(HasId):
     )
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    color: Mapped[str]
     experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
     user: Mapped[Optional["User"]] = relationship("User")
