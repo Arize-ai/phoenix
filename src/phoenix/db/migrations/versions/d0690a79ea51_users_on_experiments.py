@@ -1,7 +1,7 @@
 """add user_id on experiments
 
 Revision ID: d0690a79ea51
-Revises: 0df286449799
+Revises: ab513d89518b
 Create Date: 2025-08-26 19:12:47.849806
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d0690a79ea51"
-down_revision: Union[str, None] = "01a8342c9cdf"
+down_revision: Union[str, None] = "ab513d89518b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -48,6 +48,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVer
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DatasetInsertEvent
 
 from .models import V1RoutesBaseModel
@@ -478,6 +479,9 @@ async def upload_dataset(
             detail="Invalid request Content-Type",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
@@ -486,6 +490,7 @@ async def upload_dataset(
             action=action,
             name=name,
             description=description,
+            user_id=user_id,
         ),
     )
     if sync:

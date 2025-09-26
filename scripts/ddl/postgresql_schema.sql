@@ -526,11 +526,16 @@ CREATE TABLE public.dataset_versions (
     description VARCHAR,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    user_id INTEGER,
     CONSTRAINT pk_dataset_versions PRIMARY KEY (id),
     CONSTRAINT fk_dataset_versions_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_versions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_dataset_versions_dataset_id ON public.dataset_versions
