@@ -577,12 +577,9 @@ CREATE INDEX ix_dataset_splits_dataset_examples_dataset_example_id ON public.dat
 -- Table: datasets_dataset_labels
 -- ------------------------------
 CREATE TABLE public.datasets_dataset_labels (
-    id serial NOT NULL,
     dataset_id INTEGER NOT NULL,
     dataset_label_id INTEGER NOT NULL,
-    CONSTRAINT pk_datasets_dataset_labels PRIMARY KEY (id),
-    CONSTRAINT uq_datasets_dataset_labels_dataset_id_dataset_label_id
-        UNIQUE (dataset_id, dataset_label_id),
+    CONSTRAINT pk_datasets_dataset_labels PRIMARY KEY (dataset_id, dataset_label_id),
     CONSTRAINT fk_datasets_dataset_labels_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
