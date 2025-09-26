@@ -530,7 +530,7 @@ class Experiments:
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-        dangerously_set_repetitions: int = 1,
+        repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
@@ -592,9 +592,8 @@ class Experiments:
                 results. Defaults to True.
             timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
-            dangerously_set_repetitions (int): The number of times the task will be run on each
-                example. Defaults to 1. This argument is currently for internal testing purposes
-                only.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -609,8 +608,7 @@ class Experiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        _validate_repetitions(dangerously_set_repetitions)
-        repetitions = dangerously_set_repetitions
+        _validate_repetitions(repetitions)
 
         payload = {
             "version_id": dataset.version_id,
@@ -1566,7 +1564,7 @@ class AsyncExperiments:
         print_summary: bool = True,
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-        dangerously_set_repetitions: int = 1,
+        repetitions: int = 1,
     ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
@@ -1628,9 +1626,8 @@ class AsyncExperiments:
             concurrency (int): Specifies the concurrency for task execution. Defaults to 3.
             timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
                 longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
-            dangerously_set_repetitions (int): The number of times the task will be run on each
-                example. Defaults to 1. This argument is currently for internal testing purposes
-                only.
+            repetitions (int): The number of times the task will be run on each example.
+                Defaults to 1.
 
         Returns:
             RanExperiment: A dictionary containing the experiment results.
@@ -1645,8 +1642,7 @@ class AsyncExperiments:
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
-        _validate_repetitions(dangerously_set_repetitions)
-        repetitions = dangerously_set_repetitions
+        _validate_repetitions(repetitions)
 
         payload = {
             "version_id": dataset.version_id,
