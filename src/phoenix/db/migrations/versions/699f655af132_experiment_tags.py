@@ -40,6 +40,7 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
