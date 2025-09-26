@@ -56,7 +56,7 @@ def upgrade() -> None:
     op.create_table(
         "dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False),
+        sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("color", sa.String, nullable=False),
         sa.Column("metadata", JSON_, nullable=False),
@@ -72,12 +72,6 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
-        ),
-        sa.Column(
-            "deleted_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=True,
-            server_default=None,
         ),
     )
 
