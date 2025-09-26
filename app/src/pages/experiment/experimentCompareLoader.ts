@@ -31,17 +31,11 @@ export async function experimentCompareLoader(
         $baseExperimentId: ID!
         $compareExperimentIds: [ID!]!
         $experimentIds: [ID!]!
-        $hasBaseExperiment: Boolean!
         $hasCompareExperiments: Boolean!
         $includeGridView: Boolean!
         $includeListView: Boolean!
         $includeMetricsView: Boolean!
       ) {
-        ...ExperimentMultiSelector__data
-          @arguments(
-            datasetId: $datasetId
-            hasBaseExperiment: $hasBaseExperiment
-          )
         ...ExperimentComparePage_selectedCompareExperiments
           @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
         ...ExperimentCompareTable_comparisons
@@ -80,7 +74,6 @@ export async function experimentCompareLoader(
         ...(baseExperimentId ? [baseExperimentId] : []),
         ...compareExperimentIds,
       ],
-      hasBaseExperiment: baseExperimentId != null,
       includeGridView: view === "grid" && baseExperimentId != null,
       includeListView: view === "list" && baseExperimentId != null,
       includeMetricsView: view === "metrics" && baseExperimentId != null,

@@ -1,5 +1,10 @@
 import { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import {
+  graphql,
+  PreloadedQuery,
+  useFragment,
+  usePreloadedQuery,
+} from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -22,6 +27,8 @@ import { useExperimentColors } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { selectCSS } from "@phoenix/components/select/styles";
+import { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
+import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 
 import type {
   ExperimentMultiSelector__data$data,
@@ -39,22 +46,29 @@ export function ExperimentMultiSelector(props: {
     selectedBaseExperimentId: string | undefined,
     selectedCompareExperimentIds: string[]
   ) => void;
-  dataRef: ExperimentMultiSelector__data$key;
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesMultiSelectorQueryType>;
 }) {
   const {
     selectedBaseExperimentId,
     selectedCompareExperimentIds,
     onChange,
-    dataRef,
+    queryRef,
   } = props;
   const { baseExperimentColor } = useExperimentColors();
 
-  const data = useFragment(
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesMultiSelectorQueryType>(
+      ExperimentComparePageQueriesMultiSelectorQuery,
+      queryRef
+    );
+
+  const data = useFragment<ExperimentMultiSelector__data$key>(
     graphql`
       fragment ExperimentMultiSelector__data on Query
       @argumentDefinitions(
         datasetId: { type: "ID!" }
         hasBaseExperiment: { type: "Boolean!" }
+        baseExperimentId: { type: "ID!" }
       ) {
         dataset: node(id: $datasetId) {
           id
@@ -82,8 +96,9 @@ export function ExperimentMultiSelector(props: {
         }
       }
     `,
-    dataRef
+    preloadedData
   );
+
   const { allExperiments, nonBaseExperiments } = useMemo(() => {
     const allExperiments: Experiment[] = [];
     const nonBaseExperiments: Experiment[] = [];
