@@ -123,7 +123,7 @@ class AppService(Service):
         self.export_path = export_path
         self.host = host
         self.port = port
-        self.root_path = root_path  # TODO(mikeldking): Add support for root_path
+        self.root_path = root_path
         self.__primary_inferences_name = primary_inferences_name
         self.__umap_params = umap_params
         self.__reference_inferences_name = reference_inferences_name
