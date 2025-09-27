@@ -1,5 +1,14 @@
 # Changelog
 
+## [11.39.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.38.0...arize-phoenix-v11.39.0) (2025-09-27)
+
+
+### Features
+
+* **experiments:** show repetitions in the table ([#9669](https://github.com/Arize-ai/phoenix/issues/9669)) ([dfb05cb](https://github.com/Arize-ai/phoenix/commit/dfb05cbf8beff4820bd8bd173ba5a2429db7137d))
+* pin the minimum version of the client ([#9666](https://github.com/Arize-ai/phoenix/issues/9666)) ([54ffb45](https://github.com/Arize-ai/phoenix/commit/54ffb45923c3e24491f3f08ed935ca3e61b6f254))
+* update to google genai sdk ([#9591](https://github.com/Arize-ai/phoenix/issues/9591)) ([b50e82a](https://github.com/Arize-ai/phoenix/commit/b50e82a0ff20cc83a380125b38e7d783e84effcc))
+
 ## [11.38.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.37.0...arize-phoenix-v11.38.0) (2025-09-25)
 
 
