@@ -13,7 +13,6 @@ This process is similar to the [evaluation quickstart guide](https://arize.com/d
 ```bash
 pip install -q "arize-phoenix>=4.29.0"
 pip install -q openai 'httpx<0.28'
-pip install openinference-instrumentation-openai
 ```
 
 ```python
