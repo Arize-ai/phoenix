@@ -241,7 +241,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     }
                     averageRunLatencyMs
                     runCount
-                    repetitionCount
+                    repetitions
                   }
                 }
               }
@@ -425,7 +425,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <ExperimentRunOutputCell
               experimentRepetitionCount={
-                experimentInfoById[experimentId]?.repetitionCount ?? 0
+                experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}

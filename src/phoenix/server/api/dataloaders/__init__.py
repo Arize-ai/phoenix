@@ -27,7 +27,6 @@ from .experiment_repeated_run_group_annotation_summaries import (
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
 )
 from .experiment_repeated_run_groups import ExperimentRepeatedRunGroupsDataLoader
-from .experiment_repetition_counts import ExperimentRepetitionCountsDataLoader
 from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader

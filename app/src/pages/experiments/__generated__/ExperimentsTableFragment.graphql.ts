@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d78cf839363e92bea50e141f3bf0b7f0>>
+ * @generated SignedSource<<4114ce472c9772af4da56acafc7a797c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -49,7 +49,7 @@ export type ExperimentsTableFragment$data = {
         readonly project: {
           readonly id: string;
         } | null;
-        readonly repetitionCount: number;
+        readonly repetitions: number;
         readonly runCount: number;
         readonly sequenceNumber: number;
       };
@@ -248,7 +248,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "repetitionCount",
+                  "name": "repetitions",
                   "storageKey": null
                 },
                 {
@@ -409,6 +409,6 @@ return {
 };
 })();
 
-(node as any).hash = "77945d8a20a0300bd5cd5497c9af489c";
+(node as any).hash = "17186b0bb426f1417580336d6143d8a3";
 
 export default node;
