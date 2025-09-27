@@ -12,6 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
@@ -130,4 +131,14 @@ class DatasetExample(Node):
                 runs=[to_gql_experiment_run(run) for run in group.runs],
             )
             for group in repeated_run_groups
+        ]
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+    ) -> list[DatasetSplit]:
+        return [
+            to_gql_dataset_split(split)
+            for split in await info.context.data_loaders.dataset_example_splits.load(self.id_attr)
         ]

@@ -217,6 +217,13 @@ async def create_user(
             detail="Cannot create users with SYSTEM role",
         )
 
+    # TODO: Implement VIEWER role
+    if role == "VIEWER":
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="VIEWER role not yet implemented",
+        )
+
     user: models.User
     if isinstance(user_data, LocalUserData):
         password = (user_data.password or secrets.token_hex()).strip()

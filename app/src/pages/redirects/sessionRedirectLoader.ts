@@ -17,7 +17,9 @@ export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
     graphql`
       query sessionRedirectLoaderQuery($sessionId: String!) {
         session: getProjectSessionById(sessionId: $sessionId) {
-          projectId
+          project {
+            id
+          }
           id
         }
       }
@@ -28,8 +30,8 @@ export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
   ).toPromise();
 
   if (response?.session) {
-    const { projectId, id } = response.session;
-    return redirect(`/projects/${projectId}/sessions/${id}`);
+    const { project, id } = response.session;
+    return redirect(`/projects/${project.id}/sessions/${id}`);
   } else {
     throw new Error(`Session with id "${sessionId}" not found`);
   }

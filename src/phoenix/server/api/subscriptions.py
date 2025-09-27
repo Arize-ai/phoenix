@@ -26,6 +26,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import insert_experiment_with_examples_snapshot
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -43,6 +44,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -302,6 +304,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -311,9 +314,9 @@ class Subscription:
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=user_id,
             )
-            session.add(experiment)
-            await session.flush()
+            await insert_experiment_with_examples_snapshot(session, experiment)
         yield ChatCompletionSubscriptionExperiment(
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription

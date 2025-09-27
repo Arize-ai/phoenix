@@ -44,6 +44,7 @@ async def insert_dataset(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     created_at: Optional[datetime] = None,
+    user_id: Optional[int] = None,
 ) -> DatasetId:
     id_ = await session.scalar(
         insert(models.Dataset)
@@ -52,6 +53,7 @@ async def insert_dataset(
             description=description,
             metadata_=metadata,
             created_at=created_at,
+            user_id=user_id,
         )
         .returning(models.Dataset.id)
     )
@@ -64,6 +66,7 @@ async def insert_dataset_version(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     created_at: Optional[datetime] = None,
+    user_id: Optional[int] = None,
 ) -> DatasetVersionId:
     id_ = await session.scalar(
         insert(models.DatasetVersion)
@@ -72,6 +75,7 @@ async def insert_dataset_version(
             description=description,
             metadata_=metadata,
             created_at=created_at,
+            user_id=user_id,
         )
         .returning(models.DatasetVersion.id)
     )
@@ -152,6 +156,7 @@ async def add_dataset_examples(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
+    user_id: Optional[int] = None,
 ) -> Optional[DatasetExampleAdditionEvent]:
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
@@ -167,6 +172,7 @@ async def add_dataset_examples(
                 description=description,
                 metadata=metadata,
                 created_at=created_at,
+                user_id=user_id,
             )
         except Exception:
             logger.exception(f"Failed to insert dataset: {name=}")
@@ -176,6 +182,7 @@ async def add_dataset_examples(
             session=session,
             dataset_id=dataset_id,
             created_at=created_at,
+            user_id=user_id,
         )
     except Exception:
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")

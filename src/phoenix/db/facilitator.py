@@ -229,7 +229,7 @@ _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
 
 
 def _stmt_to_delete_expired_childless_records(
-    table: type[models.Base],
+    table: type[models.HasId],
     foreign_key: Union[InstrumentedAttribute[int], InstrumentedAttribute[Optional[int]]],
 ) -> ReturningDelete[tuple[int]]:
     """

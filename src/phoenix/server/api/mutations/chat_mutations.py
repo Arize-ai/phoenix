@@ -26,7 +26,10 @@ from typing_extensions import assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import get_dataset_example_revisions
+from phoenix.db.helpers import (
+    get_dataset_example_revisions,
+    insert_experiment_with_examples_snapshot,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -46,6 +49,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_tools,
     prompt_metadata,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -192,6 +196,7 @@ class ChatCompletionMutationMixin:
             ]
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -201,9 +206,9 @@ class ChatCompletionMutationMixin:
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=user_id,
             )
-            session.add(experiment)
-            await session.flush()
+            await insert_experiment_with_examples_snapshot(session, experiment)
 
         results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3

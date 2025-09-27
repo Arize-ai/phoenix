@@ -21,14 +21,20 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, View } from "@phoenix/components";
+import { Content, ContextualHelp } from "@arizeai/components";
+
+import { Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 
 import { IntCell, TextCell } from "../../components/table";
 
@@ -38,15 +44,21 @@ import {
   SessionsTableQuery,
 } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
+import { makeAnnotationColumnId } from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -115,6 +127,7 @@ export function SessionsTable(props: SessionsTableProps) {
           sessionId: { type: "String", defaultValue: null }
         ) {
           name
+          ...SessionColumnSelector_annotations
           sessions(
             first: $first
             after: $after
@@ -146,6 +159,47 @@ export function SessionsTable(props: SessionsTableProps) {
                     cost
                   }
                 }
+                sessionAnnotations {
+                  id
+                  name
+                  label
+                  score
+                  annotatorKind
+                  user {
+                    username
+                    profilePictureUrl
+                  }
+                }
+                sessionAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
+                project {
+                  id
+                  annotationConfigs {
+                    edges {
+                      node {
+                        ... on AnnotationConfigBase {
+                          annotationType
+                        }
+                        ... on CategoricalAnnotationConfig {
+                          id
+                          name
+                          optimizationDirection
+                          values {
+                            label
+                            score
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                ...SessionAnnotationSummaryGroup
               }
             }
           }
@@ -161,6 +215,85 @@ export function SessionsTable(props: SessionsTableProps) {
     }));
   }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
+
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
+  );
+  const visibleAnnotationColumnNames = useMemo(() => {
+    return Object.keys(annotationColumnVisibility).filter(
+      (name) => annotationColumnVisibility[name]
+    );
+  }, [annotationColumnVisibility]);
+
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
+    visibleAnnotationColumnNames.map((name) => {
+      return {
+        header: name,
+        enableSorting: false,
+        columns: [
+          {
+            header: `labels`,
+            accessorKey: makeAnnotationColumnId(name, "label"),
+            enableSorting: false,
+            cell: ({ row }) => {
+              const annotation = row.original.sessionAnnotationSummaries.find(
+                (annotation) => annotation.name === name
+              );
+              if (!annotation) {
+                return null;
+              }
+              return (
+                <SummaryValueLabels
+                  name={name}
+                  labelFractions={annotation.labelFractions}
+                />
+              );
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `mean score`,
+            accessorKey: makeAnnotationColumnId(name, "score"),
+            enableSorting: false,
+            cell: ({ row }) => {
+              const annotation = row.original.sessionAnnotationSummaries.find(
+                (annotation) => annotation.name === name
+              );
+              if (!annotation) {
+                return null;
+              }
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
+  const annotationColumns: ColumnDef<TableRow>[] = [
+    {
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>annotations</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Annotations
+            </Heading>
+            <Content>
+              Evaluations and human annotations logged via the API or set via
+              the UI.
+            </Content>
+          </ContextualHelp>
+        </Flex>
+      ),
+      id: "annotations",
+      accessorKey: "sessionAnnotations",
+      enableSorting: false,
+      cell: ({ row }) => {
+        return <SessionAnnotationSummaryGroupTokens session={row.original} />;
+      },
+    },
+    ...dynamicAnnotationColumns,
+  ];
+
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "session id",
@@ -180,6 +313,7 @@ export function SessionsTable(props: SessionsTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
+    ...annotationColumns,
     {
       header: "start time",
       accessorKey: "startTime",
@@ -309,6 +443,7 @@ export function SessionsTable(props: SessionsTableProps) {
       columnVisibility,
       columnSizing,
     },
+    defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
     enableSubRowSelection: false,
@@ -320,6 +455,10 @@ export function SessionsTable(props: SessionsTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns().filter((column) => {
+    // Filter out columns that are eval groupings
+    return column.columns.length === 0;
+  });
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
   const getFlatHeaders = table.getFlatHeaders;
@@ -355,7 +494,12 @@ export function SessionsTable(props: SessionsTableProps) {
         borderBottomWidth="thin"
         flex="none"
       >
-        <SessionSearchField />
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <View flex="1 1 auto">
+            <SessionSearchField />
+          </View>
+          <SessionColumnSelector columns={computedColumns} query={data} />
+        </Flex>
       </View>
       <div
         css={css`
@@ -378,6 +522,7 @@ export function SessionsTable(props: SessionsTableProps) {
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
+                    colSpan={header.colSpan}
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
@@ -396,10 +541,12 @@ export function SessionsTable(props: SessionsTableProps) {
                             },
                           }}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
                           {header.column.getIsSorted() ? (
                             <Icon
                               className="sort-icon"

@@ -9,10 +9,14 @@ import pytest
 from httpx import HTTPStatusError
 from strawberry.relay import GlobalID
 
+from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import verify_experiment_examples_junction_table
+
 
 async def test_experiments_api(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
+    db: DbSessionFactory,
 ) -> None:
     """
     A simple test of the expected flow for the experiments API flow
@@ -38,6 +42,10 @@ async def test_experiments_api(
             params={"version_id": str(version_gid)},
         )
     ).json()["data"]["examples"]
+
+    # Verify that the experiment examples snapshot was created in the junction table
+    async with db() as session:
+        await verify_experiment_examples_junction_table(session, experiment_gid)
 
     # experiments can be read using the GET /experiments route
     experiment = (await httpx_client.get(f"v1/experiments/{experiment_gid}")).json()["data"]

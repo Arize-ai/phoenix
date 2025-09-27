@@ -48,6 +48,7 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -959,6 +960,14 @@ class Query:
                 id_attr=example.id,
                 created_at=example.created_at,
             )
+        elif type_name == DatasetSplit.__name__:
+            async with info.context.db() as session:
+                dataset_split = await session.scalar(
+                    select(models.DatasetSplit).where(models.DatasetSplit.id == node_id)
+                )
+            if not dataset_split:
+                raise NotFound(f"Unknown dataset split: {id}")
+            return to_gql_dataset_split(dataset_split)
         elif type_name == Experiment.__name__:
             async with info.context.db() as session:
                 experiment = await session.scalar(
@@ -1135,6 +1144,31 @@ class Query:
         async with info.context.db() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
             data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[DatasetSplit]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            splits = await session.stream_scalars(
+                select(models.DatasetSplit).where(models.DatasetSplit.deleted_at.is_(None))
+            )
+            data = [to_gql_dataset_split(split) async for split in splits]
             return connection_from_list(
                 data=data,
                 args=args,
