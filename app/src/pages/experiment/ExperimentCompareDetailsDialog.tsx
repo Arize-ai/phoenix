@@ -1,6 +1,18 @@
-import { Fragment, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import {
@@ -19,6 +31,7 @@ import {
   Flex,
   Heading,
   Icon,
+  IconButton,
   Icons,
   LinkButton,
   Popover,
@@ -28,7 +41,10 @@ import {
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -56,6 +72,7 @@ type ExperimentRun = NonNullable<
   ExperimentCompareDetailsDialogQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
+const SIDEBAR_PANEL_DEFAULT_SIZE = 15;
 export function ExperimentCompareDetailsDialog({
   selectedExampleId,
   datasetId,
@@ -88,7 +105,7 @@ export function ExperimentCompareDetailsDialog({
                 onPrevious={onPreviousExample}
               />
             )}
-            <DialogTitle>{selectedExampleId}</DialogTitle>
+            <DialogTitle>{`Example: ${selectedExampleId}`}</DialogTitle>
           </Flex>
           <DialogTitleExtra>
             <LinkButton
@@ -341,80 +358,125 @@ function ExperimentRunOutputs({
       (experiment) => experiment.repetitions > 1
     );
   }, [experimentsById]);
-
+  const [isSideBarOpen, setIsSideBarOpen] = useState(true);
+  const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
   return (
-    <Flex gap="size-200">
-      <ExperimentRunOutputsSidebar
-        experimentIds={experimentIds}
-        experimentsById={experimentsById}
-        experimentRunsByExperimentId={experimentRunsByExperimentId}
-        selectedExperimentRuns={selectedExperimentRuns}
-        updateExperimentSelection={updateExperimentSelection}
-        updateRepetitionSelection={updateRepetitionSelection}
-        includeRepetitions={includeRepetitions}
-      />
-      {noRunsSelected && <Empty message="No runs selected" />}
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: row;
-          flex-wrap: none;
-          gap: var(--ac-global-dimension-static-size-200);
-          overflow-x: auto;
-          padding: var(--ac-global-dimension-static-size-200);
-        `}
-      >
-        {experimentIds.map((experimentId, experimentIndex) => {
-          const experiment = experimentsById[experimentId];
-          const experimentRuns = experimentRunsByExperimentId[experimentId];
-          const experimentRunsToDisplay = getSelectedExperimentRuns(
-            experimentId,
-            selectedExperimentRuns,
-            experimentRunsByExperimentId
-          );
-          const renderNoRunCard = shouldRenderNoRunCard(
-            experimentId,
-            experimentRuns,
-            selectedExperimentRuns
-          );
+    <PanelGroup direction="horizontal">
+      {isSideBarOpen ? (
+        <Panel
+          defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
+          ref={sidebarPanelRef}
+          collapsible
+          onCollapse={() => setIsSideBarOpen(false)}
+        >
+          <ExperimentRunOutputsSidebar
+            experimentIds={experimentIds}
+            experimentsById={experimentsById}
+            experimentRunsByExperimentId={experimentRunsByExperimentId}
+            selectedExperimentRuns={selectedExperimentRuns}
+            updateExperimentSelection={updateExperimentSelection}
+            updateRepetitionSelection={updateRepetitionSelection}
+            includeRepetitions={includeRepetitions}
+          />
+        </Panel>
+      ) : null}
+      {isSideBarOpen ? (
+        <PanelResizeHandle css={compactResizeHandleCSS} />
+      ) : null}
+      <Panel>
+        <View
+          paddingX="size-200"
+          paddingY="size-100"
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+        >
+          <Flex direction="row" gap="size-200" alignItems="center">
+            <IconButton
+              size="S"
+              aria-label="Toggle side bar"
+              onPress={() => {
+                setIsSideBarOpen(!isSideBarOpen);
+                const sidebarPanel = sidebarPanelRef.current;
+                // expand the panel if it is not the minimum size already
+                if (sidebarPanel) {
+                  const size = sidebarPanel.getSize();
+                  if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
+                    sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+                  }
+                }
+              }}
+            >
+              <Icon
+                svg={isSideBarOpen ? <Icons.SlideOut /> : <Icons.SlideIn />}
+              />
+            </IconButton>
+            <Heading>Experiment Runs</Heading>
+          </Flex>
+        </View>
+        {noRunsSelected && <Empty message="No runs selected" />}
+        <ul
+          css={css`
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            flex-wrap: none;
+            gap: var(--ac-global-dimension-static-size-200);
+            overflow-x: auto;
+            padding: var(--ac-global-dimension-static-size-200);
+          `}
+        >
+          {experimentIds.map((experimentId, experimentIndex) => {
+            const experiment = experimentsById[experimentId];
+            const experimentRuns = experimentRunsByExperimentId[experimentId];
+            const experimentRunsToDisplay = getSelectedExperimentRuns(
+              experimentId,
+              selectedExperimentRuns,
+              experimentRunsByExperimentId
+            );
+            const renderNoRunCard = shouldRenderNoRunCard(
+              experimentId,
+              experimentRuns,
+              selectedExperimentRuns
+            );
 
-          if (renderNoRunCard) {
-            return (
+            if (renderNoRunCard) {
+              return (
+                <li
+                  key={experimentId}
+                  css={css`
+                    // Make them all the same size
+                    flex: none;
+                  `}
+                >
+                  <ExperimentItem
+                    experiment={experiment}
+                    experimentIndex={experimentIndex}
+                    includeRepetitions={includeRepetitions}
+                  />
+                </li>
+              );
+            }
+
+            return experimentRunsToDisplay.map((run) => (
               <li
-                key={experimentId}
+                key={run.id}
                 css={css`
                   // Make them all the same size
-                  flex: 1 1 0px;
+                  flex: none;
                 `}
               >
                 <ExperimentItem
                   experiment={experiment}
+                  experimentRun={run}
                   experimentIndex={experimentIndex}
                   includeRepetitions={includeRepetitions}
                 />
               </li>
-            );
-          }
-
-          return experimentRunsToDisplay.map((run) => (
-            <li
-              key={run.id}
-              css={css`
-                // Make them all the same size
-                flex: 1 1 0px;
-              `}
-            >
-              <ExperimentItem
-                experiment={experiment}
-                experimentRun={run}
-                experimentIndex={experimentIndex}
-                includeRepetitions={includeRepetitions}
-              />
-            </li>
-          ));
-        })}
-      </ul>
-    </Flex>
+            ));
+          })}
+        </ul>
+      </Panel>
+    </PanelGroup>
   );
 }
 
