@@ -90,7 +90,6 @@ __all__ = [
     "ExperimentErrorRatesDataLoader",
     "ExperimentRepeatedRunGroupsDataLoader",
     "ExperimentRepeatedRunGroupAnnotationSummariesDataLoader",
-    "ExperimentRepetitionCountsDataLoader",
     "ExperimentRunAnnotations",
     "ExperimentRunCountsDataLoader",
     "ExperimentSequenceNumberDataLoader",
