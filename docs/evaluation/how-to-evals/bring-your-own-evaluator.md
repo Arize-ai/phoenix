@@ -4,38 +4,21 @@ description: >-
   scratch.
 ---
 
-# Build an Eval
+# Building Custom Evaluators
 
-### Before you begin:
+While pre-built evals offer convenience, the best evals are ones you custom build for your specific use case. In this guide, we show how to build two types of custom "LLM-as-a-judge" style evaluators:
 
-You'll need two things to build your own LLM Eval:&#x20;
+1. A custom [`ClassificationEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#classificationevaluator) that returns categorical labels.
 
-1. A **dataset** to evaluate
-2. A **template prompt** to use as the evaluation prompt on each row of data.
+2. A custom [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) that rates data on a numeric scale.
 
-The dataset can have any columns you like, and the template can be structured however you like. The only requirement is that the dataset has all the columns your template uses.
 
-We have two examples of templates below: `CATEGORICAL_TEMPLATE` and `SCORE_TEMPLATE`. The first must be used alongside a dataset with columns `query` and `reference`. The second must be used with a dataset that includes a column called `context`.
+## Classification Evals
 
-Feel free to set up your template however you'd like to match your dataset.
+The `ClassificationEvaluator` is a special LLM-based evaluator designed for classification (both binary and multi-class). It leverages LLM structured-output or tool-calling functionality 
+to ensure consistent and parseable output; this evaluator will only respond with one of the provided label choices and, optionally, an explanation for the judgement.
 
-### Preparing your data
-
-You will need a dataset of results to evaluate. This dataset should be a pandas dataframe. If you are already collecting traces with Phoenix, you can [export these traces](../../tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md) and use them as the dataframe to evaluate:
-
-```python
-trace_df = px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
-```
-
-If your eval should have categorical outputs, use `llm_classify`.
-
-If your eval should have numeric outputs, use `llm_generate`.
-
-### Categorical - llm\_classify
-
-The `llm_classify` function is designed for classification support both Binary and Multi-Class. The llm\_classify function ensures that the output is clean and is either one of the "classes" or "UNPARSABLE"
-
-A binary template looks like the following with only two values "irrelevant" and "relevant" that are expected from the LLM output:
+A classification prompt template looks like the following with instructions for the evaluation as well as placeholders for the evaluation input data:
 
 ```python
 CATEGORICAL_TEMPLATE = ''' You are comparing a reference text to a question and trying to determine if the reference text
@@ -50,161 +33,153 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can answer the Question. Please focus on whether the very specific
 question can be answered by the information in the Reference text.
-Your response must be single word, either "relevant" or "irrelevant",
-and should not contain any text or characters aside from that word.
 "irrelevant" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question. '''
 ```
 
-The categorical template defines the expected output of the LLM, and the rails define the classes expected from the LLM:
+For more information about prompt templates, see the API Reference for [Prompt Template](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#prompt-template).
 
-* irrelevant
-* relevant
+### Label Choices 
+
+While the prompt template contains instructions for the LLM, the label choices tell it how to format its response. 
+
+The `choices` of a `ClassificationEvaluator` can be structured in a couple of ways: 
+
+1. A list of string labels only: `choices=["relevant", "irrelevant"]` *
+2. String labels mapped to numeric scores: `choices = {"irrelevant": 0, "relevant": 1}`
+
+\* note: if no score mapping is provided, the returned `Score` objects will have a `label` but not a numeric `score` component. 
+
+The `ClassificationEvaluator` also supports multi-class labels and scores, for example: `choices = {"good": 1.0, "bad": 0.0, "neutral": 0.5}`
+
+### Putting it together
+```python
+from phoenix.evals ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+choices = {"irrelevant": 0, "relevant": 1}
+
+relevance_classifier = ClassificationEvaluator(
+    name="relevance",
+    prompt_template=CATEGORICAL_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices=choices
+)
+results = relevance_classifier.evaluate({"query": "input query goes here", "reference": "document text goes here"})
+```
+
+
+
+## Custom Numeric Rating LLM Evaluator
+
+We do not have a pre-built `LLMEvaluator` designed for LLM judges that produce numeric ratings, since classification-style evals are more widely used and generally more reliable. 
+That said, it is still possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) class. 
 
 ```python
-from phoenix.evals import (
-    llm_classify,
-    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
-    # for a full list of supported models
-)
-
-# The rails are used to hold the output to specific values based on the template
-# It will remove text such as ",,," or "..."
-# Will ensure the binary value expected from the template is returned
-rails = ["irrelevant", "relevant"]
-#MultiClass would be rails = ["irrelevant", "relevant", "semi-relevant"]
-relevance_classifications = llm_classify(
-    dataframe=<YOUR_DATAFRAME_GOES_HERE>,
-    template=CATEGORICAL_TEMPLATE,
-    model=OpenAIModel('gpt-4o', api_key=''),
-    rails=rails
-)
-```
-
-#### Snap to Rails Function
-
-The classify uses a `snap_to_rails` function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.
-
-```
-#Rails examples
-#Removes extra information and maps to class
-llm_output_string = "The answer is relevant...!"
-> "relevant"
-
-#Removes "." and capitalization from LLM output and maps to class
-llm_output_string = "Irrelevant."
->"irrelevant"
-
-#No class in response
-llm_output_string = "I am not sure!"
->"UNPARSABLE"
-
-#Both classes in response
-llm_output_string = "The answer is relevant i think, or maybe irrelevant...!"
->"UNPARSABLE"
-
-```
-
-A common use case is mapping the class to a 1 or 0 numeric value.
-
-### Numeric - llm\_generate
-
-The Phoenix library does support numeric score Evals if you would like to use them. A template for a score Eval looks like the following:
-
-```
 SCORE_TEMPLATE = """
-You are a helpful AI bot that checks for grammatical, spelling and typing errors
-in a document context. You are going to return a continuous score for the
+You are an expert copy editor that checks for grammatical, spelling and typing errors
+in a document context. You are going to return a rating for the
 document based on the percent of grammatical and typing errors. The score should be
-between 10 and 1. A score of 1 will be no grammatical errors in any word,
-a score of 2 will be 20% of words have errors, a 5 score will be 50% errors,
-a score of 7 is 70%, and a 10 score will be all words in the context have
-grammatical errors.
+between 1 and 10, where 1 means no words have errors and 10 means all words have errors. 
 
-The following is the document context.
+Example Scoring Rubric
+1: no grammatical errors in any word
+2: 20% of words have errors
+5: 50% of words have errors 
+7: 70% of words have errors 
+10: all of the words in the context have errors 
 
 #CONTEXT
 {context}
 #ENDCONTEXT
 
 #QUESTION
-Please return a score between 10 and 1.
-You will return no other text or language besides the score. Only return the score.
-Please return in a format that is "the score is: 10" or "the score is: 1"
+Please rate the percentage of errors in the context on a scale from 1 to 10. 
 """
 ```
 
-We use the more generic `llm_generate` function that can be used for almost any complex eval that doesn't fit into the categorical type.
+We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the categorical type. 
 
-<pre class="language-python"><code class="lang-python">from phoenix.evals import (
-    llm_generate,
-    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
-    # for a full list of supported models
-)
-
-<strong>test_results = llm_generate(
-</strong>    dataframe=&#x3C;YOUR_DATAFRAME_GOES_HERE>,
-    template=SCORE_TEMPLATE,
-    model=OpenAIModel(model='gpt-4o', api_key=''),
-    verbose=True,
-    # Callback function that will be called for each row of the dataframe
-    output_parser=numeric_score_eval,
-    # These two flags will add the prompt / response to the returned dataframe
-    include_prompt=True,
-    include_response=True,
-)
-
-def numeric_score_eval(output, row_index):
-    # This is the function that will be called for each row of the 
-    # dataframe after the eval is run
-    row = df.iloc[row_index]
-    score = self.find_score(output)
-
-    return {"score": score}
-
-def find_score(self, output):
-    # Regular expression pattern
-    # It looks for 'score is', followed by any characters (.*?), and then a float or integer
-    pattern = r"score is.*?([+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)"
-
-    match = re.search(pattern, output, re.IGNORECASE)
-    if match:
-        # Extract and return the number
-        return float(match.group(1))
-    else:
-        return None
-</code></pre>
-
-The above is an example of how to run a score based Evaluation.
-
-### Logging Evaluations to Phoenix
-
-{% hint style="warning" %}
-In order for the results to show in Phoenix, make sure your `test_results` dataframe has a column `context.span_id` with the corresponding span id. This value comes from Phoenix when you export traces from the platform. If you've brought in your own dataframe to evaluate, this section does not apply.
-{% endhint %}
-
-<details>
-
-<summary>Log Evals to Phoenix</summary>
-
-Use the following method to log the results of either the `llm_classify` or `llm_generate` calls to Phoenix:
+Steps to create a custom evaluator: 
+1. Create a new class that interhits the Base (`LLMEvaluator`)
+2. Define your prompt template and a JSON schema for the structured output.
+3. Initialize the base class with a name, LLM, prompt template, and direction. 
+4. Implement the `_evaluate` method that takes an `eval_input` and returns a list of `Score` objects.
+The base class handles the input_mapping logic so you can assume the input here has the required input fields.
 
 ```python
-from phoenix.trace import SpanEvaluations
+from phoenix.evals.evaluators import LLMEvaluator, EvalInput, Score
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Your Eval Display Name", dataframe=test_results)
-)
+class SpellingEvaluator(LLMEvaluator):
+
+    PROMPT = SCORE_TEMPLATE # use the prompt defined above
+
+    TOOL_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "An integer rating between 1 and 10"
+            },
+            "explanation": {
+            "type": "string",
+            "description": "A brief explanation for the rating"
+            }
+        },
+        "required": ["rating", "explanation"]
+    }
+
+    def __init__(
+        self,
+        llm: LLM, # define LLM at instantiation 
+    ):
+        super().__init__(
+            name="spelling_evaluator",
+            llm=llm,
+            prompt_template=self.PROMPT,
+            direction="minimize", # lower scores = better, so direction = minimize 
+        )
+
+    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+        prompt_filled = self.prompt_template.render(variables=eval_input)
+        
+        response = self.llm.generate_object(
+            prompt=prompt_filled,
+            schema=self.TOOL_SCHEMA,
+        ) # will use either structured output or tool calling depending on model capabilities 
+        rating = response["rating"]
+        explanation = response.get("explanation", None)
+        return [
+            Score(
+                score=rating,
+                name=self.name,
+                explanation=explanation,
+                metadata={"model": self.llm.model},  # could add more metadata here if you want
+                source=self.source,
+                direction=self.direction,
+            )
+        ]
 ```
 
-This method will show aggregate results in Phoenix.
+You can now use your custom evaluator like any other LLM-based evaluator: 
 
-</details>
+
+```python
+spelling_evaluator = SpellingEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+spelling_evaluator.evaluate(
+    eval_input={"context": "This is a test. There are is some typo in this sentence."}
+)
+>>> [Score(name='spelling_evaluator', score=2, label=None, explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, source='llm', direction='minimize')]
+```
 
 ### Improving your Custom Eval
 
-At this point, you've constructed a custom Eval, but you have no understanding of how accurate that Eval is. To test your eval, you can use the same techniques that you use to iterate and improve on your application.
+As with all evals, it is important to test that your custom evaluators are working as expected before trusting them at scale. When testing an eval, you use many of the same techniques used for testing your application:
 
-1. Start with a labeled ground truth set of data. Each input would be a row of your dataframe of examples, and each labeled output would be the correct judge label
-2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [hallucinations.md](running-pre-tested-evals/hallucinations.md "mention")
-3. Tweak your prompt and retest. See [Broken link](broken-reference "mention") for an example of how to do this in an automated way.
+1. Start with a labeled ground truth set of data. Each input would be an example, and each labeled output would be the correct judge label.
+2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. 
+3. Tweak your prompt and retest. See these notebooks for more in-depth examples:
+    * [Optimizing LLM-as-a-judge prompts](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/optimizing_llm_as_a_judge_prompts.ipynb)
+    * [Custom LLM-as-a-judge using a Benchmark Dataset](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/build_benchmark_dataset_and_custom_evaluator.ipynb)
