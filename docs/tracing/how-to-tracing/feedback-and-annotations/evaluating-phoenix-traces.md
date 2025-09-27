@@ -97,9 +97,9 @@ print(f"Generated {len(jokes)} jokes and tracked them in Phoenix.")
 ### Download trace dataset from Phoenix
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-spans_df = px.Client().get_spans_dataframe(project_name="evaluating_traces_quickstart")
+spans_df = Client().spans.get_spans_dataframe(project_name="evaluating_traces_quickstart")
 spans_df.head()
 ```
 
@@ -110,8 +110,7 @@ Now that we have our trace dataset, we can generate evaluations for each trace. 
 You can generate evaluations using:
 
 * Plain code
-* Phoenix's [built-in LLM as a Judge evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
-* Your own [custom LLM as a Judge evaluator](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
+* The [Phoenix evals](https://arize.com/docs/phoenix/evaluation/llm-evals) library, which supports both built-in and custom evaluators.  
 * Other evaluation packages
 
 As long as you format your evaluation results properly, you can upload them to Phoenix and visualize them in the UI.
@@ -159,9 +158,9 @@ eval_df["label"] = eval_df["label"].astype(str)
 ```
 
 ```python
-from phoenix.trace import SpanEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(SpanEvaluations(eval_name="Duplicate", dataframe=eval_df))
+Client().spans.log_span_annotations_dataframe(dataframe=eval_df, annotation_name="duplicate", annotator_kind="CODE")
 ```
 
 You should now see evaluations in the Phoenix UI!
