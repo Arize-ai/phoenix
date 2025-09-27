@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
+import { css } from "@emotion/react";
 
 import { Checkbox, CheckboxProps } from "@phoenix/components/checkbox";
-
 /**
  * A checkbox that can be in an indeterminate state.
  * Borrowed from tanstack/react-table example code.
@@ -21,10 +21,10 @@ export function IndeterminateCheckboxCell(checkboxProps: CheckboxProps) {
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        padding: "var(--ac-global-dimension-size-100)",
-        cursor: "pointer",
-      }}
+      css={css`
+        cursor: pointer;
+        padding: var(--ac-global-dimension-size-25);
+      `}
     >
       <Checkbox inputRef={ref} isHovered={isHovered} {...checkboxProps} />
     </div>
