@@ -158,7 +158,7 @@ export function ExperimentsTable({
                 metadata
                 errorRate
                 runCount
-                repetitionCount
+                repetitions
                 averageRunLatencyMs
                 project {
                   id
@@ -331,7 +331,7 @@ export function ExperimentsTable({
   const tailColumns: ColumnDef<TableRow>[] = [
     {
       header: "repetitions",
-      accessorKey: "repetitionCount",
+      accessorKey: "repetitions",
       meta: {
         textAlign: "right",
       },

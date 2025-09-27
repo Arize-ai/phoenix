@@ -193,10 +193,6 @@ class Experiment(Node):
                 async for token_type, is_prompt, cost, tokens in data
             ]
 
-    @strawberry.field
-    async def repetition_count(self, info: Info[Context, None]) -> int:
-        return await info.context.data_loaders.experiment_repetition_counts.load(self.id_attr)
-
 
 def to_gql_experiment(
     experiment: models.Experiment,
