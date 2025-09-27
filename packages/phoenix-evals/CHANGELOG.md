@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.1.0...arize-phoenix-evals-v2.2.0) (2025-09-27)
+
+
+### Features
+
+* **evals:** add document relevance evaluator ([#9661](https://github.com/Arize-ai/phoenix/issues/9661)) ([34b583f](https://github.com/Arize-ai/phoenix/commit/34b583f85128f35ff0d8c85ce13343b2b7e66c9c))
+* **evals:** add utility to format dataframe evaluations as annotations for logging to Phoenix ([#9610](https://github.com/Arize-ai/phoenix/issues/9610)) ([58cce2b](https://github.com/Arize-ai/phoenix/commit/58cce2bbe838aace1995f32cb17cbcf26bbb08bd))
+
 ## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.1...arize-phoenix-evals-v2.1.0) (2025-09-24)
 
 
