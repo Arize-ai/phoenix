@@ -13,6 +13,7 @@ This process is similar to the [evaluation quickstart guide](https://arize.com/d
 ```bash
 pip install -q "arize-phoenix>=4.29.0"
 pip install -q openai 'httpx<0.28'
+pip install openinference-instrumentation-openai
 ```
 
 ```python
@@ -115,6 +116,7 @@ You can generate evaluations using:
 
 As long as you format your evaluation results properly, you can upload them to Phoenix and visualize them in the UI.
 
+### Code Eval Example
 Let's start with a simple example of generating evaluations using plain code. OpenAI has a habit of repeating jokes, so we'll generate evaluations to label whether a joke is a repeat of a previous joke.
 
 ```python
@@ -141,6 +143,8 @@ eval_df["label"] = eval_df["attributes.llm.output_messages"].apply(is_duplicate)
 
 # Convert boolean to integer (0 for False, 1 for True)
 eval_df["label"] = eval_df["label"]
+eval_df["score"] = eval_df["label"].astype(int)
+eval_df["label"] = eval_df["label"].astype(str)
 
 # Reset unique_jokes list to ensure correct results if the cell is run multiple times
 unique_jokes.clear()
@@ -152,10 +156,6 @@ We now have a DataFrame with a column for whether each joke is a repeat of a pre
 
 Our evals\_df has a column for the span\_id and a column for the evaluation result. The span\_id is what allows us to connect the evaluation to the correct trace in Phoenix. Phoenix will also automatically look for columns named "label" and "score" to display in the UI.
 
-```python
-eval_df["score"] = eval_df["score"].astype(int)
-eval_df["label"] = eval_df["label"].astype(str)
-```
 
 ```python
 from phoenix.client import Client
@@ -164,6 +164,51 @@ Client().spans.log_span_annotations_dataframe(dataframe=eval_df, annotation_name
 ```
 
 You should now see evaluations in the Phoenix UI!
+
+### LLM Eval Example 
+
+Let's use the [Phoenix Evals](https://arize.com/docs/phoenix/evaluation/evals) library to define an LLM-as-a-judge evaluator that classifies jokes as either 
+"nerdy" or "not nerdy." 
+
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+prompt_template = """
+Determine whether the following joke can be classified as "nerdy" or "not nerdy".
+A nerdy joke is defined as a joke that is related to science, math, or technology.
+
+Joke: {joke}
+"""
+
+nerdy_evaluator = ClassificationEvaluator(
+    name="nerdiness_evaluator",
+    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    prompt_template=prompt_template,
+    choices=["nerdy", "not nerdy"], # you could map these labels to scores, but we refrain from judgement here
+)
+```
+
+Let's run this evaluator on our dataset of traces. 
+
+```python
+from phoenix.evals import async_evaluate_dataframe
+
+# isolate the joke content in its own column  
+eval_df["joke"] = eval_df["attributes.llm.output_messages"].apply(lambda x: x[0]["message.content"])
+
+results_df = async_evaluate_dataframe(eval_df, evaluators=[nerdy_evaluator])
+```
+
+And then upload the results to Phoenix as annotations. 
+
+```python
+from phoenix.client import Client
+from phoenix.evals.utils import to_annotation_dataframe
+
+annotation_df = to_annotation_dataframe(results_df)
+Client().spans.log_span_annotations_dataframe(dataframe=annotation_df)
+```
 
 From here you can continue collecting and evaluating traces, or move on to one of these other guides:
 
