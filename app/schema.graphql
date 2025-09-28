@@ -1243,7 +1243,7 @@ type Experiment implements Node {
 
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
-  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
@@ -1384,6 +1384,11 @@ enum ExperimentRunAnnotatorKind {
   CODE
 }
 
+input ExperimentRunColumn @oneOf {
+  metric: ExperimentRunMetric
+  annotationName: String
+}
+
 """A connection to a list of items."""
 type ExperimentRunConnection {
   """Pagination data for this connection"""
@@ -1400,6 +1405,10 @@ type ExperimentRunEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRun!
+}
+
+enum ExperimentRunMetric {
+  latencyMs
 }
 
 type ExperimentRunMetricComparison {
@@ -1432,6 +1441,12 @@ type ExperimentRunMetricComparisons {
   totalCost: ExperimentRunMetricComparison!
   promptCost: ExperimentRunMetricComparison!
   completionCost: ExperimentRunMetricComparison!
+}
+
+"""The sort key and direction for experiment run connections"""
+input ExperimentRunSort {
+  col: ExperimentRunColumn!
+  dir: SortDir!
 }
 
 type ExportedFile {

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from statistics import mean
 from typing import Any
 
@@ -8,6 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -40,24 +41,200 @@ async def test_experiment_resolver_returns_sequence_number(
     }
 
 
-async def test_runs_resolver_returns_runs_for_experiment(
+@pytest.mark.parametrize(
+    ("variables", "expected_run_ids"),
+    [
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "first": 3,
+            },
+            [1, 2, 3],
+            id="no-sort",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "metric": "latencyMs",
+                    },
+                    "dir": "asc",
+                },
+                "first": 3,
+            },
+            [1, 2, 3],
+            id="latency-ms-asc-sort",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "metric": "latencyMs",
+                    },
+                    "dir": "asc",
+                },
+                "after": str(
+                    Cursor(
+                        rowid=1,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.FLOAT, value=1000.0
+                        ),
+                    )
+                ),
+                "first": 3,
+            },
+            [2, 3, 4],
+            id="latency-ms-asc-sort-after",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "metric": "latencyMs",
+                    },
+                    "dir": "desc",
+                },
+                "after": str(
+                    Cursor(
+                        rowid=6,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.FLOAT, value=6000.0
+                        ),
+                    )
+                ),
+                "first": 3,
+            },
+            [5, 4, 3],
+            id="latency-ms-desc-sort-after",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "metric": "latencyMs",
+                    },
+                    "dir": "desc",
+                },
+                "first": 3,
+            },
+            [6, 5, 4],
+            id="latency-ms-desc-sort",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "annotationName": "correctness",
+                    },
+                    "dir": "asc",
+                },
+            },
+            [1, 2, 3, 4, 5, 6],
+            id="correctness-asc-sort",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "annotationName": "correctness",
+                    },
+                    "dir": "desc",
+                },
+            },
+            [2, 1, 6, 5, 4, 3],
+            id="correctness-desc-sort",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "annotationName": "correctness",
+                    },
+                    "dir": "desc",
+                },
+                "after": str(
+                    Cursor(
+                        rowid=2,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.FLOAT, value=1.0
+                        ),
+                    )
+                ),
+                "first": 2,
+            },
+            [1],
+            id="correctness-desc-sort-after",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "annotationName": "correctness",
+                    },
+                    "dir": "asc",
+                },
+                "after": str(
+                    Cursor(
+                        rowid=3,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.NULL, value=None
+                        ),
+                    )
+                ),
+                "first": 2,
+            },
+            [4, 5],
+            id="correctness-asc-sort-null-after",
+        ),
+        pytest.param(
+            {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "sort": {
+                    "col": {
+                        "annotationName": "correctness",
+                    },
+                    "dir": "desc",
+                },
+                "after": str(
+                    Cursor(
+                        rowid=3,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.NULL, value=None
+                        ),
+                    )
+                ),
+                "first": 2,
+            },
+            [2, 1],
+            id="correctness-desc-sort-null-after",
+        ),
+    ],
+)
+async def test_runs_resolver_returns_runs_for_experiment_in_expected_order(
     gql_client: AsyncGraphQLClient,
+    variables: dict[str, Any],
+    expected_run_ids: list[int],
     dataset_with_experiment_runs: Any,
+    db: DbSessionFactory,
 ) -> None:
+    # async with db() as session:
+    #     result = await session.execute(select(_get_mean_annotation_scores_subquery("correctness")))
     query = """
-      query ($experimentId: ID!) {
+      query ($experimentId: ID!, $first: Int, $after: String, $sort: ExperimentRunSort) {
         experiment: node(id: $experimentId) {
           ... on Experiment {
-            runs {
+            runs(first: $first, after: $after, sort: $sort) {
               edges {
                 run: node {
                   id
-                  experimentId
-                  traceId
-                  output
-                  startTime
-                  endTime
-                  error
                 }
               }
             }
@@ -67,52 +244,15 @@ async def test_runs_resolver_returns_runs_for_experiment(
     """
     response = await gql_client.execute(
         query=query,
-        variables={
-            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-        },
+        variables=variables,
     )
     assert not response.errors
-    assert response.data == {
-        "experiment": {
-            "runs": {
-                "edges": [
-                    {
-                        "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": "run-1-output-value",
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
-                        }
-                    },
-                    {
-                        "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(2))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": "trace-id",
-                            "output": {"run-2-output-key": "run-2-output-value"},
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
-                        }
-                    },
-                    {
-                        "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
-                            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "traceId": None,
-                            "output": 12345,
-                            "startTime": "2020-01-01T00:00:00+00:00",
-                            "endTime": "2020-01-01T00:00:00+00:00",
-                            "error": None,
-                        }
-                    },
-                ]
-            }
-        }
-    }
+    assert response.data
+    actual_run_ids = [
+        int(GlobalID.from_id(edge["run"]["id"]).node_id)
+        for edge in response.data["experiment"]["runs"]["edges"]
+    ]
+    assert actual_run_ids == expected_run_ids
 
 
 async def test_run_count_resolver_returns_correct_counts(
@@ -424,8 +564,9 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
     """
     A dataset with an associated experiment with three runs: one that has no
     associated trace, one that has an associated trace, and one that has a
-    non-existent trace.
+    non-existent trace. The runs monotonically increase in latency.
     """
+    start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     async with db() as session:
         project = models.Project(name="project-name")
         session.add(project)
@@ -434,8 +575,8 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
         trace = models.Trace(
             trace_id="trace-id",
             project_rowid=project.id,
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=2),
         )
         session.add(trace)
 
@@ -489,8 +630,8 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             dataset_example_id=example.id,
             output={"task_output": "run-1-output-value"},
             repetition_number=1,
-            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=1),
         )
         session.add(experiment_run_without_trace)
 
@@ -500,8 +641,8 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             output={"task_output": {"run-2-output-key": "run-2-output-value"}},
             trace_id="trace-id",
             repetition_number=2,
-            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=2),
         )
         session.add(experiment_run_with_trace)
 
@@ -511,10 +652,91 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             output={"task_output": 12345},
             trace_id="non-existent-trace-id",
             repetition_number=3,
-            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=3),
         )
         session.add(experiment_run_with_missing_trace)
+        await session.flush()
+
+        experiment_run_without_trace_2 = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": "run-4-output-value"},
+            repetition_number=4,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=4),
+        )
+        session.add(experiment_run_without_trace_2)
+        await session.flush()
+
+        experiment_run_without_trace_3 = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": "run-5-output-value"},
+            repetition_number=5,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=5),
+        )
+        session.add(experiment_run_without_trace_3)
+        await session.flush()
+
+        experiment_run_without_trace_4 = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=example.id,
+            output={"task_output": "run-6-output-value"},
+            repetition_number=6,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=6),
+        )
+        session.add(experiment_run_without_trace_4)
+        await session.flush()
+
+        # Add annotations for the first three experiment runs
+        # The first two runs are annotated with a score, the third run has no score.
+        annotation_1 = models.ExperimentRunAnnotation(
+            experiment_run_id=experiment_run_without_trace.id,
+            name="correctness",
+            annotator_kind="CODE",
+            label=None,
+            score=0.0,
+            explanation=None,
+            trace_id=None,
+            error=None,
+            metadata_={},
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=1),
+        )
+        session.add(annotation_1)
+
+        annotation_2 = models.ExperimentRunAnnotation(
+            experiment_run_id=experiment_run_with_trace.id,
+            name="correctness",
+            annotator_kind="CODE",
+            label=None,
+            score=1.0,
+            explanation=None,
+            trace_id=None,
+            error=None,
+            metadata_={},
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=2),
+        )
+        session.add(annotation_2)
+
+        annotation_3 = models.ExperimentRunAnnotation(
+            experiment_run_id=experiment_run_with_missing_trace.id,
+            name="correctness",
+            annotator_kind="CODE",
+            label="correct",
+            score=None,
+            explanation=None,
+            trace_id=None,
+            error=None,
+            metadata_={},
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=3),
+        )
+        session.add(annotation_3)
         await session.flush()
 
 
