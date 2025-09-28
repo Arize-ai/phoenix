@@ -1108,7 +1108,6 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
-  repetitionCount: Int!
 }
 
 type ExperimentAnnotationSummary {

@@ -99,7 +99,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
@@ -737,7 +736,6 @@ def create_graphql_router(
                     db
                 ),
                 experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
-                experiment_repetition_counts=ExperimentRepetitionCountsDataLoader(db),
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
