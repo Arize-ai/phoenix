@@ -36,7 +36,9 @@ export function PlaygroundConfigButton() {
         size="S"
         aria-label="Playground Settings"
         leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
-        isDisabled={isRunning || !hasSelectedDataset}
+        isDisabled={
+          isRunning || !hasSelectedDataset // This modal shows only repetitions, which are currently supported only for dataset mode
+        }
       />
       <Popover>
         <PopoverArrow />
