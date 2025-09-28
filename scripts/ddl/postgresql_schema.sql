@@ -751,7 +751,6 @@ CREATE TABLE public.experiment_tags (
     user_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    color VARCHAR NOT NULL,
     CONSTRAINT pk_experiment_tags PRIMARY KEY (id),
     CONSTRAINT uq_experiment_tags_dataset_id_name
         UNIQUE (dataset_id, name),
