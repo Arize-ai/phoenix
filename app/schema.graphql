@@ -187,11 +187,6 @@ type CategoricalAnnotationValue {
   score: Float
 }
 
-type ChatCompletionFunctionCall {
-  name: String!
-  arguments: String!
-}
-
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
@@ -225,19 +220,6 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-type ChatCompletionMutationError {
-  message: String!
-}
-
-type ChatCompletionMutationPayload {
-  content: String
-  toolCalls: [ChatCompletionToolCall!]!
-  span: Span!
-  errorMessage: String
-}
-
-union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
-
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
@@ -252,20 +234,6 @@ input ChatCompletionOverDatasetInput {
   experimentDescription: String = null
   experimentMetadata: JSON = {}
   promptName: Identifier = null
-}
-
-type ChatCompletionOverDatasetMutationExamplePayload {
-  datasetExampleId: ID!
-  repetitionNumber: Int!
-  experimentRunId: ID!
-  result: ChatCompletionMutationPayloadChatCompletionMutationError!
-}
-
-type ChatCompletionOverDatasetMutationPayload {
-  datasetId: ID!
-  datasetVersionId: ID!
-  experimentId: ID!
-  examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -290,11 +258,6 @@ type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPaylo
   repetitionNumber: Int
   span: Span
   experimentRun: ExperimentRun
-}
-
-type ChatCompletionToolCall {
-  id: String!
-  function: ChatCompletionFunctionCall!
 }
 
 input ChatPromptVersionInput {
@@ -1576,8 +1539,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
-  chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
