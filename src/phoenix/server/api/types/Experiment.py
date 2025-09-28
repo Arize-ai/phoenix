@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.ExperimentRunSort import ExperimentRunSort
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
@@ -61,7 +62,10 @@ class Experiment(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
+        if sort:
+            raise NotImplementedError
         args = ConnectionArgs(
             first=first,
             after=after if isinstance(after, CursorString) else None,
