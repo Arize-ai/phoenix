@@ -22,8 +22,6 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
@@ -41,6 +39,7 @@ import {
   Popover,
   PopoverArrow,
   Separator,
+  Switch,
   Text,
   Tooltip,
   TooltipArrow,

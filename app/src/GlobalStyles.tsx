@@ -992,7 +992,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-100);
-    --ac-hover-background: var(--ac-global-color-primary-100);
+    --ac-hover-background: var(--ac-global-color-primary-50);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
@@ -1065,6 +1065,13 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Style for popovers
     --ac-global-popover-background-color: var(--ac-global-color-grey-50);
+
+    // Style for switches
+    --ac-global-switch-highlight-background: var(--ac-global-color-primary);
+    --ac-global-switch-highlight-background-pressed: var(
+      --ac-global-color-grey-200
+    );
+    --ac-global-switch-border-color-pressed: var(--ac-global-color-grey-200);
 
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);

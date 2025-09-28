@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import { Switch } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
@@ -15,6 +13,7 @@ import {
   PopoverArrow,
   Slider,
   SliderNumberField,
+  Switch,
   Text,
   View,
 } from "@phoenix/components";

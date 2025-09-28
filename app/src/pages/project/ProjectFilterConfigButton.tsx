@@ -1,4 +1,4 @@
-import { Switch } from "@arizeai/components";
+import { startTransition } from "react";
 
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   Icons,
   Popover,
   PopoverArrow,
+  Switch,
   View,
 } from "@phoenix/components";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
@@ -39,7 +40,9 @@ export function ProjectFilterConfigButton() {
               <Switch
                 isSelected={treatOrphansAsRoots}
                 onChange={(isSelected) => {
-                  setTreatOrphansAsRoots(isSelected);
+                  startTransition(() => {
+                    setTreatOrphansAsRoots(isSelected);
+                  });
                 }}
               >
                 Treat Orphan Spans as Roots
