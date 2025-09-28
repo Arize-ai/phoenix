@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import { Switch } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
@@ -19,7 +17,6 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 export function PlaygroundConfigButton() {
   const [searchParams] = useSearchParams();
@@ -28,13 +25,8 @@ export function PlaygroundConfigButton() {
     const hasSelectedDataset = datasetId != null;
     return hasSelectedDataset;
   }, [searchParams]);
-  const streaming = usePlaygroundContext((state) => state.streaming);
   const repetitions = usePlaygroundContext((state) => state.repetitions);
-  const setStreaming = usePlaygroundContext((state) => state.setStreaming);
   const setRepetitions = usePlaygroundContext((state) => state.setRepetitions);
-  const setPlaygroundStreamingEnabled = usePreferencesContext(
-    (state) => state.setPlaygroundStreamingEnabled
-  );
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
@@ -44,7 +36,7 @@ export function PlaygroundConfigButton() {
         size="S"
         aria-label="Playground Settings"
         leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
-        isDisabled={isRunning}
+        isDisabled={isRunning || !hasSelectedDataset}
       />
       <Popover>
         <PopoverArrow />
@@ -59,40 +51,19 @@ export function PlaygroundConfigButton() {
               overflow="visible" // prevents the halo around the slider thumb from being clipped
             >
               <Flex direction="column" gap="size-200">
-                {hasSelectedDataset && (
-                  <>
-                    <Slider
-                      defaultValue={1}
-                      label="Repetitions"
-                      minValue={1}
-                      maxValue={30}
-                      value={repetitions}
-                      onChange={setRepetitions}
-                    >
-                      <SliderNumberField />
-                    </Slider>
-                    <Text color="text-700" size="XS">
-                      Increase the number of repetitions to run each experiment
-                      task multiple times.
-                    </Text>
-                  </>
-                )}
-                <Flex direction="row" justifyContent="start">
-                  <Switch
-                    labelPlacement="start"
-                    isSelected={streaming}
-                    onChange={() => {
-                      setStreaming(!streaming);
-                      setPlaygroundStreamingEnabled(!streaming);
-                    }}
-                    isDisabled={isRunning}
-                  >
-                    <Text size="M">Streaming</Text>
-                  </Switch>
-                </Flex>
+                <Slider
+                  defaultValue={1}
+                  label="Repetitions"
+                  minValue={1}
+                  maxValue={30}
+                  value={repetitions}
+                  onChange={setRepetitions}
+                >
+                  <SliderNumberField />
+                </Slider>
                 <Text color="text-700" size="XS">
-                  Enable streaming to view experiment task output as it is
-                  generated in real time.
+                  Increase the number of repetitions to run each experiment task
+                  multiple times.
                 </Text>
               </Flex>
             </View>

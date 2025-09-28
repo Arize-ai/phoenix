@@ -1,9 +1,8 @@
 import { Key, Suspense, useCallback, useEffect, useState } from "react";
-import { useMutation, useRelayEnvironment } from "react-relay";
+import { useRelayEnvironment } from "react-relay";
 import {
   graphql,
   GraphQLSubscriptionConfig,
-  PayloadError,
   requestSubscription,
 } from "relay-runtime";
 
@@ -26,15 +25,8 @@ import {
   PlaygroundInstance,
 } from "@phoenix/store";
 import { isStringKeyedObject, Mutable } from "@phoenix/typeUtils";
-import {
-  getErrorMessagesFromRelayMutationError,
-  getErrorMessagesFromRelaySubscriptionError,
-} from "@phoenix/utils/errorUtils";
+import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
 
-import PlaygroundOutputMutation, {
-  PlaygroundOutputMutation as PlaygroundOutputMutationType,
-  PlaygroundOutputMutation$data,
-} from "./__generated__/PlaygroundOutputMutation.graphql";
 import PlaygroundOutputSubscription, {
   PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
@@ -151,7 +143,6 @@ type OutputContent = PlaygroundInstance["output"];
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
-  const streaming = usePlaygroundContext((state) => state.streaming);
   const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
@@ -179,10 +170,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   }
 
   const [loading, setLoading] = useState(false);
-
-  const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
-    PlaygroundOutputMutation
-  );
 
   const hasRunId = instance?.activeRunId != null;
   const notifyErrorToast = useNotifyError();
@@ -280,46 +267,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ]
   );
 
-  const onCompleted = useCallback(
-    (
-      response: PlaygroundOutputMutation$data,
-      errors: PayloadError[] | null
-    ) => {
-      setLoading(false);
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
-      updateInstance({
-        instanceId,
-        patch: {
-          spanId: response.chatCompletion.span.id,
-        },
-        dirty: null,
-      });
-      if (errors) {
-        notifyError({
-          title: "Chat completion failed",
-          message: errors[0].message,
-        });
-        return;
-      }
-      if (response.chatCompletion.errorMessage != null) {
-        notifyError({
-          title: "Chat completion failed",
-          message: response.chatCompletion.errorMessage,
-        });
-        return;
-      }
-      setOutputContent(response.chatCompletion.content ?? undefined);
-      setToolCalls(response.chatCompletion.toolCalls);
-    },
-    [
-      instanceId,
-      markPlaygroundInstanceComplete,
-      notifyError,
-      props.playgroundInstanceId,
-      updateInstance,
-    ]
-  );
-
   const cleanup = useCallback(() => {
     setOutputContent(undefined);
     setToolCalls([]);
@@ -346,82 +293,52 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       credentials,
     });
 
-    if (streaming) {
-      const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
-        {
-          subscription: PlaygroundOutputSubscription,
-          variables: {
-            input,
-          },
-          onNext: (response) => {
-            if (response) {
-              onNext(response);
-            }
-          },
-          onCompleted: () => {
-            setLoading(false);
-            markPlaygroundInstanceComplete(props.playgroundInstanceId);
-          },
-          onError: (error) => {
-            setLoading(false);
-            markPlaygroundInstanceComplete(props.playgroundInstanceId);
-            const errorMessages =
-              getErrorMessagesFromRelaySubscriptionError(error);
-            if (errorMessages != null && errorMessages.length > 0) {
-              notifyError({
-                title: "Failed to get output",
-                message: errorMessages.join("\n"),
-              });
-            } else {
-              notifyError({
-                title: "Failed to get output",
-                message: error.message,
-              });
-            }
-          },
-        };
-      const subscription = requestSubscription(environment, config);
-      return subscription.dispose;
-    }
-
-    const disposable = generateChatCompletion({
-      variables: {
-        input,
-      },
-      onCompleted,
-      onError(error) {
-        setLoading(false);
-        markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        const errorMessages = getErrorMessagesFromRelayMutationError(error);
-        if (errorMessages != null && errorMessages.length > 0) {
-          notifyError({
-            title: "Failed to get output",
-            message: errorMessages.join("\n"),
-          });
-        } else {
-          notifyError({
-            title: "Failed to get output",
-            message: error.message,
-          });
-        }
-      },
-    });
-
-    return disposable.dispose;
+    const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
+      {
+        subscription: PlaygroundOutputSubscription,
+        variables: {
+          input,
+        },
+        onNext: (response) => {
+          if (response) {
+            onNext(response);
+          }
+        },
+        onCompleted: () => {
+          setLoading(false);
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        },
+        onError: (error) => {
+          setLoading(false);
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          const errorMessages =
+            getErrorMessagesFromRelaySubscriptionError(error);
+          if (errorMessages != null && errorMessages.length > 0) {
+            notifyError({
+              title: "Failed to get output",
+              message: errorMessages.join("\n"),
+            });
+          } else {
+            notifyError({
+              title: "Failed to get output",
+              message: error.message,
+            });
+          }
+        },
+      };
+    const subscription = requestSubscription(environment, config);
+    return subscription.dispose;
   }, [
     cleanup,
     credentials,
     environment,
-    generateChatCompletion,
     hasRunId,
     instanceId,
     markPlaygroundInstanceComplete,
     notifyError,
-    onCompleted,
     onNext,
     playgroundStore,
     props.playgroundInstanceId,
-    streaming,
     updateInstance,
   ]);
 
@@ -490,26 +407,6 @@ graphql`
       }
       ... on ChatCompletionSubscriptionError {
         message
-      }
-    }
-  }
-`;
-
-graphql`
-  mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
-    chatCompletion(input: $input) {
-      __typename
-      content
-      errorMessage
-      span {
-        id
-      }
-      toolCalls {
-        id
-        function {
-          name
-          arguments
-        }
       }
     }
   }

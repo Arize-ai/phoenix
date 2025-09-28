@@ -173,11 +173,6 @@ export interface PlaygroundProps {
    */
   templateFormat: TemplateFormat;
   /**
-   * Whether or not to use streaming
-   * @default true
-   */
-  streaming: boolean;
-  /**
    * The number of repetitions for the playground
    * @default 1
    */
@@ -348,10 +343,6 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the value of a variable in the input
    */
   setVariableValue: (key: string, value: string) => void;
-  /**
-   * set the streaming mode for the playground
-   */
-  setStreaming: (streaming: boolean) => void;
   /**
    * set the repetitions for the playground
    */

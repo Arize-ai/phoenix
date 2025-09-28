@@ -13,7 +13,6 @@ import {
   Disposable,
   graphql,
   useLazyLoadQuery,
-  useMutation,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
@@ -27,11 +26,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  GraphQLSubscriptionConfig,
-  PayloadError,
-  requestSubscription,
-} from "relay-runtime";
+import { GraphQLSubscriptionConfig, requestSubscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
@@ -67,18 +62,11 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
-import {
-  getErrorMessagesFromRelayMutationError,
-  getErrorMessagesFromRelaySubscriptionError,
-} from "@phoenix/utils/errorUtils";
+import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
 
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
-import PlaygroundDatasetExamplesTableMutation, {
-  PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
-  PlaygroundDatasetExamplesTableMutation$data,
-} from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import PlaygroundDatasetExamplesTableSubscription, {
@@ -87,16 +75,12 @@ import PlaygroundDatasetExamplesTableSubscription, {
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ExampleRunData,
-  InstanceResponses,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import {
-  PartialOutputToolCall,
-  PlaygroundToolCall,
-} from "./PlaygroundToolCall";
+import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import {
   denormalizePlaygroundInstance,
   extractVariablesFromInstance,
@@ -104,66 +88,6 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
-
-type ChatCompletionOverDatasetMutationPayload = Extract<
-  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
-  { __typename: "ChatCompletionOverDatasetMutationPayload" }
->;
-
-const createExampleResponsesForInstance = (
-  response: ChatCompletionOverDatasetMutationPayload
-): InstanceResponses => {
-  return response.examples.reduce<InstanceResponses>(
-    (instanceResponses, example) => {
-      const { datasetExampleId, repetitionNumber, result, experimentRunId } =
-        example;
-      switch (result.__typename) {
-        case "ChatCompletionMutationError": {
-          const updatedInstanceResponses: InstanceResponses = {
-            ...instanceResponses,
-            [datasetExampleId]: {
-              ...instanceResponses[datasetExampleId],
-              [repetitionNumber]: {
-                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
-                errorMessage: result.message,
-                experimentRunId,
-              },
-            },
-          };
-          return updatedInstanceResponses;
-        }
-        case "ChatCompletionMutationPayload": {
-          const { errorMessage, content, span, toolCalls } = result;
-          const updatedInstanceResponses: InstanceResponses = {
-            ...instanceResponses,
-            [datasetExampleId]: {
-              ...instanceResponses[datasetExampleId],
-              [repetitionNumber]: {
-                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
-                experimentRunId,
-                span,
-                content,
-                errorMessage,
-                toolCalls: toolCalls.reduce<
-                  Record<string, PartialOutputToolCall>
-                >((map, toolCall) => {
-                  map[toolCall.id] = toolCall;
-                  return map;
-                }, {}),
-              },
-            },
-          };
-          return updatedInstanceResponses;
-        }
-        case "%other":
-          return instanceResponses;
-        default:
-          assertUnreachable(result);
-      }
-    },
-    {}
-  );
-};
 
 const cellWithControlsWrapCSS = css`
   position: relative;
@@ -557,9 +481,6 @@ export function PlaygroundDatasetExamplesTable({
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
-  const setExampleDataForInstance = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.setExampleDataForInstance
-  );
   const resetData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.resetData
   );
@@ -668,138 +589,43 @@ export function PlaygroundDatasetExamplesTable({
     ]
   );
 
-  const [generateChatCompletion] =
-    useMutation<PlaygroundDatasetExamplesTableMutationType>(
-      PlaygroundDatasetExamplesTableMutation
-    );
-
-  const onCompleted = useCallback(
-    (instanceId: number) =>
-      (
-        response: PlaygroundDatasetExamplesTableMutation$data,
-        errors: PayloadError[] | null
-      ) => {
-        markPlaygroundInstanceComplete(instanceId);
-        setRepetitions(repetitions);
-        if (errors) {
-          notifyError({
-            title: "Chat completion failed",
-            message: errors[0].message,
-          });
-          return;
-        }
-        updateInstance({
-          instanceId,
-          patch: {
-            experimentId: response.chatCompletionOverDataset.experimentId,
-          },
-          dirty: null,
-        });
-        setExampleDataForInstance({
-          instanceId,
-          data: createExampleResponsesForInstance(
-            response.chatCompletionOverDataset
-          ),
-        });
-      },
-    [
-      markPlaygroundInstanceComplete,
-      notifyError,
-      repetitions,
-      setExampleDataForInstance,
-      setRepetitions,
-      updateInstance,
-    ]
-  );
-
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, updateInstance } = playgroundStore.getState();
+    const { instances, updateInstance } = playgroundStore.getState();
     resetData();
-    if (streaming) {
-      const subscriptions: Disposable[] = [];
-      for (const instance of instances) {
-        const { activeRunId } = instance;
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
-        if (activeRunId === null) {
-          continue;
-        }
-        const variables = {
-          input: getChatCompletionOverDatasetInput({
-            credentials,
-            instanceId: instance.id,
-            playgroundStore,
-            datasetId,
-          }),
-        };
-        const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
-          {
-            subscription: PlaygroundDatasetExamplesTableSubscription,
-            variables,
-            onNext: onNext(instance.id),
-            onCompleted: () => {
-              markPlaygroundInstanceComplete(instance.id);
-            },
-            onError: (error) => {
-              markPlaygroundInstanceComplete(instance.id);
-              const errorMessages =
-                getErrorMessagesFromRelaySubscriptionError(error);
-              if (errorMessages != null && errorMessages.length > 0) {
-                notifyError({
-                  title: "Failed to get output",
-                  message: errorMessages.join("\n"),
-                  expireMs: 10000,
-                });
-              } else {
-                notifyError({
-                  title: "Failed to get output",
-                  message: error.message,
-                  expireMs: 10000,
-                });
-              }
-            },
-          };
-        setRepetitions(repetitions);
-        const subscription = requestSubscription(environment, config);
-        subscriptions.push(subscription);
+    const subscriptions: Disposable[] = [];
+    for (const instance of instances) {
+      const { activeRunId } = instance;
+      updateInstance({
+        instanceId: instance.id,
+        patch: { experimentId: null },
+        dirty: null,
+      });
+      if (activeRunId === null) {
+        continue;
       }
-      return () => {
-        for (const subscription of subscriptions) {
-          subscription.dispose();
-        }
-      };
-    } else {
-      const disposables: Disposable[] = [];
-      for (const instance of instances) {
-        const { activeRunId } = instance;
-        if (activeRunId === null) {
-          continue;
-        }
-        updateInstance({
+      const variables = {
+        input: getChatCompletionOverDatasetInput({
+          credentials,
           instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
-        const variables = {
-          input: getChatCompletionOverDatasetInput({
-            credentials,
-            instanceId: instance.id,
-            playgroundStore,
-            datasetId,
-          }),
-        };
-        const disposable = generateChatCompletion({
+          playgroundStore,
+          datasetId,
+        }),
+      };
+      const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
+        {
+          subscription: PlaygroundDatasetExamplesTableSubscription,
           variables,
-          onCompleted: onCompleted(instance.id),
-          onError(error) {
+          onNext: onNext(instance.id),
+          onCompleted: () => {
             markPlaygroundInstanceComplete(instance.id);
-            const errorMessages = getErrorMessagesFromRelayMutationError(error);
+          },
+          onError: (error) => {
+            markPlaygroundInstanceComplete(instance.id);
+            const errorMessages =
+              getErrorMessagesFromRelaySubscriptionError(error);
             if (errorMessages != null && errorMessages.length > 0) {
               notifyError({
                 title: "Failed to get output",
@@ -814,24 +640,23 @@ export function PlaygroundDatasetExamplesTable({
               });
             }
           },
-        });
-        disposables.push(disposable);
-      }
-      return () => {
-        for (const disposable of disposables) {
-          disposable.dispose();
-        }
-      };
+        };
+      setRepetitions(repetitions);
+      const subscription = requestSubscription(environment, config);
+      subscriptions.push(subscription);
     }
+    return () => {
+      for (const subscription of subscriptions) {
+        subscription.dispose();
+      }
+    };
   }, [
     credentials,
     datasetId,
     environment,
-    generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,
     notifyError,
-    onCompleted,
     onNext,
     playgroundStore,
     repetitions,
@@ -1168,55 +993,6 @@ graphql`
         datasetExampleId
         repetitionNumber
         message
-      }
-    }
-  }
-`;
-
-graphql`
-  mutation PlaygroundDatasetExamplesTableMutation(
-    $input: ChatCompletionOverDatasetInput!
-  ) {
-    chatCompletionOverDataset(input: $input) {
-      __typename
-      experimentId
-      examples {
-        datasetExampleId
-        experimentRunId
-        repetitionNumber
-        result {
-          __typename
-          ... on ChatCompletionMutationError {
-            message
-          }
-          ... on ChatCompletionMutationPayload {
-            content
-            errorMessage
-            span {
-              id
-              tokenCountTotal
-              costSummary {
-                total {
-                  cost
-                }
-              }
-              latencyMs
-              project {
-                id
-              }
-              context {
-                traceId
-              }
-            }
-            toolCalls {
-              id
-              function {
-                name
-                arguments
-              }
-            }
-          }
-        }
       }
     }
   }

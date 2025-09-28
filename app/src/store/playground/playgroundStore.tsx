@@ -239,7 +239,6 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
 export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   const { instances, instanceMessages } = getInitialInstances(props);
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
-    streaming: true,
     repetitions: 1,
     operationType: "chat",
     inputMode: "manual",
@@ -698,9 +697,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           variablesValueCache: { ...input.variablesValueCache, [key]: value },
         },
       });
-    },
-    setStreaming: (streaming: boolean) => {
-      set({ streaming });
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });

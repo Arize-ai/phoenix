@@ -66,9 +66,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
     (state) => state.modelConfigByProvider
   );
 
-  const playgroundStreamingEnabled = usePreferencesContext(
-    (state) => state.playgroundStreamingEnabled
-  );
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
@@ -79,7 +76,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
   return (
     <PlaygroundProvider
       {...props}
-      streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
