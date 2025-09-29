@@ -196,7 +196,7 @@ from phoenix.evals import async_evaluate_dataframe
 # isolate the joke content in its own column  
 eval_df["joke"] = eval_df["attributes.llm.output_messages"].apply(lambda x: x[0]["message.content"])
 
-results_df = async_evaluate_dataframe(eval_df, evaluators=[nerdy_evaluator])
+results_df = await async_evaluate_dataframe(eval_df, evaluators=[nerdy_evaluator])
 ```
 
 And then upload the results to Phoenix as annotations. 
