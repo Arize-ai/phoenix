@@ -147,18 +147,19 @@ export const PromptMenu = <T extends object>({
     <MenuTrigger>
       <Flex gap="size-100" alignItems="center">
         <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
-          {selectedPromptDatum?.promptName}
+          {selectedPromptDatum ? (
+            <Flex alignItems="center" gap="size-100">
+              {selectedPromptDatum.promptName}
+              {isLatestVersionSelected ? (
+                <Token color="var(--ac-global-color-info)">latest</Token>
+              ) : (
+                <Text color="text-300">@ ${selectedPromptDatum.versionId}</Text>
+              )}
+            </Flex>
+          ) : (
+            <Text color="text-300">Select a prompt</Text>
+          )}
         </Button>
-        {selectedPromptDatum?.versionId ? (
-          <Text size="S" color="text-300" weight="heavy">
-            {" "}
-            {isLatestVersionSelected ? (
-              <Token color="var(--ac-global-color-info)">latest</Token>
-            ) : (
-              <Token>{selectedPromptDatum.versionId}</Token>
-            )}
-          </Text>
-        ) : null}
       </Flex>
       <Popover
         css={css`
