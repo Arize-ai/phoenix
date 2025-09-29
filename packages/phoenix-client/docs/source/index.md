@@ -484,7 +484,7 @@ api/datasets
 api/experiments
 api/prompts
 api/spans
-api/annotations
+api/sessions
 api/projects
 api/helpers
 api/utils
