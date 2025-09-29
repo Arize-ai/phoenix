@@ -6,11 +6,13 @@ description: >-
 
 # Log Evaluation Results
 
-An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](broken-reference) for more information.
+Evaluations, which can be considered a form of automated annotation, are logged as annotations inside of Phoenix. 
+Instead of coming from a "HUMAN" source, they are either "CODE" (aka heuristic) or "LLM" types. 
+An evaluation must have a name (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. An optional `metadata` column can also be provided.
 
 ## Connect to Phoenix
 
-Before accessing px.Client(), be sure you've set the following environment variables:
+Before accessing the Phoenix client, be sure you've set the following environment variables:
 
 ```python
 import os
@@ -31,17 +33,17 @@ A dataframe of span evaluations would look similar like the table below. It must
 
 <table><thead><tr><th>span_id</th><th>label</th><th data-type="number">score</th><th>explanation</th></tr></thead><tbody><tr><td>5B8EF798A381</td><td>correct</td><td>1</td><td>"this is correct ..."</td></tr><tr><td>E19B7EC3GG02</td><td>incorrect</td><td>0</td><td>"this is incorrect ..."</td></tr></tbody></table>
 
-The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `eval_name=` parameter. In this case we name it "Q\&A Correctness".
+The evaluations dataframe can be sent to Phoenix as follows. 
+
+Note that the name and source of the evaluation can be supplied through the `annotation_name` `annotator_kind` parameters, or as columns with the same names in the dataframe.
 
 ```python
-from phoenix.trace import SpanEvaluations
-import os
+from phoenix.client import Client()
 
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
+Client().log_span_annotations(
+    dataframe=qa_correctness_eval_df,
+    annotation_name="QA Correctness",
+    annotator_kind="LLM"
 )
 ```
 
@@ -51,13 +53,12 @@ A dataframe of document evaluations would look something like the table below. I
 
 <table><thead><tr><th>span_id</th><th data-type="number">document_position</th><th width="109">label</th><th width="82" data-type="number">score</th><th>explanation</th></tr></thead><tbody><tr><td>5B8EF798A381</td><td>0</td><td>relevant</td><td>1</td><td>"this is ..."</td></tr><tr><td>5B8EF798A381</td><td>1</td><td>irrelevant</td><td>0</td><td>"this is ..."</td></tr><tr><td>E19B7EC3GG02</td><td>0</td><td>relevant</td><td>1</td><td>"this is ..."</td></tr></tbody></table>
 
-The evaluations dataframe can be sent to Phoenix as follows. Note that the name of the evaluation must be supplied through the `annotation_name=` parameter. In this case we name it "Relevance".
+The evaluations dataframe can be sent to Phoenix as follows. In this case we name it "Relevance".
 
 ```python
 from phoenix.client import Client
 
-px_client = Client()
-px_client.spans.log_document_annotations_dataframe(
+Client().spans.log_document_annotations_dataframe(
     dataframe=document_relevance_eval_df,
     annotation_name="Relevance",
     annotator_kind="LLM",
@@ -90,18 +91,20 @@ px_client.spans.log_span_annotations_dataframe(
 # ... continue with additional evaluations as needed
 ```
 
-## Specifying A Project for the Evaluations
-
-By default the client will push traces to the project specified in the `PHOENIX_PROJECT_NAME` environment variable or to the `default` project. If you want to specify the destination project explicitly, you can pass the project name as a parameter.
+Or, if you specify the `annotation_name` and  `annotator_kind` as columns, you can vertically concatenate the dataframes and upload them all at once. 
 
 ```python
-from phoenix.trace import SpanEvaluations
+import pandas as pd 
 
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=qa_correctness_eval_df,
-        eval_name="Q&A Correctness",
-    ),
-    project_name="<my-project>"
-)
+qa_correctness_eval_df["annotation_name"] = "QA Correctness"
+qa_correctness_eval_df["annotator_kind"] = "LLM"
+
+hallucination_eval_df["annotation_name"] = "Hallucination"
+hallucination_eval_df["annotator_kind"] = "LLM"
+
+annotations_df = pd.concat([qa_correctness_eval_df, hallucination_eval_df], ignore_index=True)
+
+px_client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
+
 ```
+
