@@ -1,5 +1,47 @@
 # Changelog
 
+## [12.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.38.0...arize-phoenix-v12.0.0) (2025-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* version 12 ([#9695](https://github.com/Arize-ai/phoenix/issues/9695))
+
+### Features
+
+* add annotation columns to sessions table ([#9551](https://github.com/Arize-ai/phoenix/issues/9551)) ([212513d](https://github.com/Arize-ai/phoenix/commit/212513dce2cdfcff5411ddd9dc350da0b131e21f))
+* add db table and graphql mutations for session annotations ([#8993](https://github.com/Arize-ai/phoenix/issues/8993)) ([092c067](https://github.com/Arize-ai/phoenix/commit/092c067616477888e571635bcb575c6f97baf6e2))
+* add junction table for taking snapshots of examples when inserting an experiment ([#9609](https://github.com/Arize-ai/phoenix/issues/9609)) ([f571441](https://github.com/Arize-ai/phoenix/commit/f5714416052560e96182d01e23286032de575cb1))
+* add user_id on datasets and dataset_versions table ([#9650](https://github.com/Arize-ai/phoenix/issues/9650)) ([0230f8f](https://github.com/Arize-ai/phoenix/commit/0230f8f38a7a1cb5ba91b7035d411d885fffa97b))
+* Assign examples to dataset splits ([#9606](https://github.com/Arize-ai/phoenix/issues/9606)) ([ec3f6fd](https://github.com/Arize-ai/phoenix/commit/ec3f6fd5044b3e3fae1f04b5e56f5cc9d2692560))
+* client methods for adding trace and session annotations ([#9369](https://github.com/Arize-ai/phoenix/issues/9369)) ([e9b29ef](https://github.com/Arize-ai/phoenix/commit/e9b29ef0b50eb30c64d7e3c557d6264d5652d3fc))
+* dataset labels migration ([#9409](https://github.com/Arize-ai/phoenix/issues/9409)) ([7701143](https://github.com/Arize-ai/phoenix/commit/77011436e85f7ad35e2e4d032d248d1a4ad72be4))
+* dataset split and examples migration ([#9360](https://github.com/Arize-ai/phoenix/issues/9360)) ([045f8a1](https://github.com/Arize-ai/phoenix/commit/045f8a13b0fdc3af030d176939624e35add3f78f))
+* Dataset Splits Add Dialog UI ([#9601](https://github.com/Arize-ai/phoenix/issues/9601)) ([914cf64](https://github.com/Arize-ai/phoenix/commit/914cf640409936d378b6b9b959573b5858017ac5))
+* dataset splits backend ([#9490](https://github.com/Arize-ai/phoenix/issues/9490)) ([dc45cd2](https://github.com/Arize-ai/phoenix/commit/dc45cd2f44f506592cbd98d89b38e044d5447026))
+* **db:** add row for viewer role ([#9648](https://github.com/Arize-ai/phoenix/issues/9648)) ([efbbf52](https://github.com/Arize-ai/phoenix/commit/efbbf521c9b503bfa188eecef0228a1eb56c2d60))
+* display splits on examples table ([#9602](https://github.com/Arize-ai/phoenix/issues/9602)) ([694d1e0](https://github.com/Arize-ai/phoenix/commit/694d1e088d59c2aada71a822e2ae468aa3373047))
+* Experiment migration ([#9279](https://github.com/Arize-ai/phoenix/issues/9279)) ([7151cd5](https://github.com/Arize-ai/phoenix/commit/7151cd5c0e4234461f6a6c8bb5069a16565c47e2))
+* experiment-tags on experiment and datasets ([#9406](https://github.com/Arize-ai/phoenix/issues/9406)) ([5afe0dc](https://github.com/Arize-ai/phoenix/commit/5afe0dc9c3c7cf0bd86a18e0513553ec22654db8))
+* **experiments:** show repetitions in the table ([#9669](https://github.com/Arize-ai/phoenix/issues/9669)) ([dfb05cb](https://github.com/Arize-ai/phoenix/commit/dfb05cbf8beff4820bd8bd173ba5a2429db7137d))
+* pin the minimum version of the client ([#9666](https://github.com/Arize-ai/phoenix/issues/9666)) ([54ffb45](https://github.com/Arize-ai/phoenix/commit/54ffb45923c3e24491f3f08ed935ca3e61b6f254))
+* Playground migration experiments record user_id ([#9292](https://github.com/Arize-ai/phoenix/issues/9292)) ([3b0ca07](https://github.com/Arize-ai/phoenix/commit/3b0ca07da1e963c766b7612099a353fbc505c05a))
+* update to google genai sdk ([#9591](https://github.com/Arize-ai/phoenix/issues/9591)) ([b50e82a](https://github.com/Arize-ai/phoenix/commit/b50e82a0ff20cc83a380125b38e7d783e84effcc))
+* use composite primary key for crosswalk tables ([#9636](https://github.com/Arize-ai/phoenix/issues/9636)) ([cc0eac1](https://github.com/Arize-ai/phoenix/commit/cc0eac1dd8df2a6323e2022dbd74ab674f992aea))
+* version 12 ([#9695](https://github.com/Arize-ai/phoenix/issues/9695)) ([8529fe3](https://github.com/Arize-ai/phoenix/commit/8529fe31f7ef431c7074a838ce08285800058805))
+
+
+### Bug Fixes
+
+* add big int indexes and user id indexes ([#9693](https://github.com/Arize-ai/phoenix/issues/9693)) ([7c33936](https://github.com/Arize-ai/phoenix/commit/7c3393692939a5981881fd6036efc032cf53f642))
+* **cost:** update built-in model token prices ([#9683](https://github.com/Arize-ai/phoenix/issues/9683)) ([1a2f87a](https://github.com/Arize-ai/phoenix/commit/1a2f87a95e987441df64139ee12720067d53e03a))
+* **db:** add composite indices to traces and project_sessions ([#9045](https://github.com/Arize-ai/phoenix/issues/9045)) ([a60f31f](https://github.com/Arize-ai/phoenix/commit/a60f31f8026928a8c142257569a96ad7f83e95ad))
+* **db:** drop redundant index on experiment_runs table ([#9401](https://github.com/Arize-ai/phoenix/issues/9401)) ([f191a7e](https://github.com/Arize-ai/phoenix/commit/f191a7ea60f40a4d82ba5388521809fff79d45d7))
+* drop/create indices with IF (NOT) EXISTS ([#9647](https://github.com/Arize-ai/phoenix/issues/9647)) ([1a20e9e](https://github.com/Arize-ai/phoenix/commit/1a20e9ef6307cc036ca28c05b97f61d6e393ba3e))
+* PHOENIX_POSTGRES_HOST should not be split ([#9087](https://github.com/Arize-ai/phoenix/issues/9087)) ([fdd476f](https://github.com/Arize-ai/phoenix/commit/fdd476f39e47450265dc52c810a55cdd543f25f1))
+* remove additional redundant indices ([#9417](https://github.com/Arize-ai/phoenix/issues/9417)) ([551581e](https://github.com/Arize-ai/phoenix/commit/551581ea3c6f0fa6e776b2841608a40e98e2aa5e))
+* remove server default for dataset label color ([#9638](https://github.com/Arize-ai/phoenix/issues/9638)) ([4023b48](https://github.com/Arize-ai/phoenix/commit/4023b484daee94f9fa68df9864e1d1d10653fc4d))
+
 ## [11.38.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.37.0...arize-phoenix-v11.38.0) (2025-09-25)
 
 
