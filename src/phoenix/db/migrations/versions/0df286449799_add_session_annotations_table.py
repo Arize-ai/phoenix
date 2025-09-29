@@ -3,7 +3,6 @@
 Revision ID: 0df286449799
 Revises: 735d3d93c33e
 Create Date: 2025-08-06 11:27:01.479664
-
 """
 
 from typing import Any, Sequence, Union
