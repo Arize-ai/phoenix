@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 import strawberry
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -11,19 +11,19 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ExperimentRunSort import ExperimentRunSort
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import connection_from_cursors_and_nodes
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
+
+_DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE = 50
 
 
 @strawberry.type
@@ -58,36 +58,73 @@ class Experiment(Node):
     async def runs(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
+        first: Optional[int] = _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE,
+        after: Optional[GlobalID] = UNSET,
         sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
+        experiment_id = self.id_attr
+        page_size = first if first is not None else _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
+        experiment_runs_query = (
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+            .limit(page_size + 1)
+        )
+
         if sort:
             raise NotImplementedError
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-        experiment_id = self.id_attr
-        async with info.context.db() as session:
-            runs = (
-                await session.scalars(
-                    select(models.ExperimentRun)
-                    .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .order_by(
-                        models.ExperimentRun.dataset_example_id.asc(),
-                        models.ExperimentRun.repetition_number.asc(),
+        else:
+            experiment_runs_query = experiment_runs_query.order_by(
+                models.ExperimentRun.dataset_example_id.asc(),
+                models.ExperimentRun.repetition_number.asc(),
+            )
+
+        if after:
+            if sort:
+                raise NotImplementedError
+            try:
+                after_run_id = from_global_id_with_expected_type(after, "ExperimentRun")
+            except ValueError:
+                raise BadRequest(f"Invalid after ID: {after}")
+            else:
+                after_example_id_subquery = (
+                    select(models.ExperimentRun.dataset_example_id)
+                    .where(models.ExperimentRun.id == after_run_id)
+                    .scalar_subquery()
+                )
+                after_repetition_number_subquery = (
+                    select(models.ExperimentRun.repetition_number)
+                    .where(models.ExperimentRun.id == after_run_id)
+                    .scalar_subquery()
+                )
+                experiment_runs_query = experiment_runs_query.where(
+                    tuple_(
+                        models.ExperimentRun.dataset_example_id,
+                        models.ExperimentRun.repetition_number,
                     )
-                    .options(
-                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                    > (
+                        tuple_(
+                            after_example_id_subquery,
+                            after_repetition_number_subquery,
+                        )
                     )
                 )
-            ).all()
-        return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+        async with info.context.db() as session:
+            runs = (await session.scalars(experiment_runs_query)).all()
+
+        has_next_page = False
+        if len(runs) > page_size:
+            runs = runs[:page_size]
+            has_next_page = True
+
+        gql_runs = [to_gql_experiment_run(run) for run in runs]
+        cursors = [str(GlobalID(ExperimentRun.__name__, str(run.id_attr))) for run in gql_runs]
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=[(cursor, run) for cursor, run in zip(cursors, gql_runs)],
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def run_count(self, info: Info[Context, None]) -> int:

@@ -165,7 +165,7 @@ export function ExperimentCompareListPage({
       @refetchable(queryName: "ExperimentCompareListPageQuery")
       @argumentDefinitions(
         first: { type: "Int", defaultValue: 50 }
-        after: { type: "String", defaultValue: null }
+        after: { type: "ID", defaultValue: null }
         baseExperimentId: { type: "ID!" }
         compareExperimentIds: { type: "[ID!]!" }
       ) {
