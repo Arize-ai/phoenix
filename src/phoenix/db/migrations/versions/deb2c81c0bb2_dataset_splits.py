@@ -58,7 +58,7 @@ def upgrade() -> None:
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "user_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
             index=True,

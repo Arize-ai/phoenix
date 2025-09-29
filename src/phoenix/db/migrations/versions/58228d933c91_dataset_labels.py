@@ -17,19 +17,25 @@ down_revision: Union[str, None] = "699f655af132"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 
 def upgrade() -> None:
     op.create_table(
         "dataset_labels",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("color", sa.String, nullable=False),
         sa.Column(
             "user_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         ),
     )
 
@@ -37,13 +43,13 @@ def upgrade() -> None:
         "datasets_dataset_labels",
         sa.Column(
             "dataset_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "dataset_label_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("dataset_labels.id", ondelete="CASCADE"),
             nullable=False,
             # index on the second element of the composite primary key
