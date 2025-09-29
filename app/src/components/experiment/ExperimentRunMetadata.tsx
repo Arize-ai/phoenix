@@ -5,7 +5,7 @@ import {
 } from "@phoenix/components/experiment";
 import { TokenCount } from "@phoenix/components/trace";
 
-import { ExperimentRunLatency } from "../../pages/experiment/ExperimentRunLatency";
+import { ExperimentRunLatency } from "./ExperimentRunLatency";
 
 type ExperimentRunMetadataProps = {
   id: string;
