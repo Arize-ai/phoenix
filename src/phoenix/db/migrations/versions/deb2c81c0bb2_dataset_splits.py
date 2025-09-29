@@ -56,6 +56,13 @@ def upgrade() -> None:
     op.create_table(
         "dataset_splits",
         sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("color", sa.String, nullable=False),

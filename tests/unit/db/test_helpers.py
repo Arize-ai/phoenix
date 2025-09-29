@@ -429,19 +429,32 @@ class TestGetDatasetExampleRevisions:
 
             # Create comprehensive split structure
             split_train = models.DatasetSplit(
-                name="train", description="Training split", color="#FF0000", metadata_={}
+                name="train",
+                description="Training split",
+                color="#FF0000",
+                metadata_={},
+                user_id=None,
             )
             split_val = models.DatasetSplit(
-                name="validation", description="Validation split", color="#00FF00", metadata_={}
+                name="validation",
+                description="Validation split",
+                color="#00FF00",
+                metadata_={},
+                user_id=None,
             )
             split_test = models.DatasetSplit(
-                name="test", description="Test split", color="#0000FF", metadata_={}
+                name="test",
+                description="Test split",
+                color="#0000FF",
+                metadata_={},
+                user_id=None,
             )
             split_extra = models.DatasetSplit(
                 name="extra",
                 description="Extra split for overlap testing",
                 color="#FFFF00",
                 metadata_={},
+                user_id=None,
             )
             splits = [split_train, split_val, split_test, split_extra]
             session.add_all(splits)
@@ -1084,18 +1097,21 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 description="Training split",
                 color="#FF0000",
                 metadata_={"split_type": "percentage", "split_value": 0.8},
+                user_id=None,
             )
             split_test = models.DatasetSplit(
                 name="test",
                 description="Test split",
                 color="#00FF00",
                 metadata_={"split_type": "percentage", "split_value": 0.2},
+                user_id=None,
             )
             split_empty = models.DatasetSplit(
                 name="empty_split",
                 description="Split with no examples",
                 color="#FF00FF",
                 metadata_={},
+                user_id=None,
             )
             session.add_all([split_train, split_test, split_empty])
             await session.flush()
