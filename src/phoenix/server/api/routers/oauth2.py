@@ -38,7 +38,6 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
-from phoenix.server.api.routers.utils import get_root_path, prepend_root_path
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
@@ -47,6 +46,7 @@ from phoenix.server.rate_limiters import (
     fastapi_route_rate_limiter,
 )
 from phoenix.server.types import TokenStore
+from phoenix.server.utils import get_root_path, prepend_root_path
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 

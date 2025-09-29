@@ -39,7 +39,6 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
-from phoenix.server.api.routers.utils import prepend_root_path
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
@@ -51,6 +50,7 @@ from phoenix.server.types import (
     TokenStore,
     UserId,
 )
+from phoenix.server.utils import prepend_root_path
 
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=0.2,

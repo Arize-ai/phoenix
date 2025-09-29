@@ -2,10 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from phoenix.server.api.routers.utils import (
-    get_root_path,
-    prepend_root_path,
-)
+from phoenix.server.utils import get_root_path, prepend_root_path
 
 
 class TestGetRootPath:
