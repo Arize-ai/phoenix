@@ -419,11 +419,11 @@ CREATE INDEX ix_api_keys_user_id ON public.api_keys
 -- Table: dataset_labels
 -- ---------------------
 CREATE TABLE public.dataset_labels (
-    id serial NOT NULL,
+    id bigserial NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     color VARCHAR NOT NULL,
-    user_id INTEGER,
+    user_id BIGINT,
     CONSTRAINT pk_dataset_labels PRIMARY KEY (id),
     CONSTRAINT uq_dataset_labels_name
         UNIQUE (name),
@@ -433,12 +433,15 @@ CREATE TABLE public.dataset_labels (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_dataset_labels_user_id ON public.dataset_labels
+    USING btree (user_id);
+
 
 -- Table: dataset_splits
 -- ---------------------
 CREATE TABLE public.dataset_splits (
     id bigserial NOT NULL,
-    user_id INTEGER,
+    user_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     color VARCHAR NOT NULL,
@@ -467,7 +470,7 @@ CREATE TABLE public.datasets (
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    user_id INTEGER,
+    user_id BIGINT,
     CONSTRAINT pk_datasets PRIMARY KEY (id),
     CONSTRAINT uq_datasets_name
         UNIQUE (name),
@@ -532,7 +535,7 @@ CREATE TABLE public.dataset_versions (
     description VARCHAR,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    user_id INTEGER,
+    user_id BIGINT,
     CONSTRAINT pk_dataset_versions PRIMARY KEY (id),
     CONSTRAINT fk_dataset_versions_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -586,8 +589,8 @@ CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_e
 -- Table: datasets_dataset_labels
 -- ------------------------------
 CREATE TABLE public.datasets_dataset_labels (
-    dataset_id INTEGER NOT NULL,
-    dataset_label_id INTEGER NOT NULL,
+    dataset_id BIGINT NOT NULL,
+    dataset_label_id BIGINT NOT NULL,
     CONSTRAINT pk_datasets_dataset_labels PRIMARY KEY (dataset_id, dataset_label_id),
     CONSTRAINT fk_datasets_dataset_labels_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -660,7 +663,7 @@ CREATE TABLE public.experiments (
     project_name VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    user_id INTEGER,
+    user_id BIGINT,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -751,10 +754,10 @@ CREATE TABLE public.experiment_run_annotations (
 -- Table: experiment_tags
 -- ----------------------
 CREATE TABLE public.experiment_tags (
-    id serial NOT NULL,
-    experiment_id INTEGER NOT NULL,
-    dataset_id INTEGER NOT NULL,
-    user_id INTEGER,
+    id bigserial NOT NULL,
+    experiment_id BIGINT NOT NULL,
+    dataset_id BIGINT NOT NULL,
+    user_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     CONSTRAINT pk_experiment_tags PRIMARY KEY (id),
