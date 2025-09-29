@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -118,8 +118,6 @@ class DatasetSplitMutationMixin:
             dataset_split_orm = await session.get(models.DatasetSplit, dataset_split_id)
             if not dataset_split_orm:
                 raise NotFound(f"Dataset split with ID {input.dataset_split_id} not found")
-            if dataset_split_orm.deleted_at is not None:
-                raise BadRequest("Cannot patch a deleted dataset split")
 
             if validated_name:
                 dataset_split_orm.name = validated_name
@@ -130,13 +128,14 @@ class DatasetSplitMutationMixin:
             if isinstance(input.metadata, dict):
                 dataset_split_orm.metadata_ = input.metadata
 
+            gql_dataset_split = to_gql_dataset_split(dataset_split_orm)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict("Error patching DatasetSplit. Possibly a name conflict?")
+                raise Conflict("A dataset split with this name already exists")
 
         return DatasetSplitMutationPayload(
-            dataset_split=to_gql_dataset_split(dataset_split_orm),
+            dataset_split=gql_dataset_split,
             query=Query(),
         )
 
@@ -160,9 +159,8 @@ class DatasetSplitMutationMixin:
                 split.id: split
                 for split in (
                     await session.scalars(
-                        update(models.DatasetSplit)
+                        delete(models.DatasetSplit)
                         .where(models.DatasetSplit.id.in_(dataset_split_rowids))
-                        .values(deleted_at=func.now())
                         .returning(models.DatasetSplit)
                     )
                 ).all()
@@ -214,9 +212,9 @@ class DatasetSplitMutationMixin:
         async with info.context.db() as session:
             existing_dataset_split_ids = (
                 await session.scalars(
-                    select(models.DatasetSplit.id)
-                    .where(models.DatasetSplit.id.in_(dataset_split_rowids))
-                    .where(models.DatasetSplit.deleted_at.is_(None))
+                    select(models.DatasetSplit.id).where(
+                        models.DatasetSplit.id.in_(dataset_split_rowids)
+                    )
                 )
             ).all()
             if len(existing_dataset_split_ids) != len(dataset_split_rowids):
@@ -303,9 +301,9 @@ class DatasetSplitMutationMixin:
         async with info.context.db() as session:
             existing_dataset_split_ids = (
                 await session.scalars(
-                    select(models.DatasetSplit.id)
-                    .where(models.DatasetSplit.id.in_(dataset_split_rowids))
-                    .where(models.DatasetSplit.deleted_at.is_(None))
+                    select(models.DatasetSplit.id).where(
+                        models.DatasetSplit.id.in_(dataset_split_rowids)
+                    )
                 )
             ).all()
             if len(existing_dataset_split_ids) != len(dataset_split_rowids):
