@@ -896,8 +896,6 @@ CREATE TABLE public.project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON public.project_session_annotations
     USING btree (project_session_id);
-CREATE INDEX ix_project_session_annotations_user_id ON public.project_session_annotations
-    USING btree (user_id);
 
 
 -- Table: prompt_versions
