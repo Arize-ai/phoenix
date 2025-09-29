@@ -1066,13 +1066,6 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     // Style for popovers
     --ac-global-popover-background-color: var(--ac-global-color-grey-50);
 
-    // Style for switches
-    --ac-global-switch-highlight-background: var(--ac-global-color-primary);
-    --ac-global-switch-highlight-background-pressed: var(
-      --ac-global-color-grey-200
-    );
-    --ac-global-switch-border-color-pressed: var(--ac-global-color-grey-200);
-
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
