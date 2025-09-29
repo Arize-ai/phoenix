@@ -438,6 +438,16 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLabelInput {
+  name: String!
+  description: String
+  color: String!
+}
+
+type CreateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
+}
+
 input CreateDatasetSplitInput {
   name: String!
   description: String
@@ -695,6 +705,32 @@ enum DatasetFilterColumn {
   name
 }
 
+type DatasetLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String!
+}
+
+"""A connection to a list of items."""
+type DatasetLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetLabelEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetLabel!
+}
+
 type DatasetMutationPayload {
   dataset: Dataset!
 }
@@ -818,6 +854,14 @@ input DeleteDatasetExamplesInput {
 
 input DeleteDatasetInput {
   datasetId: ID!
+}
+
+input DeleteDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+}
+
+type DeleteDatasetLabelsMutationPayload {
+  datasetLabels: [DatasetLabel!]!
 }
 
 input DeleteDatasetSplitInput {
@@ -1669,6 +1713,8 @@ type Mutation {
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
+  createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
+  deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2306,6 +2352,7 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
   datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!

@@ -5,6 +5,7 @@ from phoenix.server.api.mutations.api_key_mutations import ApiKeyMutationMixin
 from phoenix.server.api.mutations.chat_mutations import (
     ChatCompletionMutationMixin,
 )
+from phoenix.server.api.mutations.dataset_label_mutations import DatasetLabelMutationMixin
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMutationMixin
 from phoenix.server.api.mutations.experiment_mutations import ExperimentMutationMixin
@@ -31,6 +32,7 @@ class Mutation(
     AnnotationConfigMutationMixin,
     ApiKeyMutationMixin,
     ChatCompletionMutationMixin,
+    DatasetLabelMutationMixin,
     DatasetMutationMixin,
     DatasetSplitMutationMixin,
     ExperimentMutationMixin,
