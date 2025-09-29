@@ -65,13 +65,13 @@ df_support_data.head()
 ### Upload Dataset to Phoenix
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-client = px.Client()
+px_client = Client()
 
-df = client.upload_dataset(
+df = px_client.datasets.create_dataset(
     dataframe=df_support_data,
-    dataset_name="customer_support_queries",
+    name="customer_support_queries",
     input_keys=["input"],
     output_keys=["output", "classification"],
 )
@@ -113,7 +113,7 @@ def evaluate_response(output, reference):
     predicted_label = output
     return 1 if expected_label == predicted_label else 0
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
     df, 
@@ -182,9 +182,9 @@ few_shot_df.head()
 ### Upload Few-Shot Dataset
 
 ```python
-df = client.upload_dataset(
+df = px_client.datasets.create_dataset(
     dataframe=few_shot_df,
-    dataset_name="customer_support_queries_few_shot",
+    name="customer_support_queries_few_shot",
     input_keys=["user_query"],
     output_keys=["intent", "response", "classification"],
 )
@@ -227,7 +227,7 @@ def evaluate_response(output, reference):
 ```
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 
 initial_experiment = run_experiment(
@@ -295,9 +295,9 @@ agent_data_df.head()
 ### Upload Agent Dataset
 
 ```python
-df = client.upload_dataset(
+df = px_client.datasets.create_dataset(
     dataframe=agent_data_df,
-    dataset_name="customer_support_agent",
+    name="customer_support_agent",
     input_keys=["category", "query"],
     output_keys=["expected_action", "expected_outcome"],
 )

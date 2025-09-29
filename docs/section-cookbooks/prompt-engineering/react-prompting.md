@@ -46,7 +46,7 @@ from openai import OpenAI
 from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openinference.instrumentation.openai import OpenAIInstrumentor
 
-import phoenix as px
+from phoenix.client import Client
 from phoenix.client import Client as PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.evals import (
@@ -54,7 +54,7 @@ from phoenix.evals import (
     OpenAIModel,
     llm_classify,
 )
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
 nest_asyncio.apply()
@@ -88,10 +88,11 @@ import uuid
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=ds,
     input_keys=["Questions"],
-    dataset_name=f"customer-questions-{unique_id}",
+    name=f"customer-questions-{unique_id}",
 )
 ```
 
