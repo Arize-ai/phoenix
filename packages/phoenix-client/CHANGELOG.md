@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.20.0...arize-phoenix-client-v1.21.0) (2025-09-29)
+
+
+### Features
+
+* client methods for adding trace and session annotations ([#9369](https://github.com/Arize-ai/phoenix/issues/9369)) ([e9b29ef](https://github.com/Arize-ai/phoenix/commit/e9b29ef0b50eb30c64d7e3c557d6264d5652d3fc))
+
+
+### Documentation
+
+* add session api docs ([#9697](https://github.com/Arize-ai/phoenix/issues/9697)) ([d72e867](https://github.com/Arize-ai/phoenix/commit/d72e867a0971e608816c774816c845908f3b69bd))
+
 ## [1.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.1...arize-phoenix-client-v1.20.0) (2025-09-26)
 
 
