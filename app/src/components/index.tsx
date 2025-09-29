@@ -65,3 +65,4 @@ export * from "./toolbar";
 export * from "./card";
 export * from "./checkbox";
 export * from "./switch";
+export * from "./menu";
