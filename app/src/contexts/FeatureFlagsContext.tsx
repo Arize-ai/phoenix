@@ -1,9 +1,7 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Switch } from "@arizeai/components";
-
-import { Dialog, Modal, ModalOverlay, View } from "@phoenix/components";
+import { Dialog, Modal, ModalOverlay, Switch, View } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -96,7 +94,7 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <View height="size-1000" padding="size-100">
+              <View padding="size-100">
                 {Object.keys(featureFlags).map((featureFlag) => (
                   <Switch
                     key={featureFlag}

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 import { debounce } from "lodash";
 
-import { Switch } from "@arizeai/components";
-
 import {
   FieldError,
   Input,
@@ -11,6 +9,7 @@ import {
   NumberField,
   Slider,
   SliderNumberField,
+  Switch,
   Text,
   TextField,
 } from "@phoenix/components";

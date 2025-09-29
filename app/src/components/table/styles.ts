@@ -79,7 +79,7 @@ export const tableCSS = css`
       height: 100%;
       &:not(:last-of-type) {
         & > td {
-          border-bottom: 1px solid var(--ac-global-color-grey-100);
+          border-bottom: 1px solid var(--ac-global-color-grey-200);
         }
       }
       & > td {
