@@ -146,7 +146,7 @@ export const promptVersionToInstance = ({
 }) => {
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
-    prompt: { id: promptId, name: promptName },
+    prompt: { id: promptId, name: promptName, version: promptVersion.id },
   } satisfies Partial<PlaygroundInstance>;
 
   const modelName = promptVersion.modelName;

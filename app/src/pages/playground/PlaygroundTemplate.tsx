@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 
 import { Content } from "@arizeai/components";
 
@@ -17,14 +17,15 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
-import { PromptComboBox } from "./PromptComboBox";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -39,19 +40,29 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
+  const promptVersionId = prompt?.version;
   const dirty = usePlaygroundContext(
     (state) => state.dirtyInstances[instanceId]
   );
 
   const onChangePrompt = useCallback(
-    async (promptId: string | null) => {
-      if (!promptId) {
+    async ({
+      promptId,
+      promptVersionId,
+    }: {
+      promptId: string | null;
+      promptVersionId: string | null;
+    }) => {
+      if (!promptId || !promptVersionId) {
         const patch = { prompt: null };
         updateInstance({ instanceId, patch, dirty: false });
         return;
       }
 
-      const response = await fetchPlaygroundPromptAsInstance(promptId);
+      const response = await fetchPlaygroundPromptAsInstance(
+        promptId,
+        promptVersionId
+      );
       if (response) {
         // delete all message references from the instance
         updateInstance({
@@ -83,19 +94,31 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   }
   const { template } = instance;
 
+  // A prompt is "selected" in the PromptMenu when both a promptId and promptVersionId
+  // are available in the instance
+  const promptMenuValue = useMemo(() => {
+    if (!promptId || !promptVersionId) return null;
+    return {
+      promptId,
+      promptVersionId,
+    };
+  }, [promptId, promptVersionId]);
+
   return (
     <>
       <Card
         title={
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            marginEnd="size-100"
-          >
-            <AlphabeticIndexIcon index={index} />
-            <PromptComboBox promptId={promptId} onChange={onChangePrompt} />
-          </Flex>
+          <StopPropagation>
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              marginEnd="size-100"
+            >
+              <AlphabeticIndexIcon index={index} />
+              <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+            </Flex>
+          </StopPropagation>
         }
         collapsible
         extra={
