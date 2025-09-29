@@ -1230,18 +1230,13 @@ class DatasetExampleRevision(HasId):
 
 class DatasetSplit(HasId):
     __tablename__ = "dataset_splits"
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(String, nullable=False)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        UtcTimeStamp,
-        nullable=True,
-        server_default=None,
     )
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
@@ -1250,16 +1245,6 @@ class DatasetSplit(HasId):
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="dataset_split",
-    )
-
-    __table_args__ = (
-        Index(
-            "ix_dataset_splits_check_unique_name",
-            "name",
-            postgresql_where=sa.text("deleted_at IS NULL"),
-            sqlite_where=sa.text("deleted_at IS NULL"),
-            unique=True,
-        ),
     )
 
 

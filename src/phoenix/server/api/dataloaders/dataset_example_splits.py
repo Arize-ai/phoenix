@@ -32,7 +32,6 @@ class DatasetExampleSplitsDataLoader(DataLoader[Key, Result]):
                     ),
                 )
                 .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
-                .where(models.DatasetSplit.deleted_at.is_(None))
             ):
                 if example_id not in splits:
                     splits[example_id] = []
