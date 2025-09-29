@@ -5,11 +5,11 @@ import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetch
 export const promptPlaygroundLoader = async ({
   params,
 }: LoaderFunctionArgs) => {
-  const { promptId } = params;
+  const { promptId, versionId } = params;
   if (!promptId) {
     throw new Error("Prompt ID is required");
   }
-  const response = await fetchPlaygroundPromptAsInstance(promptId);
+  const response = await fetchPlaygroundPromptAsInstance(promptId, versionId);
   if (!response) {
     throw new Error("Prompt not found");
   }
@@ -17,6 +17,7 @@ export const promptPlaygroundLoader = async ({
   return {
     instanceWithPrompt: response.instance,
     templateFormat: response.promptVersion.templateFormat,
+    requestedVersion: versionId,
   };
 };
 

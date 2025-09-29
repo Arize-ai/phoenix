@@ -30,7 +30,10 @@ import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
 import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import {
+  promptVersionLoader,
+  PromptVersionLoaderData,
+} from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
@@ -282,6 +285,27 @@ const router = createBrowserRouter(
                   path="config"
                   element={<PromptConfigPage />}
                   loader={promptConfigLoader}
+                />
+              </Route>
+              {/*
+               * Adds a duplicative versions/:versionId route group that bails out of
+               * the PromptLayout so that the version playground is not nested
+               */}
+              <Route
+                path="versions/:versionId"
+                loader={promptVersionLoader}
+                handle={{
+                  crumb: (data: PromptVersionLoaderData) =>
+                    data?.promptVersion.id,
+                }}
+              >
+                <Route
+                  path="playground"
+                  element={<PromptPlaygroundPage />}
+                  loader={promptPlaygroundLoader}
+                  handle={{
+                    crumb: () => "playground",
+                  }}
                 />
               </Route>
               <Route

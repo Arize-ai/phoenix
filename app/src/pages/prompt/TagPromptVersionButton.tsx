@@ -40,6 +40,9 @@ export function TagPromptVersionButton() {
         <Button
           size="S"
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+          css={css`
+            text-wrap: nowrap;
+          `}
         >
           Tag Version
         </Button>
