@@ -17,13 +17,18 @@ down_revision: Union[str, None] = "01a8342c9cdf"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 
 def upgrade() -> None:
     with op.batch_alter_table("dataset_versions") as batch_op:
         batch_op.add_column(
             sa.Column(
                 "user_id",
-                sa.Integer,
+                _Integer,
                 sa.ForeignKey("users.id", ondelete="SET NULL"),
                 nullable=True,
             ),

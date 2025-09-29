@@ -17,27 +17,32 @@ down_revision: Union[str, None] = "d0690a79ea51"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 
 def upgrade() -> None:
     op.create_table(
         "experiment_tags",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "experiment_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("experiments.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
         sa.Column(
             "dataset_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "user_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
