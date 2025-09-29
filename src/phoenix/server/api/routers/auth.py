@@ -2,7 +2,6 @@ import asyncio
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from pathlib import Path
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -38,9 +37,9 @@ from phoenix.config import (
     get_base_url,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
-    get_env_host_root_path,
 )
 from phoenix.db import models
+from phoenix.server.api.routers.utils import prepend_root_path
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
@@ -145,7 +144,8 @@ async def logout(
         user_id = subject
     if user_id:
         await token_store.log_out(user_id)
-    redirect_url = "/logout" if get_env_disable_basic_auth() else "/login"
+    redirect_path = "/logout" if get_env_disable_basic_auth() else "/login"
+    redirect_url = prepend_root_path(request=request, path=redirect_path)
     response = Response(status_code=HTTP_302_FOUND, headers={"Location": redirect_url})
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
@@ -242,9 +242,9 @@ async def initiate_password_reset(request: Request) -> Response:
     )
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
     url = urlparse(request.headers.get("referer") or get_base_url())
-    path = Path(get_env_host_root_path()) / "reset-password-with-token"
+    path = prepend_root_path(request=request, path="/reset-password-with-token")
     query_string = urlencode(dict(token=token))
-    components = (url.scheme, url.netloc, path.as_posix(), "", query_string, "")
+    components = (url.scheme, url.netloc, path, "", query_string, "")
     reset_url = urlunparse(components)
     await sender.send_password_reset_email(email, reset_url)
     return Response(status_code=HTTP_204_NO_CONTENT)

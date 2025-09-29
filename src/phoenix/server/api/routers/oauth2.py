@@ -38,6 +38,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
+from phoenix.server.api.routers.utils import get_root_path, prepend_root_path
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
@@ -191,7 +192,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    redirect_path = _prepend_root_path_if_exists(request=request, path=return_url or "/")
+    redirect_path = prepend_root_path(request=request, path=return_url or "/")
     response = RedirectResponse(
         url=redirect_path,
         status_code=HTTP_302_FOUND,
@@ -564,7 +565,7 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     Creates a RedirectResponse to the login page to display an error message.
     """
     # TODO: this needs some cleanup
-    login_path = _prepend_root_path_if_exists(
+    login_path = prepend_root_path(
         request=request, path="/login" if not get_env_disable_basic_auth() else "/logout"
     )
     url = URL(login_path).include_query_params(error=error)
@@ -574,32 +575,13 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     return response
 
 
-def _prepend_root_path_if_exists(*, request: Request, path: str) -> str:
-    """
-    If a root path is configured, prepends it to the input path.
-    """
-    if not path.startswith("/"):
-        raise ValueError("path must start with a forward slash")
-    root_path = _get_root_path(request=request)
-    if root_path.endswith("/"):
-        root_path = root_path.rstrip("/")
-    return root_path + path
-
-
 def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
     """
     If a root path is configured, appends it to the input base url.
     """
-    if not (root_path := _get_root_path(request=request)):
+    if not (root_path := get_root_path(request=request)):
         return base_url
     return str(URLPath(root_path).make_absolute_url(base_url=base_url))
-
-
-def _get_root_path(*, request: Request) -> str:
-    """
-    Gets the root path from the request.
-    """
-    return str(request.scope.get("root_path", ""))
 
 
 def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: str) -> str:
