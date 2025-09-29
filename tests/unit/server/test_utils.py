@@ -14,8 +14,8 @@ class TestGetRootPath:
             # Test Case: Normal root path extraction
             # Verifies that a valid root path from ASGI scope is returned correctly
             pytest.param(
-                "/api/v1",
-                "/api/v1",
+                "/app/phoenix",
+                "/app/phoenix",
                 id="normal_root_path",
             ),
             # Test Case: Empty root path handling
@@ -35,8 +35,8 @@ class TestGetRootPath:
             # Test Case: Root path with trailing slash
             # Verifies that trailing slashes are preserved in extraction
             pytest.param(
-                "/api/v1/",
-                "/api/v1/",
+                "/app/phoenix/",
+                "/app/phoenix/",
                 id="root_path_with_trailing_slash",
             ),
         ],
@@ -103,41 +103,41 @@ class TestPrependRootPathIfExists:
                 # Test Case: Standard root path prepending
                 # Verifies normal operation with properly formatted inputs
                 pytest.param(
-                    "/api/v1",
+                    "/app/phoenix",
                     "/login",
-                    "/api/v1/login",
+                    "/app/phoenix/login",
                     id="standard_prepending",
                 ),
                 # Test Case: Auto-fix missing slash on root path
                 # Verifies that root path missing leading slash gets fixed
                 pytest.param(
-                    "api/v1",
+                    "app/phoenix",
                     "/login",
-                    "/api/v1/login",
+                    "/app/phoenix/login",
                     id="root_path_auto_fix_leading_slash",
                 ),
                 # Test Case: Auto-fix both root path and input path
                 # Verifies that both paths can be auto-normalized simultaneously
                 pytest.param(
-                    "api/v1",
+                    "app/phoenix",
                     "login",
-                    "/api/v1/login",
+                    "/app/phoenix/login",
                     id="both_paths_auto_fixed",
                 ),
                 # Test Case: Remove trailing slash from root path
                 # Verifies that trailing slashes are removed to prevent double slashes
                 pytest.param(
-                    "/api/v1/",
+                    "/app/phoenix/",
                     "/login",
-                    "/api/v1/login",
+                    "/app/phoenix/login",
                     id="trailing_slash_removal",
                 ),
                 # Test Case: Complex nested root path
                 # Verifies handling of deeper nested root paths
                 pytest.param(
-                    "/api/v1/phoenix/",
+                    "/app/phoenix/phoenix/",
                     "/logout",
-                    "/api/v1/phoenix/logout",
+                    "/app/phoenix/phoenix/logout",
                     id="nested_root_path",
                 ),
             ],
@@ -205,9 +205,9 @@ class TestPrependRootPathIfExists:
                 # Test Case: Multiple trailing slashes
                 # Verifies handling of malformed root paths with multiple trailing slashes
                 pytest.param(
-                    "/api/v1///",
+                    "/app/phoenix///",
                     "/login",
-                    "/api/v1/login",
+                    "/app/phoenix/login",
                     "multiple_trailing_slashes_removed",
                     id="multiple_trailing_slashes",
                 ),
@@ -223,9 +223,9 @@ class TestPrependRootPathIfExists:
                 # Test Case: Both paths need extensive normalization
                 # Verifies robust handling when both paths need significant fixes
                 pytest.param(
-                    "api/v1///",
+                    "app/phoenix///",
                     "reset-password-with-token",
-                    "/api/v1/reset-password-with-token",
+                    "/app/phoenix/reset-password-with-token",
                     "extensive_normalization_both_paths",
                     id="extensive_normalization",
                 ),
