@@ -123,30 +123,6 @@
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
   * [Evaluating Multi-Agent Systems](evaluation/concepts-evals/evaluating-multi-agent-systems.md)
 
-## Retrieval
-
-* [Overview: Retrieval](retrieval/overview-retrieval.md)
-* [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
-* [Concepts: Retrieval](retrieval/concepts-retrieval/README.md)
-  * [Retrieval with Embeddings](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
-  * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
-  * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
-
-## Inferences
-
-* [Quickstart: Inferences](inferences/phoenix-inferences.md)
-* [How-to: Inferences](inferences/how-to-inferences/README.md)
-  * [Import Your Data](inferences/how-to-inferences/define-your-schema/README.md)
-    * [Prompt and Response (LLM)](inferences/how-to-inferences/define-your-schema/prompt-and-response-llm.md)
-    * [Retrieval (RAG)](inferences/how-to-inferences/define-your-schema/retrieval-rag.md)
-    * [Corpus Data](inferences/how-to-inferences/define-your-schema/corpus-data.md)
-  * [Export Data](inferences/how-to-inferences/export-your-data.md)
-  * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
-  * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
-  * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
-* [API: Inferences](inferences/inference-and-schema.md)
-* [Concepts: Inferences](inferences/concepts-inferences.md)
-
 ## Settings
 
 * [Access Control (RBAC)](settings/access-control-rbac.md)

@@ -60,7 +60,7 @@ Instrument prompt and prompt variable collection to associate iterations of your
 
 Phoenix's search and retrieval optimization tools include an embeddings visualizer that helps teams understand how their data is being represented and clustered. This visual insight can guide decisions on indexing strategies, similarity measures, and data organization to improve the relevance and efficiency of search results.
 
-* [phoenix-inferences.md](inferences/phoenix-inferences.md "mention")
+* [Broken link](broken-reference "mention")
 {% endtab %}
 {% endtabs %}
 
@@ -106,7 +106,7 @@ Phoenix assists in curating high-quality data for testing and fine-tuning. It pr
 
 Add guardrails to your application to prevent malicious and erroneous inputs and outputs. Guardrails will be visualized in Phoenix, and can be attached to spans and traces in the same fashion as evaluation metrics.
 
-* [Broken link](broken-reference "mention")
+* [broken-reference](broken-reference/ "mention")
 {% endtab %}
 {% endtabs %}
 
