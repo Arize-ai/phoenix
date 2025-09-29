@@ -40,7 +40,3 @@ os.environ["OLLAMA_API_BASE"] = "http://localhost:11434"
 
 model = LiteLLMModel(model="ollama/llama3")
 ```
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/local_llm.ipynb" %}
-How to use Ollama with LiteLLMModel
-{% endembed %}

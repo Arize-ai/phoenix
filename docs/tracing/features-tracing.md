@@ -12,7 +12,7 @@ Phoenix's tracing and span analysis capabilities are invaluable during the proto
 
 This section contains details on Tracing features:
 
-* [projects.md](projects.md "mention")
-* [how-to-annotate-traces.md](how-to-annotate-traces.md "mention")
-* [sessions.md](sessions.md "mention")
-* [metrics.md](metrics.md "mention")
+* [projects.md](llm-traces/projects.md "mention")
+* [how-to-annotate-traces.md](llm-traces/how-to-annotate-traces.md "mention")
+* [sessions.md](llm-traces/sessions.md "mention")
+* [metrics.md](llm-traces/metrics.md "mention")

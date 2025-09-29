@@ -50,7 +50,7 @@ Alternatively, provide a name for the inferences that will appear in the applica
 ds = px.Inferences(df, schema, name="training")
 ```
 
-`ds` is then passed as the `primary` or `reference` argument to [launch\_app](broken-reference).
+`ds` is then passed as the `primary` or `reference` argument to [launch\_app](broken-reference/).
 
 ## phoenix.Schema
 
@@ -136,18 +136,18 @@ class TraceDataset(
 )
 ```
 
-Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../tracing/llm-traces.md) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
+Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../tracing/llm-traces/) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace_dataset.py)**]**
 
 ### **Parameters**
 
-* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces/) for more on traces and spans.
 * **name** (str): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces/) for more on traces and spans.
 * **name** (Optional\[str]): The name used to identify the dataset in the application.
 
 ### Usage

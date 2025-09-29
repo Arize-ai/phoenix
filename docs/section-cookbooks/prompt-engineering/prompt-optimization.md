@@ -55,18 +55,17 @@ ds.head()
 
 ```python
 import uuid
-
-import phoenix as px
-from phoenix.client import Client as PhoenixClient
+from phoenix.client import Client
 
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=ds,
     input_keys=["prompt"],
     output_keys=["type"],
-    dataset_name=f"jailbreak-classification-{unique_id}",
+    name=f"jailbreak-classification-{unique_id}",
 )
 ```
 
@@ -92,7 +91,7 @@ params = CompletionCreateParamsBase(
 
 prompt_identifier = "jailbreak-classification"
 
-prompt = PhoenixClient().prompts.create(
+prompt = px_client.prompts.create(
     name=prompt_identifier,
     prompt_description="A prompt for classifying whether a given prompt is a jailbreak risk.",
     version=PromptVersion.from_openai(params),
@@ -134,7 +133,7 @@ Now you can run the initial experiment. This will be the base prompt that you'll
 ```python
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 

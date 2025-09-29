@@ -18,7 +18,7 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 Tracing in Phoenix
 {% endembed %}
 
-[Tracing](tracing/llm-traces.md) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
+[Tracing](tracing/llm-traces/) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
 Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](broken-reference), [LangChain](broken-reference),[ DSPy](broken-reference)), SDKs ([OpenAI](broken-reference), [Bedrock](broken-reference), [Mistral](broken-reference), [Vertex](broken-reference)), and Languages. ([Python](broken-reference), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
 {% endtab %}
@@ -32,7 +32,7 @@ Phoenix is built to help you [evaluate your application](evaluation/llm-evals/) 
 
 * A standalone library to [run LLM-based evaluations](evaluation/how-to-evals/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
 * [Direct integration of LLM-based and code-based evaluators](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
-* [Human annotation capabilities](tracing/features-tracing/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
+* [Human annotation capabilities](tracing/llm-traces/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
 {% endtab %}
 
 {% tab title="Prompt Engineering" %}

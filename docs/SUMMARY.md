@@ -9,15 +9,15 @@
 
 ## Tracing
 
-* [Overview: Tracing](tracing/llm-traces.md)
+* [Overview: Tracing](tracing/llm-traces/README.md)
+  * [Projects](tracing/llm-traces/projects.md)
+  * [Sessions](tracing/llm-traces/sessions.md)
+  * [Annotations](tracing/llm-traces/how-to-annotate-traces.md)
+  * [Metrics](tracing/llm-traces/metrics.md)
 * [Quickstart: Tracing](tracing/llm-traces-1/README.md)
   * [Quickstart: Tracing (Python)](tracing/llm-traces-1/quickstart-tracing-python.md)
   * [Quickstart: Tracing (TS)](tracing/llm-traces-1/quickstart-tracing-ts.md)
-* [Features: Tracing](tracing/features-tracing/README.md)
-  * [Projects](tracing/features-tracing/projects.md)
-  * [Annotations](tracing/features-tracing/how-to-annotate-traces.md)
-  * [Sessions](tracing/features-tracing/sessions.md)
-  * [Metrics](tracing/features-tracing/metrics.md)
+* [Features: Tracing](tracing/features-tracing.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
     * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
@@ -83,11 +83,14 @@
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
+  * [Repetitions](datasets-and-experiments/how-to-experiments/repetitions.md)
 * [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 
 ## Evaluation
 
 * [Overview: Evals](evaluation/llm-evals/README.md)
+  * [Executors](evaluation/llm-evals/executors.md)
+  * [Evaluator Traces](evaluation/llm-evals/evaluator-traces.md)
   * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
 * [Quickstart: Evals](evaluation/evals.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
