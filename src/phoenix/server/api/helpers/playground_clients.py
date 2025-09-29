@@ -1677,6 +1677,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-sonnet-4-5",
         "claude-sonnet-4-0",
         "claude-sonnet-4-20250514",
         "claude-opus-4-1",
