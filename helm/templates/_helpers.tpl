@@ -19,7 +19,11 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end }}
 
 {{- define "phoenix.postgres" -}}
-  {{- printf "%s-postgresql" (include "phoenix.fullname" .) -}}
+  {{- if .Values.database.postgres.host -}}
+    {{- .Values.database.postgres.host -}}
+  {{- else -}}
+    {{- printf "%s-postgresql" .Release.Name -}}
+  {{- end -}}
 {{- end -}}
 {{- define "phoenix.postgres-pvc" -}}
   {{- printf "%s-pvc" (include "phoenix.postgres" .) -}}
@@ -58,6 +62,16 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end -}}
 {{- define "phoenix.grpcPort" -}}
   {{- .Values.server.grpcPort | default 4317 }}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "phoenix.labels" -}}
+app.kubernetes.io/name: {{ include "phoenix.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/*
