@@ -181,7 +181,7 @@ Joke: {joke}
 """
 
 nerdy_evaluator = ClassificationEvaluator(
-    name="nerdiness_evaluator",
+    name="nerdiness",
     llm=LLM(provider="openai", model="gpt-4o-mini"),
     prompt_template=prompt_template,
     choices=["nerdy", "not nerdy"], # you could map these labels to scores, but we refrain from judgement here
