@@ -243,6 +243,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { useNotification } from '@phoenix/components'",
       },
+      {
+        name: "Switch",
+        module: "@arizeai/components",
+        use: "import { Switch } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

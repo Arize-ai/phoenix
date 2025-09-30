@@ -180,7 +180,7 @@ experiment = phoenix_client.experiments.run_experiment(
         # contains_keyword,
         # conciseness,
     ],
-    dangerously_set_repetitions=1,
+    repetitions=1,
 )
 
 task_prompt_template = "Answer verbosely: {question}"
@@ -196,7 +196,7 @@ experiment = phoenix_client.experiments.run_experiment(
         # contains_keyword,
         # conciseness,
     ],
-    dangerously_set_repetitions=3,
+    repetitions=3,
 )
 
 
@@ -251,5 +251,5 @@ experiment = phoenix_client.experiments.run_experiment(
         # contains_keyword,
         # conciseness,
     ],
-    dangerously_set_repetitions=5,
+    repetitions=5,
 )

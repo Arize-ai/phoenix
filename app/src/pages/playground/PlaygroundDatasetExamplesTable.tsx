@@ -1,11 +1,13 @@
-import React, {
+import {
   memo,
   PropsWithChildren,
   ReactNode,
+  SetStateAction,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
   Disposable,
@@ -24,7 +26,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import {
   GraphQLSubscriptionConfig,
   PayloadError,
@@ -70,6 +72,8 @@ import {
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
 
+import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
@@ -111,37 +115,45 @@ const createExampleResponsesForInstance = (
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, result, experimentRunId } = example;
-      const baseExampleResponseData: ExampleRunData = {
-        experimentRunId,
-      };
+      const { datasetExampleId, repetitionNumber, result, experimentRunId } =
+        example;
       switch (result.__typename) {
         case "ChatCompletionMutationError": {
-          return {
+          const updatedInstanceResponses: InstanceResponses = {
             ...instanceResponses,
             [datasetExampleId]: {
-              ...baseExampleResponseData,
-              errorMessage: result.message,
+              ...instanceResponses[datasetExampleId],
+              [repetitionNumber]: {
+                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
+                errorMessage: result.message,
+                experimentRunId,
+              },
             },
           };
+          return updatedInstanceResponses;
         }
         case "ChatCompletionMutationPayload": {
           const { errorMessage, content, span, toolCalls } = result;
-          return {
+          const updatedInstanceResponses: InstanceResponses = {
             ...instanceResponses,
             [datasetExampleId]: {
-              ...baseExampleResponseData,
-              span,
-              content,
-              errorMessage,
-              toolCalls: toolCalls.reduce<
-                Record<string, PartialOutputToolCall>
-              >((map, toolCall) => {
-                map[toolCall.id] = toolCall;
-                return map;
-              }, {}),
+              ...instanceResponses[datasetExampleId],
+              [repetitionNumber]: {
+                ...instanceResponses[datasetExampleId]?.[repetitionNumber],
+                experimentRunId,
+                span,
+                content,
+                errorMessage,
+                toolCalls: toolCalls.reduce<
+                  Record<string, PartialOutputToolCall>
+                >((map, toolCall) => {
+                  map[toolCall.id] = toolCall;
+                  return map;
+                }, {}),
+              },
             },
           };
+          return updatedInstanceResponses;
         }
         case "%other":
           return instanceResponses;
@@ -268,8 +280,14 @@ function EmptyExampleOutput({
 
 function ExampleOutputContent({
   exampleData,
+  repetitionNumber,
+  setRepetitionNumber,
+  totalRepetitions,
 }: {
   exampleData: ExampleRunData;
+  repetitionNumber: number;
+  setRepetitionNumber: (n: SetStateAction<number>) => void;
+  totalRepetitions: number;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
@@ -277,70 +295,86 @@ function ExampleOutputContent({
   const hasExperimentRun = experimentRunId != null;
   const [, setSearchParams] = useSearchParams();
   const spanControls = useMemo(() => {
-    if (hasSpan || hasExperimentRun) {
-      return (
-        <>
-          {hasExperimentRun && (
-            <DialogTrigger>
-              <TooltipTrigger>
-                <IconButton size="S" aria-label="View experiment run details">
-                  <Icon svg={<Icons.ExpandOutline />} />
-                </IconButton>
-                <Tooltip>
-                  <TooltipArrow />
-                  view experiment run
-                </Tooltip>
-              </TooltipTrigger>
-              <ModalOverlay>
-                <Modal variant="slideover" size="L">
-                  <PlaygroundExperimentRunDetailsDialog
-                    runId={experimentRunId}
-                  />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
-          )}
-          {hasSpan && (
-            <>
-              <DialogTrigger
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setSearchParams(
-                      (prev) => {
-                        const newParams = new URLSearchParams(prev);
-                        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                        return newParams;
-                      },
-                      { replace: true }
-                    );
-                  }
-                }}
-              >
-                <TooltipTrigger>
-                  <IconButton size="S" aria-label="View run trace">
-                    <Icon svg={<Icons.Trace />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    view run trace
-                  </Tooltip>
-                </TooltipTrigger>
-                <ModalOverlay>
-                  <Modal size="fullscreen" variant="slideover">
-                    <PlaygroundRunTraceDetailsDialog
-                      traceId={span.context.traceId}
-                      projectId={span.project.id}
-                      title={`Experiment Run Trace`}
-                    />
-                  </Modal>
-                </ModalOverlay>
-              </DialogTrigger>
-            </>
-          )}
-        </>
-      );
-    }
-  }, [experimentRunId, hasExperimentRun, hasSpan, span, setSearchParams]);
+    return (
+      <>
+        {totalRepetitions > 1 && (
+          <ExperimentRepetitionSelector
+            repetitionNumber={repetitionNumber}
+            totalRepetitions={totalRepetitions}
+            setRepetitionNumber={setRepetitionNumber}
+          />
+        )}
+        <DialogTrigger>
+          <TooltipTrigger isDisabled={!hasExperimentRun}>
+            <IconButton
+              size="S"
+              aria-label="View experiment run details"
+              isDisabled={!hasExperimentRun}
+            >
+              <Icon svg={<Icons.ExpandOutline />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              view experiment run
+            </Tooltip>
+          </TooltipTrigger>
+          <ModalOverlay>
+            <Modal variant="slideover" size="L">
+              <PlaygroundExperimentRunDetailsDialog
+                runId={experimentRunId ?? ""}
+              />
+            </Modal>
+          </ModalOverlay>
+        </DialogTrigger>
+        <DialogTrigger
+          onOpenChange={(open) => {
+            if (!open) {
+              setSearchParams(
+                (prev) => {
+                  const newParams = new URLSearchParams(prev);
+                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                  return newParams;
+                },
+                { replace: true }
+              );
+            }
+          }}
+        >
+          <TooltipTrigger isDisabled={!hasSpan}>
+            <IconButton
+              size="S"
+              aria-label="View run trace"
+              isDisabled={!hasSpan}
+            >
+              <Icon svg={<Icons.Trace />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              view run trace
+            </Tooltip>
+          </TooltipTrigger>
+          <ModalOverlay>
+            <Modal size="fullscreen" variant="slideover">
+              <PlaygroundRunTraceDetailsDialog
+                traceId={span?.context.traceId ?? ""}
+                projectId={span?.project.id ?? ""}
+                title={`Experiment Run Trace`}
+              />
+            </Modal>
+          </ModalOverlay>
+        </DialogTrigger>
+      </>
+    );
+  }, [
+    experimentRunId,
+    hasExperimentRun,
+    hasSpan,
+    repetitionNumber,
+    setRepetitionNumber,
+    setSearchParams,
+    span,
+    totalRepetitions,
+  ]);
 
   return (
     <Flex direction="column" height="100%">
@@ -404,10 +438,16 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
-  const exampleData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.exampleResponsesMap[instanceId]?.[exampleId]
+  const [repetitionNumber, setRepetitionNumber] = useState(1);
+  const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.repetitions
   );
-
+  const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
+    (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
+  );
+  const exampleData = useMemo(() => {
+    return examplesByRepetitionNumber?.[repetitionNumber];
+  }, [examplesByRepetitionNumber, repetitionNumber]);
   return exampleData == null ? (
     <EmptyExampleOutput
       isRunning={isRunning}
@@ -415,25 +455,25 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       datasetExampleInput={datasetExampleInput}
     />
   ) : (
-    <ExampleOutputContent exampleData={exampleData} />
+    <ExampleOutputContent
+      exampleData={exampleData}
+      repetitionNumber={repetitionNumber}
+      totalRepetitions={totalRepetitions}
+      setRepetitionNumber={setRepetitionNumber}
+    />
   );
 });
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  tableContainerRef,
+  virtualizer,
 }: {
   table: Table<T>;
-  tableContainerRef: React.RefObject<HTMLDivElement>;
+  virtualizer: Virtualizer<HTMLDivElement, Element>;
 }) {
   const rows = table.getRowModel().rows;
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 310, // estimated row height
-    overscan: 5,
-  });
+
   const virtualRows = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
@@ -515,8 +555,8 @@ export function PlaygroundDatasetExamplesTable({
   const setExampleDataForInstance = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setExampleDataForInstance
   );
-  const resetExampleData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.resetExampleData
+  const resetData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetData
   );
   const appendExampleDataToolCallChunk =
     usePlaygroundDatasetExamplesTableContext(
@@ -525,6 +565,10 @@ export function PlaygroundDatasetExamplesTable({
   const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
     (state) => state.appendExampleDataTextChunk
   );
+  const setRepetitions = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setRepetitions
+  );
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
 
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
@@ -561,6 +605,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               patch: {
                 span: chatCompletion.span,
                 experimentRunId: chatCompletion.experimentRun?.id,
@@ -574,6 +619,7 @@ export function PlaygroundDatasetExamplesTable({
             updateExampleData({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               patch: { errorMessage: chatCompletion.message },
             });
             break;
@@ -584,6 +630,7 @@ export function PlaygroundDatasetExamplesTable({
             appendExampleDataTextChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               textChunk: chatCompletion.content,
             });
             break;
@@ -594,6 +641,7 @@ export function PlaygroundDatasetExamplesTable({
             appendExampleDataToolCallChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               toolCallChunk: chatCompletion,
             });
 
@@ -627,6 +675,7 @@ export function PlaygroundDatasetExamplesTable({
         errors: PayloadError[] | null
       ) => {
         markPlaygroundInstanceComplete(instanceId);
+        setRepetitions(repetitions);
         if (errors) {
           notifyError({
             title: "Chat completion failed",
@@ -651,7 +700,9 @@ export function PlaygroundDatasetExamplesTable({
     [
       markPlaygroundInstanceComplete,
       notifyError,
+      repetitions,
       setExampleDataForInstance,
+      setRepetitions,
       updateInstance,
     ]
   );
@@ -661,7 +712,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
-    resetExampleData();
+    resetData();
     if (streaming) {
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
@@ -709,6 +760,7 @@ export function PlaygroundDatasetExamplesTable({
               }
             },
           };
+        setRepetitions(repetitions);
         const subscription = requestSubscription(environment, config);
         subscriptions.push(subscription);
       }
@@ -777,7 +829,9 @@ export function PlaygroundDatasetExamplesTable({
     onCompleted,
     onNext,
     playgroundStore,
-    resetExampleData,
+    repetitions,
+    resetData,
+    setRepetitions,
   ]);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
@@ -949,6 +1003,14 @@ export function PlaygroundDatasetExamplesTable({
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 310, // estimated row height
+    overscan: 5,
+  });
+
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -1045,12 +1107,9 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody
-            table={table}
-            tableContainerRef={tableContainerRef}
-          />
+          <MemoizedTableBody table={table} virtualizer={virtualizer} />
         ) : (
-          <TableBody table={table} tableContainerRef={tableContainerRef} />
+          <TableBody table={table} virtualizer={virtualizer} />
         )}
       </table>
     </div>
@@ -1066,10 +1125,12 @@ graphql`
       ... on TextChunk {
         content
         datasetExampleId
+        repetitionNumber
       }
       ... on ToolCallChunk {
         id
         datasetExampleId
+        repetitionNumber
         function {
           name
           arguments
@@ -1082,6 +1143,7 @@ graphql`
       }
       ... on ChatCompletionSubscriptionResult {
         datasetExampleId
+        repetitionNumber
         span {
           id
           tokenCountTotal
@@ -1104,6 +1166,7 @@ graphql`
       }
       ... on ChatCompletionSubscriptionError {
         datasetExampleId
+        repetitionNumber
         message
       }
     }
@@ -1120,6 +1183,7 @@ graphql`
       examples {
         datasetExampleId
         experimentRunId
+        repetitionNumber
         result {
           __typename
           ... on ChatCompletionMutationError {

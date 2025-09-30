@@ -589,6 +589,22 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field(
+        description="Names of all available annotations for sessions. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    async def session_annotation_names(
+        self,
+        info: Info[Context, None],
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.ProjectSessionAnnotation.name))
+            .join(models.ProjectSession)
+            .where(models.ProjectSession.project_id == self.project_rowid)
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
+
+    @strawberry.field(
         description="Names of available document evaluations.",
     )  # type: ignore
     async def document_evaluation_names(

@@ -19,7 +19,6 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import {
@@ -27,6 +26,7 @@ import {
   Flex,
   Loading,
   LoadingMask,
+  Switch,
   Tab,
   TabList,
   TabPanel,

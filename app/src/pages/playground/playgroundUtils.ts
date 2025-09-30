@@ -1263,6 +1263,7 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
+    repetitions: 1, // configurable repetitions aren't currently supported for variable input
     template: {
       variables: variablesMap,
       format: templateFormat,
@@ -1293,6 +1294,7 @@ export const getChatCompletionOverDatasetInput = ({
   return {
     ...baseChatCompletionVariables,
     templateFormat: playgroundStore.getState().templateFormat,
+    repetitions: playgroundStore.getState().repetitions,
     datasetId,
   };
 };

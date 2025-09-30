@@ -23,6 +23,7 @@ from phoenix.server.api.dataloaders import (
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -30,7 +31,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
@@ -43,6 +43,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
     SessionNumTracesWithErrorDataLoader,
@@ -68,6 +69,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
@@ -100,6 +102,7 @@ class DataLoaders:
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
     )
+    dataset_example_splits: DatasetExampleSplitsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
@@ -109,7 +112,6 @@ class DataLoaders:
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
     experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
-    experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
@@ -124,6 +126,7 @@ class DataLoaders:
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
+    session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
@@ -158,6 +161,7 @@ class DataLoaders:
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
+    trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
@@ -237,3 +241,10 @@ class Context(BaseContext):
     @cached_property
     def user(self) -> PhoenixUser:
         return cast(PhoenixUser, self.get_request().user)
+
+    @cached_property
+    def user_id(self) -> Optional[int]:
+        try:
+            return int(self.user.identity)
+        except Exception:
+            return None

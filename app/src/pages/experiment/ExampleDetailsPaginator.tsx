@@ -3,9 +3,9 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Flex,
   Icon,
-  IconButton,
   Icons,
   KeyboardToken,
   Tooltip,
@@ -59,14 +59,13 @@ export const ExampleDetailsPaginator = ({
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
       <TooltipTrigger delay={100}>
-        <IconButton
+        <Button
           size="S"
           aria-label="Next example"
           isDisabled={!hasNext}
           onPress={handleNext}
-        >
-          <Icon svg={<Icons.ArrowDownwardOutline />} />
-        </IconButton>
+          leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
+        ></Button>
         <Tooltip
           offset={4}
           css={css`
@@ -83,14 +82,13 @@ export const ExampleDetailsPaginator = ({
         </Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={100}>
-        <IconButton
+        <Button
           size="S"
           aria-label="Previous example"
           isDisabled={!hasPrevious}
           onPress={handlePrevious}
-        >
-          <Icon svg={<Icons.ArrowUpwardOutline />} />
-        </IconButton>
+          leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
+        ></Button>
         <Tooltip
           offset={4}
           css={css`

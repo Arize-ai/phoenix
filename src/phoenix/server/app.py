@@ -67,7 +67,6 @@ from phoenix.config import (
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_host,
-    get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
@@ -92,6 +91,7 @@ from phoenix.server.api.dataloaders import (
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -99,7 +99,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentErrorRatesDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRepetitionCountsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
@@ -112,6 +111,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
     SessionNumTracesWithErrorDataLoader,
@@ -137,6 +137,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
@@ -173,6 +174,7 @@ from phoenix.server.types import (
     LastUpdatedAt,
     TokenStore,
 )
+from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
@@ -281,9 +283,6 @@ class Static(StaticFiles):
                 return {}
             raise e
 
-    def _sanitize_basename(self, basename: str) -> str:
-        return basename[:-1] if basename.endswith("/") else basename
-
     async def get_response(self, path: str, scope: Scope) -> Response:
         # Redirect to the oauth2 login page if basic auth is disabled and auto_login is enabled
         # TODO: this needs to be refactored to be cleaner
@@ -292,14 +291,10 @@ class Static(StaticFiles):
             and self._app_config.basic_auth_disabled
             and self._app_config.auto_login_idp_name
         ):
-            request = Request(scope)
-            url = URL(
-                str(
-                    Path(get_env_host_root_path())
-                    / f"oauth2/{self._app_config.auto_login_idp_name}/login"
-                )
+            redirect_path = prepend_root_path(
+                scope, f"oauth2/{self._app_config.auto_login_idp_name}/login"
             )
-            url = url.include_query_params(**request.query_params)
+            url = URL(redirect_path).include_query_params(**Request(scope).query_params)
             return RedirectResponse(url=url)
         try:
             response = await super().get_response(path, scope)
@@ -316,7 +311,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": self._sanitize_basename(request.scope.get("root_path", "")),
+                    "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
@@ -715,6 +710,7 @@ def create_graphql_router(
                 dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
                     db
                 ),
+                dataset_example_splits=DatasetExampleSplitsDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(
@@ -737,7 +733,6 @@ def create_graphql_router(
                     db
                 ),
                 experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
-                experiment_repetition_counts=ExperimentRepetitionCountsDataLoader(db),
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
@@ -769,6 +764,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
                 session_first_inputs=SessionIODataLoader(db, "first_input"),
                 session_last_outputs=SessionIODataLoader(db, "last_output"),
                 session_num_traces=SessionNumTracesDataLoader(db),
@@ -815,6 +811,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
+                trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
                 trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(

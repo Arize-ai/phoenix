@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<865bfa9b1782f8db94f4565b2b244cbf>>
+ * @generated SignedSource<<e8499fe9c43d8adab0c67bc1a58e7642>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,13 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentCompareDetailsDialogQuery$variables = {
+export type ExperimentCompareDetailsQuery$variables = {
   datasetExampleId: string;
   datasetId: string;
   datasetVersionId: string;
   experimentIds: ReadonlyArray<string>;
 };
-export type ExperimentCompareDetailsDialogQuery$data = {
+export type ExperimentCompareDetailsQuery$data = {
   readonly dataset: {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
@@ -62,9 +62,9 @@ export type ExperimentCompareDetailsDialogQuery$data = {
     };
   };
 };
-export type ExperimentCompareDetailsDialogQuery = {
-  response: ExperimentCompareDetailsDialogQuery$data;
-  variables: ExperimentCompareDetailsDialogQuery$variables;
+export type ExperimentCompareDetailsQuery = {
+  response: ExperimentCompareDetailsQuery$data;
+  variables: ExperimentCompareDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -391,7 +391,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentCompareDetailsDialogQuery",
+    "name": "ExperimentCompareDetailsQuery",
     "selections": [
       {
         "alias": "example",
@@ -430,7 +430,7 @@ return {
       (v3/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ExperimentCompareDetailsDialogQuery",
+    "name": "ExperimentCompareDetailsQuery",
     "selections": [
       {
         "alias": "example",
@@ -463,16 +463,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ae0a032a1aa253ae38d07b28c096a3a9",
+    "cacheID": "62d28a2dd7c3966b1501795c9966a4ef",
     "id": null,
     "metadata": {},
-    "name": "ExperimentCompareDetailsDialogQuery",
+    "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsDialogQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "30ca5f0e4e6cef34ab1b3d862f1e1bfa";
+(node as any).hash = "8387c9506d7b7967b97649c3292bcacd";
 
 export default node;

@@ -18,7 +18,7 @@ _AttrStrIdentifier: TypeAlias = str
 
 
 class TableFieldsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: DbSessionFactory, table: type[models.Base]) -> None:
+    def __init__(self, db: DbSessionFactory, table: type[models.HasId]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
         self._table = table
@@ -37,7 +37,7 @@ class TableFieldsDataLoader(DataLoader[Key, Result]):
 
 def _get_stmt(
     keys: Iterable[tuple[RowId, QueryableAttribute[Any]]],
-    table: type[models.Base],
+    table: type[models.HasId],
 ) -> tuple[
     Select[Any],
     dict[_ResultColumnPosition, _AttrStrIdentifier],
