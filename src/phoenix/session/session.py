@@ -26,6 +26,7 @@ from phoenix.config import (
     ensure_working_dir_if_needed,
     get_env_database_connection_str,
     get_env_host,
+    get_env_host_root_path,
     get_env_port,
     get_exported_files,
     get_working_dir,
@@ -118,6 +119,7 @@ class Session(TraceDataExtractor, ABC):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         self._database_url = database_url
@@ -133,7 +135,15 @@ class Session(TraceDataExtractor, ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
-        self.root_path = _get_root_path(self.notebook_env, self.port)
+        self.root_path = (
+            (get_env_host_root_path() or _get_root_path(self.notebook_env, self.port))
+            if root_path is None
+            else root_path
+        )
+        if self.root_path and self.root_path != "/":
+            if not self.root_path.startswith("/"):
+                self.root_path = f"/{self.root_path}"
+            self.root_path = self.root_path.rstrip("/")
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
@@ -268,7 +278,7 @@ class Session(TraceDataExtractor, ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        return _get_url(self.host, self.port, self.notebook_env)
+        return _get_url(self.host, self.port, self.notebook_env, self.root_path)
 
     @property
     def database_url(self) -> str:
@@ -301,6 +311,7 @@ class ProcessSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=notebook_env,
         )
         primary_inferences.to_disc()
@@ -367,6 +378,7 @@ class ThreadSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=notebook_env,
         )
         self.model = create_model_from_inferences(
@@ -449,6 +461,7 @@ def launch_app(
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
+    root_path: Optional[str] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
     use_temp_dir: bool = True,
@@ -474,6 +487,9 @@ def launch_app(
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
         Defaults to 6006.
+    root_path: str, optional
+        The root path to serve the application under (useful when behind a proxy).
+        Can also be set using environment variable `PHOENIX_HOST_ROOT_PATH`.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: dict[str, Union[int, float]], optional, default=None
@@ -586,6 +602,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=nb_env,
         )
         # TODO: catch exceptions from thread
@@ -599,6 +616,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
+            root_path=root_path,
             notebook_env=nb_env,
         )
 
@@ -649,7 +667,7 @@ def close_app(delete_data: bool = False) -> None:
         delete_all(prompt_before_delete=False)
 
 
-def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
+def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path: str) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if notebook_env == NotebookEnvironment.COLAB:
         from google.colab.output import eval_js
@@ -661,10 +679,12 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     if notebook_env == NotebookEnvironment.DATABRICKS:
         context = _get_databricks_context()
         return f"{_get_databricks_notebook_base_url(context)}/{port}/"
+    if not root_path.startswith("/"):
+        root_path = f"/{root_path}"
     if host == "0.0.0.0" or host == "127.0.0.1":
         # The app is running locally, so use localhost
-        return f"http://localhost:{port}/"
-    return f"http://{host}:{port}/"
+        return f"http://localhost:{port}{root_path}"
+    return f"http://{host}:{port}{root_path}"
 
 
 def _is_colab() -> bool:
