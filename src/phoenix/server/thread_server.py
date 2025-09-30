@@ -3,16 +3,9 @@ import logging
 from collections.abc import Generator
 from threading import Thread
 from time import sleep, time
-from typing import Literal
 
 from fastapi import FastAPI
 from uvicorn import Config, Server
-
-try:
-    from uvicorn.config import LoopSetupType  # type: ignore[attr-defined]
-except ImportError:
-    # LoopSetupType was removed in uvicorn 0.36.0
-    LoopSetupType = Literal["none", "auto", "asyncio", "uvloop"]
 
 
 def _nest_asyncio_applied() -> bool:
