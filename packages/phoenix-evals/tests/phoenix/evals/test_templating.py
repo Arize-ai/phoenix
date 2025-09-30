@@ -220,6 +220,7 @@ def test_dot_delimited_f_string_variables() -> None:
         @property
         def world(self) -> str:
             return "why hello, world"
+
     template = Template(template="{hello.world}")
     assert isinstance(template._formatter, FStringFormatter)
     assert template.render({"hello.world": "hello! world!"}) == "hello! world!"
