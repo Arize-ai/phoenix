@@ -9,7 +9,7 @@ from strawberry.relay.types import Connection, Edge, NodeType, PageInfo
 from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
-CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime]
+CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime, None]
 
 # A type alias for the connection cursor implementation
 CursorString = str
@@ -19,6 +19,7 @@ CURSOR_PREFIX = "connection:"
 
 
 class CursorSortColumnDataType(Enum):
+    NULL = auto()
     STRING = auto()
     INT = auto()
     FLOAT = auto()
@@ -30,6 +31,10 @@ class CursorSortColumn:
     type: CursorSortColumnDataType
     value: CursorSortColumnValue
 
+    def __post_init__(self) -> None:
+        if self.value is None:
+            self.type = CursorSortColumnDataType.NULL
+
     def __str__(self) -> str:
         if isinstance(self.value, str):
             return self.value
@@ -37,7 +42,9 @@ class CursorSortColumn:
             return str(self.value)
         if isinstance(self.value, datetime):
             return self.value.isoformat()
-        assert_never(self.type)
+        if self.value is None:
+            return ""
+        assert_never(self.value)
 
     @classmethod
     def from_string(cls, type: CursorSortColumnDataType, cursor_string: str) -> "CursorSortColumn":
@@ -50,6 +57,8 @@ class CursorSortColumn:
             value = float(cursor_string)
         elif type is CursorSortColumnDataType.DATETIME:
             value = datetime.fromisoformat(cursor_string)
+        elif type is CursorSortColumnDataType.NULL:
+            value = None
         else:
             assert_never(type)
         return cls(type=type, value=value)

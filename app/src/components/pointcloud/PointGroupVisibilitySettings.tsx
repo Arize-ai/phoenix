@@ -1,6 +1,7 @@
-import { ChangeEvent, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
+import { Checkbox } from "@phoenix/components/checkbox";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
@@ -26,11 +27,10 @@ export function PointGroupVisibilitySettings() {
   );
 
   const onChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = event.target;
+    (isSelected: boolean, name: string) => {
       setPointGroupVisibility({
         ...pointGroupVisibility,
-        [name]: checked,
+        [name]: isSelected,
       });
     },
     [pointGroupVisibility, setPointGroupVisibility]
@@ -46,6 +46,9 @@ export function PointGroupVisibilitySettings() {
       <div
         css={css`
           padding: var(--ac-global-dimension-static-size-100);
+          display: flex;
+          flex-direction: column;
+          gap: var(--ac-global-dimension-static-size-50);
         `}
       >
         {pointGroups.map((groupName) => {
@@ -57,7 +60,7 @@ export function PointGroupVisibilitySettings() {
               name={groupName}
               checked={groupVisibility}
               color={groupColor}
-              onChange={onChange}
+              onChange={(isSelected) => onChange(isSelected, groupName)}
             />
           );
         })}
@@ -85,11 +88,10 @@ function PointGroupCheckbox() {
   );
 
   const onChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const { checked } = e.target;
+    (isSelected: boolean) => {
       const newPointGroupVisibility = Object.keys(pointGroupVisibility).reduce(
         (acc, groupName) => {
-          acc[groupName] = checked;
+          acc[groupName] = isSelected;
           return acc;
         },
         {} as Record<string, boolean>
@@ -100,18 +102,20 @@ function PointGroupCheckbox() {
   );
 
   return (
-    <label
-      css={() => css`
-        display: flex;
-        flex-direction: row;
-        gap: var(--ac-global-dimension-size-50);
+    <div
+      css={css`
         padding: var(--ac-global-dimension-static-size-50)
           var(--ac-global-dimension-static-size-100);
         background-color: var(--ac-global-background-color-light);
       `}
     >
-      <input type="checkbox" checked={!allNotVisible} onChange={onChange} />
-      {`${coloringStrategy}`}
-    </label>
+      <Checkbox
+        isSelected={!allNotVisible}
+        name={"pointGroup"}
+        onChange={onChange}
+      >
+        {`${coloringStrategy}`}
+      </Checkbox>
+    </div>
   );
 }

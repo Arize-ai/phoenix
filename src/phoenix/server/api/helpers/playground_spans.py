@@ -222,6 +222,7 @@ def get_db_experiment_run(
     *,
     experiment_id: int,
     example_id: int,
+    repetition_number: int,
 ) -> models.ExperimentRun:
     return models.ExperimentRun(
         experiment_id=experiment_id,
@@ -230,7 +231,7 @@ def get_db_experiment_run(
         output=models.ExperimentRunOutput(
             task_output=get_dataset_example_output(db_span),
         ),
-        repetition_number=1,
+        repetition_number=repetition_number,
         start_time=db_span.start_time,
         end_time=db_span.end_time,
         error=db_span.status_message or None,

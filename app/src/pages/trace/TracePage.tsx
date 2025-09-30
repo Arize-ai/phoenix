@@ -1,7 +1,13 @@
 import { Suspense } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
-import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Dialog,
+  Flex,
+  Loading,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -44,9 +50,11 @@ export function TracePage() {
           {({ close }) => (
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Trace Details</DialogTitle>
-                <DialogTitleExtra>
+                <Flex direction="row" gap="size-200" justifyContent="center">
                   <TraceDetailsPaginator currentId={paginationSubjectId} />
+                  <DialogTitle>Trace Details</DialogTitle>
+                </Flex>
+                <DialogTitleExtra>
                   <ShareLinkButton
                     preserveSearchParams
                     buttonText="Share"

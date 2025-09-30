@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
 import { z } from "zod";
 
-import { Switch } from "@arizeai/components";
-
-import { Input, Label, NumberField, Text } from "@phoenix/components";
+import { Input, Label, NumberField, Switch, Text } from "@phoenix/components";
 
 const MINIMUM_BUDGET_TOKENS = 1024;
 

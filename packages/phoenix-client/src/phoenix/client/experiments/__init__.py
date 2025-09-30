@@ -27,7 +27,7 @@ def run_experiment(
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["Client"] = None,
-    dangerously_set_repetitions: int = 1,
+    repetitions: int = 1,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples.
@@ -106,10 +106,8 @@ def run_experiment(
         experiment. If not
             provided, a new client will be configured from environment
             variables. Defaults to None.
-        dangerously_set_repetitions (int): The number of times the task will be
-        run on each example.
-            Defaults to 1. This argument is currently for internal testing
-            purposes only.
+        repetitions (int): The number of times the task will be run on each example.
+            Defaults to 1.
 
     Returns:
         RanExperiment: A dictionary containing the experiment results.
@@ -201,7 +199,7 @@ def run_experiment(
         dry_run=dry_run,
         print_summary=print_summary,
         timeout=timeout,
-        dangerously_set_repetitions=dangerously_set_repetitions,
+        repetitions=repetitions,
     )
 
 
@@ -219,7 +217,7 @@ async def async_run_experiment(
     concurrency: int = 3,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     client: Optional["AsyncClient"] = None,
-    dangerously_set_repetitions: int = 1,
+    repetitions: int = 1,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples (async version).
@@ -299,10 +297,8 @@ async def async_run_experiment(
         client (Optional[AsyncClient]): A Phoenix async client instance to use
         for the experiment. If not provided, a new client
             will be configured from environment variables. Defaults to None.
-        dangerously_set_repetitions (int): The number of times the task will be
-        run on each example.
-            Defaults to 1. This argument is currently for internal testing
-            purposes only.
+        repetitions (int): The number of times the task will be run on each example.
+            Defaults to 1.
 
     Returns:
         RanExperiment: A dictionary containing the experiment results.
@@ -396,7 +392,7 @@ async def async_run_experiment(
         print_summary=print_summary,
         concurrency=concurrency,
         timeout=timeout,
-        dangerously_set_repetitions=dangerously_set_repetitions,
+        repetitions=repetitions,
     )
 
 

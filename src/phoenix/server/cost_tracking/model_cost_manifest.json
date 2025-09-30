@@ -769,6 +769,33 @@
       ]
     },
     {
+      "name": "gemini-2.5-flash-lite-preview-09-2025",
+      "name_pattern": "gemini-2\\.5-flash-lite-preview-09-2025",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gemini-2.5-flash-preview-04-17",
       "name_pattern": "gemini-2\\.5-flash-preview-04-17",
       "source": "litellm",
@@ -798,6 +825,33 @@
     {
       "name": "gemini-2.5-flash-preview-05-20",
       "name_pattern": "gemini-2\\.5-flash-preview-05-20",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-preview-09-2025",
+      "name_pattern": "gemini-2\\.5-flash-preview-09-2025",
       "source": "litellm",
       "token_prices": [
         {
@@ -975,17 +1029,71 @@
       ]
     },
     {
+      "name": "gemini-flash-latest",
+      "name_pattern": "gemini-flash-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-flash-lite-latest",
+      "name_pattern": "gemini-flash-lite-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gpt-3.5-turbo",
       "name_pattern": "gpt-(35|3.5)-turbo",
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2e-6,
+          "base_rate": 1.5e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -2228,6 +2336,28 @@
     {
       "name": "gpt-5-chat-latest",
       "name_pattern": "gpt-5-chat-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5-codex",
+      "name_pattern": "gpt-5-codex",
       "source": "litellm",
       "token_prices": [
         {

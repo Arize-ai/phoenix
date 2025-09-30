@@ -240,6 +240,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   const { instances, instanceMessages } = getInitialInstances(props);
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
+    repetitions: 1,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -418,27 +419,39 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const patch: Partial<PlaygroundNormalizedInstance> = {
         // If we have a saved config for the provider, use it as the default otherwise reset the
         // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
-        model: savedProviderConfig
-          ? {
-              ...instance.model,
-              ...savedProviderConfig,
+        model: (() => {
+          // Start with base instance model
+          const baseModel = { ...instance.model };
+
+          // Reset contamination-prone fields
+          const resetFields = {
+            modelName: null,
+            baseUrl: getDefaultBaseUrl(provider),
+            apiVersion: null,
+            endpoint: null,
+            region: null,
+            customHeaders: null,
+          };
+
+          // Build final model config
+          const finalModel = {
+            ...baseModel,
+            ...resetFields,
+            ...(savedProviderConfig || {}),
+            // Only override invocation parameters if we have saved config
+            ...(savedProviderConfig && {
               invocationParameters: [
                 ...savedProviderConfig.invocationParameters,
                 ...(responseFormatInvocationParameter
                   ? [responseFormatInvocationParameter]
                   : []),
               ],
-              provider,
-            }
-          : {
-              ...instance.model,
-              modelName: null,
-              baseUrl: getDefaultBaseUrl(provider),
-              apiVersion: null,
-              endpoint: null,
-              region: null,
-              provider,
-            },
+            }),
+            provider,
+          };
+
+          return finalModel;
+        })(),
         toolChoice:
           safelyConvertToolChoiceToProvider({
             toolChoice: instance.toolChoice,
@@ -688,6 +701,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
+    },
+    setRepetitions: (repetitions: number) => {
+      set({ repetitions });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,

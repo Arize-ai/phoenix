@@ -21,7 +21,6 @@ import {
 import { StylableProps } from "@phoenix/components/types";
 
 const sliderCSS = css`
-  --ac-slider-track-height: var(--ac-global-dimension-size-30);
   --ac-slider-handle-width: var(--ac-global-dimension-size-250);
   --ac-slider-handle-height: var(--ac-global-dimension-size-250);
   --ac-slider-handle-halo-width: var(--ac-global-dimension-size-350);

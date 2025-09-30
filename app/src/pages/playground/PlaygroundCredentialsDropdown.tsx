@@ -67,7 +67,7 @@ export function PlaygroundCredentialsDropdown() {
               <View paddingY="size-50">
                 <Text color="text-700" size="XS">
                   API keys are stored in your browser and used to communicate
-                  with their respective API&apos;s.
+                  with their respective APIs.
                 </Text>
               </View>
               <Flex direction="column" gap="size-100">

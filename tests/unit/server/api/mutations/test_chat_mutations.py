@@ -80,6 +80,7 @@ class TestChatCompletionMutationMixin:
                 ],
                 "templateFormat": "F_STRING",
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
+                "repetitions": 1,
             }
         }
         custom_vcr.register_matcher(

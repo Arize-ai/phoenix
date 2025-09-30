@@ -23,11 +23,11 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
-from phoenix.server.api.input_types.SpanAnnotationFilter import (
-    SpanAnnotationFilter,
+from phoenix.server.api.input_types.AnnotationFilter import (
+    AnnotationFilter,
     satisfies_filter,
 )
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
@@ -547,7 +547,7 @@ class Span(Node):
         self,
         info: Info[Context, None],
         sort: Optional[SpanAnnotationSort] = UNSET,
-        filter: Optional[SpanAnnotationFilter] = None,
+        filter: Optional[AnnotationFilter] = None,
     ) -> list[SpanAnnotation]:
         span_id = self.span_rowid
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
@@ -580,7 +580,7 @@ class Span(Node):
     async def span_annotation_summaries(
         self,
         info: Info[Context, None],
-        filter: Optional[SpanAnnotationFilter] = None,
+        filter: Optional[AnnotationFilter] = None,
     ) -> list[AnnotationSummary]:
         """
         Retrieves and summarizes annotations associated with this span.

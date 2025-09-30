@@ -26,6 +26,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import insert_experiment_with_examples_snapshot
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
@@ -43,6 +44,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
+from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -302,18 +304,19 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description,
-                repetitions=1,
+                repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
+                user_id=user_id,
             )
-            session.add(experiment)
-            await session.flush()
+            await insert_experiment_with_examples_snapshot(session, experiment)
         yield ChatCompletionSubscriptionExperiment(
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
@@ -327,11 +330,13 @@ class Subscription:
                     llm_client=llm_client,
                     revision=revision,
                     results=results,
+                    repetition_number=repetition_number,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
                 ),
             )
             for revision in revisions
+            for repetition_number in range(1, input.repetitions + 1)
         ]
         in_progress: list[
             tuple[
@@ -409,6 +414,7 @@ async def _stream_chat_completion_over_dataset_example(
     input: ChatCompletionOverDatasetInput,
     llm_client: PlaygroundStreamingClient,
     revision: models.DatasetExampleRevision,
+    repetition_number: int,
     results: asyncio.Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
@@ -435,7 +441,11 @@ async def _stream_chat_completion_over_dataset_example(
         )
     except TemplateFormatterError as error:
         format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
+        yield ChatCompletionSubscriptionError(
+            message=str(error),
+            dataset_example_id=example_id,
+            repetition_number=repetition_number,
+        )
         await results.put(
             (
                 example_id,
@@ -445,7 +455,7 @@ async def _stream_chat_completion_over_dataset_example(
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=None,
                     output={},
-                    repetition_number=1,
+                    repetition_number=repetition_number,
                     start_time=format_start_time,
                     end_time=format_end_time,
                     error=str(error),
@@ -465,17 +475,24 @@ async def _stream_chat_completion_over_dataset_example(
         ):
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
             yield chunk
         span.set_attributes(llm_client.attributes)
     db_trace = get_db_trace(span, project_id)
     db_span = get_db_span(span, db_trace)
     db_run = get_db_experiment_run(
-        db_span, db_trace, experiment_id=experiment_id, example_id=revision.dataset_example_id
+        db_span,
+        db_trace,
+        experiment_id=experiment_id,
+        example_id=revision.dataset_example_id,
+        repetition_number=repetition_number,
     )
     await results.put((example_id, db_span, db_run))
     if span.status_message is not None:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message, dataset_example_id=example_id
+            message=span.status_message,
+            dataset_example_id=example_id,
+            repetition_number=repetition_number,
         )
 
 
@@ -511,6 +528,7 @@ async def _chat_completion_result_payloads(
             span=Span(span_rowid=span.id, db_span=span) if span else None,
             experiment_run=to_gql_experiment_run(run),
             dataset_example_id=example_id,
+            repetition_number=run.repetition_number,
         )
 
 

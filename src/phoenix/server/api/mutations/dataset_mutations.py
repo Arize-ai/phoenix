@@ -66,6 +66,7 @@ class DatasetMutationMixin:
                     name=name,
                     description=description,
                     metadata_=metadata,
+                    user_id=info.context.user_id,
                 )
                 .returning(models.Dataset)
             )
@@ -136,6 +137,7 @@ class DatasetMutationMixin:
                 dataset_id=dataset_rowid,
                 description=dataset_version_description,
                 metadata_=dataset_version_metadata or {},
+                user_id=info.context.user_id,
             )
             session.add(dataset_version)
             await session.flush()
@@ -254,6 +256,7 @@ class DatasetMutationMixin:
                     dataset_id=dataset_rowid,
                     description=dataset_version_description,
                     metadata_=dataset_version_metadata,
+                    user_id=info.context.user_id,
                 )
                 .returning(models.DatasetVersion.id)
             )
@@ -451,6 +454,7 @@ class DatasetMutationMixin:
                     dataset_id=dataset.id,
                     description=version_description,
                     metadata_=version_metadata,
+                    user_id=info.context.user_id,
                 )
             )
             assert version_id is not None
@@ -514,6 +518,7 @@ class DatasetMutationMixin:
                     dataset_id=dataset.id,
                     description=dataset_version_description,
                     metadata_=dataset_version_metadata,
+                    user_id=info.context.user_id,
                     created_at=timestamp,
                 )
                 .returning(models.DatasetVersion.id)

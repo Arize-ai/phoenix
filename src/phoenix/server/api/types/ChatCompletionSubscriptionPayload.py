@@ -11,6 +11,7 @@ from .Span import Span
 @strawberry.interface
 class ChatCompletionSubscriptionPayload:
     dataset_example_id: Optional[GlobalID] = None
+    repetition_number: Optional[int] = None
 
 
 @strawberry.type

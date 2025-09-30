@@ -33,6 +33,7 @@ class Experiment(Node):
     name: str
     project_name: Optional[str]
     description: Optional[str]
+    repetitions: int
     dataset_version_id: GlobalID
     metadata: JSON
     created_at: datetime
@@ -192,10 +193,6 @@ class Experiment(Node):
                 async for token_type, is_prompt, cost, tokens in data
             ]
 
-    @strawberry.field
-    async def repetition_count(self, info: Info[Context, None]) -> int:
-        return await info.context.data_loaders.experiment_repetition_counts.load(self.id_attr)
-
 
 def to_gql_experiment(
     experiment: models.Experiment,
@@ -210,6 +207,7 @@ def to_gql_experiment(
         name=experiment.name,
         project_name=experiment.project_name,
         description=experiment.description,
+        repetitions=experiment.repetitions,
         dataset_version_id=GlobalID(DatasetVersion.__name__, str(experiment.dataset_version_id)),
         metadata=experiment.metadata_,
         created_at=experiment.created_at,

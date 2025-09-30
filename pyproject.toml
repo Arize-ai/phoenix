@@ -58,7 +58,7 @@ dependencies = [
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
-  "arize-phoenix-client",
+  "arize-phoenix-client>=1.20.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -121,7 +121,7 @@ pg = [
 ]
 container = [
   "anthropic>=0.49.0",
-  "google-generativeai",
+  "google-genai",
   "prometheus-client",
   "openai>=1.0.0",
   "azure-identity",

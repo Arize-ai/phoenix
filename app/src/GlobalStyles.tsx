@@ -992,7 +992,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-100);
-    --ac-hover-background: var(--ac-global-color-primary-100);
+    --ac-hover-background: var(--ac-global-color-primary-50);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
@@ -1039,6 +1039,16 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       --ac-global-color-success-900
     );
     --ac-global-button-success-border-color: var(--ac-global-color-success);
+
+    // Styles for checkbox
+    --ac-global-checkbox-selected-color: var(--ac-global-color-grey-800);
+    --ac-global-checkbox-selected-color-pressed: var(
+      --ac-global-color-grey-900
+    );
+    --ac-global-checkbox-checkmark-color: var(--ac-global-color-grey-50);
+    --ac-global-checkbox-border-color: var(--ac-global-color-grey-300);
+    --ac-global-checkbox-border-color-pressed: var(--ac-global-color-grey-400);
+    --ac-global-checkbox-border-color-hover: var(--ac-global-color-grey-400);
 
     // Styles for disclosure
     --ac-global-disclosure-background-color-active: rgba(

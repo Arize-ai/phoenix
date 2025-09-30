@@ -386,23 +386,23 @@ export function SpansTable(props: SpansTableProps) {
   const columns: ColumnDef<TableRow>[] = [
     {
       id: "select",
-      maxSize: 10,
+      maxSize: 32,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
+            isSelected: table.getIsAllRowsSelected(),
+            isIndeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.toggleAllRowsSelected,
           }}
         />
       ),
       cell: ({ row }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
+            isSelected: row.getIsSelected(),
+            isDisabled: !row.getCanSelect(),
+            isIndeterminate: row.getIsSomeSelected(),
+            onChange: row.toggleSelected,
           }}
         />
       ),

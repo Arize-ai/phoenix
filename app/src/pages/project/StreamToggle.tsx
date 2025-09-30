@@ -2,8 +2,7 @@ import { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useLocation } from "react-router";
 
-import { Switch } from "@arizeai/components";
-
+import { Switch } from "@phoenix/components";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 

@@ -199,7 +199,7 @@ class SpanSort:
                     models.SpanAnnotation.span_rowid == models.Span.id,
                     models.SpanAnnotation.name == eval_name,
                 ),
-            ).order_by(expr)
+            ).order_by(nulls_last(expr))
             return SpanSortConfig(
                 stmt=stmt,
                 orm_expression=eval_result_key.attr.orm_expression,

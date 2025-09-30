@@ -228,6 +228,26 @@ module.exports = {
         name: "EmptyGraphic",
         module: "@arizeai/components",
       },
+      {
+        name: "Notice",
+        module: "@arizeai/components",
+        use: "import { Toast } from '@phoenix/components'",
+      },
+      {
+        name: "Notification",
+        module: "@arizeai/components",
+        use: "import { Toast } from '@phoenix/components'",
+      },
+      {
+        name: "useNotification",
+        module: "@arizeai/components",
+        use: "import { useNotification } from '@phoenix/components'",
+      },
+      {
+        name: "Switch",
+        module: "@arizeai/components",
+        use: "import { Switch } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

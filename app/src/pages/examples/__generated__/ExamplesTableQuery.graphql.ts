@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5fb171dc548244120786fa8b5a54ecc3>>
+ * @generated SignedSource<<4ebdad9a635146234fbc4309a7823b35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -161,6 +161,32 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "DatasetSplit",
+                            "kind": "LinkedField",
+                            "name": "datasetSplits",
+                            "plural": true,
+                            "selections": [
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "name",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "color",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "DatasetExampleRevision",
                             "kind": "LinkedField",
                             "name": "revision",
@@ -265,16 +291,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fd22f70774f5ca11a13a0dabba9adf65",
+    "cacheID": "05c5b46076973161b52b958dd657c82e",
     "id": null,
     "metadata": {},
     "name": "ExamplesTableQuery",
     "operationKind": "query",
-    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_4a6F8Z\n    id\n  }\n}\n\nfragment ExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_4a6F8Z\n    id\n  }\n}\n\nfragment ExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        datasetSplits {\n          id\n          name\n          color\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a042efee74921059872b4d6812ae20be";
+(node as any).hash = "c328c873fd71552b25c7da8636c723f6";
 
 export default node;

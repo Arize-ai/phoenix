@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.1.0...arize-phoenix-evals-v2.2.0) (2025-09-27)
+
+
+### Features
+
+* **evals:** add document relevance evaluator ([#9661](https://github.com/Arize-ai/phoenix/issues/9661)) ([34b583f](https://github.com/Arize-ai/phoenix/commit/34b583f85128f35ff0d8c85ce13343b2b7e66c9c))
+* **evals:** add utility to format dataframe evaluations as annotations for logging to Phoenix ([#9610](https://github.com/Arize-ai/phoenix/issues/9610)) ([58cce2b](https://github.com/Arize-ai/phoenix/commit/58cce2bbe838aace1995f32cb17cbcf26bbb08bd))
+
+## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.1...arize-phoenix-evals-v2.1.0) (2025-09-24)
+
+
+### Features
+
+* Add Azure provider support ([#9605](https://github.com/Arize-ai/phoenix/issues/9605)) ([edf448a](https://github.com/Arize-ai/phoenix/commit/edf448a14954a63ec0251cdf6b4f2e24b0b09bc2))
+
+
+### Bug Fixes
+
+* Remove openai sdk retries ([#9587](https://github.com/Arize-ai/phoenix/issues/9587)) ([08d78f9](https://github.com/Arize-ai/phoenix/commit/08d78f9d12d0e29c0a154b93ee99d18657c0fe13))
+* Use OITracer ([#9588](https://github.com/Arize-ai/phoenix/issues/9588)) ([8bb7743](https://github.com/Arize-ai/phoenix/commit/8bb7743c8fbbe231d500d49109c04a56624328bf))
+
 ## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.0.0...arize-phoenix-evals-v2.0.1) (2025-09-17)
 
 

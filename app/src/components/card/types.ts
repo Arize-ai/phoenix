@@ -34,4 +34,9 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    * Additional content displayed on the right side of the card header.
    */
   extra?: React.ReactNode;
+  /**
+   * Whether to enable scrolling for the card body.
+   * @default false
+   */
+  scrollBody?: boolean;
 }

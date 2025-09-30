@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
+import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
 import {
@@ -1093,23 +1094,6 @@ const textOverflowCSS = css`
 
 function TextOverflow({ children }: { children: React.ReactNode }) {
   return <div css={textOverflowCSS}>{children}</div>;
-}
-
-const lineClampCSS = (lines: number) => css`
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: ${lines};
-  overflow: hidden;
-`;
-
-function LineClamp({
-  children,
-  lines,
-}: {
-  children: React.ReactNode;
-  lines: number;
-}) {
-  return <div css={lineClampCSS(lines)}>{children}</div>;
 }
 
 const progressBarPlaceholderCSS = css`

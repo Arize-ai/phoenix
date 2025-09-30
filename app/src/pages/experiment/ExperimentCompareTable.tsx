@@ -1,7 +1,6 @@
 import React, {
   ReactNode,
   RefObject,
-  SetStateAction,
   startTransition,
   Suspense,
   useCallback,
@@ -23,8 +22,6 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
-
 import {
   Button,
   Dialog,
@@ -42,6 +39,7 @@ import {
   Popover,
   PopoverArrow,
   Separator,
+  Switch,
   Text,
   Tooltip,
   TooltipArrow,
@@ -84,6 +82,7 @@ import type {
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
+import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
@@ -241,7 +240,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     }
                     averageRunLatencyMs
                     runCount
-                    repetitionCount
+                    repetitions
                   }
                 }
               }
@@ -425,7 +424,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <ExperimentRunOutputCell
               experimentRepetitionCount={
-                experimentInfoById[experimentId]?.repetitionCount ?? 0
+                experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               displayFullText={displayFullText}
@@ -1158,61 +1157,6 @@ function ExperimentRunOutputCell({
           <Empty message="Missing Repetition" />
         </PaddedCell>
       )}
-    </Flex>
-  );
-}
-
-function ExperimentRepetitionSelector({
-  repetitionNumber,
-  totalRepetitions,
-  setRepetitionNumber,
-}: {
-  repetitionNumber: number;
-  totalRepetitions: number;
-  setRepetitionNumber: (n: SetStateAction<number>) => void;
-}) {
-  const widthInChars = useMemo(
-    () => totalRepetitions.toString().length * 2 + 2,
-    [totalRepetitions]
-  );
-  return (
-    <Flex direction="row" alignItems="center">
-      <IconButton
-        size="S"
-        isDisabled={repetitionNumber === 1}
-        onPress={() => setRepetitionNumber((prev) => prev - 1)}
-        aria-label="Previous repetition"
-      >
-        <Icon svg={<Icons.ChevronLeft />} />
-      </IconButton>
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Flex direction="row" alignItems="center">
-            <Icon svg={<Icons.RepeatOutline />} />
-            <Text
-              css={css`
-                margin-inline-start: var(--ac-global-dimension-size-100);
-                margin-inline-end: var(--ac-global-dimension-size-100);
-                width: ${widthInChars}ch;
-                text-align: center;
-              `}
-            >
-              {`${repetitionNumber} / ${totalRepetitions}`}
-            </Text>
-          </Flex>
-        </TriggerWrap>
-        <Tooltip>
-          {`repetition ${repetitionNumber} of ${totalRepetitions}`}
-        </Tooltip>
-      </TooltipTrigger>
-      <IconButton
-        size="S"
-        isDisabled={repetitionNumber === totalRepetitions}
-        onPress={() => setRepetitionNumber((prev) => prev + 1)}
-        aria-label="Next repetition"
-      >
-        <Icon svg={<Icons.ChevronRight />} />
-      </IconButton>
     </Flex>
   );
 }

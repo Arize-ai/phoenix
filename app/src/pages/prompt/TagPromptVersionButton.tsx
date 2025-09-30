@@ -5,9 +5,9 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogTrigger,
-  Flex,
   Icon,
   Icons,
   Loading,
@@ -189,41 +189,39 @@ function TagList({
               borderBottomColor="light"
               borderBottomWidth="thin"
             >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <input
-                  type="checkbox"
-                  name={tagName}
-                  checked={isTagSet}
-                  disabled={isTagSet || isCommitting}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      const isCreate = !tagsSetOnVersion.includes(tagName);
-                      let description = "";
-                      if (isCreate) {
-                        const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
-                          (tagDefinition) => tagDefinition.name === tagName
-                        );
-                        description = tagDefinition?.description || "";
-                      }
-
-                      commitSetTag({
-                        variables: {
-                          input: {
-                            name: tagName,
-                            promptVersionId: versionId,
-                            description,
-                          },
-                          promptId: promptId,
-                        },
-                        onCompleted: () => {
-                          onTagSet(tagName);
-                        },
-                      });
+              <Checkbox
+                name={tagName}
+                isSelected={isTagSet}
+                isDisabled={isTagSet || isCommitting}
+                onChange={(isSelected) => {
+                  if (isSelected) {
+                    const isCreate = !tagsSetOnVersion.includes(tagName);
+                    let description = "";
+                    if (isCreate) {
+                      const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
+                        (tagDefinition) => tagDefinition.name === tagName
+                      );
+                      description = tagDefinition?.description || "";
                     }
-                  }}
-                />
-                <span>{tagName}</span>
-              </Flex>
+
+                    commitSetTag({
+                      variables: {
+                        input: {
+                          name: tagName,
+                          promptVersionId: versionId,
+                          description,
+                        },
+                        promptId: promptId,
+                      },
+                      onCompleted: () => {
+                        onTagSet(tagName);
+                      },
+                    });
+                  }
+                }}
+              >
+                {tagName}
+              </Checkbox>
             </View>
           </li>
         );

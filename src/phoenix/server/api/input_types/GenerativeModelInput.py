@@ -2,6 +2,7 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
+from strawberry.scalars import JSON
 
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
@@ -19,3 +20,5 @@ class GenerativeModelInput:
     """ The API version to use for the model. """
     region: Optional[str] = UNSET
     """ The region to use for the model. """
+    custom_headers: Optional[JSON] = UNSET
+    """ Custom headers to use for the model. """

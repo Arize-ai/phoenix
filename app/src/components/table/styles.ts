@@ -79,7 +79,7 @@ export const tableCSS = css`
       height: 100%;
       &:not(:last-of-type) {
         & > td {
-          border-bottom: 1px solid var(--ac-global-border-color-default);
+          border-bottom: 1px solid var(--ac-global-color-grey-200);
         }
       }
       & > td {
@@ -97,10 +97,10 @@ export const borderedTableCSS = css`
   tbody:not(.is-empty) {
     tr {
       & > td {
-        border-bottom: 1px solid var(--ac-global-border-color-default);
+        border-bottom: 1px solid var(--ac-global-color-grey-100);
       }
       & > td:not(:last-of-type) {
-        border-right: 1px solid var(--ac-global-border-color-default);
+        border-right: 1px solid var(--ac-global-color-grey-100);
       }
     }
   }

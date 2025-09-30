@@ -1,4 +1,4 @@
-import React, {
+import {
   startTransition,
   Suspense,
   useCallback,
@@ -89,14 +89,14 @@ const columns: ColumnDef<AnnotationConfigTableRow>[] = [
     cell: ({ row }: CellContext<AnnotationConfigTableRow, unknown>) => (
       <IndeterminateCheckboxCell
         {...{
-          checked: row.original.isEnabled,
-          disabled: row.original.isLoading,
-          onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+          isSelected: row.original.isEnabled,
+          isDisabled: row.original.isLoading,
+          onChange: (isSelected: boolean) => {
             const annotationConfigId = row.original.id;
             if (!annotationConfigId) {
               throw new Error("Annotation config ID is required");
             }
-            if (e.target.checked) {
+            if (isSelected) {
               row.original.onAdd(annotationConfigId);
             } else {
               row.original.onRemove(annotationConfigId);
