@@ -57,7 +57,7 @@ def process_llm_request_with_feedback(prompt: str):
         first_span_id = capture.get_first_span_id()
         if first_span_id:
             # Apply user feedback to the first span
-            client.annotations.add_span_annotation(
+            client.spans.add_span_annotation(
                 annotation_name="user_feedback",
                 annotator_kind="HUMAN",
                 span_id=first_span_id,
@@ -70,7 +70,7 @@ def process_llm_request_with_feedback(prompt: str):
         last_span_id = capture.get_last_span_id()
         if last_span_id:
             # Apply feedback to the most recent span
-            client.annotations.add_span_annotation(
+            client.spans.add_span_annotation(
                 annotation_name="llm_response_quality",
                 annotator_kind="HUMAN", 
                 span_id=last_span_id,
@@ -110,7 +110,7 @@ with capture_span_context() as capture:
     for i, span_context in enumerate(span_contexts):
         span_id = format_span_id(span_context.span_id)
         
-        client.annotations.add_span_annotation(
+        client.spans.add_span_annotation(
             annotation_name="span_order",
             annotator_kind="CODE",
             span_id=span_id,

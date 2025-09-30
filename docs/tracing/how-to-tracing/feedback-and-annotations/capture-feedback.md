@@ -80,7 +80,7 @@ You can use the span\_id to send an annotation associated with that span.
 from phoenix.client import Client
 
 client = Client()
-annotation = client.annotations.add_span_annotation(
+annotation = client.spans.add_span_annotation(
     annotation_name="user feedback",
     annotator_kind="HUMAN",
     span_id=span_id,

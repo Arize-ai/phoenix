@@ -174,7 +174,7 @@ Add annotations to spans for evaluation, user feedback, and custom annotation wo
 
 ```python
 # Add a single annotation with human feedback
-client.annotations.add_span_annotation(
+client.spans.add_span_annotation(
     span_id="span-123",
     annotation_name="helpfulness",
     annotator_kind="HUMAN",
@@ -184,7 +184,7 @@ client.annotations.add_span_annotation(
 )
 
 # Add automated evaluation annotations
-client.annotations.add_span_annotation(
+client.spans.add_span_annotation(
     span_id="span-123",
     annotation_name="toxicity",
     annotator_kind="LLM",
@@ -208,7 +208,7 @@ annotations = [
         "result": {"label": "accurate", "score": 0.95}
     },
 ]
-client.annotations.log_span_annotations(span_annotations=annotations)
+client.spans.log_span_annotations(span_annotations=annotations)
 
 # Using pandas DataFrame for large-scale annotation
 import pandas as pd
@@ -226,7 +226,7 @@ df = pd.DataFrame({
         "Natural language generation"
     ]
 })
-client.annotations.log_span_annotations_dataframe(dataframe=df)
+client.spans.log_span_annotations_dataframe(dataframe=df)
 ```
 
 ### Datasets
