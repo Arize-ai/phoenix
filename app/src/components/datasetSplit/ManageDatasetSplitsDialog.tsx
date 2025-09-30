@@ -1,9 +1,10 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, memo, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
   Autocomplete,
+  Button,
   Dialog,
   Flex,
   Label,
@@ -13,6 +14,7 @@ import {
   View,
 } from "@phoenix/components";
 import { Checkbox } from "@phoenix/components/checkbox";
+import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
 import {
   DialogCloseButton,
   DialogContent,
@@ -27,30 +29,47 @@ import type {
   ManageDatasetSplitsDialogQuery$data,
 } from "./__generated__/ManageDatasetSplitsDialogQuery.graphql";
 
+interface SelectedExample {
+  id: string;
+  splits: readonly {
+    readonly id: string;
+    readonly color: string;
+    readonly name: string;
+  }[];
+}
+
 type ManageDatasetSplitsDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (selectedIds: string[]) => void;
-  sharedSplitIds: string[];
-  partialSplitIds: string[];
+  selectedExamples: SelectedExample[];
 };
 
-export function ManageDatasetSplitsDialog(
+function ManageDatasetSplitsDialogComponent(
   props: ManageDatasetSplitsDialogProps
 ) {
-  const { isOpen, onOpenChange, onConfirm, sharedSplitIds, partialSplitIds } =
-    props;
-  const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(
-    new Set(sharedSplitIds)
-  );
+  const { isOpen, onOpenChange, onConfirm, selectedExamples } = props;
 
-  // TODO: this is a code smell
-  // TODO: unnecessary state change, should be tracked in this component
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedSplitIds(new Set(sharedSplitIds));
-    }
-  }, [isOpen, sharedSplitIds]);
+  // Calculate shared split IDs (splits that all selected examples have)
+  const sharedSplitIds = useMemo<string[]>(() => {
+    if (selectedExamples.length === 0) return [];
+    const splitIdArrays = selectedExamples.map(
+      (ex) => ex.splits.map((s) => s.id) ?? []
+    );
+    const intersection = splitIdArrays.reduce((acc, curr) =>
+      acc.filter((id) => curr.includes(id))
+    );
+    return intersection;
+  }, [selectedExamples]);
+
+  // Calculate partial split IDs (splits that at least one selected example has)
+  const partialSplitIds = useMemo<string[]>(() => {
+    if (selectedExamples.length === 0) return [];
+    const splitIdArrays = selectedExamples
+      .map((ex) => ex.splits.map((s) => s.id) ?? [])
+      .reduce((acc, curr) => acc.concat(curr), []);
+    return [...new Set(splitIdArrays)];
+  }, [selectedExamples]);
 
   return (
     <ModalOverlay
@@ -60,7 +79,7 @@ export function ManageDatasetSplitsDialog(
       }}
       isDismissable
     >
-      <Modal>
+      <Modal size="S">
         <Dialog aria-label="Manage Splits">
           <DialogContent>
             <DialogHeader>
@@ -70,12 +89,14 @@ export function ManageDatasetSplitsDialog(
               </DialogTitleExtra>
             </DialogHeader>
             <Suspense fallback={<Loading />}>
-              <ManageDatasetSplitsDialogContent
-                selectedSplitIds={selectedSplitIds}
-                setSelectedSplitIds={(s) => setSelectedSplitIds(new Set(s))}
-                partialSplitIds={partialSplitIds}
-                onConfirm={onConfirm}
-              />
+              {isOpen ? (
+                <ManageDatasetSplitsDialogContent
+                  key={`${Number(isOpen)}-${JSON.stringify(sharedSplitIds)}`}
+                  sharedSplitIds={sharedSplitIds}
+                  partialSplitIds={partialSplitIds}
+                  onConfirm={onConfirm}
+                />
+              ) : null}
             </Suspense>
           </DialogContent>
         </Dialog>
@@ -85,14 +106,16 @@ export function ManageDatasetSplitsDialog(
 }
 
 function ManageDatasetSplitsDialogContent(props: {
-  selectedSplitIds: Set<string>;
-  setSelectedSplitIds: (s: Set<string>) => void;
-  onConfirm: (ids: string[]) => void;
+  sharedSplitIds: string[];
   partialSplitIds: string[];
+  onConfirm: (ids: string[]) => void;
 }) {
-  const { selectedSplitIds, setSelectedSplitIds, onConfirm, partialSplitIds } =
-    props;
+  const { sharedSplitIds, partialSplitIds, onConfirm } = props;
   const [search, setSearch] = useState("");
+  const [isCreateSplitOpen, setIsCreateSplitOpen] = useState(false);
+  const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(
+    () => new Set(sharedSplitIds)
+  );
   const query = useLazyLoadQuery<ManageDatasetSplitsDialogQuery>(
     graphql`
       query ManageDatasetSplitsDialogQuery {
@@ -190,6 +213,86 @@ function ManageDatasetSplitsDialogContent(props: {
           })}
         </div>
       </View>
+      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+        <Button
+          variant="quiet"
+          size="S"
+          style={{ width: "100%" }}
+          onPress={() => setIsCreateSplitOpen(true)}
+        >
+          Create Split
+        </Button>
+      </View>
+      <ModalOverlay
+        isOpen={isCreateSplitOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsCreateSplitOpen(false);
+        }}
+      >
+        <NewDatasetSplitDialog
+          onCompleted={() => setIsCreateSplitOpen(false)}
+        />
+      </ModalOverlay>
     </Autocomplete>
   );
 }
+
+function areManageDatasetSplitsDialogPropsEqual(
+  prevProps: ManageDatasetSplitsDialogProps,
+  nextProps: ManageDatasetSplitsDialogProps
+) {
+  if (prevProps.isOpen !== nextProps.isOpen) {
+    return false;
+  }
+
+  if (prevProps.onOpenChange !== nextProps.onOpenChange) {
+    return false;
+  }
+
+  if (prevProps.onConfirm !== nextProps.onConfirm) {
+    return false;
+  }
+
+  const prevExamples = prevProps.selectedExamples;
+  const nextExamples = nextProps.selectedExamples;
+
+  if (prevExamples.length !== nextExamples.length) {
+    return false;
+  }
+
+  for (let i = 0; i < prevExamples.length; i += 1) {
+    const prevExample = prevExamples[i];
+    const nextExample = nextExamples[i];
+
+    if (prevExample.id !== nextExample.id) {
+      return false;
+    }
+
+    const prevSplits = prevExample.splits;
+    const nextSplits = nextExample.splits;
+
+    if (prevSplits.length !== nextSplits.length) {
+      return false;
+    }
+
+    for (let j = 0; j < prevSplits.length; j += 1) {
+      const prevSplit = prevSplits[j];
+      const nextSplit = nextSplits[j];
+
+      if (
+        prevSplit?.id !== nextSplit?.id ||
+        prevSplit?.color !== nextSplit?.color ||
+        prevSplit?.name !== nextSplit?.name
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export const ManageDatasetSplitsDialog = memo(
+  ManageDatasetSplitsDialogComponent,
+  areManageDatasetSplitsDialogPropsEqual
+);

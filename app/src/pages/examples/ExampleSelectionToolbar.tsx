@@ -57,17 +57,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
 
-  // Get all splits ids among all selected examples
-  const partialSplitIds = useMemo<string[]>(() => {
-    if (selectedExamples.length === 0) return [];
-    const splitIdArrays = selectedExamples
-      .map((ex) => ex.splits.map((s) => s.id) ?? [])
-      .reduce((acc, curr) => acc.concat(curr), []);
-    return [...new Set(splitIdArrays)];
-  }, [selectedExamples]);
-
   // Get split ids that are shared by all selected examples
-  // THis will always be a subset of the partialSplitIds
+  // This is used to calculate which splits to add/remove
   const sharedSplitIds = useMemo<Set<string>>(() => {
     if (selectedExamples.length === 0) return new Set<string>();
     const splitIdArrays = selectedExamples.map(
@@ -153,6 +144,75 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     refreshLatestVersion,
     notifyError,
   ]);
+
+  const handleManageSplitsConfirm = useCallback(
+    (selectedIds: string[]) => {
+      const desiredIds = new Set(selectedIds);
+      const sharedIds = new Set(Array.from(sharedSplitIds));
+      const splitsToAdd = Array.from(desiredIds).filter(
+        (id) => !sharedIds.has(id)
+      ); // D - A
+      const splitsToRemove = Array.from(sharedIds).filter(
+        (id) => !desiredIds.has(id)
+      ); // A - D
+
+      const exampleIds = selectedExamples.map((e) => e.id);
+      splitsToAdd.length > 0 &&
+        !isAddingExamplesToSplits &&
+        addExamplesToSplits({
+          variables: {
+            input: {
+              datasetSplitIds: splitsToAdd,
+              exampleIds,
+            },
+          },
+          onCompleted: () => {
+            refreshLatestVersion();
+          },
+          onError: (error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
+            notifyError({
+              title: "Failed to assign splits",
+              message: formattedError?.[0] ?? error.message,
+            });
+          },
+        });
+
+      splitsToRemove.length > 0 &&
+        !isRemovingExamplesFromSplit &&
+        removeExamplesFromSplit({
+          variables: {
+            input: {
+              datasetSplitIds: splitsToRemove,
+              exampleIds,
+            },
+          },
+          onCompleted: () => {
+            refreshLatestVersion();
+          },
+          onError: (error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
+            notifyError({
+              title: "Failed to remove splits",
+              message: formattedError?.[0] ?? error.message,
+            });
+          },
+        });
+    },
+    [
+      addExamplesToSplits,
+      getErrorMessagesFromRelayMutationError,
+      isAddingExamplesToSplits,
+      isRemovingExamplesFromSplit,
+      notifyError,
+      refreshLatestVersion,
+      removeExamplesFromSplit,
+      selectedExamples,
+      sharedSplitIds,
+    ]
+  );
   return (
     <FloatingToolbarContainer>
       <Toolbar>
@@ -203,65 +263,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         </Button>
       </Toolbar>
       <ManageDatasetSplitsDialog
+        selectedExamples={selectedExamples}
         isOpen={isManageSplitsOpen}
         onOpenChange={setIsManageSplitsOpen}
-        sharedSplitIds={Array.from(sharedSplitIds)}
-        partialSplitIds={partialSplitIds}
-        onConfirm={(selectedIds) => {
-          const desiredIds = new Set(Array.from(selectedIds)); // D
-          const sharedIds = new Set(Array.from(sharedSplitIds)); // A
-          const splitsToAdd = Array.from(desiredIds).filter(
-            (id) => !sharedIds.has(id)
-          ); // D - A
-          const splitsToRemove = Array.from(sharedIds).filter(
-            (id) => !desiredIds.has(id)
-          ); // A - D
-
-          const exampleIds = selectedExamples.map((e) => e.id);
-          splitsToAdd.length > 0 &&
-            !isAddingExamplesToSplits &&
-            addExamplesToSplits({
-              variables: {
-                input: {
-                  datasetSplitIds: splitsToAdd,
-                  exampleIds,
-                },
-              },
-              onCompleted: () => {
-                refreshLatestVersion();
-              },
-              onError: (error) => {
-                const formattedError =
-                  getErrorMessagesFromRelayMutationError(error);
-                notifyError({
-                  title: "Failed to assign splits",
-                  message: formattedError?.[0] ?? error.message,
-                });
-              },
-            });
-
-          splitsToRemove.length > 0 &&
-            !isRemovingExamplesFromSplit &&
-            removeExamplesFromSplit({
-              variables: {
-                input: {
-                  datasetSplitIds: splitsToRemove,
-                  exampleIds,
-                },
-              },
-              onCompleted: () => {
-                refreshLatestVersion();
-              },
-              onError: (error) => {
-                const formattedError =
-                  getErrorMessagesFromRelayMutationError(error);
-                notifyError({
-                  title: "Failed to remove splits",
-                  message: formattedError?.[0] ?? error.message,
-                });
-              },
-            });
-        }}
+        onConfirm={handleManageSplitsConfirm}
       />
       <ModalOverlay
         isOpen={isDeleteConfirmationDialogOpen}
