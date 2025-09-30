@@ -10,7 +10,7 @@ description: The latest from the Phoenix team.
 
 **Available in Phoenix 12.1+**
 
-{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-sonnet-4.5.png" %}
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claudesonnet45day0.mp4" %}
 
 Day-0 support for Claude Sonnet 4.5.
 
