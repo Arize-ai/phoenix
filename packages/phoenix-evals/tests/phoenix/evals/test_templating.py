@@ -213,3 +213,15 @@ Consider the previous conversation context if available.
         assert "This is a test message" in result
         assert '"temperature": 0.3' in result
         assert '"response_format": {"type": "json_object"}' in result
+
+
+def test_dot_delimited_f_string_variables() -> None:
+    class Hello:
+        @property
+        def world(self) -> str:
+            return "why hello, world"
+    template = Template(template="{hello.world}")
+    assert isinstance(template._formatter, FStringFormatter)
+    assert template.render({"hello.world": "hello! world!"}) == "hello! world!"
+    assert template.render({"hello": Hello()}) == "why hello, world"
+    assert template.variables == ["hello.world"]
