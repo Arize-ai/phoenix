@@ -18,7 +18,9 @@ Note: this step is not necessary if you already have a Phoenix server running.
 
 ```python
 import phoenix as px
+from phoenix.client import Client
 
+px_client = Client()
 px.launch_app().view()
 ```
 
@@ -167,15 +169,15 @@ Let's store the data above as a versioned dataset in phoenix.
 ```python
 import pandas as pd
 
-ds = px.Client().upload_dataset(
-    dataset_name="movie-example-questions",
+ds = px_client.datasets.create_dataset(
+    name="movie-example-questions",
     dataframe=pd.DataFrame([{"question": question} for question in questions]),
     input_keys=["question"],
     output_keys=[],
 )
 
 # If you have already uploaded the dataset, you can fetch it using the following line
-# ds = px.Client().get_dataset(name="movie-example-questions")
+# ds = px_client.datasets.get_dataset(dataset="movie-example-questions")
 ```
 
 Next, we'll define the task. The task is to generate SQL queries from natural language questions.
@@ -221,8 +223,7 @@ Now let's run the evaluation experiment.
 
 
 ```python
-import phoenix as px
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 
 # Define the task to run text2sql on the input question
@@ -314,7 +315,7 @@ import json
 
 from openai import OpenAI
 
-from phoenix.experiments import evaluate_experiment
+from phoenix.client.experiments import evaluate_experiment
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.types import EvaluationResult
 
@@ -479,8 +480,8 @@ generated_dataset[0]
 Awesome, let's create a dataset with the new synthetic data.
 
 ```python
-synthetic_dataset = px.Client().upload_dataset(
-    dataset_name="movies-golden-synthetic",
+synthetic_dataset = px_client.datasets.create_dataset(
+    name="movies-golden-synthetic",
     inputs=[{"question": example["input"]} for example in generated_dataset],
     outputs=[example["expected"] for example in generated_dataset],
 );

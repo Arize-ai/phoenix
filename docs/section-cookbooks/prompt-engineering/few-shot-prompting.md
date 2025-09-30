@@ -58,18 +58,17 @@ ds.head()
 
 ```python
 import uuid
-
-import phoenix as px
-from phoenix.client import Client as PhoenixClient
+from phoenix.client import Client
 
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=ds,
     input_keys=["Review"],
     output_keys=["Sentiment"],
-    dataset_name=f"review-classification-{unique_id}",
+    name=f"review-classification-{unique_id}",
 )
 ```
 
@@ -99,7 +98,7 @@ params = CompletionCreateParamsBase(
 
 prompt_identifier = "fridge-sentiment-reviews"
 
-prompt = PhoenixClient().prompts.create(
+prompt = px_client.prompts.create(
     name=prompt_identifier,
     prompt_description="A prompt for classifying reviews based on sentiment.",
     version=PromptVersion.from_openai(params),
@@ -143,7 +142,7 @@ Finally, we run our experiment. We can view the results of the experiment in Pho
 ```python
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 

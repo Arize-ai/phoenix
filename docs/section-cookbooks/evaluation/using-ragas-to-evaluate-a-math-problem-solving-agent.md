@@ -91,7 +91,7 @@ async def goal_evaluator(input, output):
 Once we've generated a dataset of questions, we can use our experiments feature to track changes across models, prompts, parameters for the agent.
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
 dataset_df = pd.DataFrame(
     {
@@ -100,9 +100,10 @@ dataset_df = pd.DataFrame(
     }
 )
 
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=dataset_df,
-    dataset_name="math-questions",
+    name="math-questions",
     input_keys=["question"],
     output_keys=["final_output"],
 )
@@ -111,7 +112,7 @@ dataset = px.Client().upload_dataset(
 Finally, we run our experiment and view the results in Phoenix.
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
     dataset, task=solve_math_problem, evaluators=[goal_evaluator, tool_call_evaluator]

@@ -52,17 +52,17 @@ ds = ds.to_pandas()
 ds.head()
 
 import uuid
-
-import phoenix as px
+from phoenix.client import Client
 
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=ds,
     input_keys=["AI_Response", "EI_Empathy_Score"],
     output_keys=["EI_Empathy_Score"],
-    dataset_name=f"empathy-{unique_id}",
+    name=f"empathy-{unique_id}",
 )
 ```
 
@@ -175,7 +175,7 @@ def evaluate_response(input, output):
 ```python
 import nest_asyncio
 
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 nest_asyncio.apply()
 

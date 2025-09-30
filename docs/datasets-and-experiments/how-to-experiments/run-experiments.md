@@ -8,10 +8,10 @@ description: >-
 
 ## Setup
 
-Make sure you have Phoenix and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
+Make sure you have the Phoenix client and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
 
 ```bash
-pip install arize-phoenix openinference-instrumentation-openai openai
+pip install arize-phoenix-client arize-phoenix-otel openinference-instrumentation-openai openai datasets duckdb pandas
 ```
 
 ## Run Experiments
@@ -23,15 +23,20 @@ The key steps of running an experiment are:
 2. **Define a task**
    * A task is a function that takes each `Example` and returns an output
 3. **Define Evaluators**
-   * An `Evaluator` is a function evaluates the output for each `Example`
+   * An `Evaluator` is a function that evaluates the output for each `Example`
 4. **Run the experiment**
 
-We'll start by launching the Phoenix app.
+We'll start by initializing the Phoenix client to connect to your deployed Phoenix instance.
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-px.launch_app()
+# Initialize client - automatically reads from environment variables:
+# PHOENIX_BASE_URL and PHOENIX_API_KEY (if using Phoenix Cloud)
+client = Client()
+
+# Or explicitly configure for your Phoenix instance:
+# client = Client(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 ```
 
 ### Load a Dataset
@@ -59,14 +64,11 @@ The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `outpu
 **Upload dataset to Phoenix**
 
 ```python
-from phoenix.client import Client
-
-px_client = Client()
-dataset = px_client.datasets.create_dataset(
+dataset = client.datasets.create_dataset(
+    name="nba-questions",
     dataframe=df,
     input_keys=["question"],
     output_keys=[],
-    name="nba-questions",
 )
 ```
 
@@ -101,7 +103,8 @@ from textwrap import dedent
 
 import openai
 
-client = openai.Client()
+# Create OpenAI client (separate from Phoenix client)
+openai_client = openai.Client()
 columns = conn.query("DESCRIBE nba").to_df().to_dict(orient="records")
 
 LLM_MODEL = "gpt-4o"
@@ -115,7 +118,7 @@ request. Return just the query text, with no formatting (backticks, markdown, et
 
 
 def generate_query(question):
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -131,6 +134,7 @@ def execute_query(query):
 
 def text2sql(question):
     results = error = None
+    query = None
     try:
         query = generate_query(question)
         results = execute_query(query)
@@ -173,7 +177,7 @@ def has_results(output) -> bool:
 
 **Instrument OpenAI**
 
-Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examine in the Phoenix UI:
+Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examined in the Phoenix UI:
 
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
@@ -186,12 +190,14 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
 **Run the Task and Evaluators**
 
-Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
+Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will show up in Phoenix:
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-experiment = run_experiment(dataset, task=task, evaluators=[no_error, has_results])
+experiment = client.experiments.run_experiment(
+    dataset=dataset, 
+    task=task, 
+    evaluators=[no_error, has_results]
+)
 ```
 
 ### Add More Evaluations
@@ -199,27 +205,27 @@ experiment = run_experiment(dataset, task=task, evaluators=[no_error, has_result
 #### If you want to attach more evaluations to the same experiment after the fact, you can do so with `evaluate_experiment`.
 
 ```python
-from phoenix.client.experiments import evaluate_experiment
-
 evaluators = [
     # add evaluators here
 ]
-experiment = evaluate_experiment(experiment, evaluators)
+experiment = client.experiments.evaluate_experiment(
+    experiment=experiment, 
+    evaluators=evaluators
+)
 ```
 
 If you no longer have access to the original `experiment` object, you can retrieve it from Phoenix using the `get_experiment` client method.
 
 ```python
-from phoenix.client.experiments import evaluate_experiment
-from phoenix.client import Client
-
 experiment_id = "experiment-id" # set your experiment ID here
-px_client = Client()
-experiment = px_client.get_experiment(experiment_id=experiment_id)
+experiment = client.experiments.get_experiment(experiment_id=experiment_id)
 evaluators = [
     # add evaluators here
 ]
-experiment = evaluate_experiment(experiment, evaluators)
+experiment = client.experiments.evaluate_experiment(
+    experiment=experiment, 
+    evaluators=evaluators
+)
 ```
 
 #### Dry Run
