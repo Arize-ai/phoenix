@@ -1,5 +1,21 @@
 # Changelog
 
+## [12.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.0.0...arize-phoenix-v12.1.0) (2025-09-30)
+
+
+### Features
+
+* **components:** switch ([#9678](https://github.com/Arize-ai/phoenix/issues/9678)) ([ac061b5](https://github.com/Arize-ai/phoenix/commit/ac061b5b73f8a608f50415be73c287e8b427d6f3))
+* dataset label graphql(create, delete, read) ([#9702](https://github.com/Arize-ai/phoenix/issues/9702)) ([f52744d](https://github.com/Arize-ai/phoenix/commit/f52744dd1e6fbe3eb3742457241246f849dfe9b9))
+* migrate from bitnami chart to groundhog2k ([#9583](https://github.com/Arize-ai/phoenix/issues/9583)) ([f3be631](https://github.com/Arize-ai/phoenix/commit/f3be6317c960a66916de568dea98dcf914521221))
+* support Claude Sonnet 4.5 ([#9700](https://github.com/Arize-ai/phoenix/issues/9700)) ([2056f90](https://github.com/Arize-ai/phoenix/commit/2056f906938b5894b22cecaaaeaf79dec7712d02))
+
+
+### Bug Fixes
+
+* missing root path for logout ([#9707](https://github.com/Arize-ai/phoenix/issues/9707)) ([e14f4f6](https://github.com/Arize-ai/phoenix/commit/e14f4f6dd33472a048a19df26881d8184822388f))
+* **playground:** ensure playground dataset examples load when first switching to dataset mode ([#9710](https://github.com/Arize-ai/phoenix/issues/9710)) ([452b060](https://github.com/Arize-ai/phoenix/commit/452b06088af30ba6e09458ffa265e3e1bb082eeb))
+
 ## [12.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.38.0...arize-phoenix-v12.0.0) (2025-09-29)
 
 
