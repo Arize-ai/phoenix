@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2dd3f5b2d3000f18cf24db31e9c2144>>
+ * @generated SignedSource<<e68104ef2847011850445990f98e4797>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type PromptMenuQuery$data = {
           readonly versions: ReadonlyArray<{
             readonly version: {
               readonly createdAt: string;
+              readonly description: string | null;
               readonly id: string;
             };
           }>;
@@ -119,6 +120,13 @@ v1 = [
                             "kind": "ScalarField",
                             "name": "createdAt",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "description",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -157,16 +165,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "73671196f4a3112a8fc72359d512c144",
+    "cacheID": "6b9cfca9e19dfded03a20020f13b0b0b",
     "id": null,
     "metadata": {},
     "name": "PromptMenuQuery",
     "operationKind": "query",
-    "text": "query PromptMenuQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n        promptVersions {\n          versions: edges {\n            version: node {\n              id\n              createdAt\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PromptMenuQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n        promptVersions {\n          versions: edges {\n            version: node {\n              id\n              createdAt\n              description\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d126c23b39c73e57784925c39f76a48a";
+(node as any).hash = "c9264cee23f8e7244a3191e50d37ff0c";
 
 export default node;

@@ -23,9 +23,11 @@ import {
   SearchField,
   SelectChevronUpDownIcon,
   Text,
+  TextProps,
   Token,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   PromptMenuQuery,
   PromptMenuQuery$data,
@@ -45,6 +47,10 @@ type PromptItem = {
    * Prompt or Prompt Version Creation Date
    */
   createdAt?: string;
+  /**
+   * Prompt Version description
+   */
+  description?: string;
   /**
    * May contain prompt versions, prompt tags
    */
@@ -79,6 +85,7 @@ const createItemsFromPrompts = (
             id: version.id,
             name: version.id,
             createdAt: version.createdAt,
+            description: version.description || undefined,
           })),
         },
       ],
@@ -120,6 +127,7 @@ export const PromptMenu = <T extends object>({
                     version: node {
                       id
                       createdAt
+                      description
                     }
                   }
                 }
@@ -180,22 +188,24 @@ export const PromptMenu = <T extends object>({
 
   return (
     <MenuTrigger>
-      <Flex gap="size-100" alignItems="center">
-        <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
-          {selectedPromptDatum ? (
-            <Flex alignItems="center" gap="size-100">
-              {selectedPromptDatum.promptName}
-              {isLatestVersionSelected ? (
+      <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
+        {selectedPromptDatum ? (
+          <Flex alignItems="center">
+            {selectedPromptDatum.promptName}
+            {isLatestVersionSelected ? (
+              <View marginStart={"size-100"}>
                 <Token color="var(--ac-global-color-info)">latest</Token>
-              ) : (
-                <Text color="text-300">@ ${selectedPromptDatum.versionId}</Text>
-              )}
-            </Flex>
-          ) : (
-            <Text color="text-300">Select a prompt</Text>
-          )}
-        </Button>
-      </Flex>
+              </View>
+            ) : (
+              <Text color="text-300">
+                &nbsp;@ <IdTruncate id={selectedPromptDatum.versionId} />
+              </Text>
+            )}
+          </Flex>
+        ) : (
+          <Text color="text-300">Select a prompt</Text>
+        )}
+      </Button>
       <Popover
         css={css`
           overflow: auto;
@@ -263,15 +273,33 @@ export const PromptMenu = <T extends object>({
                           </Header>
 
                           <Collection items={section.children}>
-                            {({ createdAt, name }) => (
+                            {({ createdAt, name, description }) => (
                               <MenuItem>
                                 <Flex direction="column" gap="size-100">
-                                  {createdAt && (
-                                    <Text size="XS" color="text-300">
-                                      {fullTimeFormatter(new Date(createdAt))}
-                                    </Text>
-                                  )}
-                                  {name}
+                                  <Truncate maxWidth="100%">
+                                    {description ? (
+                                      <Text>{description}</Text>
+                                    ) : (
+                                      <Text fontStyle="italic" color="text-300">
+                                        No change description
+                                      </Text>
+                                    )}
+                                  </Truncate>
+                                  <Flex
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    gap="size-400"
+                                  >
+                                    <IdTruncate
+                                      id={name}
+                                      textProps={{ size: "S" }}
+                                    />
+                                    {createdAt && (
+                                      <Text size="XS" color="text-300">
+                                        {fullTimeFormatter(new Date(createdAt))}
+                                      </Text>
+                                    )}
+                                  </Flex>
                                 </Flex>
                               </MenuItem>
                             )}
@@ -289,3 +317,38 @@ export const PromptMenu = <T extends object>({
     </MenuTrigger>
   );
 };
+
+/**
+ * Character based truncation for IDs.
+ * Truncates from the start, preserving the last 6 characters (by default).
+ *
+ * Adds underline as an affordance for hovering, to show the un-truncated ID.
+ */
+export function IdTruncate({
+  id,
+  length = 6,
+  textProps,
+}: {
+  id: string;
+  length?: number;
+  textProps?: Partial<TextProps>;
+}) {
+  const truncatedValue = useMemo(() => {
+    if (id.length <= length) return id;
+    return id.slice(length * -1);
+  }, [id, length]);
+
+  return (
+    <Text
+      title={id}
+      fontFamily="mono"
+      css={css`
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      `}
+      {...textProps}
+    >
+      {truncatedValue}
+    </Text>
+  );
+}
