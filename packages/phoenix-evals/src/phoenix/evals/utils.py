@@ -93,7 +93,6 @@ def remap_eval_input(
     # Process both required fields and any fields explicitly present in mapping.
     # Optional fields can be populated via mapping, but only required fields are strictly validated.
     fields_to_process: Set[str] = set(required_fields) | set(input_mapping.keys())
-
     for field_name in fields_to_process:
         extractor = input_mapping.get(field_name, field_name)
 
@@ -106,22 +105,21 @@ def remap_eval_input(
             found = True
         elif isinstance(extractor, str):
             path = extractor
-            # If path is empty, try direct key
-            if not path:
-                key = field_name
-                if key in eval_input:
-                    value = eval_input[key]
+            try:
+                if path in eval_input:
+                    value = eval_input[path]
                     found = True
-            else:
-                try:
+                else:
                     value = extract_with_jsonpath(eval_input, path)
                     found = True
-                except (JsonPathParserError, ValueError) as e:
-                    # Missing/invalid path: for required fields, re-raise; for optional,
-                    # treat as not found
-                    if field_name in required_fields:
-                        raise e
-                    found = False
+            except (JsonPathParserError, ValueError) as e:
+                value = eval_input[path]
+                found = True
+                # Missing/invalid path: for required fields, re-raise; for optional,
+                # treat as not found
+                if field_name in required_fields:
+                    raise e
+                found = False
         else:
             # Unsupported extractor type
             msg = (
