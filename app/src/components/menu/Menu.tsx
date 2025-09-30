@@ -10,6 +10,12 @@ import { css } from "@emotion/react";
 import { classNames, Icon, Icons } from "@phoenix/components";
 
 const menuCss = css`
+  padding: var(--ac-global-dimension-static-size-50);
+  &:focus-visible {
+    border-radius: var(--ac-global-rounding-small);
+    outline: 2px solid var(--ac-global-color-primary);
+    outline-offset: 0px;
+  }
   &[data-empty] {
     align-items: center;
     justify-content: center;
@@ -44,6 +50,7 @@ const menuItemCss = css`
   display: flex;
   gap: var(--ac-global-dimension-static-size-100);
   align-items: center;
+  justify-content: space-between;
 
   &[data-selected] {
     background-color: var(--ac-highlight-background);
@@ -66,18 +73,6 @@ const menuItemCss = css`
 
   &[data-focus-visible] {
     outline: none;
-  }
-
- & svg {
-    fill: none;
-    stroke: currentColor;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 2;
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
   }
 }
 

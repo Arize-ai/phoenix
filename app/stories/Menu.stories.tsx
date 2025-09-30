@@ -1,6 +1,10 @@
+import { useMemo } from "react";
 import {
   Autocomplete,
+  Collection,
+  Header,
   Input,
+  MenuSection,
   SubmenuTrigger,
   useFilter,
 } from "react-aria-components";
@@ -16,6 +20,7 @@ import {
   MenuTrigger,
   Popover,
   SearchField,
+  Separator,
   Text,
   View,
 } from "@phoenix/components";
@@ -33,7 +38,7 @@ export default meta;
 const NESTED_MENU_ITEMS = [
   {
     id: "1",
-    name: "Item 1",
+    name: "Item 1 Group",
     children: [
       {
         id: "1.1",
@@ -43,11 +48,11 @@ const NESTED_MENU_ITEMS = [
   },
   {
     id: "2",
-    name: "Item 2",
+    name: "Item 2 Group",
   },
   {
     id: "3",
-    name: "Item 3",
+    name: "Item 3 Group",
     children: [
       {
         id: "3.1",
@@ -59,7 +64,7 @@ const NESTED_MENU_ITEMS = [
       },
       {
         id: "3.3",
-        name: "Item 3.3",
+        name: "Item 3.3 Group",
         children: [
           {
             id: "3.3.1",
@@ -72,6 +77,23 @@ const NESTED_MENU_ITEMS = [
 ];
 
 export const Template = () => {
+  return (
+    <MenuTrigger>
+      <Button>Open Menu</Button>
+      <Popover>
+        <Menu>
+          <MenuItem>Item 1</MenuItem>
+          <MenuItem>Item 2</MenuItem>
+          <MenuItem>Item 3</MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+};
+
+Template.args = {};
+
+export const DynamicSearchableMenu = () => {
   const { contains } = useFilter({ sensitivity: "base" });
   return (
     <Flex direction="column" gap="size-200">
@@ -128,4 +150,49 @@ export const Template = () => {
   );
 };
 
-Template.args = {};
+export const SectionedMenu = () => {
+  const lastSection = useMemo(() => {
+    return NESTED_MENU_ITEMS[NESTED_MENU_ITEMS.length - 1];
+  }, []);
+  return (
+    <Flex direction="column" gap="size-200">
+      <Text>View the storybook for comments on implementation</Text>
+      <MenuTrigger>
+        <div>
+          <Button>Menu with Sections</Button>
+        </div>
+        <Popover>
+          <Menu
+            items={NESTED_MENU_ITEMS}
+            renderEmptyState={() => "No Items in Section"}
+          >
+            {/* You could support nested section rendering by naming this render function
+                and calling it recursively. For now, this example just renders sections one level deep */}
+            {(section) => {
+              // do not render empty sections, it is difficult to add an empty state to them
+              // you could possibly add a menu item that links to the place to add data that would populate this section
+              if (!section.children) return <></>;
+              return (
+                <>
+                  <MenuSection>
+                    <Header>
+                      <Flex justifyContent="space-between" alignItems="center">
+                        <Text weight="heavy">{section.name}</Text>
+                        <Text size="S">({section.children.length})</Text>
+                      </Flex>
+                    </Header>
+                    <Collection items={section.children}>
+                      {(item) => <MenuItem key={item.id}>{item.name}</MenuItem>}
+                    </Collection>
+                  </MenuSection>
+                  {/* Only render a separator if this is not the last section, otherwise it looks ugly */}
+                  {section.name !== lastSection.name && <Separator />}
+                </>
+              );
+            }}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+    </Flex>
+  );
+};
