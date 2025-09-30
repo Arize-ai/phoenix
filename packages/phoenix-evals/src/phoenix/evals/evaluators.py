@@ -1372,8 +1372,6 @@ async def async_evaluate_dataframe(
           columns don't collide.
         - Failed evaluations: If an evaluation fails, the failure details will be recorded
           in the execution_details column and the score will be None.
-        - Async evaluation is particularly beneficial for LLM-based evaluators that
-          involve network calls.
     """
     # Prepare common data structures
     result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
