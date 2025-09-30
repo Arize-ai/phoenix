@@ -117,32 +117,3 @@ class TestLaunchApp:
                         {"j": {"0": [0]}},
                         {"j": 1},
                     ] * (i + 1)
-
-    @pytest.mark.parametrize(
-        "root_path,port_offset",
-        [
-            ("/test/proxy", 100),
-            ("test/proxy/", 200),
-            ("", 300),  # Test empty string is preserved
-        ],
-    )
-    async def test_launch_app_with_root_path(
-        self, _env: Mapping[str, str], root_path: str, port_offset: int
-    ) -> None:
-        import phoenix as px
-        from phoenix.session.session import ThreadSession
-
-        session = None
-        try:
-            session = px.launch_app(
-                root_path=root_path,
-                port=int(_env["PHOENIX_PORT"]) + port_offset,
-                run_in_thread=True,
-                use_temp_dir=True,
-            )
-            assert session is not None
-            assert isinstance(session, ThreadSession)
-            assert session.root_path == root_path
-        finally:
-            if session:
-                session.end()

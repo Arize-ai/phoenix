@@ -26,6 +26,7 @@ from phoenix.config import (
     ensure_working_dir_if_needed,
     get_env_database_connection_str,
     get_env_host,
+    get_env_host_root_path,
     get_env_port,
     get_exported_files,
     get_working_dir,
@@ -403,7 +404,6 @@ class ThreadSession(Session):
                 else None
             ),
             shutdown_callbacks=instrumentation_cleanups,
-            root_path=self.root_path,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -569,6 +569,7 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
+    root_path = (get_env_host_root_path() or None) if root_path is None else root_path
     if use_temp_dir:
         global _session_working_dir
         _session_working_dir = _session_working_dir or TemporaryDirectory()
