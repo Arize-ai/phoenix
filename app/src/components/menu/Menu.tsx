@@ -9,6 +9,15 @@ import { css } from "@emotion/react";
 
 import { classNames, Icon, Icons } from "@phoenix/components";
 
+const menuCss = css`
+  &[data-empty] {
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    padding: var(--ac-global-dimension-static-size-100);
+  }
+`;
+
 export const MenuTrigger = AriaMenuTrigger;
 
 export const Menu = <T extends object>({
@@ -16,7 +25,11 @@ export const Menu = <T extends object>({
   ...props
 }: AriaMenuProps<T>) => {
   return (
-    <AriaMenu className={classNames("react-aria-Menu", className)} {...props} />
+    <AriaMenu
+      className={classNames("react-aria-Menu", className)}
+      css={menuCss}
+      {...props}
+    />
   );
 };
 
@@ -33,11 +46,14 @@ const menuItemCss = css`
   align-items: center;
 
   &[data-selected] {
+    background-color: var(--ac-highlight-background);
+    color: var(--ac-highlight-foreground);
     i {
       color: var(--ac-global-color-primary);
     }
   }
 
+  &[data-open],
   &[data-focused],
   &[data-hovered] {
     background-color: var(--ac-global-menu-item-background-color-hover);
@@ -45,7 +61,7 @@ const menuItemCss = css`
 
   &[data-disabled] {
     cursor: not-allowed;
-    color: var(--ac-global-color-text-30);
+    color: var(--ac-global-color-text-300);
   }
 
   &[data-focus-visible] {
@@ -87,10 +103,11 @@ export const MenuItem = <T extends object>({
       className={classNames("react-aria-MenuItem", className)}
       textValue={textValue}
     >
-      {({ hasSubmenu }) => {
+      {({ hasSubmenu, isSelected }) => {
         return (
           <>
             {props.children}
+            {isSelected && <Icon svg={<Icons.Checkmark />} />}
             {hasSubmenu && <Icon svg={<Icons.ChevronRight />} />}
           </>
         );
