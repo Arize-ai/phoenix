@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a7a77c7e5b81a395eb776fe570e6ac61>>
+ * @generated SignedSource<<a35d7317a7889fcccd79de42d3222fbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,22 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ExperimentRunMetric = "latencyMs" | "tokenCostTotal" | "tokenCountTotal";
+export type SortDir = "asc" | "desc";
+export type ExperimentRunSort = {
+  col: ExperimentRunColumn;
+  dir: SortDir;
+};
+export type ExperimentRunColumn = {
+  annotationName?: string | null;
+  metric?: ExperimentRunMetric | null;
+};
 export type ExperimentCompareListPageQuery$variables = {
   after?: string | null;
   baseExperimentId: string;
   compareExperimentIds: ReadonlyArray<string>;
   first?: number | null;
+  sort?: ExperimentRunSort | null;
 };
 export type ExperimentCompareListPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ExperimentCompareListPage_comparisons">;
@@ -45,6 +56,11 @@ var v0 = [
     "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "sort"
   }
 ],
 v1 = {
@@ -58,45 +74,51 @@ v2 = {
   "variableName": "first"
 },
 v3 = {
+  "kind": "Variable",
+  "name": "sort",
+  "variableName": "sort"
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = [
+v6 = [
   (v1/*: any*/),
-  (v2/*: any*/)
+  (v2/*: any*/),
+  (v3/*: any*/)
 ],
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "output",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "endTime",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanCostSummary",
@@ -132,7 +154,7 @@ v9 = {
   ],
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "ExperimentRunAnnotationConnection",
@@ -177,7 +199,7 @@ v10 = {
               "name": "label",
               "storageKey": null
             },
-            (v4/*: any*/)
+            (v5/*: any*/)
           ],
           "storageKey": null
         }
@@ -207,7 +229,8 @@ return {
             "name": "compareExperimentIds",
             "variableName": "compareExperimentIds"
           },
-          (v2/*: any*/)
+          (v2/*: any*/),
+          (v3/*: any*/)
         ],
         "kind": "FragmentSpread",
         "name": "ExperimentCompareListPage_comparisons"
@@ -236,14 +259,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
           (v4/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "runs",
@@ -265,7 +288,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v5/*: any*/),
+                          (v7/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -273,11 +297,10 @@ return {
                             "name": "repetitionNumber",
                             "storageKey": null
                           },
-                          (v6/*: any*/),
-                          (v7/*: any*/),
                           (v8/*: any*/),
                           (v9/*: any*/),
                           (v10/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -286,7 +309,7 @@ return {
                             "name": "example",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
+                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -341,16 +364,16 @@ return {
                                     "name": "runs",
                                     "plural": true,
                                     "selections": [
-                                      (v4/*: any*/),
-                                      (v6/*: any*/),
+                                      (v5/*: any*/),
                                       (v7/*: any*/),
                                       (v8/*: any*/),
                                       (v9/*: any*/),
-                                      (v10/*: any*/)
+                                      (v10/*: any*/),
+                                      (v11/*: any*/)
                                     ],
                                     "storageKey": null
                                   },
-                                  (v4/*: any*/)
+                                  (v5/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -375,8 +398,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v4/*: any*/),
+                          (v5/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -413,8 +436,10 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
-                "filters": null,
+                "args": (v6/*: any*/),
+                "filters": [
+                  "sort"
+                ],
                 "handle": "connection",
                 "key": "ExperimentCompareListPage_runs",
                 "kind": "LinkedHandle",
@@ -430,16 +455,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a632a4af576795a493b7a856fb3c9110",
+    "cacheID": "979ea6e990b47899e17fdec57b9b9db5",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareListPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareListPageQuery(\n  $after: ID = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n) {\n  ...ExperimentCompareListPage_comparisons_2R0tQo\n}\n\nfragment ExperimentCompareListPage_comparisons_2R0tQo on Query {\n  experiment: node(id: $baseExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      runs(first: $first, after: $after) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            output\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                input\n                referenceOutput: output\n              }\n              experimentRepeatedRunGroups(experimentIds: $compareExperimentIds) {\n                experimentId\n                runs {\n                  id\n                  output\n                  startTime\n                  endTime\n                  costSummary {\n                    total {\n                      tokens\n                      cost\n                    }\n                  }\n                  annotations {\n                    edges {\n                      annotation: node {\n                        name\n                        score\n                        label\n                        id\n                      }\n                    }\n                  }\n                }\n                id\n              }\n            }\n          }\n          cursor\n          node {\n            __typename\n            id\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareListPageQuery(\n  $after: ID = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n  $sort: ExperimentRunSort = null\n) {\n  ...ExperimentCompareListPage_comparisons_3SQ0kE\n}\n\nfragment ExperimentCompareListPage_comparisons_3SQ0kE on Query {\n  experiment: node(id: $baseExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      runs(first: $first, after: $after, sort: $sort) {\n        edges {\n          run: node {\n            id\n            output\n            repetitionNumber\n            startTime\n            endTime\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                input\n                referenceOutput: output\n              }\n              experimentRepeatedRunGroups(experimentIds: $compareExperimentIds) {\n                experimentId\n                runs {\n                  id\n                  output\n                  startTime\n                  endTime\n                  costSummary {\n                    total {\n                      tokens\n                      cost\n                    }\n                  }\n                  annotations {\n                    edges {\n                      annotation: node {\n                        name\n                        score\n                        label\n                        id\n                      }\n                    }\n                  }\n                }\n                id\n              }\n            }\n          }\n          cursor\n          node {\n            __typename\n            id\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9746625d0efb61982358de903408c6cb";
+(node as any).hash = "971b01b2d47399ad9a2cbaca3802a7c8";
 
 export default node;

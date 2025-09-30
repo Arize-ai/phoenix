@@ -1384,8 +1384,8 @@ enum ExperimentRunAnnotatorKind {
 }
 
 input ExperimentRunColumn @oneOf {
-  metric: ExperimentRunMetric!
-  annotationName: String!
+  metric: ExperimentRunMetric
+  annotationName: String
 }
 
 """A connection to a list of items."""

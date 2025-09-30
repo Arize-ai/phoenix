@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 import strawberry
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -12,7 +12,10 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.input_types.ExperimentRunSort import ExperimentRunSort
+from phoenix.server.api.input_types.ExperimentRunSort import (
+    ExperimentRunSort,
+    add_order_by_and_page_start_to_query,
+)
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
@@ -64,51 +67,28 @@ class Experiment(Node):
     ) -> Connection[ExperimentRun]:
         experiment_id = self.id_attr
         page_size = first if first is not None else _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
-        experiment_runs_query = (
+        experiment_runs_query: Select[tuple[models.ExperimentRun]] = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_id)
             .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
             .limit(page_size + 1)
         )
 
-        if sort:
-            raise NotImplementedError
-        else:
-            experiment_runs_query = experiment_runs_query.order_by(
-                models.ExperimentRun.dataset_example_id.asc(),
-                models.ExperimentRun.repetition_number.asc(),
-            )
-
+        after_experiment_run_rowid = None
         if after:
-            if sort:
-                raise NotImplementedError
             try:
-                after_run_id = from_global_id_with_expected_type(after, "ExperimentRun")
+                after_experiment_run_rowid = from_global_id_with_expected_type(
+                    after,
+                    expected_type_name=models.ExperimentRun.__name__,
+                )
             except ValueError:
-                raise BadRequest(f"Invalid after ID: {after}")
-            else:
-                after_example_id_subquery = (
-                    select(models.ExperimentRun.dataset_example_id)
-                    .where(models.ExperimentRun.id == after_run_id)
-                    .scalar_subquery()
-                )
-                after_repetition_number_subquery = (
-                    select(models.ExperimentRun.repetition_number)
-                    .where(models.ExperimentRun.id == after_run_id)
-                    .scalar_subquery()
-                )
-                experiment_runs_query = experiment_runs_query.where(
-                    tuple_(
-                        models.ExperimentRun.dataset_example_id,
-                        models.ExperimentRun.repetition_number,
-                    )
-                    > (
-                        tuple_(
-                            after_example_id_subquery,
-                            after_repetition_number_subquery,
-                        )
-                    )
-                )
+                raise BadRequest("Invalid after ID")
+
+        experiment_runs_query = add_order_by_and_page_start_to_query(
+            query=experiment_runs_query,
+            sort=sort,
+            after_experiment_run_rowid=after_experiment_run_rowid,
+        )
 
         async with info.context.db() as session:
             runs = (await session.scalars(experiment_runs_query)).all()
