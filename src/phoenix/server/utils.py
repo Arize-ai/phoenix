@@ -5,8 +5,8 @@ def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
     """
     Prepends the ASGI root path to the given path if one is configured.
 
-    Normalizes the input path by ensuring it has a leading slash.
-    The root path is already normalized by get_root_path().
+    Normalizes the input path by ensuring it has a leading slash and removing
+    trailing slashes. The root path is already normalized by get_root_path().
 
     Args:
         scope: The ASGI scope dictionary containing the root_path key
@@ -14,19 +14,33 @@ def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
 
     Returns:
         The normalized path with root path prepended if configured,
-        otherwise just the normalized path.
+        otherwise just the normalized path. Never has a trailing slash
+        except when the result is just "/".
 
     Examples:
         With root_path="/apps/phoenix":
         - prepend_root_path(request.scope, "/login") -> "/apps/phoenix/login"
         - prepend_root_path(request.scope, "login") -> "/apps/phoenix/login"
+        - prepend_root_path(request.scope, "/") -> "/apps/phoenix"
+        - prepend_root_path(request.scope, "") -> "/apps/phoenix"
+        - prepend_root_path(request.scope, "login/") -> "/apps/phoenix/login"
+        - prepend_root_path(request.scope, "/login/") -> "/apps/phoenix/login"
+        - prepend_root_path(request.scope, "abc/def/") -> "/apps/phoenix/abc/def"
 
         With no root_path:
         - prepend_root_path(request.scope, "/login") -> "/login"
         - prepend_root_path(request.scope, "login") -> "/login"
+        - prepend_root_path(request.scope, "/") -> "/"
+        - prepend_root_path(request.scope, "") -> "/"
+        - prepend_root_path(request.scope, "login/") -> "/login"
+        - prepend_root_path(request.scope, "/login/") -> "/login"
+        - prepend_root_path(request.scope, "abc/def/") -> "/abc/def"
     """
     path = path if path.startswith("/") else f"/{path}"
+    path = path.rstrip("/") or "/"
     root_path = get_root_path(scope)
+    if path == "/":
+        return root_path or "/"
     return f"{root_path}{path}"
 
 
@@ -55,5 +69,6 @@ def get_root_path(scope: Mapping[str, Any]) -> str:
     root_path = str(scope.get("root_path") or "")
     if not root_path:
         return ""
-    root_path = root_path if root_path.startswith("/") else f"/{root_path}"
+    if not root_path.startswith("/"):
+        root_path = f"/{root_path}"
     return root_path.rstrip("/")

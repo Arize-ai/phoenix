@@ -13,6 +13,9 @@ class TestGetRootPath:
             ("", ""),
             (None, ""),
             ("/app/phoenix/", "/app/phoenix"),
+            ("app/phoenix", "/app/phoenix"),
+            ("/app/phoenix///", "/app/phoenix"),
+            ("/", ""),
         ],
     )
     def test_get_root_path_extraction(self, scope_root_path: str, expected: str) -> None:
@@ -43,6 +46,21 @@ class TestPrependRootPath:
             ("/app/phoenix///", "/login", "/app/phoenix/login"),
             ("/", "/login", "/login"),
             ("app/phoenix///", "reset-password", "/app/phoenix/reset-password"),
+            # Root path "/" cases (no trailing slash in result)
+            ("/app/phoenix", "/", "/app/phoenix"),
+            ("", "/", "/"),
+            (None, "/", "/"),
+            # Empty string input cases
+            ("/app/phoenix", "", "/app/phoenix"),
+            ("", "", "/"),
+            (None, "", "/"),
+            # Trailing slash in input path (should be stripped)
+            ("/app/phoenix", "login/", "/app/phoenix/login"),
+            ("/app/phoenix", "/login/", "/app/phoenix/login"),
+            ("", "login/", "/login"),
+            ("/app/phoenix", "abc/def/", "/app/phoenix/abc/def"),
+            ("/app/phoenix", "/login///", "/app/phoenix/login"),
+            ("", "login///", "/login"),
         ],
     )
     def test_prepend_root_path_scenarios(
