@@ -145,7 +145,7 @@ async def logout(
     if user_id:
         await token_store.log_out(user_id)
     redirect_path = "/logout" if get_env_disable_basic_auth() else "/login"
-    redirect_url = prepend_root_path(request=request, path=redirect_path)
+    redirect_url = prepend_root_path(request.scope, redirect_path)
     response = Response(status_code=HTTP_302_FOUND, headers={"Location": redirect_url})
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
@@ -242,7 +242,7 @@ async def initiate_password_reset(request: Request) -> Response:
     )
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
     url = urlparse(request.headers.get("referer") or get_base_url())
-    path = prepend_root_path(request=request, path="/reset-password-with-token")
+    path = prepend_root_path(request.scope, "/reset-password-with-token")
     query_string = urlencode(dict(token=token))
     components = (url.scheme, url.netloc, path, "", query_string, "")
     reset_url = urlunparse(components)

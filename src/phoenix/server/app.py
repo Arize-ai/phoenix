@@ -67,7 +67,6 @@ from phoenix.config import (
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_host,
-    get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
@@ -175,6 +174,7 @@ from phoenix.server.types import (
     LastUpdatedAt,
     TokenStore,
 )
+from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
@@ -283,9 +283,6 @@ class Static(StaticFiles):
                 return {}
             raise e
 
-    def _sanitize_basename(self, basename: str) -> str:
-        return basename[:-1] if basename.endswith("/") else basename
-
     async def get_response(self, path: str, scope: Scope) -> Response:
         # Redirect to the oauth2 login page if basic auth is disabled and auto_login is enabled
         # TODO: this needs to be refactored to be cleaner
@@ -294,14 +291,10 @@ class Static(StaticFiles):
             and self._app_config.basic_auth_disabled
             and self._app_config.auto_login_idp_name
         ):
-            request = Request(scope)
-            url = URL(
-                str(
-                    Path(get_env_host_root_path())
-                    / f"oauth2/{self._app_config.auto_login_idp_name}/login"
-                )
+            redirect_path = prepend_root_path(
+                scope, f"oauth2/{self._app_config.auto_login_idp_name}/login"
             )
-            url = url.include_query_params(**request.query_params)
+            url = URL(redirect_path).include_query_params(**Request(scope).query_params)
             return RedirectResponse(url=url)
         try:
             response = await super().get_response(path, scope)
@@ -318,7 +311,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": self._sanitize_basename(request.scope.get("root_path", "")),
+                    "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,

@@ -192,7 +192,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    redirect_path = prepend_root_path(request=request, path=return_url or "/")
+    redirect_path = prepend_root_path(request.scope, return_url or "/")
     response = RedirectResponse(
         url=redirect_path,
         status_code=HTTP_302_FOUND,
@@ -566,7 +566,7 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     # TODO: this needs some cleanup
     login_path = prepend_root_path(
-        request=request, path="/login" if not get_env_disable_basic_auth() else "/logout"
+        request.scope, "/login" if not get_env_disable_basic_auth() else "/logout"
     )
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
@@ -579,7 +579,7 @@ def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
     """
     If a root path is configured, appends it to the input base url.
     """
-    if not (root_path := get_root_path(request=request)):
+    if not (root_path := get_root_path(request.scope)):
         return base_url
     return str(URLPath(root_path).make_absolute_url(base_url=base_url))
 

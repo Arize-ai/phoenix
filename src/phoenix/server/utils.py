@@ -1,15 +1,15 @@
-from starlette.requests import Request
+from typing import Any, Mapping
 
 
-def prepend_root_path(*, request: Request, path: str) -> str:
+def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
     """
     Prepends the ASGI root path to the given path if one is configured.
 
-    Automatically normalizes paths by ensuring leading slashes are present
-    and removing trailing slashes to prevent double slashes in the result.
+    Normalizes the input path by ensuring it has a leading slash.
+    The root path is already normalized by get_root_path().
 
     Args:
-        request: The FastAPI/Starlette request object containing ASGI scope
+        scope: The ASGI scope dictionary containing the root_path key
         path: The path to prepend the root path to (e.g., "/login", "logout")
 
     Returns:
@@ -18,45 +18,42 @@ def prepend_root_path(*, request: Request, path: str) -> str:
 
     Examples:
         With root_path="/apps/phoenix":
-        - prepend_root_path(request, "/login") -> "/apps/phoenix/login"
-        - prepend_root_path(request, "login") -> "/apps/phoenix/login"
+        - prepend_root_path(request.scope, "/login") -> "/apps/phoenix/login"
+        - prepend_root_path(request.scope, "login") -> "/apps/phoenix/login"
 
         With no root_path:
-        - prepend_root_path(request, "/login") -> "/login"
-        - prepend_root_path(request, "login") -> "/login"
+        - prepend_root_path(request.scope, "/login") -> "/login"
+        - prepend_root_path(request.scope, "login") -> "/login"
     """
-    if not path.startswith("/"):
-        path = "/" + path
-
-    root_path = get_root_path(request=request)
-
-    if not root_path:
-        return path
-
-    if not root_path.startswith("/"):
-        root_path = "/" + root_path
-
-    root_path = root_path.rstrip("/")
-
-    return root_path + path
+    path = path if path.startswith("/") else f"/{path}"
+    root_path = get_root_path(scope)
+    return f"{root_path}{path}" if root_path else path
 
 
-def get_root_path(*, request: Request) -> str:
+def get_root_path(scope: Mapping[str, Any]) -> str:
     """
-    Extracts the root path from the ASGI request scope.
+    Extracts and normalizes the root path from the ASGI scope.
 
     The root path is typically set by reverse proxies or when the application
     is mounted at a sub-path (e.g., "/apps/phoenix" when behind a proxy).
+    If present, ensures the path has a leading slash and removes trailing slashes.
 
     Args:
-        request: The FastAPI/Starlette request object containing ASGI scope
+        scope: The ASGI scope dictionary containing the root_path key
 
     Returns:
-        The root path as a string, or empty string if not configured.
+        The normalized root path as a string (with leading slash, no trailing slash)
+        if configured, otherwise empty string.
 
     Examples:
         - Behind proxy at "/apps/phoenix": returns "/apps/phoenix"
+        - Missing leading slash "apps/phoenix": returns "/apps/phoenix"
+        - With trailing slash "/apps/phoenix/": returns "/apps/phoenix"
         - Direct deployment: returns ""
         - None in scope: returns ""
     """
-    return request.scope.get("root_path") or ""
+    root_path = str(scope.get("root_path") or "")
+    if not root_path:
+        return ""
+    root_path = root_path if root_path.startswith("/") else f"/{root_path}"
+    return root_path.rstrip("/")
