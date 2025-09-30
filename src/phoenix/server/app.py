@@ -954,12 +954,8 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
-    root_path: Optional[str] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
-    # Use provided root_path or fall back to environment variable
-    if root_path is None:
-        root_path = get_env_host_root_path()
     if model.embedding_dimensions:
         try:
             import fast_hdbscan  # noqa: F401
@@ -1081,7 +1077,6 @@ def create_app(
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
-        root_path=root_path,
         lifespan=_lifespan(
             db=db,
             read_only=read_only,
