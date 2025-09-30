@@ -1,7 +1,18 @@
-import { Heading } from "react-aria-components";
+import { DialogTrigger, Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Modal,
+  ModalOverlay,
+  Text,
+  View,
+} from "@phoenix/components";
+import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
@@ -87,6 +98,7 @@ function PromptIndexPageAside({
     graphql`
       fragment PromptIndexPage__aside on Prompt {
         id
+        name
         description
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
@@ -103,7 +115,35 @@ function PromptIndexPageAside({
       borderStartColor="dark"
       borderStartWidth="thin"
     >
-      <View paddingStart="size-200" paddingEnd="size-200">
+      <View padding="size-200">
+        <Flex direction="row" gap="size-100" justifyContent="end">
+          <DialogTrigger>
+            <Button
+              size="S"
+              leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+            >
+              Clone
+            </Button>
+            <ModalOverlay>
+              <Modal size="M">
+                <ClonePromptDialog
+                  promptId={data.id}
+                  promptName={data.name}
+                  promptDescription={data.description ?? undefined}
+                />
+              </Modal>
+            </ModalOverlay>
+          </DialogTrigger>
+          <LinkButton
+            variant="primary"
+            leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+            to="playground"
+            size="S"
+            aria-label="Prompt Playground"
+          >
+            Playground
+          </LinkButton>
+        </Flex>
         <Flex
           direction="row"
           justifyContent="space-between"

@@ -1,14 +1,18 @@
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
   Icons,
+  LinkButton,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
@@ -33,7 +37,6 @@ function PromptVersionDetailsPageContent({
 }: {
   promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
-  const navigate = useNavigate();
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">
@@ -63,15 +66,21 @@ function PromptVersionDetailsPageContent({
                 Version ID
               </CopyToClipboardButton>
               <TagPromptVersionButton />
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
-                onPress={() => {
-                  navigate(`playground`);
-                }}
-              >
-                Edit
-              </Button>
+              <TooltipTrigger delay={0}>
+                <TriggerWrap>
+                  <LinkButton
+                    variant="primary"
+                    leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                    to="playground"
+                    size="S"
+                    aria-label="Prompt Playground"
+                  />
+                </TriggerWrap>
+                <Tooltip>
+                  <TooltipArrow />
+                  Playground
+                </Tooltip>
+              </TooltipTrigger>
             </Flex>
           </Flex>
           <PromptChatMessagesCard promptVersion={promptVersion} />
