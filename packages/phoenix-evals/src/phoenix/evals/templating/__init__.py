@@ -1,6 +1,7 @@
 import json
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from enum import Enum
 from inspect import BoundArguments
 from string import Formatter
@@ -112,6 +113,12 @@ class MustacheFormatter(TemplateFormatter):
 class FStringFormatter(TemplateFormatter):
     """Formatter for f-string style templates using standard Python string formatting."""
 
+    class _DotKeyFormatter(Formatter):
+        def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
+            if args and isinstance(args[0], dict) and field_name in args[0]:
+                return args[0][field_name], field_name
+            return super().get_field(field_name, args, kwargs)
+
     def render(self, template: str, variables: Dict[str, Any]) -> str:
         """Use Python's built-in Formatter for f-string-like behavior.
 
@@ -122,8 +129,8 @@ class FStringFormatter(TemplateFormatter):
         Returns:
             str: The rendered template.
         """
-        formatter = Formatter()
-        return formatter.format(template, **variables)
+        formatter = self._DotKeyFormatter()
+        return formatter.vformat(template, (variables,), {})
 
     def extract_variables(self, template: str) -> List[str]:
         """Extract variable names from template using Python's string formatter.
@@ -137,13 +144,9 @@ class FStringFormatter(TemplateFormatter):
         formatter = Formatter()
         field_names = []
 
-        # Parse the template to extract field names
-        for literal_text, field_name, format_spec, conversion in formatter.parse(template):
-            if field_name is not None:
-                # Extract the base variable name (before dots, brackets, etc.)
-                base_name = field_name.split(".")[0].split("[")[0]
-                if base_name and base_name not in field_names:
-                    field_names.append(base_name)
+        for _, field_name, _, _ in formatter.parse(template):
+            if field_name is not None and field_name not in field_names:
+                field_names.append(field_name)
 
         return field_names
 
