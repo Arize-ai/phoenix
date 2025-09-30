@@ -130,7 +130,8 @@ class FStringFormatter(TemplateFormatter):
             str: The rendered template.
         """
         formatter = self._DotKeyFormatter()
-        return formatter.vformat(template, (variables,), {})
+        safe_kwargs = {k: v for k, v in variables.items() if "." not in k}
+        return formatter.vformat(template, (variables,), safe_kwargs)
 
     def extract_variables(self, template: str) -> List[str]:
         """Extract variable names from template using Python's string formatter.
