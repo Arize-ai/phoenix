@@ -136,8 +136,14 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = (
-            root_path if root_path is not None else _get_root_path(self.notebook_env, self.port)
+            (get_env_host_root_path() or _get_root_path(self.notebook_env, self.port))
+            if root_path is None
+            else root_path
         )
+        if self.root_path and self.root_path != "/":
+            if not self.root_path.startswith("/"):
+                self.root_path = f"/{self.root_path}"
+            self.root_path = self.root_path.rstrip("/")
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
             endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
@@ -272,6 +278,8 @@ class Session(TraceDataExtractor, ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
+        if self.notebook_env is NotebookEnvironment.LOCAL:
+            return f"http://{self.host}:{self.port}{self.root_path}"
         return _get_url(self.host, self.port, self.notebook_env)
 
     @property
@@ -569,7 +577,6 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
-    root_path = (get_env_host_root_path() or None) if root_path is None else root_path
     if use_temp_dir:
         global _session_working_dir
         _session_working_dir = _session_working_dir or TemporaryDirectory()
