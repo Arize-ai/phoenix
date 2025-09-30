@@ -4,8 +4,6 @@ description: Instrument LLM calls made using MistralAI's SDK via the MistralAIIn
 
 # MistralAI Tracing
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/mistral/evaluate_rag--mistral.ipynb" %}
-
 MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
 
 ## Launch Phoenix

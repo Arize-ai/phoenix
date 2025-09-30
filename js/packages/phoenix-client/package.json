@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "4.0.1",
+  "version": "4.0.3",
   "description": "A client for the Phoenix API",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -70,7 +70,8 @@
     "openai": "^4.77.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "@arizeai/phoenix-evals": "workspace:*"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",

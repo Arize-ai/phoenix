@@ -20,6 +20,7 @@ from sqlalchemy import (
     Integer,
     MetaData,
     Null,
+    PrimaryKeyConstraint,
     String,
     TypeDecorator,
     UniqueConstraint,
@@ -154,7 +155,7 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
-UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER"]
+UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
@@ -447,7 +448,6 @@ class ExperimentRunOutput(TypedDict, total=False):
 
 
 class Base(DeclarativeBase):
-    id: Mapped[int] = mapped_column(primary_key=True)
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
@@ -467,7 +467,12 @@ class Base(DeclarativeBase):
     }
 
 
-class ProjectTraceRetentionPolicy(Base):
+class HasId(Base):
+    __abstract__ = True
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+
+class ProjectTraceRetentionPolicy(HasId):
     __tablename__ = "project_trace_retention_policies"
     name: Mapped[str] = mapped_column(String, nullable=False)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
@@ -479,7 +484,7 @@ class ProjectTraceRetentionPolicy(Base):
     )
 
 
-class Project(Base):
+class Project(HasId):
     __tablename__ = "projects"
     name: Mapped[str]
     description: Mapped[Optional[str]]
@@ -519,7 +524,7 @@ class Project(Base):
     )
 
 
-class ProjectSession(Base):
+class ProjectSession(HasId):
     __tablename__ = "project_sessions"
     session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     project_id: Mapped[int] = mapped_column(
@@ -536,7 +541,7 @@ class ProjectSession(Base):
     )
 
 
-class Trace(Base):
+class Trace(HasId):
     __tablename__ = "traces"
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -591,13 +596,13 @@ class Trace(Base):
     )
 
 
-class Span(Base):
+class Span(HasId):
     __tablename__ = "spans"
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
     )
-    span_id: Mapped[str] = mapped_column(index=True)
+    span_id: Mapped[str]
     parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     span_kind: Mapped[str]
@@ -894,15 +899,15 @@ async def init_models(engine: AsyncEngine) -> None:
         )
 
 
-class SpanAnnotation(Base):
+class SpanAnnotation(HasId):
     __tablename__ = "span_annotations"
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -934,15 +939,15 @@ class SpanAnnotation(Base):
     )
 
 
-class TraceAnnotation(Base):
+class TraceAnnotation(HasId):
     __tablename__ = "trace_annotations"
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -971,7 +976,7 @@ class TraceAnnotation(Base):
     )
 
 
-class DocumentAnnotation(Base):
+class DocumentAnnotation(HasId):
     __tablename__ = "document_annotations"
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
@@ -979,8 +984,8 @@ class DocumentAnnotation(Base):
     )
     document_position: Mapped[int]
     name: Mapped[str]
-    label: Mapped[Optional[str]] = mapped_column(String, index=True)
-    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
@@ -1012,7 +1017,44 @@ class DocumentAnnotation(Base):
     )
 
 
-class Dataset(Base):
+class ProjectSessionAnnotation(HasId):
+    __tablename__ = "project_session_annotations"
+    project_session_id: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "name",
+            "project_session_id",
+            "identifier",
+        ),
+    )
+
+
+class Dataset(HasId):
     __tablename__ = "datasets"
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
@@ -1020,6 +1062,14 @@ class Dataset(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="dataset"
+    )
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset"
     )
 
     @hybrid_property
@@ -1071,7 +1121,45 @@ class Dataset(Base):
             )
 
 
-class DatasetVersion(Base):
+class DatasetLabel(HasId):
+    __tablename__ = "dataset_labels"
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, nullable=False)
+    datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
+        "DatasetsDatasetLabel", back_populates="dataset_label"
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class DatasetsDatasetLabel(Base):
+    __tablename__ = "datasets_dataset_labels"
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    dataset_label_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_labels.id", ondelete="CASCADE"),
+        # index on the second element of the composite primary key
+        index=True,
+    )
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="datasets_dataset_labels")
+    dataset_label: Mapped["DatasetLabel"] = relationship(
+        "DatasetLabel", back_populates="datasets_dataset_labels"
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dataset_id",
+            "dataset_label_id",
+        ),
+    )
+
+
+class DatasetVersion(HasId):
     __tablename__ = "dataset_versions"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
@@ -1080,9 +1168,11 @@ class DatasetVersion(Base):
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user: Mapped[Optional["User"]] = relationship("User")
 
 
-class DatasetExample(Base):
+class DatasetExample(HasId):
     __tablename__ = "dataset_examples"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
@@ -1096,13 +1186,20 @@ class DatasetExample(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
+    dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
+        "DatasetSplitDatasetExample",
+        back_populates="dataset_example",
+    )
+    experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
+        "ExperimentDatasetExample",
+        back_populates="dataset_example",
+    )
 
 
-class DatasetExampleRevision(Base):
+class DatasetExampleRevision(HasId):
     __tablename__ = "dataset_example_revisions"
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_version_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
@@ -1118,6 +1215,11 @@ class DatasetExampleRevision(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
+    experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
+        "ExperimentDatasetExample",
+        back_populates="dataset_example_revision",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "dataset_example_id",
@@ -1126,7 +1228,56 @@ class DatasetExampleRevision(Base):
     )
 
 
-class Experiment(Base):
+class DatasetSplit(HasId):
+    __tablename__ = "dataset_splits"
+
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, nullable=False)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
+        "DatasetSplitDatasetExample",
+        back_populates="dataset_split",
+    )
+    experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
+        "ExperimentDatasetSplit",
+        back_populates="dataset_split",
+    )
+
+
+class DatasetSplitDatasetExample(Base):
+    __tablename__ = "dataset_splits_dataset_examples"
+    dataset_split_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        "DatasetSplit", back_populates="dataset_splits_dataset_examples"
+    )
+    dataset_example: Mapped["DatasetExample"] = relationship(
+        "DatasetExample", back_populates="dataset_splits_dataset_examples"
+    )
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dataset_split_id",
+            "dataset_example_id",
+        ),
+    )
+
+
+class Experiment(HasId):
     __tablename__ = "experiments"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
@@ -1141,17 +1292,82 @@ class Experiment(Base):
     repetitions: Mapped[int]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    user: Mapped[Optional["User"]] = relationship("User")
+    experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
+        "ExperimentDatasetSplit",
+        back_populates="experiment",
+    )
+    experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
+        "ExperimentDatasetExample",
+        back_populates="experiment",
+    )
+    experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
+        "ExperimentTag", back_populates="experiment"
+    )
 
 
-class ExperimentRun(Base):
+class ExperimentDatasetSplit(Base):
+    __tablename__ = "experiments_dataset_splits"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+    )
+    dataset_split_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_splits.id", ondelete="CASCADE"),
+        index=True,
+    )
+    experiment: Mapped["Experiment"] = relationship(
+        "Experiment", back_populates="experiment_dataset_splits"
+    )
+    dataset_split: Mapped["DatasetSplit"] = relationship(
+        "DatasetSplit", back_populates="experiment_dataset_splits"
+    )
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "experiment_id",
+            "dataset_split_id",
+        ),
+    )
+
+
+class ExperimentDatasetExample(Base):
+    __tablename__ = "experiments_dataset_examples"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_example_revision_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_example_revisions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    experiment: Mapped["Experiment"] = relationship(
+        "Experiment", back_populates="experiment_dataset_examples"
+    )
+    dataset_example: Mapped["DatasetExample"] = relationship(
+        "DatasetExample", back_populates="experiment_dataset_examples"
+    )
+    dataset_example_revision: Mapped["DatasetExampleRevision"] = relationship(
+        "DatasetExampleRevision", back_populates="experiment_dataset_examples"
+    )
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "experiment_id",
+            "dataset_example_id",
+        ),
+    )
+
+
+class ExperimentRun(HasId):
     __tablename__ = "experiment_runs"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
-        index=True,
     )
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
@@ -1192,11 +1408,10 @@ class ExperimentRun(Base):
     )
 
 
-class ExperimentRunAnnotation(Base):
+class ExperimentRunAnnotation(HasId):
     __tablename__ = "experiment_run_annotations"
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
-        index=True,
     )
     name: Mapped[str]
     annotator_kind: Mapped[str] = mapped_column(
@@ -1223,13 +1438,36 @@ class ExperimentRunAnnotation(Base):
     )
 
 
-class UserRole(Base):
+class ExperimentTag(HasId):
+    __tablename__ = "experiment_tags"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="experiment_tags")
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="experiment_tags")
+    user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("dataset_id", "name"),)
+
+
+class UserRole(HasId):
     __tablename__ = "user_roles"
     name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
-class User(Base):
+class User(HasId):
     __tablename__ = "users"
     user_role_id: Mapped[int] = mapped_column(
         ForeignKey("user_roles.id", ondelete="CASCADE"),
@@ -1339,7 +1577,7 @@ class OAuth2User(User):
         )
 
 
-class PasswordResetToken(Base):
+class PasswordResetToken(HasId):
     __tablename__ = "password_reset_tokens"
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -1352,7 +1590,7 @@ class PasswordResetToken(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
-class RefreshToken(Base):
+class RefreshToken(HasId):
     __tablename__ = "refresh_tokens"
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -1364,7 +1602,7 @@ class RefreshToken(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
-class AccessToken(Base):
+class AccessToken(HasId):
     __tablename__ = "access_tokens"
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -1381,7 +1619,7 @@ class AccessToken(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
-class ApiKey(Base):
+class ApiKey(HasId):
     __tablename__ = "api_keys"
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -1398,7 +1636,7 @@ class ApiKey(Base):
 CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 
-class GenerativeModel(Base):
+class GenerativeModel(HasId):
     __tablename__ = "generative_models"
     name: Mapped[str] = mapped_column(String, nullable=False)
     provider: Mapped[str]
@@ -1447,7 +1685,7 @@ class GenerativeModel(Base):
     )
 
 
-class TokenPrice(Base):
+class TokenPrice(HasId):
     __tablename__ = "token_prices"
     model_id: Mapped[int] = mapped_column(
         ForeignKey("generative_models.id", ondelete="CASCADE"),
@@ -1473,7 +1711,7 @@ class TokenPrice(Base):
     )
 
 
-class PromptLabel(Base):
+class PromptLabel(HasId):
     __tablename__ = "prompt_labels"
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
@@ -1487,7 +1725,7 @@ class PromptLabel(Base):
     )
 
 
-class Prompt(Base):
+class Prompt(HasId):
     __tablename__ = "prompts"
     source_prompt_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompts.id", ondelete="SET NULL"),
@@ -1524,7 +1762,7 @@ class Prompt(Base):
     )
 
 
-class PromptPromptLabel(Base):
+class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
@@ -1545,7 +1783,7 @@ class PromptPromptLabel(Base):
     __table_args__ = (UniqueConstraint("prompt_label_id", "prompt_id"),)
 
 
-class PromptVersion(Base):
+class PromptVersion(HasId):
     __tablename__ = "prompt_versions"
 
     prompt_id: Mapped[int] = mapped_column(
@@ -1594,7 +1832,7 @@ class PromptVersion(Base):
     )
 
 
-class PromptVersionTag(Base):
+class PromptVersionTag(HasId):
     __tablename__ = "prompt_version_tags"
 
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -1623,13 +1861,13 @@ class PromptVersionTag(Base):
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
 
 
-class AnnotationConfig(Base):
+class AnnotationConfig(HasId):
     __tablename__ = "annotation_configs"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
-class ProjectAnnotationConfig(Base):
+class ProjectAnnotationConfig(HasId):
     __tablename__ = "project_annotation_configs"
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
@@ -1641,16 +1879,18 @@ class ProjectAnnotationConfig(Base):
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
 
 
-class SpanCost(Base):
+class SpanCost(HasId):
     __tablename__ = "span_costs"
 
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     span_start_time: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
@@ -1753,14 +1993,13 @@ class SpanCost(Base):
             self.total_tokens = (self.total_tokens or 0) + tokens
 
 
-class SpanCostDetail(Base):
+class SpanCostDetail(HasId):
     __tablename__ = "span_cost_details"
     span_cost_id: Mapped[int] = mapped_column(
         ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    token_type: Mapped[str]
+    token_type: Mapped[str] = mapped_column(index=True)
     is_prompt: Mapped[bool]
 
     cost: Mapped[Optional[float]]

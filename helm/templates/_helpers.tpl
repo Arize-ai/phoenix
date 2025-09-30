@@ -19,7 +19,11 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end }}
 
 {{- define "phoenix.postgres" -}}
-  {{- printf "%s-postgresql" (include "phoenix.fullname" .) -}}
+  {{- if .Values.database.postgres.host -}}
+    {{- .Values.database.postgres.host -}}
+  {{- else -}}
+    {{- printf "%s-postgresql" .Release.Name -}}
+  {{- end -}}
 {{- end -}}
 {{- define "phoenix.postgres-pvc" -}}
   {{- printf "%s-pvc" (include "phoenix.postgres" .) -}}
@@ -58,6 +62,16 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end -}}
 {{- define "phoenix.grpcPort" -}}
   {{- .Values.server.grpcPort | default 4317 }}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "phoenix.labels" -}}
+app.kubernetes.io/name: {{ include "phoenix.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/*
@@ -121,8 +135,8 @@ Validate database URL format when provided
 {{- if and ($persistenceEnabled) ($isMemoryDatabase) }}
 {{- fail "ERROR: cannot use in-memory and persistance at the same time" }}
 {{- end }}
-{{- if and (not (hasPrefix "sqlite://:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
-{{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite://:memory:` prefix." }}
+{{- if and (not (hasPrefix "sqlite:///:memory:" $url)) (not $persistenceEnabled) ($isMemoryDatabase) }}
+{{- fail "ERROR: Sqlite database URL is using in-memory setting without proper `sqlite:///:memory:` prefix." }}
 {{- end }}
 {{- end }}
 {{- end }}

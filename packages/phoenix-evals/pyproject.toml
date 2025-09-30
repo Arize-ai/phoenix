@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.29.0"
+version = "2.2.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -31,6 +31,7 @@ dependencies = [
   "pydantic>=2.0.0",
   "jsonpath_ng",
   "openinference-semantic-conventions>=0.1.19",
+  "openinference-instrumentation>=0.1.20",
   "opentelemetry-api",
 ]
 
@@ -114,6 +115,7 @@ line-ending = "native"
 [tool.mypy]
 explicit_package_bases = true
 strict = true
+namespace_packages = true
 exclude = [
   "dist/",
   "tests/",
@@ -126,8 +128,13 @@ module = [
   "langchain_anthropic",
   "mistralai",
   "mistralai.*",
+  "opentelemetry",
+  "opentelemetry.trace",
+  "openinference.*",
+  "opentelemetry.*",
 ]
 ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

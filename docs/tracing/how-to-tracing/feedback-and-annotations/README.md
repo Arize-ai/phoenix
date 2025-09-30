@@ -19,6 +19,6 @@ Phoenix allows you to annotate traces through the Client, the REST API, or the U
 * To learn how to evaluate traces captured in Phoenix, see [evaluating-phoenix-traces.md](evaluating-phoenix-traces.md "mention")
 * To learn how to upload your own evaluation labels into Phoenix, see [llm-evaluations.md](llm-evaluations.md "mention")
 
-For more background on the concept of annotations, see [how-to-annotate-traces.md](../../features-tracing/how-to-annotate-traces.md "mention")
+For more background on the concept of annotations, see [how-to-annotate-traces.md](../../llm-traces/how-to-annotate-traces.md "mention")
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/annotation_flow.gif" alt=""><figcaption><p>Adding manual annotations to traces</p></figcaption></figure>

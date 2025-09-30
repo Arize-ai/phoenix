@@ -75,6 +75,9 @@ export const cardCSS = (style?: CSSProperties) => css`
   /* Card Body Styles */
   & .card__body {
     flex: 1 1 auto;
+    &[data-scrollable="true"] {
+      overflow-y: auto;
+    }
   }
 
   /* Compact variant styles */

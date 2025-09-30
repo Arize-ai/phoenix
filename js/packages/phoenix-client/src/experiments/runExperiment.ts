@@ -22,8 +22,8 @@ import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { createProvider, createNoOpProvider } from "./instrumention";
-import { SpanStatusCode, Tracer } from "@opentelemetry/api";
+import { createProvider, createNoOpProvider } from "./instrumentation";
+import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -37,7 +37,14 @@ import {
   getDatasetExperimentsUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
+import assert from "assert";
 
+/**
+ * Validate that a repetition is valid
+ */
+function isValidRepetitionParam(repetitions: number) {
+  return Number.isInteger(repetitions) && repetitions > 0;
+}
 /**
  * Parameters for running an experiment.
  *
@@ -154,6 +161,11 @@ export async function runExperiment({
   repetitions = 1,
   useBatchSpanProcessor = true,
 }: RunExperimentParams): Promise<RanExperiment> {
+  // Validation
+  assert(
+    isValidRepetitionParam(repetitions),
+    "repetitions must be an integer greater than 0"
+  );
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -278,11 +290,6 @@ export async function runExperiment({
     runs,
   };
 
-  // Shut down the provider so that the experiments run
-  if (provider) {
-    await provider.shutdown?.();
-  }
-
   const { evaluationRuns } = await evaluateExperiment({
     experiment: ranExperiment,
     evaluators: evaluators ?? [],
@@ -290,8 +297,7 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
-    setGlobalTracerProvider,
-    useBatchSpanProcessor,
+    tracerProvider: provider,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -348,6 +354,12 @@ function runTaskWithExamples({
   /** Number of repetitions per example */
   repetitions?: number;
 }): Promise<void> {
+  // Validate the input
+  assert(
+    isValidRepetitionParam(repetitions),
+    "repetitions must be an integer greater than 0"
+  );
+
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async ({
     example,
@@ -426,7 +438,7 @@ function runTaskWithExamples({
     .flatMap((example) =>
       Array.from({ length: repetitions }, (_, index) => ({
         example,
-        repetitionNumber: index,
+        repetitionNumber: index + 1, // Repetitions start at 1
       }))
     )
     .forEach((exampleWithRepetition) =>
@@ -455,6 +467,7 @@ export async function evaluateExperiment({
   dryRun = false,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
+  tracerProvider: paramsTracerProvider,
 }: {
   /**
    * The experiment to evaluate
@@ -484,6 +497,11 @@ export async function evaluateExperiment({
    * @default true
    */
   useBatchSpanProcessor?: boolean;
+  /**
+   * The tracer provider to use. If set, the other parameters will be ignored and the passed tracer provider will get used
+   * Intended as a pass-through from runExperiment
+   */
+  tracerProvider?: NodeTracerProvider | null;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -493,7 +511,11 @@ export async function evaluateExperiment({
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
   let provider: NodeTracerProvider;
-  if (!isDryRun) {
+
+  // Always allow changing of tracer providers
+  if (paramsTracerProvider) {
+    provider = paramsTracerProvider;
+  } else if (!isDryRun) {
     provider = createProvider({
       projectName: "evaluators",
       baseUrl,
@@ -650,7 +672,11 @@ export async function evaluateExperiment({
   logger.info(`✅ Evaluation runs completed`);
 
   if (provider) {
-    await provider.shutdown?.();
+    await provider.shutdown();
+    // Make sure it's not set globally anymore
+    if (setGlobalTracerProvider) {
+      trace.disable();
+    }
   }
 
   return {

@@ -25,7 +25,9 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.experiments.utils import is_experiment_project_name
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
+from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
 
@@ -122,6 +124,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -256,6 +259,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "temperature", "valueFloat": 0.1},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -397,6 +401,7 @@ class TestChatCompletionSubscription:
                 "invocationParameters": [
                     {"invocationName": "tool_choice", "valueJson": "auto"},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -554,6 +559,7 @@ class TestChatCompletionSubscription:
                     },
                 ],
                 "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "repetitions": 1,
             }
         }
         async with gql_client.subscription(
@@ -707,6 +713,7 @@ class TestChatCompletionSubscription:
                     {"invocationName": "temperature", "valueFloat": 0.1},
                     {"invocationName": "max_tokens", "valueInt": 1024},
                 ],
+                "repetitions": 1,
             },
         }
         async with gql_client.subscription(
@@ -943,6 +950,7 @@ class TestChatCompletionOverDatasetSubscription:
         openai_api_key: str,
         playground_dataset_with_patch_revision: None,
         custom_vcr: CustomVCR,
+        db: DbSessionFactory,
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
@@ -958,6 +966,7 @@ class TestChatCompletionOverDatasetSubscription:
                     }
                 ],
                 "templateFormat": "F_STRING",
+                "repetitions": 1,
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1034,6 +1043,9 @@ class TestChatCompletionOverDatasetSubscription:
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment = experiment_payload["experiment"]
         assert (experiment_id := experiment.pop("id"))
+
+        async with db() as session:
+            await verify_experiment_examples_junction_table(session, experiment_id)
 
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
@@ -1321,6 +1333,7 @@ class TestChatCompletionOverDatasetSubscription:
         cities_and_countries: list[tuple[str, str]],
         playground_city_and_country_dataset: None,
         custom_vcr: CustomVCR,
+        db: DbSessionFactory,
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
@@ -1339,6 +1352,7 @@ class TestChatCompletionOverDatasetSubscription:
                     }
                 ],
                 "templateFormat": "F_STRING",
+                "repetitions": 1,
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1405,7 +1419,11 @@ class TestChatCompletionOverDatasetSubscription:
         # check experiment payload
         assert len(payloads[None]) == 1
         assert (experiment := payloads[None].pop()["chatCompletionOverDataset"]["experiment"])
-        assert isinstance(experiment["id"], str)
+        experiment_id = experiment["id"]
+        assert isinstance(experiment_id, str)
+
+        async with db() as session:
+            await verify_experiment_examples_junction_table(session, experiment_id)
 
 
 def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:

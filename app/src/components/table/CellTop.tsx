@@ -26,7 +26,7 @@ const cellTopCSS = css`
   padding: 0 var(--ac-global-dimension-static-size-100) 0
     var(--ac-global-dimension-static-size-200);
   border-bottom: var(--ac-global-border-size-thin) solid
-    var(--ac-global-color-grey-200);
+    var(--ac-global-color-grey-100);
   background-color: var(--ac-global-color-grey-50);
   min-height: 39px;
   display: flex;

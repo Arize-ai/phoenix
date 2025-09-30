@@ -175,4 +175,22 @@ describe("runExperiment (dryRun)", () => {
       expect(experiment.evaluationRuns.length).toBe(2);
     }
   });
+  it("should throw an error if repetitions is invalid", async () => {
+    await expect(
+      runExperiment({
+        dataset: { datasetId: mockDataset.id },
+        task: () => "",
+        dryRun: true,
+        repetitions: 0,
+      })
+    ).rejects.toThrow("repetitions must be an integer greater than 0");
+    await expect(
+      runExperiment({
+        dataset: { datasetId: mockDataset.id },
+        task: () => "",
+        dryRun: true,
+        repetitions: -1,
+      })
+    ).rejects.toThrow("repetitions must be an integer greater than 0");
+  });
 });

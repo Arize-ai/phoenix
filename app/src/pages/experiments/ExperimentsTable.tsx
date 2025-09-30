@@ -158,6 +158,7 @@ export function ExperimentsTable({
                 metadata
                 errorRate
                 runCount
+                repetitions
                 averageRunLatencyMs
                 project {
                   id
@@ -232,19 +233,19 @@ export function ExperimentsTable({
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
+            isSelected: table.getIsAllRowsSelected(),
+            isIndeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.toggleAllRowsSelected,
           }}
         />
       ),
       cell: ({ row }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
+            isSelected: row.getIsSelected(),
+            isDisabled: !row.getCanSelect(),
+            isIndeterminate: row.getIsSomeSelected(),
+            onChange: row.toggleSelected,
           }}
         />
       ),
@@ -328,6 +329,14 @@ export function ExperimentsTable({
     });
 
   const tailColumns: ColumnDef<TableRow>[] = [
+    {
+      header: "repetitions",
+      accessorKey: "repetitions",
+      meta: {
+        textAlign: "right",
+      },
+      cell: IntCell,
+    },
     {
       header: "run count",
       accessorKey: "runCount",

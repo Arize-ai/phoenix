@@ -15,10 +15,14 @@ from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESS
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    insert_experiment_with_examples_snapshot,
+)
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
@@ -46,7 +50,7 @@ class Experiment(V1RoutesBaseModel):
     dataset_version_id: str = Field(
         description="The ID of the dataset version associated with the experiment"
     )
-    repetitions: int = Field(description="Number of times the experiment is repeated")
+    repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
     project_name: Optional[str] = Field(
         description="The name of the project associated with the experiment"
@@ -157,6 +161,9 @@ async def create_experiment(
                     detail=f"DatasetVersion with ID {dataset_version_globalid} does not exist",
                     status_code=HTTP_404_NOT_FOUND,
                 )
+        user_id: Optional[int] = None
+        if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+            user_id = int(request.user.identity)
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
@@ -172,9 +179,9 @@ async def create_experiment(
             repetitions=request_body.repetitions,
             metadata_=request_body.metadata or {},
             project_name=project_name,
+            user_id=user_id,
         )
-        session.add(experiment)
-        await session.flush()
+        await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         project_rowid = await session.scalar(

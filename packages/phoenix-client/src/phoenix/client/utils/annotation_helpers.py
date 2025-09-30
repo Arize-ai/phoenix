@@ -447,7 +447,7 @@ def _validate_annotations_dataframe(
         raise ValueError("DataFrame must contain at least one of: label, score, explanation")
 
 
-def _validate_span_annotations_dataframe(
+def _validate_span_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -462,7 +462,7 @@ def _validate_span_annotations_dataframe(
     )
 
 
-def _validate_document_annotations_dataframe(
+def _validate_document_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -477,7 +477,7 @@ def _validate_document_annotations_dataframe(
     )
 
 
-def _validate_trace_annotations_dataframe(
+def _validate_trace_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -493,7 +493,7 @@ def _validate_trace_annotations_dataframe(
     )
 
 
-def _validate_session_annotations_dataframe(
+def _validate_session_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name_required: bool = False,
@@ -629,7 +629,7 @@ def _chunk_annotations_dataframe(
         yield annotations
 
 
-def _chunk_span_annotations_dataframe(
+def _chunk_span_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name: Optional[str] = None,
@@ -647,7 +647,7 @@ def _chunk_span_annotations_dataframe(
     )
 
 
-def _chunk_document_annotations_dataframe(
+def _chunk_document_annotations_dataframe(  # pyright: ignore[reportUnusedFunction]
     *,
     dataframe: "pd.DataFrame",
     annotation_name: Optional[str] = None,
@@ -662,4 +662,188 @@ def _chunk_document_annotations_dataframe(
         chunk_size=chunk_size,
         id_config=_DOCUMENT_ID_CONFIG,
         annotation_factory=_create_document_annotation,
+    )
+
+
+def _create_session_annotation(
+    *,
+    session_id: str,
+    annotation_name: str,
+    annotator_kind: _AnnotatorKind = "HUMAN",
+    label: Optional[str] = None,
+    score: Optional[float] = None,
+    explanation: Optional[str] = None,
+    metadata: Optional[dict[str, Any]] = None,
+    identifier: Optional[str] = None,
+) -> v1.SessionAnnotationData:
+    """Create a session annotation data object.
+
+    Args:
+        session_id (str): The ID of the session to annotate.
+        annotation_name (str): The name of the annotation.
+        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            Defaults to "HUMAN".
+        label (Optional[str]): The label assigned by the annotation.
+        score (Optional[float]): The score assigned by the annotation.
+        explanation (Optional[str]): Explanation of the annotation result.
+        metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+        identifier (Optional[str]): An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+            of name, session_id, and identifier (where a null identifier is equivalent to an empty string).
+            If an annotation with the same name, session_id, and identifier already exists, it will be updated.
+            Using a non-empty identifier allows you to have multiple annotations with the same name and session_id.
+            Most of the time, you can leave this as None - it will still update the record if it exists.
+            It will also update the record with identifier="" if it exists.
+
+    Returns:
+        SessionAnnotationData: A session annotation data object that can be used with the Annotations API.
+    """  # noqa: E501
+
+    result: v1.AnnotationResult = {}
+    if label is not None and label.strip():
+        result["label"] = label.strip()
+    if score is not None:
+        result["score"] = score
+    if explanation is not None and explanation.strip():
+        result["explanation"] = explanation.strip()
+
+    if not result:
+        raise ValueError("At least one of label, score, or explanation must be provided")
+
+    anno: v1.SessionAnnotationData = {
+        "name": annotation_name.strip(),
+        "annotator_kind": annotator_kind,
+        "session_id": session_id.strip(),
+        "result": result,
+    }
+    if metadata:
+        anno["metadata"] = metadata
+    if identifier and identifier.strip():
+        anno["identifier"] = identifier.strip()
+    return anno
+
+
+def _create_trace_annotation(
+    *,
+    trace_id: str,
+    annotation_name: str,
+    annotator_kind: _AnnotatorKind = "HUMAN",
+    label: Optional[str] = None,
+    score: Optional[float] = None,
+    explanation: Optional[str] = None,
+    metadata: Optional[dict[str, Any]] = None,
+    identifier: Optional[str] = None,
+) -> v1.TraceAnnotationData:
+    """Create a trace annotation data object.
+
+    Args:
+        trace_id (str): The ID of the trace to annotate.
+        annotation_name (str): The name of the annotation.
+        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            Defaults to "HUMAN".
+        label (Optional[str]): The label assigned by the annotation.
+        score (Optional[float]): The score assigned by the annotation.
+        explanation (Optional[str]): Explanation of the annotation result.
+        metadata (Optional[dict[str, Any]]): Additional metadata for the annotation.
+        identifier (Optional[str]): An optional identifier for the annotation. Each annotation is uniquely identified by the combination
+            of name, trace_id, and identifier (where a null identifier is equivalent to an empty string).
+            If an annotation with the same name, trace_id, and identifier already exists, it will be updated.
+            Using a non-empty identifier allows you to have multiple annotations with the same name and trace_id.
+            Most of the time, you can leave this as None - it will still update the record if it exists.
+            It will also update the record with identifier="" if it exists.
+
+    Returns:
+        TraceAnnotationData: A trace annotation data object that can be used with the Annotations API.
+    """  # noqa: E501
+
+    result: v1.AnnotationResult = {}
+    if label is not None and label.strip():
+        result["label"] = label.strip()
+    if score is not None:
+        result["score"] = score
+    if explanation is not None and explanation.strip():
+        result["explanation"] = explanation.strip()
+
+    if not result:
+        raise ValueError("At least one of label, score, or explanation must be provided")
+
+    anno: v1.TraceAnnotationData = {
+        "name": annotation_name.strip(),
+        "annotator_kind": annotator_kind,
+        "trace_id": trace_id.strip(),
+        "result": result,
+    }
+    if metadata:
+        anno["metadata"] = metadata
+    if identifier and identifier.strip():
+        anno["identifier"] = identifier.strip()
+    return anno
+
+
+def _chunk_session_annotations_dataframe(
+    *,
+    dataframe: "pd.DataFrame",
+    annotation_name: Optional[str] = None,
+    annotator_kind: Optional[str] = None,
+    chunk_size: int = _DATAFRAME_CHUNK_SIZE,
+) -> Iterator[list[v1.SessionAnnotationData]]:
+    """Split a DataFrame into chunks for session annotation processing.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame to split into chunks. Must contain either a 'session_id' column
+            or have a string-based index.
+        annotation_name (Optional[str]): The name to use for all annotations. If provided, this value will be used
+            for all rows and the DataFrame does not need to include a "name" column. Defaults to None.
+        annotator_kind (Optional[str]): The kind of annotator used for all annotations. If provided, this value will be used
+            for all rows and the DataFrame does not need to include an "annotator_kind" column. Defaults to None.
+        chunk_size (int): Number of annotations per chunk. Defaults to _DATAFRAME_CHUNK_SIZE.
+
+    Yields:
+        Lists of SessionAnnotationData objects, one chunk at a time.
+
+    Raises:
+        ValueError: If required fields are missing during processing.
+        TypeError: If score values cannot be converted to float.
+    """  # noqa: E501
+    return _chunk_annotations_dataframe(
+        dataframe=dataframe,
+        annotation_name=annotation_name,
+        annotator_kind=annotator_kind,
+        chunk_size=chunk_size,
+        id_config=_SESSION_ID_CONFIG,
+        annotation_factory=_create_session_annotation,
+    )
+
+
+def _chunk_trace_annotations_dataframe(
+    *,
+    dataframe: "pd.DataFrame",
+    annotation_name: Optional[str] = None,
+    annotator_kind: Optional[str] = None,
+    chunk_size: int = _DATAFRAME_CHUNK_SIZE,
+) -> Iterator[list[v1.TraceAnnotationData]]:
+    """Split a DataFrame into chunks for trace annotation processing.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame to split into chunks. Must contain either a 'trace_id' column
+            or 'context.trace_id' column, or have a string-based index.
+        annotation_name (Optional[str]): The name to use for all annotations. If provided, this value will be used
+            for all rows and the DataFrame does not need to include a "name" column. Defaults to None.
+        annotator_kind (Optional[str]): The kind of annotator used for all annotations. If provided, this value will be used
+            for all rows and the DataFrame does not need to include an "annotator_kind" column. Defaults to None.
+        chunk_size (int): Number of annotations per chunk. Defaults to _DATAFRAME_CHUNK_SIZE.
+
+    Yields:
+        Lists of TraceAnnotationData objects, one chunk at a time.
+
+    Raises:
+        ValueError: If required fields are missing during processing.
+        TypeError: If score values cannot be converted to float.
+    """  # noqa: E501
+    return _chunk_annotations_dataframe(
+        dataframe=dataframe,
+        annotation_name=annotation_name,
+        annotator_kind=annotator_kind,
+        chunk_size=chunk_size,
+        id_config=_TRACE_ID_CONFIG,
+        annotation_factory=_create_trace_annotation,
     )

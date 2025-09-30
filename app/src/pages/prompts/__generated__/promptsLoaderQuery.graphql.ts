@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2223cd6ec9b657055d79133a1fc5775e>>
+ * @generated SignedSource<<88a0743963fc2f638fe28dba8b88d579>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,7 +38,7 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -88,13 +88,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v1/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -102,7 +96,6 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -111,8 +104,34 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "createdAt",
+                        "storageKey": null
+                      },
                       (v1/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptLabel",
+                    "kind": "LinkedField",
+                    "name": "labels",
+                    "plural": true,
+                    "selections": [
+                      (v1/*: any*/),
+                      (v2/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "color",
+                        "storageKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -190,12 +209,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a3e6a185a7a63d9d2c115e80e22b495",
+    "cacheID": "3bf444cc04be064fc037755409e3288d",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

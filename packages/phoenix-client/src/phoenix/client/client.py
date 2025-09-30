@@ -9,7 +9,9 @@ from phoenix.client.resources.datasets import AsyncDatasets, Datasets
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
+from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
+from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
 
@@ -27,7 +29,7 @@ class Client:
         Args:
             base_url (Optional[str | httpx.URL]): The base URL for the API endpoint.
                 If not provided, it will be read from the environment variables or
-                fall back to http://localhost:6006/.
+                fall back to http://localhost:6006.
             api_key (Optional[str]): The API key for authentication. If provided, it
                 will be included in the Authorization header as a bearer token.
             headers (Optional[Mapping[str, str]]): Additional headers to be included
@@ -58,6 +60,8 @@ class Client:
         self._prompts = Prompts(value)
         self._projects = Projects(value)
         self._spans = Spans(value)
+        self._traces = Traces(value)
+        self._sessions = Sessions(value)
         self._annotations = Annotations(self._spans)  # deprecated
         self._datasets = Datasets(value)
         self._experiments = Experiments(value)
@@ -88,6 +92,24 @@ class Client:
             Spans: An instance of the Spans class.
         """  # noqa: E501
         return self._spans
+
+    @property
+    def traces(self) -> Traces:
+        """Returns an instance of the Traces class for interacting with trace-related API endpoints.
+
+        Returns:
+            Traces: An instance of the Traces class.
+        """  # noqa: E501
+        return self._traces
+
+    @property
+    def sessions(self) -> Sessions:
+        """Returns an instance of the Sessions class for interacting with session-related API endpoints.
+
+        Returns:
+            Sessions: An instance of the Sessions class.
+        """  # noqa: E501
+        return self._sessions
 
     @property
     def annotations(self) -> Annotations:
@@ -131,7 +153,7 @@ class AsyncClient:
         Args:
             base_url (Optional[str | httpx.URL]): The base URL for the API endpoint.
                 If not provided, it will be read from the environment variables or
-                fall back to http://localhost:6006/.
+                fall back to http://localhost:6006.
             api_key (Optional[str]): The API key for authentication. If provided, it
                 will be included in the Authorization header as a bearer token.
             headers (Optional[Mapping[str, str]]): Additional headers to be included
@@ -160,6 +182,8 @@ class AsyncClient:
         self._prompts = AsyncPrompts(value)
         self._projects = AsyncProjects(value)
         self._spans = AsyncSpans(value)
+        self._traces = AsyncTraces(value)
+        self._sessions = AsyncSessions(value)
         self._annotations = AsyncAnnotations(self._spans)  # deprecated
         self._datasets = AsyncDatasets(value)
         self._experiments = AsyncExperiments(value)
@@ -191,6 +215,24 @@ class AsyncClient:
             AsyncSpans: An instance of the AsyncSpans class.
         """  # noqa: E501
         return self._spans
+
+    @property
+    def traces(self) -> AsyncTraces:
+        """Returns an instance of the AsyncTraces class for interacting with trace-related API endpoints.
+
+        Returns:
+            AsyncTraces: An instance of the AsyncTraces class.
+        """  # noqa: E501
+        return self._traces
+
+    @property
+    def sessions(self) -> AsyncSessions:
+        """Returns an instance of the AsyncSessions class for interacting with session-related API endpoints.
+
+        Returns:
+            AsyncSessions: An instance of the AsyncSessions class.
+        """  # noqa: E501
+        return self._sessions
 
     @property
     def annotations(self) -> AsyncAnnotations:

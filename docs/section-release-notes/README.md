@@ -6,6 +6,136 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [09.29.2025: Day 0 support for Claude Sonnet 4.5](09.2025/09.29.2025-day-0-support-for-claude-sonnet-4.5.md) ⚡
+
+**Available in Phoenix 12.1+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claudesonnet45day0.mp4" %}
+
+Day-0 support for Claude Sonnet 4.5.
+
+***
+
+## [09.27.2025: Dataset Splits ](09.2025/09.27.2025-dataset-splits.md)📊
+
+**Available in Phoenix 12.0+**
+
+Add support for custom dataset splits to organize examples by category.
+
+***
+
+## [09.26.2025: Session Annotations 🗂️](09.2025/09.26.2025-session-annotations.md)&#x20;
+
+**Available in Phoenix 12.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-annotation.png" %}
+
+You can now annotate sessions with conversational evaluations like coherency and tone.&#x20;
+
+***
+
+## [09.25.2025: Repetitions](09.2025/09.25.2025-repetitions.md) 🔁
+
+**Available in Phoenix 11.38+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/repetitions.mp4" %}
+
+Support for repetitions is now enabled in Playground and SDK workflows.
+
+***
+
+## [09.24.2025: Custom HTTP headers for requests in Playground](09.2025/09.24.2025-custom-http-headers-for-requests-in-playground.md) 🛠️
+
+**Available in Phoenix 11.36+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/custom-headers-playground.png" %}
+
+Enable configuring custom HTTP headers for playground requests.
+
+***
+
+## [09.23.2025: Repetitions in experiment compare slideover ](09.2025/09.23.2025-repetitions-in-experiment-compare-slideover.md)🔄
+
+**Available in Phoenix 11.36+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/repetitions-breakout.mp4" %}
+
+Show experiment repetitions as separate cards in the compare slideover 🔄
+
+***
+
+## [09.22.2025: Helm configurable image registry & IPv6 support ](09.2025/09.22.2025-helm-configurable-image-registry-and-ipv6-support.md)🌐
+
+**Available in Phoenix 11.35+**
+
+***
+
+## [09.17.2025: Experiment compare details slideover in list view](09.2025/09.17.2025-experiment-compare-details-slideover-in-list-view.md) 🔍
+
+**Available in Phoenix 11.34+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/release-notes-experiment-slideover.mp4" %}
+
+Added a slideover in the experiments list view to show compare details inline.
+
+***
+
+## [09.15.2025: Prompt Labels 🏷️](09.2025/09.15.2025-prompt-labels.md)
+
+**Available in Phoenix 11.33+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_labels.mp4" %}
+
+We’ve added support for labeling prompts so you can categorize them by use-case, provider, or any custom tag.
+
+***
+
+## [09.12.2025: Enable Paging in Experiment Compare Details 📄](09.2025/09.12.2025-enable-paging-in-experiment-compare-details.md)
+
+**Available in Phoenix 11.33+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/experiment-pagination-rn.mp4" %}
+
+We’ve added paging functionality to the Experiment Compare details slide-over view, allowing users to navigate between individual examples using arrow buttons or keyboard shortcuts (`J` / `K`). Pagination
+
+***
+
+## [09.08.2025: Experiment Annotation Popover in Detail View 🔍](09.2025/09.08.2025-experiment-annotation-popover-in-detail-view.md)
+
+**Available in Phoenix 11.33+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/annotation-popover-releasenotes.png" %}
+
+Added an annotation popover in the experiment detail view to reveal full annotation content without leaving the page.
+
+***
+
+## [09.04.2025: Experiment Lists Page Frontend Enhancements 💻](09.2025/09.04.2025-experiment-lists-page-frontend-enhancements.md)
+
+**Available in Phoenix 11.32+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/experiment-frontend-release-notes.mp4" %}
+
+In this update, the Experiment Lists page has received several user-facing enhancements to improve usability and responsiveness.
+
+***
+
+## [09.03.2025: Add Methods to Log Document Annotations 📜](09.2025/09.03.2025-add-methods-to-log-document-annotations.md)
+
+**Available in Phoenix 11.31+**
+
+Added client-side support for logging document annotations with a new `log_document_annotations(...)` method, supporting both sync and async API calls.
+
+***
+
+## [08.28.2025: New arize-phoenix-client Package 📦](08.2025/08.28.2025-new-arize-phoenix-client-package.md)
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-phoenix-client-docs.png" %}
+
+**`arize-phoenix-client`** is a lightweight, fully-featured package for interacting with Phoenix. It lets you manage datasets, experiments, prompts, spans, annotations, and projects - without needing a local Phoenix installation.&#x20;
+
+***
+
 ## [08.22.2025: New Trace Timeline View 🔭](08.2025/08.22.2025-new-trace-timeline-view.md)
 
 **Available in Phoenix 11.26+**
@@ -475,7 +605,7 @@ You can now toggle the option to treat orphan spans as root when viewing your sp
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing_config.gif" %}
 
-Within each project, there is now a **Config** tab to enhance customization. The default tab can now be set per project, ensuring the preferred view is displayed. Learn more in [projects docs](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/features-tracing/projects).
+Within each project, there is now a **Config** tab to enhance customization. The default tab can now be set per project, ensuring the preferred view is displayed. Learn more in [projects docs](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/llm-traces/projects).
 
 ***
 
@@ -559,7 +689,7 @@ Prompt Playground now supports new GPT and Anthropic models with enhanced config
 
 We’ve rolled out several enhancements to Projects, offering more flexibility and control over your data. Key updates include persistent column selection, advanced filtering options for metadata and spans, custom time ranges, and improved performance for tracing views. These changes streamline workflows, making data navigation and debugging more efficient.
 
-Check out [projects](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/features-tracing/projects) docs for more.
+Check out [projects](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/llm-traces/projects) docs for more.
 
 ***
 

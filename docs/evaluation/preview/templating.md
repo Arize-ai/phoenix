@@ -22,7 +22,7 @@ Lightweight utilities to render prompts and infer required fields. We plan to su
 ## Examples
 1) Mustache basics
 ```python
-from phoenix.evals.preview.templating import Template, TemplateFormat
+from phoenix.evals.templating import Template, TemplateFormat
 
 template = Template(template="Hello {{name}}, welcome to {{place}}", template_format=TemplateFormat.MUSTACHE)
 assert template.variables == ["name", "place"] or set(template.variables) == {"name", "place"}
@@ -32,7 +32,7 @@ assert text == "Hello Alice, welcome to Phoenix"
 
 2) f-string basics
 ```python
-from phoenix.evals.preview.templating import Template, TemplateFormat
+from phoenix.evals.templating import Template, TemplateFormat
 
 template = Template(template="Hello {name}, welcome to {place}", template_format=TemplateFormat.F_STRING)
 assert set(template.variables) == {"name", "place"}
@@ -41,7 +41,7 @@ text = template.render({"name": "Alice", "place": "Phoenix"})
 
 3) Escaped JSON in f-strings
 ```python
-from phoenix.evals.preview.templating import Template, TemplateFormat
+from phoenix.evals.templating import Template, TemplateFormat
 
 template = Template(
     template='Config: {{"debug": true, "timeout": 30}} for {environment} and {user}',

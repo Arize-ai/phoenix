@@ -193,23 +193,23 @@ Let's create this dataset and upload it into the platform.
 ```python
 import uuid
 
-import phoenix as px
+from phoenix.client import Client
 
 unique_id = uuid.uuid4()
 
-dataset_name = "math-questions-" + str(uuid.uuid4())[:5]
 
 # Upload the dataset to Phoenix
-dataset = px.Client().upload_dataset(
+px_client = Client()
+dataset = px_client.datasets.create_dataset(
     dataframe=math_problems_df,
     input_keys=["question"],
-    dataset_name=f"math-questions-{unique_id}",
+    name=f"math-questions-{unique_id}",
 )
 print(dataset)
 ```
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
     dataset,
@@ -239,7 +239,6 @@ Another option is to pull traces from completed production runs and batch proces
 ```python
 from opentelemetry.trace import StatusCode, format_span_id
 
-from phoenix.trace import SpanEvaluations
 ```
 
 After importing the necessary libraries, we set up a tracer object to enable span creation for tracing our task function.
@@ -321,11 +320,14 @@ async def solve_math_problem(dataset_row: dict):
             "explanation": evaluation_result["explanation"][0],
         }
         df = pd.DataFrame([eval_data])
-        px.Client().log_evaluations(
-            SpanEvaluations(
-                dataframe=df,
-                eval_name="correctness",
-            ),
+
+        from phoenix.client import AsyncClient
+
+        px_client = AsyncClient()
+        await px_client.annotations.log_span_annotations_dataframe(
+            dataframe=df,
+            annotation_name="correctness",
+            annotator_kind="LLM",
         )
 
     return task_result
@@ -340,7 +342,7 @@ print(result)
 Finally, we run an experiment to simulate traces in production.
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
     dataset,

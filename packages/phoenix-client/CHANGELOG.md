@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.20.0...arize-phoenix-client-v1.21.0) (2025-09-29)
+
+
+### Features
+
+* client methods for adding trace and session annotations ([#9369](https://github.com/Arize-ai/phoenix/issues/9369)) ([e9b29ef](https://github.com/Arize-ai/phoenix/commit/e9b29ef0b50eb30c64d7e3c557d6264d5652d3fc))
+
+
+### Documentation
+
+* add session api docs ([#9697](https://github.com/Arize-ai/phoenix/issues/9697)) ([d72e867](https://github.com/Arize-ai/phoenix/commit/d72e867a0971e608816c774816c845908f3b69bd))
+
+## [1.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.1...arize-phoenix-client-v1.20.0) (2025-09-26)
+
+
+### Features
+
+* support repetitions ([#9657](https://github.com/Arize-ai/phoenix/issues/9657)) ([0365f7f](https://github.com/Arize-ai/phoenix/commit/0365f7f3c72fc53b39d275f24d48426b7c547933))
+
+
+### Bug Fixes
+
+* Experiment tracing should respect OITracer configs ([#9640](https://github.com/Arize-ai/phoenix/issues/9640)) ([f08b212](https://github.com/Arize-ai/phoenix/commit/f08b212f6d9857d25c19daeaec833227ef2061f1))
+
+## [1.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.19.0...arize-phoenix-client-v1.19.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* **client:** make sure printed url work for proxied urls ([#9552](https://github.com/Arize-ai/phoenix/issues/9552)) ([9135531](https://github.com/Arize-ai/phoenix/commit/9135531c75c6f7199145a1794648088b1c7b0d75))
+
+## [1.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.2...arize-phoenix-client-v1.19.0) (2025-09-17)
+
+
+### Features
+
+* Experiments&lt;-&gt;Evals 2.0 compatibility ([#9442](https://github.com/Arize-ai/phoenix/issues/9442)) ([90e4dbc](https://github.com/Arize-ai/phoenix/commit/90e4dbc08e63ee707f3ab7e42dc5146ad6054e82))
+
+## [1.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.1...arize-phoenix-client-v1.18.2) (2025-09-11)
+
+
+### Bug Fixes
+
+* **experiments:** make sure repetitions is a positive integer ([#9479](https://github.com/Arize-ai/phoenix/issues/9479)) ([1b71c66](https://github.com/Arize-ai/phoenix/commit/1b71c666e88853de8bf40eec39ab634a8658f439))
+
 ## [1.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.18.0...arize-phoenix-client-v1.18.1) (2025-09-10)
 
 

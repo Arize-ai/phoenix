@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from asyncio import sleep
+from collections import deque
 from datetime import datetime
 from typing import Any, Mapping, NamedTuple, Optional
 
@@ -35,21 +36,25 @@ class SpanCostCalculator(DaemonTask):
         super().__init__()
         self._db = db
         self._model_store = model_store
-        self._queue: list[SpanCostCalculatorQueueItem] = []
+        self._queue: deque[SpanCostCalculatorQueueItem] = deque()
+        self._max_items_per_transaction = 1000
 
     async def _run(self) -> None:
         while self._running:
+            num_items_to_insert = min(self._max_items_per_transaction, len(self._queue))
             try:
-                await self._insert_costs()
+                await self._insert_costs(num_items_to_insert)
             except Exception as e:
                 logger.exception(f"Failed to insert costs: {e}")
             await sleep(self._SLEEP_INTERVAL)
 
-    async def _insert_costs(self) -> None:
-        if not self._queue:
+    async def _insert_costs(self, num_items_to_insert: int) -> None:
+        if not num_items_to_insert or not self._queue:
             return
         costs: list[models.SpanCost] = []
-        for item in self._queue:
+        while num_items_to_insert > 0:
+            num_items_to_insert -= 1
+            item = self._queue.popleft()
             try:
                 cost = self.calculate_cost(item.span_start_time, item.attributes)
             except Exception as e:
@@ -65,9 +70,6 @@ class SpanCostCalculator(DaemonTask):
                 session.add_all(costs)
         except Exception as e:
             logger.exception(f"Failed to insert costs: {e}")
-        finally:
-            # Clear the queue after processing
-            self._queue.clear()
 
     def put_nowait(self, item: SpanCostCalculatorQueueItem) -> None:
         self._queue.append(item)

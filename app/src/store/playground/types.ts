@@ -74,6 +74,10 @@ export type ModelConfig = {
    * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
    */
   region?: string | null;
+  /**
+   * Custom headers to be sent with requests to the LLM provider
+   */
+  customHeaders?: Record<string, string> | null;
   invocationParameters: InvocationParameterInput[];
   supportedInvocationParameters: InvocationParameter[];
 };
@@ -173,6 +177,11 @@ export interface PlaygroundProps {
    * @default true
    */
   streaming: boolean;
+  /**
+   * The number of repetitions for the playground
+   * @default 1
+   */
+  repetitions: number;
 }
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
@@ -343,6 +352,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
+  /**
+   * set the repetitions for the playground
+   */
+  setRepetitions: (repetitions: number) => void;
   /**
    * Set the dirty state of an instance
    */

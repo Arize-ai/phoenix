@@ -25,15 +25,16 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { BASE_URL } from "@phoenix/config";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
-const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
+const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix-client`;
 // TODO: plumb though session URL from the backend
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
     `import os\n` +
-    `# Set the phoenix collector endpoint. Commonly http://localhost:6006 \n` +
-    `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
+    `# Set the phoenix base url to point to your Phoenix instance \n` +
+    `os.environ["PHOENIX_BASE_URL"] = "${BASE_URL}"`;
   if (isAuthEnabled) {
     setBaseURLPython +=
       `\n` +
@@ -43,10 +44,9 @@ function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   return setBaseURLPython;
 }
 const TASK_PYTHON =
-  `from phoenix.experiments.types import Example\n` +
   `# Define your task\n` +
-  `# Typically should be an LLM call or a call to your application\n` +
-  `def my_task(example: Example) -> str:\n` +
+  `# Typically should be an LLM call or a call to invoke your application\n` +
+  `def my_task(example):\n` +
   `    # This is just an example of how to return a JSON serializable value\n` +
   `    return f"Hello {example.input['person']}"`;
 
@@ -59,7 +59,7 @@ const EVALUATOR_PYTHON =
 
 const RUN_EXPERIMENT_PYTHON =
   `# Run an experiment\n` +
-  `from phoenix.experiments import run_experiment\n\n` +
+  `from phoenix.client.experiments import run_experiment\n\n` +
   `experiment = run_experiment(dataset, my_task, evaluators=evaluators)`;
 
 function getDatasetTypeScriptCode(datasetId: string, experimentName: string) {
@@ -116,18 +116,18 @@ function RunExperimentPythonExample() {
 
   const getDatasetPythonCode = useCallback(() => {
     return (
-      `import phoenix as px\n` +
+      `from phoenix.client import Client\n` +
       `# Initialize a phoenix client\n` +
-      `client = px.Client()\n` +
+      `client = Client()\n` +
       `# Get the current dataset version. You can omit the version for the latest.\n` +
-      `dataset = client.get_dataset(name="${datasetName}"${version ? `, version_id="${version.id}"` : ""})`
+      `dataset = client.datasets.get_dataset(dataset="${datasetName}"${version ? `, version_id="${version.id}"` : ""})`
     );
   }, [datasetName, version]);
 
   return (
     <View overflow="auto">
       <View paddingBottom="size-100">
-        <Text>Install Phoenix</Text>
+        <Text>Install the Phoenix Client</Text>
       </View>
       <CodeWrap>
         <PythonBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />

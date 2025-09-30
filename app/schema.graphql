@@ -10,6 +10,15 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
+input AddDatasetExamplesToDatasetSplitsInput {
+  datasetSplitIds: [ID!]!
+  exampleIds: [ID!]!
+}
+
+type AddDatasetExamplesToDatasetSplitsMutationPayload {
+  query: Query!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -78,6 +87,17 @@ input AnnotationConfigInput @oneOf {
   categorical: CategoricalAnnotationConfigInput
   continuous: ContinuousAnnotationConfigInput
   freeform: FreeformAnnotationConfigInput
+}
+
+input AnnotationFilter {
+  include: AnnotationFilterCondition
+  exclude: AnnotationFilterCondition
+}
+
+input AnnotationFilterCondition {
+  names: [String!]
+  sources: [AnnotationSource!]
+  userIds: [ID]
 }
 
 enum AnnotationSource {
@@ -200,6 +220,7 @@ input ChatCompletionInput {
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
+  repetitions: Int!
 }
 
 input ChatCompletionMessageInput {
@@ -244,6 +265,7 @@ input ChatCompletionOverDatasetInput {
   tools: [JSON!]
   credentials: [GenerativeCredentialInput!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
+  repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
   experimentName: String = null
@@ -254,6 +276,7 @@ input ChatCompletionOverDatasetInput {
 
 type ChatCompletionOverDatasetMutationExamplePayload {
   datasetExampleId: ID!
+  repetitionNumber: Int!
   experimentRunId: ID!
   result: ChatCompletionMutationPayloadChatCompletionMutationError!
 }
@@ -267,20 +290,24 @@ type ChatCompletionOverDatasetMutationPayload {
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   span: Span
   experimentRun: ExperimentRun
 }
@@ -411,6 +438,31 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateDatasetLabelInput {
+  name: String!
+  description: String
+  color: String!
+}
+
+type CreateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
+}
+
+input CreateDatasetSplitInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+}
+
+input CreateDatasetSplitWithExamplesInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+  exampleIds: [ID!]!
+}
+
 input CreateModelMutationInput {
   name: String!
   provider: String = null
@@ -431,6 +483,18 @@ input CreateProjectInput {
   gradientEndColor: String
 }
 
+input CreateProjectSessionAnnotationInput {
+  projectSessionId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  source: AnnotationSource! = APP
+  identifier: String
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -439,8 +503,9 @@ input CreateProjectTraceRetentionPolicyInput {
 }
 
 input CreatePromptLabelInput {
-  name: Identifier!
+  name: String!
   description: String = null
+  color: String!
 }
 
 input CreateSpanAnnotationInput {
@@ -580,6 +645,8 @@ type DatasetExample implements Node {
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
+  experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
+  datasetSplits: [DatasetSplit!]!
 }
 
 """A connection to a list of items."""
@@ -638,6 +705,32 @@ enum DatasetFilterColumn {
   name
 }
 
+type DatasetLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String!
+}
+
+"""A connection to a list of items."""
+type DatasetLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetLabelEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetLabel!
+}
+
 type DatasetMutationPayload {
   dataset: Dataset!
 }
@@ -646,6 +739,40 @@ type DatasetMutationPayload {
 input DatasetSort {
   col: DatasetColumn!
   dir: SortDir!
+}
+
+type DatasetSplit implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  metadata: JSON!
+  color: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetSplitConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetSplitEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetSplitEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetSplit!
+}
+
+type DatasetSplitMutationPayload {
+  datasetSplit: DatasetSplit!
+  query: Query!
 }
 
 type DatasetValues {
@@ -729,6 +856,23 @@ input DeleteDatasetInput {
   datasetId: ID!
 }
 
+input DeleteDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+}
+
+type DeleteDatasetLabelsMutationPayload {
+  datasetLabels: [DatasetLabel!]!
+}
+
+input DeleteDatasetSplitInput {
+  datasetSplitIds: [ID!]!
+}
+
+type DeleteDatasetSplitsMutationPayload {
+  datasetSplits: [DatasetSplit!]!
+  query: Query!
+}
+
 input DeleteExperimentsInput {
   experimentIds: [ID!]!
 }
@@ -750,8 +894,8 @@ input DeletePromptInput {
   promptId: ID!
 }
 
-input DeletePromptLabelInput {
-  promptLabelId: ID!
+input DeletePromptLabelsInput {
+  promptLabelIds: [ID!]!
 }
 
 type DeletePromptMutationPayload {
@@ -1082,6 +1226,7 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+  repetitions: Int!
   datasetVersionId: ID!
   metadata: JSON!
   createdAt: DateTime!
@@ -1098,7 +1243,6 @@ type Experiment implements Node {
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
-  repetitionCount: Int!
 }
 
 type ExperimentAnnotationSummary {
@@ -1114,7 +1258,7 @@ type ExperimentComparison implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   example: DatasetExample!
-  runComparisonItems: [RunComparisonItem!]!
+  repeatedRunGroups: [ExperimentRepeatedRunGroup!]!
 }
 
 """A connection to a list of items."""
@@ -1157,6 +1301,22 @@ type ExperimentMutationPayload {
   experiments: [Experiment!]!
 }
 
+type ExperimentRepeatedRunGroup implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  runs: [ExperimentRun!]!
+  experimentId: ID!
+  averageLatencyMs: Float
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  annotationSummaries: [ExperimentRepeatedRunGroupAnnotationSummary!]!
+}
+
+type ExperimentRepeatedRunGroupAnnotationSummary {
+  annotationName: String!
+  meanScore: Float
+}
+
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1167,6 +1327,7 @@ type ExperimentRun implements Node {
   startTime: DateTime!
   endTime: DateTime!
   error: String
+  latencyMs: Float!
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!
@@ -1293,6 +1454,7 @@ input FreeformAnnotationConfigInput {
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   name: String!
   arguments: String!
 }
@@ -1331,6 +1493,7 @@ input GenerativeModelInput {
   endpoint: String
   apiVersion: String
   region: String
+  customHeaders: JSON
 }
 
 enum GenerativeModelKind {
@@ -1550,6 +1713,8 @@ type Mutation {
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
+  createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
+  deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -1557,6 +1722,12 @@ type Mutation {
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
+  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
+  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
+  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
+  addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
+  removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -1586,13 +1757,16 @@ type Mutation {
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
-  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
-  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
-  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
+  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
@@ -1665,6 +1839,14 @@ input PatchDatasetInput {
   metadata: JSON
 }
 
+input PatchDatasetSplitInput {
+  datasetSplitId: ID!
+  name: String
+  description: String
+  color: String
+  metadata: JSON
+}
+
 input PatchProjectTraceRetentionPolicyInput {
   id: ID!
   name: String
@@ -1681,7 +1863,7 @@ input PatchPromptInput {
 
 input PatchPromptLabelInput {
   promptLabelId: ID!
-  name: Identifier = null
+  name: String = null
   description: String = null
 }
 
@@ -1758,6 +1940,11 @@ type Project implements Node {
   """
   spanAnnotationNames: [String!]!
 
+  """
+  Names of all available annotations for sessions. (The list contains no duplicates.)
+  """
+  sessionAnnotationNames: [String!]!
+
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
@@ -1824,7 +2011,7 @@ type ProjectSession implements Node {
   sessionId: String!
   startTime: DateTime!
   endTime: DateTime!
-  projectId: ID!
+  project: Project!
   numTraces: Int!
   numTracesWithError: Int!
   firstInput: SpanIOValue
@@ -1834,6 +2021,30 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  sessionAnnotations: [ProjectSessionAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the session"""
+  sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
+}
+
+type ProjectSessionAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String
+  score: Float
+  explanation: String
+  metadata: JSON!
+  identifier: String!
+  source: AnnotationSource!
+  projectSessionId: ID!
+  user: User
+}
+
+type ProjectSessionAnnotationMutationPayload {
+  projectSessionAnnotation: ProjectSessionAnnotation!
+  query: Query!
 }
 
 enum ProjectSessionColumn {
@@ -1983,6 +2194,10 @@ type PromptLabel implements Node {
   color: String!
 }
 
+type PromptLabelAssociationMutationPayload {
+  query: Query!
+}
+
 """A connection to a list of items."""
 type PromptLabelConnection {
   """Pagination data for this connection"""
@@ -1990,6 +2205,11 @@ type PromptLabelConnection {
 
   """Contains the nodes in this connection"""
   edges: [PromptLabelEdge!]!
+}
+
+type PromptLabelDeleteMutationPayload {
+  deletedPromptLabelIds: [ID!]!
+  query: Query!
 }
 
 """An edge in a connection."""
@@ -2002,7 +2222,7 @@ type PromptLabelEdge {
 }
 
 type PromptLabelMutationPayload {
-  promptLabel: PromptLabel
+  promptLabels: [PromptLabel!]!
   query: Query!
 }
 
@@ -2132,6 +2352,8 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
+  datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
@@ -2178,6 +2400,15 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
+input RemoveDatasetExamplesFromDatasetSplitsInput {
+  datasetSplitIds: [ID!]!
+  exampleIds: [ID!]!
+}
+
+type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
+  query: Query!
+}
+
 type ResponseFormat {
   definition: JSON!
 }
@@ -2196,11 +2427,6 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
-}
-
-type RunComparisonItem {
-  experimentId: ID!
-  runs: [ExperimentRun!]!
 }
 
 enum ScalarDriftMetric {
@@ -2223,9 +2449,9 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
-input SetPromptLabelInput {
+input SetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input SetPromptVersionTagInput {
@@ -2293,13 +2519,13 @@ type Span implements Node {
   """
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
+  spanAnnotations(sort: SpanAnnotationSort, filter: AnnotationFilter = null): [SpanAnnotation!]!
 
   """Notes associated with the span."""
   spanNotes: [SpanAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the span"""
-  spanAnnotationSummaries(filter: SpanAnnotationFilter = null): [AnnotationSummary!]!
+  spanAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
@@ -2375,17 +2601,6 @@ type SpanAnnotation implements Node & Annotation {
 enum SpanAnnotationColumn {
   createdAt
   name
-}
-
-input SpanAnnotationFilter {
-  include: SpanAnnotationFilterCondition
-  exclude: SpanAnnotationFilterCondition
-}
-
-input SpanAnnotationFilterCondition {
-  names: [String!]
-  sources: [AnnotationSource!]
-  userIds: [ID]
 }
 
 type SpanAnnotationMutationPayload {
@@ -2565,6 +2780,7 @@ type SystemApiKey implements ApiKey & Node {
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   content: String!
 }
 
@@ -2646,6 +2862,7 @@ type TokenUsage {
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
+  repetitionNumber: Int
   id: String!
   function: FunctionCallChunk!
 }
@@ -2714,6 +2931,9 @@ type Trace implements Node {
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the trace"""
+  traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
@@ -2852,9 +3072,9 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetPromptLabelInput {
+input UnsetPromptLabelsInput {
   promptId: ID!
-  promptLabelId: ID!
+  promptLabelIds: [ID!]!
 }
 
 input UpdateAnnotationConfigInput {
@@ -2865,6 +3085,17 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
+}
+
+input UpdateAnnotationInput {
+  id: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  source: AnnotationSource! = APP
 }
 
 input UpdateModelMutationInput {

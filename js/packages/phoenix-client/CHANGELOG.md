@@ -1,5 +1,18 @@
 # @arizeai/phoenix-client
 
+## 4.0.3
+
+### Patch Changes
+
+- e3a8ce2: pass through the tracer provider to experiments so that there is no need to configure it twice
+- c85780b: Add support for generics across evals and experiments
+
+## 4.0.2
+
+### Patch Changes
+
+- 1b71c66: make sure repetion numbers are greater than 0
+
 ## 4.0.1
 
 ### Patch Changes

@@ -7,6 +7,7 @@ Welcome to the Phoenix Client documentation. This lightweight Python client prov
 - **[Prompts](api/prompts)** - Manage prompt templates and versions
 - **[Spans](api/spans)** - Access and analyze traces and spans
 - **[Annotations](api/annotations)** - Add annotations, evals, and feedback to spans
+- **[Sessions](api/sessions)** - Add session annotations to multi-turn conversations and threads
 - **[Projects](api/projects)** - Organize your work with project management
 
 ## Installation
@@ -485,6 +486,7 @@ api/experiments
 api/prompts
 api/spans
 api/annotations
+api/sessions
 api/projects
 api/helpers
 api/utils

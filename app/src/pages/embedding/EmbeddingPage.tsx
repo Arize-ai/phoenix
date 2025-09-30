@@ -19,7 +19,6 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
-import { Switch } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import {
@@ -27,6 +26,7 @@ import {
   Flex,
   Loading,
   LoadingMask,
+  Switch,
   Tab,
   TabList,
   TabPanel,
@@ -51,8 +51,8 @@ import {
 } from "@phoenix/components/resize/styles";
 import {
   PointCloudProvider,
-  useGlobalNotification,
   useInferences,
+  useNotifyError,
   usePointCloudContext,
 } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -769,7 +769,7 @@ function getClusterMetricName(metric: MetricDefinition): string {
 }
 
 function PointCloudNotifications() {
-  const { notifyError } = useGlobalNotification();
+  const notifyError = useNotifyError();
   const errorMessage = usePointCloudContext((state) => state.errorMessage);
   const setErrorMessage = usePointCloudContext(
     (state) => state.setErrorMessage

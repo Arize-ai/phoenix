@@ -355,12 +355,16 @@ class Project(Node):
             if sort_config and cursor.sort_column:
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
-                stmt = stmt.where(
-                    compare(
-                        tuple_(sort_config.orm_expression, models.Span.id),
-                        (sort_column.value, cursor.rowid),
+                if sort_column.type is CursorSortColumnDataType.NULL:
+                    stmt = stmt.where(sort_config.orm_expression.is_(None))
+                    stmt = stmt.where(compare(models.Span.id, cursor.rowid))
+                else:
+                    stmt = stmt.where(
+                        compare(
+                            tuple_(sort_config.orm_expression, models.Span.id),
+                            (sort_column.value, cursor.rowid),
+                        )
                     )
-                )
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
@@ -580,6 +584,22 @@ class Project(Node):
             .join(models.Span)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.project_rowid)
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
+
+    @strawberry.field(
+        description="Names of all available annotations for sessions. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    async def session_annotation_names(
+        self,
+        info: Info[Context, None],
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.ProjectSessionAnnotation.name))
+            .join(models.ProjectSession)
+            .where(models.ProjectSession.project_id == self.project_rowid)
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))

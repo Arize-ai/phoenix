@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, useFragment, usePaginationFragment } from "react-relay";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -15,6 +15,11 @@ import { css } from "@emotion/react";
 import {
   ColorSwatch,
   Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Modal,
+  ModalOverlay,
   ProgressBar,
   Text,
   View,
@@ -25,9 +30,13 @@ import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   RichTooltip,
+  Tooltip,
+  TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
+import { LineClamp } from "@phoenix/components/utility/LineClamp";
+import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
@@ -64,8 +73,11 @@ const tableWrapCSS = css`
   }
 `;
 
-type ExperimentRun =
-  ExperimentCompareListPage_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
+type BaseExperimentRun = NonNullable<
+  ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
+>["edges"][number]["run"];
+type CompareExperimentRun =
+  BaseExperimentRun["example"]["experimentRepeatedRunGroups"][number]["runs"][number];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -74,6 +86,10 @@ type Experiment = NonNullable<
 export function ExperimentCompareListPage() {
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
+
+  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
+    null
+  );
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
@@ -90,6 +106,7 @@ export function ExperimentCompareListPage() {
         ) {
           dataset: node(id: $datasetId) {
             ... on Dataset {
+              id
               experimentAnnotationSummaries {
                 annotationName
                 minScore
@@ -99,6 +116,7 @@ export function ExperimentCompareListPage() {
                 edges {
                   experiment: node {
                     id
+                    datasetVersionId
                     averageRunLatencyMs
                     runCount
                     costSummary {
@@ -131,25 +149,16 @@ export function ExperimentCompareListPage() {
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
         baseExperimentId: { type: "ID!" }
+        compareExperimentIds: { type: "[ID!]!" }
       ) {
-        compareExperiments(
-          first: $first
-          after: $after
-          baseExperimentId: $baseExperimentId
-          compareExperimentIds: $compareExperimentIds
-        ) @connection(key: "ExperimentCompareListPage_compareExperiments") {
-          edges {
-            comparison: node {
-              example {
-                id
-                revision {
-                  input
-                  referenceOutput: output
-                }
-              }
-              runComparisonItems {
-                experimentId
-                runs {
+        experiment: node(id: $baseExperimentId) {
+          ... on Experiment {
+            id
+            runs(first: $first, after: $after)
+              @connection(key: "ExperimentCompareListPage_runs") {
+              edges {
+                run: node {
+                  id
                   output
                   startTime
                   endTime
@@ -165,6 +174,41 @@ export function ExperimentCompareListPage() {
                         name
                         score
                         label
+                        id
+                      }
+                    }
+                  }
+                  example {
+                    id
+                    revision {
+                      input
+                      referenceOutput: output
+                    }
+                    experimentRepeatedRunGroups(
+                      experimentIds: $compareExperimentIds
+                    ) {
+                      experimentId
+                      runs {
+                        id
+                        output
+                        startTime
+                        endTime
+                        costSummary {
+                          total {
+                            tokens
+                            cost
+                          }
+                        }
+                        annotations {
+                          edges {
+                            annotation: node {
+                              name
+                              score
+                              label
+                              id
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -200,17 +244,22 @@ export function ExperimentCompareListPage() {
     );
   }, [aggregateData?.dataset]);
 
+  const datasetId = aggregateData?.dataset.id;
+  const baseExperiment = experiments[0];
+  const compareExperimentIds = experiments
+    .slice(1)
+    .map((experiment) => experiment.id);
+
   const tableData = useMemo(() => {
     return (
-      data?.compareExperiments.edges.map((edge) => {
-        const comparison = edge.comparison;
-        const example = comparison.example;
-        const runItems = comparison.runComparisonItems;
+      data?.experiment.runs?.edges.map((edge) => {
+        const run = edge.run;
+        const example = run.example;
+        const repeatedRunGroups = example.experimentRepeatedRunGroups;
 
-        const baseExperimentRun: ExperimentRun = runItems[0].runs[0];
-        const compareExperimentRuns: (ExperimentRun | undefined)[] = runItems
-          .slice(1)
-          .map((item) => item.runs[0]);
+        const baseExperimentRun: BaseExperimentRun = run;
+        const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
+          repeatedRunGroups.map((group) => group.runs[0]);
         const tableData = {
           id: example.id,
           example: example.id,
@@ -246,13 +295,11 @@ export function ExperimentCompareListPage() {
             ),
           },
           annotations: {
-            baseExperimentValue: baseExperimentRun.annotations.edges.map(
-              (edge) => ({
-                name: edge.annotation.name,
-                score: edge.annotation.score,
-                label: edge.annotation.label,
-              })
-            ),
+            baseExperimentValue: run.annotations.edges.map((edge) => ({
+              name: edge.annotation.name,
+              score: edge.annotation.score,
+              label: edge.annotation.label,
+            })),
             compareExperimentValues: compareExperimentRuns.map(
               (run) =>
                 run?.annotations.edges.map((edge) => ({
@@ -292,10 +339,33 @@ export function ExperimentCompareListPage() {
       {
         header: "example",
         accessorKey: "example",
-        size: 80,
-        cell: ({ getValue }) => (
-          <TextOverflow>{getValue() as string}</TextOverflow>
-        ),
+        size: 110,
+        cell: ({ getValue }) => {
+          const exampleId = getValue() as string;
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TextOverflow>{exampleId}</TextOverflow>
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  aria-label="View experiment run details"
+                  onPress={() => {
+                    setSelectedExampleId(exampleId);
+                  }}
+                  css={css`
+                    flex: none;
+                  `}
+                >
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  view experiment runs
+                </Tooltip>
+              </TooltipTrigger>
+            </Flex>
+          );
+        },
       },
       {
         header: "input",
@@ -870,6 +940,24 @@ export function ExperimentCompareListPage() {
           </table>
         </div>
       </Flex>
+      <ModalOverlay
+        isOpen={!!selectedExampleId}
+        onOpenChange={() => {
+          setSelectedExampleId(null);
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          {selectedExampleId && datasetId && (
+            <ExperimentCompareDetailsDialog
+              datasetId={datasetId}
+              datasetVersionId={baseExperiment?.datasetVersionId}
+              selectedExampleId={selectedExampleId}
+              baseExperimentId={baseExperiment?.id}
+              compareExperimentIds={compareExperimentIds}
+            />
+          )}
+        </Modal>
+      </ModalOverlay>
     </View>
   );
 }
@@ -1006,23 +1094,6 @@ const textOverflowCSS = css`
 
 function TextOverflow({ children }: { children: React.ReactNode }) {
   return <div css={textOverflowCSS}>{children}</div>;
-}
-
-const lineClampCSS = (lines: number) => css`
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: ${lines};
-  overflow: hidden;
-`;
-
-function LineClamp({
-  children,
-  lines,
-}: {
-  children: React.ReactNode;
-  lines: number;
-}) {
-  return <div css={lineClampCSS(lines)}>{children}</div>;
 }
 
 const progressBarPlaceholderCSS = css`

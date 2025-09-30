@@ -1,7 +1,17 @@
-import { memo, Suspense, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { JSONSchema7 } from "json-schema";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
+
+import { Field } from "@arizeai/components";
 
 import {
   Button,
@@ -26,6 +36,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -35,6 +46,10 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  httpHeadersJSONSchema,
+  stringToHttpHeadersSchema,
+} from "@phoenix/schemas/httpHeadersSchema";
 import {
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
@@ -63,7 +78,6 @@ const modelConfigFormCSS = css`
   .ac-slider {
     width: 100%;
   }
-  // Makes the filled slider track blue
   .ac-slider-controls > .ac-slider-track:first-child::before {
     background: var(--ac-global-color-primary);
   }
@@ -411,6 +425,101 @@ function AwsModelConfigFormField({
   );
 }
 
+/**
+ * Format headers object for JSON editor with proper indentation and empty state handling
+ */
+const formatHeadersForEditor = (
+  headers: Record<string, string> | null | undefined
+): string => {
+  if (!headers) {
+    return "{\n  \n}";
+  }
+
+  const hasContent = Object.keys(headers).length > 0;
+  return hasContent ? JSON.stringify(headers, null, 2) : "{\n  \n}";
+};
+
+function CustomHeadersModelConfigFormField({
+  instance,
+  container: _container,
+  onErrorChange,
+}: {
+  instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
+  onErrorChange?: (hasError: boolean) => void;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const { customHeaders } = instance.model;
+
+  const [editorValue, setEditorValue] = useState(() =>
+    formatHeadersForEditor(customHeaders)
+  );
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+
+  // Cleanup: reset error state when component unmounts
+  useEffect(() => {
+    return () => onErrorChange?.(false);
+  }, [onErrorChange]);
+
+  const handleChange = useCallback(
+    (value: string) => {
+      setEditorValue(value);
+
+      const result = stringToHttpHeadersSchema.safeParse(value);
+      if (result.success) {
+        setErrorMessage(undefined);
+        onErrorChange?.(false);
+        updateModel({
+          instanceId: instance.id,
+          patch: { customHeaders: result.data },
+        });
+      } else {
+        const firstError = result.error.errors[0];
+        setErrorMessage(
+          firstError?.message ??
+            firstError?.path?.join(".") ??
+            "Invalid headers format"
+        );
+        onErrorChange?.(true);
+      }
+    },
+    [instance.id, updateModel, onErrorChange]
+  );
+
+  return (
+    <div css={fieldContainerCSS}>
+      <Field
+        label={<div css={labelCSS}>Custom Headers</div>}
+        description="Custom HTTP headers to send with requests to the LLM provider"
+        errorMessage={errorMessage}
+        validationState={errorMessage ? "invalid" : undefined}
+      >
+        <CodeWrap>
+          <JSONEditor
+            value={editorValue}
+            onChange={handleChange}
+            jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+            optionalLint
+            placeholder={`{"X-Custom-Header": "custom-value"}`}
+          />
+        </CodeWrap>
+      </Field>
+    </div>
+  );
+}
+
+const fieldContainerCSS = css`
+  & .ac-view {
+    width: 100%;
+  }
+`;
+
+const labelCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--ac-global-dimension-size-75);
+`;
+
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 
 function ModelConfigButton(props: ModelConfigButtonProps) {
@@ -489,6 +598,8 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
   );
 
   const notifySuccess = useNotifySuccess();
+
+  const [hasCustomHeadersError, setHasCustomHeadersError] = useState(false);
   const onSaveConfig = useCallback(() => {
     const {
       // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
@@ -517,20 +628,27 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
                 size="S"
                 variant="default"
                 onPress={onSaveConfig}
+                isDisabled={hasCustomHeadersError}
                 leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
               >
                 Save as Default
               </Button>
               <Tooltip placement="bottom" offset={5}>
-                Saves the current configuration as the default for{" "}
-                {ModelProviders[instance.model.provider] ?? "this provider"}.
+                {hasCustomHeadersError
+                  ? "Fix custom headers validation errors before saving"
+                  : `Saves the current configuration as the default for ${
+                      ModelProviders[instance.model.provider] ?? "this provider"
+                    }.`}
               </Tooltip>
             </TooltipTrigger>
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
         <Suspense>
-          <ModelConfigDialogContent {...props} />
+          <ModelConfigDialogContent
+            {...props}
+            onCustomHeadersErrorChange={setHasCustomHeadersError}
+          />
         </Suspense>
       </DialogContent>
     </Dialog>
@@ -541,17 +659,18 @@ const MemoizedModelConfigButton = memo(ModelConfigButton);
 
 export { MemoizedModelConfigButton as ModelConfigButton };
 
-interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
-function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
-  const { playgroundInstanceId } = props;
+function ModelConfigDialogContent(
+  props: ModelConfigButtonProps & {
+    onCustomHeadersErrorChange?: (hasError: boolean) => void;
+  }
+) {
+  const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
 
   if (!instance) {
-    throw new Error(
-      `Playground instance ${props.playgroundInstanceId} not found`
-    );
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
@@ -640,6 +759,16 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
+
+      {instance.model.provider !== "GOOGLE" && (
+        <CustomHeadersModelConfigFormField
+          key={instance.model.provider}
+          instance={instance}
+          container={container ?? null}
+          onErrorChange={onCustomHeadersErrorChange}
+        />
+      )}
+
       <div ref={setContainer} />
     </form>
   );

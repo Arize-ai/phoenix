@@ -46,7 +46,7 @@ export function ConfirmNavigationDialog({
 }) {
   return (
     <ModalOverlay isDismissable={false} isOpen={blocker.state === "blocked"}>
-      <Modal>
+      <Modal size="S">
         <Dialog>
           <DialogContent>
             <DialogHeader>

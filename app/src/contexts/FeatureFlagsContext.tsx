@@ -1,9 +1,7 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Switch } from "@arizeai/components";
-
-import { Dialog, Modal, ModalOverlay, View } from "@phoenix/components";
+import { Dialog, Modal, ModalOverlay, Switch, View } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -12,7 +10,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-type FeatureFlag = "evaluators" | "experimentCompareListPage";
+type FeatureFlag = "evaluators" | "datasetSplitsUI";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -22,7 +20,7 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   evaluators: false,
-  experimentCompareListPage: false,
+  datasetSplitsUI: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
@@ -96,7 +94,7 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <View height="size-1000" padding="size-100">
+              <View padding="size-100">
                 {Object.keys(featureFlags).map((featureFlag) => (
                   <Switch
                     key={featureFlag}

@@ -21,12 +21,13 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.18.1"
+version = "1.21.0"
 dependencies = [
   "httpx",
   "tqdm",
   "typing-extensions",
   "openinference-semantic-conventions",
+  "openinference-instrumentation>=0.1.20",
   "opentelemetry-sdk",
   "opentelemetry-exporter-otlp",
 ]

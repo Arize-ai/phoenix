@@ -176,6 +176,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^2.0.27
         version: 2.0.27(zod@3.25.76)
+      '@arizeai/phoenix-evals':
+        specifier: workspace:*
+        version: link:../phoenix-evals
       '@types/async':
         specifier: ^3.2.24
         version: 3.2.25

@@ -39,6 +39,7 @@ export function ReferenceInferencesTimeRange({
       <FieldColorDesignation color={"designationPurple"}>
         <TooltipTrigger>
           <TextField
+            size="S"
             isReadOnly
             aria-label={"reference inferences time range"}
             value={`${timeFormatter(timeRange.start)} - ${timeFormatter(

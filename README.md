@@ -106,6 +106,15 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [Autogen AgentChat](https://arize.com/docs/phoenix/integrations/frameworks/autogen/autogen-tracing) | `openinference-instrumentation-autogen-agentchat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-autogen-agentchat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-autogen-agentchat) |
 | [Portkey](https://arize.com/docs/phoenix/integrations/portkey) | `openinference-instrumentation-portkey` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-portkey.svg)](https://pypi.python.org/pypi/openinference-instrumentation-portkey) |
 
+## Span Processors
+
+Normalize and convert data across other instrumentation libraries by adding span processors that unify data.
+
+| Package                                                                                                           | Description                                                      | Version                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`openinference-instrumentation-openlit`](./python/instrumentation/openinference-instrumentation-openlit)         | OpenInference Span Processor for OpenLIT traces.                 | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openlit.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openlit)         |
+| [`openinference-instrumentation-openllmetry`](./python/instrumentation/openinference-instrumentation-openllmetry) | OpenInference Span Processor for OpenLLMetry (Traceloop) traces. | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openllmetry.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openllmetry) |
+
 ### JavaScript Integrations
 
 | Integration                                                                                | Package                                            | Version Badge                                                                                                                                                                       |
@@ -121,7 +130,7 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | Integration                                                                                                                       | Package                                     | Version Badge                                                                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [LangChain4j](https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-langchain4j) | `openinference-instrumentation-langchain4j` | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-langchain4j.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j) |
-| [SpringAI](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI)                                | `openinference-instrumentation-springAI`    | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-springAI.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI)       |
+| SpringAI                                                                                                                          | `openinference-instrumentation-springAI`    | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-springAI.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI)       |
 
 ### Platforms
 

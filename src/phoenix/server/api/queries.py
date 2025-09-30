@@ -48,6 +48,8 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -57,14 +59,24 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
+from phoenix.server.api.types.ExperimentComparison import (
+    ExperimentComparison,
+)
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
+    ExperimentRepeatedRunGroup,
+    parse_experiment_repeated_run_group_node_id,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+    is_global_id,
+)
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -513,11 +525,12 @@ class Query:
 
         cursors_and_nodes = []
         for example in examples:
-            run_comparison_items = []
+            repeated_run_groups = []
             for experiment_id in experiment_rowids:
-                run_comparison_items.append(
-                    RunComparisonItem(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
+                repeated_run_groups.append(
+                    ExperimentRepeatedRunGroup(
+                        experiment_rowid=experiment_id,
+                        dataset_example_rowid=example.id,
                         runs=[
                             to_gql_experiment_run(run)
                             for run in sorted(
@@ -533,7 +546,7 @@ class Query:
                     created_at=example.created_at,
                     version_id=base_experiment.dataset_version_id,
                 ),
-                run_comparison_items=run_comparison_items,
+                repeated_run_groups=repeated_run_groups,
             )
             cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
 
@@ -863,8 +876,37 @@ class Query:
         return InferenceModel()
 
     @strawberry.field
-    async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name, node_id = from_global_id(id)
+    async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
+        if not is_global_id(id):
+            try:
+                experiment_rowid, dataset_example_rowid = (
+                    parse_experiment_repeated_run_group_node_id(id)
+                )
+            except Exception:
+                raise NotFound(f"Unknown node: {id}")
+
+            async with info.context.db() as session:
+                runs = (
+                    await session.scalars(
+                        select(models.ExperimentRun)
+                        .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                        .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
+                        .order_by(models.ExperimentRun.repetition_number.asc())
+                        .options(
+                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                        )
+                    )
+                ).all()
+            if not runs:
+                raise NotFound(f"Unknown experiment or dataset example: {id}")
+            return ExperimentRepeatedRunGroup(
+                experiment_rowid=experiment_rowid,
+                dataset_example_rowid=dataset_example_rowid,
+                runs=[to_gql_experiment_run(run) for run in runs],
+            )
+
+        global_id = GlobalID.from_id(id)
+        type_name, node_id = from_global_id(global_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -909,26 +951,9 @@ class Query:
             return to_gql_dataset(dataset)
         elif type_name == DatasetExample.__name__:
             example_id = node_id
-            latest_revision_id = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
-                .scalar_subquery()
-            )
             async with info.context.db() as session:
                 example = await session.scalar(
-                    select(models.DatasetExample)
-                    .join(
-                        models.DatasetExampleRevision,
-                        onclause=models.DatasetExampleRevision.dataset_example_id
-                        == models.DatasetExample.id,
-                    )
-                    .where(
-                        and_(
-                            models.DatasetExample.id == example_id,
-                            models.DatasetExampleRevision.id == latest_revision_id,
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        )
-                    )
+                    select(models.DatasetExample).where(models.DatasetExample.id == example_id)
                 )
             if not example:
                 raise NotFound(f"Unknown dataset example: {id}")
@@ -936,6 +961,14 @@ class Query:
                 id_attr=example.id,
                 created_at=example.created_at,
             )
+        elif type_name == DatasetSplit.__name__:
+            async with info.context.db() as session:
+                dataset_split = await session.scalar(
+                    select(models.DatasetSplit).where(models.DatasetSplit.id == node_id)
+                )
+            if not dataset_split:
+                raise NotFound(f"Unknown dataset split: {id}")
+            return to_gql_dataset_split(dataset_split)
         elif type_name == Experiment.__name__:
             async with info.context.db() as session:
                 experiment = await session.scalar(
@@ -1112,6 +1145,49 @@ class Query:
         async with info.context.db() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
             data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
+
+    @strawberry.field
+    async def dataset_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[DatasetLabel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            dataset_labels = await session.scalars(select(models.DatasetLabel))
+        data = [to_gql_dataset_label(dataset_label) for dataset_label in dataset_labels]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def dataset_splits(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[DatasetSplit]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            splits = await session.stream_scalars(select(models.DatasetSplit))
+            data = [to_gql_dataset_split(split) async for split in splits]
             return connection_from_list(
                 data=data,
                 args=args,

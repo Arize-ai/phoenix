@@ -16,12 +16,14 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -36,6 +38,7 @@ export function ExamplesTable({
   dataset: examplesLoaderQuery$data["dataset"];
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
+  const isSplitsEnabled = useFeatureFlag("datasetSplitsUI");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -56,6 +59,11 @@ export function ExamplesTable({
             edges {
               example: node {
                 id
+                datasetSplits {
+                  id
+                  name
+                  color
+                }
                 revision {
                   input
                   output
@@ -86,6 +94,7 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
+          splits: example.datasetSplits,
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
@@ -100,19 +109,19 @@ export function ExamplesTable({
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
+            isSelected: table.getIsAllRowsSelected(),
+            isIndeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.toggleAllRowsSelected,
           }}
         />
       ),
       cell: ({ row }) => (
         <IndeterminateCheckboxCell
           {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
+            isSelected: row.getIsSelected(),
+            isDisabled: !row.getCanSelect(),
+            isIndeterminate: row.getIsSomeSelected(),
+            onChange: row.toggleSelected,
           }}
         />
       ),
@@ -141,6 +150,13 @@ export function ExamplesTable({
       cell: CompactJSONCell,
     },
   ];
+  if (isSplitsEnabled) {
+    columns.splice(2, 0, {
+      header: "splits",
+      accessorKey: "splits",
+      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+    });
+  }
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

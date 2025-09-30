@@ -15,6 +15,7 @@ The **OpenInference Java SDK** provides tracing capabilities for AI applications
 * [**openinference-semantic-conventions**](https://central.sonatype.com/artifact/com.arize/openinference-semantic-conventions)**:** Java constants for OpenInference semantic conventions
 * [**openinference-instrumentation**](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation)**:**
 * [**openinference-instrumentation-langchain4j**](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j): Auto-instrumentation for LangChain4j applications
+* [**openinference-instrumentation-springAI**](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI): Auto-instrumentation for Spring AI applications
 
 #### openinference-semantic-conventions
 
@@ -58,7 +59,7 @@ LangChain4jInstrumentor.instrument();
 
 * Java 11 or higher
 * OpenTelemetry Java 1.49.0 or higher
-* Arize account with Space ID and API Key
+* (Optional) Phoenix API key if using auth
 
 #### Gradle
 
@@ -134,7 +135,7 @@ try {
 }
 ```
 
-#### Auto-instrumentation with LangChain4j
+#### Auto-instrumentation (with LangChain4j)&#x20;
 
 ```java
 import io.openinference.instrumentation.langchain4j.LangChain4jInstrumentor;
@@ -161,7 +162,7 @@ String response = model.generate("What is the capital of France?");
 Set your Phoenix credentials as environment variables:
 
 ```bash
-export PHOENIX_API_KEY="your-arize-api-key"
+export PHOENIX_API_KEY="your-phoenix-api-key"
 ```
 
 {% hint style="warning" %}

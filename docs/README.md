@@ -18,7 +18,7 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 Tracing in Phoenix
 {% endembed %}
 
-[Tracing](tracing/llm-traces.md) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
+[Tracing](tracing/llm-traces/) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
 Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](broken-reference), [LangChain](broken-reference),[ DSPy](broken-reference)), SDKs ([OpenAI](broken-reference), [Bedrock](broken-reference), [Mistral](broken-reference), [Vertex](broken-reference)), and Languages. ([Python](broken-reference), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
 {% endtab %}
@@ -32,7 +32,7 @@ Phoenix is built to help you [evaluate your application](evaluation/llm-evals/) 
 
 * A standalone library to [run LLM-based evaluations](evaluation/how-to-evals/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
 * [Direct integration of LLM-based and code-based evaluators](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
-* [Human annotation capabilities](tracing/features-tracing/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
+* [Human annotation capabilities](tracing/llm-traces/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
 {% endtab %}
 
 {% tab title="Prompt Engineering" %}
@@ -67,7 +67,7 @@ Experiments in Phoenix
 
 Running Phoenix for the first time? Select a quickstart below.
 
-<table data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong></td><td><a href="tracing/llm-traces-1/">llm-traces-1</a></td><td><a href=".gitbook/assets/tracing-designed.png">tracing-designed.png</a></td></tr><tr><td align="center"><strong>Prompt Playground</strong></td><td><a href="prompt-engineering/quickstart-prompts/">quickstart-prompts</a></td><td><a href=".gitbook/assets/prompt-playground-designed.png">prompt-playground-designed.png</a></td></tr><tr><td align="center"><strong>Datasets and Experiments</strong></td><td><a href="datasets-and-experiments/quickstart-datasets.md">quickstart-datasets.md</a></td><td><a href=".gitbook/assets/experiments_preview.png">experiments_preview.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="evaluation/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals-designed.png">evals-designed.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="inferences/phoenix-inferences.md">phoenix-inferences.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong></td><td><a href="tracing/llm-traces-1/">llm-traces-1</a></td><td><a href=".gitbook/assets/tracing-designed.png">tracing-designed.png</a></td></tr><tr><td align="center"><strong>Prompt Playground</strong></td><td><a href="prompt-engineering/quickstart-prompts/">quickstart-prompts</a></td><td><a href=".gitbook/assets/prompt-playground-designed.png">prompt-playground-designed.png</a></td></tr><tr><td align="center"><strong>Datasets and Experiments</strong></td><td><a href="datasets-and-experiments/quickstart-datasets.md">quickstart-datasets.md</a></td><td><a href=".gitbook/assets/experiments_preview.png">experiments_preview.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="evaluation/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals-designed.png">evals-designed.png</a></td></tr></tbody></table>
 
 ## Next Steps
 

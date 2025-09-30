@@ -482,13 +482,13 @@ export function TracesTable(props: TracesTableProps) {
     () => [
       {
         id: "select",
-        maxSize: 10,
+        maxSize: 32,
         header: ({ table }) => (
           <IndeterminateCheckboxCell
             {...{
-              checked: table.getIsAllRowsSelected(),
-              indeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.getToggleAllRowsSelectedHandler(),
+              isSelected: table.getIsAllRowsSelected(),
+              isIndeterminate: table.getIsSomeRowsSelected(),
+              onChange: table.toggleAllRowsSelected,
             }}
           />
         ),
@@ -499,10 +499,10 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <IndeterminateCheckboxCell
               {...{
-                checked: row.getIsSelected(),
-                disabled: !row.getCanSelect(),
-                indeterminate: row.getIsSomeSelected(),
-                onChange: row.getToggleSelectedHandler(),
+                isSelected: row.getIsSelected(),
+                isDisabled: !row.getCanSelect(),
+                isIndeterminate: row.getIsSomeSelected(),
+                onChange: row.toggleSelected,
               }}
             />
           );

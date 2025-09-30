@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.2.1
+
+### Patch Changes
+
+- c85780b: Add support for generics across evals and experiments
+
 ## 0.2.0
 
 ### Minor Changes

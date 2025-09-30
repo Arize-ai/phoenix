@@ -24,12 +24,12 @@ function choicesToLabels(
 /**
  * A function that serves as a factory that will output a classification evaluator function
  */
-export function createClassifierFn<ExampleType extends Record<string, unknown>>(
-  args: CreateClassifierArgs
-): EvaluatorFn<ExampleType> {
+export function createClassifierFn<
+  RecordToEvaluate extends Record<string, unknown>,
+>(args: CreateClassifierArgs): EvaluatorFn<RecordToEvaluate> {
   const { model, choices, promptTemplate, ...rest } = args;
 
-  return async (args: ExampleType): Promise<EvaluationResult> => {
+  return async (args: RecordToEvaluate): Promise<EvaluationResult> => {
     const templateVariables = {
       ...args,
     };

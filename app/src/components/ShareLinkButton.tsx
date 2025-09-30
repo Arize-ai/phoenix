@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 
 import { Button, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 export const ShareLinkButton = ({
   buttonText,
@@ -23,7 +24,10 @@ export const ShareLinkButton = ({
         size="S"
         leadingVisual={<Icon svg={<Icons.ShareOutline />} />}
         onPress={() => {
-          const url = new URL(location.pathname, window.location.origin);
+          const url = new URL(
+            prependBasename(location.pathname),
+            window.location.origin
+          );
           if (preserveSearchParams) {
             url.search = location.search;
           }

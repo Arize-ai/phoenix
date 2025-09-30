@@ -11,17 +11,23 @@
   * [LangGraph](agent-workflow-patterns/langgraph.md)
   * [Smolagents](agent-workflow-patterns/smolagents.md)
 
-## Tracing & Annotations
+## Tracing
 
-* [Agentic RAG Tracing](tracing-and-annotations/agentic-rag-tracing.md)
-* [Using Human Annotations for Eval-Driven Development](tracing-and-annotations/using-human-annotations-for-eval-driven-development.md)
-* [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing-and-annotations/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
-* [Structured Data Extraction](tracing-and-annotations/structured-data-extraction.md)
-* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing-and-annotations/product-recommendation-agent-google-agent-engine-and-langgraph.md)
-* [More Cookbooks](tracing-and-annotations/cookbooks.md)
+* [Agentic RAG Tracing](tracing/agentic-rag-tracing.md)
+* [Generating Synthetic Datasets for LLM Evaluators & Agents](tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents.md)
+* [Structured Data Extraction](tracing/structured-data-extraction.md)
+* [Product Recommendation Agent: Google Agent Engine & LangGraph](tracing/product-recommendation-agent-google-agent-engine-and-langgraph.md)
+* [More Cookbooks](tracing/cookbooks.md)
+
+## Human-in-the-loop Workflows (Annotations)
+
+* [Using Human Annotations for Eval-Driven Development](human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development.md)
+* [Aligning LLM Evals with Human Annotations (TypeScript)](human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript.md)
+* [Creating a Custom LLM Evaluator with a Benchmark Dataset](human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 
 ## Prompt Engineering
 
+* [Prompt Learning - Optimizing Prompts for Classification](prompt-engineering/prompt-learning-optimizing-prompts-for-classification.md)
 * [Few Shot Prompting](prompt-engineering/few-shot-prompting.md)
 * [ReAct Prompting](prompt-engineering/react-prompting.md)
 * [Chain-of-Thought Prompting](prompt-engineering/chain-of-thought-prompting.md)
@@ -30,7 +36,6 @@
 
 ## Evaluation
 
-* [Creating a Custom LLM Evaluator with a Benchmark Dataset](evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.md)
 * [OpenAI Agents SDK Cookbook](evaluation/openai-agents-sdk-cookbook.md)
 * [Evaluate a Talk-to-your-Data Agent](evaluation/evaluate-an-agent.md)
 * [Evaluate RAG](evaluation/evaluate-rag.md)
@@ -52,3 +57,5 @@
 
 * [Embeddings Analysis](retrieval-and-inferences/embeddings-analysis.md)
 * [More Cookbooks](retrieval-and-inferences/cookbooks.md)
+
+## Prompt Learning

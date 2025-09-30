@@ -16,7 +16,7 @@ type ExperimentRunTokenCostsProps = {
   /**
    * The total cost of the experiment run
    */
-  costTotal: number;
+  costTotal: number | null;
   /**
    * The id of the experiment run node
    */
@@ -32,7 +32,7 @@ type ExperimentRunTokenCostsProps = {
  */
 export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
   return (
-    <TooltipTrigger>
+    <TooltipTrigger isDisabled={props.costTotal == null}>
       <Pressable>
         <TokenCosts size={props.size} aria-role="button">
           {props.costTotal}

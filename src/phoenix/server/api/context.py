@@ -17,16 +17,20 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
+    AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
+    DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
+    DatasetExampleSplitsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
-    ExperimentRepetitionCountsDataLoader,
+    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
+    ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
@@ -39,6 +43,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
     SessionNumTracesWithErrorDataLoader,
@@ -53,6 +58,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostDetailSummaryEntriesBySpanDataLoader,
     SpanCostDetailSummaryEntriesByTraceDataLoader,
     SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
     SpanCostSummaryByExperimentRunDataLoader,
     SpanCostSummaryByGenerativeModelDataLoader,
     SpanCostSummaryByProjectDataLoader,
@@ -63,6 +69,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
+    TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
@@ -86,15 +93,25 @@ from phoenix.server.types import (
 class DataLoaders:
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
+    average_experiment_repeated_run_group_latency: (
+        AverageExperimentRepeatedRunGroupLatencyDataLoader
+    )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
+    dataset_examples_and_versions_by_experiment_run: (
+        DatasetExamplesAndVersionsByExperimentRunDataLoader
+    )
+    dataset_example_splits: DatasetExampleSplitsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
-    experiment_repetition_counts: ExperimentRepetitionCountsDataLoader
+    experiment_repeated_run_group_annotation_summaries: (
+        ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
+    )
+    experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
@@ -109,6 +126,7 @@ class DataLoaders:
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
+    session_annotations_by_session: SessionAnnotationsBySessionDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
@@ -130,6 +148,9 @@ class DataLoaders:
     span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
     span_cost_fields: TableFieldsDataLoader
     span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_repeated_run_group: (
+        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader
+    )
     span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
     span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
@@ -140,6 +161,7 @@ class DataLoaders:
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
+    trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
@@ -219,3 +241,10 @@ class Context(BaseContext):
     @cached_property
     def user(self) -> PhoenixUser:
         return cast(PhoenixUser, self.get_request().user)
+
+    @cached_property
+    def user_id(self) -> Optional[int]:
+        try:
+            return int(self.user.identity)
+        except Exception:
+            return None

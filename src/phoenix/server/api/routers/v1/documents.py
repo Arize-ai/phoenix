@@ -82,7 +82,7 @@ async def annotate_span_documents(
         annotation.as_precursor(user_id=user_id) for annotation in span_document_annotations
     ]
     if not sync:
-        await request.state.enqueue(*precursors)
+        await request.state.enqueue_annotations(*precursors)
         return AnnotateSpanDocumentsResponseBody(data=[])
 
     span_ids = {p.span_id for p in precursors}
