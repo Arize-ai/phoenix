@@ -133,7 +133,7 @@ erDiagram
         int document_position
         string name
         string label
-        float score
+        double score
         string explanation
         jsonb metadata
         string annotator_kind
@@ -149,7 +149,7 @@ erDiagram
         int span_rowid FK
         string name
         string label
-        float score
+        double score
         string explanation
         jsonb metadata
         string annotator_kind
@@ -165,7 +165,7 @@ erDiagram
         int trace_rowid FK
         string name
         string label
-        float score
+        double score
         string explanation
         jsonb metadata
         string annotator_kind
@@ -188,6 +188,7 @@ erDiagram
         jsonb metadata
         datetime created_at
         datetime updated_at
+        bigint user_id FK
     }
 
     DatasetVersion ||--o{ DatasetExampleRevision : has
@@ -198,6 +199,7 @@ erDiagram
         string description
         jsonb metadata
         datetime created_at
+        bigint user_id FK
     }
 
     DatasetExample ||--o{ DatasetExampleRevision : has
@@ -262,7 +264,7 @@ erDiagram
         string name
         string annotator_kind
         string label
-        float score
+        double score
         string explanation
         string trace_id
         string error
@@ -281,7 +283,7 @@ erDiagram
         jsonb metadata
         datetime created_at
         datetime updated_at
-        datetime deleted_at
+        bigint user_id FK
     }
 
     DatasetSplitsDatasetExample {
@@ -291,11 +293,11 @@ erDiagram
 
     DatasetLabel ||--o{ DatasetsDatasetLabel : applies_to
     DatasetLabel {
-        int id PK
+        bigint id PK
         string name
         string description
         string color
-        int user_id FK
+        bigint user_id FK
     }
 
     DatasetsDatasetLabel {
@@ -305,12 +307,12 @@ erDiagram
     }
 
     ExperimentTag {
-        int id PK
-        int experiment_id FK
-        int dataset_id FK
+        bigint id PK
+        bigint experiment_id FK
+        bigint dataset_id FK
         string name
         string description
-        int user_id FK
+        bigint user_id FK
     }
 
     ExperimentsDatasetExample {
@@ -329,7 +331,7 @@ erDiagram
         bigint project_session_id FK
         string name
         string label
-        float score
+        double score
         string explanation
         jsonb metadata
         string annotator_kind
@@ -353,6 +355,9 @@ erDiagram
     User ||--o{ Experiment : creates
     User ||--o{ ExperimentTag : creates
     User ||--o{ DatasetLabel : creates
+    User ||--o{ Dataset : creates
+    User ||--o{ DatasetVersion : creates
+    User ||--o{ DatasetSplit : creates
     User {
         int id PK
         int user_role_id FK
@@ -494,7 +499,7 @@ erDiagram
         bigint model_id FK
         string token_type
         boolean is_prompt
-        float base_rate
+        double base_rate
         json customization
     }
 
@@ -505,12 +510,12 @@ erDiagram
         bigint trace_rowid FK
         bigint model_id FK
         datetime span_start_time
-        float total_cost
-        float total_tokens
-        float prompt_cost
-        float prompt_tokens
-        float completion_cost
-        float completion_tokens
+        double total_cost
+        double total_tokens
+        double prompt_cost
+        double prompt_tokens
+        double completion_cost
+        double completion_tokens
     }
 
     SpanCostDetail {
@@ -518,9 +523,9 @@ erDiagram
         bigint span_cost_id FK
         string token_type
         boolean is_prompt
-        float cost
-        float tokens
-        float cost_per_token
+        double cost
+        double tokens
+        double cost_per_token
     }
 ```
 
@@ -570,6 +575,9 @@ This subgroup shows how datasets are created from spans, organized with versions
 ```mermaid
 erDiagram
     User ||--o{ DatasetLabel : creates
+    User ||--o{ Dataset : creates
+    User ||--o{ DatasetSplit : creates
+    User ||--o{ DatasetVersion : creates
     User {
     }
 
@@ -586,11 +594,13 @@ erDiagram
     Dataset ||--o{ DatasetExample : contains
     Dataset ||--o{ DatasetsDatasetLabel : has
     Dataset {
+        bigint user_id FK
     }
 
     DatasetVersion ||--o{ DatasetExampleRevision : has
     DatasetVersion {
         int dataset_id FK
+        bigint user_id FK
     }
 
     DatasetExample ||--o{ DatasetExampleRevision : has
@@ -607,6 +617,7 @@ erDiagram
 
     DatasetSplit ||--o{ DatasetSplitsDatasetExample : contains
     DatasetSplit {
+        bigint user_id FK
     }
 
     DatasetSplitsDatasetExample {
@@ -616,7 +627,7 @@ erDiagram
 
     DatasetLabel ||--o{ DatasetsDatasetLabel : applies_to
     DatasetLabel {
-        int user_id FK
+        bigint user_id FK
     }
 
     DatasetsDatasetLabel {
@@ -664,7 +675,7 @@ erDiagram
     Experiment {
         int dataset_id FK
         int dataset_version_id FK
-        int user_id FK
+        bigint user_id FK
     }
 
     ExperimentRun ||--o{ ExperimentRunAnnotation : has
@@ -679,9 +690,9 @@ erDiagram
     }
 
     ExperimentTag {
-        int experiment_id FK
-        int dataset_id FK
-        int user_id FK
+        bigint experiment_id FK
+        bigint dataset_id FK
+        bigint user_id FK
     }
 
     ExperimentsDatasetExample {
@@ -862,18 +873,88 @@ erDiagram
     }
 
     TokenPrice {
-        int model_id FK
+        bigint model_id FK
     }
 
     SpanCost ||--o{ SpanCostDetail : has
     SpanCost {
-        int span_rowid FK
-        int trace_rowid FK
-        int model_id FK
+        bigint span_rowid FK
+        bigint trace_rowid FK
+        bigint model_id FK
     }
 
     SpanCostDetail {
-        int span_cost_id FK
+        bigint span_cost_id FK
+    }
+```
+
+### User-Created Content
+
+This subgroup shows all entities that track user ownership through user_id foreign keys, representing content created or managed by users across datasets, experiments, prompts, and annotations:
+
+```mermaid
+erDiagram
+    User ||--o{ Dataset : creates
+    User ||--o{ DatasetVersion : creates
+    User ||--o{ DatasetSplit : creates
+    User ||--o{ DatasetLabel : creates
+    User ||--o{ Experiment : creates
+    User ||--o{ ExperimentTag : creates
+    User ||--o{ PromptVersion : creates
+    User ||--o{ PromptVersionTag : creates
+    User ||--o{ SpanAnnotation : creates
+    User ||--o{ DocumentAnnotation : creates
+    User ||--o{ TraceAnnotation : creates
+    User ||--o{ ProjectSessionAnnotation : creates
+    User {
+    }
+
+    Dataset {
+        bigint user_id FK
+    }
+
+    DatasetVersion {
+        bigint user_id FK
+    }
+
+    DatasetSplit {
+        bigint user_id FK
+    }
+
+    DatasetLabel {
+        bigint user_id FK
+    }
+
+    Experiment {
+        bigint user_id FK
+    }
+
+    ExperimentTag {
+        bigint user_id FK
+    }
+
+    PromptVersion {
+        int user_id FK
+    }
+
+    PromptVersionTag {
+        int user_id FK
+    }
+
+    SpanAnnotation {
+        int user_id FK
+    }
+
+    DocumentAnnotation {
+        int user_id FK
+    }
+
+    TraceAnnotation {
+        int user_id FK
+    }
+
+    ProjectSessionAnnotation {
+        bigint user_id FK
     }
 ```
 
