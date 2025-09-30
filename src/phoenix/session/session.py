@@ -278,9 +278,7 @@ class Session(TraceDataExtractor, ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        if self.notebook_env is NotebookEnvironment.LOCAL:
-            return f"http://{self.host}:{self.port}{self.root_path}"
-        return _get_url(self.host, self.port, self.notebook_env)
+        return _get_url(self.host, self.port, self.notebook_env, self.root_path)
 
     @property
     def database_url(self) -> str:
@@ -669,7 +667,7 @@ def close_app(delete_data: bool = False) -> None:
         delete_all(prompt_before_delete=False)
 
 
-def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
+def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path: str) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if notebook_env == NotebookEnvironment.COLAB:
         from google.colab.output import eval_js
@@ -681,10 +679,12 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     if notebook_env == NotebookEnvironment.DATABRICKS:
         context = _get_databricks_context()
         return f"{_get_databricks_notebook_base_url(context)}/{port}/"
+    if not root_path.startswith("/"):
+        root_path = f"/{root_path}"
     if host == "0.0.0.0" or host == "127.0.0.1":
         # The app is running locally, so use localhost
-        return f"http://localhost:{port}/"
-    return f"http://{host}:{port}/"
+        return f"http://localhost:{port}{root_path}"
+    return f"http://{host}:{port}{root_path}"
 
 
 def _is_colab() -> bool:
