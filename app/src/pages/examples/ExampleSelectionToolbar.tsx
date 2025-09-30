@@ -167,7 +167,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             },
           },
           onCompleted: () => {
-            refreshLatestVersion();
+            // refreshLatestVersion();
           },
           onError: (error) => {
             const formattedError =
@@ -189,7 +189,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             },
           },
           onCompleted: () => {
-            refreshLatestVersion();
+            // refreshLatestVersion();
           },
           onError: (error) => {
             const formattedError =
@@ -262,13 +262,13 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
-      <ManageDatasetSplitsDialog
+      {isManageSplitsOpen && <ManageDatasetSplitsDialog
         selectedExamples={selectedExamples}
         isOpen={isManageSplitsOpen}
         onOpenChange={setIsManageSplitsOpen}
         onConfirm={handleManageSplitsConfirm}
-      />
-      <ModalOverlay
+      /> }
+     <ModalOverlay
         isOpen={isDeleteConfirmationDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
@@ -320,7 +320,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
               </View>
             </DialogContent>
           </Dialog>
-        </Modal>
+        </Modal> 
       </ModalOverlay>
     </FloatingToolbarContainer>
   );
