@@ -17,6 +17,7 @@ input AddDatasetExamplesToDatasetSplitsInput {
 
 type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 input AddExamplesToDatasetInput {

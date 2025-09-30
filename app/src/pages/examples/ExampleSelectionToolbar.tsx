@@ -88,8 +88,13 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       $input: AddDatasetExamplesToDatasetSplitsInput!
     ) {
       addDatasetExamplesToDatasetSplits(input: $input) {
-        query {
-          __typename
+        examples {
+          id
+          datasetSplits {
+            id
+            name
+            color
+          }
         }
       }
     }
