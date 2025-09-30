@@ -24,3 +24,56 @@ export const ExperimentComparePageQueriesSelectedCompareExperimentsQuery = graph
       @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
   }
 `;
+
+export const ExperimentComparePageQueriesCompareGridQuery = graphql`
+  query ExperimentComparePageQueriesCompareGridQuery(
+    $datasetId: ID!
+    $experimentIds: [ID!]!
+    $baseExperimentId: ID!
+    $compareExperimentIds: [ID!]!
+  ) {
+    ...ExperimentCompareTable_comparisons
+      @arguments(
+        datasetId: $datasetId
+        experimentIds: $experimentIds
+        baseExperimentId: $baseExperimentId
+        compareExperimentIds: $compareExperimentIds
+      )
+  }
+`;
+
+export const ExperimentComparePageQueriesCompareListQuery = graphql`
+  query ExperimentComparePageQueriesCompareListQuery(
+    $datasetId: ID!
+    $baseExperimentId: ID!
+    $compareExperimentIds: [ID!]!
+    $experimentIds: [ID!]!
+  ) {
+    ...ExperimentCompareListPage_comparisons
+      @arguments(
+        baseExperimentId: $baseExperimentId
+        compareExperimentIds: $compareExperimentIds
+      )
+    ...ExperimentCompareListPage_aggregateData
+      @arguments(datasetId: $datasetId, experimentIds: $experimentIds)
+  }
+`;
+
+export const ExperimentComparePageQueriesCompareMetricsQuery = graphql`
+  query ExperimentComparePageQueriesCompareMetricsQuery(
+    $datasetId: ID!
+    $baseExperimentId: ID!
+    $compareExperimentIds: [ID!]!
+    $experimentIds: [ID!]!
+    $hasCompareExperiments: Boolean!
+  ) {
+    ...ExperimentCompareMetricsPage_experiments
+      @arguments(
+        datasetId: $datasetId
+        baseExperimentId: $baseExperimentId
+        compareExperimentIds: $compareExperimentIds
+        experimentIds: $experimentIds
+        hasCompareExperiments: $hasCompareExperiments
+      )
+  }
+`;

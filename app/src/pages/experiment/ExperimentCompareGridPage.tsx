@@ -1,17 +1,20 @@
 import { Suspense, useMemo } from "react";
-import { useLoaderData, useParams, useSearchParams } from "react-router";
+import { PreloadedQuery } from "react-relay";
+import { useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
+import { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 
-import { experimentCompareLoader } from "./experimentCompareLoader";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
-export function ExperimentCompareGridPage() {
+export function ExperimentCompareGridPage({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareGridQueryType>;
+}) {
   const [searchParams] = useSearchParams();
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  invariant(loaderData, "loaderData is required");
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const [baseExperimentId, ...compareExperimentIds] =
       searchParams.getAll("experimentId");
@@ -19,11 +22,12 @@ export function ExperimentCompareGridPage() {
   }, [searchParams]);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
+
   return (
     <ExperimentRunFilterConditionProvider>
       <Suspense fallback={<Loading />}>
         <ExperimentCompareTable
-          query={loaderData}
+          queryRef={queryRef}
           datasetId={datasetId}
           baseExperimentId={baseExperimentId}
           compareExperimentIds={compareExperimentIds}

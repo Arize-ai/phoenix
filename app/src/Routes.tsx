@@ -55,7 +55,6 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
-  experimentCompareLoader,
   ExperimentComparePage,
   ExperimentsPage,
   ForgotPasswordPage,
@@ -217,7 +216,6 @@ const router = createBrowserRouter(
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}
-                loader={experimentCompareLoader}
                 handle={{ crumb: () => "compare" }}
               />
             </Route>

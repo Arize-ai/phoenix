@@ -6,26 +6,26 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import {
-  useLoaderData,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, View } from "@phoenix/components";
+import { Alert, Flex, Loading, View } from "@phoenix/components";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import {
   ExperimentCompareViewMode,
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
+import { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
+import { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
 import { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
 import { ExperimentComparePageQueriesSelectedCompareExperimentsQuery as ExperimentComparePageQueriesSelectedCompareExperimentsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesSelectedCompareExperimentsQuery.graphql";
-import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 import {
+  ExperimentComparePageQueriesCompareGridQuery,
+  ExperimentComparePageQueriesCompareListQuery,
+  ExperimentComparePageQueriesCompareMetricsQuery,
   ExperimentComparePageQueriesMultiSelectorQuery,
   ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
 } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -45,9 +45,6 @@ type Experiment = NonNullable<
 >["edges"][number]["experiment"];
 
 export function ExperimentComparePage() {
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
-  invariant(loaderData, "loaderData is required on ExperimentComparePage");
-
   const [multiSelectorQueryReference, loadMultiSelectorQuery] =
     useQueryLoader<ExperimentComparePageQueriesMultiSelectorQueryType>(
       ExperimentComparePageQueriesMultiSelectorQuery
@@ -61,12 +58,29 @@ export function ExperimentComparePage() {
       ExperimentComparePageQueriesSelectedCompareExperimentsQuery
     );
 
-  // The text of most IO is too long so default to showing truncated text
+  const [compareGridQueryReference, loadCompareGridQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareGridQueryType>(
+      ExperimentComparePageQueriesCompareGridQuery
+    );
+
+  const [compareListQueryReference, loadCompareListQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareListQueryType>(
+      ExperimentComparePageQueriesCompareListQuery
+    );
+
+  const [compareMetricsQueryReference, loadCompareMetricsQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareMetricsQueryType>(
+      ExperimentComparePageQueriesCompareMetricsQuery
+    );
+
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
-  const [baseExperimentId = undefined, ...compareExperimentIds] =
-    searchParams.getAll("experimentId");
+  const { baseExperimentId = undefined, compareExperimentIds } = useMemo(() => {
+    const [baseExperimentId = undefined, ...compareExperimentIds] =
+      searchParams.getAll("experimentId");
+    return { baseExperimentId, compareExperimentIds };
+  }, [searchParams]);
   const viewMode = useMemo(() => {
     const viewMode = searchParams.get("view");
     if (isExperimentCompareViewMode(viewMode)) {
@@ -85,6 +99,10 @@ export function ExperimentComparePage() {
   );
 
   useEffect(() => {
+    const experimentIds = [
+      ...(baseExperimentId ? [baseExperimentId] : []),
+      ...compareExperimentIds,
+    ];
     loadMultiSelectorQuery({
       datasetId,
       hasBaseExperiment: baseExperimentId != null,
@@ -92,17 +110,41 @@ export function ExperimentComparePage() {
     });
     loadSelectedCompareExperimentsQuery({
       datasetId,
-      experimentIds: [
-        ...(baseExperimentId ? [baseExperimentId] : []),
-        ...compareExperimentIds,
-      ],
+      experimentIds,
     });
+    if (viewMode === "grid" && baseExperimentId != null) {
+      loadCompareGridQuery({
+        datasetId,
+        experimentIds,
+        baseExperimentId,
+        compareExperimentIds,
+      });
+    } else if (viewMode === "list" && baseExperimentId != null) {
+      loadCompareListQuery({
+        datasetId,
+        experimentIds,
+        baseExperimentId,
+        compareExperimentIds,
+      });
+    } else if (viewMode === "metrics" && baseExperimentId != null) {
+      loadCompareMetricsQuery({
+        datasetId,
+        experimentIds,
+        baseExperimentId,
+        compareExperimentIds,
+        hasCompareExperiments: compareExperimentIds.length > 0,
+      });
+    }
   }, [
     baseExperimentId,
     compareExperimentIds,
     datasetId,
     loadMultiSelectorQuery,
     loadSelectedCompareExperimentsQuery,
+    loadCompareGridQuery,
+    loadCompareListQuery,
+    loadCompareMetricsQuery,
+    viewMode,
   ]);
 
   if (multiSelectorQueryReference == null) {
@@ -178,21 +220,45 @@ export function ExperimentComparePage() {
           </Alert>
         </View>
       ) : (
-        <ExperimentComparePageContent />
+        <ExperimentComparePageContent
+          compareGridQueryReference={compareGridQueryReference ?? null}
+          compareListQueryReference={compareListQueryReference ?? null}
+          compareMetricsQueryReference={compareMetricsQueryReference ?? null}
+        />
       )}
     </main>
   );
 }
 
-function ExperimentComparePageContent() {
+function ExperimentComparePageContent({
+  compareGridQueryReference,
+  compareListQueryReference,
+  compareMetricsQueryReference,
+}: {
+  compareGridQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareGridQueryType> | null;
+  compareListQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType> | null;
+  compareMetricsQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareMetricsQueryType> | null;
+}) {
   const [searchParams] = useSearchParams();
   const viewMode = searchParams.get("view") ?? "grid";
   if (viewMode === "grid") {
-    return <ExperimentCompareGridPage />;
+    return compareGridQueryReference ? (
+      <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+    ) : (
+      <Loading />
+    );
   } else if (viewMode === "metrics") {
-    return <ExperimentCompareMetricsPage />;
+    return compareMetricsQueryReference ? (
+      <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+    ) : (
+      <Loading />
+    );
   } else if (viewMode === "list") {
-    return <ExperimentCompareListPage />;
+    return compareListQueryReference ? (
+      <ExperimentCompareListPage queryRef={compareListQueryReference} />
+    ) : (
+      <Loading />
+    );
   }
   return (
     <View padding="size-200">
@@ -252,9 +318,10 @@ export function SelectedCompareExperiments({
   if (compareExperimentIds.length === 0) {
     return null;
   }
-  const compareExperiments = compareExperimentIds.map(
-    (experimentId) => idToExperiment[experimentId]
-  );
+  const compareExperiments = compareExperimentIds
+    .map((experimentId) => idToExperiment[experimentId])
+    .filter((experiment) => experiment != null);
+
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
       {compareExperiments.map((experiment, experimentIndex) => (

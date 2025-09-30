@@ -1,6 +1,11 @@
 import { ReactNode, useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
-import { useLoaderData, useSearchParams } from "react-router";
+import {
+  graphql,
+  PreloadedQuery,
+  useFragment,
+  usePreloadedQuery,
+} from "react-relay";
+import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -17,6 +22,7 @@ import {
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { useTheme } from "@phoenix/contexts";
+import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   costFormatter,
@@ -29,7 +35,7 @@ import type {
   ExperimentCompareMetricsPage_experiments$data,
   ExperimentCompareMetricsPage_experiments$key,
 } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
-import type { experimentCompareLoader } from "./experimentCompareLoader";
+import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "./__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
 
 const thumbIconCSS = css`
   font-size: var(--ac-global-text-font-size-l);
@@ -59,15 +65,23 @@ type Experiment = NonNullable<
   ExperimentCompareMetricsPage_experiments$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-export function ExperimentCompareMetricsPage() {
+export function ExperimentCompareMetricsPage({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareMetricsQueryType>;
+}) {
   const [searchParams] = useSearchParams();
   const [baseExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   if (baseExperimentId == null) {
     throw new Error("Empty state not yet implemented");
   }
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const { getExperimentColor } = useExperimentColors();
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesCompareMetricsQueryType>(
+      ExperimentComparePageQueriesCompareMetricsQuery,
+      queryRef
+    );
   const data = useFragment<ExperimentCompareMetricsPage_experiments$key>(
     graphql`
       fragment ExperimentCompareMetricsPage_experiments on Query
@@ -150,7 +164,7 @@ export function ExperimentCompareMetricsPage() {
         }
       }
     `,
-    loaderData
+    preloadedData
   );
   if (!data) {
     throw new Error("Empty state not implemented");
@@ -169,9 +183,19 @@ export function ExperimentCompareMetricsPage() {
       experimentIdToExperiment[experiment.id] = experiment;
     });
     const baseExperiment = experimentIdToExperiment[baseExperimentId];
-    const compareExperiments = compareExperimentIds.map((experimentId) => {
-      return experimentIdToExperiment[experimentId];
-    });
+    if (!baseExperiment) {
+      return {
+        annotationMetrics: [],
+        costMetrics: [],
+        performanceMetrics: [],
+        tokenCountMetrics: [],
+      };
+    }
+    const compareExperiments = compareExperimentIds
+      .map((experimentId) => {
+        return experimentIdToExperiment[experimentId];
+      })
+      .filter((experiment) => experiment != null);
 
     const comparisons = data.experimentRunMetricComparisons;
     const latencyMetric: MetricCardProps = {
