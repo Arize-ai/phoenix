@@ -610,6 +610,8 @@ def create_evaluator(
 
     def deco(fn: Callable[..., Any]) -> Evaluator:
         sig = inspect.signature(fn)
+        # Preserve the docstring from the original function
+        original_docstring = fn.__doc__
 
         class _FunctionEvaluator(Evaluator):
             def __init__(self) -> None:
@@ -638,6 +640,8 @@ def create_evaluator(
                     ),
                 )
                 self._fn = fn
+                # Store the original docstring
+                self._docstring = original_docstring
 
             def _evaluate(self, eval_input: EvalInput) -> List[Score]:
                 # eval_input is already remapped by Evaluator.evaluate(...)
@@ -647,6 +651,9 @@ def create_evaluator(
 
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return self._fn(*args, **kwargs)
+
+        # Set the docstring on the class itself
+        _FunctionEvaluator.__doc__ = original_docstring
 
         evaluator_instance = _FunctionEvaluator()
         # Keep registry compatibility by storing a callable with expected signature
