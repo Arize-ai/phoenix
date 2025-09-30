@@ -1,14 +1,7 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext } from "react";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
-import { flushSync } from "react-dom";
 
-import { Icon, Icons, ToastRegion } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 
 type NotificationContext = {
   queue: ToastQueue<NotificationParams>;
@@ -19,7 +12,9 @@ type NotificationContext = {
  */
 const DEFAULT_EXPIRY = 5_000;
 
-const NotificationContext = createContext<NotificationContext | null>(null);
+export const NotificationContext = createContext<NotificationContext | null>(
+  null
+);
 
 type NotificationVariant = "success" | "error";
 
@@ -51,36 +46,6 @@ export type NotificationParams = {
         closeOnClick?: boolean;
       }
     | React.ReactNode;
-};
-
-const createToastQueue = (
-  ...args: ConstructorParameters<typeof ToastQueue<NotificationParams>>
-) => new ToastQueue<NotificationParams>(...args);
-
-export const NotificationProvider = ({
-  children,
-}: PropsWithChildren): JSX.Element => {
-  const [queue] = useState(() =>
-    createToastQueue({
-      // Wrap state updates in a CSS view transition.
-      wrapUpdate(fn) {
-        if ("startViewTransition" in document) {
-          // @ts-expect-error this will error until we upgrade our version of typescript
-          document?.startViewTransition(() => {
-            flushSync(fn);
-          });
-        } else {
-          fn();
-        }
-      },
-    })
-  );
-  return (
-    <NotificationContext.Provider value={{ queue }}>
-      <ToastRegion queue={queue} />
-      {children}
-    </NotificationContext.Provider>
-  );
 };
 
 export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
@@ -117,11 +82,14 @@ export const useNotificationQueue = () => {
  */
 export const useNotify = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-    queue.add(
-      { ...params },
-      expireMs === null ? undefined : { timeout: expireMs }
-    );
+  return useCallback(
+    ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
+      queue.add(
+        { ...params },
+        expireMs === null ? undefined : { timeout: expireMs }
+      ),
+    [queue]
+  );
 };
 
 /**

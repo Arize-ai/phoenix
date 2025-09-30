@@ -1,27 +1,12 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import { createContext, useContext } from "react";
 import { useZustand } from "use-zustand";
 
 import {
-  createPointCloudStore,
-  PointCloudProps,
   PointCloudState,
   PointCloudStore,
 } from "@phoenix/store/pointCloudStore";
 
 export const PointCloudContext = createContext<PointCloudStore | null>(null);
-
-export function PointCloudProvider({
-  children,
-  ...props
-}: PropsWithChildren<Partial<PointCloudProps>>) {
-  const [store] = useState<PointCloudStore>(() => createPointCloudStore(props));
-
-  return (
-    <PointCloudContext.Provider value={store}>
-      {children}
-    </PointCloudContext.Provider>
-  );
-}
 
 export function usePointCloudContext<T>(
   selector: (state: PointCloudState) => T,

@@ -3,11 +3,13 @@ import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";
 
+import { NotificationProvider } from "@phoenix/contexts/NotificationContext/NotificationProvider";
+
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
-import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
+import { ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";

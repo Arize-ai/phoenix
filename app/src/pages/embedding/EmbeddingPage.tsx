@@ -50,11 +50,11 @@ import {
   resizeHandleCSS,
 } from "@phoenix/components/resize/styles";
 import {
-  PointCloudProvider,
   useInferences,
   useNotifyError,
   usePointCloudContext,
 } from "@phoenix/contexts";
+import { PointCloudProvider } from "@phoenix/contexts/PointCloudContext/PointCloudProvider";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,

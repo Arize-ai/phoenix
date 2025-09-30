@@ -2,12 +2,8 @@ import { ComponentProps } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
 import { Button, Flex, ToastRegion } from "@phoenix/components";
-import {
-  NotificationProvider,
-  useNotify,
-  useNotifyError,
-  useNotifySuccess,
-} from "@phoenix/contexts";
+import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { NotificationProvider } from "@phoenix/contexts/NotificationContext/NotificationProvider";
 
 /**
  * ToastRegion manages the display of one or more queued toasts
