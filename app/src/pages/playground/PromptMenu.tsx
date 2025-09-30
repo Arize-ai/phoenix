@@ -1,8 +1,11 @@
 import { useMemo } from "react";
 import {
   Autocomplete,
+  Collection,
+  Header,
   Input,
   type MenuProps,
+  MenuSection,
   SubmenuTrigger,
   useFilter,
 } from "react-aria-components";
@@ -30,10 +33,35 @@ import {
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 type PromptItem = {
+  /**
+   * Prompt or Prompt Version ID
+   */
   id: string;
+  /**
+   * Prompt Name
+   */
   name: string;
+  /**
+   * Prompt or Prompt Version Creation Date
+   */
   createdAt?: string;
-  children?: Omit<PromptItem, "children">[];
+  /**
+   * May contain prompt versions, prompt tags
+   */
+  children: {
+    /**
+     * "version", "tag", etc
+     */
+    id: string;
+    /**
+     * "Versions", "Tags", etc
+     */
+    section: string;
+    /**
+     * The content of the section
+     */
+    children: Omit<PromptItem, "children">[];
+  }[];
 };
 
 const createItemsFromPrompts = (
@@ -43,11 +71,17 @@ const createItemsFromPrompts = (
     return {
       id: prompt.id,
       name: prompt.name,
-      children: prompt.promptVersions.versions.map(({ version }) => ({
-        id: version.id,
-        name: version.id,
-        createdAt: version.createdAt,
-      })),
+      children: [
+        {
+          id: "version",
+          section: "Versions",
+          children: prompt.promptVersions.versions.map(({ version }) => ({
+            id: version.id,
+            name: version.id,
+            createdAt: version.createdAt,
+          })),
+        },
+      ],
     };
   });
 
@@ -131,9 +165,10 @@ export const PromptMenu = <T extends object>({
   }, [promptId, promptVersionId, promptsAndVersions]);
   const isLatestVersionSelected = useMemo(() => {
     if (!selectedPromptDatum) return false;
-    const latestVersion = promptItems.find(
-      (prompt) => prompt.id === selectedPromptDatum.promptId
-    )?.children?.[0]?.id;
+    const latestVersion = promptItems
+      .find((prompt) => prompt.id === selectedPromptDatum.promptId)
+      ?.children?.find((child) => child.section === "Versions")
+      ?.children?.[0]?.id;
     return latestVersion === selectedPromptDatum.versionId;
   }, [selectedPromptDatum, promptItems]);
   const selectedPromptIdKey = selectedPromptDatum?.promptId
@@ -179,28 +214,25 @@ export const PromptMenu = <T extends object>({
             items={promptItems}
             renderEmptyState={() => "No prompts found"}
           >
-            {function renderMenuItem({ id, name, children, createdAt }) {
-              // prompts have versions, therefore children, they get rendered in this block
-              if (children) {
-                return (
-                  <SubmenuTrigger>
-                    <MenuItem key={id}>{name}</MenuItem>
-                    <Popover
-                      css={css`
-                        overflow: auto;
-                      `}
+            {function renderMenuItem({ id, name, children }) {
+              // Start by rendering a prompt as a Submenu Item
+              return (
+                <SubmenuTrigger>
+                  <MenuItem>{name}</MenuItem>
+                  <Popover
+                    css={css`
+                      overflow: auto;
+                    `}
+                  >
+                    <Menu
+                      items={children}
+                      renderEmptyState={() => "No prompt versions found"}
                     >
-                      <Autocomplete filter={contains}>
-                        <View paddingX="size-100" marginTop="size-100">
-                          <SearchField aria-label="Search" autoFocus>
-                            <Input placeholder="Search prompt versions" />
-                          </SearchField>
-                        </View>
-                        <Menu
-                          items={children}
+                      {(section) => (
+                        <MenuSection
                           selectionMode="single"
                           selectedKeys={selectedPromptVersionIdKey}
-                          renderEmptyState={() => "No prompt versions found"}
+                          items={section.children}
                           onSelectionChange={(keys) => {
                             const newSelection =
                               keys instanceof Set
@@ -219,25 +251,36 @@ export const PromptMenu = <T extends object>({
                             );
                           }}
                         >
-                          {(item) => renderMenuItem(item)}
-                        </Menu>
-                      </Autocomplete>
-                    </Popover>
-                  </SubmenuTrigger>
-                );
-              }
-              // prompt versions will not have children, this is where they are rendered
-              return (
-                <MenuItem key={id}>
-                  <Flex direction="column" gap="size-100">
-                    {createdAt && (
-                      <Text size="XS" color="text-300">
-                        {fullTimeFormatter(new Date(createdAt))}
-                      </Text>
-                    )}
-                    {name}
-                  </Flex>
-                </MenuItem>
+                          <Header>
+                            <Flex
+                              justifyContent="space-between"
+                              alignItems="center"
+                              margin="size-100"
+                            >
+                              <Text weight="heavy">{section.section}</Text>
+                              <Text size="S">({section.children.length})</Text>
+                            </Flex>
+                          </Header>
+
+                          <Collection items={section.children}>
+                            {({ createdAt, name }) => (
+                              <MenuItem>
+                                <Flex direction="column" gap="size-100">
+                                  {createdAt && (
+                                    <Text size="XS" color="text-300">
+                                      {fullTimeFormatter(new Date(createdAt))}
+                                    </Text>
+                                  )}
+                                  {name}
+                                </Flex>
+                              </MenuItem>
+                            )}
+                          </Collection>
+                        </MenuSection>
+                      )}
+                    </Menu>
+                  </Popover>
+                </SubmenuTrigger>
               );
             }}
           </Menu>
