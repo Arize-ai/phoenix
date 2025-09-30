@@ -26,7 +26,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import {
   GraphQLSubscriptionConfig,
   PayloadError,
@@ -467,18 +467,13 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  tableContainerRef,
+  virtualizer,
 }: {
   table: Table<T>;
-  tableContainerRef: React.RefObject<HTMLDivElement>;
+  virtualizer: Virtualizer<HTMLDivElement, Element>;
 }) {
   const rows = table.getRowModel().rows;
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 310, // estimated row height
-    overscan: 5,
-  });
+
   const virtualRows = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
@@ -1008,6 +1003,14 @@ export function PlaygroundDatasetExamplesTable({
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 310, // estimated row height
+    overscan: 5,
+  });
+
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -1104,12 +1107,9 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody
-            table={table}
-            tableContainerRef={tableContainerRef}
-          />
+          <MemoizedTableBody table={table} virtualizer={virtualizer} />
         ) : (
-          <TableBody table={table} tableContainerRef={tableContainerRef} />
+          <TableBody table={table} virtualizer={virtualizer} />
         )}
       </table>
     </div>
