@@ -27,7 +27,7 @@ def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
     """
     path = path if path.startswith("/") else f"/{path}"
     root_path = get_root_path(scope)
-    return f"{root_path}{path}" if root_path else path
+    return f"{root_path}{path}"
 
 
 def get_root_path(scope: Mapping[str, Any]) -> str:
