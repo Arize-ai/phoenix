@@ -60,6 +60,7 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
 import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -80,7 +81,6 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
-import { ExperimentAnnotationButton } from "./ExperimentAnnotationButton";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
