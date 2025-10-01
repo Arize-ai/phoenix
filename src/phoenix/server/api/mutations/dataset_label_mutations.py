@@ -246,6 +246,7 @@ class DatasetLabelMutationMixin:
                     await session.flush()
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add dataset labels to datasets.") from e
+            await session.commit()
 
         return AddDatasetLabelsToDatasetsMutationPayload(
             query=Query(),
@@ -306,6 +307,7 @@ class DatasetLabelMutationMixin:
                 raise NotFound("One or more dataset labels not found")
 
             await session.execute(stmt)
+            await session.commit()
 
         return RemoveDatasetLabelsFromDatasetsMutationPayload(
             query=Query(),
