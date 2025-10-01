@@ -1,5 +1,6 @@
 from typing import Optional
 
+import sqlalchemy
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -69,6 +70,8 @@ class DatasetLabelMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset label named '{name}' already exists")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
         return CreateDatasetLabelMutationPayload(
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
@@ -79,12 +82,6 @@ class DatasetLabelMutationMixin:
     ) -> UpdateDatasetLabelMutationPayload:
         if not input.name or not input.name.strip():
             raise BadRequest("Dataset label name cannot be empty")
-
-        if not input.color or not input.color.strip():
-            raise BadRequest("Dataset label color cannot be empty")
-
-        if not input.color.startswith("#") or len(input.color) != 7:
-            raise BadRequest("Color must be in hex format (e.g., #FF5733)")
 
         try:
             dataset_label_id = from_global_id_with_expected_type(
