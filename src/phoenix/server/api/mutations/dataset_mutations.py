@@ -11,7 +11,9 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from sqlalchemy import and_, delete, distinct, func, insert, select, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import contains_eager
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -20,7 +22,7 @@ from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
@@ -36,11 +38,12 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
 from phoenix.server.api.mutations.dataset_label_mutations import (
-    SetDatasetLabelInput,
-    UnsetDatasetLabelInput,
-    set_dataset_label,
-    unset_dataset_label,
+    AddDatasetLabelsToDatasetInput,
+    AddDatasetLabelsToDatasetsMutationPayload,
+    RemoveDatasetLabelsFromDatasetInput,
+    RemoveDatasetLabelsFromDatasetsMutationPayload,
 )
+from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
@@ -566,52 +569,154 @@ class DatasetMutationMixin:
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def set_dataset_label(
-        self, info: Info[Context, None], input: SetDatasetLabelInput
-    ) -> DatasetMutationPayload:
-        dataset_id = from_global_id_with_expected_type(
-            global_id=input.dataset_id, expected_type_name=Dataset.__name__
-        )
-        dataset_label_id = from_global_id_with_expected_type(
-            global_id=input.dataset_label_id, expected_type_name=DatasetLabel.__name__
-        )
+    async def add_dataset_labels_to_datasets(
+        self, info: Info[Context, None], input: AddDatasetLabelsToDatasetInput
+    ) -> AddDatasetLabelsToDatasetsMutationPayload:
+        if not input.dataset_ids:
+            raise BadRequest("No datasets provided.")
+        if not input.dataset_label_ids:
+            raise BadRequest("No dataset labels provided.")
+
+        unique_dataset_rowids: set[int] = set()
+        for dataset_gid in input.dataset_ids:
+            try:
+                dataset_rowid = from_global_id_with_expected_type(
+                    dataset_gid, Dataset.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
+            unique_dataset_rowids.add(dataset_rowid)
+        dataset_rowids = list(unique_dataset_rowids)
+
+        unique_dataset_label_rowids: set[int] = set()
+        for dataset_label_gid in input.dataset_label_ids:
+            try:
+                dataset_label_rowid = from_global_id_with_expected_type(
+                    dataset_label_gid, DatasetLabel.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset label ID: {dataset_label_gid}")
+            unique_dataset_label_rowids.add(dataset_label_rowid)
+        dataset_label_rowids = list(unique_dataset_label_rowids)
 
         async with info.context.db() as session:
-            dataset = await session.get(models.Dataset, dataset_id)
-            if not dataset:
-                raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
+            existing_dataset_ids = (
+                await session.scalars(
+                    select(models.Dataset.id).where(
+                        models.Dataset.id.in_(dataset_rowids)
+                    )
+                )
+            ).all()
+            if len(existing_dataset_ids) != len(dataset_rowids):
+                raise NotFound("One or more datasets not found")
 
-            dataset_label = await session.get(models.DatasetLabel, dataset_label_id)
-            if not dataset_label:
-                raise NotFound(f"DatasetLabel with ID '{input.dataset_label_id}' not found")
+            existing_dataset_label_ids = (
+                await session.scalars(
+                    select(models.DatasetLabel.id).where(
+                        models.DatasetLabel.id.in_(dataset_label_rowids)
+                    )
+                )
+            ).all()
+            if len(existing_dataset_label_ids) != len(dataset_label_rowids):
+                raise NotFound("One or more dataset labels not found")
 
-            await set_dataset_label(session, dataset_id, dataset_label_id)
+            existing_dataset_label_keys = await session.execute(
+                select(
+                    models.DatasetsDatasetLabel.dataset_id,
+                    models.DatasetsDatasetLabel.dataset_label_id,
+                ).where(
+                    models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
+                    & models.DatasetsDatasetLabel.dataset_label_id.in_(dataset_label_rowids)
+                )
+            )
+            unique_dataset_label_keys = set(existing_dataset_label_keys.all())
 
-        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
-        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+            values = []
+            for dataset_rowid in dataset_rowids:
+                for dataset_label_rowid in dataset_label_rowids:
+                    if (dataset_rowid, dataset_label_rowid) in unique_dataset_label_keys:
+                        continue
+                    dataset_id_key = models.DatasetsDatasetLabel.dataset_id.key
+                    dataset_label_id_key = models.DatasetsDatasetLabel.dataset_label_id.key
+                    values.append(
+                        {
+                            dataset_id_key: dataset_rowid,
+                            dataset_label_id_key: dataset_label_rowid,
+                        }
+                    )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def unset_dataset_label(
-        self, info: Info[Context, None], input: UnsetDatasetLabelInput
-    ) -> DatasetMutationPayload:
-        dataset_id = from_global_id_with_expected_type(
-            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+            if values:
+                try:
+                    await session.execute(insert(models.DatasetsDatasetLabel), values)
+                    await session.flush()
+                except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+                    raise Conflict("Failed to add dataset labels to datasets.") from e
+
+        return AddDatasetLabelsToDatasetsMutationPayload(
+            query=Query(),
         )
-        dataset_label_id = from_global_id_with_expected_type(
-            global_id=input.dataset_label_id, expected_type_name=DatasetLabel.__name__
-        )
 
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def remove_dataset_labels_from_datasets(
+        self, info: Info[Context, None], input: RemoveDatasetLabelsFromDatasetInput
+    ) -> RemoveDatasetLabelsFromDatasetsMutationPayload:
+        if not input.dataset_ids:
+            raise BadRequest("No datasets provided.")
+        if not input.dataset_label_ids:
+            raise BadRequest("No dataset labels provided.")
+
+        unique_dataset_rowids: set[int] = set()
+        for dataset_gid in input.dataset_ids:
+            try:
+                dataset_rowid = from_global_id_with_expected_type(
+                    dataset_gid, Dataset.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
+            unique_dataset_rowids.add(dataset_rowid)
+        dataset_rowids = list(unique_dataset_rowids)
+
+        unique_dataset_label_rowids: set[int] = set()
+        for dataset_label_gid in input.dataset_label_ids:
+            try:
+                dataset_label_rowid = from_global_id_with_expected_type(
+                    dataset_label_gid, DatasetLabel.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset label ID: {dataset_label_gid}")
+            unique_dataset_label_rowids.add(dataset_label_rowid)
+        dataset_label_rowids = list(unique_dataset_label_rowids)
+
+        stmt = delete(models.DatasetsDatasetLabel).where(
+            models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
+            & models.DatasetsDatasetLabel.dataset_label_id.in_(dataset_label_rowids)
+        )
         async with info.context.db() as session:
-            dataset = await session.get(models.Dataset, dataset_id)
-            if not dataset:
-                raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
+            existing_dataset_ids = (
+                await session.scalars(
+                    select(models.Dataset.id).where(
+                        models.Dataset.id.in_(dataset_rowids)
+                    )
+                )
+            ).all()
+            if len(existing_dataset_ids) != len(dataset_rowids):
+                raise NotFound("One or more datasets not found")
 
-            was_unset = await unset_dataset_label(session, dataset_id, dataset_label_id)
-            if not was_unset:
-                raise NotFound("Dataset label is not associated with this dataset")
+            existing_dataset_label_ids = (
+                await session.scalars(
+                    select(models.DatasetLabel.id).where(
+                        models.DatasetLabel.id.in_(dataset_label_rowids)
+                    )
+                )
+            ).all()
+            if len(existing_dataset_label_ids) != len(dataset_label_rowids):
+                raise NotFound("One or more dataset labels not found")
 
-        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
-        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+            await session.execute(stmt)
+
+        return RemoveDatasetLabelsFromDatasetsMutationPayload(
+            query=Query(),
+        )
 
 
 def _span_attribute(semconv: str) -> Any:
