@@ -80,29 +80,13 @@ Score
 Built-in Metrics
 ------------------
 
-HallucinationEvaluator
-~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.metrics.HallucinationEvaluator
+.. automodule:: phoenix.evals.metrics
    :members:
-   :show-inheritance:
 
-exact_match
-~~~~~~~~~~~
-.. autofunction:: phoenix.evals.metrics.exact_match
-
-PrecisionRecallFScore
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.metrics.PrecisionRecallFScore
-   :members:
-   :show-inheritance:
 
 Utilities
 ---------
 
-remap_eval_input
-~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.utils.remap_eval_input
-
-extract_with_jsonpath
-~~~~~~~~~~~~~~~~~~~~~
-.. autofunction:: phoenix.evals.utils.extract_with_jsonpath  
+.. automodule:: phoenix.evals.utils
+   :members:
+   :exclude-members: InputMappingType  
