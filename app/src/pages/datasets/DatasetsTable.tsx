@@ -86,12 +86,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 createdAt
                 exampleCount
                 experimentCount
-                labels {
-                  id
-                  name
-                  description
-                  color
-                }
               }
             }
           }
