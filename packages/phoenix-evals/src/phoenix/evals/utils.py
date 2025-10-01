@@ -95,7 +95,9 @@ def remap_eval_input(
     fields_to_process: Set[str] = set(required_fields) | set(input_mapping.keys())
     for field_name in fields_to_process:
         extractor = input_mapping.get(field_name, field_name)
-
+        # if provided empty string, use field name directly
+        if extractor == "":
+            extractor = field_name
         # Compute value and whether we successfully found/extracted it
         found = False
         value: Any = None
@@ -113,8 +115,6 @@ def remap_eval_input(
                     value = extract_with_jsonpath(eval_input, path)
                     found = True
             except (JsonPathParserError, ValueError) as e:
-                value = eval_input[path]
-                found = True
                 # Missing/invalid path: for required fields, re-raise; for optional,
                 # treat as not found
                 if field_name in required_fields:
