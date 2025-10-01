@@ -296,7 +296,7 @@ function ExperimentRunOutputs({
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
-          id="sidebar-panel"
+          id="experiment-compare-details-outputs-sidebar-panel"
           order={1}
           onCollapse={() => setIsSideBarOpen(false)}
         >
@@ -314,7 +314,7 @@ function ExperimentRunOutputs({
       {isSideBarOpen ? (
         <PanelResizeHandle css={compactResizeHandleCSS} />
       ) : null}
-      <Panel id="main-panel" order={2}>
+      <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
         <View
           paddingX="size-200"
           paddingY="size-100"
