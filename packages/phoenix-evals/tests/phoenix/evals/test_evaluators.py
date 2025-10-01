@@ -514,8 +514,97 @@ class TestRegistryAndDecorator:
         assert "registered_evaluator" in evaluators
 
 
+class TestCreateEvaluatorAsync:
+    """Test async support in create_evaluator decorator."""
+
+    @pytest.mark.asyncio
+    async def test_create_evaluator_with_async_function(self):
+        @create_evaluator("async_test", "heuristic")
+        async def async_eval(output: str) -> float:
+            return len(output) * 2
+
+        result = await async_eval.async_evaluate({"output": "hello"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "async_test"
+        assert score.score == 10
+        assert score.source == "heuristic"
+
+    @pytest.mark.asyncio
+    async def test_async_evaluator_call_returns_awaitable(self):
+        @create_evaluator("async_call_test", "heuristic")
+        async def async_eval(output: str) -> float:
+            return len(output)
+
+        result = await async_eval("test")
+        assert result == 4
+
+    @pytest.mark.asyncio
+    async def test_async_evaluator_preserves_original_function_behavior(self):
+        @create_evaluator("async_preserve_test", "heuristic")
+        async def async_eval(text: str, multiplier: int = 2) -> float:
+            return len(text) * multiplier
+
+        result = await async_eval("hello", 3)
+        assert result == 15
+
+        result_default = await async_eval("test")
+        assert result_default == 8
+
+    def test_async_evaluator_sync_evaluate_raises_error(self):
+        @create_evaluator("async_error_test", "heuristic")
+        async def async_eval(output: str) -> float:
+            return len(output)
+
+        with pytest.raises(NotImplementedError, match="Async evaluator must use async_evaluate"):
+            async_eval.evaluate({"output": "test"})
+
+    @pytest.mark.asyncio
+    async def test_async_evaluator_with_score_object(self):
+        @create_evaluator("async_score_test", "llm", "minimize")
+        async def async_eval(input_text: str) -> Score:
+            return Score(score=0.5, label="test", explanation="async result")
+
+        result = await async_eval.async_evaluate({"input_text": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.name == "async_score_test"
+        assert score.score == 0.5
+        assert score.label == "test"
+        assert score.explanation == "async result"
+        assert score.source == "llm"
+        assert score.direction == "minimize"
+
+    @pytest.mark.asyncio
+    async def test_async_evaluator_with_tuple_return(self):
+        @create_evaluator("async_tuple_test", "heuristic")
+        async def async_eval(output: str) -> tuple:
+            return (0.8, "good", "This is an async evaluation result")
+
+        result = await async_eval.async_evaluate({"output": "test"})
+
+        assert len(result) == 1
+        score = result[0]
+        assert score.score == 0.8
+        assert score.label == "good"
+        assert score.explanation == "This is an async evaluation result"
+
+
 class TestCreateEvaluatorDecorator:
     """Test the enhanced create_evaluator decorator with various return types."""
+
+    def test_sync_evaluator_call_preserves_original_function(self):
+        @create_evaluator("sync_call_test", "heuristic")
+        def sync_eval(text: str, multiplier: int = 2) -> float:
+            return len(text) * multiplier
+
+        result = sync_eval("hello", 3)
+        assert result == 15
+
+        result_default = sync_eval("test")
+        assert result_default == 8
 
     def test_create_evaluator_with_score_object(self):
         """Test create_evaluator with Score object return."""
