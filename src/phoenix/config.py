@@ -1056,13 +1056,6 @@ class OAuth2ClientConfig:
                 )
             token_endpoint_auth_method = auth_method
 
-            # Validate consistency with PKCE
-            if use_pkce and token_endpoint_auth_method not in ("none", None):
-                raise ValueError(
-                    f"When USE_PKCE is enabled for {idp_name}, "
-                    "TOKEN_ENDPOINT_AUTH_METHOD should be 'none' or unset"
-                )
-
         # Build scopes: start with required baseline, add custom scopes (deduplicated)
         scopes = ["openid", "email", "profile"]
         if custom_scopes := _get_optional("SCOPES"):
