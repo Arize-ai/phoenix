@@ -28,34 +28,36 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
 
-  const [commitWithExamples, isInFlightWithExamples] =
-    useMutation<NewDatasetSplitDialogCreateSplitWithExamplesMutation>(graphql`
-      mutation NewDatasetSplitDialogCreateSplitWithExamplesMutation(
-        $input: CreateDatasetSplitWithExamplesInput!
-        $connections: [ID!]!
-      ) {
-        createDatasetSplitWithExamples(input: $input) {
-          datasetSplit
-            @prependNode(
-              connections: $connections
-              edgeTypeName: "DatasetSplitEdge"
-            ) {
+  const [
+    commitCreateDatasetSplitWithExamples,
+    isCommittingCreateDatasetSplitWithExamples,
+  ] = useMutation<NewDatasetSplitDialogCreateSplitWithExamplesMutation>(graphql`
+    mutation NewDatasetSplitDialogCreateSplitWithExamplesMutation(
+      $input: CreateDatasetSplitWithExamplesInput!
+      $connections: [ID!]!
+    ) {
+      createDatasetSplitWithExamples(input: $input) {
+        datasetSplit
+          @prependNode(
+            connections: $connections
+            edgeTypeName: "DatasetSplitEdge"
+          ) {
+          id
+          name
+        }
+        examples {
+          id
+          datasetSplits {
             id
             name
-          }
-          examples {
-            id
-            datasetSplits {
-              id
-              name
-              color
-            }
+            color
           }
         }
       }
-    `);
+    }
+  `);
 
-  const [commit, isInFlight] =
+  const [createDatasetSplit, isCommittingCreateDatasetSplit] =
     useMutation<NewDatasetSplitDialogCreateSplitMutation>(graphql`
       mutation NewDatasetSplitDialogCreateSplitMutation(
         $input: CreateDatasetSplitInput!
@@ -87,7 +89,7 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
     if (!trimmed) return;
 
     if (exampleIds) {
-      commitWithExamples({
+      commitCreateDatasetSplitWithExamples({
         variables: {
           connections,
           input: {
@@ -98,9 +100,19 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
             exampleIds,
           },
         },
+        onCompleted: () => {
+          onCompleted?.();
+        },
+        onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          notifyError({
+            title: "Failed to create split",
+            message: formattedError?.[0] ?? error.message,
+          });
+        },
       });
     } else {
-      commit({
+      createDatasetSplit({
         variables: {
           connections,
           input: {
@@ -140,7 +152,10 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
           </DialogHeader>
           <NewDatasetSplitForm
             onSubmit={onSubmit}
-            isSubmitting={isInFlight || isInFlightWithExamples}
+            isSubmitting={
+              isCommittingCreateDatasetSplit ||
+              isCommittingCreateDatasetSplitWithExamples
+            }
           />
         </DialogContent>
       </Dialog>
