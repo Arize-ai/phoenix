@@ -43,7 +43,7 @@ import {
 } from "@phoenix/components/tooltip";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
-import { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { isObject } from "@phoenix/typeUtils";
@@ -246,6 +246,7 @@ export function ExperimentCompareListPage({
     });
     const orderedExperiments = experimentIds
       .map((experimentId) => experimentsById[experimentId])
+      // if a new experiment was just added, data may not be fully loaded yet
       .filter((experiment) => experiment != null);
     return orderedExperiments;
   }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
@@ -272,9 +273,9 @@ export function ExperimentCompareListPage({
       data?.experiment.runs?.edges.map((edge) => {
         const run = edge.run;
         const example = run.example;
-        const repeatedRunGroups = example.experimentRepeatedRunGroups.filter(
-          (group) => experimentIds.includes(group.experimentId)
-        );
+        const repeatedRunGroups = example.experimentRepeatedRunGroups
+          // prevent layout shift when an experiment is removed
+          .filter((group) => experimentIds.includes(group.experimentId));
 
         const baseExperimentRun: BaseExperimentRun = run;
         const compareExperimentRuns: (CompareExperimentRun | undefined)[] =

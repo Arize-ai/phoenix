@@ -17,11 +17,11 @@ import {
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
-import { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
-import { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
-import { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
-import { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
-import { ExperimentComparePageQueriesSelectedCompareExperimentsQuery as ExperimentComparePageQueriesSelectedCompareExperimentsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesSelectedCompareExperimentsQuery.graphql";
+import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
+import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
+import type { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
+import type { ExperimentComparePageQueriesSelectedCompareExperimentsQuery as ExperimentComparePageQueriesSelectedCompareExperimentsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesSelectedCompareExperimentsQuery.graphql";
 import {
   ExperimentComparePageQueriesCompareGridQuery,
   ExperimentComparePageQueriesCompareListQuery,
@@ -30,6 +30,7 @@ import {
   ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
 } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type {
   ExperimentComparePage_selectedCompareExperiments$data,
@@ -81,7 +82,7 @@ export function ExperimentComparePage() {
       searchParams.getAll("experimentId");
     return { baseExperimentId, compareExperimentIds };
   }, [searchParams]);
-  const viewMode = useMemo(() => {
+  const viewMode: ExperimentCompareViewMode = useMemo(() => {
     const viewMode = searchParams.get("view");
     if (isExperimentCompareViewMode(viewMode)) {
       return viewMode;
@@ -112,28 +113,37 @@ export function ExperimentComparePage() {
       datasetId,
       experimentIds,
     });
-    if (viewMode === "grid" && baseExperimentId != null) {
-      loadCompareGridQuery({
-        datasetId,
-        experimentIds,
-        baseExperimentId,
-        compareExperimentIds,
-      });
-    } else if (viewMode === "list" && baseExperimentId != null) {
-      loadCompareListQuery({
-        datasetId,
-        experimentIds,
-        baseExperimentId,
-        compareExperimentIds,
-      });
-    } else if (viewMode === "metrics" && baseExperimentId != null) {
-      loadCompareMetricsQuery({
-        datasetId,
-        experimentIds,
-        baseExperimentId,
-        compareExperimentIds,
-        hasCompareExperiments: compareExperimentIds.length > 0,
-      });
+
+    if (baseExperimentId != null) {
+      switch (viewMode) {
+        case "grid":
+          loadCompareGridQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+          });
+          break;
+        case "list":
+          loadCompareListQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+          });
+          break;
+        case "metrics":
+          loadCompareMetricsQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+            hasCompareExperiments: compareExperimentIds.length > 0,
+          });
+          break;
+        default:
+          assertUnreachable(viewMode);
+      }
     }
   }, [
     baseExperimentId,
@@ -174,30 +184,28 @@ export function ExperimentComparePage() {
           gap="size-150"
           alignItems="end"
         >
-          {multiSelectorQueryReference && (
-            <ExperimentMultiSelector
-              queryRef={multiSelectorQueryReference}
-              selectedBaseExperimentId={baseExperimentId}
-              selectedCompareExperimentIds={compareExperimentIds}
-              onChange={(newBaseExperimentId, newCompareExperimentIds) => {
-                startTransition(() => {
-                  if (newBaseExperimentId == null) {
-                    navigate(`/datasets/${datasetId}/compare`);
-                  } else {
-                    searchParams.delete("experimentId");
-                    [newBaseExperimentId, ...newCompareExperimentIds].forEach(
-                      (experimentId) => {
-                        searchParams.append("experimentId", experimentId);
-                      }
-                    );
-                    navigate(
-                      `/datasets/${datasetId}/compare?${searchParams.toString()}`
-                    );
-                  }
-                });
-              }}
-            />
-          )}
+          <ExperimentMultiSelector
+            queryRef={multiSelectorQueryReference}
+            selectedBaseExperimentId={baseExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaseExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  searchParams.delete("experimentId");
+                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                    (experimentId) => {
+                      searchParams.append("experimentId", experimentId);
+                    }
+                  );
+                  navigate(
+                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                  );
+                }
+              });
+            }}
+          />
           <View flex="1" paddingBottom={5}>
             {selectedCompareExperimentsQueryReference && (
               <SelectedCompareExperiments
@@ -320,6 +328,7 @@ export function SelectedCompareExperiments({
   }
   const compareExperiments = compareExperimentIds
     .map((experimentId) => idToExperiment[experimentId])
+    // if a new experiment was just added, data may not be fully loaded yet
     .filter((experiment) => experiment != null);
 
   return (

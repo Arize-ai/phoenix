@@ -195,6 +195,7 @@ export function ExperimentCompareMetricsPage({
       .map((experimentId) => {
         return experimentIdToExperiment[experimentId];
       })
+      // if a new experiment was just added, data may not be fully loaded yet
       .filter((experiment) => experiment != null);
 
     const comparisons = data.experimentRunMetricComparisons;

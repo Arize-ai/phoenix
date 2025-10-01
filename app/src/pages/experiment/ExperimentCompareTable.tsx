@@ -430,6 +430,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         cell: ({ row }) => {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
+          // if a new experiment was just added, data may not be fully loaded yet
           if (repeatedRunGroup == null) {
             return null;
           }
