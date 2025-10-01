@@ -17,18 +17,92 @@ from .._helpers import (
 
 
 @pytest.fixture(scope="package")
-def _env_oauth2(
-    _oidc_server: _OIDCServer,
+def _env_oauth2_standard(
+    _oidc_server_standard: _OIDCServer,
 ) -> dict[str, str]:
-    """Configure OAuth2/OIDC environment variables for testing."""
+    """Configure standard OAuth2/OIDC environment variables (confidential client)."""
     return {
-        f"PHOENIX_OAUTH2_{_oidc_server}_CLIENT_ID".upper(): _oidc_server.client_id,
-        f"PHOENIX_OAUTH2_{_oidc_server}_CLIENT_SECRET".upper(): _oidc_server.client_secret,
-        f"PHOENIX_OAUTH2_{_oidc_server}_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_CLIENT_ID".upper(): _oidc_server.client_id,
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_CLIENT_SECRET".upper(): _oidc_server.client_secret,
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_OIDC_CONFIG_URL".upper(): f"{_oidc_server.base_url}/.well-known/openid-configuration",
-        f"PHOENIX_OAUTH2_{_oidc_server}_NO_SIGN_UP_ALLOW_SIGN_UP".upper(): "false",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_CLIENT_ID".upper(): _oidc_server_standard.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_CLIENT_SECRET".upper(): _oidc_server_standard.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_OIDC_CONFIG_URL".upper(): f"{_oidc_server_standard.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_NO_SIGN_UP_CLIENT_ID".upper(): _oidc_server_standard.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_NO_SIGN_UP_CLIENT_SECRET".upper(): _oidc_server_standard.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_NO_SIGN_UP_OIDC_CONFIG_URL".upper(): f"{_oidc_server_standard.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard}_NO_SIGN_UP_ALLOW_SIGN_UP".upper(): "false",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_pkce_public(
+    _oidc_server_pkce_public: _OIDCServer,
+) -> dict[str, str]:
+    """Configure PKCE OAuth2 environment variables for public client (no client_secret)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_public}_CLIENT_ID".upper(): _oidc_server_pkce_public.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_public}_OIDC_CONFIG_URL".upper(): f"{_oidc_server_pkce_public.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_public}_USE_PKCE".upper(): "true",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_public}_TOKEN_ENDPOINT_AUTH_METHOD".upper(): "none",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_pkce_confidential(
+    _oidc_server_pkce_confidential: _OIDCServer,
+) -> dict[str, str]:
+    """Configure PKCE OAuth2 environment variables for confidential client (defense-in-depth)."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_confidential}_CLIENT_ID".upper(): _oidc_server_pkce_confidential.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_confidential}_CLIENT_SECRET".upper(): _oidc_server_pkce_confidential.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_confidential}_OIDC_CONFIG_URL".upper(): f"{_oidc_server_pkce_confidential.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_confidential}_USE_PKCE".upper(): "true",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_pkce_groups_granted(
+    _oidc_server_pkce_with_groups: _OIDCServer,
+) -> dict[str, str]:
+    """Configure PKCE OAuth2 with group access control - user HAS matching group."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_CLIENT_ID".upper(): _oidc_server_pkce_with_groups.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_OIDC_CONFIG_URL".upper(): f"{_oidc_server_pkce_with_groups.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_USE_PKCE".upper(): "true",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_TOKEN_ENDPOINT_AUTH_METHOD".upper(): "none",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_GROUPS_ATTRIBUTE_PATH".upper(): "groups",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_GRANTED_ALLOWED_GROUPS".upper(): "engineering,admin",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_pkce_groups_denied(
+    _oidc_server_pkce_with_groups: _OIDCServer,
+) -> dict[str, str]:
+    """Configure PKCE OAuth2 with group access control - user does NOT have matching group."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_CLIENT_ID".upper(): _oidc_server_pkce_with_groups.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_OIDC_CONFIG_URL".upper(): f"{_oidc_server_pkce_with_groups.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_USE_PKCE".upper(): "true",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_TOKEN_ENDPOINT_AUTH_METHOD".upper(): "none",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_GROUPS_ATTRIBUTE_PATH".upper(): "groups",
+        f"PHOENIX_OAUTH2_{_oidc_server_pkce_with_groups}_DENIED_ALLOWED_GROUPS".upper(): "admin,sales",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2(
+    _env_oauth2_standard: dict[str, str],
+    _env_oauth2_pkce_public: dict[str, str],
+    _env_oauth2_pkce_confidential: dict[str, str],
+    _env_oauth2_pkce_groups_granted: dict[str, str],
+    _env_oauth2_pkce_groups_denied: dict[str, str],
+) -> dict[str, str]:
+    """Combine all OAuth2 environment configurations for testing."""
+    return {
+        **_env_oauth2_standard,
+        **_env_oauth2_pkce_public,
+        **_env_oauth2_pkce_confidential,
+        **_env_oauth2_pkce_groups_granted,
+        **_env_oauth2_pkce_groups_denied,
     }
 
 
@@ -112,11 +186,50 @@ def _tls_certs_for_client(
 
 
 @pytest.fixture(scope="package")
-def _oidc_server(
+def _oidc_server_standard(
     _ports: Iterator[int],
 ) -> Iterator[_OIDCServer]:
-    with _OIDCServer(port=next(_ports)) as server:
+    """Standard OAuth2/OIDC server (confidential client with client_secret)."""
+    with _OIDCServer(port=next(_ports), use_pkce=False) as server:
         yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_pkce_public(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """PKCE-enabled OIDC server for public clients (no client_secret)."""
+    with _OIDCServer(port=next(_ports), use_pkce=True) as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_pkce_confidential(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """PKCE-enabled OIDC server for confidential clients (defense-in-depth)."""
+    with _OIDCServer(port=next(_ports), use_pkce=True) as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_pkce_with_groups(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """PKCE-enabled OIDC server with group claims for access control testing."""
+    with _OIDCServer(
+        port=next(_ports), use_pkce=True, groups=["engineering", "operations"]
+    ) as server:
+        yield server
+
+
+# Backward compatibility alias
+@pytest.fixture(scope="package")
+def _oidc_server(
+    _oidc_server_standard: _OIDCServer,
+) -> _OIDCServer:
+    """Alias for backward compatibility with existing tests."""
+    return _oidc_server_standard
 
 
 def _encrypt_private_key(key_path: Path, password: str) -> Path:

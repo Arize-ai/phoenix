@@ -1262,23 +1262,41 @@ class _OIDCServer:
 
     Key features:
     - Implements standard OIDC endpoints (/auth, /token, /.well-known/openid-configuration, etc.)
-    - Supports the authorization code flow
+    - Supports both standard OAuth2 authorization code flow and PKCE
+    - Supports group-based access control claims
     - Generates JWT tokens with appropriate claims
     - Provides JWKS endpoint for token verification
     - Runs in a separate thread to avoid blocking the main test process
 
+    PKCE Support:
+    - Public clients (no client_secret): Validates code_verifier only
+    - Confidential clients with PKCE: Validates BOTH client_secret AND code_verifier (defense-in-depth)
+
     Usage:
+        # Standard OAuth2 flow
         with _OIDCServer(port=8000) as oidc_server:
             # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
             # The server will be available at oidc_server.base_url
+
+        # PKCE flow with groups
+        with _OIDCServer(port=8000, use_pkce=True, groups=["admin", "users"]) as oidc_server:
+            # PKCE-enabled server with group claims
+            pass
     """
 
-    def __init__(self, port: int):
+    def __init__(
+        self,
+        port: int,
+        use_pkce: bool = False,
+        groups: Optional[list[str]] = None,
+    ):
         """
         Initialize a new OIDC server instance.
 
         Args:
             port: The port number on which the server will listen.
+            use_pkce: Enable PKCE (Proof Key for Code Exchange) support.
+            groups: List of groups to include in ID token claims (for group-based access control testing).
         """
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
@@ -1286,11 +1304,15 @@ class _OIDCServer:
         self._secret_key: str = f"secret_key_{token_hex(16)}"
         self._host: str = "127.0.0.1"
         self._port: int = port
+        self._use_pkce: bool = use_pkce
+        self._groups: list[str] = groups or []
         self._app = FastAPI()
         self._nonce: Optional[str] = None
         self._user_id: Optional[str] = None
         self._user_email: Optional[str] = None
         self._user_name: Optional[str] = None
+        # PKCE state: maps auth_code -> code_challenge
+        self._code_challenges: dict[str, str] = {}
         self._server: Optional[Generator[Thread, None, None]] = None
         self._thread: Optional[Thread] = None
         self._setup_routes()
@@ -1313,19 +1335,52 @@ class _OIDCServer:
             Authorization endpoint that simulates the initial OAuth2 authorization request.
 
             Validates the client_id and returns a redirect with an authorization code.
+            For PKCE flows, also receives and stores the code_challenge.
             """
             params = dict(request.query_params)
             if params.get("client_id") != self._client_id:
                 return JSONResponse({"error": "invalid_client"}, status_code=400)
+
             state = params.get("state")
             nonce = params.get("nonce")
             redirect_uri = params.get("redirect_uri")
+
+            # Generate unique authorization code
+            auth_code = f"auth_code_{token_hex(16)}"
+
+            # PKCE: Store code_challenge if provided
+            if self._use_pkce:
+                code_challenge = params.get("code_challenge")
+                code_challenge_method = params.get("code_challenge_method")
+
+                if not code_challenge:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_challenge required",
+                        },
+                        status_code=400,
+                    )
+
+                if code_challenge_method != "S256":
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_challenge_method must be S256",
+                        },
+                        status_code=400,
+                    )
+
+                self._code_challenges[auth_code] = code_challenge
+
+            # Generate user for this session
             self._nonce = nonce
             self._user_id = f"user_id_{token_hex(8)}"
             self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
             self._user_name = f"User {token_hex(8)}"
+
             return RedirectResponse(
-                f"{redirect_uri}?code=test_auth_code&state={state}",
+                f"{redirect_uri}?code={auth_code}&state={state}",
                 status_code=302,
             )
 
@@ -1334,37 +1389,121 @@ class _OIDCServer:
             """
             Token endpoint that exchanges authorization codes for access and ID tokens.
 
-            Validates client credentials and returns a token response with:
-            - access_token: A randomly generated access token
-            - id_token: A JWT containing user information and the nonce from the auth request
-            - refresh_token: A randomly generated refresh token
-            - Other standard OAuth2 token response fields
+            Supports both standard OAuth2 and PKCE flows:
+            - Standard: Validates client_secret via HTTP Basic Auth
+            - PKCE: Validates code_verifier against stored code_challenge
+            - Confidential + PKCE: Validates BOTH client_secret AND code_verifier
+
+            Returns a token response with access_token, id_token, and refresh_token.
             """
+            from hashlib import sha256
+
+            form_data = await request.form()
+            code = form_data.get("code")
+
+            if not code:
+                return JSONResponse(
+                    {"error": "invalid_request", "error_description": "code required"},
+                    status_code=400,
+                )
+
+            # Step 1: Validate client authentication (if required)
+            client_authenticated = False
             auth_header = request.headers.get("Authorization")
+
+            # Try HTTP Basic Auth (client_secret_basic)
             if auth_header and auth_header.startswith("Basic "):
                 try:
                     credentials = b64decode(auth_header[6:]).decode()
-                    client_id, client_secret = credentials.split(":")
-                    if client_id != self._client_id or client_secret != self._client_secret:
-                        return JSONResponse({"error": "invalid_client"}, status_code=400)
+                    client_id, client_secret = credentials.split(":", 1)
+                    if client_id == self._client_id and client_secret == self._client_secret:
+                        client_authenticated = True
                 except Exception:
-                    return JSONResponse({"error": "invalid_client"}, status_code=400)
+                    pass
+
+            # Try POST body (client_secret_post)
+            if not client_authenticated:
+                body_client_id = form_data.get("client_id")
+                body_client_secret = form_data.get("client_secret")
+                if body_client_id == self._client_id and body_client_secret == self._client_secret:
+                    client_authenticated = True
+
+            # Step 2: Validate PKCE (if required)
+            pkce_valid = False
+            code_verifier = form_data.get("code_verifier")
+
+            # Type assertions for form data (FastAPI form_data.get returns Union[UploadFile, str])
+            assert isinstance(code, str)
+
+            if self._use_pkce and code in self._code_challenges:
+                if not code_verifier:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_verifier required for PKCE",
+                        },
+                        status_code=400,
+                    )
+
+                assert isinstance(code_verifier, str)
+
+                # Compute challenge from verifier
+                challenge = (
+                    urlsafe_b64encode(sha256(code_verifier.encode()).digest()).decode().rstrip("=")
+                )
+
+                stored_challenge = self._code_challenges.get(code)
+                if challenge == stored_challenge:
+                    pkce_valid = True
+                    # Clean up after successful validation
+                    del self._code_challenges[code]
+                else:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "code_verifier does not match code_challenge",
+                        },
+                        status_code=400,
+                    )
+
+            # Step 3: Determine authentication mode and validate
+            if self._use_pkce:
+                # PKCE flow
+                if not pkce_valid:
+                    return JSONResponse(
+                        {"error": "invalid_grant", "error_description": "PKCE validation failed"},
+                        status_code=400,
+                    )
+                # For confidential clients with PKCE, also check client_secret if provided
+                # (This is defense-in-depth: both PKCE and client_secret)
+                # If client_secret is in the request, it must be valid
+                if auth_header or form_data.get("client_secret"):
+                    if not client_authenticated:
+                        return JSONResponse({"error": "invalid_client"}, status_code=400)
             else:
-                return JSONResponse({"error": "invalid_client"}, status_code=400)
+                # Standard flow: client_secret required
+                if not client_authenticated:
+                    return JSONResponse({"error": "invalid_client"}, status_code=400)
 
             # Create ID token with required claims
             now = int(time())
+            id_token_claims = {
+                "iss": self.base_url,
+                "sub": self._user_id,
+                "aud": self._client_id,
+                "iat": now,
+                "exp": now + 3600,
+                "email": self._user_email,
+                "name": self._user_name,
+                "nonce": self._nonce,
+            }
+
+            # NOTE: Groups are intentionally NOT included in ID token to simulate
+            # real-world IDPs (AWS Cognito, Azure AD) that keep ID tokens small.
+            # Groups must be fetched from the /userinfo endpoint instead.
+
             id_token = jwt.encode(
-                payload={
-                    "iss": self.base_url,
-                    "sub": self._user_id,
-                    "aud": self._client_id,
-                    "iat": now,
-                    "exp": now + 3600,
-                    "email": self._user_email,
-                    "name": self._user_name,
-                    "nonce": self._nonce,
-                },
+                payload=id_token_claims,
                 key=self._secret_key.encode(),
                 algorithm="HS256",
             )
@@ -1389,30 +1528,47 @@ class _OIDCServer:
             Returns the standard OIDC configuration document that clients use to
             discover the endpoints and capabilities of this identity provider.
             """
-            return JSONResponse(
-                {
-                    "issuer": self.base_url,
-                    "authorization_endpoint": self.auth_url,
-                    "token_endpoint": self.token_url,
-                    "userinfo_endpoint": f"{self.base_url}/userinfo",
-                    "jwks_uri": f"{self.base_url}/.well-known/jwks.json",
-                    "response_types_supported": ["code"],
-                    "subject_types_supported": ["public"],
-                    "id_token_signing_alg_values_supported": ["HS256"],
-                    "scopes_supported": ["openid", "profile", "email"],
-                    "token_endpoint_auth_methods_supported": ["client_secret_basic"],
-                    "claims_supported": [
-                        "sub",
-                        "iss",
-                        "aud",
-                        "exp",
-                        "iat",
-                        "name",
-                        "email",
-                        "picture",
-                    ],
-                }
-            )
+            config = {
+                "issuer": self.base_url,
+                "authorization_endpoint": self.auth_url,
+                "token_endpoint": self.token_url,
+                "userinfo_endpoint": f"{self.base_url}/userinfo",
+                "jwks_uri": f"{self.base_url}/.well-known/jwks.json",
+                "response_types_supported": ["code"],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["HS256"],
+                "scopes_supported": ["openid", "profile", "email"],
+                "token_endpoint_auth_methods_supported": [
+                    "client_secret_basic",
+                    "client_secret_post",
+                ],
+                "claims_supported": [
+                    "sub",
+                    "iss",
+                    "aud",
+                    "exp",
+                    "iat",
+                    "name",
+                    "email",
+                    "picture",
+                ],
+            }
+
+            # Add PKCE support to discovery document
+            if self._use_pkce:
+                config["code_challenge_methods_supported"] = ["S256"]
+                # Public clients don't require client authentication
+                token_auth_methods = config["token_endpoint_auth_methods_supported"]
+                assert isinstance(token_auth_methods, list)
+                token_auth_methods.append("none")
+
+            # Add groups claim if configured
+            if self._groups:
+                claims_supported = config["claims_supported"]
+                assert isinstance(claims_supported, list)
+                claims_supported.append("groups")
+
+            return JSONResponse(config)
 
         @self._app.get("/userinfo")
         async def userinfo() -> Response:
@@ -1421,6 +1577,7 @@ class _OIDCServer:
 
             Returns a JSON response with user profile information that would typically
             be retrieved from a real identity provider's user database.
+            Includes groups claim if configured.
             """
             user_info = {
                 "sub": self._user_id,
@@ -1428,6 +1585,11 @@ class _OIDCServer:
                 "email": self._user_email,
                 "picture": "https://example.com/picture.jpg",
             }
+
+            # Add groups if configured
+            if self._groups:
+                user_info["groups"] = self._groups  # type: ignore[assignment]
+
             return JSONResponse(user_info)
 
         @self._app.get("/.well-known/jwks.json")
@@ -1515,6 +1677,16 @@ class _OIDCServer:
     def client_secret(self) -> str:
         """Get the OAuth client secret."""
         return self._client_secret
+
+    @property
+    def groups(self) -> list[str]:
+        """Get the configured groups for this OIDC server."""
+        return self._groups
+
+    @property
+    def use_pkce(self) -> bool:
+        """Check if PKCE is enabled for this OIDC server."""
+        return self._use_pkce
 
     def __str__(self) -> str:
         return self._name

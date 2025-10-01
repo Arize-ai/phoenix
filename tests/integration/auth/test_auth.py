@@ -247,6 +247,254 @@ class TestOIDC:
         assert not response.cookies.get("phoenix-refresh-token")
 
 
+class TestPKCE:
+    """Test PKCE (Proof Key for Code Exchange) OAuth2 flow.
+
+    These tests verify that Phoenix correctly handles PKCE for both:
+    - Public clients (mobile apps, SPAs) that cannot securely store a client_secret
+    - Confidential clients using PKCE for defense-in-depth security
+
+    PKCE adds code_challenge/code_verifier validation to protect against
+    authorization code interception attacks.
+    """
+
+    async def test_pkce_public_client_flow(
+        self,
+        _oidc_server_pkce_public: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test PKCE flow with a public client (no client_secret).
+
+        This test verifies:
+        1. Phoenix generates code_verifier and code_challenge
+        2. OIDC server receives code_challenge in authorization request
+        3. Phoenix sends code_verifier in token request (no client_secret)
+        4. Server validates code_verifier matches code_challenge
+        5. User is successfully authenticated and tokens are issued
+        """
+        client = _httpx_client(_app)
+
+        # Start the OAuth2 PKCE flow
+        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)  # Save cookies for PKCE code_verifier
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert _oidc_server_pkce_public.user_email, (
+            "Fixture should have initialized a (random) user"
+        )
+        assert (email := sanitize_email(_oidc_server_pkce_public.user_email))
+        admin = _DEFAULT_ADMIN.log_in(_app)
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
+        assert email not in users
+
+        # Complete the flow by calling the token endpoint
+        response = _httpx_client(_app, cookies=cookies).get(callback_url)
+
+        # Verify we got access tokens
+        assert response.status_code == 302
+        assert response.cookies.get("phoenix-access-token")
+        assert response.cookies.get("phoenix-refresh-token")
+
+        # Verify that the user was created
+        users = {u.profile.email: u for u in admin.list_users(_app)}
+        assert email in users
+        assert users[email].role is UserRoleInput.MEMBER
+
+    async def test_pkce_confidential_client_flow(
+        self,
+        _oidc_server_pkce_confidential: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test PKCE flow with a confidential client (defense-in-depth).
+
+        This test verifies defense-in-depth: both client_secret AND code_verifier
+        are validated. Even if the client_secret is compromised, the attacker
+        cannot exchange an intercepted authorization code without the code_verifier.
+
+        This test verifies:
+        1. Phoenix generates code_verifier and code_challenge (PKCE)
+        2. Phoenix sends client_secret (traditional OAuth2)
+        3. Server validates BOTH client_secret AND code_verifier
+        4. User is successfully authenticated and tokens are issued
+        """
+        client = _httpx_client(_app)
+
+        # Start the OAuth2 PKCE flow with confidential client
+        response = client.post(f"oauth2/{_oidc_server_pkce_confidential}/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)  # Save cookies for PKCE code_verifier
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert _oidc_server_pkce_confidential.user_email, (
+            "Fixture should have initialized a (random) user"
+        )
+        assert (email := sanitize_email(_oidc_server_pkce_confidential.user_email))
+        admin = _DEFAULT_ADMIN.log_in(_app)
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
+        assert email not in users
+
+        # Complete the flow by calling the token endpoint
+        response = _httpx_client(_app, cookies=cookies).get(callback_url)
+
+        # Verify we got access tokens
+        assert response.status_code == 302
+        assert response.cookies.get("phoenix-access-token")
+        assert response.cookies.get("phoenix-refresh-token")
+
+        # Verify that the user was created
+        users = {u.profile.email: u for u in admin.list_users(_app)}
+        assert email in users
+        assert users[email].role is UserRoleInput.MEMBER
+
+    async def test_pkce_code_verifier_mismatch_rejected(
+        self,
+        _oidc_server_pkce_public: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that invalid code_verifier is rejected.
+
+        This test verifies that if an attacker intercepts the authorization code
+        and tries to exchange it with a wrong code_verifier, the server rejects it.
+
+        Security scenario: An attacker intercepts the authorization code from the
+        redirect URL but doesn't have the code_verifier from the cookie. The server
+        should reject the token exchange request.
+        """
+        client = _httpx_client(_app)
+
+        # Start the OAuth2 PKCE flow
+        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)  # Save cookies including state, nonce, and code_verifier
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Try to complete the flow with state and nonce but WITHOUT code_verifier
+        # This simulates an attacker who intercepts the callback URL and has the state/nonce
+        # cookies (from the same browser session) but doesn't have the code_verifier
+        cookies_without_verifier = {k: v for k, v in cookies.items() if "code-verifier" not in k}
+        response = _httpx_client(_app, cookies=cookies_without_verifier).get(callback_url)
+
+        # Verify that user is redirected to login with error
+        assert response.status_code == 307
+        assert "/login" in response.headers["location"]
+
+        # Verify no access is granted
+        assert not response.cookies.get("phoenix-access-token")
+        assert not response.cookies.get("phoenix-refresh-token")
+
+    async def test_pkce_with_groups_access_granted(
+        self,
+        _oidc_server_pkce_with_groups: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test PKCE with group-based access control - user HAS matching group.
+
+        This test verifies:
+        1. OIDC server returns groups claim ["engineering", "operations"]
+        2. Phoenix extracts groups using JMESPath (groups)
+        3. Phoenix checks against ALLOWED_GROUPS ("engineering,admin")
+        4. User has "engineering" → access GRANTED
+        """
+        client = _httpx_client(_app)
+
+        # Start the OAuth2 PKCE flow with groups
+        response = client.post(f"oauth2/{_oidc_server_pkce_with_groups}_granted/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert _oidc_server_pkce_with_groups.user_email, (
+            "Fixture should have initialized a (random) user"
+        )
+        assert (email := sanitize_email(_oidc_server_pkce_with_groups.user_email))
+        admin = _DEFAULT_ADMIN.log_in(_app)
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
+        assert email not in users
+
+        # Complete the flow by calling the token endpoint
+        response = _httpx_client(_app, cookies=cookies).get(callback_url)
+
+        # Verify we got access tokens (user has matching group)
+        assert response.status_code == 302
+        assert response.cookies.get("phoenix-access-token")
+        assert response.cookies.get("phoenix-refresh-token")
+
+        # Verify that the user was created
+        users = {u.profile.email: u for u in admin.list_users(_app)}
+        assert email in users
+        assert users[email].role is UserRoleInput.MEMBER
+
+    async def test_pkce_with_groups_access_denied(
+        self,
+        _oidc_server_pkce_with_groups: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test PKCE with group-based access control - user does NOT have matching group.
+
+        This test verifies:
+        1. OIDC server returns groups claim ["engineering", "operations"]
+        2. Phoenix extracts groups using JMESPath (groups)
+        3. Phoenix checks against ALLOWED_GROUPS ("admin,sales")
+        4. User has NO matching groups → access DENIED
+        """
+        client = _httpx_client(_app)
+
+        # Start the OAuth2 PKCE flow with groups
+        response = client.post(f"oauth2/{_oidc_server_pkce_with_groups}_denied/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Complete the flow by calling the token endpoint
+        response = _httpx_client(_app, cookies=cookies).get(callback_url)
+
+        # Verify that user is redirected to login with error
+        assert response.status_code == 307
+        assert "/login" in response.headers["location"]
+
+        # Verify no access is granted
+        assert not response.cookies.get("phoenix-access-token")
+        assert not response.cookies.get("phoenix-refresh-token")
+
+        # Verify that the user was NOT created
+        assert _oidc_server_pkce_with_groups.user_email, (
+            "Fixture should have initialized a (random) user"
+        )
+        assert (email := sanitize_email(_oidc_server_pkce_with_groups.user_email))
+        admin = _DEFAULT_ADMIN.log_in(_app)
+        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
+        assert email not in users
+
+
 class TestTLS:
     def test_non_tls_client_cannot_connect(self, _app: _AppInfo) -> None:
         with pytest.raises(URLError) as e:

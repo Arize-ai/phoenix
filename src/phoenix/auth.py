@@ -128,6 +128,7 @@ def set_oauth2_nonce_cookie(
         value=nonce,
     )
 
+
 def set_oauth2_code_verifier_cookie(
     *, response: ResponseType, code_verifier: str, max_age: timedelta
 ) -> ResponseType:
