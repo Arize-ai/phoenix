@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a35d7317a7889fcccd79de42d3222fbb>>
+ * @generated SignedSource<<4ece5b66174a8d104ce349ae545eaa02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ExperimentRunMetric = "latencyMs" | "tokenCostTotal" | "tokenCountTotal";
+export type ExperimentRunMetric = "latencyMs";
 export type SortDir = "asc" | "desc";
 export type ExperimentRunSort = {
   col: ExperimentRunColumn;

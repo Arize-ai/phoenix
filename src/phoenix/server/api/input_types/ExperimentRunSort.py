@@ -12,9 +12,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 @strawberry.enum
 class ExperimentRunMetric(Enum):
-    tokenCountTotal = auto()
     latencyMs = auto()
-    tokenCostTotal = auto()
 
 
 @strawberry.input(one_of=True)
@@ -53,15 +51,11 @@ def _get_order_by_columns(sort: Optional[ExperimentRunSort]) -> tuple[ColumnElem
     if sort.col.metric:
         metric = sort.col.metric.value
         assert metric is not None
-        if metric is ExperimentRunMetric.tokenCountTotal:
-            raise NotImplementedError
-        elif metric is ExperimentRunMetric.latencyMs:
+        if metric is ExperimentRunMetric.latencyMs:
             if sort_direction is SortDir.asc:
                 return (models.ExperimentRun.latency_ms.asc(),)
             else:
                 return (models.ExperimentRun.latency_ms.desc(),)
-        elif metric is ExperimentRunMetric.tokenCostTotal:
-            raise NotImplementedError
         else:
             assert_never(metric)
     raise NotImplementedError
@@ -95,9 +89,7 @@ def _get_after_expression(
     if sort.col.metric:
         metric = sort.col.metric.value
         assert metric is not None
-        if metric is ExperimentRunMetric.tokenCountTotal:
-            raise NotImplementedError
-        elif metric is ExperimentRunMetric.latencyMs:
+        if metric is ExperimentRunMetric.latencyMs:
             latency_ms = (
                 select(models.ExperimentRun.latency_ms)
                 .where(models.ExperimentRun.id == experiment_run_rowid)
@@ -107,8 +99,6 @@ def _get_after_expression(
                 return models.ExperimentRun.latency_ms > latency_ms
             else:
                 return models.ExperimentRun.latency_ms < latency_ms
-        elif metric is ExperimentRunMetric.tokenCostTotal:
-            raise NotImplementedError
         else:
             assert_never(metric)
     raise NotImplementedError
@@ -123,12 +113,8 @@ def _add_joins_to_query(
     if sort.col.metric:
         metric = sort.col.metric.value
         assert metric is not None
-        if metric == ExperimentRunMetric.tokenCountTotal:
-            raise NotImplementedError
-        elif metric == ExperimentRunMetric.latencyMs:
+        if metric is ExperimentRunMetric.latencyMs:
             return query
-        elif metric == ExperimentRunMetric.tokenCostTotal:
-            raise NotImplementedError
         else:
             assert_never(metric)
     raise NotImplementedError
