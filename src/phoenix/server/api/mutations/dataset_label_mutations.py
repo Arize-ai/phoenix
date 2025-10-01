@@ -251,7 +251,7 @@ class DatasetLabelMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def remove_dataset_labels_from_datasets(
         self, info: Info[Context, None], input: RemoveDatasetLabelsFromDatasetInput
     ) -> RemoveDatasetLabelsFromDatasetsMutationPayload:
