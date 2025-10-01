@@ -8,8 +8,6 @@ import {
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
 import { flushSync } from "react-dom";
 
-import { Icon, Icons, ToastRegion } from "@phoenix/components";
-
 type NotificationContext = {
   queue: ToastQueue<NotificationParams>;
 };
@@ -26,7 +24,6 @@ type NotificationVariant = "success" | "error";
 export type NotificationParams = {
   title: string;
   message?: string;
-  icon?: React.ReactNode;
   variant?: NotificationVariant;
   /**
    * Action to be taken when the notification is interacted with.
@@ -77,7 +74,6 @@ export const NotificationProvider = ({
   );
   return (
     <NotificationContext.Provider value={{ queue }}>
-      <ToastRegion queue={queue} />
       {children}
     </NotificationContext.Provider>
   );
@@ -117,11 +113,14 @@ export const useNotificationQueue = () => {
  */
 export const useNotify = () => {
   const queue = useNotificationQueue();
-  return ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-    queue.add(
-      { ...params },
-      expireMs === null ? undefined : { timeout: expireMs }
-    );
+  return useCallback(
+    ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
+      queue.add(
+        { ...params },
+        expireMs === null ? undefined : { timeout: expireMs }
+      ),
+    [queue]
+  );
 };
 
 /**
@@ -147,7 +146,6 @@ export const useNotifySuccess = () => {
         {
           ...params,
           variant: "success",
-          icon: <Icon svg={<Icons.CheckmarkCircleFilled />} />,
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
@@ -178,7 +176,6 @@ export const useNotifyError = () => {
         {
           ...params,
           variant: "error",
-          icon: <Icon svg={<Icons.AlertCircleFilled />} />,
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),

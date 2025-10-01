@@ -3,11 +3,13 @@ import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";
 
+import { ToastRegion } from "./components/toast/ToastRegion";
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
-import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
+import { ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
@@ -35,6 +37,7 @@ export function AppContent() {
             <CredentialsProvider>
               <Suspense>
                 <NotificationProvider>
+                  <ToastRegion />
                   <AppRoutes />
                 </NotificationProvider>
               </Suspense>
