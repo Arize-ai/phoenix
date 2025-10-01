@@ -77,7 +77,7 @@ Try it out!
 
 #### GPT-4 Results
 
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.25.14 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.25.14 PM.png" alt=""><figcaption></figcaption></figure>
 
 <table><thead><tr><th width="116">Q&#x26;A Eval</th><th>GPT-4o</th><th>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.92</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.96</mark></td></tr></tbody></table>
 

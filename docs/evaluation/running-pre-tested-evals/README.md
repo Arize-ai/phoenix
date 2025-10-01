@@ -17,4 +17,4 @@ model = OpenAIModel(model_name="gpt-4",temperature=0.6)
 model("What is the largest costal city in France?")
 ```
 
-We currently support a growing set of models for LLM Evals, please check out the [Eval Models section for usage](../evaluation-models.md).
+We currently support a growing set of models for LLM Evals, please check out the [Eval Models section for usage](broken-reference).

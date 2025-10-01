@@ -1,20 +1,19 @@
 # Quickstart: Evals
 
-This quickstart guide will show you through the basics of evaluating data from your LLM application.
+This quickstart guide will walk you through the basics of evaluating data from your AI application.
 
 ## Install Phoenix Evals
 
 ```bash
-%%bash
-pip install -q "arize-phoenix-evals>=0.20.6"
-pip install -q openai nest_asyncio
+pip install -q "arize-phoenix-evals>=2"
+pip install -q openai
 ```
 
 ## Prepare your dataset
 
 The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
 
-For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
+For the sake of this guide however, we'll work with some toy data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
 
 * reference
 * query
@@ -45,9 +44,13 @@ df = pd.DataFrame(
 df.head()
 ```
 
-## Evaluate and Log Results
+## Run Evaluations
 
-Set up evaluators (in this case for hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix. We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of other models. First, we need to add our OpenAI API key to our environment.
+Steps: set up evaluators, run the evaluations, and log the results to visualize them in Phoenix.&#x20;
+
+In this example, we want to run two evaluators. For the first, we use the built-in Hallucination evaluator that the Phoenix team has already benchmarked on hallucination detection tasks. For the second, we define our own custom LLM-as-a-judge evaluator to measure answer completeness.
+
+We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](how-to-evals/configuring-the-llm.md). First, we need to add our OpenAI API key to our environment.
 
 ```python
 import os
@@ -59,55 +62,77 @@ if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
 os.environ["OPENAI_API_KEY"] = openai_api_key
 ```
 
+We set up the built-in `HallucinationEvaluator` with the LLM of choice. We have to bind an `input_mapping` so that the evaluator (which expects inputs named `input`, `output`, and `context`) works on our dataframe. Alternatively, you could rename the columns in the dataframe.&#x20;
+
 ```python
-import nest_asyncio
+from phoenix.evals.llm import LLM
+from phoenix.evals.metrics import HallucinationEvaluator
 
-from phoenix.evals import HallucinationEvaluator, OpenAIModel, QAEvaluator, run_evals
+llm = LLM(model="gpt-4o", provider="openai")
+hallucination = HallucinationEvaluator(llm=llm)
+hallucination.bind({"input": "query", "output": "response", "context": "reference"})
 
-nest_asyncio.apply()  # This is needed for concurrency in notebook environments
+# let's test on one example
+scores = hallucination.evaluate(df.iloc[0].to_dict())
+print(scores[0])
+>>> Score(name='hallucination', score=1.0, label='factual', explanation='The response correctly identifies the location of the Eiffel Tower as stated in the context.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
+```
 
-# Set your OpenAI API key
-eval_model = OpenAIModel(model="gpt-4o")
+For our custom LLM evaluator, we write a prompt template and define label choices. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels. For our completeness metric, we define three labels: complete, partially complete, or incomplete. Each label then gets mapped to a numeric score.&#x20;
 
-# Define your evaluators
-hallucination_evaluator = HallucinationEvaluator(eval_model)
-qa_evaluator = QAEvaluator(eval_model)
+Note: We don't need to bind an `input_mapping` like we did for the hallucination evaluator, since we defined the prompt template with placeholders that match columns in our dataframe.&#x20;
 
-# We have to make some minor changes to our dataframe to use the column names expected by our evaluators
-# for `hallucination_evaluator` the input df needs to have columns 'output', 'input', 'context'
-# for `qa_evaluator` the input df needs to have columns 'output', 'input', 'reference'
-df["context"] = df["reference"]
-df.rename(columns={"query": "input", "response": "output"}, inplace=True)
-assert all(column in df.columns for column in ["output", "input", "context", "reference"])
+```python
+from phoenix.evals import ClassificationEvaluator
 
-# Run the evaluators, each evaluator will return a dataframe with evaluation results
-# We upload the evaluation results to Phoenix in the next step
-hallucination_eval_df, qa_eval_df = run_evals(
-    dataframe=df, evaluators=[hallucination_evaluator, qa_evaluator], provide_explanation=True
+completeness_prompt = """
+You are an expert at judging the completeness of a response to a query.
+Given a query and response, rate the completeness of the response.
+A response is complete if it fully answers all parts of the query.
+A response is partially complete if it only answers part of the query.
+A response is incomplete if it does not answer any part of the query or is not related to the query.
+
+Query: {{query}}
+Response: {{response}}
+
+Is the response complete, partially complete, or incomplete?
+"""
+
+
+completeness = ClassificationEvaluator(
+    llm=llm, # use the same LLM instance from above
+    name="completeness",
+    prompt_template=completeness_prompt,
+    choices={"complete": 1.0, "partially complete": 0.5, "incomplete": 0.0},
 )
+
+# test on one example
+scores = completeness.evaluate(df.iloc[0].to_dict())
+print(scores[0])
+>>> Score(name='completeness', score=1.0, label='complete', explanation='The response directly answers the query by specifying the location of the Eiffel Tower, which was the information requested.', metadata={'model': 'gpt-4o'}, source='llm', direction='maximize')
 ```
 
-Explanation of the parameters used in run\_evals above:
-
-* `dataframe` - a pandas dataframe that includes the data you want to evaluate. This could be spans exported from Phoenix, or data you've brought in from elsewhere. This dataframe must include the columns expected by the evaluators you are using. To see the columns expected by each built-in evaluator, check the corresponding page in the Using Phoenix Evaluators section.
-* `evaluators` - a list of built-in Phoenix evaluators to use.
-* `provide_explanation` - a binary flag that instructs the evaluators to generate explanations for their choices.
-
-## Analyze Your Evaluations
-
-Combine your evaluation results and explanations with your original dataset:
+Now that we have defined and tested our two evaluators, we can run them on our whole dataset.&#x20;
 
 ```python
-results_df = df.copy()
-results_df["hallucination_eval"] = hallucination_eval_df["label"]
-results_df["hallucination_explanation"] = hallucination_eval_df["explanation"]
-results_df["qa_eval"] = qa_eval_df["label"]
-results_df["qa_explanation"] = qa_eval_df["explanation"]
-results_df.head()
+from phoenix.evals import async_evaluate_dataframe
+
+results = await async_evaluate_dataframe(
+    df,
+    [hallucination, completeness],
+    concurrency=10,
+)
+results.head()
 ```
+
+The output `results` dataframe is a copy of our original dataframe with added columns for each score:
+
+* `{score_name}_score` contains the JSON serialized score (or None if the evaluation failed)
+* `{evaluator_name}_execution_details` contains information about the execution status, duration, and any exceptions that occurred.
 
 ## (Optional) Log Results to Phoenix
 
-**Note:** You'll only be able to log evaluations to the Phoenix UI if you used a trace or span dataset exported from Phoenix as your dataset in this quickstart. If you've used your own outside dataset, you won't be able to log these results to Phoenix.
+**Note:** You'll only be able to log evaluations to the Phoenix UI if you used a trace or span dataset exported from Phoenix as your dataset in this quickstart. Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](https://arize.com/docs/phoenix/tracing/how-to-tracing/llm-evaluations).
 
-Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](https://arize.com/docs/phoenix/tracing/how-to-tracing/llm-evaluations).
+Otherwise, you can upload your dataset as a Phoenix dataset and run experiments using your evaluators. Learn more [about datasets and experiments](broken-reference).&#x20;
+
