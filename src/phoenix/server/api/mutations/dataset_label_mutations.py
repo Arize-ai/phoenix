@@ -103,6 +103,8 @@ class DatasetLabelMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset label named '{input.name}' already exists")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
         return UpdateDatasetLabelMutationPayload(
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
