@@ -1,4 +1,4 @@
-import { Suspense, memo, useMemo, useState } from "react";
+import { memo, Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -94,6 +94,7 @@ function ManageDatasetSplitsDialogComponent(
                   key={`${Number(isOpen)}-${JSON.stringify(sharedSplitIds)}`}
                   sharedSplitIds={sharedSplitIds}
                   partialSplitIds={partialSplitIds}
+                  selectedExamples={selectedExamples}
                   onConfirm={onConfirm}
                 />
               ) : null}
@@ -108,9 +109,11 @@ function ManageDatasetSplitsDialogComponent(
 function ManageDatasetSplitsDialogContent(props: {
   sharedSplitIds: string[];
   partialSplitIds: string[];
+  selectedExamples: SelectedExample[];
   onConfirm: (ids: string[]) => void;
 }) {
-  const { sharedSplitIds, partialSplitIds, onConfirm } = props;
+  const { sharedSplitIds, partialSplitIds, onConfirm, selectedExamples } =
+    props;
   const [search, setSearch] = useState("");
   const [isCreateSplitOpen, setIsCreateSplitOpen] = useState(false);
   const [selectedSplitIds, setSelectedSplitIds] = useState<Set<string>>(
@@ -231,6 +234,7 @@ function ManageDatasetSplitsDialogContent(props: {
       >
         <NewDatasetSplitDialog
           onCompleted={() => setIsCreateSplitOpen(false)}
+          exampleIds={selectedExamples.map((example) => example.id)}
         />
       </ModalOverlay>
     </Autocomplete>

@@ -106,7 +106,14 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         $input: RemoveDatasetExamplesFromDatasetSplitsInput!
       ) {
         removeDatasetExamplesFromDatasetSplits(input: $input) {
-          __typename
+          examples {
+            id
+            datasetSplits {
+              id
+              name
+              color
+            }
+          }
         }
       }
     `
@@ -208,11 +215,9 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     },
     [
       addExamplesToSplits,
-      getErrorMessagesFromRelayMutationError,
       isAddingExamplesToSplits,
       isRemovingExamplesFromSplit,
       notifyError,
-      refreshLatestVersion,
       removeExamplesFromSplit,
       selectedExamples,
       sharedSplitIds,
@@ -267,13 +272,15 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
-      {isManageSplitsOpen && <ManageDatasetSplitsDialog
-        selectedExamples={selectedExamples}
-        isOpen={isManageSplitsOpen}
-        onOpenChange={setIsManageSplitsOpen}
-        onConfirm={handleManageSplitsConfirm}
-      /> }
-     <ModalOverlay
+      {isManageSplitsOpen && (
+        <ManageDatasetSplitsDialog
+          selectedExamples={selectedExamples}
+          isOpen={isManageSplitsOpen}
+          onOpenChange={setIsManageSplitsOpen}
+          onConfirm={handleManageSplitsConfirm}
+        />
+      )}
+      <ModalOverlay
         isOpen={isDeleteConfirmationDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
@@ -325,7 +332,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
               </View>
             </DialogContent>
           </Dialog>
-        </Modal> 
+        </Modal>
       </ModalOverlay>
     </FloatingToolbarContainer>
   );

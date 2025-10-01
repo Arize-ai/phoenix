@@ -740,6 +740,12 @@ type DatasetSplitMutationPayload {
   query: Query!
 }
 
+type DatasetSplitMutationPayloadWithExamples {
+  datasetSplit: DatasetSplit!
+  query: Query!
+  examples: [DatasetExample!]!
+}
+
 type DatasetValues {
   primaryValue: Float
   referenceValue: Float
@@ -1682,7 +1688,7 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2361,6 +2367,7 @@ input RemoveDatasetExamplesFromDatasetSplitsInput {
 
 type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 type ResponseFormat {

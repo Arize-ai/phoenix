@@ -70,6 +70,13 @@ class DatasetSplitMutationPayload:
 
 
 @strawberry.type
+class DatasetSplitMutationPayloadWithExamples:
+    dataset_split: DatasetSplit
+    query: "Query"
+    examples: list[DatasetExample]
+
+
+@strawberry.type
 class DeleteDatasetSplitsMutationPayload:
     dataset_splits: list[DatasetSplit]
     query: "Query"
@@ -84,6 +91,7 @@ class AddDatasetExamplesToDatasetSplitsMutationPayload:
 @strawberry.type
 class RemoveDatasetExamplesFromDatasetSplitsMutationPayload:
     query: "Query"
+    examples: list[DatasetExample]
 
 
 @strawberry.type
@@ -322,14 +330,21 @@ class DatasetSplitMutationMixin:
 
             await session.execute(stmt)
 
+        examples = (
+            await session.scalars(
+                select(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
+            )
+        ).all()
+
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
             query=Query(),
+            examples=[to_gql_dataset_example(example) for example in examples],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
-    ) -> DatasetSplitMutationPayload:
+    ) -> DatasetSplitMutationPayloadWithExamples:
         user_id = get_user(info)
         validated_name = _validated_name(input.name)
         unique_example_rowids: set[int] = set()
@@ -382,9 +397,16 @@ class DatasetSplitMutationMixin:
                         "Failed to associate examples with the new dataset split."
                     ) from e
 
-        return DatasetSplitMutationPayload(
+        examples = (
+            await session.scalars(
+                select(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
+            )
+        ).all()
+
+        return DatasetSplitMutationPayloadWithExamples(
             dataset_split=to_gql_dataset_split(dataset_split_orm),
             query=Query(),
+            examples=[to_gql_dataset_example(example) for example in examples],
         )
 
 
