@@ -16,6 +16,7 @@ from .dataset_example_splits import DatasetExampleSplitsDataLoader
 from .dataset_examples_and_versions_by_experiment_run import (
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
 )
+from .dataset_labels import DatasetLabelsDataLoader
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -87,6 +88,7 @@ __all__ = [
     "DatasetExampleSpansDataLoader",
     "DatasetExamplesAndVersionsByExperimentRunDataLoader",
     "DatasetExampleSplitsDataLoader",
+    "DatasetLabelsDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
