@@ -1714,6 +1714,7 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
+  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
@@ -3096,6 +3097,17 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
+}
+
+input UpdateDatasetLabelInput {
+  datasetLabelId: ID!
+  name: String!
+  description: String = null
+  color: String!
+}
+
+type UpdateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {
