@@ -586,7 +586,6 @@ class DatasetMutationMixin:
                 raise NotFound(f"DatasetLabel with ID '{input.dataset_label_id}' not found")
 
             await set_dataset_label(session, dataset_id, dataset_label_id)
-            await session.commit()
 
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
@@ -610,8 +609,6 @@ class DatasetMutationMixin:
             was_unset = await unset_dataset_label(session, dataset_id, dataset_label_id)
             if not was_unset:
                 raise NotFound("Dataset label is not associated with this dataset")
-
-            await session.commit()
 
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
