@@ -76,6 +76,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -99,6 +100,7 @@ class DataLoaders:
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
+    dataset_labels: DatasetLabelsDataLoader
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
     )
