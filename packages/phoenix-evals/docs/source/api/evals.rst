@@ -82,7 +82,7 @@ Built-in Metrics
 
 .. automodule:: phoenix.evals.metrics
    :members:
-
+   :exclude-members: download_benchmark_dataset, emoji_guard,  openai_function_call_kwargs, parse_openai_function_call, printif
 
 Utilities
 ---------
