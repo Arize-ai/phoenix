@@ -784,6 +784,7 @@ def create_evaluator(
         evaluator_instance: Evaluator
 
         if inspect.iscoroutinefunction(fn):
+
             class _AsyncFunctionEvaluator(Evaluator):
                 def __init__(self) -> None:
                     super().__init__(
@@ -831,6 +832,7 @@ def create_evaluator(
             _registry[name] = evaluator_instance.evaluate
             return evaluator_instance
         else:
+
             class _FunctionEvaluator(Evaluator):
                 def __init__(self) -> None:
                     super().__init__(
