@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { ToastRegion } from "@phoenix/components/toast/ToastRegion";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
@@ -410,5 +411,10 @@ const router = createBrowserRouter(
 );
 
 export function AppRoutes() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <ToastRegion />
+      <RouterProvider router={router} />
+    </>
+  );
 }

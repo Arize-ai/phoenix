@@ -2,7 +2,6 @@ import {
   QueuedToast,
   UNSTABLE_Toast as AriaToast,
   UNSTABLE_ToastContent as AriaToastContent,
-  UNSTABLE_ToastQueue as AriaToastQueue,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -10,7 +9,10 @@ import { Button } from "@phoenix/components/button";
 import { Text } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
 import { toastCss } from "@phoenix/components/toast/styles";
-import { type NotificationParams } from "@phoenix/contexts/NotificationContext";
+import {
+  type NotificationParams,
+  toastQueue,
+} from "@phoenix/contexts/NotificationContext";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 const iconFromVariant = (
@@ -39,15 +41,10 @@ const colorFromVariant = (
   }
 };
 
-export const Toast = <
-  T extends QueuedToast<NotificationParams>,
-  Q extends AriaToastQueue<NotificationParams>,
->({
+export const Toast = <T extends QueuedToast<NotificationParams>>({
   toast,
-  queue,
 }: {
   toast: T;
-  queue?: Q;
 }) => {
   const { theme } = useTheme();
   const icon = iconFromVariant(toast.content.variant);
@@ -101,7 +98,7 @@ export const Toast = <
                   // close on click by default
                   const closeOnClick = action.closeOnClick ?? true;
                   const close = () => {
-                    queue?.close(toast.key);
+                    toastQueue?.close(toast.key);
                   };
                   // pass close callback to action for manual close ability
                   action.onClick(close);

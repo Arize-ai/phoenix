@@ -1,23 +1,11 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import { useCallback } from "react";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
 import { flushSync } from "react-dom";
-
-type NotificationContext = {
-  queue: ToastQueue<NotificationParams>;
-};
 
 /**
  * Default duration in milliseconds before toasts expire by default.
  */
 const DEFAULT_EXPIRY = 5_000;
-
-const NotificationContext = createContext<NotificationContext | null>(null);
 
 type NotificationVariant = "success" | "error";
 
@@ -50,34 +38,19 @@ export type NotificationParams = {
     | React.ReactNode;
 };
 
-const createToastQueue = (
-  ...args: ConstructorParameters<typeof ToastQueue<NotificationParams>>
-) => new ToastQueue<NotificationParams>(...args);
-
-export const NotificationProvider = ({
-  children,
-}: PropsWithChildren): JSX.Element => {
-  const [queue] = useState(() =>
-    createToastQueue({
-      // Wrap state updates in a CSS view transition.
-      wrapUpdate(fn) {
-        if ("startViewTransition" in document) {
-          // @ts-expect-error this will error until we upgrade our version of typescript
-          document?.startViewTransition(() => {
-            flushSync(fn);
-          });
-        } else {
-          fn();
-        }
-      },
-    })
-  );
-  return (
-    <NotificationContext.Provider value={{ queue }}>
-      {children}
-    </NotificationContext.Provider>
-  );
-};
+export const toastQueue = new ToastQueue<NotificationParams>({
+  // Wrap state updates in a CSS view transition.
+  wrapUpdate(fn) {
+    if ("startViewTransition" in document) {
+      // @ts-expect-error this will error until we upgrade our version of typescript
+      document?.startViewTransition(() => {
+        flushSync(fn);
+      });
+    } else {
+      fn();
+    }
+  },
+});
 
 export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
   /**
@@ -94,16 +67,6 @@ export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
   expireMs?: number | null;
 };
 
-export const useNotificationQueue = () => {
-  const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error(
-      "useNotificationContext must be used within a NotificationProvider"
-    );
-  }
-  return context.queue;
-};
-
 /**
  * Trigger a notification with the default variant.
  *
@@ -112,14 +75,13 @@ export const useNotificationQueue = () => {
  * The callback returns a key that can be later used to programmatically dismiss the notification.
  */
 export const useNotify = () => {
-  const queue = useNotificationQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      queue.add(
+      toastQueue.add(
         { ...params },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    [queue]
+    []
   );
 };
 
@@ -139,17 +101,16 @@ export const useNotify = () => {
  * queue.dismiss(key);
  */
 export const useNotifySuccess = () => {
-  const queue = useNotificationQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      queue.add(
+      toastQueue.add(
         {
           ...params,
           variant: "success",
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    [queue]
+    []
   );
 };
 
@@ -169,16 +130,15 @@ export const useNotifySuccess = () => {
  * queue.dismiss(key);
  */
 export const useNotifyError = () => {
-  const queue = useNotificationQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      queue.add(
+      toastQueue.add(
         {
           ...params,
           variant: "error",
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    [queue]
+    []
   );
 };
