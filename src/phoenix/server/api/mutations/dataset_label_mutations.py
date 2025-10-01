@@ -2,8 +2,9 @@ from typing import Optional
 
 import sqlalchemy
 import strawberry
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -141,3 +142,59 @@ class DatasetLabelMutationMixin:
                 for dataset_label_row_id in dataset_label_row_ids
             ]
         )
+
+
+@strawberry.input
+class SetDatasetLabelInput:
+    dataset_id: GlobalID
+    dataset_label_id: GlobalID
+
+
+@strawberry.input
+class UnsetDatasetLabelInput:
+    dataset_id: GlobalID
+    dataset_label_id: GlobalID
+
+
+async def set_dataset_label(
+    session: AsyncSession,
+    dataset_id: int,
+    dataset_label_id: int,
+) -> models.DatasetsDatasetLabel:
+    """
+    Sets a dataset label on a dataset. Creates the relationship if it doesn't exist.
+    """
+    # Check if the relationship already exists
+    existing_association = await session.scalar(
+        select(models.DatasetsDatasetLabel).where(
+            models.DatasetsDatasetLabel.dataset_id == dataset_id,
+            models.DatasetsDatasetLabel.dataset_label_id == dataset_label_id,
+        )
+    )
+
+    if existing_association:
+        return existing_association
+
+    # Create new relationship
+    new_association = models.DatasetsDatasetLabel(
+        dataset_id=dataset_id,
+        dataset_label_id=dataset_label_id,
+    )
+    session.add(new_association)
+    return new_association
+
+
+async def unset_dataset_label(
+    session: AsyncSession,
+    dataset_id: int,
+    dataset_label_id: int,
+) -> bool:
+    """
+    Unsets a dataset label from a dataset. Returns True if the relationship was removed.
+    """
+    stmt = delete(models.DatasetsDatasetLabel).where(
+        models.DatasetsDatasetLabel.dataset_id == dataset_id,
+        models.DatasetsDatasetLabel.dataset_label_id == dataset_label_id,
+    )
+    result = await session.execute(stmt)
+    return result.rowcount > 0

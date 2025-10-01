@@ -35,8 +35,15 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
+from phoenix.server.api.mutations.dataset_label_mutations import (
+    SetDatasetLabelInput,
+    UnsetDatasetLabelInput,
+    set_dataset_label,
+    unset_dataset_label,
+)
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -555,6 +562,62 @@ class DatasetMutationMixin:
                     for dataset_example_rowid in example_db_ids
                 ],
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    async def set_dataset_label(
+        self, info: Info[Context, None], input: SetDatasetLabelInput
+    ) -> DatasetMutationPayload:
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+        )
+        dataset_label_id = from_global_id_with_expected_type(
+            global_id=input.dataset_label_id, expected_type_name=DatasetLabel.__name__
+        )
+
+        async with info.context.db() as session:
+            # Verify dataset exists
+            dataset = await session.get(models.Dataset, dataset_id)
+            if not dataset:
+                raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
+
+            # Verify dataset label exists (but don't create if it doesn't exist)
+            dataset_label = await session.get(models.DatasetLabel, dataset_label_id)
+            if not dataset_label:
+                raise NotFound(f"DatasetLabel with ID '{input.dataset_label_id}' not found")
+
+            # Set the dataset label on the dataset
+            await set_dataset_label(session, dataset_id, dataset_label_id)
+            await session.commit()
+
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    async def unset_dataset_label(
+        self, info: Info[Context, None], input: UnsetDatasetLabelInput
+    ) -> DatasetMutationPayload:
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+        )
+        dataset_label_id = from_global_id_with_expected_type(
+            global_id=input.dataset_label_id, expected_type_name=DatasetLabel.__name__
+        )
+
+        async with info.context.db() as session:
+            # Verify dataset exists
+            dataset = await session.get(models.Dataset, dataset_id)
+            if not dataset:
+                raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
+
+            # Unset the dataset label from the dataset
+            was_unset = await unset_dataset_label(session, dataset_id, dataset_label_id)
+            if not was_unset:
+                raise NotFound("Dataset label is not associated with this dataset")
+
+            await session.commit()
+
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
