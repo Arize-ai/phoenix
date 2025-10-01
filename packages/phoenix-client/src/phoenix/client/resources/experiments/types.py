@@ -465,7 +465,7 @@ class ExampleProxy(Mapping[str, Any]):
 
     def __repr__(self) -> str:
         """Developer representation showing it's an immutable proxy."""
-        return f"_ExampleProxy({self.__wrapped__!r})"  # type: ignore[attr-defined]
+        return f"ExampleProxy({self.__wrapped__!r})"  # type: ignore[attr-defined]
 
 
 # Type aliases for evaluators
