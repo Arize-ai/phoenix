@@ -19,6 +19,15 @@ type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
 }
 
+input AddDatasetLabelsToDatasetInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type AddDatasetLabelsToDatasetsMutationPayload {
+  query: Query!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -1717,6 +1726,8 @@ type Mutation {
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
+  addDatasetLabelsToDatasets(input: AddDatasetLabelsToDatasetInput!): AddDatasetLabelsToDatasetsMutationPayload!
+  removeDatasetLabelsFromDatasets(input: RemoveDatasetLabelsFromDatasetInput!): RemoveDatasetLabelsFromDatasetsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2408,6 +2419,15 @@ input RemoveDatasetExamplesFromDatasetSplitsInput {
 }
 
 type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
+  query: Query!
+}
+
+input RemoveDatasetLabelsFromDatasetInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type RemoveDatasetLabelsFromDatasetsMutationPayload {
   query: Query!
 }
 

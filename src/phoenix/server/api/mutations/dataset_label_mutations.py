@@ -199,9 +199,7 @@ class DatasetLabelMutationMixin:
         async with info.context.db() as session:
             existing_dataset_ids = (
                 await session.scalars(
-                    select(models.Dataset.id).where(
-                        models.Dataset.id.in_(dataset_rowids)
-                    )
+                    select(models.Dataset.id).where(models.Dataset.id.in_(dataset_rowids))
                 )
             ).all()
             if len(existing_dataset_ids) != len(dataset_rowids):
@@ -291,9 +289,7 @@ class DatasetLabelMutationMixin:
         async with info.context.db() as session:
             existing_dataset_ids = (
                 await session.scalars(
-                    select(models.Dataset.id).where(
-                        models.Dataset.id.in_(dataset_rowids)
-                    )
+                    select(models.Dataset.id).where(models.Dataset.id.in_(dataset_rowids))
                 )
             ).all()
             if len(existing_dataset_ids) != len(dataset_rowids):
@@ -314,4 +310,3 @@ class DatasetLabelMutationMixin:
         return RemoveDatasetLabelsFromDatasetsMutationPayload(
             query=Query(),
         )
-
