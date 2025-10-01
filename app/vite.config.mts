@@ -19,6 +19,9 @@ export default defineConfig(() => {
       port: 6006,
     },
     server: {
+      hmr: process.env.VITE_HMR_CLIENT_PORT
+        ? { clientPort: parseInt(process.env.VITE_HMR_CLIENT_PORT) }
+        : true,
       open: "http://localhost:6006",
     },
     resolve: {
