@@ -443,6 +443,27 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
         return re.compile(value)
 
 
+_HEX_COLOR_PATTERN = re.compile(r"^#([0-9a-f]{6})$")
+
+
+class _HexColor(TypeDecorator[str]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[str], _: Dialect) -> Optional[str]:
+        if value is None:
+            return None
+        if not _HEX_COLOR_PATTERN.match(value):
+            raise ValueError(f"Expected a hex color, got {value}")
+        return value
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[str]:
+        if value is None:
+            return None
+        return value
+
+
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
@@ -1125,7 +1146,7 @@ class DatasetLabel(HasId):
     __tablename__ = "dataset_labels"
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
-    color: Mapped[str] = mapped_column(String, nullable=False)
+    color: Mapped[str] = mapped_column(_HexColor, nullable=False)
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
         "DatasetsDatasetLabel", back_populates="dataset_label"
     )
