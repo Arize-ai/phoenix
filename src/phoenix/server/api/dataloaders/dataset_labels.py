@@ -1,4 +1,3 @@
-
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
