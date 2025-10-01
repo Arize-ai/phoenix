@@ -2,7 +2,8 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import delete
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -64,7 +65,10 @@ class DatasetLabelMutationMixin:
         async with info.context.db() as session:
             dataset_label_orm = models.DatasetLabel(name=name, description=description, color=color)
             session.add(dataset_label_orm)
-            await session.commit()
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"A dataset label named '{name}' already exists")
         return CreateDatasetLabelMutationPayload(
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
@@ -100,7 +104,7 @@ class DatasetLabelMutationMixin:
 
             try:
                 await session.commit()
-            except IntegrityError:
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A dataset label named '{input.name}' already exists")
         return UpdateDatasetLabelMutationPayload(
             dataset_label=to_gql_dataset_label(dataset_label_orm)
