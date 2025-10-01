@@ -780,55 +780,102 @@ def create_evaluator(
 
     def deco(fn: Callable[..., Any]) -> Evaluator:
         sig = inspect.signature(fn)
-        # Preserve the docstring from the original function
         original_docstring = fn.__doc__
+        evaluator_instance: Evaluator
 
-        class _FunctionEvaluator(Evaluator):
-            def __init__(self) -> None:
-                super().__init__(
-                    name=name,
-                    source=source,
-                    direction=direction,
-                    # infer input schema from function signature
-                    # TODO make it work with *args, **kwargs
-                    input_schema=create_model(
-                        f"{name.capitalize()}Input",
-                        **cast(
-                            Any,
-                            {
-                                p: (
-                                    (
-                                        param.annotation
-                                        if param.annotation is not inspect._empty
-                                        else Any
-                                    ),
-                                    (param.default if param.default is not inspect._empty else ...),
-                                )
-                                for p, param in sig.parameters.items()
-                            },
+        if inspect.iscoroutinefunction(fn):
+
+            class _AsyncFunctionEvaluator(Evaluator):
+                def __init__(self) -> None:
+                    super().__init__(
+                        name=name,
+                        source=source,
+                        direction=direction,
+                        input_schema=create_model(
+                            f"{name.capitalize()}Input",
+                            **cast(
+                                Any,
+                                {
+                                    p: (
+                                        (
+                                            param.annotation
+                                            if param.annotation is not inspect._empty
+                                            else Any
+                                        ),
+                                        (
+                                            param.default
+                                            if param.default is not inspect._empty
+                                            else ...
+                                        ),
+                                    )
+                                    for p, param in sig.parameters.items()
+                                },
+                            ),
                         ),
-                    ),
-                )
-                self._fn = fn
-                # Store the original docstring
-                self._docstring = original_docstring
+                    )
+                    self._fn = fn
+                    self._docstring = original_docstring
 
-            def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-                # eval_input is already remapped by Evaluator.evaluate(...)
-                result = self._fn(**eval_input)
-                score = _convert_to_score(result, name, source, direction)
-                return [score]
+                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    raise NotImplementedError("Async evaluator must use async_evaluate")
 
-            def __call__(self, *args: Any, **kwargs: Any) -> Any:
-                return self._fn(*args, **kwargs)
+                async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    result = await self._fn(**eval_input)
+                    score = _convert_to_score(result, name, source, direction)
+                    return [score]
 
-        # Set the docstring on the class itself
-        _FunctionEvaluator.__doc__ = original_docstring
+                async def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                    return await self._fn(*args, **kwargs)
 
-        evaluator_instance = _FunctionEvaluator()
-        # Keep registry compatibility by storing a callable with expected signature
-        _registry[name] = evaluator_instance.evaluate
-        return evaluator_instance
+            _AsyncFunctionEvaluator.__doc__ = original_docstring
+            evaluator_instance = _AsyncFunctionEvaluator()
+            _registry[name] = evaluator_instance.evaluate
+            return evaluator_instance
+        else:
+
+            class _FunctionEvaluator(Evaluator):
+                def __init__(self) -> None:
+                    super().__init__(
+                        name=name,
+                        source=source,
+                        direction=direction,
+                        input_schema=create_model(
+                            f"{name.capitalize()}Input",
+                            **cast(
+                                Any,
+                                {
+                                    p: (
+                                        (
+                                            param.annotation
+                                            if param.annotation is not inspect._empty
+                                            else Any
+                                        ),
+                                        (
+                                            param.default
+                                            if param.default is not inspect._empty
+                                            else ...
+                                        ),
+                                    )
+                                    for p, param in sig.parameters.items()
+                                },
+                            ),
+                        ),
+                    )
+                    self._fn = fn
+                    self._docstring = original_docstring
+
+                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    result = self._fn(**eval_input)
+                    score = _convert_to_score(result, name, source, direction)
+                    return [score]
+
+                def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                    return self._fn(*args, **kwargs)
+
+            _FunctionEvaluator.__doc__ = original_docstring
+            evaluator_instance = _FunctionEvaluator()  # pyright: ignore
+            _registry[name] = evaluator_instance.evaluate
+            return evaluator_instance
 
     return deco
 
