@@ -577,17 +577,14 @@ class DatasetMutationMixin:
         )
 
         async with info.context.db() as session:
-            # Verify dataset exists
             dataset = await session.get(models.Dataset, dataset_id)
             if not dataset:
                 raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
 
-            # Verify dataset label exists (but don't create if it doesn't exist)
             dataset_label = await session.get(models.DatasetLabel, dataset_label_id)
             if not dataset_label:
                 raise NotFound(f"DatasetLabel with ID '{input.dataset_label_id}' not found")
 
-            # Set the dataset label on the dataset
             await set_dataset_label(session, dataset_id, dataset_label_id)
             await session.commit()
 
@@ -606,12 +603,10 @@ class DatasetMutationMixin:
         )
 
         async with info.context.db() as session:
-            # Verify dataset exists
             dataset = await session.get(models.Dataset, dataset_id)
             if not dataset:
                 raise NotFound(f"Dataset with ID '{input.dataset_id}' not found")
 
-            # Unset the dataset label from the dataset
             was_unset = await unset_dataset_label(session, dataset_id, dataset_label_id)
             if not was_unset:
                 raise NotFound("Dataset label is not associated with this dataset")

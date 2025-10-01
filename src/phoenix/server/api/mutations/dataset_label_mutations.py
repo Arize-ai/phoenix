@@ -53,6 +53,18 @@ class UpdateDatasetLabelMutationPayload:
     dataset_label: DatasetLabel
 
 
+@strawberry.input
+class SetDatasetLabelInput:
+    dataset_id: GlobalID
+    dataset_label_id: GlobalID
+
+
+@strawberry.input
+class UnsetDatasetLabelInput:
+    dataset_id: GlobalID
+    dataset_label_id: GlobalID
+
+
 @strawberry.type
 class DatasetLabelMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
@@ -144,18 +156,6 @@ class DatasetLabelMutationMixin:
         )
 
 
-@strawberry.input
-class SetDatasetLabelInput:
-    dataset_id: GlobalID
-    dataset_label_id: GlobalID
-
-
-@strawberry.input
-class UnsetDatasetLabelInput:
-    dataset_id: GlobalID
-    dataset_label_id: GlobalID
-
-
 async def set_dataset_label(
     session: AsyncSession,
     dataset_id: int,
@@ -164,7 +164,6 @@ async def set_dataset_label(
     """
     Sets a dataset label on a dataset. Creates the relationship if it doesn't exist.
     """
-    # Check if the relationship already exists
     existing_association = await session.scalar(
         select(models.DatasetsDatasetLabel).where(
             models.DatasetsDatasetLabel.dataset_id == dataset_id,
@@ -175,7 +174,6 @@ async def set_dataset_label(
     if existing_association:
         return existing_association
 
-    # Create new relationship
     new_association = models.DatasetsDatasetLabel(
         dataset_id=dataset_id,
         dataset_label_id=dataset_label_id,
