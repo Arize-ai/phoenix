@@ -40,9 +40,9 @@ class DeleteDatasetLabelsMutationPayload:
 @strawberry.input
 class UpdateDatasetLabelInput:
     dataset_label_id: GlobalID
-    name: str  # Required field for update pattern
-    description: Optional[str] = None  # Can be null but must be provided
-    color: str  # Required field for update pattern
+    name: str
+    description: Optional[str] = None
+    color: str
 
 
 @strawberry.type
