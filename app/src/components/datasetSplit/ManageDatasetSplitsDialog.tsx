@@ -1,4 +1,4 @@
-import { memo, Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -45,7 +45,7 @@ type ManageDatasetSplitsDialogProps = {
   selectedExamples: SelectedExample[];
 };
 
-function ManageDatasetSplitsDialogComponent(
+export function ManageDatasetSplitsDialog(
   props: ManageDatasetSplitsDialogProps
 ) {
   const { isOpen, onOpenChange, onConfirm, selectedExamples } = props;
@@ -89,6 +89,8 @@ function ManageDatasetSplitsDialogComponent(
               </DialogTitleExtra>
             </DialogHeader>
             <Suspense fallback={<Loading />}>
+              {/* isOpen && is being used to reduce flickering of the dialog
+      , however it is a code smell */}
               {isOpen ? (
                 <ManageDatasetSplitsDialogContent
                   key={`${Number(isOpen)}-${JSON.stringify(sharedSplitIds)}`}
@@ -240,63 +242,3 @@ function ManageDatasetSplitsDialogContent(props: {
     </Autocomplete>
   );
 }
-
-function areManageDatasetSplitsDialogPropsEqual(
-  prevProps: ManageDatasetSplitsDialogProps,
-  nextProps: ManageDatasetSplitsDialogProps
-) {
-  if (prevProps.isOpen !== nextProps.isOpen) {
-    return false;
-  }
-
-  if (prevProps.onOpenChange !== nextProps.onOpenChange) {
-    return false;
-  }
-
-  if (prevProps.onConfirm !== nextProps.onConfirm) {
-    return false;
-  }
-
-  const prevExamples = prevProps.selectedExamples;
-  const nextExamples = nextProps.selectedExamples;
-
-  if (prevExamples.length !== nextExamples.length) {
-    return false;
-  }
-
-  for (let i = 0; i < prevExamples.length; i += 1) {
-    const prevExample = prevExamples[i];
-    const nextExample = nextExamples[i];
-
-    if (prevExample.id !== nextExample.id) {
-      return false;
-    }
-
-    const prevSplits = prevExample.splits;
-    const nextSplits = nextExample.splits;
-
-    if (prevSplits.length !== nextSplits.length) {
-      return false;
-    }
-
-    for (let j = 0; j < prevSplits.length; j += 1) {
-      const prevSplit = prevSplits[j];
-      const nextSplit = nextSplits[j];
-
-      if (
-        prevSplit?.id !== nextSplit?.id ||
-        prevSplit?.color !== nextSplit?.color ||
-        prevSplit?.name !== nextSplit?.name
-      ) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-export const ManageDatasetSplitsDialog = memo(
-  ManageDatasetSplitsDialogComponent,
-  areManageDatasetSplitsDialogPropsEqual
-);

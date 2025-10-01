@@ -272,6 +272,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
+      {/* isManageSplitsOpen && is being used to reduce flickering of the dialog
+      , however it is a code smell */}
       {isManageSplitsOpen && (
         <ManageDatasetSplitsDialog
           selectedExamples={selectedExamples}
