@@ -62,7 +62,7 @@ const createItemsFromPrompts = (
     return {
       id: prompt.id,
       name: prompt.name,
-      children: prompt.promptVersions.versions.map(({ version }) => ({
+      children: prompt?.promptVersions?.versions.map(({ version }) => ({
         id: version.id,
         name: version.id,
         createdAt: version.createdAt,
@@ -127,7 +127,7 @@ export const PromptMenu = <T extends object>({
    */
   const promptsAndVersions = useMemo(() => {
     return prompts.flatMap(({ prompt }) => {
-      return prompt.promptVersions.versions
+      return (prompt?.promptVersions?.versions ?? [])
         .map(({ version }) => ({
           promptId: prompt.id,
           promptName: prompt.name,

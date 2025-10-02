@@ -73,12 +73,14 @@ function PromptVersionDetailsPageContent({
                     leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
                     to="playground"
                     size="S"
-                    aria-label="Prompt Playground"
-                  />
+                    aria-label="Open this Prompt version in Playground"
+                  >
+                    Playground
+                  </LinkButton>
                 </TriggerWrap>
                 <Tooltip>
                   <TooltipArrow />
-                  Playground
+                  Open this Prompt version in Playground
                 </Tooltip>
               </TooltipTrigger>
             </Flex>

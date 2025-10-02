@@ -51,8 +51,14 @@ test.describe("Prompt Management", () => {
     await page.getByRole("link", { name: "Prompts", exact: true }).click();
     await page.waitForURL("**/prompts");
     await page.getByRole("link", { name: promptName }).click();
-
-    await page.getByRole("button", { name: "Playground" }).click();
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    await page.getByRole("tab", { name: "versions" }).click();
+    await expect(page.getByRole("heading", { name: "version:" })).toBeVisible();
+    await page
+      .getByTestId("content")
+      .getByRole("link")
+      .filter({ hasText: "Playground" })
+      .click();
 
     // Ensure that the prompt is loaded into the playground page
     await page.waitForURL("**/playground");

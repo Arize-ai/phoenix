@@ -139,7 +139,7 @@ function PromptIndexPageAside({
             leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
             to="playground"
             size="S"
-            aria-label="Prompt Playground"
+            aria-label="Open this Prompt in Playground"
           >
             Playground
           </LinkButton>
