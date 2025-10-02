@@ -80,9 +80,9 @@ class MatchesRegex(Evaluator):
         matches = self.pattern.findall(output)
 
         explanation = (
-            f"the substrings {matches} matched the regex pattern {self.pattern.pattern}"
+            f"There are {len(matches)} matches for the regex: {self.pattern.pattern}"
             if matches
-            else f"no substrings matched the regex pattern {self.pattern.pattern}"
+            else f"No substrings matched the regex pattern {self.pattern.pattern}"
         )
 
         return [

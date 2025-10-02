@@ -19,7 +19,7 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
             "Call me at +1-800-555-1234 tomorrow.",
             ["matches_regex"],
             dict(matches_regex=1.0),
-            "the substrings ['+1-800-555-1234'] matched the regex pattern \\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{4}",
+            "There are 1 matches for the regex: \\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{4}",
             id="phone-number",
         ),
         pytest.param(
@@ -28,7 +28,7 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
             "Check out https://github.com/Arize-ai/phoenix for the source code.",
             ["matches_regex"],
             dict(matches_regex=1.0),
-            "the substrings ['https://github.com/Arize-ai/phoenix'] matched the regex pattern https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
+            "There are 1 matches for the regex: https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
             id="github-link-arize-phoenix",
         ),
         pytest.param(
@@ -37,7 +37,7 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
             "Send feedback to test.user@example.com please.",
             ["matches_regex"],
             dict(matches_regex=1.0),
-            "the substrings ['test.user@example.com'] matched the regex pattern [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+            "There are 1 matches for the regex: [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
             id="email-address",
         ),
         pytest.param(
@@ -46,7 +46,7 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
             "",
             ["matches_regex"],
             dict(matches_regex=0.0),
-            "no substrings matched the regex pattern \\d+",
+            "No substrings matched the regex pattern \\d+",
             id="empty-string-no-match",
         ),
     ],
@@ -70,7 +70,7 @@ def test_matches_regex_success(
         assert by_name[key] == pytest.approx(expected, rel=1e-6, abs=1e-12)
 
     if expected_explanation is not None:
-        assert expected_explanation in scores[0].explanation
+        assert scores[0].explanation == expected_explanation
     else:
         assert scores[0].explanation is None
 
