@@ -414,6 +414,7 @@ class Datasets:
         *,
         dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
+        splits: Optional[list[str]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -471,7 +472,9 @@ class Datasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        params = {"version_id": version_id} if version_id else None
+        params = {"version_id": version_id} if version_id else {}
+        if splits and len(splits) > 0:
+            params["splits"] = splits
         examples_response = self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,

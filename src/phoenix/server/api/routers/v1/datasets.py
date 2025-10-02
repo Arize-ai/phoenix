@@ -719,6 +719,10 @@ async def get_dataset_examples(
             "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
     ),
+    splits: Optional[list[str]] = Query(
+        default=None,
+        description="The IDs of the dataset splits to filter by",
+    ),
 ) -> ListDatasetExamplesResponseBody:
     try:
         dataset_gid = GlobalID.from_id(id)
@@ -810,6 +814,26 @@ async def get_dataset_examples(
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
         )
+
+        # If splits are provided, join and filter by dataset splits
+        if splits:
+            resolved_split_ids = []
+            for split_id_str in splits:
+                split_gid = GlobalID.from_id(split_id_str)
+                if split_gid.type_name != "DatasetSplit":
+                    raise HTTPException(
+                        detail=f"ID {split_gid} is not a DatasetSplit",
+                        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+                resolved_split_ids.append(int(split_gid.node_id))
+
+            query = query.join(
+                models.DatasetSplitDatasetExample,
+                models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id,
+            ).filter(
+                models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids)
+            )
+
         examples = [
             DatasetExample(
                 id=str(GlobalID("DatasetExample", str(example.id))),
