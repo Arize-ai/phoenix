@@ -226,27 +226,24 @@ class DatasetLabelMutationMixin:
             )
             unique_dataset_label_keys = set(existing_dataset_label_keys.all())
 
-            values = []
+            datasets_dataset_labels = []
             for dataset_rowid in dataset_rowids:
                 for dataset_label_rowid in dataset_label_rowids:
                     if (dataset_rowid, dataset_label_rowid) in unique_dataset_label_keys:
                         continue
-                    dataset_id_key = models.DatasetsDatasetLabel.dataset_id.key
-                    dataset_label_id_key = models.DatasetsDatasetLabel.dataset_label_id.key
-                    values.append(
-                        {
-                            dataset_id_key: dataset_rowid,
-                            dataset_label_id_key: dataset_label_rowid,
-                        }
+                    datasets_dataset_labels.append(
+                        models.DatasetsDatasetLabel(
+                            dataset_id=dataset_rowid,
+                            dataset_label_id=dataset_label_rowid,
+                        )
                     )
+            session.add_all(datasets_dataset_labels)
 
-            if values:
+            if datasets_dataset_labels:
                 try:
-                    await session.execute(insert(models.DatasetsDatasetLabel), values)
-                    await session.flush()
+                    await session.commit()
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add dataset labels to datasets.") from e
-            await session.commit()
 
         return AddDatasetLabelsToDatasetsMutationPayload(
             query=Query(),
