@@ -633,7 +633,9 @@ class TestExperimentsIntegration:
             observations["dict_access_id"] = example.get("id")
             observations["dict_access_input"] = example.get("input")
 
-            observations["supports_iteration"] = list(example.keys()) if hasattr(example, "keys") else None
+            observations["supports_iteration"] = (
+                list(example.keys()) if hasattr(example, "keys") else None
+            )
 
             return "ok"
 
