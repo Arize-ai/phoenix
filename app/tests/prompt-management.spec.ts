@@ -52,7 +52,7 @@ test.describe("Prompt Management", () => {
     await page.waitForURL("**/prompts");
     await page.getByRole("link", { name: promptName }).click();
 
-    await page.getByRole("button", { name: "Edit in Playground" }).click();
+    await page.getByRole("button", { name: "Playground" }).click();
 
     // Ensure that the prompt is loaded into the playground page
     await page.waitForURL("**/playground");
