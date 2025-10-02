@@ -100,9 +100,9 @@ export type PlaygroundInstancePrompt = {
    */
   name: string;
   /**
-   * The version of the prompt. Assumes latest version if not provided.
+   * The version of the prompt.
    */
-  version?: string;
+  version: string;
 };
 
 /**

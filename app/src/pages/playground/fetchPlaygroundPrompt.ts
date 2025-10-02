@@ -146,7 +146,7 @@ export const promptVersionToInstance = ({
 }) => {
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
-    prompt: { id: promptId, name: promptName },
+    prompt: { id: promptId, name: promptName, version: promptVersion.id },
   } satisfies Partial<PlaygroundInstance>;
 
   const modelName = promptVersion.modelName;
@@ -401,14 +401,14 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
 };
 
 const fetchPlaygroundPromptQuery = graphql`
-  query fetchPlaygroundPromptQuery($promptId: ID!) {
+  query fetchPlaygroundPromptQuery($promptId: ID!, $promptVersionId: ID) {
     prompt: node(id: $promptId) {
       ... on Prompt {
         id
         name
         createdAt
         description
-        version {
+        version(versionId: $promptVersionId) {
           id
           description
           modelName
@@ -553,12 +553,16 @@ const fetchSupportedInvocationParameters = async ({
  * @param promptId - The prompt ID
  * @returns The prompt
  */
-export const fetchPlaygroundPrompt = async (promptId: string) => {
+export const fetchPlaygroundPrompt = async (
+  promptId: string,
+  promptVersionId?: string | null
+) => {
   return fetchQuery<fetchPlaygroundPromptQuery>(
     RelayEnvironment,
     fetchPlaygroundPromptQuery,
     {
       promptId,
+      promptVersionId,
     }
   ).toPromise();
 };
@@ -585,12 +589,13 @@ const getLatestPromptVersion = (
  * @returns The playground instance
  */
 export const fetchPlaygroundPromptAsInstance = async (
-  promptId?: string | null
+  promptId?: string | null,
+  promptVersionId?: string | null
 ) => {
   if (!promptId) {
     return null;
   }
-  const response = await fetchPlaygroundPrompt(promptId);
+  const response = await fetchPlaygroundPrompt(promptId, promptVersionId);
   const latestPromptVersion = getLatestPromptVersion(response?.prompt);
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
     const supportedInvocationParameters =

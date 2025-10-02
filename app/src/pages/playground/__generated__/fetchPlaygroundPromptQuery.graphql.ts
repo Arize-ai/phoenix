@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9241b594d3ca553a1970f6b98c94036f>>
+ * @generated SignedSource<<bca02ee0ae44370dcfc006d04bbfdb5c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 export type fetchPlaygroundPromptQuery$variables = {
   promptId: string;
+  promptVersionId?: string | null;
 };
 export type fetchPlaygroundPromptQuery$data = {
   readonly prompt: {
@@ -85,6 +86,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "promptId"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "promptVersionId"
   }
 ],
 v1 = [
@@ -147,7 +153,13 @@ v8 = {
 },
 v9 = {
   "alias": null,
-  "args": null,
+  "args": [
+    {
+      "kind": "Variable",
+      "name": "versionId",
+      "variableName": "promptVersionId"
+    }
+  ],
   "concreteType": "PromptVersion",
   "kind": "LinkedField",
   "name": "version",
@@ -418,16 +430,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3d4a14b5f7a3b1c5629e3bf47645a2b4",
+    "cacheID": "1dccae08f9a61ad2435700de49f448f2",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version {\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n  $promptVersionId: ID\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version(versionId: $promptVersionId) {\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5b21b9860cae9ec899aaa18ba9c73787";
+(node as any).hash = "55b45c3e2f0c15ac50bbb8b375dac354";
 
 export default node;
