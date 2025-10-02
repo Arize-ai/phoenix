@@ -45,6 +45,7 @@ export function SettingsPage() {
             <Tab id="models">Models</Tab>
             <Tab id="annotations">Annotations</Tab>
             <Tab id="prompts">Prompts</Tab>
+            <Tab id="datasets">Datasets</Tab>
             <Tab id="data">Data Retention</Tab>
           </TabList>
           <LazyTabPanel id="general" padded>
@@ -60,6 +61,9 @@ export function SettingsPage() {
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="prompts" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="datasets" padded>
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="data" padded>
