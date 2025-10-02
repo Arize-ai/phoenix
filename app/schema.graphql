@@ -17,6 +17,7 @@ input AddDatasetExamplesToDatasetSplitsInput {
 
 type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 input AddExamplesToDatasetInput {
@@ -774,6 +775,12 @@ type DatasetSplitEdge {
 type DatasetSplitMutationPayload {
   datasetSplit: DatasetSplit!
   query: Query!
+}
+
+type DatasetSplitMutationPayloadWithExamples {
+  datasetSplit: DatasetSplit!
+  query: Query!
+  examples: [DatasetExample!]!
 }
 
 type DatasetValues {
@@ -1729,7 +1736,7 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2409,6 +2416,7 @@ input RemoveDatasetExamplesFromDatasetSplitsInput {
 
 type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 type ResponseFormat {
