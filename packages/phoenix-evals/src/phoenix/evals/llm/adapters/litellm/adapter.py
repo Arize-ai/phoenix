@@ -27,6 +27,7 @@ def get_litellm_rate_limit_errors() -> list[Type[Exception]]:
 
     return [LiteLLMRateLimitError]
 
+
 @register_provider(
     provider="openai",
     client_factory=create_openai_client,
