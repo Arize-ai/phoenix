@@ -445,6 +445,16 @@ input CreateDatasetLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
 }
 
+input CreateDatasetLabelInput {
+  name: String!
+  description: String
+  color: String!
+}
+
+type CreateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
+}
+
 input CreateDatasetSplitInput {
   name: String!
   description: String
