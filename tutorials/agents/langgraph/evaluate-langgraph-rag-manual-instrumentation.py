@@ -649,14 +649,14 @@ async def main():
 
         px_client = Client()
         if "qa_correctness" in qa_results:
-            px_client.annotations.log_span_annotations_dataframe(
+            px_client.spans.log_span_annotations_dataframe(
                 dataframe=qa_results["qa_correctness"],
                 annotation_name="Q&A Correctness",
                 annotator_kind="LLM",
             )
             print("✅ Logged Q&A correctness evaluations")
         if "hallucination" in qa_results:
-            px_client.annotations.log_span_annotations_dataframe(
+            px_client.spans.log_span_annotations_dataframe(
                 dataframe=qa_results["hallucination"],
                 annotation_name="Hallucination",
                 annotator_kind="LLM",
