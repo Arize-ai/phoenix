@@ -271,7 +271,7 @@ export function AnnotationConfigList(props: {
             <DebouncedSearch
               aria-label="Search annotation configs"
               onChange={setFilter}
-              placeholder="Search annotationConfigs"
+              placeholder="Search annotation configs"
             />
           </Flex>
           <ListBox
