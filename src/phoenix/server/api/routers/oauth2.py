@@ -40,7 +40,6 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -91,11 +90,12 @@ async def login(
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="Unknown IDP")
     secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     if (referer := request.headers.get("referer")) is not None:
         # if the referer header is present, use it as the origin URL
         parsed_url = urlparse(referer)
@@ -141,10 +141,11 @@ async def create_tokens(
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
 ) -> RedirectResponse:
-    # Security Note: The 'error', 'error_description', and 'code' query parameters come from
-    # the IDP redirect and should be treated as untrusted user input. Never display these
-    # values directly to users as they could be manipulated for XSS, phishing, or social
-    # engineering attacks. Always log them server-side and show generic messages to users.
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="Unknown IDP")
     if error or error_description:
         logger.error(
             "OAuth2 authentication failed for IDP %s: error=%s, description=%s",
@@ -176,8 +177,6 @@ async def create_tokens(
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
         token_data = await oauth2_client.fetch_access_token(
             state=state,
