@@ -49,7 +49,6 @@ function buildSessionAnnotationResult(
 }
 
 /**
-/**
  * Convert a SessionAnnotation to the API format
  */
 export function toSessionAnnotationData(
