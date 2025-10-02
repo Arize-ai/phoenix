@@ -242,7 +242,7 @@ annotations = [
         "result": {"label": "accurate", "score": 0.95}
     },
 ]
-client.annotations.log_span_annotations(span_annotations=annotations)
+client.spans.log_span_annotations(span_annotations=annotations)
 ```
 
 ### Projects
