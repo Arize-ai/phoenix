@@ -39,17 +39,18 @@ import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { IntCell, TextCell } from "../../components/table";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
-import {
-  ProjectSessionColumn,
-  SessionsTableQuery,
-} from "./__generated__/SessionsTableQuery.graphql";
+import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
-import { makeAnnotationColumnId } from "./tableUtils";
+import {
+  DEFAULT_SESSION_SORT,
+  getGqlSessionSort,
+  makeAnnotationColumnId,
+} from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
@@ -229,12 +230,10 @@ export function SessionsTable(props: SessionsTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        enableSorting: false,
         columns: [
           {
             header: `labels`,
             accessorKey: makeAnnotationColumnId(name, "label"),
-            enableSorting: false,
             cell: ({ row }) => {
               const annotation = row.original.sessionAnnotationSummaries.find(
                 (annotation) => annotation.name === name
@@ -253,7 +252,6 @@ export function SessionsTable(props: SessionsTableProps) {
           {
             header: `mean score`,
             accessorKey: makeAnnotationColumnId(name, "score"),
-            enableSorting: false,
             cell: ({ row }) => {
               const annotation = row.original.sessionAnnotationSummaries.find(
                 (annotation) => annotation.name === name
@@ -397,12 +395,7 @@ export function SessionsTable(props: SessionsTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as ProjectSessionColumn,
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : { col: "startTime", dir: "desc" },
+          sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,

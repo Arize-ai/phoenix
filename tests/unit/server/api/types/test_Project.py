@@ -1937,6 +1937,326 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
+    async def test_sessions_sort_start_time(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test sorting project sessions by start time."""
+        async with db() as session:
+            project = await _add_project(session, name="start-time-sort-test")
+
+            # Create 5 sessions with different start times
+            sessions = []
+            base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+            time_deltas = [
+                timedelta(hours=3),
+                timedelta(hours=1),
+                timedelta(hours=5),
+                timedelta(hours=2),
+                timedelta(hours=4),
+            ]
+
+            for i, delta in enumerate(time_deltas):
+                start_time = base_time + delta
+                end_time = start_time + timedelta(minutes=30)
+                ps = await _add_project_session(session, project, start_time=start_time)
+                sessions.append(ps)
+                trace = await _add_trace(
+                    session, project, ps, start_time=start_time, end_time=end_time
+                )
+                await _add_span(session, trace, start_time=start_time, end_time=end_time)
+
+        column = "startTime"
+        # Expected order desc: sessions[2] (5h), sessions[4] (4h), sessions[0] (3h), sessions[3] (2h), sessions[1] (1h)
+        result_desc = [
+            _gid(sessions[2]),  # 5h
+            _gid(sessions[4]),  # 4h
+            _gid(sessions[0]),  # 3h
+            _gid(sessions[3]),  # 2h
+            _gid(sessions[1]),  # 1h
+        ]
+
+        # Test descending order
+        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc
+
+        # Test ascending order
+        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
+
+        # Test pagination
+        first = 2
+        field = f"sessions(sort:{{col:{column},dir:desc}},first:{first}){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc[:2]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+    async def test_sessions_sort_cost_total(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test sorting project sessions by total cost.
+
+        Note: Sessions without cost data are filtered out (inner join behavior).
+        """
+        async with db() as session:
+            project = await _add_project(session, name="cost-sort-test")
+            model = await _add_generative_model(session, name="gpt-4", provider="openai")
+
+            # Create 5 sessions: 4 with costs, 1 without
+            sessions = []
+            costs = [100.0, 50.0, 200.0, 75.0, None]
+
+            for i, cost in enumerate(costs):
+                ps = await _add_project_session(session, project)
+                sessions.append(ps)
+                trace = await _add_trace(session, project, ps)
+                span = await _add_span(session, trace)
+
+                # Only add span cost if cost is not None
+                if cost is not None:
+                    await _add_span_cost(
+                        session,
+                        span=span,
+                        trace=trace,
+                        model=model,
+                        total_cost=cost,
+                        total_tokens=1000,
+                        prompt_cost=cost * 0.75,
+                        prompt_tokens=800,
+                        completion_cost=cost * 0.25,
+                        completion_tokens=200,
+                        span_start_time=span.start_time,
+                    )
+
+        column = "costTotal"
+        # Expected order desc: 200, 100, 75, 50 (session without cost is filtered out)
+        result_desc = [
+            _gid(sessions[2]),  # 200.0
+            _gid(sessions[0]),  # 100.0
+            _gid(sessions[3]),  # 75.0
+            _gid(sessions[1]),  # 50.0
+        ]
+
+        # Test descending order
+        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc
+
+        # Test ascending order: 50, 75, 100, 200
+        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
+
+        # Test pagination
+        first = 2
+        field = f"sessions(sort:{{col:{column},dir:desc}},first:{first}){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}"
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == result_desc[:2]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+    async def test_sessions_sort_by_annotation_score(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test sorting project sessions by annotation score with pagination and multiple NULLs."""
+        async with db() as session:
+            project = await _add_project(session, name="annotation-sort-test")
+
+            # Create 8 sessions: 5 with scores, 3 with NULL scores (interspersed)
+            sessions = []
+            # Scores: 0.9, NULL, 0.5, 0.7, NULL, 0.3, 0.8, NULL
+            scores = [0.9, None, 0.5, 0.7, None, 0.3, 0.8, None]
+
+            for i, score in enumerate(scores):
+                ps = await _add_project_session(session, project)
+                sessions.append(ps)
+                trace = await _add_trace(session, project, ps)
+                await _add_span(session, trace)
+
+                annotation = models.ProjectSessionAnnotation(
+                    project_session_id=ps.id,
+                    name="Quality",
+                    label="good" if score is None else None,
+                    score=score,
+                    explanation=f"Quality annotation {i}",
+                    metadata_={},
+                    annotator_kind="LLM",
+                    source="APP",
+                )
+                session.add(annotation)
+
+        # Test descending order: 0.9, 0.8, 0.7, 0.5, 0.3, NULL (desc by ID: 8,5,2)
+        field = (
+            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
+        )
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[0]),  # 0.9
+            _gid(sessions[6]),  # 0.8
+            _gid(sessions[3]),  # 0.7
+            _gid(sessions[2]),  # 0.5
+            _gid(sessions[5]),  # 0.3
+            _gid(sessions[7]),  # NULL (ID 8)
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[1]),  # NULL (ID 2)
+        ]
+
+        # Test ascending order: 0.3, 0.5, 0.7, 0.8, 0.9, NULL (asc by ID: 2,5,8)
+        field = (
+            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
+        )
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[5]),  # 0.3
+            _gid(sessions[2]),  # 0.5
+            _gid(sessions[3]),  # 0.7
+            _gid(sessions[6]),  # 0.8
+            _gid(sessions[0]),  # 0.9
+            _gid(sessions[1]),  # NULL (ID 2)
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[7]),  # NULL (ID 8)
+        ]
+
+        # Test pagination with desc order - get first 3, ensuring we paginate through NULLs
+        first = 3
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:score}},dir:desc}},first:{first}){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[0]),  # 0.9
+            _gid(sessions[6]),  # 0.8
+            _gid(sessions[3]),  # 0.7
+        ]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+        # Test pagination into NULL territory - page that includes first NULL
+        first = 6
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:score}},dir:asc}},first:{first}){{edges{{node{{id}}cursor}}pageInfo{{endCursor hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[5]),  # 0.3
+            _gid(sessions[2]),  # 0.5
+            _gid(sessions[3]),  # 0.7
+            _gid(sessions[6]),  # 0.8
+            _gid(sessions[0]),  # 0.9
+            _gid(sessions[1]),  # NULL (ID 2 - first NULL)
+        ]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+        # Fetch next page AFTER first NULL - should get remaining NULLs
+        end_cursor = res["pageInfo"]["endCursor"]
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:score}},dir:asc}},first:3,after:"{end_cursor}"){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[7]),  # NULL (ID 8)
+        ]
+        assert res["pageInfo"]["hasNextPage"] is False
+
+    async def test_sessions_sort_by_annotation_label(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test sorting project sessions by annotation label with pagination and multiple NULLs."""
+        async with db() as session:
+            project = await _add_project(session, name="label-sort-test")
+
+            # Create 8 sessions: 5 with labels, 3 with NULL labels (interspersed)
+            sessions = []
+            # Labels: zebra, NULL, alpha, delta, NULL, beta, charlie, NULL
+            labels = ["zebra", None, "alpha", "delta", None, "beta", "charlie", None]
+
+            for i, label in enumerate(labels):
+                ps = await _add_project_session(session, project)
+                sessions.append(ps)
+                trace = await _add_trace(session, project, ps)
+                await _add_span(session, trace)
+
+                annotation = models.ProjectSessionAnnotation(
+                    project_session_id=ps.id,
+                    name="Quality",
+                    label=label,
+                    score=0.5 if label is None else None,
+                    explanation=f"Quality annotation {i}",
+                    metadata_={},
+                    annotator_kind="LLM",
+                    source="APP",
+                )
+                session.add(annotation)
+
+        # Test descending order: zebra, delta, charlie, beta, alpha, NULL (desc by ID: 8,5,2)
+        field = (
+            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
+        )
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[0]),  # "zebra"
+            _gid(sessions[3]),  # "delta"
+            _gid(sessions[6]),  # "charlie"
+            _gid(sessions[5]),  # "beta"
+            _gid(sessions[2]),  # "alpha"
+            _gid(sessions[7]),  # NULL (ID 8)
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[1]),  # NULL (ID 2)
+        ]
+
+        # Test ascending order: alpha, beta, charlie, delta, zebra, NULL (asc by ID: 2,5,8)
+        field = (
+            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
+        )
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[2]),  # "alpha"
+            _gid(sessions[5]),  # "beta"
+            _gid(sessions[6]),  # "charlie"
+            _gid(sessions[3]),  # "delta"
+            _gid(sessions[0]),  # "zebra"
+            _gid(sessions[1]),  # NULL (ID 2)
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[7]),  # NULL (ID 8)
+        ]
+
+        # Test pagination with asc order - get first 3, ensuring we paginate through NULLs
+        first = 3
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:label}},dir:asc}},first:{first}){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[2]),  # "alpha"
+            _gid(sessions[5]),  # "beta"
+            _gid(sessions[6]),  # "charlie"
+        ]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+        # Test pagination into NULL territory - page that includes first NULL
+        first = 6
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:label}},dir:desc}},first:{first}){{edges{{node{{id}}cursor}}pageInfo{{endCursor hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[0]),  # "zebra"
+            _gid(sessions[3]),  # "delta"
+            _gid(sessions[6]),  # "charlie"
+            _gid(sessions[5]),  # "beta"
+            _gid(sessions[2]),  # "alpha"
+            _gid(sessions[7]),  # NULL (ID 8 - first NULL in desc order)
+        ]
+        assert res["pageInfo"]["hasNextPage"] is True
+
+        # Fetch next page AFTER first NULL - should get remaining NULLs
+        end_cursor = res["pageInfo"]["endCursor"]
+        field = f'sessions(sort:{{annoResultKey:{{name:"Quality",attr:label}},dir:desc}},first:3,after:"{end_cursor}"){{edges{{node{{id}}}}pageInfo{{hasNextPage}}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [
+            _gid(sessions[4]),  # NULL (ID 5)
+            _gid(sessions[1]),  # NULL (ID 2)
+        ]
+        assert res["pageInfo"]["hasNextPage"] is False
+
     async def test_sessions_substring_search_looks_at_both_input_and_output(
         self,
         _data: _Data,
