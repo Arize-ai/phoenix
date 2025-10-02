@@ -50,7 +50,9 @@ class MatchesRegex(Evaluator):
     """
 
     class InputSchema(BaseModel):
-        output: str = Field(..., description="The output to the LLM.")
+        output: str = Field(
+            ..., description="The text string to evaluate against the regex pattern."
+        )
 
     def __init__(
         self,
@@ -58,12 +60,6 @@ class MatchesRegex(Evaluator):
         name: Optional[str] = None,
         include_explanation: bool = True,
     ):
-        """Initialize the regex evaluator.
-
-        Args:
-            pattern: The regex pattern (string or compiled Pattern).
-            name: Optional name for the evaluator. Defaults to "matches_regex".
-        """
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
 
@@ -83,18 +79,15 @@ class MatchesRegex(Evaluator):
 
         matches = self.pattern.findall(output)
 
-        if matches:
-            explanation = (
-                f"the substrings {matches} matched the regex pattern {self.pattern.pattern}"
-            )
-            score_value = 1.0
-        else:
-            explanation = f"no substrings matched the regex pattern {self.pattern.pattern}"
-            score_value = 0.0
+        explanation = (
+            f"There are {len(matches)} matches for the regex: {self.pattern.pattern}"
+            if matches
+            else f"No substrings matched the regex pattern {self.pattern.pattern}"
+        )
 
         return [
             Score(
-                score=score_value,
+                score=float(bool(matches)),
                 name=self.name,
                 explanation=explanation if self.include_explanation else None,
                 source=self.source,
