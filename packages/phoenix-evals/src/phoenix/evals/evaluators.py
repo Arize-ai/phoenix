@@ -1058,7 +1058,7 @@ def bind_evaluator(
             }
             result = bound_evaluator.evaluate(data)
     """
-    evaluator_copy = cast(Evaluator, copy.deepcopy(evaluator))
+    evaluator_copy = copy.deepcopy(evaluator)
     evaluator_copy.bind(input_mapping=input_mapping)
     return evaluator_copy
 
