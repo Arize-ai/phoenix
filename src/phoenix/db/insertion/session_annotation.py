@@ -73,6 +73,7 @@ class SessionAnnotationQueueInserter(
         list[Postponed[Precursors.SessionAnnotation]],
         list[Received[Precursors.SessionAnnotation]],
     ]:
+        print("parcels", len(parcels))
         to_insert: list[Received[Insertables.SessionAnnotation]] = []
         to_postpone: list[Postponed[Precursors.SessionAnnotation]] = []
         to_discard: list[Received[Precursors.SessionAnnotation]] = []
@@ -169,7 +170,7 @@ def _key(p: Received[Precursors.SessionAnnotation]) -> _Key:
 
 
 def _unique_by(p: Received[Insertables.SessionAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.project_session_rowid, p.item.identifier
+    return p.item.obj.name, p.item.project_session_rowid, p.item.obj.identifier
 
 
 def _time(p: Received[Any]) -> datetime:
