@@ -29,6 +29,8 @@ This capability will not only speed up the iteration process for refining your L
 
 #### Additional Resources <a href="#how-it-works" id="how-it-works"></a>
 
+[How to build a custom LLM judge](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/ShR775Rt7OzHRfy5j2Ks/~/changes/1321/evaluation/how-to-evals/custom-llm-as-a-judge)
+
 {% embed url="https://arize.com/llm-as-a-judge/" %}
 
 {% embed url="https://arize.com/llm-as-a-jury/" %}
