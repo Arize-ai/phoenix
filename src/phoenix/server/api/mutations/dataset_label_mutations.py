@@ -14,8 +14,8 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
