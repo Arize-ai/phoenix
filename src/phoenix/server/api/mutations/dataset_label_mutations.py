@@ -54,26 +54,26 @@ class UpdateDatasetLabelMutationPayload:
     dataset_label: DatasetLabel
 
 
-@strawberry.type
-class SetDatasetLabelsToDatasetsMutationPayload:
-    query: "Query"
-
-
-@strawberry.type
-class UnsetDatasetLabelsFromDatasetsMutationPayload:
-    query: "Query"
-
-
 @strawberry.input
-class SetDatasetLabelsToDatasetInput:
+class SetDatasetLabelsInput:
     dataset_label_ids: list[GlobalID]
     dataset_ids: list[GlobalID]
 
 
+@strawberry.type
+class SetDatasetLabelsMutationPayload:
+    query: "Query"
+
+
 @strawberry.input
-class UnsetDatasetLabelsFromDatasetInput:
+class UnsetDatasetLabelsInput:
     dataset_label_ids: list[GlobalID]
     dataset_ids: list[GlobalID]
+
+
+@strawberry.type
+class UnsetDatasetLabelsMutationPayload:
+    query: "Query"
 
 
 @strawberry.type
