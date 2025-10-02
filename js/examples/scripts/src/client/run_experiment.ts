@@ -1,6 +1,9 @@
 /* eslint-disable no-console */
-import { createDataset } from "../src/datasets";
-import { asEvaluator, runExperiment } from "../src/experiments";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
 
 async function main() {
   const { datasetId } = await createDataset({

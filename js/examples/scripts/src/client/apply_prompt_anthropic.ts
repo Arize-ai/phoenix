@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-import { createClient } from "../src";
-import { getPrompt, toSDK } from "../src/prompts";
+import { createClient } from "@arizeai/phoenix-client";
+import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { PromptSelector } from "../src/types/prompts";
+import { PromptSelector } from "@arizeai/phoenix-client/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;

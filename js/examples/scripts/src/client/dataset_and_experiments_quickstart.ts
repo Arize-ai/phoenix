@@ -1,14 +1,14 @@
 /* eslint-disable no-console */
 import { OpenAI } from "openai";
-import { createClient } from "../src";
+import { createClient } from "@arizeai/phoenix-client";
 import {
   runExperiment,
   asEvaluator,
   RunExperimentParams,
-} from "../src/experiments";
-import { AnnotatorKind } from "../src/types/annotations";
-import { Example } from "../src/types/datasets";
-import { createDataset } from "../src/datasets/createDataset";
+} from "@arizeai/phoenix-client/experiments";
+import { AnnotatorKind } from "@arizeai/phoenix-client/types/annotations";
+import { Example } from "@arizeai/phoenix-client/types/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai as aiOpenAI } from "@ai-sdk/openai";
 

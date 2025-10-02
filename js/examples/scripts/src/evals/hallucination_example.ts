@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import assert from "assert";
-import { createHallucinationEvaluator } from "../src/llm";
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");

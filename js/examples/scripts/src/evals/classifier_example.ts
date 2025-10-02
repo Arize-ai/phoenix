@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 import assert from "assert";
-import { generateClassification } from "../src/llm";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");
 
-const prompt = `
+const promptTemplate = `
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
@@ -21,11 +21,11 @@ your response.
 
     [BEGIN DATA]
     ************
-    [Query]: "Is Arize Phoenix Open Source?"
+    [Query]: {{input}}
     ************
-    [Reference text]: "Arize Phoenix is a platform for building and deploying AI applications. It is open source."
+    [Reference text]: {{reference}}
     ************
-    [Answer]: "Arize is not open source."
+    [Answer]: {{output}}
     ************
     [END DATA]
 
@@ -33,13 +33,22 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 async function main() {
-  const result = await generateClassification({
+  const evaluator = await createClassificationEvaluator({
+    name: "hallucination",
     model,
-    labels: ["factual", "hallucinated"],
-    prompt,
+    choices: { factual: 1, hallucinated: 0 },
+    promptTemplate: promptTemplate,
+  });
+
+  const result = await evaluator.evaluate({
+    output: "Arize is not open source.",
+    input: "Is Arize Phoenix Open Source?",
+    reference:
+      "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
   });
   console.log(result);
   assert(result.label === "hallucinated");
+  assert(result.score === 0);
 }
 
 main();

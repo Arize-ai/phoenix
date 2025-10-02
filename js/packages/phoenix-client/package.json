@@ -75,8 +75,7 @@
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.9",
-    "@arizeai/phoenix-evals": "workspace:*"
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",

@@ -184,6 +184,16 @@ runExperiment({
 });
 ```
 
+## Examples
+
+To run examples, navigate to [js/examples/scripts](../../examples/scripts/README.md) and run:
+
+```bash
+pnpm install
+pnpx start -- examples/evals/experiment_evaluation_example.ts
+# change the file name to run other examples
+```
+
 ## Community
 
 Join our community to connect with thousands of AI builders:

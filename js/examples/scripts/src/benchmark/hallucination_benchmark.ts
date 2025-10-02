@@ -1,4 +1,4 @@
-import { createHallucinationEvaluator } from "../src/llm";
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {

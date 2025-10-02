@@ -1,9 +1,8 @@
 /* eslint-disable no-console */
-import { createClient } from "../src";
-import { getPrompt, toSDK } from "../src/prompts";
-import { generateObject, generateText, jsonSchema } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { PromptSelector } from "../src/types/prompts";
+import { createClient } from "@arizeai/phoenix-client";
+import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
+import OpenAI from "openai";
+import { PromptSelector } from "@arizeai/phoenix-client/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;
@@ -27,6 +26,10 @@ const client = createClient({
   options: {
     baseUrl: "http://localhost:6006",
   },
+});
+
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
 });
 
 const main = async () => {
@@ -53,41 +56,29 @@ const main = async () => {
     throw new Error("Prompt not found");
   }
 
-  const aiParams = toSDK({
+  const openAIParams = toSDK({
     prompt,
-    sdk: "ai",
+    sdk: "openai",
     variables: {
       question,
     },
   });
 
-  if (!aiParams) {
+  if (!openAIParams) {
     throw new Error("Prompt could not be converted to OpenAI params");
   }
 
-  // Apply prompt to a standard text generation call
-  // Note: this does not use response format, you must use generateObject or streamObject for that,
-  //       see below for an example
-  const { text, toolCalls } = await generateText({
-    model: openai("gpt-4o"),
-    ...aiParams,
+  const response = await openai.chat.completions.create({
+    ...openAIParams,
+    model: "gpt-4o",
+    stream: false,
   });
 
-  console.log("Text generation result:");
-  console.log(text);
-  console.log("Tool calls:");
-  console.log(toolCalls);
-
-  if (prompt.response_format) {
-    // Apply prompt with response format to a generateObject call
-    const { object } = await generateObject({
-      model: openai("gpt-4o"),
-      schema: jsonSchema(prompt.response_format.json_schema),
-      ...aiParams,
-    });
-    console.log("Object generation result:");
-    console.log(object);
-  }
+  console.dir(
+    response.choices[0]?.message.content ??
+      response.choices[0]?.message.tool_calls,
+    { depth: null }
+  );
 };
 
 main();

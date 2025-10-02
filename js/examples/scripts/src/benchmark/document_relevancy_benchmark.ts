@@ -1,4 +1,4 @@
-import { createDocumentRelevancyEvaluator } from "../src/llm";
+import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
