@@ -13,7 +13,7 @@ export type PartialAIParams = {
   /**
 The tools that the model can call. The model needs to support calling tools.
     */
-  tools?: ToolSet;
+  // tools?: ToolSet;
   /**
 The tool choice strategy. Default: 'auto'.
      */
@@ -83,7 +83,7 @@ export const toAI = <V extends Variables>({
     // const hasTools = Object.keys(tools ?? {}).length > 0;
     // tools = hasTools ? tools : undefined;
     const hasTools = false;
-    const tools = undefined;
+    // const tools = undefined;
     if (prompt.tools?.tools && prompt.tools?.tools.length) {
       // eslint-disable-next-line no-console
       console.warn(
@@ -101,7 +101,7 @@ export const toAI = <V extends Variables>({
     const completionParams: PartialAIParams = {
       ...baseCompletionParams,
       messages,
-      tools,
+      // tools,
       toolChoice,
     };
 
