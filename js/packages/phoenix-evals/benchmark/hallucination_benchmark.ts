@@ -5,6 +5,7 @@ import {
   asEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
+import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 const hallucinationEvaluator = createHallucinationEvaluator({
   model: openai("gpt-4o-mini"),
 });
@@ -118,13 +119,13 @@ async function main() {
     })),
   });
 
-  const task = async (example) => {
+  const task: ExperimentTask = async (example) => {
     const useHalluination = Math.random() < 0.2;
     const answer = useHalluination
       ? example.output?.hallucinated_answer
       : example.output?.answer;
 
-    const evalResult = await hallucinationEvaluator({
+    const evalResult = await hallucinationEvaluator.evaluate({
       input: example.input.question as string,
       context: example.input.context as string,
       output: answer as string,
