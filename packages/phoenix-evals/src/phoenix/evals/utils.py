@@ -93,10 +93,11 @@ def remap_eval_input(
     # Process both required fields and any fields explicitly present in mapping.
     # Optional fields can be populated via mapping, but only required fields are strictly validated.
     fields_to_process: Set[str] = set(required_fields) | set(input_mapping.keys())
-
     for field_name in fields_to_process:
         extractor = input_mapping.get(field_name, field_name)
-
+        # if provided empty string, use field name directly
+        if extractor == "":
+            extractor = field_name
         # Compute value and whether we successfully found/extracted it
         found = False
         value: Any = None
@@ -106,22 +107,19 @@ def remap_eval_input(
             found = True
         elif isinstance(extractor, str):
             path = extractor
-            # If path is empty, try direct key
-            if not path:
-                key = field_name
-                if key in eval_input:
-                    value = eval_input[key]
+            try:
+                if path in eval_input:
+                    value = eval_input[path]
                     found = True
-            else:
-                try:
+                else:
                     value = extract_with_jsonpath(eval_input, path)
                     found = True
-                except (JsonPathParserError, ValueError) as e:
-                    # Missing/invalid path: for required fields, re-raise; for optional,
-                    # treat as not found
-                    if field_name in required_fields:
-                        raise e
-                    found = False
+            except (JsonPathParserError, ValueError) as e:
+                # Missing/invalid path: for required fields, re-raise; for optional,
+                # treat as not found
+                if field_name in required_fields:
+                    raise e
+                found = False
         else:
             # Unsupported extractor type
             msg = (
@@ -311,6 +309,7 @@ def to_annotation_dataframe(
         for the specified score names.
 
     Examples::
+
         from phoenix.client import Client
         from phoenix.evals import evaluate_dataframe
         from phoenix.evals.utils import to_annotation_dataframe

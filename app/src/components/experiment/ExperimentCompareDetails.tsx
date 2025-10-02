@@ -296,6 +296,8 @@ function ExperimentRunOutputs({
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
+          id="experiment-compare-details-outputs-sidebar-panel"
+          order={1}
           onCollapse={() => setIsSideBarOpen(false)}
         >
           <ExperimentRunOutputsSidebar
@@ -312,7 +314,7 @@ function ExperimentRunOutputs({
       {isSideBarOpen ? (
         <PanelResizeHandle css={compactResizeHandleCSS} />
       ) : null}
-      <Panel>
+      <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
         <View
           paddingX="size-200"
           paddingY="size-100"
@@ -431,7 +433,6 @@ function ExperimentRunOutputsSidebar({
   return (
     <div
       css={css`
-        width: 340px;
         flex: none;
         font-size: var(--ac-global-dimension-static-font-size-100);
         color: var(--ac-global-color-grey-700);

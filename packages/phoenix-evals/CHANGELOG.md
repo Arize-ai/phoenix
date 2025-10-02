@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.2.0...arize-phoenix-evals-v2.3.0) (2025-10-01)
+
+
+### Features
+
+* Allow dot delimited fstring keys in evals Templates ([#9725](https://github.com/Arize-ai/phoenix/issues/9725)) ([505ead8](https://github.com/Arize-ai/phoenix/commit/505ead838725ab447ef323d6549286d00d132b1e))
+
+
+### Bug Fixes
+
+* **evals:** try extracting key from eval_input directly before searching jsonpath ([#9721](https://github.com/Arize-ai/phoenix/issues/9721)) ([04f3da7](https://github.com/Arize-ai/phoenix/commit/04f3da7b6c9aa318924a4abd61256dc81ae2afa8))
+
 ## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.1.0...arize-phoenix-evals-v2.2.0) (2025-09-27)
 
 

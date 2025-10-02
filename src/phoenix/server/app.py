@@ -144,6 +144,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
     auth_router,
     create_embeddings_router,
@@ -711,6 +712,7 @@ def create_graphql_router(
                     db
                 ),
                 dataset_example_splits=DatasetExampleSplitsDataLoader(db),
+                dataset_labels=DatasetLabelsDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
                     cache_map=(

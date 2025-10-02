@@ -42,16 +42,12 @@ class TestRemapEvalInput:
             ),
         ],
     )
-    def test_remap_eval_input_success(
+    def test_remap_eval_input_simple_cases(
         self, eval_input, required_fields, input_mapping, expected_result
     ):
         """Test successful remapping of eval_input."""
         result = remap_eval_input(eval_input, required_fields, input_mapping)
         assert result == expected_result
-
-
-class TestRemapEvalInputAdvanced:
-    """Deep coverage of remapping paths, transforms, and errors."""
 
     @pytest.mark.parametrize(
         "eval_input,required_fields,input_mapping,expected",
@@ -112,6 +108,65 @@ class TestRemapEvalInputAdvanced:
                 {"b": 1},
                 id="callable_extractor",
             ),
+            pytest.param(
+                {
+                    "attributes.input.value": "direct_value",
+                    "attributes.output.value": "another_direct_value",
+                },
+                {"attributes.input.value", "attributes.output.value"},
+                {},
+                {
+                    "attributes.input.value": "direct_value",
+                    "attributes.output.value": "another_direct_value",
+                },
+                id="required fields with dot notation",
+            ),
+            pytest.param(
+                {
+                    "attributes.input.value": "direct_value",
+                    "attributes.output.value": "another_direct_value",
+                    "nested": {"input": "nested_value", "output": "nested_output"},
+                },
+                {"attributes.input.value", "attributes.output.value", "output"},
+                {"output": "nested.output"},
+                {
+                    "attributes.input.value": "direct_value",
+                    "attributes.output.value": "another_direct_value",
+                    "output": "nested_output",
+                },
+                id="required fields with dot notation and input_mapping with dot notation",
+            ),
+            pytest.param(
+                {
+                    "attributes.input.value": "direct_value",
+                    "attributes.output.value": "another_direct_value",
+                },
+                {"output"},
+                {"output": "attributes.output.value"},
+                {
+                    "attributes.input.value": "direct_value",
+                    "output": "another_direct_value",
+                },
+                id="dot notation accessed as top level key before jsonpath",
+            ),
+            pytest.param(
+                {
+                    "user_data": {"input": "mapped_input", "output": "mapped_output"},
+                    "attributes.value": "direct_key_value",
+                },
+                {"input", "output", "attributes.input.value"},
+                {
+                    "input": "user_data.input",
+                    "output": "user_data.output",
+                    "attributes.input.value": "attributes.value",
+                },
+                {
+                    "input": "mapped_input",
+                    "output": "mapped_output",
+                    "attributes.input.value": "direct_key_value",
+                },
+                id="dot notation in key and path",
+            ),
         ],
     )
     def test_remap_success_cases(self, eval_input, required_fields, input_mapping, expected):
@@ -120,32 +175,70 @@ class TestRemapEvalInputAdvanced:
         for k, v in expected.items():
             assert result.get(k) == v
 
-    def test_optional_fields_pass_through_when_present(self):
-        eval_input = {"a": "x", "b": "y", "extra": 1}
-        required_fields = {"a"}
-        out = remap_eval_input(eval_input, required_fields, None)
+    @pytest.mark.parametrize(
+        "eval_input,required_fields,input_mapping,expected_required,expected_optional",
+        [
+            pytest.param(
+                {"a": "x", "b": "y", "extra": 1},
+                {"a"},
+                None,
+                {"a": "x"},
+                {"b": "y", "extra": 1},
+                id="optional_fields_pass_through_when_present",
+            ),
+        ],
+    )
+    def test_optional_fields_pass_through_when_present(
+        self, eval_input, required_fields, input_mapping, expected_required, expected_optional
+    ):
+        out = remap_eval_input(eval_input, required_fields, input_mapping)
         # Required present
-        assert out["a"] == "x"
+        for k, v in expected_required.items():
+            assert out[k] == v
         # Optional provided by caller should be preserved
-        assert out["b"] == "y"
-        # Unrelated keys are preserved for downstream validation
-        assert out["extra"] == 1
+        for k, v in expected_optional.items():
+            assert out[k] == v
 
-    def test_optional_fields_can_be_mapped(self):
-        eval_input = {"a": "x", "source_b": "mapped"}
-        required_fields = {"a"}
-        input_mapping = {"b": "source_b"}
+    @pytest.mark.parametrize(
+        "eval_input,required_fields,input_mapping,expected",
+        [
+            pytest.param(
+                {"a": "x", "source_b": "mapped"},
+                {"a"},
+                {"b": "source_b"},
+                {"a": "x", "b": "mapped"},
+                id="optional_fields_can_be_mapped",
+            ),
+        ],
+    )
+    def test_optional_fields_can_be_mapped(
+        self, eval_input, required_fields, input_mapping, expected
+    ):
         out = remap_eval_input(eval_input, required_fields, input_mapping)
-        assert out["a"] == "x"
-        assert out["b"] == "mapped"
+        for k, v in expected.items():
+            assert out[k] == v
 
-    def test_optional_mapped_field_missing_is_ignored(self):
-        eval_input = {"a": "x"}
-        required_fields = {"a"}
-        input_mapping = {"b": "missing.path"}
+    @pytest.mark.parametrize(
+        "eval_input,required_fields,input_mapping,expected_present,expected_absent",
+        [
+            pytest.param(
+                {"a": "x"},
+                {"a"},
+                {"b": "missing.path"},
+                {"a": "x"},
+                ["b"],
+                id="optional_mapped_field_missing_is_ignored",
+            ),
+        ],
+    )
+    def test_optional_mapped_field_missing_is_ignored(
+        self, eval_input, required_fields, input_mapping, expected_present, expected_absent
+    ):
         out = remap_eval_input(eval_input, required_fields, input_mapping)
-        assert out["a"] == "x"
-        assert "b" not in out
+        for k, v in expected_present.items():
+            assert out[k] == v
+        for k in expected_absent:
+            assert k not in out
 
     @pytest.mark.parametrize(
         "eval_input,required_fields,input_mapping,expected_error",
@@ -170,25 +263,49 @@ class TestRemapEvalInputAdvanced:
         with pytest.raises(ValueError, match=expected_error):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-    def test_invalid_path_patterns_raise_error(self):
-        eval_input = {"x": "value"}
-        required_fields = {"y"}
-
-        # Test malformed syntax
-        input_mapping = {"y": "x["}
-        with pytest.raises(JsonPathParserError):
+    @pytest.mark.parametrize(
+        "eval_input,required_fields,input_mapping,expected_error_type",
+        [
+            pytest.param(
+                {"x": "value"},
+                {"y"},
+                {"y": "x["},
+                JsonPathParserError,
+                id="malformed_syntax_raises_jsonpath_error",
+            ),
+            pytest.param(
+                {"x": "value"},
+                {"y"},
+                {"y": "x[abc]"},
+                ValueError,
+                id="invalid_syntax_raises_value_error",
+            ),
+        ],
+    )
+    def test_invalid_path_patterns_raise_error(
+        self, eval_input, required_fields, input_mapping, expected_error_type
+    ):
+        with pytest.raises(expected_error_type):
             remap_eval_input(eval_input, required_fields, input_mapping)
 
-        # Test invalid syntax
-        input_mapping = {"y": "x[abc]"}
-        with pytest.raises(ValueError):
+    @pytest.mark.parametrize(
+        "eval_input,required_fields,input_mapping,expected_error_type,expected_error_match",
+        [
+            pytest.param(
+                {"x": 1},
+                {"y"},
+                {"y": 123},
+                TypeError,
+                "Invalid mapping",
+                id="invalid_mapping_type_raises_type_error",
+            ),
+        ],
+    )
+    def test_invalid_mapping_type_raises(
+        self, eval_input, required_fields, input_mapping, expected_error_type, expected_error_match
+    ):
+        with pytest.raises(expected_error_type, match=expected_error_match):
             remap_eval_input(eval_input, required_fields, input_mapping)
-
-    def test_invalid_mapping_type_raises(self):
-        eval_input = {"x": 1}
-        required_fields = {"y"}
-        with pytest.raises(TypeError, match="Invalid mapping"):
-            remap_eval_input(eval_input, required_fields, {"y": 123})
 
 
 class TestExtractWithJsonPath:

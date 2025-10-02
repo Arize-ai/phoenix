@@ -1,7 +1,10 @@
 from typing import Optional
 
+import sqlalchemy
 import strawberry
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -9,7 +12,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -36,6 +39,19 @@ class DeleteDatasetLabelsMutationPayload:
     dataset_labels: list[DatasetLabel]
 
 
+@strawberry.input
+class UpdateDatasetLabelInput:
+    dataset_label_id: GlobalID
+    name: str
+    description: Optional[str] = None
+    color: str
+
+
+@strawberry.type
+class UpdateDatasetLabelMutationPayload:
+    dataset_label: DatasetLabel
+
+
 @strawberry.type
 class DatasetLabelMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
@@ -50,8 +66,46 @@ class DatasetLabelMutationMixin:
         async with info.context.db() as session:
             dataset_label_orm = models.DatasetLabel(name=name, description=description, color=color)
             session.add(dataset_label_orm)
-            await session.commit()
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"A dataset label named '{name}' already exists")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
         return CreateDatasetLabelMutationPayload(
+            dataset_label=to_gql_dataset_label(dataset_label_orm)
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    async def update_dataset_label(
+        self, info: Info[Context, None], input: UpdateDatasetLabelInput
+    ) -> UpdateDatasetLabelMutationPayload:
+        if not input.name or not input.name.strip():
+            raise BadRequest("Dataset label name cannot be empty")
+
+        try:
+            dataset_label_id = from_global_id_with_expected_type(
+                input.dataset_label_id, DatasetLabel.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset label ID: {input.dataset_label_id}")
+
+        async with info.context.db() as session:
+            dataset_label_orm = await session.get(models.DatasetLabel, dataset_label_id)
+            if not dataset_label_orm:
+                raise NotFound(f"DatasetLabel with ID {input.dataset_label_id} not found")
+
+            dataset_label_orm.name = input.name.strip()
+            dataset_label_orm.description = input.description
+            dataset_label_orm.color = input.color.strip()
+
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"A dataset label named '{input.name}' already exists")
+            except sqlalchemy.exc.StatementError as error:
+                raise BadRequest(str(error.orig))
+        return UpdateDatasetLabelMutationPayload(
             dataset_label=to_gql_dataset_label(dataset_label_orm)
         )
 
