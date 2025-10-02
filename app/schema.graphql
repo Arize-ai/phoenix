@@ -19,15 +19,6 @@ type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
 }
 
-input AddDatasetLabelsToDatasetInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type AddDatasetLabelsToDatasetsMutationPayload {
-  query: Query!
-}
-
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -1726,8 +1717,8 @@ type Mutation {
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
-  setDatasetLabels(input: AddDatasetLabelsToDatasetInput!): AddDatasetLabelsToDatasetsMutationPayload!
-  unsetDatasetLabels(input: RemoveDatasetLabelsFromDatasetInput!): RemoveDatasetLabelsFromDatasetsMutationPayload!
+  setDatasetLabels(input: SetDatasetLabelsToDatasetInput!): SetDatasetLabelsToDatasetsMutationPayload!
+  unsetDatasetLabels(input: UnsetDatasetLabelsFromDatasetInput!): UnsetDatasetLabelsFromDatasetsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2422,15 +2413,6 @@ type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
   query: Query!
 }
 
-input RemoveDatasetLabelsFromDatasetInput {
-  datasetLabelIds: [ID!]!
-  datasetIds: [ID!]!
-}
-
-type RemoveDatasetLabelsFromDatasetsMutationPayload {
-  query: Query!
-}
-
 type ResponseFormat {
   definition: JSON!
 }
@@ -2469,6 +2451,15 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
+}
+
+input SetDatasetLabelsToDatasetInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type SetDatasetLabelsToDatasetsMutationPayload {
+  query: Query!
 }
 
 input SetPromptLabelsInput {
@@ -3092,6 +3083,15 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+input UnsetDatasetLabelsFromDatasetInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type UnsetDatasetLabelsFromDatasetsMutationPayload {
+  query: Query!
 }
 
 input UnsetPromptLabelsInput {

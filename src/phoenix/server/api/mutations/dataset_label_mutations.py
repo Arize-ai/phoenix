@@ -55,23 +55,23 @@ class UpdateDatasetLabelMutationPayload:
 
 
 @strawberry.type
-class AddDatasetLabelsToDatasetsMutationPayload:
+class SetDatasetLabelsToDatasetsMutationPayload:
     query: "Query"
 
 
 @strawberry.type
-class RemoveDatasetLabelsFromDatasetsMutationPayload:
+class UnsetDatasetLabelsFromDatasetsMutationPayload:
     query: "Query"
 
 
 @strawberry.input
-class AddDatasetLabelsToDatasetInput:
+class SetDatasetLabelsToDatasetInput:
     dataset_label_ids: list[GlobalID]
     dataset_ids: list[GlobalID]
 
 
 @strawberry.input
-class RemoveDatasetLabelsFromDatasetInput:
+class UnsetDatasetLabelsFromDatasetInput:
     dataset_label_ids: list[GlobalID]
     dataset_ids: list[GlobalID]
 
@@ -168,8 +168,8 @@ class DatasetLabelMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def set_dataset_labels(
-        self, info: Info[Context, None], input: AddDatasetLabelsToDatasetInput
-    ) -> AddDatasetLabelsToDatasetsMutationPayload:
+        self, info: Info[Context, None], input: SetDatasetLabelsToDatasetInput
+    ) -> SetDatasetLabelsToDatasetsMutationPayload:
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
         if not input.dataset_label_ids:
@@ -244,14 +244,14 @@ class DatasetLabelMutationMixin:
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add dataset labels to datasets.") from e
 
-        return AddDatasetLabelsToDatasetsMutationPayload(
+        return SetDatasetLabelsToDatasetsMutationPayload(
             query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def unset_dataset_labels(
-        self, info: Info[Context, None], input: RemoveDatasetLabelsFromDatasetInput
-    ) -> RemoveDatasetLabelsFromDatasetsMutationPayload:
+        self, info: Info[Context, None], input: UnsetDatasetLabelsFromDatasetInput
+    ) -> UnsetDatasetLabelsFromDatasetsMutationPayload:
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
         if not input.dataset_label_ids:
@@ -286,6 +286,6 @@ class DatasetLabelMutationMixin:
             )
             await session.commit()
 
-        return RemoveDatasetLabelsFromDatasetsMutationPayload(
+        return UnsetDatasetLabelsFromDatasetsMutationPayload(
             query=Query(),
         )
