@@ -59,6 +59,10 @@ type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
 
+type AnnotationSummaries = NonNullable<
+  ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
+>;
+
 const SIDEBAR_PANEL_DEFAULT_SIZE = 15;
 
 export function ExperimentCompareDetails({
@@ -73,7 +77,7 @@ export function ExperimentCompareDetails({
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
   );
-  const exampleData = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
+  const data = useLazyLoadQuery<ExperimentCompareDetailsQuery>(
     graphql`
       query ExperimentCompareDetailsQuery(
         $datasetId: ID!
@@ -128,6 +132,11 @@ export function ExperimentCompareDetails({
                 }
               }
             }
+            experimentAnnotationSummaries {
+              annotationName
+              minScore
+              maxScore
+            }
           }
         }
       }
@@ -140,10 +149,11 @@ export function ExperimentCompareDetails({
     }
   );
 
-  const input = exampleData.example.revision?.input;
-  const referenceOutput = exampleData.example.revision?.referenceOutput;
-  const experimentRuns = exampleData.example.experimentRuns?.edges;
-  const experiments = exampleData.dataset.experiments?.edges;
+  const input = data.example.revision?.input;
+  const referenceOutput = data.example.revision?.referenceOutput;
+  const experimentRuns = data.example.experimentRuns?.edges;
+  const experiments = data.dataset.experiments?.edges;
+  const annotationSummaries = data.dataset.experimentAnnotationSummaries;
 
   const experimentsById = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -227,6 +237,7 @@ export function ExperimentCompareDetails({
             experimentsById={experimentsById}
             experimentRunsByExperimentId={experimentRunsByExperimentId}
             defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
+            annotationSummaries={annotationSummaries}
           />
         </div>
       </Panel>
@@ -246,12 +257,14 @@ function ExperimentRunOutputs({
   experimentsById,
   experimentRunsByExperimentId,
   defaultSelectedRepetitionNumber,
+  annotationSummaries,
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
   defaultSelectedRepetitionNumber?: number;
+  annotationSummaries?: AnnotationSummaries;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
@@ -415,6 +428,7 @@ function ExperimentRunOutputs({
                     experimentRun={run}
                     experimentIndex={experimentIndex}
                     includeRepetitions={includeRepetitions}
+                    annotationSummaries={annotationSummaries}
                   />
                 </li>
               ));
@@ -539,11 +553,13 @@ function ExperimentItem({
   experimentRun,
   experimentIndex,
   includeRepetitions,
+  annotationSummaries,
 }: {
   experiment: Experiment;
   experimentRun?: ExperimentRun;
   experimentIndex: number;
   includeRepetitions: boolean;
+  annotationSummaries?: AnnotationSummaries;
 }) {
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const color =
@@ -587,14 +603,6 @@ function ExperimentItem({
           <Empty message="No Runs" />
         ) : (
           <>
-            {/* <div
-              css={css`
-                border-bottom: 1px solid var(--ac-global-border-color-default);
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-size-100);
-              `}
-            > */}
             <View
               paddingX="size-200"
               paddingTop="size-100"
@@ -609,29 +617,48 @@ function ExperimentItem({
                   var(--ac-global-dimension-size-100)
                   var(--ac-global-dimension-size-100);
                 border-bottom: 1px solid var(--ac-global-border-color-default);
-                overflow-y: auto;
-                // min-height: 50px;
+                /* show scrollbar only if there are annotations */
+                overflow-y: ${experimentRun.annotations?.edges.length > 0
+                  ? "auto"
+                  : "hidden"};
+                min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
+                ANNOTATION_ITEM_HEIGHT}px;
               `}
             >
-              {experimentRun.annotations?.edges.map((edge) => (
-                <li key={edge.annotation.id}>
-                  <DialogTrigger>
-                    <ExperimentAnnotationButton annotation={edge.annotation} />
-                    <Popover placement="top">
-                      <PopoverArrow />
-                      <Dialog style={{ width: 400 }}>
-                        <View padding="size-200">
-                          <AnnotationDetailsContent
-                            annotation={edge.annotation}
-                          />
-                        </View>
-                      </Dialog>
-                    </Popover>
-                  </DialogTrigger>
-                </li>
-              ))}
+              {annotationSummaries?.map((annotationSummary) => {
+                const annotation = experimentRun.annotations?.edges.find(
+                  (edge) =>
+                    edge.annotation.name === annotationSummary.annotationName
+                )?.annotation;
+                return annotation ? (
+                  <li
+                    key={annotationSummary.annotationName}
+                    css={css`
+                      height: ${ANNOTATION_ITEM_HEIGHT}px;
+                    `}
+                  >
+                    <DialogTrigger>
+                      <ExperimentAnnotationButton annotation={annotation} />
+                      <Popover placement="top">
+                        <PopoverArrow />
+                        <Dialog style={{ width: 400 }}>
+                          <View padding="size-200">
+                            <AnnotationDetailsContent annotation={annotation} />
+                          </View>
+                        </Dialog>
+                      </Popover>
+                    </DialogTrigger>
+                  </li>
+                ) : (
+                  // placeholder to ensure alignment when some experiments are missing annotations
+                  <div
+                    css={css`
+                      height: ${ANNOTATION_ITEM_HEIGHT}px;
+                    `}
+                  />
+                );
+              })}
             </ul>
-            {/* </div> */}
             <View flex={1} minHeight={200}>
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
@@ -768,3 +795,5 @@ function shouldRenderNoRunCard(
 
   return !experimentDidRun && isExperimentSelected;
 }
+
+const ANNOTATION_ITEM_HEIGHT = 28;
