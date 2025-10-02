@@ -2,7 +2,8 @@ from enum import Enum, auto
 from typing import Any, Optional
 
 import strawberry
-from sqlalchemy import ColumnElement, Select, select, tuple_
+from sqlalchemy import ColumnElement, Select, func, select, tuple_
+from sqlalchemy.sql.selectable import NamedFromClause
 from strawberry import Maybe
 from typing_extensions import assert_never
 
@@ -31,17 +32,20 @@ def add_order_by_and_page_start_to_query(
     query: Select[tuple[models.ExperimentRun]],
     sort: Optional[ExperimentRunSort],
     after_experiment_run_rowid: Optional[int],
+    experiment_rowid: int,
 ) -> Select[tuple[models.ExperimentRun]]:
-    order_by_columns = _get_order_by_columns(sort)
+    order_by_columns = _get_order_by_columns(sort=sort, experiment_rowid=experiment_rowid)
     query = query.order_by(*order_by_columns)
     if after_experiment_run_rowid is not None:
         after_expression = _get_after_expression(sort, after_experiment_run_rowid)
         query = query.where(after_expression)
-    query = _add_joins_to_query(query, sort)
+    query = _add_joins_to_query(query=query, sort=sort, experiment_rowid=experiment_rowid)
     return query
 
 
-def _get_order_by_columns(sort: Optional[ExperimentRunSort]) -> tuple[ColumnElement[Any], ...]:
+def _get_order_by_columns(
+    sort: Optional[ExperimentRunSort], experiment_rowid: int
+) -> tuple[ColumnElement[Any], ...]:
     if not sort:
         return (
             models.ExperimentRun.dataset_example_id.asc(),
@@ -53,11 +57,27 @@ def _get_order_by_columns(sort: Optional[ExperimentRunSort]) -> tuple[ColumnElem
         assert metric is not None
         if metric is ExperimentRunMetric.latencyMs:
             if sort_direction is SortDir.asc:
-                return (models.ExperimentRun.latency_ms.asc(),)
+                return (models.ExperimentRun.latency_ms.asc(), models.ExperimentRun.id.asc())
             else:
-                return (models.ExperimentRun.latency_ms.desc(),)
+                return (models.ExperimentRun.latency_ms.desc(), models.ExperimentRun.id.desc())
         else:
             assert_never(metric)
+    elif sort.col.annotation_name:
+        annotation_name = sort.col.annotation_name.value
+        assert annotation_name is not None
+        mean_annotation_scores = _get_mean_annotation_scores_subquery(
+            annotation_name, experiment_rowid
+        )
+        if sort_direction is SortDir.asc:
+            return (
+                mean_annotation_scores.c.score.asc().nulls_last(),
+                models.ExperimentRun.id.asc(),
+            )
+        else:
+            return (
+                mean_annotation_scores.c.score.desc().nulls_last(),
+                models.ExperimentRun.id.desc(),
+            )
     raise NotImplementedError
 
 
@@ -96,17 +116,66 @@ def _get_after_expression(
                 .scalar_subquery()
             )
             if sort_direction is SortDir.asc:
-                return models.ExperimentRun.latency_ms > latency_ms
+                return tuple_(models.ExperimentRun.latency_ms, models.ExperimentRun.id) > (
+                    latency_ms,
+                    experiment_run_rowid,
+                )
             else:
-                return models.ExperimentRun.latency_ms < latency_ms
+                return tuple_(models.ExperimentRun.latency_ms, models.ExperimentRun.id) < (
+                    latency_ms,
+                    experiment_run_rowid,
+                )
         else:
             assert_never(metric)
+    elif sort.col.annotation_name:
+        annotation_name = sort.col.annotation_name.value
+        assert annotation_name is not None
+        annotation_score = (
+            select(func.avg(models.ExperimentRunAnnotation.score).label("score"))
+            .select_from(models.ExperimentRunAnnotation)
+            .where(models.ExperimentRunAnnotation.name == annotation_name)
+            .where(models.ExperimentRunAnnotation.experiment_run_id == experiment_run_rowid)
+            .scalar_subquery()
+        )
+        if sort_direction is SortDir.asc:
+            return tuple_(models.ExperimentRunAnnotation.score, models.ExperimentRun.id) > (
+                annotation_score,
+                experiment_run_rowid,
+            )
+        else:
+            return tuple_(models.ExperimentRunAnnotation.score, models.ExperimentRun.id) < (
+                annotation_score,
+                experiment_run_rowid,
+            )
     raise NotImplementedError
+
+
+def _get_mean_annotation_scores_subquery(
+    annotation_name: str,
+    experiment_rowid: int,
+) -> NamedFromClause:
+    return (
+        select(
+            func.avg(models.ExperimentRunAnnotation.score).label("score"),
+            models.ExperimentRunAnnotation.experiment_run_id.label("experiment_run_id"),
+        )
+        .select_from(models.ExperimentRunAnnotation)
+        .join(
+            models.ExperimentRun,
+            models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+        )
+        .where(models.ExperimentRun.experiment_id == experiment_rowid)
+        .where(models.ExperimentRunAnnotation.name == annotation_name)
+        .group_by(models.ExperimentRunAnnotation.experiment_run_id)
+        .subquery()
+        .alias("mean_annotation_scores")
+    )
 
 
 def _add_joins_to_query(
     query: Select[tuple[models.ExperimentRun]],
     sort: Optional[ExperimentRunSort],
+    experiment_rowid: int,
 ) -> Select[tuple[models.ExperimentRun]]:
     if not sort:
         return query
@@ -117,4 +186,14 @@ def _add_joins_to_query(
             return query
         else:
             assert_never(metric)
+    elif sort.col.annotation_name:
+        annotation_name = sort.col.annotation_name.value
+        assert annotation_name is not None
+        mean_annotation_scores = _get_mean_annotation_scores_subquery(
+            annotation_name, experiment_rowid
+        )
+        return query.join(
+            mean_annotation_scores,
+            mean_annotation_scores.c.experiment_run_id == models.ExperimentRun.id,
+        )
     raise NotImplementedError

@@ -65,11 +65,11 @@ class Experiment(Node):
         after: Optional[GlobalID] = UNSET,
         sort: Optional[ExperimentRunSort] = UNSET,
     ) -> Connection[ExperimentRun]:
-        experiment_id = self.id_attr
+        experiment_rowid = self.id_attr
         page_size = first if first is not None else _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
         experiment_runs_query: Select[tuple[models.ExperimentRun]] = (
             select(models.ExperimentRun)
-            .where(models.ExperimentRun.experiment_id == experiment_id)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
             .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
             .limit(page_size + 1)
         )
@@ -88,6 +88,7 @@ class Experiment(Node):
             query=experiment_runs_query,
             sort=sort,
             after_experiment_run_rowid=after_experiment_run_rowid,
+            experiment_rowid=experiment_rowid,
         )
 
         async with info.context.db() as session:

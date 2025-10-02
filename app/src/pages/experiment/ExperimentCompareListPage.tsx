@@ -913,13 +913,20 @@ export function ExperimentCompareListPage({
       isFirstRender.current = false;
       return;
     }
-    let gqlSort: ExperimentRunSort | null = null;
+    let gqlSort: ExperimentRunSort | undefined = undefined;
     if (sorting.length > 0) {
       const sort = sorting[0];
-      const metric = sort.id as ExperimentRunMetric;
       const dir: SortDir = sort.desc ? "desc" : "asc";
+      const sortId = sort.id;
+      let metric: ExperimentRunMetric | undefined = undefined;
+      let annotationName: string | undefined = undefined;
+      if (isExperimentRunMetric(sortId)) {
+        metric = sortId;
+      } else {
+        annotationName = sortId;
+      }
       gqlSort = {
-        col: { metric },
+        col: { metric, annotationName },
         dir,
       };
     }
@@ -1255,4 +1262,11 @@ const progressBarPlaceholderCSS = css`
 
 function ProgressBarPlaceholder() {
   return <div css={progressBarPlaceholderCSS} />;
+}
+
+/**
+ * Type guard for ExperimentRunMetric
+ */
+function isExperimentRunMetric(sortId: string): sortId is ExperimentRunMetric {
+  return sortId === "latencyMs";
 }
