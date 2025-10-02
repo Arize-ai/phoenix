@@ -9,6 +9,7 @@ from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.Identifier import Identifier
@@ -37,7 +38,10 @@ class Prompt(Node):
 
     @strawberry.field
     async def version(
-        self, info: Info[Context, None], version_id: Optional[GlobalID] = None
+        self,
+        info: Info[Context, None],
+        version_id: Optional[GlobalID] = None,
+        tag_name: Optional[Identifier] = None,
     ) -> PromptVersion:
         async with info.context.db() as session:
             if version_id:
@@ -50,6 +54,19 @@ class Prompt(Node):
                 )
                 if not version:
                     raise NotFound(f"Prompt version not found: {version_id}")
+            elif tag_name:
+                try:
+                    name = IdentifierModel(tag_name)
+                except ValueError:
+                    raise NotFound(f"Prompt version tag not found: {tag_name}")
+                version = await session.scalar(
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == self.id_attr)
+                    .join_from(models.PromptVersion, models.PromptVersionTag)
+                    .where(models.PromptVersionTag.name == name)
+                )
+                if not version:
+                    raise NotFound(f"This prompt has no associated versions by tag {tag_name}")
             else:
                 stmt = (
                     select(models.PromptVersion)

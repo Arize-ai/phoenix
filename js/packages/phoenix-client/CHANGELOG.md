@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 4.1.0
+
+### Minor Changes
+
+- 2981780: add session annotation functions
+
 ## 4.0.3
 
 ### Patch Changes

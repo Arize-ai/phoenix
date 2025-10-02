@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Custom Task Evaluation
 
 ## Customize Your Own Eval Templates
@@ -18,22 +22,29 @@ To do that, you must identify what is the **metric best suited for your use case
 
 Then, you need the **golden dataset**. This should be representative of the type of data you expect the LLM eval to see. The golden dataset should have the “ground truth” label so that we can measure performance of the LLM eval template. Often such labels come from human feedback.
 
-Building such a dataset is laborious, but you can often find a standardized one for the most common use cases (as we did in the code above)
-
-The Eval inferences are designed or easy benchmarking and pre-set downloadable test inferences. The inferences are pre-tested, many are hand crafted and designed for testing specific Eval tasks.
+Building such a dataset is laborious, but you can often find a standardized one for the most common use cases. Alternatively, you can use a dataset curated for your use case.&#x20;
 
 ```python
-from phoenix.evals import download_benchmark_dataset
+from phoenix.client import Client
+client = Client()
 
-df = download_benchmark_dataset(
-    task="binary-hallucination-classification", dataset_name="halueval_qa_data"
-)
+dataset = client.datasets.get_dataset(dataset="tone_eval_qa_data")
+
+df = dataset.to_dataframe()
 df.head()
 ```
 
 ### 3. Decide Which LLM to use For Evaluation
 
 Then you need to decide **which LLM** you want to use for evaluation. This could be a different LLM from the one you are using for your application. For example, you may be using Llama for your application and GPT-4 for your eval. Often this choice is influenced by questions of cost and accuracy.
+
+```python
+from phoenix.evals.llm import LLM
+
+llm = LLM(
+    provider="openai", model="gpt-4"
+)
+```
 
 ### 4. Build the Eval Template
 
@@ -67,25 +78,29 @@ MY_CUSTOM_TEMPLATE = '''
 
 The above template shows an example creation of an easy to use string template. The Phoenix Eval templates support both strings and objects.
 
-```python
-model = OpenAIModel(model_name="gpt-4",temperature=0.6)
-positive_eval = llm_classify(
-    dataframe=df,
-    template= MY_CUSTOM_TEMPLATE,
-    model=model
-)
-```
-
-The above example shows a use of the custom created template on the df dataframe.
-
-```python
-#Phoenix Evals support using either strings or objects as templates
-MY_CUSTOM_TEMPLATE = " ..."
-MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
-```
-
 ### 5. Run Eval on your Golden Dataset and Benchmark Performance
+
+This example shows a use of the custom created template on the `df` dataframe.
+
+```python
+from phoenix.evals.evaluators import async_evaluate_dataframe
+from phoenix.evals import create_classifier
+
+tone_evaluator = create_classifier(
+    name="tone",
+    llm=llm,
+    prompt_template=MY_CUSTOM_TEMPLATE,
+    choices={"positive": 1.0, "negative": 0.0},
+)
+
+
+results_df = await async_evaluate_dataframe(
+    dataframe=data,
+    evaluators=[tone_evaluator],
+)
+result.head()
+```
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/concepts-evals-datasets.png" %}
 
-You now need to run the eval across your golden dataset. Then you can **generate metrics** (overall accuracy, precision, recall, F1, etc.) to determine the benchmark. It is important to look at more than just overall accuracy. We’ll discuss that below in more detail.
+First, you need to run the eval across your golden dataset. Then you can **generate metrics** (overall accuracy, precision, recall, F1, etc.) to determine the benchmark. It is important to look at more than just overall accuracy.

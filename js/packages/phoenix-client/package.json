@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "description": "A client for the Phoenix API",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -17,6 +17,10 @@
     "./spans": {
       "import": "./dist/esm/spans/index.js",
       "require": "./dist/src/spans/index.js"
+    },
+    "./sessions": {
+      "import": "./dist/esm/sessions/index.js",
+      "require": "./dist/src/sessions/index.js"
     },
     "./experiments": {
       "import": "./dist/esm/experiments/index.js",

@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Evaluating Multi-Agent Systems
 
 Evaluating multi-agent systems involves unique challenges compared to single-agent evaluations. This guide provides clear explanations of various architectures, strategies for effective evaluation, and additional considerations.

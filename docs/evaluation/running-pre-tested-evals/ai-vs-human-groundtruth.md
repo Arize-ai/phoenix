@@ -95,7 +95,7 @@ The follow benchmarking data was gathered by comparing various model results to 
 
 **GPT-4 Results**
 
-<figure><img src="../../../.gitbook/assets/human_vs_ai_gpt-4.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/human_vs_ai_gpt-4.png" alt=""><figcaption></figcaption></figure>
 
 |           | GPT-4o                                 | GPT-4                                  |
 | --------- | -------------------------------------- | -------------------------------------- |

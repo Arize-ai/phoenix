@@ -208,7 +208,7 @@ annotations = [
         "result": {"label": "accurate", "score": 0.95}
     },
 ]
-client.annotations.log_span_annotations(span_annotations=annotations)
+client.spans.log_span_annotations(span_annotations=annotations)
 
 # Using pandas DataFrame for large-scale annotation
 import pandas as pd
@@ -226,7 +226,7 @@ df = pd.DataFrame({
         "Natural language generation"
     ]
 })
-client.annotations.log_span_annotations_dataframe(dataframe=df)
+client.spans.log_span_annotations_dataframe(dataframe=df)
 ```
 
 ### Datasets
