@@ -1717,8 +1717,8 @@ type Mutation {
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
-  setDatasetLabels(input: SetDatasetLabelsToDatasetInput!): SetDatasetLabelsToDatasetsMutationPayload!
-  unsetDatasetLabels(input: UnsetDatasetLabelsFromDatasetInput!): UnsetDatasetLabelsFromDatasetsMutationPayload!
+  setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
+  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -2453,12 +2453,12 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
-input SetDatasetLabelsToDatasetInput {
+input SetDatasetLabelsInput {
   datasetLabelIds: [ID!]!
   datasetIds: [ID!]!
 }
 
-type SetDatasetLabelsToDatasetsMutationPayload {
+type SetDatasetLabelsMutationPayload {
   query: Query!
 }
 
@@ -3085,12 +3085,12 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
-input UnsetDatasetLabelsFromDatasetInput {
+input UnsetDatasetLabelsInput {
   datasetLabelIds: [ID!]!
   datasetIds: [ID!]!
 }
 
-type UnsetDatasetLabelsFromDatasetsMutationPayload {
+type UnsetDatasetLabelsMutationPayload {
   query: Query!
 }
 

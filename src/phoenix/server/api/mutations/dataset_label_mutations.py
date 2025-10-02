@@ -168,8 +168,8 @@ class DatasetLabelMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def set_dataset_labels(
-        self, info: Info[Context, None], input: SetDatasetLabelsToDatasetInput
-    ) -> SetDatasetLabelsToDatasetsMutationPayload:
+        self, info: Info[Context, None], input: SetDatasetLabelsInput
+    ) -> SetDatasetLabelsMutationPayload:
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
         if not input.dataset_label_ids:
@@ -244,14 +244,14 @@ class DatasetLabelMutationMixin:
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add dataset labels to datasets.") from e
 
-        return SetDatasetLabelsToDatasetsMutationPayload(
+        return SetDatasetLabelsMutationPayload(
             query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def unset_dataset_labels(
-        self, info: Info[Context, None], input: UnsetDatasetLabelsFromDatasetInput
-    ) -> UnsetDatasetLabelsFromDatasetsMutationPayload:
+        self, info: Info[Context, None], input: UnsetDatasetLabelsInput
+    ) -> UnsetDatasetLabelsMutationPayload:
         if not input.dataset_ids:
             raise BadRequest("No datasets provided.")
         if not input.dataset_label_ids:
@@ -286,6 +286,6 @@ class DatasetLabelMutationMixin:
             )
             await session.commit()
 
-        return UnsetDatasetLabelsFromDatasetsMutationPayload(
+        return UnsetDatasetLabelsMutationPayload(
             query=Query(),
         )
