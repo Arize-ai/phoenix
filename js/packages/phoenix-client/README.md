@@ -299,11 +299,11 @@ const experiment = await runExperiment({
 
 ## Examples
 
-To run examples, install dependencies using `pnpm` and run:
+To run examples, navigate to [js/examples/scripts](../../examples/scripts/README.md) and run:
 
 ```bash
 pnpm install
-pnpx tsx examples/list_datasets.ts
+pnpx start -- examples/client/list_datasets.ts
 # change the file name to run other examples
 ```
 
