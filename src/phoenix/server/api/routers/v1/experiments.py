@@ -193,6 +193,25 @@ async def create_experiment(
             project_name=project_name,
             user_id=user_id,
         )
+
+        resolved_split_ids = []
+        for split_id_str in request_body.split_ids:
+            split_gid = GlobalID.from_id(split_id_str)
+            if split_gid.type_name != "DatasetSplit":
+                raise HTTPException(
+                    detail=f"ID {split_gid} is not a DatasetSplit",
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            resolved_split_ids.append(int(split_gid.node_id))
+        # generate experiment dataset splits relation
+        # prior to the crosswalk table insert
+        # in insert_experiment_with_examples_snapshot
+        experiment.experiment_dataset_splits = [
+            models.ExperimentDatasetSplit(dataset_split_id=dataset_split_id)
+            for dataset_split_id in resolved_split_ids
+        ]
+
+        # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
