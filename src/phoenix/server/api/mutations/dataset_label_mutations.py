@@ -178,9 +178,7 @@ class DatasetLabelMutationMixin:
         unique_dataset_rowids: set[int] = set()
         for dataset_gid in input.dataset_ids:
             try:
-                dataset_rowid = from_global_id_with_expected_type(
-                    dataset_gid, Dataset.__name__
-                )
+                dataset_rowid = from_global_id_with_expected_type(dataset_gid, Dataset.__name__)
             except ValueError:
                 raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
             unique_dataset_rowids.add(dataset_rowid)
@@ -262,9 +260,7 @@ class DatasetLabelMutationMixin:
         unique_dataset_rowids: set[int] = set()
         for dataset_gid in input.dataset_ids:
             try:
-                dataset_rowid = from_global_id_with_expected_type(
-                    dataset_gid, Dataset.__name__
-                )
+                dataset_rowid = from_global_id_with_expected_type(dataset_gid, Dataset.__name__)
             except ValueError:
                 raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
             unique_dataset_rowids.add(dataset_rowid)
