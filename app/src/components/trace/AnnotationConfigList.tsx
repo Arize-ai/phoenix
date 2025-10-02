@@ -6,68 +6,40 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
-import { useNavigate } from "react-router";
+import { isString } from "lodash";
 import { css } from "@emotion/react";
 
 import {
-  Button,
-  Checkbox,
+  DebouncedSearch,
   Flex,
+  Heading,
   Icon,
   Icons,
-  Input,
   Link,
   ListBox,
   ListBoxItem,
   Text,
-  TextField,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
+  Token,
   View,
 } from "@phoenix/components";
-import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
 import { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
-import {
-  AnnotationConfigListQuery,
-  AnnotationType,
-} from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
+import { AnnotationConfigListQuery } from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
 import { AnnotationConfigListRemoveAnnotationConfigFromProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectMutation.graphql";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 const annotationListBoxCSS = css`
-  padding: 0 var(--ac-global-dimension-size-100);
-  max-height: 300px;
-  min-width: 320px;
-  min-height: 20px;
+  height: 300px;
+  width: 320px;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  .react-aria-ListBoxItem {
-    padding: 0 var(--ac-global-dimension-size-100);
-
-    label {
-      border-radius: var(--ac-global-rounding-small);
-      padding: var(--ac-global-dimension-size-50) 0;
-      width: 100%;
-      &:hover {
-        background-color: var(--ac-global-color-grey-300);
-      }
-    }
-  }
 `;
-
-const annotationTypeLabelMap: Record<AnnotationType, string> = {
-  ["CATEGORICAL"]: "Categorical",
-  ["CONTINUOUS"]: "Continuous",
-  ["FREEFORM"]: "Freeform",
-};
 
 export function AnnotationConfigList(props: {
   projectId: string;
   spanId: string;
 }) {
-  const navigate = useNavigate();
   const { projectId, spanId } = props;
   const [filter, setFilter] = useState<string>("");
   const { viewer } = useViewer();
@@ -247,10 +219,15 @@ export function AnnotationConfigList(props: {
   );
 
   const allAnnotationConfigs = data.allAnnotationConfigs.edges;
-  const projectAnnotationConfigs =
-    projectAnnotationData.annotationConfigs?.edges;
-  const annotationConfigIdsInProject = useMemo(() => {
-    return new Set(projectAnnotationConfigs?.map((config) => config.node.id));
+  const projectAnnotationConfigs = useMemo(
+    () => projectAnnotationData.annotationConfigs?.edges || [],
+    [projectAnnotationData]
+  );
+  const annotationConfigIdsInProject: Set<string> = useMemo(() => {
+    const configIds = projectAnnotationConfigs
+      .map((config) => config.node.id)
+      .filter(isString);
+    return new Set(configIds);
   }, [projectAnnotationConfigs]);
   const filteredAnnotationConfigs = useMemo(() => {
     return allAnnotationConfigs.filter((config) =>
@@ -284,116 +261,87 @@ export function AnnotationConfigList(props: {
     ]
   );
   return (
-    <>
-      <View paddingTop="size-100" maxWidth={320}>
-        <FocusScope autoFocus contain>
+    <FocusScope autoFocus contain>
+      <View padding="size-100" minWidth={300}>
+        <Flex direction="column" gap="size-100">
           <Flex direction="column" gap="size-100">
-            <View paddingX="size-100" paddingY="size-100">
-              <Flex
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                gap="size-100"
-              >
-                <TextField
-                  aria-label="Search annotation configs"
-                  value={filter}
-                  onChange={(value) => {
-                    setFilter(value);
-                  }}
-                >
-                  <Input placeholder="Search annotation configs" />
-                </TextField>
-                <TooltipTrigger>
-                  <Button
-                    aria-label="Create annotation config"
-                    onPress={() => {
-                      navigate("/settings/annotations");
-                    }}
-                    leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-                  />
-                  <Tooltip placement="bottom">
-                    <TooltipArrow />
-                    Create new annotation config
-                  </Tooltip>
-                </TooltipTrigger>
-              </Flex>
-            </View>
-            <ListBox
-              css={annotationListBoxCSS}
-              selectionMode="multiple"
-              selectionBehavior="toggle"
-              aria-label="Annotation Configs"
-              renderEmptyState={() => (
-                <View width="100%" height="100%" paddingBottom="size-100">
-                  <Flex
-                    direction="column"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    {filter ? (
-                      <Text
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          textAlign: "center",
-                          padding: 0,
-                        }}
-                      >
-                        No annotation configs found for &quot;{filter}&quot;
-                      </Text>
-                    ) : (
-                      <Link to="/settings/annotations">
-                        Configure Annotation Configs
-                      </Link>
-                    )}
-                  </Flex>
-                </View>
-              )}
-              onSelectionChange={(keys) => {
-                const keysArray = Array.from(keys) as string[];
-                updateSelectedAnnotationConfigIds(new Set(keysArray));
-              }}
-            >
-              {filteredAnnotationConfigs.map((config) => (
-                <ListBoxItem
-                  key={config.node.id}
-                  id={config.node.id}
-                  textValue={config.node.name}
-                >
-                  <Flex direction="row" alignItems="center">
-                    <Checkbox
-                      isSelected={annotationConfigIdsInProject.has(
-                        config.node.id
-                      )}
-                      isReadOnly
-                    >
-                      <AnnotationLabel
-                        key={config.node.name}
-                        annotation={{
-                          name: config.node.name || "",
-                        }}
-                        annotationDisplayPreference="none"
-                        css={css`
-                          width: fit-content;
-                        `}
-                      />
-                      <span
-                        css={css`
-                          margin-left: auto;
-                        `}
-                      >
-                        {annotationTypeLabelMap[
-                          config.node.annotationType as AnnotationType
-                        ] || config.node.annotationType}
-                      </span>
-                    </Checkbox>
-                  </Flex>
-                </ListBoxItem>
-              ))}
-            </ListBox>
+            <Heading level={4} weight="heavy">
+              Add Annotations
+            </Heading>
+            <DebouncedSearch
+              aria-label="Search annotation configs"
+              onChange={setFilter}
+              placeholder="Search annotationConfigs"
+            />
           </Flex>
-        </FocusScope>
+          <ListBox
+            css={annotationListBoxCSS}
+            selectionMode="multiple"
+            selectionBehavior="toggle"
+            aria-label="Annotation Configs"
+            selectedKeys={annotationConfigIdsInProject}
+            renderEmptyState={() => (
+              <View width="100%" height="100%" paddingBottom="size-100">
+                <Flex
+                  direction="column"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  {filter ? (
+                    <Text
+                      color="text-700"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        textAlign: "center",
+                        padding: 0,
+                      }}
+                    >
+                      No annotation configs found for &quot;{filter}&quot;
+                    </Text>
+                  ) : (
+                    <Link to="/settings/annotations">
+                      Configure Annotation Configs
+                    </Link>
+                  )}
+                </Flex>
+              </View>
+            )}
+            onSelectionChange={(keys) => {
+              const keysArray = Array.from(keys) as string[];
+              updateSelectedAnnotationConfigIds(new Set(keysArray));
+            }}
+          >
+            {filteredAnnotationConfigs.map((config) => (
+              <ListBoxItem
+                key={config.node.id}
+                id={config.node.id}
+                textValue={config.node.name}
+              >
+                {({ isSelected }) => (
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <AnnotationColorSwatch
+                        annotationName={config.node.name || ""}
+                      />
+                      <Text>{config.node.name}</Text>
+                      <Token size="S">
+                        {config.node.annotationType?.toLocaleLowerCase()}
+                      </Token>
+                    </Flex>
+                    {isSelected ? (
+                      <Icon svg={<Icons.CheckmarkOutline />} />
+                    ) : null}
+                  </Flex>
+                )}
+              </ListBoxItem>
+            ))}
+          </ListBox>
+        </Flex>
       </View>
-    </>
+    </FocusScope>
   );
 }
