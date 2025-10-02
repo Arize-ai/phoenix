@@ -325,65 +325,86 @@ function ExperimentRunOutputs({
         <PanelResizeHandle css={compactResizeHandleCSS} />
       ) : null}
       <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
-        <View
-          paddingX="size-200"
-          paddingY="size-100"
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
-        >
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <IconButton
-              size="S"
-              aria-label="Toggle side bar"
-              onPress={() => {
-                setIsSideBarOpen(!isSideBarOpen);
-                const sidebarPanel = sidebarPanelRef.current;
-                // expand the panel if it is not the minimum size already
-                if (sidebarPanel) {
-                  const size = sidebarPanel.getSize();
-                  if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
-                    sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+        <Flex direction="column" height="100%">
+          <View
+            paddingX="size-200"
+            paddingY="size-100"
+            borderBottomColor="dark"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <Flex direction="row" gap="size-200" alignItems="center">
+              <IconButton
+                size="S"
+                aria-label="Toggle side bar"
+                onPress={() => {
+                  setIsSideBarOpen(!isSideBarOpen);
+                  const sidebarPanel = sidebarPanelRef.current;
+                  // expand the panel if it is not the minimum size already
+                  if (sidebarPanel) {
+                    const size = sidebarPanel.getSize();
+                    if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
+                      sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+                    }
                   }
-                }
-              }}
-            >
-              <Icon
-                svg={isSideBarOpen ? <Icons.SlideOut /> : <Icons.SlideIn />}
-              />
-            </IconButton>
-            <Heading>Experiment Runs</Heading>
-          </Flex>
-        </View>
-        {noRunsSelected && <Empty message="No runs selected" />}
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-start;
-            flex-wrap: none;
-            gap: var(--ac-global-dimension-static-size-200);
-            overflow-x: auto;
-            padding: var(--ac-global-dimension-static-size-200);
-          `}
-        >
-          {experimentIds.map((experimentId, experimentIndex) => {
-            const experiment = experimentsById[experimentId];
-            const experimentRuns = experimentRunsByExperimentId[experimentId];
-            const experimentRunsToDisplay = getSelectedExperimentRuns(
-              experimentId,
-              selectedExperimentRuns,
-              experimentRunsByExperimentId
-            );
-            const renderNoRunCard = shouldRenderNoRunCard(
-              experimentId,
-              experimentRuns,
-              selectedExperimentRuns
-            );
+                }}
+              >
+                <Icon
+                  svg={isSideBarOpen ? <Icons.SlideOut /> : <Icons.SlideIn />}
+                />
+              </IconButton>
+              <Heading>Experiment Runs</Heading>
+            </Flex>
+          </View>
+          {noRunsSelected && <Empty message="No runs selected" />}
+          <ul
+            css={css`
+              flex: 1;
+              display: flex;
+              flex-direction: row;
+              justify-content: flex-start;
+              flex-wrap: none;
+              gap: var(--ac-global-dimension-static-size-200);
+              overflow-x: auto;
+              overflow-y: hidden;
+              padding: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {experimentIds.map((experimentId, experimentIndex) => {
+              const experiment = experimentsById[experimentId];
+              const experimentRuns = experimentRunsByExperimentId[experimentId];
+              const experimentRunsToDisplay = getSelectedExperimentRuns(
+                experimentId,
+                selectedExperimentRuns,
+                experimentRunsByExperimentId
+              );
+              const renderNoRunCard = shouldRenderNoRunCard(
+                experimentId,
+                experimentRuns,
+                selectedExperimentRuns
+              );
 
-            if (renderNoRunCard) {
-              return (
+              if (renderNoRunCard) {
+                return (
+                  <li
+                    key={experimentId}
+                    css={css`
+                      // Make them all the same size
+                      flex: none;
+                    `}
+                  >
+                    <ExperimentItem
+                      experiment={experiment}
+                      experimentIndex={experimentIndex}
+                      includeRepetitions={includeRepetitions}
+                    />
+                  </li>
+                );
+              }
+
+              return experimentRunsToDisplay.map((run) => (
                 <li
-                  key={experimentId}
+                  key={run.id}
                   css={css`
                     // Make them all the same size
                     flex: none;
@@ -391,31 +412,15 @@ function ExperimentRunOutputs({
                 >
                   <ExperimentItem
                     experiment={experiment}
+                    experimentRun={run}
                     experimentIndex={experimentIndex}
                     includeRepetitions={includeRepetitions}
                   />
                 </li>
-              );
-            }
-
-            return experimentRunsToDisplay.map((run) => (
-              <li
-                key={run.id}
-                css={css`
-                  // Make them all the same size
-                  flex: none;
-                `}
-              >
-                <ExperimentItem
-                  experiment={experiment}
-                  experimentRun={run}
-                  experimentIndex={experimentIndex}
-                  includeRepetitions={includeRepetitions}
-                />
-              </li>
-            ));
-          })}
-        </ul>
+              ));
+            })}
+          </ul>
+        </Flex>
       </Panel>
     </PanelGroup>
   );
@@ -519,9 +524,11 @@ function ExperimentRunOutputsSidebar({
 
 const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
-  border-radius: var(--ac-global-rounding-small);
+  border-radius: var(--ac-global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   width: var(--ac-global-dimension-static-size-6000);
+  height: 100%;
+  overflow: hidden;
 `;
 
 /**
@@ -547,47 +554,53 @@ function ExperimentItem({
   const hasExperimentResult = experimentRun !== undefined;
   return (
     <div css={experimentItemCSS}>
-      <View paddingX="size-200" paddingTop="size-200">
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <span
-            css={css`
-              flex: none;
-            `}
-          >
-            <ColorSwatch color={color} shape="circle" />
-          </span>
-          <Heading
-            weight="heavy"
-            level={3}
-            css={css`
-              min-width: 0;
-            `}
-          >
-            <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
-          </Heading>
-          {includeRepetitions && experimentRun && (
-            <>
-              <Icon svg={<Icons.ChevronRight />} />
-              <Heading weight="heavy" level={3}>
-                repetition&nbsp;{experimentRun.repetitionNumber}
-              </Heading>
-            </>
-          )}
-        </Flex>
-      </View>
-      {!hasExperimentResult ? (
-        <Empty message="No Runs" />
-      ) : (
-        <>
-          <div
-            css={css`
-              border-bottom: 1px solid var(--ac-global-border-color-default);
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-size-100);
-            `}
-          >
-            <View paddingX="size-200" paddingTop="size-100">
+      <Flex direction="column" height="100%">
+        <View paddingX="size-200" paddingTop="size-200" flex="none">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <span
+              css={css`
+                flex: none;
+              `}
+            >
+              <ColorSwatch color={color} shape="circle" />
+            </span>
+            <Heading
+              weight="heavy"
+              level={3}
+              css={css`
+                min-width: 0;
+              `}
+            >
+              <Truncate maxWidth="100%">{experiment?.name ?? ""}</Truncate>
+            </Heading>
+            {includeRepetitions && experimentRun && (
+              <>
+                <Icon svg={<Icons.ChevronRight />} />
+                <Heading weight="heavy" level={3}>
+                  repetition&nbsp;{experimentRun.repetitionNumber}
+                </Heading>
+              </>
+            )}
+          </Flex>
+        </View>
+        {!hasExperimentResult ? (
+          <Empty message="No Runs" />
+        ) : (
+          <>
+            {/* <div
+              css={css`
+                border-bottom: 1px solid var(--ac-global-border-color-default);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-size-100);
+              `}
+            > */}
+            <View
+              paddingX="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              flex="none"
+            >
               <ExperimentRunMetadata {...experimentRun} />
             </View>
             <ul
@@ -595,6 +608,9 @@ function ExperimentItem({
                 padding: 0 var(--ac-global-dimension-size-100)
                   var(--ac-global-dimension-size-100)
                   var(--ac-global-dimension-size-100);
+                border-bottom: 1px solid var(--ac-global-border-color-default);
+                overflow-y: auto;
+                // min-height: 50px;
               `}
             >
               {experimentRun.annotations?.edges.map((edge) => (
@@ -615,16 +631,17 @@ function ExperimentItem({
                 </li>
               ))}
             </ul>
-          </div>
-          <View>
-            {experimentRun.error ? (
-              <View padding="size-200">{experimentRun.error}</View>
-            ) : (
-              <JSONBlockWithCopy value={experimentRun.output} />
-            )}
-          </View>
-        </>
-      )}
+            {/* </div> */}
+            <View flex={1} minHeight={200}>
+              {experimentRun.error ? (
+                <View padding="size-200">{experimentRun.error}</View>
+              ) : (
+                <JSONBlockWithCopy value={experimentRun.output} />
+              )}
+            </View>
+          </>
+        )}
+      </Flex>
     </div>
   );
 }
@@ -656,6 +673,8 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
     <div
       css={css`
         position: relative;
+        height: 100%;
+        min-height: 200px;
         & button {
           position: absolute;
           top: var(--ac-global-dimension-size-100);
@@ -669,7 +688,7 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
       `}
     >
       <CopyToClipboardButton text={strValue} />
-      <JSONBlock value={strValue} />
+      <FullSizeJSONBlock value={strValue} />
     </div>
   );
 }
