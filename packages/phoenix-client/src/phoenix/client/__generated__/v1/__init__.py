@@ -86,6 +86,12 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
+class DeleteDatasetExamplesRequest(TypedDict):
+    example_ids: Sequence[str]
+    version_description: NotRequired[str]
+    version_metadata: NotRequired[Mapping[str, Any]]
+
+
 class Experiment(TypedDict):
     id: str
     dataset_id: str
