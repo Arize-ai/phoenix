@@ -1726,8 +1726,8 @@ type Mutation {
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
-  addDatasetLabelsToDatasets(input: AddDatasetLabelsToDatasetInput!): AddDatasetLabelsToDatasetsMutationPayload!
-  removeDatasetLabelsFromDatasets(input: RemoveDatasetLabelsFromDatasetInput!): RemoveDatasetLabelsFromDatasetsMutationPayload!
+  setDatasetLabels(input: AddDatasetLabelsToDatasetInput!): AddDatasetLabelsToDatasetsMutationPayload!
+  unsetDatasetLabels(input: RemoveDatasetLabelsFromDatasetInput!): RemoveDatasetLabelsFromDatasetsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
