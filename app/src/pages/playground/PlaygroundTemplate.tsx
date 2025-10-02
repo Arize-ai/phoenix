@@ -41,6 +41,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
   const promptVersionId = prompt?.version;
+  const promptTagName = prompt?.tag ?? null;
   const dirty = usePlaygroundContext(
     (state) => state.dirtyInstances[instanceId]
   );
@@ -49,20 +50,23 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     async ({
       promptId,
       promptVersionId,
+      promptTagName,
     }: {
       promptId: string | null;
       promptVersionId: string | null;
+      promptTagName: string | null;
     }) => {
-      if (!promptId || !promptVersionId) {
+      if (!promptId && !promptVersionId && !promptTagName) {
         const patch = { prompt: null };
         updateInstance({ instanceId, patch, dirty: false });
         return;
       }
 
-      const response = await fetchPlaygroundPromptAsInstance(
+      const response = await fetchPlaygroundPromptAsInstance({
         promptId,
-        promptVersionId
-      );
+        promptVersionId,
+        tagName: promptTagName,
+      });
       if (response) {
         // delete all message references from the instance
         updateInstance({
@@ -101,8 +105,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     return {
       promptId,
       promptVersionId,
+      promptTagName,
     };
-  }, [promptId, promptVersionId]);
+  }, [promptId, promptVersionId, promptTagName]);
 
   return (
     <>

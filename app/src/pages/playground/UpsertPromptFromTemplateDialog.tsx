@@ -107,6 +107,8 @@ export const UpsertPromptFromTemplateDialog = ({
             id: promptId,
             name: promptName,
             version: promptVersion,
+            // TODO: allow users to create tags at prompt creation time
+            tag: null,
           },
         },
         dirty: false,
