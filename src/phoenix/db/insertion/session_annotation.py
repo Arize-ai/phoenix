@@ -73,7 +73,6 @@ class SessionAnnotationQueueInserter(
         list[Postponed[Precursors.SessionAnnotation]],
         list[Received[Precursors.SessionAnnotation]],
     ]:
-        print("parcels", len(parcels))
         to_insert: list[Received[Insertables.SessionAnnotation]] = []
         to_postpone: list[Postponed[Precursors.SessionAnnotation]] = []
         to_discard: list[Received[Precursors.SessionAnnotation]] = []
