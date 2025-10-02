@@ -1,6 +1,12 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { graphql, useFragment, usePaginationFragment } from "react-relay";
-import { useLoaderData, useSearchParams } from "react-router";
+import {
+  graphql,
+  PreloadedQuery,
+  useFragment,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
+import { useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -36,7 +42,10 @@ import {
   TriggerWrap,
 } from "@phoenix/components/tooltip";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
+import { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
@@ -55,8 +64,6 @@ import type {
   ExperimentCompareListPage_comparisons$data,
   ExperimentCompareListPage_comparisons$key,
 } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
-import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
-import type { experimentCompareLoader } from "./experimentCompareLoader";
 import { calculateAnnotationScorePercentile } from "./utils";
 
 const PAGE_SIZE = 50;
@@ -83,9 +90,16 @@ type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-export function ExperimentCompareListPage() {
+export function ExperimentCompareListPage({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
+}) {
   const [searchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
+  const experimentIds = useMemo(
+    () => searchParams.getAll("experimentId"),
+    [searchParams]
+  );
 
   const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
     null
@@ -94,7 +108,10 @@ export function ExperimentCompareListPage() {
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const preloadedData = usePreloadedQuery(
+    ExperimentComparePageQueriesCompareListQuery,
+    queryRef
+  );
 
   const aggregateData =
     useFragment<ExperimentCompareListPage_aggregateData$key>(
@@ -136,7 +153,7 @@ export function ExperimentCompareListPage() {
           }
         }
       `,
-      loaderData
+      preloadedData
     );
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExperimentCompareListPageQuery,
@@ -219,7 +236,7 @@ export function ExperimentCompareListPage() {
         }
       }
     `,
-    loaderData
+    preloadedData
   );
 
   const experiments = useMemo(() => {
@@ -227,9 +244,10 @@ export function ExperimentCompareListPage() {
     aggregateData?.dataset.experiments?.edges.forEach((edge) => {
       experimentsById[edge.experiment.id] = edge.experiment;
     });
-    const orderedExperiments = experimentIds.map(
-      (experimentId) => experimentsById[experimentId]
-    );
+    const orderedExperiments = experimentIds
+      .map((experimentId) => experimentsById[experimentId])
+      // if a new experiment was just added, data may not be fully loaded yet
+      .filter((experiment) => experiment != null);
     return orderedExperiments;
   }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
 
@@ -255,7 +273,9 @@ export function ExperimentCompareListPage() {
       data?.experiment.runs?.edges.map((edge) => {
         const run = edge.run;
         const example = run.example;
-        const repeatedRunGroups = example.experimentRepeatedRunGroups;
+        const repeatedRunGroups = example.experimentRepeatedRunGroups
+          // prevent layout shift when an experiment is removed
+          .filter((group) => experimentIds.includes(group.experimentId));
 
         const baseExperimentRun: BaseExperimentRun = run;
         const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
@@ -313,7 +333,7 @@ export function ExperimentCompareListPage() {
         return tableData;
       }) ?? []
     );
-  }, [data]);
+  }, [data, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
 

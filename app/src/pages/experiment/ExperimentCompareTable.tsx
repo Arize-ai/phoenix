@@ -9,7 +9,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import {
+  graphql,
+  PreloadedQuery,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
@@ -69,6 +74,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -80,13 +86,13 @@ import type {
   ExperimentCompareTable_comparisons$data,
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
-import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
-  query: ExperimentCompareTable_comparisons$key;
+  queryRef: PreloadedQuery<ExperimentCompareTableQueryType>;
   datasetId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
@@ -141,9 +147,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
+  const preloadedData = usePreloadedQuery(
+    ExperimentComparePageQueriesCompareGridQuery,
+    props.queryRef
+  );
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
-      ExperimentCompareTableQuery,
+      ExperimentCompareTableQueryType,
       ExperimentCompareTable_comparisons$key
     >(
       graphql`
@@ -248,7 +259,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           }
         }
       `,
-      props.query
+      preloadedData
     );
   const experimentInfoById = useMemo(() => {
     return (
@@ -419,6 +430,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         cell: ({ row }) => {
           const repeatedRunGroup =
             row.original.repeatedRunGroupsByExperimentId[experimentId];
+          // if a new experiment was just added, data may not be fully loaded yet
+          if (repeatedRunGroup == null) {
+            return null;
+          }
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
 
           return (
