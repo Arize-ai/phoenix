@@ -1,11 +1,10 @@
-# pyright: reportPrivateUsage=false
 from collections.abc import Mapping
 from datetime import datetime
 
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.resources.experiments import _ExampleProxy
+from phoenix.client.resources.experiments.types import ExampleProxy
 
 
 @pytest.fixture
@@ -21,16 +20,16 @@ def sample_dataset_example() -> v1.DatasetExample:
 
 
 class TestExampleProxyMapping:
-    """Test suite for _ExampleProxy Mapping interface implementation."""
+    """Test suite for ExampleProxy Mapping interface implementation."""
 
     def test_implements_mapping_interface(self, sample_dataset_example: v1.DatasetExample) -> None:
-        """Test that _ExampleProxy properly implements Mapping interface."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        """Test that ExampleProxy properly implements Mapping interface."""
+        proxy = ExampleProxy(sample_dataset_example)
         assert isinstance(proxy, Mapping)
 
     def test_getitem_access(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test dictionary-style access using square brackets."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         assert proxy["id"] == "test-example-123"
         assert proxy["input"] == {
@@ -43,7 +42,7 @@ class TestExampleProxyMapping:
 
     def test_iteration(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test iteration over proxy keys."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         keys = list(proxy)
         expected_keys = ["id", "input", "output", "metadata", "updated_at"]
@@ -51,12 +50,12 @@ class TestExampleProxyMapping:
 
     def test_length(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test len() function on proxy."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
         assert len(proxy) == 5  # id, input, output, metadata, updated_at
 
     def test_get_method(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test dictionary-style get method."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         assert proxy.get("id") == "test-example-123"
         assert proxy.get("nonexistent") is None
@@ -64,11 +63,11 @@ class TestExampleProxyMapping:
 
 
 class TestExampleProxyProperties:
-    """Test suite for _ExampleProxy property access."""
+    """Test suite for ExampleProxy property access."""
 
     def test_property_access(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test object-style property access."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         assert proxy.id == "test-example-123"
         expected_datetime = datetime.fromisoformat("2024-01-15T10:30:00+00:00")
@@ -79,7 +78,7 @@ class TestExampleProxyProperties:
 
     def test_property_types(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that property types match expected types."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         assert isinstance(proxy.id, str)
         assert isinstance(proxy.updated_at, datetime)
@@ -89,11 +88,11 @@ class TestExampleProxyProperties:
 
 
 class TestExampleProxyImmutability:
-    """Test suite for _ExampleProxy immutability enforcement."""
+    """Test suite for ExampleProxy immutability enforcement."""
 
     def test_cannot_set_attributes(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that setting attributes raises AttributeError."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         with pytest.raises(AttributeError, match="object is immutable"):
             proxy.id = "new-id"  # type: ignore[misc]
@@ -103,18 +102,18 @@ class TestExampleProxyImmutability:
 
     def test_cannot_delete_attributes(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that deleting attributes raises AttributeError."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         with pytest.raises(AttributeError, match="object is immutable"):
             del proxy.id  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class TestExampleProxyEquivalence:
-    """Test suite for ensuring _ExampleProxy behaves equivalently to direct dict access."""
+    """Test suite for ensuring ExampleProxy behaves equivalently to direct dict access."""
 
     def test_equivalent_access_patterns(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that object-style and dict-style access return equivalent values."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         # Most fields should return identical values
         assert proxy.id == proxy["id"]
@@ -129,7 +128,7 @@ class TestExampleProxyEquivalence:
 
     def test_data_consistency(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test that proxy data remains consistent with wrapped object."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
 
         # All fields should match the original data
         assert proxy["id"] == sample_dataset_example["id"]
@@ -140,7 +139,7 @@ class TestExampleProxyEquivalence:
 
 
 class TestExampleProxyEdgeCases:
-    """Test suite for _ExampleProxy edge cases and special scenarios."""
+    """Test suite for ExampleProxy edge cases and special scenarios."""
 
     def test_empty_mappings(self) -> None:
         """Test proxy behavior with empty input/output/metadata."""
@@ -151,7 +150,7 @@ class TestExampleProxyEdgeCases:
             output={},
             metadata={},
         )
-        proxy = _ExampleProxy(example)
+        proxy = ExampleProxy(example)
 
         assert proxy.input == {}
         assert proxy.output == {}
@@ -160,10 +159,10 @@ class TestExampleProxyEdgeCases:
 
     def test_repr_format(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test string representation format."""
-        proxy = _ExampleProxy(sample_dataset_example)
+        proxy = ExampleProxy(sample_dataset_example)
         repr_str = repr(proxy)
 
-        assert "_ExampleProxy(" in repr_str
+        assert "ExampleProxy(" in repr_str
         assert "test-example-123" in repr_str
 
     def test_nested_data_access(self) -> None:
@@ -175,7 +174,7 @@ class TestExampleProxyEdgeCases:
             output={"results": [{"score": 0.8}, {"score": 0.9}]},
             metadata={"tags": ["test", "nested"], "config": {"enabled": True}},
         )
-        proxy = _ExampleProxy(example)
+        proxy = ExampleProxy(example)
 
         # Test nested access through properties
         assert proxy.input["nested"]["level1"]["level2"] == "deep_value"
