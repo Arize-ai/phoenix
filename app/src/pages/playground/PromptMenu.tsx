@@ -272,9 +272,13 @@ export const PromptMenu = <T extends object>({
                             </View>
                             <Menu
                               items={versions}
-                              renderEmptyState={() =>
-                                "No prompt versions found"
-                              }
+                              renderEmptyState={() => (
+                                <View padding="size-200">
+                                  <Text color="text-700">
+                                    No prompt versions found
+                                  </Text>
+                                </View>
+                              )}
                               selectionMode="single"
                               selectedKeys={selectedPromptVersionIdKey}
                               onSelectionChange={(keys) => {
@@ -314,11 +318,7 @@ export const PromptMenu = <T extends object>({
                                         </Text>
                                       )}
                                     </Truncate>
-                                    <Flex
-                                      justifyContent="space-between"
-                                      alignItems="center"
-                                      gap="size-400"
-                                    >
+                                    <Flex alignItems="center" gap="size-100">
                                       <IdTruncate
                                         id={name}
                                         textProps={{ size: "S" }}
@@ -346,7 +346,13 @@ export const PromptMenu = <T extends object>({
                             </View>
                             <Menu
                               items={tags}
-                              renderEmptyState={() => "No prompt tags found"}
+                              renderEmptyState={() => (
+                                <View padding="size-200">
+                                  <Text color="text-700">
+                                    No prompt tags found
+                                  </Text>
+                                </View>
+                              )}
                               selectionMode="single"
                               selectedKeys={
                                 selectedPromptDatum?.promptId === id
@@ -417,10 +423,10 @@ export function IdTruncate({
   return (
     <Text
       title={id}
-      fontFamily="mono"
       css={css`
         text-decoration: underline;
-        text-underline-offset: 3px;
+        text-underline-offset: 4px;
+        font-family: monospace;
       `}
       {...textProps}
     >
