@@ -18,6 +18,10 @@
       "import": "./dist/esm/spans/index.js",
       "require": "./dist/src/spans/index.js"
     },
+    "./sessions": {
+      "import": "./dist/esm/sessions/index.js",
+      "require": "./dist/src/sessions/index.js"
+    },
     "./experiments": {
       "import": "./dist/esm/experiments/index.js",
       "require": "./dist/src/experiments/index.js"
