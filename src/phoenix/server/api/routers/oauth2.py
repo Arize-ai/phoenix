@@ -158,7 +158,7 @@ async def create_tokens(
         )
     if authorization_code is None:
         logger.error(
-            "OAuth2 callback missing authorization code for IDP %s (state=%s)",
+            "OAuth2 callback missing authorization code for IDP %s",
             idp_name,
         )
         return _redirect_to_login(
