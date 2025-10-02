@@ -1,8 +1,7 @@
 /* eslint-disable no-console */
-import { createClient } from "../src";
-import { Example } from "../src/types/datasets";
-import { createDataset } from "../src/datasets/createDataset";
-import { getDataset } from "../src/datasets/getDataset";
+import { createClient } from "@arizeai/phoenix-client";
+import { Example } from "@arizeai/phoenix-client/types/datasets";
+import { createDataset, getDataset } from "@arizeai/phoenix-client/datasets";
 
 // Initialize Phoenix client
 const client = createClient();

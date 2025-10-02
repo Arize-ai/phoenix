@@ -1,0 +1,24 @@
+{
+  "name": "scripts",
+  "description": "Example scripts demonstrating usage of `@arizeai/phoenix-evals` and `@arizeai/phoenix-client`",
+  "private": true,
+  "scripts": {
+    "prestart": "pnpm --filter=@arizeai/phoenix-evals --filter=@arizeai/phoenix-client -r build",
+    "type:check": "tsc --noEmit",
+    "start": "tsx",
+    "dev": "tsx"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.42",
+    "@anthropic-ai/sdk": "^0.35.0",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "ai": "^5.0.59",
+    "openai": "^6.0.1",
+    "zod": "^3"
+  }
+}

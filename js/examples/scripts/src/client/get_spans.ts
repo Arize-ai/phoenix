@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
-import { getSpans } from "../src/spans/getSpans";
-import { createClient } from "../src/client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+import { createClient } from "@arizeai/phoenix-client";
 
 /**
  * Example: Get spans from a project

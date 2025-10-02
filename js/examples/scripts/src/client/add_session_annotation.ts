@@ -1,5 +1,8 @@
-import { addSessionAnnotation, logSessionAnnotations } from "../src/sessions";
-import { createClient } from "../src/client";
+import {
+  addSessionAnnotation,
+  logSessionAnnotations,
+} from "@arizeai/phoenix-client/sessions";
+import { createClient } from "@arizeai/phoenix-client";
 
 /**
  * Example of how to log session annotations

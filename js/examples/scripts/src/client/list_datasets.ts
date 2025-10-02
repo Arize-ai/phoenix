@@ -1,4 +1,4 @@
-import { createClient, Types } from "../src";
+import { createClient, Types } from "@arizeai/phoenix-client";
 
 // baseUrl defaults to http://localhost:6006
 const phoenix = createClient();

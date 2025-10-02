@@ -1,6 +1,10 @@
 /* eslint-disable no-console */
-import { createClient } from "../src";
-import { createPrompt, promptVersion, toSDK } from "../src/prompts";
+import { createClient } from "@arizeai/phoenix-client";
+import {
+  createPrompt,
+  promptVersion,
+  toSDK,
+} from "@arizeai/phoenix-client/prompts";
 import OpenAI from "openai";
 
 // Optional: create a phoenix client to explicitly set the credentials

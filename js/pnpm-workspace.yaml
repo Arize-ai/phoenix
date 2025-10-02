@@ -1,3 +1,8 @@
 packages:
-  - "packages/*"
-  - "examples/apps/*"
+  - packages/*
+  - examples/apps/*
+  - examples/scripts
+
+onlyBuiltDependencies:
+  - esbuild
+  - protobufjs

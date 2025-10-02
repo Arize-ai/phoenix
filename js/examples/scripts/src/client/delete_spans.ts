@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
-import { getSpans } from "../src/spans/getSpans";
-import { deleteSpan } from "../src/spans/deleteSpan";
-import { createClient } from "../src/client";
+import { getSpans, deleteSpan } from "@arizeai/phoenix-client/spans";
+import { createClient } from "@arizeai/phoenix-client";
 
 /**
  * Example: Delete spans from a project
