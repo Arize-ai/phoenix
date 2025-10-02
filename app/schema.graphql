@@ -2152,7 +2152,7 @@ type Prompt implements Node {
   name: Identifier!
   description: String
   createdAt: DateTime!
-  version(versionId: ID = null): PromptVersion!
+  version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt

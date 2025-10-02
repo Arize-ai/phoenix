@@ -103,6 +103,10 @@ export type PlaygroundInstancePrompt = {
    * The version of the prompt.
    */
   version: string;
+  /**
+   * The selected tag, if any
+   */
+  tag: string | null;
 };
 
 /**
