@@ -1407,6 +1407,9 @@ class _OIDCServer:
                     status_code=400,
                 )
 
+            # Type assertions for form data (FastAPI form_data.get returns Union[UploadFile, str])
+            assert isinstance(code, str)
+
             # Step 1: Validate client authentication (if required)
             client_authenticated = False
             auth_header = request.headers.get("Authorization")
@@ -1431,9 +1434,6 @@ class _OIDCServer:
             # Step 2: Validate PKCE (if required)
             pkce_valid = False
             code_verifier = form_data.get("code_verifier")
-
-            # Type assertions for form data (FastAPI form_data.get returns Union[UploadFile, str])
-            assert isinstance(code, str)
 
             if self._use_pkce and code in self._code_challenges:
                 if not code_verifier:
@@ -1484,6 +1484,16 @@ class _OIDCServer:
                 # Standard flow: client_secret required
                 if not client_authenticated:
                     return JSONResponse({"error": "invalid_client"}, status_code=400)
+
+                # Reject code_verifier in non-PKCE flow (strict validation)
+                if code_verifier:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_request",
+                            "error_description": "code_verifier not allowed when PKCE is not enabled",
+                        },
+                        status_code=400,
+                    )
 
             # Create ID token with required claims
             now = int(time())

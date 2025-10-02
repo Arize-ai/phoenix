@@ -26,6 +26,7 @@ from phoenix.auth import (
     PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    delete_oauth2_code_verifier_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
@@ -91,9 +92,7 @@ async def login(
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     if (referer := request.headers.get("referer")) is not None:
         # if the referer header is present, use it as the origin URL
@@ -161,9 +160,7 @@ async def create_tokens(
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
         fetch_kwargs: dict[str, Any] = dict(
@@ -173,8 +170,9 @@ async def create_tokens(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
-        # Include PKCE code_verifier only when provided by client (optional cookie param)
-        if code_verifier:
+        # Include PKCE code_verifier only when PKCE is enabled for this client
+        # and the code_verifier cookie exists
+        if oauth2_client.use_pkce and code_verifier:
             fetch_kwargs["code_verifier"] = code_verifier
         token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as error:
@@ -234,6 +232,7 @@ async def create_tokens(
     )
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 
@@ -704,6 +703,7 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 

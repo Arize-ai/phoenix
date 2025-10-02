@@ -26,6 +26,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         display_name: str,
         allow_sign_up: bool,
         auto_login: bool,
+        use_pkce: bool = False,
         groups_attribute_path: Optional[str] = None,
         allowed_groups: Optional[list[str]] = None,
         **kwargs: Any,
@@ -33,6 +34,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         self._display_name = display_name
         self._allow_sign_up = allow_sign_up
         self._auto_login = auto_login
+        self._use_pkce = use_pkce
 
         self._groups_attribute_path = (
             groups_attribute_path.strip()
@@ -81,6 +83,10 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     @property
     def display_name(self) -> str:
         return self._display_name
+
+    @property
+    def use_pkce(self) -> bool:
+        return self._use_pkce
 
     def has_sufficient_claims(self, claims: dict[str, Any]) -> bool:
         """
@@ -203,6 +209,7 @@ class OAuth2Clients:
             display_name=config.idp_display_name,
             allow_sign_up=config.allow_sign_up,
             auto_login=config.auto_login,
+            use_pkce=config.use_pkce,
             groups_attribute_path=config.groups_attribute_path,
             allowed_groups=config.allowed_groups,
         )
@@ -213,10 +220,8 @@ class OAuth2Clients:
             self._auto_login_client = client
         self._clients[config.idp_name] = client
 
-    def get_client(self, idp_name: str) -> OAuth2Client:
-        if (client := self._clients.get(idp_name)) is None:
-            raise ValueError(f"unknown or unregistered OAuth2 client: {idp_name}")
-        return client
+    def get_client(self, idp_name: str) -> Optional[OAuth2Client]:
+        return self._clients.get(idp_name)
 
     @classmethod
     def from_configs(cls, configs: Iterable[OAuth2ClientConfig]) -> "OAuth2Clients":

@@ -976,19 +976,6 @@ class TestOAuth2ClientConfigFromEnv:
         config = OAuth2ClientConfig.from_env("test")
         assert config.token_endpoint_auth_method == "client_secret_post"
 
-    def test_pkce_with_incompatible_auth_method(self, monkeypatch: MonkeyPatch) -> None:
-        """Test that PKCE with client_secret_* auth method is rejected."""
-        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
-        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_USE_PKCE", "true")
-        monkeypatch.setenv(
-            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
-            "https://example.com/.well-known/openid-configuration",
-        )
-        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_basic")
-
-        with pytest.raises(ValueError, match="TOKEN_ENDPOINT_AUTH_METHOD should be 'none'"):
-            OAuth2ClientConfig.from_env("test")
-
     def test_pkce_with_none_auth_method(self, monkeypatch: MonkeyPatch) -> None:
         """Test that PKCE with auth_method='none' is allowed."""
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")

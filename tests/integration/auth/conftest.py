@@ -89,12 +89,42 @@ def _env_oauth2_pkce_groups_denied(
 
 
 @pytest.fixture(scope="package")
+def _env_oauth2_standard_groups_granted(
+    _oidc_server_standard_with_groups: _OIDCServer,
+) -> dict[str, str]:
+    """Configure standard OIDC with group access control - user HAS matching group."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_GRANTED_CLIENT_ID".upper(): _oidc_server_standard_with_groups.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_GRANTED_CLIENT_SECRET".upper(): _oidc_server_standard_with_groups.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_GRANTED_OIDC_CONFIG_URL".upper(): f"{_oidc_server_standard_with_groups.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_GRANTED_GROUPS_ATTRIBUTE_PATH".upper(): "groups",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_GRANTED_ALLOWED_GROUPS".upper(): "engineering,admin",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_oauth2_standard_groups_denied(
+    _oidc_server_standard_with_groups: _OIDCServer,
+) -> dict[str, str]:
+    """Configure standard OIDC with group access control - user does NOT have matching group."""
+    return {
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_DENIED_CLIENT_ID".upper(): _oidc_server_standard_with_groups.client_id,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_DENIED_CLIENT_SECRET".upper(): _oidc_server_standard_with_groups.client_secret,
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_DENIED_OIDC_CONFIG_URL".upper(): f"{_oidc_server_standard_with_groups.base_url}/.well-known/openid-configuration",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_DENIED_GROUPS_ATTRIBUTE_PATH".upper(): "groups",
+        f"PHOENIX_OAUTH2_{_oidc_server_standard_with_groups}_DENIED_ALLOWED_GROUPS".upper(): "admin,sales",
+    }
+
+
+@pytest.fixture(scope="package")
 def _env_oauth2(
     _env_oauth2_standard: dict[str, str],
     _env_oauth2_pkce_public: dict[str, str],
     _env_oauth2_pkce_confidential: dict[str, str],
     _env_oauth2_pkce_groups_granted: dict[str, str],
     _env_oauth2_pkce_groups_denied: dict[str, str],
+    _env_oauth2_standard_groups_granted: dict[str, str],
+    _env_oauth2_standard_groups_denied: dict[str, str],
 ) -> dict[str, str]:
     """Combine all OAuth2 environment configurations for testing."""
     return {
@@ -103,6 +133,8 @@ def _env_oauth2(
         **_env_oauth2_pkce_confidential,
         **_env_oauth2_pkce_groups_granted,
         **_env_oauth2_pkce_groups_denied,
+        **_env_oauth2_standard_groups_granted,
+        **_env_oauth2_standard_groups_denied,
     }
 
 
@@ -219,6 +251,17 @@ def _oidc_server_pkce_with_groups(
     """PKCE-enabled OIDC server with group claims for access control testing."""
     with _OIDCServer(
         port=next(_ports), use_pkce=True, groups=["engineering", "operations"]
+    ) as server:
+        yield server
+
+
+@pytest.fixture(scope="package")
+def _oidc_server_standard_with_groups(
+    _ports: Iterator[int],
+) -> Iterator[_OIDCServer]:
+    """Standard OIDC server with group claims for access control testing."""
+    with _OIDCServer(
+        port=next(_ports), use_pkce=False, groups=["engineering", "operations"]
     ) as server:
         yield server
 

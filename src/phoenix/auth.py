@@ -181,6 +181,11 @@ def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
     return response
 
 
+def delete_oauth2_code_verifier_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME)
+    return response
+
+
 @dataclass(frozen=True)
 class _PasswordRequirements:
     """
