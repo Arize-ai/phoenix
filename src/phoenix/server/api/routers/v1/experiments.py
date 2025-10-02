@@ -80,6 +80,7 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
             "(if omitted, the latest version will be used)"
         ),
     )
+    split_ids: list[str] = Field(default=[], description="List of dataset split names to filter by")
     repetitions: int = Field(
         default=1, description="Number of times the experiment should be repeated for each example"
     )

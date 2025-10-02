@@ -89,6 +89,11 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
+    def split_ids(self) -> list[str]:
+        """The dataset splits."""
+        return self._examples_data.get("split_ids", [])
+
+    @property
     def examples(self) -> list[DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
@@ -489,9 +494,7 @@ class Datasets:
             timeout=timeout,
         )
         examples_response.raise_for_status()
-        examples_data = examples_response.json()
-        print(f"🗂️ Examples data: {examples_data}")
-        examples_data = examples_data["data"]
+        examples_data = examples_response.json()["data"]
 
         return Dataset(dataset_info, examples_data)
 

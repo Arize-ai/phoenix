@@ -697,6 +697,7 @@ class DatasetExample(V1RoutesBaseModel):
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    split_ids: list[str]
     examples: list[DatasetExample]
 
 
@@ -847,9 +848,7 @@ async def get_dataset_examples(
             query = query.join(
                 models.DatasetSplitDatasetExample,
                 models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id,
-            ).filter(
-                models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids)
-            )
+            ).filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
 
         examples = [
             DatasetExample(
@@ -866,7 +865,10 @@ async def get_dataset_examples(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),
-            splits=str(GlobalID("DatasetSplit", str(resolved_split_ids))),
+            split_ids=[
+                str(GlobalID("DatasetSplit", str(resolved_split_id)))
+                for resolved_split_id in resolved_split_ids
+            ],
             examples=examples,
         )
     )
