@@ -158,7 +158,7 @@ export function ExperimentComparePage() {
   ]);
 
   if (multiSelectorQueryReference == null) {
-    return null;
+    return <Loading />;
   }
 
   return (
