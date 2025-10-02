@@ -1,11 +1,8 @@
 import { useMemo } from "react";
 import {
   Autocomplete,
-  Collection,
-  Header,
   Input,
   type MenuProps,
-  MenuSection,
   SubmenuTrigger,
   useFilter,
 } from "react-aria-components";
@@ -54,20 +51,8 @@ type PromptItem = {
   /**
    * May contain prompt versions, prompt tags
    */
-  children: {
-    /**
-     * "version", "tag", etc
-     */
-    id: string;
-    /**
-     * "Versions", "Tags", etc
-     */
-    section: string;
-    /**
-     * The content of the section
-     */
-    children: Omit<PromptItem, "children">[];
-  }[];
+
+  children: Omit<PromptItem, "children">[];
 };
 
 const createItemsFromPrompts = (
@@ -77,18 +62,12 @@ const createItemsFromPrompts = (
     return {
       id: prompt.id,
       name: prompt.name,
-      children: [
-        {
-          id: "version",
-          section: "Versions",
-          children: prompt.promptVersions.versions.map(({ version }) => ({
-            id: version.id,
-            name: version.id,
-            createdAt: version.createdAt,
-            description: version.description || undefined,
-          })),
-        },
-      ],
+      children: prompt.promptVersions.versions.map(({ version }) => ({
+        id: version.id,
+        name: version.id,
+        createdAt: version.createdAt,
+        description: version.description || undefined,
+      })),
     };
   });
 
@@ -173,10 +152,9 @@ export const PromptMenu = <T extends object>({
   }, [promptId, promptVersionId, promptsAndVersions]);
   const isLatestVersionSelected = useMemo(() => {
     if (!selectedPromptDatum) return false;
-    const latestVersion = promptItems
-      .find((prompt) => prompt.id === selectedPromptDatum.promptId)
-      ?.children?.find((child) => child.section === "Versions")
-      ?.children?.[0]?.id;
+    const latestVersion = promptItems.find(
+      (prompt) => prompt.id === selectedPromptDatum.promptId
+    )?.children?.[0]?.id;
     return latestVersion === selectedPromptDatum.versionId;
   }, [selectedPromptDatum, promptItems]);
   const selectedPromptIdKey = selectedPromptDatum?.promptId
@@ -234,79 +212,69 @@ export const PromptMenu = <T extends object>({
                       overflow: auto;
                     `}
                   >
-                    <Menu
-                      items={children}
-                      renderEmptyState={() => "No prompt versions found"}
-                    >
-                      {(section) => (
-                        <MenuSection
-                          selectionMode="single"
-                          selectedKeys={selectedPromptVersionIdKey}
-                          items={section.children}
-                          onSelectionChange={(keys) => {
-                            const newSelection =
-                              keys instanceof Set
-                                ? keys.values().next().value
-                                : null;
-                            onChange(
-                              newSelection == null
-                                ? {
-                                    promptId: null,
-                                    promptVersionId: null,
-                                  }
-                                : {
-                                    promptId: id,
-                                    promptVersionId: newSelection as string,
-                                  }
-                            );
-                          }}
-                        >
-                          <Header>
-                            <Flex
-                              justifyContent="space-between"
-                              alignItems="center"
-                              margin="size-100"
-                            >
-                              <Text weight="heavy">{section.section}</Text>
-                              <Text size="S">({section.children.length})</Text>
+                    <Autocomplete filter={contains}>
+                      <View paddingX="size-100" marginTop="size-100">
+                        <SearchField aria-label="Search" autoFocus>
+                          <Input placeholder="Search prompt versions" />
+                        </SearchField>
+                      </View>
+                      <Menu
+                        items={children}
+                        renderEmptyState={() => "No prompt versions found"}
+                        selectionMode="single"
+                        selectedKeys={selectedPromptVersionIdKey}
+                        onSelectionChange={(keys) => {
+                          const newSelection =
+                            keys instanceof Set
+                              ? keys.values().next().value
+                              : null;
+                          onChange(
+                            newSelection == null
+                              ? {
+                                  promptId: null,
+                                  promptVersionId: null,
+                                }
+                              : {
+                                  promptId: id,
+                                  promptVersionId: newSelection as string,
+                                }
+                          );
+                        }}
+                      >
+                        {({ createdAt, name, description }) => (
+                          <MenuItem
+                            textValue={`${name}\n${description}\n${createdAt}`}
+                          >
+                            <Flex direction="column" gap="size-100">
+                              <Truncate maxWidth="100%">
+                                {description ? (
+                                  <Text>{description}</Text>
+                                ) : (
+                                  <Text fontStyle="italic" color="text-300">
+                                    No change description
+                                  </Text>
+                                )}
+                              </Truncate>
+                              <Flex
+                                justifyContent="space-between"
+                                alignItems="center"
+                                gap="size-400"
+                              >
+                                <IdTruncate
+                                  id={name}
+                                  textProps={{ size: "S" }}
+                                />
+                                {createdAt && (
+                                  <Text size="XS" color="text-300">
+                                    {fullTimeFormatter(new Date(createdAt))}
+                                  </Text>
+                                )}
+                              </Flex>
                             </Flex>
-                          </Header>
-
-                          <Collection items={section.children}>
-                            {({ createdAt, name, description }) => (
-                              <MenuItem>
-                                <Flex direction="column" gap="size-100">
-                                  <Truncate maxWidth="100%">
-                                    {description ? (
-                                      <Text>{description}</Text>
-                                    ) : (
-                                      <Text fontStyle="italic" color="text-300">
-                                        No change description
-                                      </Text>
-                                    )}
-                                  </Truncate>
-                                  <Flex
-                                    justifyContent="space-between"
-                                    alignItems="center"
-                                    gap="size-400"
-                                  >
-                                    <IdTruncate
-                                      id={name}
-                                      textProps={{ size: "S" }}
-                                    />
-                                    {createdAt && (
-                                      <Text size="XS" color="text-300">
-                                        {fullTimeFormatter(new Date(createdAt))}
-                                      </Text>
-                                    )}
-                                  </Flex>
-                                </Flex>
-                              </MenuItem>
-                            )}
-                          </Collection>
-                        </MenuSection>
-                      )}
-                    </Menu>
+                          </MenuItem>
+                        )}
+                      </Menu>
+                    </Autocomplete>
                   </Popover>
                 </SubmenuTrigger>
               );
