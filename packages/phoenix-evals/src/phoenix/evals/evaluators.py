@@ -911,6 +911,8 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
+    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation.
@@ -940,6 +942,7 @@ def create_classifier(
 
             result = sentiment_evaluator.evaluate({"text": "Great product!"})
             print(result[0].label)  # "positive"
+            print(result[0].score)  # None
 
         Creating a classifier with numeric scores::
 
