@@ -272,11 +272,13 @@ class DatasetSplitMutationMixin:
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                     raise Conflict("Failed to add examples to dataset splits.") from e
 
-        examples = (
-            await session.scalars(
-                select(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
-            )
-        ).all()
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
         return AddDatasetExamplesToDatasetSplitsMutationPayload(
             query=Query(),
             examples=[to_gql_dataset_example(example) for example in examples],
@@ -330,11 +332,13 @@ class DatasetSplitMutationMixin:
 
             await session.execute(stmt)
 
-        examples = (
-            await session.scalars(
-                select(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
-            )
-        ).all()
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
 
         return RemoveDatasetExamplesFromDatasetSplitsMutationPayload(
             query=Query(),
@@ -397,11 +401,13 @@ class DatasetSplitMutationMixin:
                         "Failed to associate examples with the new dataset split."
                     ) from e
 
-        examples = (
-            await session.scalars(
-                select(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
-            )
-        ).all()
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_rowids)
+                    )
+                )
+            ).all()
 
         return DatasetSplitMutationPayloadWithExamples(
             dataset_split=to_gql_dataset_split(dataset_split_orm),
