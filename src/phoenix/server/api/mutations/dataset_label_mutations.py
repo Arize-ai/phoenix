@@ -280,30 +280,13 @@ class DatasetLabelMutationMixin:
             unique_dataset_label_rowids.add(dataset_label_rowid)
         dataset_label_rowids = list(unique_dataset_label_rowids)
 
-        stmt = delete(models.DatasetsDatasetLabel).where(
-            models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
-            & models.DatasetsDatasetLabel.dataset_label_id.in_(dataset_label_rowids)
-        )
         async with info.context.db() as session:
-            existing_dataset_ids = (
-                await session.scalars(
-                    select(models.Dataset.id).where(models.Dataset.id.in_(dataset_rowids))
+            await session.execute(
+                delete(models.DatasetsDatasetLabel).where(
+                    models.DatasetsDatasetLabel.dataset_id.in_(dataset_rowids)
+                    & models.DatasetsDatasetLabel.dataset_label_id.in_(dataset_label_rowids)
                 )
-            ).all()
-            if len(existing_dataset_ids) != len(dataset_rowids):
-                raise NotFound("One or more datasets not found")
-
-            existing_dataset_label_ids = (
-                await session.scalars(
-                    select(models.DatasetLabel.id).where(
-                        models.DatasetLabel.id.in_(dataset_label_rowids)
-                    )
-                )
-            ).all()
-            if len(existing_dataset_label_ids) != len(dataset_label_rowids):
-                raise NotFound("One or more dataset labels not found")
-
-            await session.execute(stmt)
+            )
             await session.commit()
 
         return RemoveDatasetLabelsFromDatasetsMutationPayload(
