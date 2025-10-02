@@ -157,10 +157,7 @@ async def create_tokens(
             error="Authentication failed. Please contact your administrator.",
         )
     if authorization_code is None:
-        logger.error(
-            "OAuth2 callback missing authorization code for IDP %s",
-            idp_name,
-        )
+        logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
         return _redirect_to_login(
             request=request,
             error="Authentication failed. Please contact your administrator.",
