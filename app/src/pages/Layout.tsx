@@ -16,7 +16,6 @@ import {
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
-import { ToastRegion } from "@phoenix/components/toast/ToastRegion";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -66,7 +65,6 @@ const sideLinksCSS = css`
 export function Layout() {
   return (
     <div css={layoutCSS} data-testid="layout">
-      <ToastRegion />
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>
