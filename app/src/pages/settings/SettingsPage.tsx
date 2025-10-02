@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -23,6 +24,7 @@ const settingsPageInnerCSS = css`
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const isDatasetLabelEnabled = useFeatureFlag("datasetLabel");
   const tab = pathname.split("/settings")[1].replace("/", "");
   const onChangeTab = useCallback(
     (tab: Key) => {
@@ -45,7 +47,7 @@ export function SettingsPage() {
             <Tab id="models">Models</Tab>
             <Tab id="annotations">Annotations</Tab>
             <Tab id="prompts">Prompts</Tab>
-            <Tab id="datasets">Datasets</Tab>
+            {isDatasetLabelEnabled && <Tab id="datasets">Datasets</Tab>}
             <Tab id="data">Data Retention</Tab>
           </TabList>
           <LazyTabPanel id="general" padded>
@@ -63,9 +65,11 @@ export function SettingsPage() {
           <LazyTabPanel id="prompts" padded>
             <Outlet />
           </LazyTabPanel>
-          <LazyTabPanel id="datasets" padded>
-            <Outlet />
-          </LazyTabPanel>
+          {isDatasetLabelEnabled && (
+            <LazyTabPanel id="datasets" padded>
+              <Outlet />
+            </LazyTabPanel>
+          )}
           <LazyTabPanel id="data" padded>
             <Outlet />
           </LazyTabPanel>
