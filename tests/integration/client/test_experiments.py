@@ -1027,6 +1027,7 @@ class TestExperimentsIntegration:
         assert len(example_evals) == 2
         for eval_run in example_evals:
             assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
             assert eval_run.result.get("score") == 1.0
             assert eval_run.result.get("label") == "has_example"
 
