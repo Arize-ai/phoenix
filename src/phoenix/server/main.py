@@ -159,7 +159,6 @@ DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_
 
 def main() -> None:
     initialize_settings()
-
     setup_logging()
 
     primary_inferences_name: str
