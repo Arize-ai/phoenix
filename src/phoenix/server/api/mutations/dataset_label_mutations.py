@@ -166,7 +166,7 @@ class DatasetLabelMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def add_dataset_labels_to_datasets(
+    async def set_dataset_labels(
         self, info: Info[Context, None], input: AddDatasetLabelsToDatasetInput
     ) -> AddDatasetLabelsToDatasetsMutationPayload:
         if not input.dataset_ids:
