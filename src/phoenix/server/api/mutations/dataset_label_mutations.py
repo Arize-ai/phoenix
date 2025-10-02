@@ -15,6 +15,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -178,7 +179,7 @@ class DatasetLabelMutationMixin:
         for dataset_gid in input.dataset_ids:
             try:
                 dataset_rowid = from_global_id_with_expected_type(
-                    dataset_gid, models.Dataset.__name__
+                    dataset_gid, Dataset.__name__
                 )
             except ValueError:
                 raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
@@ -262,7 +263,7 @@ class DatasetLabelMutationMixin:
         for dataset_gid in input.dataset_ids:
             try:
                 dataset_rowid = from_global_id_with_expected_type(
-                    dataset_gid, models.Dataset.__name__
+                    dataset_gid, Dataset.__name__
                 )
             except ValueError:
                 raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
