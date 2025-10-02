@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.3.0...arize-phoenix-evals-v2.4.0) (2025-10-02)
+
+
+### Features
+
+* Coroutine Fn support for `phoenix.evals.create_evaluator` ([#9746](https://github.com/Arize-ai/phoenix/issues/9746)) ([3f6a182](https://github.com/Arize-ai/phoenix/commit/3f6a1825f53e4deb73e285846495770e9bac0966))
+
+
+### Documentation
+
+* **evals:** add examples to evaluators module ([#9727](https://github.com/Arize-ai/phoenix/issues/9727)) ([f62468d](https://github.com/Arize-ai/phoenix/commit/f62468d9cddabcf3b96c0e4ced2da764aa211f85))
+* **evals:** automatically document metrics, utils ([#9737](https://github.com/Arize-ai/phoenix/issues/9737)) ([e5d6ede](https://github.com/Arize-ai/phoenix/commit/e5d6ede2dfa34efe2a183228b79f25e498770925))
+
 ## [2.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.2.0...arize-phoenix-evals-v2.3.0) (2025-10-01)
 
 
