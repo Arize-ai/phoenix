@@ -35,7 +35,7 @@ type DatasetSelectProps = {
 };
 
 type SplitItem = {
-  id: string;
+  id: string | null;
   name: string;
 };
 
@@ -77,10 +77,14 @@ export function DatasetSelect(props: DatasetSelectProps) {
         id: dataset.id,
         name: dataset.name,
         exampleCount: dataset.exampleCount,
-        splits: dataset.splits.map((split) => ({
-          id: split.id,
-          name: split.name,
-        })),
+        splits: [
+          // "All Examples" is always the first option
+          { id: null, name: "All Examples" },
+          ...dataset.splits.map((split) => ({
+            id: split.id,
+            name: split.name,
+          })),
+        ],
       })),
     [data.datasets.edges]
   );
@@ -93,14 +97,21 @@ export function DatasetSelect(props: DatasetSelectProps) {
   }, [datasetItems, datasetId]);
 
   const selectedSplit = useMemo(() => {
-    if (selectedDataset && splitId) {
+    if (selectedDataset) {
+      // If splitId is explicitly null or undefined, find "All Examples"
+      if (splitId === null || splitId === undefined) {
+        return selectedDataset.splits.find((split) => split.id === null);
+      }
       return selectedDataset.splits.find((split) => split.id === splitId);
     }
     return undefined;
   }, [selectedDataset, splitId]);
 
   const selectedDatasetKeys = datasetId ? [datasetId] : undefined;
-  const selectedSplitKeys = splitId ? [splitId] : undefined;
+  // For split selection, we need a key that works with null
+  const selectedSplitKeys = selectedSplit?.id !== undefined
+    ? [selectedSplit.id === null ? "all-examples" : selectedSplit.id]
+    : undefined;
 
   return (
     <MenuTrigger>
@@ -114,7 +125,9 @@ export function DatasetSelect(props: DatasetSelectProps) {
           <Flex alignItems="center">
             <Text>{selectedDataset.name}</Text>
             {selectedSplit && (
-              <Text color="text-300">&nbsp;/ {selectedSplit.name}</Text>
+              <Text color="text-300">
+                &nbsp;/ {selectedSplit.name}
+              </Text>
             )}
           </Flex>
         ) : (
@@ -136,7 +149,16 @@ export function DatasetSelect(props: DatasetSelectProps) {
         >
           {({ id, name, exampleCount, splits }) => (
             <SubmenuTrigger>
-              <MenuItem textValue={name}>
+              <MenuItem
+                textValue={name}
+                onAction={() => {
+                  // Direct click on dataset selects "All Examples"
+                  props.onSelectionChange?.({
+                    datasetId: id,
+                    splitId: null,
+                  });
+                }}
+              >
                 <Flex
                   direction="row"
                   alignItems="center"
@@ -165,20 +187,31 @@ export function DatasetSelect(props: DatasetSelectProps) {
                   onSelectionChange={(keys) => {
                     const newSelection =
                       keys instanceof Set ? keys.values().next().value : null;
-                    props.onSelectionChange?.(
-                      newSelection == null
-                        ? {
-                            datasetId: null,
-                            splitId: null,
-                          }
-                        : {
-                            datasetId: id,
-                            splitId: newSelection as string,
-                          }
-                    );
+                    if (newSelection == null) {
+                      props.onSelectionChange?.({
+                        datasetId: null,
+                        splitId: null,
+                      });
+                    } else {
+                      // Convert "all-examples" back to null
+                      const splitId = newSelection === "all-examples" 
+                        ? null 
+                        : (newSelection as string);
+                      props.onSelectionChange?.({
+                        datasetId: id,
+                        splitId,
+                      });
+                    }
                   }}
                 >
-                  {({ name }) => <MenuItem textValue={name}>{name}</MenuItem>}
+                  {({ id: splitId, name }) => (
+                    <MenuItem 
+                      id={splitId === null ? "all-examples" : splitId}
+                      textValue={name}
+                    >
+                      {name}
+                    </MenuItem>
+                  )}
                 </Menu>
               </Popover>
             </SubmenuTrigger>

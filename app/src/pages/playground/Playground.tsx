@@ -192,6 +192,8 @@ function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
+  const splitId = searchParams.get("splitId");
+  const splitIds = splitId ? [splitId] : undefined;
   const isDatasetMode = datasetId != null;
   const numInstances = usePlaygroundContext((state) => state.instances.length);
   const isSingleInstance = numInstances === 1;
@@ -289,7 +291,7 @@ function PlaygroundContent() {
         <Panel>
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>
-              <PlaygroundDatasetSection datasetId={datasetId} />
+              <PlaygroundDatasetSection datasetId={datasetId} splitIds={splitIds} />
             </Suspense>
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>

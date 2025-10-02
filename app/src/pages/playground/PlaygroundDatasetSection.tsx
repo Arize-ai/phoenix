@@ -8,7 +8,13 @@ import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDataset
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 
-export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
+export function PlaygroundDatasetSection({
+  datasetId,
+  splitIds,
+}: {
+  datasetId: string;
+  splitIds?: string[];
+}) {
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
@@ -19,7 +25,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
-      query PlaygroundDatasetSectionQuery($datasetId: ID!) {
+      query PlaygroundDatasetSectionQuery($datasetId: ID!, $splitIds: [ID!]) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name
@@ -30,6 +36,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
     `,
     {
       datasetId,
+      splitIds,
     }
   );
   return (
@@ -75,7 +82,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>
-        <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+        <PlaygroundDatasetExamplesTable datasetId={datasetId} splitIds={splitIds} />
       </PlaygroundDatasetExamplesTableProvider>
     </Flex>
   );
