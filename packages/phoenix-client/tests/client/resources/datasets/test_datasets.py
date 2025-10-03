@@ -16,7 +16,6 @@ from phoenix.client.resources.datasets import (
     _get_csv_column_headers,  # pyright: ignore[reportPrivateUsage]
     _infer_keys,  # pyright: ignore[reportPrivateUsage]
     _is_all_dict,  # pyright: ignore[reportPrivateUsage]
-    _is_valid_dataset_example,  # pyright: ignore[reportPrivateUsage]
     _parse_datetime,  # pyright: ignore[reportPrivateUsage]
     _prepare_csv,  # pyright: ignore[reportPrivateUsage]
     _prepare_dataframe_as_csv,  # pyright: ignore[reportPrivateUsage]
@@ -154,18 +153,6 @@ class TestHelperFunctions:
         assert _is_all_dict([{"a": 1}, {"b": 2}])
         assert not _is_all_dict([{"a": 1}, "not a dict"])
         assert _is_all_dict([])
-
-    def test_is_valid_dataset_example(self) -> None:
-        valid_example = v1.DatasetExample(
-            id="ex1",
-            input={"text": "hello"},
-            output={"response": "hi"},
-            metadata={"source": "test"},
-            updated_at="2024-01-15T10:00:00",
-        )
-        assert _is_valid_dataset_example(valid_example)
-        assert not _is_valid_dataset_example({"incomplete": "dict"})
-        assert not _is_valid_dataset_example("not a dict")
 
     def test_get_csv_column_headers(self) -> None:
         csv_content = "col1,col2,col3\nval1,val2,val3\n"

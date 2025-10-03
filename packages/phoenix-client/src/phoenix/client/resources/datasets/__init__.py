@@ -8,10 +8,11 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, TypedDict, Union, cast
 from urllib.parse import quote
 
 import httpx
+from typing_extensions import NotRequired, TypeGuard
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -26,23 +27,14 @@ DatasetExample = v1.DatasetExample
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
-def _is_valid_dataset_example(obj: Any) -> bool:
-    """Check if an object is a valid DatasetExample using the TypedDict's annotations.
+class Example(TypedDict):
+    input: Mapping[str, Any]
+    output: NotRequired[Mapping[str, Any]]
+    metadata: NotRequired[Mapping[str, Any]]
 
-    Args:
-        obj (Any): The object to validate.
 
-    Returns:
-        bool: True if the object is a valid DatasetExample, False otherwise.
-    """
-    if not isinstance(obj, dict):
-        return False
-
-    required_fields = set(DatasetExample.__annotations__.keys())
-
-    if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
-        return False
-    return True
+def _is_single_example(value: Union[Example, Iterable[Example]]) -> TypeGuard[Example]:
+    return isinstance(value, Mapping)
 
 
 class Dataset:
@@ -664,7 +656,7 @@ class Datasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Example, Iterable[Example]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -716,15 +708,15 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[Example]
+            if _is_single_example(examples):
+                examples_list = [examples]
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                examples_list = cast(list[Example], list(examples))
 
-            inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            inputs = [example["input"] for example in examples_list]
+            outputs = [example.get("output") or {} for example in examples_list]
+            metadata = [example.get("metadata") or {} for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -754,7 +746,7 @@ class Datasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Example, Iterable[Example]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -822,15 +814,15 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[Example]
+            if _is_single_example(examples):
+                examples_list = [examples]
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                examples_list = cast(list[Example], list(examples))
 
-            inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            inputs = [example["input"] for example in examples_list]
+            outputs = [example.get("output") or {} for example in examples_list]
+            metadata = [example.get("metadata") or {} for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1361,7 +1353,7 @@ class AsyncDatasets:
         self,
         *,
         name: str,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Example, Iterable[Example]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1413,15 +1405,15 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[Example]
+            if _is_single_example(examples):
+                examples_list = [examples]
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                examples_list = cast(list[Example], list(examples))
 
             inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            outputs = [dict(example.get("output") or {}) for example in examples_list]
+            metadata = [dict(example.get("metadata") or {}) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1451,7 +1443,7 @@ class AsyncDatasets:
         self,
         *,
         dataset: DatasetIdentifier,
-        examples: Optional[Union[DatasetExample, Iterable[DatasetExample]]] = None,
+        examples: Optional[Union[Example, Iterable[Example]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -1519,15 +1511,15 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
-            examples_list: list[DatasetExample]
-            if _is_valid_dataset_example(examples):
-                examples_list = [examples]  # type: ignore[list-item]
+            examples_list: list[Example]
+            if _is_single_example(examples):
+                examples_list = [examples]
             else:
-                examples_list = list(examples)  # type: ignore[arg-type]
+                examples_list = cast(list[Example], list(examples))
 
             inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example["output"]) for example in examples_list]
-            metadata = [dict(example["metadata"]) for example in examples_list]
+            outputs = [dict(example.get("output") or {}) for example in examples_list]
+            metadata = [dict(example.get("metadata") or {}) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
