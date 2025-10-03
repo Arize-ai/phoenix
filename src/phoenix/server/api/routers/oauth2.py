@@ -1,3 +1,4 @@
+import logging
 import re
 from dataclasses import dataclass
 from datetime import timedelta
@@ -39,7 +40,6 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -49,6 +49,8 @@ from phoenix.server.types import TokenStore
 from phoenix.server.utils import get_root_path, prepend_root_path
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
+
+logger = logging.getLogger(__name__)
 
 login_rate_limiter = fastapi_ip_rate_limiter(
     ServerRateLimiter(
@@ -88,11 +90,12 @@ async def login(
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="Unknown IDP")
     secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     if (referer := request.headers.get("referer")) is not None:
         # if the referer header is present, use it as the origin URL
         parsed_url = urlparse(referer)
@@ -132,10 +135,34 @@ async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     state: str = Query(),
-    authorization_code: str = Query(alias="code"),
+    authorization_code: Optional[str] = Query(default=None, alias="code"),
+    error: Optional[str] = Query(default=None),
+    error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
 ) -> RedirectResponse:
+    # Security Note: Query parameters should be treated as untrusted user input. Never display
+    # these values directly to users as they could be manipulated for XSS, phishing, or social
+    # engineering attacks.
+    if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
+        return _redirect_to_login(request=request, error="Unknown IDP")
+    if error or error_description:
+        logger.error(
+            "OAuth2 authentication failed for IDP %s: error=%s, description=%s",
+            idp_name,
+            error,
+            error_description,
+        )
+        return _redirect_to_login(
+            request=request,
+            error="Authentication failed. Please contact your administrator.",
+        )
+    if authorization_code is None:
+        logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
+        return _redirect_to_login(
+            request=request,
+            error="Authentication failed. Please contact your administrator.",
+        )
     secret = request.app.state.get_secret()
     if state != stored_state:
         return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
@@ -150,10 +177,6 @@ async def create_tokens(
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
         token_data = await oauth2_client.fetch_access_token(
             state=state,
