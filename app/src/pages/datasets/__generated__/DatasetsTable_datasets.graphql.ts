@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb7eb84798872f704be0e5731b13ff8a>>
+ * @generated SignedSource<<77cd03b68f6d032a3a0ac98c6e58f1a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,11 @@ export type DatasetsTable_datasets$data = {
         readonly exampleCount: number;
         readonly experimentCount: number;
         readonly id: string;
+        readonly labels: ReadonlyArray<{
+          readonly color: string;
+          readonly id: string;
+          readonly name: string;
+        }>;
         readonly metadata: any;
         readonly name: string;
       };
@@ -36,7 +41,21 @@ import DatasetsTableDatasetsQuery_graphql from './DatasetsTableDatasetsQuery.gra
 const node: ReaderFragment = (function(){
 var v0 = [
   "datasets"
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -123,20 +142,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -170,6 +177,26 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "experimentCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DatasetLabel",
+                  "kind": "LinkedField",
+                  "name": "labels",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "color",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -226,6 +253,6 @@ return {
 };
 })();
 
-(node as any).hash = "7e2060873b57927f5b7eac64411dbc94";
+(node as any).hash = "82e24aac9e40f779947bb6b87468f506";
 
 export default node;
