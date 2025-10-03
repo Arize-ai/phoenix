@@ -1,7 +1,7 @@
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
-from asyncio import sleep
+from asyncio import gather, sleep
 from random import choice, sample
 from secrets import token_bytes, token_hex
 from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
@@ -781,14 +781,16 @@ class TestClientForSpanAnnotations:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Tests sending multiple annotations in a burst with unique identifiers.
+        """Tests sending multiple span annotations in a burst with unique identifiers.
+
+        Sends the same annotation name with different identifiers in rapid succession.
+        Annotations are deduplicated by (name, identifier) tuple rather than just by name.
 
         Verifies that:
-        - Multiple annotations can be sent quickly without deduplication issues
-        - All annotations are properly inserted
-        - Each annotation maintains its unique identifier
-        - Works in both regular and async mode
-        - User permissions are properly checked
+        - Multiple annotations with the same name but different identifiers can be sent in a burst
+        - All 5 unique annotations are properly inserted
+        - Each annotation maintains its unique identifier and all field values
+        - Duplicate batches are correctly deduplicated
         """
         # ============================================================================
         # Setup
@@ -797,7 +799,7 @@ class TestClientForSpanAnnotations:
         assert _existing_spans, "At least one existing span is required for this test"
         span_gid1, span_id1, *_ = choice(_existing_spans)
         api_key = _app.admin_secret
-        from phoenix.client import Client
+        from phoenix.client import AsyncClient
 
         # ============================================================================
         # Test Case: Burst Annotations
@@ -830,11 +832,11 @@ class TestClientForSpanAnnotations:
         ]
 
         # Send all annotations in a burst
-        for _ in range(2):
-            Client(base_url=_app.base_url, api_key=api_key).spans.log_span_annotations(
-                span_annotations=span_annotations * 2,
-                sync=False,
-            )
+        task = AsyncClient(base_url=_app.base_url, api_key=api_key).spans.log_span_annotations(
+            span_annotations=span_annotations * 2,
+            sync=False,
+        )
+        await gather(task, task)
 
         # Verify all annotations were created correctly by querying the GraphQL API
         def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
@@ -2095,10 +2097,14 @@ class TestClientForTraceAnnotations:
     ) -> None:
         """Tests sending multiple trace annotations in a burst with unique identifiers.
 
+        Sends the same annotation name with different identifiers in rapid succession.
+        Annotations are deduplicated by (name, identifier) tuple rather than just by name.
+
         Verifies that:
-        - Multiple trace annotations can be sent quickly without deduplication issues
-        - All trace annotations are properly inserted
-        - Each trace annotation maintains its unique identifier
+        - Multiple annotations with the same name but different identifiers can be sent in a burst
+        - All 5 unique annotations are properly inserted
+        - Each annotation maintains its unique identifier and all field values
+        - Duplicate batches are correctly deduplicated
         """
         # Setup
         assert _existing_spans, "At least one existing span is required for this test"
@@ -2106,7 +2112,7 @@ class TestClientForTraceAnnotations:
         trace_gid1 = span1.trace.id
         trace_id1 = span1.trace.trace_id
         api_key = _app.admin_secret
-        from phoenix.client import Client
+        from phoenix.client import AsyncClient
 
         # Test Case: Burst Trace Annotations
         annotation_name = token_hex(8)
@@ -2137,11 +2143,11 @@ class TestClientForTraceAnnotations:
         ]
 
         # Send all annotations in a burst
-        for _ in range(2):
-            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations(
-                trace_annotations=trace_annotations * 2,
-                sync=False,
-            )
+        task = AsyncClient(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations(
+            trace_annotations=trace_annotations * 2,
+            sync=False,
+        )
+        await gather(task, task)
 
         # Verify all annotations were created correctly by querying the GraphQL API
         def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
@@ -2846,10 +2852,14 @@ class TestClientForSessionAnnotations:
     ) -> None:
         """Tests sending multiple session annotations in a burst with unique identifiers.
 
+        Sends the same annotation name with different identifiers in rapid succession.
+        Annotations are deduplicated by (name, identifier) tuple rather than just by name.
+
         Verifies that:
-        - Multiple session annotations can be sent quickly without deduplication issues
-        - All session annotations are properly inserted
-        - Each session annotation maintains its unique identifier
+        - Multiple annotations with the same name but different identifiers can be sent in a burst
+        - All 5 unique annotations are properly inserted
+        - Each annotation maintains its unique identifier and all field values
+        - Duplicate batches are correctly deduplicated
         """
         # Setup
         assert _existing_spans, "At least one existing span is required for this test"
@@ -2858,7 +2868,7 @@ class TestClientForSessionAnnotations:
         session_gid1 = span1.trace.session.id
         session_id1 = span1.trace.session.session_id
         api_key = _app.admin_secret
-        from phoenix.client import Client
+        from phoenix.client import AsyncClient
 
         # Test Case: Burst Session Annotations
         annotation_name = token_hex(8)
@@ -2889,11 +2899,11 @@ class TestClientForSessionAnnotations:
         ]
 
         # Send all annotations in a burst
-        for _ in range(2):
-            Client(base_url=_app.base_url, api_key=api_key).sessions.log_session_annotations(
-                session_annotations=session_annotations * 2,
-                sync=False,
-            )
+        task = AsyncClient(base_url=_app.base_url, api_key=api_key).sessions.log_session_annotations(
+            session_annotations=session_annotations * 2,
+            sync=False,
+        )
+        await gather(task, task)
 
         # Verify all annotations were created correctly by querying the GraphQL API
         def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
