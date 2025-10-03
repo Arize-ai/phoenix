@@ -94,7 +94,7 @@
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react": "^4.7.0",
-    "babel-plugin-relay": "^19.0.0",
+    "babel-plugin-relay": "^20.1.1",
     "chromatic": "^11.29.0",
     "cpy-cli": "^5.0.0",
     "eslint": "^8.57.1",
