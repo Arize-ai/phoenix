@@ -1,9 +1,17 @@
 import { useCallback, useState } from "react";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
-import { DialogTrigger, Flex, Icon, Icons, Modal } from "@phoenix/components";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Modal,
+  Popover,
+} from "@phoenix/components";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
 
@@ -25,31 +33,37 @@ export function PromptActionMenu({
   }, []);
 
   return (
-    <StopPropagation>
-      <ActionMenu
-        align="end"
-        aria-label="User Actions"
-        buttonSize="compact"
-        onAction={(action) => {
-          switch (action) {
-            case PromptAction.DELETE:
-              onDelete();
-              break;
-          }
-        }}
-      >
-        <Item key={PromptAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
+    <>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            aria-label="Prompt action menu"
+            onAction={(action) => {
+              switch (action) {
+                case PromptAction.DELETE:
+                  onDelete();
+                  break;
+              }
+            }}
           >
-            <Icon svg={<Icons.TrashOutline />} />
-            <>Delete</>
-          </Flex>
-        </Item>
-      </ActionMenu>
+            <MenuItem id={PromptAction.DELETE}>
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <>Delete</>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
@@ -64,6 +78,6 @@ export function PromptActionMenu({
           />
         </Modal>
       </DialogTrigger>
-    </StopPropagation>
+    </>
   );
 }
