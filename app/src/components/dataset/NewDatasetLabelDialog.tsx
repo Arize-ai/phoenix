@@ -12,7 +12,7 @@ import {
 import { LabelParams, NewLabelForm } from "@phoenix/components/label";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLabelDialogMutation.graphql";
+import type { NewDatasetLabelDialogMutation } from "./__generated__/NewDatasetLabelDialogMutation.graphql";
 
 type NewDatasetLabelDialogProps = {
   onCompleted: () => void;
