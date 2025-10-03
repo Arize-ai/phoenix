@@ -86,6 +86,7 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SessionPage,
+  SettingsDatasetsPage,
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
@@ -360,6 +361,13 @@ const router = createBrowserRouter(
               element={<SettingsModelsPage />}
               handle={{
                 crumb: () => "Models",
+              }}
+            />
+            <Route
+              path="datasets"
+              element={<SettingsDatasetsPage />}
+              handle={{
+                crumb: () => "Datasets",
               }}
             />
             <Route

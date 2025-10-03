@@ -10,21 +10,21 @@ import {
 import { Flex, Token } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
-import { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
+import type { DatasetLabelsTableFragment$key } from "./__generated__/DatasetLabelsTableFragment.graphql";
+import { DeleteDatasetLabelButton } from "./DeleteDatasetLabelButton";
 
-export function PromptLabelsTable({
+export function DatasetLabelsTable({
   query,
 }: {
-  query: PromptLabelsTableFragment$key;
+  query: DatasetLabelsTableFragment$key;
 }) {
-  const data = useFragment<PromptLabelsTableFragment$key>(
+  const data = useFragment<DatasetLabelsTableFragment$key>(
     graphql`
-      fragment PromptLabelsTableFragment on Query
+      fragment DatasetLabelsTableFragment on Query
       @argumentDefinitions(first: { type: "Int", defaultValue: 100 }) {
-        promptLabels(first: $first)
-          @connection(key: "PromptLabelsTable__promptLabels") {
+        datasetLabels(first: $first)
+          @connection(key: "DatasetLabelsTable__datasetLabels") {
           edges {
             node {
               id
@@ -39,8 +39,8 @@ export function PromptLabelsTable({
     query
   );
   const tableData = useMemo(
-    () => data.promptLabels.edges.map((edge) => edge.node),
-    [data.promptLabels.edges]
+    () => data.datasetLabels.edges.map((edge) => edge.node),
+    [data.datasetLabels.edges]
   );
 
   const table = useReactTable<(typeof tableData)[number]>({
@@ -62,7 +62,7 @@ export function PromptLabelsTable({
         cell: ({ row }) => {
           return (
             <Flex width="100%" alignItems="end" justifyContent="end">
-              <DeletePromptLabelButton promptLabelId={row.original.id} />
+              <DeleteDatasetLabelButton datasetLabelId={row.original.id} />
             </Flex>
           );
         },
