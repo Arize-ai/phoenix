@@ -739,7 +739,9 @@ export function ExperimentAnnotationStack({
           </li>
         ) : (
           // placeholder to ensure alignment when some experiments are missing annotations
-          <div
+          <li
+            key={annotationSummary.annotationName}
+            aria-hidden="true"
             css={css`
               height: ${ANNOTATION_ITEM_HEIGHT}px;
               grid-column: 1 / -1;
