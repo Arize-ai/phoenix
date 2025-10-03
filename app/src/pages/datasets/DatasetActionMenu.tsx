@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ActionMenu, Item } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { DatasetLabelConfigButton } from "@phoenix/components/dataset/DatasetLabelConfigButton";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -20,6 +21,7 @@ type DatasetActionMenuProps = {
 enum DatasetAction {
   DELETE = "deleteDataset",
   EDIT = "editDataset",
+  LABELS = "configureLabels",
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
@@ -35,6 +37,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const labelsButtonRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -56,6 +59,12 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
             case DatasetAction.EDIT:
               setIsEditOpen(true);
               break;
+            case DatasetAction.LABELS: {
+              // Find and click the labels button
+              const button = labelsButtonRef.current?.querySelector("button");
+              button?.click();
+              break;
+            }
           }
         }}
       >
@@ -68,6 +77,17 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
           >
             <Icon svg={<Icons.Edit2Outline />} />
             <Text>Edit</Text>
+          </Flex>
+        </Item>
+        <Item key={DatasetAction.LABELS}>
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.ImageOutline />} />
+            <Text>Labels</Text>
           </Flex>
         </Item>
         <Item key={DatasetAction.DELETE}>
@@ -104,6 +124,11 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}
       />
+
+      {/* Hidden Labels Button - triggered programmatically */}
+      <div ref={labelsButtonRef} style={{ display: "none" }}>
+        <DatasetLabelConfigButton datasetId={datasetId} />
+      </div>
     </div>
   );
 }
