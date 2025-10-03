@@ -33,7 +33,6 @@ const annotationListBoxCSS = css`
   height: 300px;
   width: 320px;
   overflow-y: auto;
-  scrollbar-gutter: stable;
 `;
 
 export function AnnotationConfigList(props: {
