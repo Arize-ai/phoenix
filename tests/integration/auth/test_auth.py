@@ -401,22 +401,17 @@ class TestOIDC:
         """Test that requests to unknown identity providers are rejected.
 
         This verifies that the system validates the IDP name and returns
-        a proper redirect to the login page with an error message.
+        a proper redirect to the login page with an error code.
         """
         client = _httpx_client(_app)
 
         # Try to start OAuth2 flow with unknown IDP
         response = client.post("oauth2/non_existent_idp/login")
 
-        # Should redirect to /login with error
+        # Should redirect to /login with error code
         assert response.status_code == 307
         assert "/login" in response.headers["location"]
-        assert "error=" in response.headers["location"]
-        # URL encoding may use + or %20 for spaces
-        assert (
-            "Unknown+IDP" in response.headers["location"]
-            or "Unknown%20IDP" in response.headers["location"]
-        )
+        assert "error=unknown_idp" in response.headers["location"]
 
     async def test_cookie_security_attributes(
         self,
