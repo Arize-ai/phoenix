@@ -19,6 +19,7 @@ from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
 )
 from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
+from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -186,6 +187,13 @@ class Dataset(Node):
                 async for example in await session.stream_scalars(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)
+
+    @strawberry.field
+    async def splits(self, info: Info[Context, None]) -> list[DatasetSplit]:
+        return [
+            to_gql_dataset_split(split)
+            for split in await info.context.data_loaders.dataset_dataset_splits.load(self.id_attr)
+        ]
 
     @strawberry.field(
         description="Number of experiments for a specific version if version is specified, "

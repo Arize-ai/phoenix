@@ -20,6 +20,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    DatasetDatasetSplitsDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
@@ -101,6 +102,7 @@ class DataLoaders:
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
+    dataset_dataset_splits: DatasetDatasetSplitsDataLoader
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
     )

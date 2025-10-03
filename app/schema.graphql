@@ -606,6 +606,7 @@ type Dataset implements Node {
   """
   exampleCount(datasetVersionId: ID): Int!
   examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  splits: [DatasetSplit!]!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.

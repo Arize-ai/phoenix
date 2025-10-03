@@ -37,24 +37,35 @@ const playgroundDatasetSelectCSS = css`
 
 export function PlaygroundDatasetSelect() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedDatasetId = searchParams.get("datasetId") ?? "";
+  const datasetId = searchParams.get("datasetId");
+  const splitId = searchParams.get("splitId");
 
   return (
     <div css={playgroundDatasetSelectCSS}>
       <DatasetSelect
         size="S"
         placeholder="Test over a dataset"
-        selectedKey={selectedDatasetId}
-        onSelectionChange={(datasetId) => {
-          if (selectedDatasetId !== null && datasetId === selectedDatasetId) {
-            setSearchParams((prev) => {
-              prev.delete("datasetId");
-              return prev;
-            });
-            return;
-          }
+        value={
+          datasetId
+            ? {
+                datasetId,
+                splitId,
+              }
+            : null
+        }
+        onSelectionChange={({ datasetId, splitId }) => {
           setSearchParams((prev) => {
-            prev.set("datasetId", String(datasetId));
+            if (datasetId) {
+              prev.set("datasetId", datasetId);
+              if (splitId) {
+                prev.set("splitId", splitId);
+              } else {
+                prev.delete("splitId");
+              }
+            } else {
+              prev.delete("datasetId");
+              prev.delete("splitId");
+            }
             return prev;
           });
         }}
@@ -65,6 +76,7 @@ export function PlaygroundDatasetSelect() {
         onPress={() => {
           setSearchParams((prev) => {
             prev.delete("datasetId");
+            prev.delete("splitId");
             return prev;
           });
         }}
