@@ -17,7 +17,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, Link } from "@phoenix/components";
+import { Icon, Icons, Link, Token } from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -86,6 +86,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 createdAt
                 exampleCount
                 experimentCount
+                labels {
+                  id
+                  name
+                  color
+                }
               }
             }
           }
@@ -128,6 +133,60 @@ export function DatasetsTable(props: DatasetsTableProps) {
             ? `${row.original.id}/experiments`
             : `${row.original.id}/examples`;
           return <Link to={to}>{row.original.name}</Link>;
+        },
+      },
+      {
+        header: "labels",
+        accessorKey: "labels",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: row;
+                gap: var(--ac-global-dimension-size-100);
+                min-width: 0;
+                flex-wrap: wrap;
+              `}
+            >
+              {row.original.labels.map((label) => (
+                <li
+                  key={label.id}
+                  css={css`
+                    min-width: 0;
+                    max-width: 200px;
+                  `}
+                >
+                  <Token
+                    color={label.color}
+                    css={css`
+                      min-width: 0;
+                      max-width: 100%;
+                      span {
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        min-width: 0;
+                      }
+                    `}
+                  >
+                    <span
+                      css={css`
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        min-width: 0;
+                      `}
+                      title={label.name}
+                    >
+                      {label.name}
+                    </span>
+                  </Token>
+                </li>
+              ))}
+            </ul>
+          );
         },
       },
       {
