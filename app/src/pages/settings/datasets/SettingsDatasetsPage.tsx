@@ -1,6 +1,6 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { SettingsDatasetsPageQuery } from "@phoenix/pages/settings/datasets/__generated__/SettingsDatasetsPageQuery.graphql";
+import type { SettingsDatasetsPageQuery } from "@phoenix/pages/settings/datasets/__generated__/SettingsDatasetsPageQuery.graphql";
 
 import { DatasetLabelsSettingsCard } from "./DatasetLabelsSettingsCard";
 
