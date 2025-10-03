@@ -418,7 +418,7 @@ jobs:
     name: Type Check Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -456,7 +456,7 @@ jobs:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       fail-fast: false
       matrix:
