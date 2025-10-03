@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 import {
   Button,
   Flex,
@@ -19,8 +21,6 @@ import {
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
-
-import type { JSX } from "react";
 
 /**
  * The "default" tool choices for each provider
