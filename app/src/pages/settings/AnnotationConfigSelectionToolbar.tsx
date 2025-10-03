@@ -64,12 +64,12 @@ export const AnnotationConfigSelectionToolbar = ({
       >
         <Flex
           direction="row"
-          gap="size-100"
+          gap="size-400"
           alignItems="center"
           justifyContent="space-between"
         >
           <Text>Config: &quot;{selectedConfig?.name}&quot;</Text>
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <Button variant="quiet" onPress={onClearSelection}>
               Clear Selection
             </Button>
@@ -81,7 +81,7 @@ export const AnnotationConfigSelectionToolbar = ({
                 }
               }}
             >
-              <Button variant="danger">
+              <Button variant="danger" size="S">
                 <Icon svg={<Icons.TrashOutline />} />
                 Delete
               </Button>
@@ -112,6 +112,7 @@ export const AnnotationConfigSelectionToolbar = ({
                               Cancel
                             </Button>
                             <Button
+                              size="S"
                               variant="danger"
                               onPress={() => {
                                 if (id) {
