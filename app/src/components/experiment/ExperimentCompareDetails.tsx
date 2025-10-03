@@ -618,17 +618,28 @@ export function ExperimentItem({
             >
               <ExperimentRunMetadata {...experimentRun} />
             </View>
-            <View
-              paddingX="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="grey-300"
-              borderBottomWidth="thin"
+            <div
+              css={css`
+                /* show scrollbar only if there are annotations */
+                overflow-y: ${experimentRun.annotations?.edges.length > 0
+                  ? "auto"
+                  : "hidden"};
+                min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
+                ANNOTATION_ITEM_HEIGHT}px;
+              `}
             >
-              <ExperimentAnnotationStack
-                experimentRun={experimentRun}
-                annotationSummaries={annotationSummaries}
-              />
-            </View>
+              <View
+                paddingX="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="grey-300"
+                borderBottomWidth="thin"
+              >
+                <ExperimentAnnotationStack
+                  experimentRun={experimentRun}
+                  annotationSummaries={annotationSummaries}
+                />
+              </View>
+            </div>
             <View flex={1} minHeight={200}>
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
@@ -700,12 +711,6 @@ export function ExperimentAnnotationStack({
   return (
     <ul
       css={css`
-        /* show scrollbar only if there are annotations */
-        overflow-y: ${experimentRun.annotations?.edges.length > 0
-          ? "auto"
-          : "hidden"};
-        min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
-        ANNOTATION_ITEM_HEIGHT}px;
         display: grid;
         grid-template-columns:
           minmax(100px, max-content) minmax(32px, max-content)
