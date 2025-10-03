@@ -35,10 +35,11 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
     useMutation<DeleteDatasetLabelButtonMutation>(graphql`
       mutation DeleteDatasetLabelButtonMutation(
         $input: DeleteDatasetLabelsInput!
+        $connections: [ID!]!
       ) {
         deleteDatasetLabels(input: $input) {
           datasetLabels {
-            id
+            id @deleteEdge(connections: $connections)
           }
         }
       }
@@ -77,21 +78,12 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
                           deleteLabel({
                             variables: {
                               input: { datasetLabelIds: [datasetLabelId] },
-                            },
-                            updater: (store) => {
-                              // Manually remove the deleted item from the connection
-                              const connectionId =
+                              connections: [
                                 ConnectionHandler.getConnectionID(
                                   "client:root",
                                   "DatasetLabelsTable__datasetLabels"
-                                );
-                              const connection = store.get(connectionId);
-                              if (connection) {
-                                ConnectionHandler.deleteNode(
-                                  connection,
-                                  datasetLabelId
-                                );
-                              }
+                                ),
+                              ],
                             },
                             onCompleted: () => {
                               notifySuccess({

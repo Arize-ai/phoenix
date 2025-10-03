@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85442ebe33ba401aa450498d51463d3a>>
+ * @generated SignedSource<<7c229594bc1ab64fc1359da102053b55>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type DeleteDatasetLabelsInput = {
   datasetLabelIds: ReadonlyArray<string>;
 };
 export type DeleteDatasetLabelButtonMutation$variables = {
+  connections: ReadonlyArray<string>;
   input: DeleteDatasetLabelsInput;
 };
 export type DeleteDatasetLabelButtonMutation$data = {
@@ -28,66 +29,116 @@ export type DeleteDatasetLabelButtonMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connections"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
     ],
-    "concreteType": "DeleteDatasetLabelsMutationPayload",
-    "kind": "LinkedField",
-    "name": "deleteDatasetLabels",
-    "plural": false,
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "DeleteDatasetLabelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": null,
-        "concreteType": "DatasetLabel",
+        "args": (v2/*: any*/),
+        "concreteType": "DeleteDatasetLabelsMutationPayload",
         "kind": "LinkedField",
-        "name": "datasetLabels",
-        "plural": true,
+        "name": "deleteDatasetLabels",
+        "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "id",
+            "concreteType": "DatasetLabel",
+            "kind": "LinkedField",
+            "name": "datasetLabels",
+            "plural": true,
+            "selections": [
+              (v3/*: any*/)
+            ],
             "storageKey": null
           }
         ],
         "storageKey": null
       }
     ],
-    "storageKey": null
-  }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "DeleteDatasetLabelButtonMutation",
-    "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "DeleteDatasetLabelButtonMutation",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DeleteDatasetLabelsMutationPayload",
+        "kind": "LinkedField",
+        "name": "deleteDatasetLabels",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetLabel",
+            "kind": "LinkedField",
+            "name": "datasetLabels",
+            "plural": true,
+            "selections": [
+              (v3/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "filters": null,
+                "handle": "deleteEdge",
+                "key": "",
+                "kind": "ScalarHandle",
+                "name": "id",
+                "handleArgs": [
+                  {
+                    "kind": "Variable",
+                    "name": "connections",
+                    "variableName": "connections"
+                  }
+                ]
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
     "cacheID": "b8a0548c9df74137476118cf38dfcc9c",
@@ -100,6 +151,6 @@ return {
 };
 })();
 
-(node as any).hash = "865e34a2a79804aaaef98cc9590b1021";
+(node as any).hash = "e84ccde3a71540e1e768694c2a6adb56";
 
 export default node;
