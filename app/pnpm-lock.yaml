@@ -25,8 +25,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       '@arizeai/point-cloud':
-        specifier: ^3.0.6
-        version: 3.0.6(@react-three/drei@10.7.6(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/react@19.2.0)(@types/three@0.180.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(react@19.2.0)(three-stdlib@2.36.0(three@0.180.0))(three@0.180.0)
+        specifier: ^4.1.0
+        version: 4.1.0(@react-three/drei@10.7.6(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/react@19.2.0)(@types/three@0.180.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(react@19.2.0)(three-stdlib@2.36.0(three@0.180.0))(three@0.180.0)
       '@codemirror/autocomplete':
         specifier: 6.12.0
         version: 6.12.0(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
@@ -381,8 +381,8 @@ packages:
   '@arizeai/openinference-semantic-conventions@1.1.0':
     resolution: {integrity: sha512-rxRYnUWjt28DlVXnWukcQAyGhPYQ3ckmKrjEdUjmUNnvvv4k8Dabbp5h6AEjNy7YzN9jL2smNRJnbLIVtkrLEg==}
 
-  '@arizeai/point-cloud@3.0.6':
-    resolution: {integrity: sha512-hatFoGJsHAHwZqzZokKqBcHhvyxGyyy9g/CEWpChOckcUkQktgKRT00rrrmiSE7XXHHeUVdkjYruS1R7y16KZg==}
+  '@arizeai/point-cloud@4.1.0':
+    resolution: {integrity: sha512-fJolMhn4oh6Hh4B4S1d1gvuqY427tjvxuYJl5Dfxt1rh0PQFZCz08iVAVcSPzmhim8HrnSNVdz+CTSZrS004yQ==}
     engines: {node: '>=10'}
     peerDependencies:
       '@react-three/drei': ^9.105.5
@@ -5615,7 +5615,7 @@ snapshots:
 
   '@arizeai/openinference-semantic-conventions@1.1.0': {}
 
-  '@arizeai/point-cloud@3.0.6(@react-three/drei@10.7.6(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/react@19.2.0)(@types/three@0.180.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(react@19.2.0)(three-stdlib@2.36.0(three@0.180.0))(three@0.180.0)':
+  '@arizeai/point-cloud@4.1.0(@react-three/drei@10.7.6(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/react@19.2.0)(@types/three@0.180.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(react@19.2.0)(three-stdlib@2.36.0(three@0.180.0))(three@0.180.0)':
     dependencies:
       '@react-three/drei': 10.7.6(@react-three/fiber@9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/react@19.2.0)(@types/three@0.180.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0)
       '@react-three/fiber': 9.3.0(@types/react@19.2.0)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0)
