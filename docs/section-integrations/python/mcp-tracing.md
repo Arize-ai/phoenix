@@ -9,7 +9,7 @@ description: >-
 
 The `openinference-instrumentation-mcp` instrumentor is unique compared to other OpenInference instrumentors. It does not generate any of its own telemetry. Instead, it enables context propagation between MCP clients and servers to unify traces. **You still need generate OpenTelemetry traces in both the client and server to see a unified trace.**
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
+{% include "../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
 
 ## Install <a href="#install" id="install"></a>
 
@@ -24,7 +24,7 @@ Because the MCP instrumentor does not generate its own telemetry, you must use i
 The example code below uses OpenAI agents, which you can instrument using:
 
 ```bash
-pip install openinference-instrumentation-openai_agents
+pip install openinference-instrumentation-openai-agents
 ```
 
 ## Add Tracing to your MCP Client <a href="#add-tracing-to-your-mcp-client" id="add-tracing-to-your-mcp-client"></a>
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Add Tracing to your MCP Server <a href="#add-tracing-to-your-mcp-server" id="add-tracing-to-your-mcp-server"></a>
+## Add Tracing to your MCP Server <a href="#add-tracing-to-your-mcp-server" id="add-tracing-to-your-mcp-server"></a>
 
 ```python
 import json

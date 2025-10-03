@@ -137,7 +137,7 @@ Full example: [https://github.com/arconia-io/arconia-examples/tree/main/arconia-
 
 Once configured, your OpenInference traces will be automatically sent to Phoenix where you can:
 
-* **Monitor Performance**: Track latency, throughput, and error rates
+* **Monitor Performance**: Track latency and errors
 * **Analyze Usage**: View token usage, model performance, and cost metrics
 * **Debug Issues**: Trace request flows and identify bottlenecks
 * **Evaluate Quality**: Run evaluations on your LLM outputs

@@ -37,7 +37,7 @@ dependencies {
 
 {% tabs %}
 {% tab title="Docker" %}
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+**Pull latest Phoenix image from** **Docker Hub:**
 
 ```bash
 docker pull arizephoenix/phoenix:latest
@@ -54,13 +54,13 @@ This command:
 * Exposes port 6006 for the Phoenix web UI
 * Exposes port 4317 for the OTLP gRPC endpoint (where traces are sent)
 
-For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
+For more info on using Phoenix with Docker, see Docker.
 {% endtab %}
 
 {% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+1. Sign up for an Arize Phoenix account at https://app.phoenix.arize.com/login
 2. Click `Create Space`, then follow the prompts to create and launch your space.
 
 **Set your Phoenix endpoint and API Key:**
@@ -77,7 +77,7 @@ export PHOENIX_COLLECTOR_ENDPOINT = "your-phoenix-endpoint"
 ```
 
 {% hint style="info" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out Finding your Phoenix Endpoint
 {% endhint %}
 {% endtab %}
 {% endtabs %}
@@ -170,7 +170,7 @@ Full example: [https://github.com/Arize-ai/openinference/blob/main/java/examples
 
 Once configured, your OpenInference traces will be automatically sent to Phoenix where you can:
 
-* **Monitor Performance**: Track latency, throughput, and error rates
+* **Monitor Performance**: Track latency and errors
 * **Analyze Usage**: View token usage, model performance, and cost metrics
 * **Debug Issues**: Trace request flows and identify bottlenecks
 * **Evaluate Quality**: Run evaluations on your LLM outputs
