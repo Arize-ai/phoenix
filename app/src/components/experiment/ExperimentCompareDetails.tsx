@@ -383,6 +383,7 @@ export function ExperimentRunOutputs({
               display: flex;
               flex-direction: row;
               justify-content: flex-start;
+              align-items: flex-start;
               flex-wrap: none;
               gap: var(--ac-global-dimension-static-size-200);
               overflow: auto;
