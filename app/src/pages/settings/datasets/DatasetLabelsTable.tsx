@@ -11,7 +11,7 @@ import { Flex, Token } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 
-import { DatasetLabelsTableFragment$key } from "./__generated__/DatasetLabelsTableFragment.graphql";
+import type { DatasetLabelsTableFragment$key } from "./__generated__/DatasetLabelsTableFragment.graphql";
 import { DeleteDatasetLabelButton } from "./DeleteDatasetLabelButton";
 
 export function DatasetLabelsTable({
