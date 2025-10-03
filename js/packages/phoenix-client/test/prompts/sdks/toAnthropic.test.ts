@@ -2,7 +2,7 @@ import { describe, it, assertType, expect } from "vitest";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
-import type { MessageCreateParams } from "@anthropic-ai/sdk/resources";
+import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/index";
 import { toAnthropic } from "../../../src/prompts/sdks/toAnthropic";
 import {
   BASE_MOCK_PROMPT_VERSION,
