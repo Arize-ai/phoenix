@@ -626,7 +626,7 @@ export function ExperimentItem({
               borderBottomColor="grey-300"
               borderBottomWidth="thin"
             >
-              <ExperimentAnnotationStack
+              <ExperimentRunAnnotations
                 experimentRun={experimentRun}
                 annotationSummaries={annotationSummaries}
               />
@@ -691,7 +691,7 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
   );
 }
 
-export function ExperimentAnnotationStack({
+export function ExperimentRunAnnotations({
   experimentRun,
   annotationSummaries,
 }: {
@@ -716,13 +716,13 @@ export function ExperimentAnnotationStack({
           <li
             key={annotationSummary.annotationName}
             css={css`
-              height: ${ANNOTATION_ITEM_HEIGHT}px;
+              height: var(--ac-global-dimension-size-350);
               display: grid;
               grid-template-columns: subgrid;
               grid-column: 1 / -1;
             `}
           >
-            <ExperimentAnnotationDetails
+            <ExperimentRunAnnotation
               annotation={annotation}
               annotationSummary={annotationSummary}
             />
@@ -733,7 +733,7 @@ export function ExperimentAnnotationStack({
             key={annotationSummary.annotationName}
             aria-hidden="true"
             css={css`
-              height: ${ANNOTATION_ITEM_HEIGHT}px;
+              height: var(--ac-global-dimension-size-350);
               grid-column: 1 / -1;
             `}
           />
@@ -743,7 +743,7 @@ export function ExperimentAnnotationStack({
   );
 }
 
-function ExperimentAnnotationStackItem({
+function ExperimentRunAnnotationButton({
   annotation,
   annotationSummary,
 }: {
@@ -754,10 +754,10 @@ function ExperimentAnnotationStackItem({
   const labelValue =
     annotation.score != null
       ? formatFloat(annotation.score)
-      : annotation.label || "n/a";
+      : annotation.label || "--";
 
   return (
-    <AriaButton
+    <AriaButton // using AriaButton to ensure the popover works
       className="button--reset"
       css={css`
         cursor: pointer;
@@ -820,7 +820,7 @@ function ExperimentAnnotationStackItem({
   );
 }
 
-function ExperimentAnnotationDetails({
+function ExperimentRunAnnotation({
   annotation,
   annotationSummary,
 }: {
@@ -829,7 +829,7 @@ function ExperimentAnnotationDetails({
 }) {
   return (
     <DialogTrigger>
-      <ExperimentAnnotationStackItem
+      <ExperimentRunAnnotationButton
         annotation={annotation}
         annotationSummary={annotationSummary}
       />
@@ -920,5 +920,3 @@ function shouldRenderNoRunCard(
 
   return !experimentDidRun && isExperimentSelected;
 }
-
-const ANNOTATION_ITEM_HEIGHT = 28;
