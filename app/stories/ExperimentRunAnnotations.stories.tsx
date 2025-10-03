@@ -2,7 +2,7 @@ import { Meta, StoryFn } from "@storybook/react";
 
 import { View } from "@phoenix/components";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
-import { ExperimentAnnotationStack } from "@phoenix/components/experiment/ExperimentCompareDetails";
+import { ExperimentRunAnnotations } from "@phoenix/components/experiment/ExperimentCompareDetails";
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -91,9 +91,9 @@ const mockAnnotationSummaries: AnnotationSummaries = [
   },
 ];
 
-const meta: Meta<typeof ExperimentAnnotationStack> = {
-  title: "Experiment/ExperimentAnnotationStack",
-  component: ExperimentAnnotationStack,
+const meta: Meta<typeof ExperimentRunAnnotations> = {
+  title: "Experiment/ExperimentRunAnnotations",
+  component: ExperimentRunAnnotations,
   parameters: {
     layout: "centered",
     docs: {
@@ -125,7 +125,7 @@ This component is used within ExperimentItem to display evaluation results and m
 };
 
 export default meta;
-type Story = StoryFn<typeof ExperimentAnnotationStack>;
+type Story = StoryFn<typeof ExperimentRunAnnotations>;
 
 const Template: Story = (args) => (
   <View
@@ -135,7 +135,7 @@ const Template: Story = (args) => (
     borderRadius="medium"
     overflow="hidden"
   >
-    <ExperimentAnnotationStack {...args} />
+    <ExperimentRunAnnotations {...args} />
   </View>
 );
 
