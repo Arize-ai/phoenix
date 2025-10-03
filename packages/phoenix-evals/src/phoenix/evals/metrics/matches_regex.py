@@ -74,6 +74,9 @@ class MatchesRegex(Evaluator):
             direction="maximize",
         )
 
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+        return self._evaluate(eval_input)
+
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         output = eval_input["output"]
 
