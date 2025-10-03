@@ -2899,7 +2899,9 @@ class TestClientForSessionAnnotations:
         ]
 
         # Send all annotations in a burst
-        task = AsyncClient(base_url=_app.base_url, api_key=api_key).sessions.log_session_annotations(
+        task = AsyncClient(
+            base_url=_app.base_url, api_key=api_key
+        ).sessions.log_session_annotations(
             session_annotations=session_annotations * 2,
             sync=False,
         )
