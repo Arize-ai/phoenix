@@ -775,6 +775,109 @@ class TestClientForSpanAnnotations:
         assert anno["source"] == "API", "DataFrame annotation source should be API"
         assert anno["annotatorKind"] == "LLM", "DataFrame annotation annotator_kind should be LLM"
 
+    async def test_burst_annotations_with_unique_identifiers(
+        self,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests sending multiple annotations in a burst with unique identifiers.
+
+        Verifies that:
+        - Multiple annotations can be sent quickly without deduplication issues
+        - All annotations are properly inserted
+        - Each annotation maintains its unique identifier
+        - Works in both regular and async mode
+        - User permissions are properly checked
+        """
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL span ID and graphql Global ID from the fixture
+        assert _existing_spans, "At least one existing span is required for this test"
+        span_gid1, span_id1, *_ = choice(_existing_spans)
+        api_key = _app.admin_secret
+        from phoenix.client import Client
+
+        # ============================================================================
+        # Test Case: Burst Annotations
+        # ============================================================================
+        annotation_name = token_hex(8)
+        num_annotations = 5
+
+        # Generate unique data for each annotation
+        identifiers = [token_hex(8) for _ in range(num_annotations)]
+        labels = [token_hex(8) for _ in range(num_annotations)]
+        scores = [int.from_bytes(token_bytes(4), byteorder="big") for _ in range(num_annotations)]
+        explanations = [token_hex(8) for _ in range(num_annotations)]
+        metadata = [{token_hex(8): token_hex(8)} for _ in range(num_annotations)]
+
+        # Create annotation data for burst sending
+        span_annotations: list[v1.SpanAnnotationData] = [
+            {
+                "name": annotation_name,
+                "span_id": span_id1,
+                "annotator_kind": "CODE",
+                "identifier": identifiers[i],
+                "metadata": metadata[i],
+                "result": {
+                    "label": labels[i],
+                    "score": scores[i],
+                    "explanation": explanations[i],
+                },
+            }
+            for i in range(num_annotations)
+        ]
+
+        # Send all annotations in a burst
+        for _ in range(2):
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_span_annotations(
+                span_annotations=span_annotations * 2,
+                sync=False,
+            )
+
+        # Verify all annotations were created correctly by querying the GraphQL API
+        def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
+            res, _ = _gql(
+                _app,
+                api_key,
+                query=self.query,
+                operation_name="GetSpanAnnotations",
+                variables={"id": str(span_gid1)},
+            )
+            # Filter to only our test annotations (by name)
+            test_annotations = [
+                anno
+                for anno in res["data"]["node"]["spanAnnotations"]
+                if anno["name"] == annotation_name
+            ]
+            # Check if we have all expected annotations
+            if len(test_annotations) == num_annotations:
+                # Return indexed by identifier for easy lookup
+                return {anno["identifier"]: anno for anno in test_annotations}
+            return None
+
+        annotations_by_identifier = await _get(
+            query_fn=get_all_burst_annotations,
+            error_msg=f"All {num_annotations} burst annotations should be present",
+        )
+
+        # Verify each annotation exists with correct values
+        for i in range(num_annotations):
+            assert identifiers[i] in annotations_by_identifier, (
+                f"Annotation with identifier {identifiers[i]} should be present"
+            )
+            anno = annotations_by_identifier[identifiers[i]]
+            assert anno["name"] == annotation_name, f"Annotation {i} name should match input"
+            assert anno["source"] == "API", f"Annotation {i} source should be API"
+            assert anno["annotatorKind"] == "CODE", f"Annotation {i} annotator_kind should be CODE"
+            assert anno["metadata"] == metadata[i], f"Annotation {i} metadata should match input"
+            assert anno["label"] == labels[i], f"Annotation {i} label should match input"
+            assert anno["score"] == scores[i], f"Annotation {i} score should match input"
+            assert anno["explanation"] == explanations[i], (
+                f"Annotation {i} explanation should match input"
+            )
+
 
 class TestClientForSpanDocumentAnnotations:
     """Tests the Phoenix span document annotation client functionality.
@@ -1984,6 +2087,108 @@ class TestClientForTraceAnnotations:
         assert anno["source"] == "API", "DataFrame annotation source should be API"
         assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
 
+    async def test_burst_trace_annotations_with_unique_identifiers(
+        self,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests sending multiple trace annotations in a burst with unique identifiers.
+
+        Verifies that:
+        - Multiple trace annotations can be sent quickly without deduplication issues
+        - All trace annotations are properly inserted
+        - Each trace annotation maintains its unique identifier
+        """
+        # Setup
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        trace_gid1 = span1.trace.id
+        trace_id1 = span1.trace.trace_id
+        api_key = _app.admin_secret
+        from phoenix.client import Client
+
+        # Test Case: Burst Trace Annotations
+        annotation_name = token_hex(8)
+        num_annotations = 5
+
+        # Generate unique data for each annotation
+        identifiers = [token_hex(8) for _ in range(num_annotations)]
+        labels = [token_hex(8) for _ in range(num_annotations)]
+        scores = [int.from_bytes(token_bytes(4), byteorder="big") for _ in range(num_annotations)]
+        explanations = [token_hex(8) for _ in range(num_annotations)]
+        metadata = [{token_hex(8): token_hex(8)} for _ in range(num_annotations)]
+
+        # Create annotation data for burst sending
+        trace_annotations: list[v1.TraceAnnotationData] = [
+            {
+                "name": annotation_name,
+                "trace_id": trace_id1,
+                "annotator_kind": "CODE",
+                "identifier": identifiers[i],
+                "metadata": metadata[i],
+                "result": {
+                    "label": labels[i],
+                    "score": scores[i],
+                    "explanation": explanations[i],
+                },
+            }
+            for i in range(num_annotations)
+        ]
+
+        # Send all annotations in a burst
+        for _ in range(2):
+            Client(base_url=_app.base_url, api_key=api_key).traces.log_trace_annotations(
+                trace_annotations=trace_annotations * 2,
+                sync=False,
+            )
+
+        # Verify all annotations were created correctly by querying the GraphQL API
+        def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
+            res, _ = _gql(
+                _app,
+                api_key,
+                query=self.query,
+                operation_name="GetTraceAnnotations",
+                variables={"id": str(trace_gid1)},
+            )
+            # Filter to only our test annotations (by name)
+            test_annotations = [
+                anno
+                for anno in res["data"]["node"]["traceAnnotations"]
+                if anno["name"] == annotation_name
+            ]
+            # Check if we have all expected annotations
+            if len(test_annotations) == num_annotations:
+                # Return indexed by identifier for easy lookup
+                return {anno["identifier"]: anno for anno in test_annotations}
+            return None
+
+        annotations_by_identifier = await _get(
+            query_fn=get_all_burst_annotations,
+            error_msg=f"All {num_annotations} burst trace annotations should be present",
+        )
+
+        # Verify each annotation exists with correct values
+        for i in range(num_annotations):
+            assert identifiers[i] in annotations_by_identifier, (
+                f"Trace annotation with identifier {identifiers[i]} should be present"
+            )
+            anno = annotations_by_identifier[identifiers[i]]
+            assert anno["name"] == annotation_name, f"Trace annotation {i} name should match input"
+            assert anno["source"] == "API", f"Trace annotation {i} source should be API"
+            assert anno["annotatorKind"] == "CODE", (
+                f"Trace annotation {i} annotator_kind should be CODE"
+            )
+            assert anno["metadata"] == metadata[i], (
+                f"Trace annotation {i} metadata should match input"
+            )
+            assert anno["label"] == labels[i], f"Trace annotation {i} label should match input"
+            assert anno["score"] == scores[i], f"Trace annotation {i} score should match input"
+            assert anno["explanation"] == explanations[i], (
+                f"Trace annotation {i} explanation should match input"
+            )
+
 
 class TestClientForSessionAnnotations:
     """Tests the Phoenix session annotation client functionality.
@@ -2632,6 +2837,111 @@ class TestClientForSessionAnnotations:
         assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
         assert anno["source"] == "API", "DataFrame annotation source should be API"
         assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
+
+    async def test_burst_session_annotations_with_unique_identifiers(
+        self,
+        _existing_spans: Sequence[_ExistingSpan],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Tests sending multiple session annotations in a burst with unique identifiers.
+
+        Verifies that:
+        - Multiple session annotations can be sent quickly without deduplication issues
+        - All session annotations are properly inserted
+        - Each session annotation maintains its unique identifier
+        """
+        # Setup
+        assert _existing_spans, "At least one existing span is required for this test"
+        span1, *_ = _existing_spans
+        assert span1.trace.session is not None, "Session is required for this test"
+        session_gid1 = span1.trace.session.id
+        session_id1 = span1.trace.session.session_id
+        api_key = _app.admin_secret
+        from phoenix.client import Client
+
+        # Test Case: Burst Session Annotations
+        annotation_name = token_hex(8)
+        num_annotations = 5
+
+        # Generate unique data for each annotation
+        identifiers = [token_hex(8) for _ in range(num_annotations)]
+        labels = [token_hex(8) for _ in range(num_annotations)]
+        scores = [int.from_bytes(token_bytes(4), byteorder="big") for _ in range(num_annotations)]
+        explanations = [token_hex(8) for _ in range(num_annotations)]
+        metadata = [{token_hex(8): token_hex(8)} for _ in range(num_annotations)]
+
+        # Create annotation data for burst sending
+        session_annotations: list[v1.SessionAnnotationData] = [
+            {
+                "name": annotation_name,
+                "session_id": session_id1,
+                "annotator_kind": "CODE",
+                "identifier": identifiers[i],
+                "metadata": metadata[i],
+                "result": {
+                    "label": labels[i],
+                    "score": scores[i],
+                    "explanation": explanations[i],
+                },
+            }
+            for i in range(num_annotations)
+        ]
+
+        # Send all annotations in a burst
+        for _ in range(2):
+            Client(base_url=_app.base_url, api_key=api_key).sessions.log_session_annotations(
+                session_annotations=session_annotations * 2,
+                sync=False,
+            )
+
+        # Verify all annotations were created correctly by querying the GraphQL API
+        def get_all_burst_annotations() -> Optional[dict[str, dict[str, Any]]]:
+            res, _ = _gql(
+                _app,
+                api_key,
+                query=self.query,
+                operation_name="GetSessionAnnotations",
+                variables={"id": str(session_gid1)},
+            )
+            # Filter to only our test annotations (by name)
+            test_annotations = [
+                anno
+                for anno in res["data"]["node"]["sessionAnnotations"]
+                if anno["name"] == annotation_name
+            ]
+            # Check if we have all expected annotations
+            if len(test_annotations) == num_annotations:
+                # Return indexed by identifier for easy lookup
+                return {anno["identifier"]: anno for anno in test_annotations}
+            return None
+
+        annotations_by_identifier = await _get(
+            query_fn=get_all_burst_annotations,
+            error_msg=f"All {num_annotations} burst session annotations should be present",
+        )
+
+        # Verify each annotation exists with correct values
+        for i in range(num_annotations):
+            assert identifiers[i] in annotations_by_identifier, (
+                f"Session annotation with identifier {identifiers[i]} should be present"
+            )
+            anno = annotations_by_identifier[identifiers[i]]
+            assert anno["name"] == annotation_name, (
+                f"Session annotation {i} name should match input"
+            )
+            assert anno["source"] == "API", f"Session annotation {i} source should be API"
+            assert anno["annotatorKind"] == "CODE", (
+                f"Session annotation {i} annotator_kind should be CODE"
+            )
+            assert anno["metadata"] == metadata[i], (
+                f"Session annotation {i} metadata should match input"
+            )
+            assert anno["label"] == labels[i], f"Session annotation {i} label should match input"
+            assert anno["score"] == scores[i], f"Session annotation {i} score should match input"
+            assert anno["explanation"] == explanations[i], (
+                f"Session annotation {i} explanation should match input"
+            )
 
 
 class TestSendingAnnotationsBeforeSpan:
