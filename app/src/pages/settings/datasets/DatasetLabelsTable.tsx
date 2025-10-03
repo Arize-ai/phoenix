@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
@@ -37,7 +38,10 @@ export function DatasetLabelsTable({
     `,
     query
   );
-  const tableData = data.datasetLabels.edges.map((edge) => edge.node);
+  const tableData = useMemo(
+    () => data.datasetLabels.edges.map((edge) => edge.node),
+    [data.datasetLabels.edges]
+  );
 
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
