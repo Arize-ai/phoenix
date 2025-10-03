@@ -609,8 +609,8 @@ hall_annotations: list[SpanAnnotationData] = [
     for _, row in hall_rows.iterrows()
 ]
 
-client.annotations.log_span_annotations(span_annotations=qa_annotations, sync=False)
-client.annotations.log_span_annotations(span_annotations=hall_annotations, sync=False)
+client.spans.log_span_annotations(span_annotations=qa_annotations, sync=False)
+client.spans.log_span_annotations(span_annotations=hall_annotations, sync=False)
 ```
 
 We now have sent all our evaluations to Phoenix. Let's go to the Phoenix application and view the results! Since we've sent all the evals to Phoenix, we can analyze the results together to make a determination on whether or not poor retrieval or irrelevant context has an effect on the LLM's ability to generate the correct response.

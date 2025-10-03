@@ -1539,7 +1539,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                           key={idx}
                           css={css`
                             text-wrap: wrap;
-                            margin: var(--ac-global-dimension-static-size-100) 0;
+                            margin: 0;
                             padding: var(--ac-global-dimension-static-size-200);
                           `}
                         >

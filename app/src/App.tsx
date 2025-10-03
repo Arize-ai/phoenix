@@ -7,7 +7,7 @@ import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
-import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
+import { ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
@@ -34,9 +34,7 @@ export function AppContent() {
           <PreferencesProvider>
             <CredentialsProvider>
               <Suspense>
-                <NotificationProvider>
-                  <AppRoutes />
-                </NotificationProvider>
+                <AppRoutes />
               </Suspense>
             </CredentialsProvider>
           </PreferencesProvider>

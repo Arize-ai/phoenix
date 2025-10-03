@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import inspect
 import itertools
 import json
@@ -56,6 +57,55 @@ EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 # --- Score model ---
 @dataclass(frozen=True)
 class Score:
+    """
+    Represents the result of an evaluation.
+
+    A Score contains the evaluation result along with metadata about the evaluation.
+    It can represent numeric scores, categorical labels, explanations, or combinations thereof.
+
+    Examples:
+        Creating different types of scores::
+
+            from phoenix.evals.evaluators import Score
+
+            # Numeric score only
+            numeric_score = Score(
+                name="accuracy",
+                score=0.85,
+                source="llm",
+                direction="maximize"
+            )
+
+            # Label only (categorical)
+            label_score = Score(
+                name="sentiment",
+                label="positive",
+                source="llm",
+                direction="maximize"
+            )
+
+            # Score with explanation
+            detailed_score = Score(
+                name="relevance",
+                score=0.9,
+                label="highly_relevant",
+                explanation="The answer directly addresses all aspects of the question",
+                metadata={"model": "gpt-4", "confidence": 0.95},
+                source="llm",
+                direction="maximize"
+            )
+
+            # Boolean evaluation
+            boolean_score = Score(
+                name="has_citation",
+                score=1.0,
+                label="true",
+                explanation="Found 3 citations in the text",
+                source="heuristic",
+                direction="maximize"
+            )
+    """
+
     name: Optional[str] = None
     score: Optional[Union[float, int]] = None
     label: Optional[str] = None
@@ -103,8 +153,21 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
 class Evaluator(ABC):
     """
     Core abstraction for evaluators.
-    Instances are callable: `scores = evaluator(eval_input)` (sync or async via `async_evaluate`).
-    Supports single-record (`evaluate`) mode with optional per-call field_mapping.
+
+    Supports single-record synchronous (`evaluate`) and asynchronous (`async_evaluate`) modes with
+    optional per-call field_mapping.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: The name of this evaluator, used for identification and Score naming.
+        source: The source of this evaluator (human, llm, or heuristic).
+        input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
+            subclasses infer fields from prompts or function signatures and may construct a
+            model dynamically.
+        direction: The direction for score optimization ("maximize" or "minimize"). Defaults
+            to "maximize".
     """
 
     def __init__(
@@ -114,18 +177,6 @@ class Evaluator(ABC):
         direction: DirectionType = "maximize",
         input_schema: Optional[type[BaseModel]] = None,
     ):
-        """
-        Initialize the evaluator with a required name, source, and optional input schema.
-
-        Args:
-            name: The name of this evaluator, used for identification and Score naming.
-            source: The source of this evaluator (human, llm, or heuristic).
-            input_schema: Optional Pydantic BaseModel for input typing and validation. If None,
-                subclasses infer fields from prompts or function signatures and may construct a
-                model dynamically.
-            direction: The direction for score optimization ("maximize" or "minimize"). Defaults
-                to "maximize".
-        """
         self._name = name
         self._source = source
         self._direction = direction
@@ -220,6 +271,10 @@ class Evaluator(ABC):
         """Binds an evaluator with a fixed input mapping."""
         self._input_mapping = input_mapping
 
+    def unbind(self) -> None:
+        """Unbinds an evaluator from an input mapping."""
+        self._input_mapping = None
+
     def _get_required_fields(self, input_mapping: Optional[InputMappingType]) -> Set[str]:
         """
         Determine required field names for mapping/validation.
@@ -266,6 +321,20 @@ class LLMEvaluator(Evaluator):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
+
+    Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
+    Implementing both methods is recommended.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required fields; used to infer required variables.
+        schema: Optional tool/JSON schema for structured output when supported by the LLM.
+        input_schema: Optional Pydantic model describing/validating inputs. If not provided,
+            a model is dynamically created from the prompt variables (all str, required).
+        direction: The score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
     """
 
     def __init__(
@@ -277,20 +346,6 @@ class LLMEvaluator(Evaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for
-                required fields; used to infer required variables.
-            schema: Optional tool/JSON schema for structured output when supported by the LLM.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is dynamically created from the prompt variables (all str, required).
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         # Infer required fields from prompt_template
         if isinstance(prompt_template, str):
             prompt_template = Template(template=prompt_template)
@@ -337,8 +392,97 @@ class LLMEvaluator(Evaluator):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
     """
-    LLM-based evaluator for classification tasks. Supports label-only or label+score mappings,
-    and returns explanations by default.
+    LLM-based evaluator for classification-style judgements.
+
+    Supports label-only or label+score mappings, and returns explanations by default.
+    Note: Requires the LLM to have tool calling or structured output capabilities.
+
+    Args:
+        name: Identifier for this evaluator and the name used in produced Scores.
+        llm: The LLM instance to use for evaluation. Must support tool calling or
+            structured output for reliable classification.
+        prompt_template: The prompt template (string or Template) with placeholders for
+            required input fields. Template variables are inferred automatically.
+        choices: Classification choices in one of three formats:
+            a. List[str]: Simple list of label names (e.g., ["positive", "negative"]).
+                Scores will be None.
+            b. Dict[str, Union[float, int]]: Labels mapped to numeric scores
+                (e.g., {"positive": 1.0, "negative": 0.0}).
+            c. Dict[str, Tuple[Union[float, int], str]]: Labels mapped to tuples of
+                (score, description) (e.g., {"positive": (1.0, "Positive sentiment"),
+                "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
+                reliably follow this schema.
+        include_explanation: Whether to request explanations for classification decisions.
+            Defaults to True in accordance with best practices.
+        input_schema: Optional Pydantic model for input validation. If not provided,
+            a model is automatically created from prompt template variables.
+        direction: Score optimization direction ("maximize" or "minimize"). Defaults to
+            "maximize".
+
+    Returns:
+        List[Score]: A list containing a single Score object with the classification
+            result, including label, optional score, and optional explanation.
+
+    Examples:
+        Classification with labels only::
+
+            from phoenix.evals import ClassificationEvaluator
+            from phoenix.evals.llm import LLM
+
+            evaluator = ClassificationEvaluator(
+                name="sentiment",
+                llm=LLM(provider="openai", model="gpt-4"),
+                prompt_template="Classify the sentiment of this text: {text}",
+                choices=["positive", "negative", "neutral"]
+            )
+
+            result = evaluator.evaluate({"text": "I love this product!"})
+            print(result[0].label)  # "positive"
+            print(result[0].explanation)  # LLM's reasoning
+            print(result[0].score)  # None
+
+        Classification with scores::
+
+            # Map labels to numeric scores
+            evaluator = ClassificationEvaluator(
+                name="quality",
+                llm=llm,
+                prompt_template="Rate the quality of this response: {response}",
+                choices={
+                    "excellent": 5,
+                    "good": 4,
+                    "fair": 3,
+                    "poor": 2,
+                    "terrible": 1
+                }
+            )
+
+            result = evaluator.evaluate({"response": "Great explanation with examples"})
+            print(result[0].label)  # "excellent"
+            print(result[0].score)  # 5
+
+        Classification with scores and descriptions (use with caution)::
+
+            # Map labels to (score, description) tuples
+            evaluator = ClassificationEvaluator(
+                name="relevance",
+                llm=llm,
+                prompt_template="How relevant is this answer to the question?\\n"
+                               "Question: {question}\\nAnswer: {answer}",
+                choices={
+                    "highly_relevant": (1.0, "Answer directly addresses the question"),
+                    "somewhat_relevant": (0.5, "Answer partially addresses the question"),
+                    "not_relevant": (0.0, "Answer does not address the question")
+                }
+            )
+
+            result = evaluator.evaluate({
+                "question": "What is the capital of France?",
+                "answer": "Paris is the capital city of France."
+            })
+            print(result[0].label)  # "highly_relevant"
+            print(result[0].score)  # 1.0
+
     """
 
     def __init__(
@@ -353,23 +497,6 @@ class ClassificationEvaluator(LLMEvaluator):
         input_schema: Optional[type[BaseModel]] = None,
         direction: DirectionType = "maximize",
     ):
-        """
-        Initialize the LLM evaluator.
-
-        Args:
-            name: Identifier for this evaluator and the name used in produced Scores.
-            llm: The LLM instance to use for evaluation.
-            prompt_template: The prompt template (string or Template) with placeholders for inputs.
-            choices: One of:
-                - List[str]: set of label names; scores will be None.
-                - Dict[str, Union[float, int]]: map label -> score.
-                - Dict[str, Tuple[Union[float, int], str]]: map label -> (score, description).
-            include_explanation: If True, request an explanation in addition to the label.
-            input_schema: Optional Pydantic model describing/validating inputs. If not provided,
-                a model is derived from prompt variables.
-            direction: The score optimization direction ("maximize" or "minimize"). Defaults to
-                "maximize".
-        """
         super().__init__(
             name=name,
             llm=llm,
@@ -499,7 +626,7 @@ def create_evaluator(
 
     The decorated function should accept keyword args matching its required fields and return a
     value that can be converted to a Score. The returned object is an Evaluator with full support
-    for evaluate/async_evaluate and direct callability.
+    for evaluate/async_evaluate and maintains direct callability.
 
     Args:
         name: Identifier for the evaluator and the name used in produced Scores.
@@ -508,25 +635,86 @@ def create_evaluator(
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
 
-    Returns:
-        An `Evaluator` instance.
+    Examples:
+        Basic usage with numeric return::
+
+            from phoenix.evals import create_evaluator
+
+            @create_evaluator(name="precision")
+            def precision(retrieved_documents: list[int], relevant_documents: list[int]) -> float:
+                # Calculate precision for information retrieval
+                relevant_set = set(relevant_documents)
+                hits = sum(1 for doc in retrieved_documents if doc in relevant_set)
+                return hits / len(retrieved_documents) if retrieved_documents else 0.0
+
+            # Use the evaluator
+            result = precision.evaluate({
+                "retrieved_documents": [1, 2, 3, 4],
+                "relevant_documents": [2, 4, 6]
+            })
+            print(result[0].score)  # 0.5
+
+            # Direct callability maintained:
+            result = precision(retrieved_documents=[1, 2, 3, 4], relevant_documents=[2, 4, 6])
+            print(result)  # 0.5
+
+        Different return types::
+
+            # Boolean return (converted to score and label)
+            @create_evaluator(name="is_valid")
+            def is_valid(text: str) -> bool:
+                return len(text.strip()) > 0
+
+            # Dictionary return with multiple fields
+            @create_evaluator(name="positive_sentiment")
+            def positive_sentiment(text: str) -> dict:
+                # Simplified sentiment analysis
+                positive_words = ["good", "great", "excellent"]
+                score = sum(1 for word in positive_words if word in text.lower())
+                return {
+                    "score": score / len(positive_words),
+                    "label": "positive" if score > 0 else "neutral",
+                    "explanation": f"Found {score} positive indicators"
+                }
+
+            # Tuple return (score, label, explanation)
+            @create_evaluator(name="length_check")
+            def length_check(text: str) -> tuple:
+                length = len(text)
+                is_good = 10 <= length <= 100
+                return (float(is_good), "good" if is_good else "bad", f"Length: {length}")
+
+        Using with dataframes::
+
+            import pandas as pd
+            from phoenix.evals import evaluate_dataframe
+
+            @create_evaluator(name="word_count")
+            def word_count(text: str) -> int:
+                return len(text.split())
+
+            df = pd.DataFrame({
+                "text": ["Hello world", "This is a longer sentence", "Short"]
+            })
+
+            results_df = evaluate_dataframe(df, [word_count])
+            print(results_df["word_count_score"])  # JSON scores for each row
 
     Notes:
+        The decorated function can return:
 
-    The decorated function can return:
-    - A Score object (no conversion needed)
-    - A number (converted to Score.score)
-    - A boolean (converted to integer Score.score and string Score.label)
-    - A short string (≤3 words, converted to Score.label)
-    - A long string (≥4 words, converted to Score.explanation)
-    - A dictionary with keys "score", "label", or "explanation"
-    - A tuple of values (only bool, number, str types allowed)
+        - A Score object (no conversion needed)
+        - A number (converted to Score.score)
+        - A boolean (converted to integer Score.score and string Score.label)
+        - A short string (≤3 words, converted to Score.label)
+        - A long string (≥4 words, converted to Score.explanation)
+        - A dictionary with keys "score", "label", or "explanation"
+        - A tuple of values (only bool, number, str types allowed)
 
-    An input_schema is automatically created from the function signature, capturing the required
-    input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
+        An input_schema is automatically created from the function signature, capturing the required
+        input fields, their types, and any defaults. For best results, do not use *args or **kwargs.
 
-    The decorator automatically handles conversion to a valid Score object.
-    Also registers the evaluator's evaluate callable in the registry so list_evaluators works.
+        The decorator automatically handles conversion to a valid Score object.
     """
 
     def _convert_to_score(
@@ -610,55 +798,102 @@ def create_evaluator(
 
     def deco(fn: Callable[..., Any]) -> Evaluator:
         sig = inspect.signature(fn)
-        # Preserve the docstring from the original function
         original_docstring = fn.__doc__
+        evaluator_instance: Evaluator
 
-        class _FunctionEvaluator(Evaluator):
-            def __init__(self) -> None:
-                super().__init__(
-                    name=name,
-                    source=source,
-                    direction=direction,
-                    # infer input schema from function signature
-                    # TODO make it work with *args, **kwargs
-                    input_schema=create_model(
-                        f"{name.capitalize()}Input",
-                        **cast(
-                            Any,
-                            {
-                                p: (
-                                    (
-                                        param.annotation
-                                        if param.annotation is not inspect._empty
-                                        else Any
-                                    ),
-                                    (param.default if param.default is not inspect._empty else ...),
-                                )
-                                for p, param in sig.parameters.items()
-                            },
+        if inspect.iscoroutinefunction(fn):
+
+            class _AsyncFunctionEvaluator(Evaluator):
+                def __init__(self) -> None:
+                    super().__init__(
+                        name=name,
+                        source=source,
+                        direction=direction,
+                        input_schema=create_model(
+                            f"{name.capitalize()}Input",
+                            **cast(
+                                Any,
+                                {
+                                    p: (
+                                        (
+                                            param.annotation
+                                            if param.annotation is not inspect._empty
+                                            else Any
+                                        ),
+                                        (
+                                            param.default
+                                            if param.default is not inspect._empty
+                                            else ...
+                                        ),
+                                    )
+                                    for p, param in sig.parameters.items()
+                                },
+                            ),
                         ),
-                    ),
-                )
-                self._fn = fn
-                # Store the original docstring
-                self._docstring = original_docstring
+                    )
+                    self._fn = fn
+                    self._docstring = original_docstring
 
-            def _evaluate(self, eval_input: EvalInput) -> List[Score]:
-                # eval_input is already remapped by Evaluator.evaluate(...)
-                result = self._fn(**eval_input)
-                score = _convert_to_score(result, name, source, direction)
-                return [score]
+                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    raise NotImplementedError("Async evaluator must use async_evaluate")
 
-            def __call__(self, *args: Any, **kwargs: Any) -> Any:
-                return self._fn(*args, **kwargs)
+                async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    result = await self._fn(**eval_input)
+                    score = _convert_to_score(result, name, source, direction)
+                    return [score]
 
-        # Set the docstring on the class itself
-        _FunctionEvaluator.__doc__ = original_docstring
+                async def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                    return await self._fn(*args, **kwargs)
 
-        evaluator_instance = _FunctionEvaluator()
-        # Keep registry compatibility by storing a callable with expected signature
-        _registry[name] = evaluator_instance.evaluate
-        return evaluator_instance
+            _AsyncFunctionEvaluator.__doc__ = original_docstring
+            evaluator_instance = _AsyncFunctionEvaluator()
+            _registry[name] = evaluator_instance.evaluate
+            return evaluator_instance
+        else:
+
+            class _FunctionEvaluator(Evaluator):
+                def __init__(self) -> None:
+                    super().__init__(
+                        name=name,
+                        source=source,
+                        direction=direction,
+                        input_schema=create_model(
+                            f"{name.capitalize()}Input",
+                            **cast(
+                                Any,
+                                {
+                                    p: (
+                                        (
+                                            param.annotation
+                                            if param.annotation is not inspect._empty
+                                            else Any
+                                        ),
+                                        (
+                                            param.default
+                                            if param.default is not inspect._empty
+                                            else ...
+                                        ),
+                                    )
+                                    for p, param in sig.parameters.items()
+                                },
+                            ),
+                        ),
+                    )
+                    self._fn = fn
+                    self._docstring = original_docstring
+
+                def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+                    result = self._fn(**eval_input)
+                    score = _convert_to_score(result, name, source, direction)
+                    return [score]
+
+                def __call__(self, *args: Any, **kwargs: Any) -> Any:
+                    return self._fn(*args, **kwargs)
+
+            _FunctionEvaluator.__doc__ = original_docstring
+            evaluator_instance = _FunctionEvaluator()  # pyright: ignore
+            _registry[name] = evaluator_instance.evaluate
+            return evaluator_instance
 
     return deco
 
@@ -676,6 +911,8 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
+    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
         llm: The LLM instance to use for evaluation.
@@ -687,6 +924,59 @@ def create_classifier(
 
     Returns:
         A `ClassificationEvaluator` instance.
+
+    Examples:
+        Creating a simple sentiment classifier::
+
+            from phoenix.evals import create_classifier
+            from phoenix.evals.llm import LLM
+
+            llm = LLM(provider="openai", model="gpt-4")
+
+            sentiment_evaluator = create_classifier(
+                name="sentiment",
+                prompt_template="Analyze the sentiment: {text}",
+                llm=llm,
+                choices=["positive", "negative", "neutral"]
+            )
+
+            result = sentiment_evaluator.evaluate({"text": "Great product!"})
+            print(result[0].label)  # "positive"
+            print(result[0].score)  # None
+
+        Creating a classifier with numeric scores::
+
+            quality_evaluator = create_classifier(
+                name="response_quality",
+                prompt_template="Rate this response quality: {response}",
+                llm=llm,
+                choices={
+                    "excellent": 5,
+                    "good": 4,
+                    "average": 3,
+                    "poor": 2,
+                    "terrible": 1
+                }
+            )
+
+            result = quality_evaluator.evaluate({"response": "Detailed and helpful answer"})
+            print(f"Quality: {result[0].label} (Score: {result[0].score})")
+
+        Creating a classifier with scores and descriptions::
+
+            accuracy_evaluator = create_classifier(
+                name="factual_accuracy",
+                prompt_template="Check factual accuracy: {claim}",
+                llm=llm,
+                choices={
+                    "accurate": (1.0, "Factually correct information"),
+                    "partially_accurate": (0.5, "Some correct, some incorrect information"),
+                    "inaccurate": (0.0, "Factually incorrect information")
+                }
+            )
+
+            result = accuracy_evaluator.evaluate({"claim": "Paris is the capital of France"})
+            print(f"Accuracy: {result[0].label} (Score: {result[0].score})")
     """
     return ClassificationEvaluator(
         name=name,
@@ -702,9 +992,91 @@ def bind_evaluator(
     evaluator: Evaluator,
     input_mapping: InputMappingType,
 ) -> Evaluator:
-    """Helper to bind an evaluator with a fixed input mapping."""
-    evaluator.bind(input_mapping=input_mapping)
-    return evaluator
+    """
+    Helper to bind an evaluator with a fixed input mapping.
+
+    This function allows you to create a version of an evaluator that automatically
+    maps input data fields to the evaluator's expected field names. This is useful
+    when your data schema doesn't match the evaluator's expected inputs.
+
+    Args:
+        evaluator: The evaluator instance to bind.
+        input_mapping: A dictionary mapping evaluator field names to either:
+            - String keys for direct field mapping
+            - Callable functions for computed field mapping
+
+    Returns:
+        The same evaluator instance with the input mapping bound.
+
+    Examples:
+        Basic field mapping::
+
+            from phoenix.evals import create_evaluator, bind_evaluator
+
+            @create_evaluator(name="text_length")
+            def text_length(content: str) -> int:
+                return len(content)
+
+            # Map 'message' field to 'content' parameter
+            mapping = {"content": "message"}
+            bound_evaluator = bind_evaluator(text_length, mapping)
+
+            # Now we can use 'message' instead of 'content'
+            result = bound_evaluator.evaluate({"message": "Hello world"})
+            print(result[0].score)  # 11
+
+        Using lambda functions for computed mappings::
+
+            @create_evaluator(name="precision")
+            def precision(retrieved_docs: list, relevant_docs: list) -> float:
+                relevant_set = set(relevant_docs)
+                hits = sum(1 for doc in retrieved_docs if doc in relevant_set)
+                return hits / len(retrieved_docs) if retrieved_docs else 0.0
+
+            # Convert single document to list format
+            mapping = {
+                "retrieved_docs": "retrieved_documents",
+                "relevant_docs": lambda x: [x["expected_document"]]
+            }
+            bound_evaluator = bind_evaluator(precision, mapping)
+
+            data = {
+                "retrieved_documents": [1, 2, 3],
+                "expected_document": 2
+            }
+            result = bound_evaluator.evaluate(data)
+
+        Complex data transformation::
+
+            @create_evaluator(name="response_quality")
+            def response_quality(question: str, answer: str, context: str) -> dict:
+                # Simplified quality check
+                has_context = context.lower() in answer.lower()
+                return {
+                    "score": 1.0 if has_context else 0.0,
+                    "label": "good" if has_context else "poor",
+                    "explanation": ("Answer uses context" if has_context
+                                   else "Answer ignores context")
+                }
+
+            # Map nested data structure
+            mapping = {
+                "question": "query",
+                "answer": "response.text",
+                "context": lambda x: " ".join(x["documents"])
+            }
+            bound_evaluator = bind_evaluator(response_quality, mapping)
+
+            data = {
+                "query": "What is the capital?",
+                "response": {"text": "Paris is the capital of France"},
+                "documents": ["France info", "Paris is the capital"]
+            }
+            result = bound_evaluator.evaluate(data)
+    """
+    evaluator_copy = copy.deepcopy(evaluator)
+    evaluator_copy.bind(input_mapping=input_mapping)
+    return evaluator_copy
 
 
 # --- Helper functions for dataframe evaluation ---
@@ -829,13 +1201,81 @@ def evaluate_dataframe(
             time, and status.
         - "{score.name}_score": JSON-serialized Score objects for each score returned
 
+    Examples:
+        Basic dataframe evaluation::
+
+            import pandas as pd
+            from phoenix.evals import create_evaluator, evaluate_dataframe
+
+            @create_evaluator(name="word_count")
+            def word_count(text: str) -> int:
+                return len(text.split())
+
+            @create_evaluator(name="has_question")
+            def has_question(text: str) -> bool:
+                return "?" in text
+
+            df = pd.DataFrame({
+                "text": [
+                    "Hello world",
+                    "How are you today?",
+                    "This is a longer sentence with multiple words"
+                ]
+            })
+
+            evaluators = [word_count, has_question]
+            results_df = evaluate_dataframe(df, evaluators)
+
+            # Results include original columns plus score columns
+            print(results_df.columns)
+            # ['text', 'word_count_execution_details', 'has_question_execution_details',
+            #  'word_count_score', 'has_question_score']
+
+        Using with input mapping::
+
+            from phoenix.evals import bind_evaluator
+
+            @create_evaluator(name="response_length")
+            def response_length(response: str) -> int:
+                return len(response)
+
+            # Data has 'answer' column but evaluator expects 'response'
+            mapping = {"response": "answer"}
+            bound_evaluator = bind_evaluator(response_length, mapping)
+
+            df = pd.DataFrame({
+                "question": ["What is AI?", "How does ML work?"],
+                "answer": ["AI is artificial intelligence",
+                          "ML uses algorithms to learn patterns"]
+            })
+
+            results_df = evaluate_dataframe(df, [bound_evaluator])
+
+        With progress bar and error handling::
+
+            results_df = evaluate_dataframe(
+                df,
+                evaluators,
+                tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+                exit_on_error=False,  # Continue on errors
+                max_retries=3
+            )
+
+            # Check for evaluation errors
+            import json
+            for idx, row in results_df.iterrows():
+                details = json.loads(row['word_count_execution_details'])
+                if details['status'] != 'success':
+                    print(f"Row {idx} failed: {details['exceptions']}")
+
     Notes:
-    - Score name collisions: If multiple evaluators return scores with the same name,
-      they will write to the same column (e.g., 'same_name_score'). This can lead to
-      data loss as later scores overwrite earlier ones.
-    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
-    - Failed evaluations: If an evaluation fails, the failure details will be recorded
-      in the execution_details column and the score will be None.
+        - Score name collisions: If multiple evaluators return scores with the same name,
+          they will write to the same column (e.g., 'same_name_score'). This can lead to
+          data loss as later scores overwrite earlier ones.
+        - Similarly, evaluator names should be unique to ensure execution_details
+          columns don't collide.
+        - Failed evaluations: If an evaluation fails, the failure details will be recorded
+          in the execution_details column and the score will be None.
     """
     # Prepare common data structures
     result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)
@@ -902,13 +1342,105 @@ async def async_evaluate_dataframe(
             time, and status.
         - "{score.name}_score": JSON-serialized Score objects for each score returned
 
+    Examples:
+        Basic async evaluation::
+
+            import asyncio
+            import pandas as pd
+            from phoenix.evals import create_evaluator, async_evaluate_dataframe
+
+            @create_evaluator(name="text_analysis")
+            def text_analysis(text: str) -> dict:
+                return {
+                    "score": len(text.split()),
+                    "label": "long" if len(text) > 50 else "short"
+                }
+
+            df = pd.DataFrame({
+                "text": [
+                    "Short text",
+                    "This is a much longer text that contains many more words and characters",
+                    "Medium length text here"
+                ]
+            })
+
+            async def main():
+                results_df = await async_evaluate_dataframe(
+                    df,
+                    [text_analysis],
+                    concurrency=5  # Process up to 5 rows concurrently
+                )
+                return results_df
+
+            results_df = asyncio.run(main())
+            print(results_df.columns)
+
+        With LLM evaluators::
+
+            from phoenix.evals import create_classifier
+            from phoenix.evals.llm import LLM
+
+            llm = LLM(provider="openai", model="gpt-4")
+
+            sentiment_evaluator = create_classifier(
+                name="sentiment",
+                prompt_template="Classify sentiment: {text}",
+                llm=llm,
+                choices=["positive", "negative", "neutral"]
+            )
+
+            df = pd.DataFrame({
+                "text": [
+                    "I love this product!",
+                    "This is terrible quality",
+                    "It's okay, nothing special"
+                ]
+            })
+
+            async def evaluate_sentiment():
+                results_df = await async_evaluate_dataframe(
+                    df,
+                    [sentiment_evaluator],
+                    concurrency=2,  # Limit concurrent LLM calls
+                    tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
+                )
+                return results_df
+
+            results_df = asyncio.run(evaluate_sentiment())
+
+        Error handling and retries::
+
+            async def robust_evaluation():
+                results_df = await async_evaluate_dataframe(
+                    df,
+                    evaluators,
+                    concurrency=3,
+                    exit_on_error=False,  # Continue despite errors
+                    max_retries=5,        # Retry failed evaluations
+                    tqdm_bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
+                )
+
+                # Check for failures
+                import json
+                failed_rows = []
+                for idx, row in results_df.iterrows():
+                    details = json.loads(row['sentiment_execution_details'])
+                    if details['status'] != 'success':
+                        failed_rows.append(idx)
+
+                print(f"Failed evaluations: {len(failed_rows)} out of {len(results_df)}")
+                return results_df
+
+            results_df = asyncio.run(robust_evaluation())
+
     Notes:
-    - Score name collisions: If multiple evaluators return scores with the same name,
-      they will write to the same column (e.g., 'same_name_score'). This can lead to
-      data loss as later scores overwrite earlier ones.
-    - Similarly, evaluator names should be unique to ensure execution_details columns don't collide.
-    - Failed evaluations: If an evaluation fails, the failure details will be recorded
-      in the execution_details column and the score will be None.
+        - Score name collisions: If multiple evaluators return scores with the same name,
+          they will write to the same column (e.g., 'same_name_score'). This can lead to
+          data loss as later scores overwrite earlier ones.
+        - Similarly, evaluator names should be unique to ensure execution_details
+          columns don't collide.
+        - Failed evaluations: If an evaluation fails, the failure details will be recorded
+          in the execution_details column and the score will be None.
     """
     # Prepare common data structures
     result_df, eval_inputs, task_inputs = _prepare_dataframe_evaluation(dataframe, evaluators)

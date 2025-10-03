@@ -1,30 +1,35 @@
 # Homework 5 – Failure Analysis with Phoenix and LLM Evaluations
 
 ## Overview
+
 Your cooking-assistant agent sometimes drops the spatula. In this assignment, you'll use **Phoenix** to collect detailed traces of a recipe chatbot pipeline and then use **LLM evaluations** to automatically detect and analyze failure patterns. You'll generate synthetic conversation traces with intentional failures, evaluate them using LLM-based failure detection, and analyze the distribution of failures across different pipeline states.
 
 ---
+
 ## Pipeline State Taxonomy
+
 The agent's internal pipeline is abstracted to **7 canonical states**:
 
-| # | State | Description |
-|---|--------------------|-------------------------------------------|
-| 1 | `ParseRequest`     | LLM interprets and analyzes the user's query |
-| 2 | `PlanToolCalls`    | LLM decides which tools to invoke and in what order |
-| 3 | `GenRecipeArgs`    | LLM constructs JSON arguments for recipe database search |
-| 4 | `GetRecipes`       | Executes the recipe-search tool to find relevant recipes |
-| 5 | `GenWebArgs`       | LLM constructs JSON arguments for web search |
-| 6 | `GetWebInfo`       | Executes the web-search tool to retrieve supplementary info |
-| 7 | `ComposeResponse`  | LLM drafts the final answer combining recipes and web info |
+| #   | State             | Description                                                 |
+| --- | ----------------- | ----------------------------------------------------------- |
+| 1   | `ParseRequest`    | LLM interprets and analyzes the user's query                |
+| 2   | `PlanToolCalls`   | LLM decides which tools to invoke and in what order         |
+| 3   | `GenRecipeArgs`   | LLM constructs JSON arguments for recipe database search    |
+| 4   | `GetRecipes`      | Executes the recipe-search tool to find relevant recipes    |
+| 5   | `GenWebArgs`      | LLM constructs JSON arguments for web search                |
+| 6   | `GetWebInfo`      | Executes the web-search tool to retrieve supplementary info |
+| 7   | `ComposeResponse` | LLM drafts the final answer combining recipes and web info  |
 
 Each trace contains one intentional failure at a randomly selected pipeline state.
 
 ---
+
 ## What you need to do
 
 ### Step 1: Set Up Phoenix and Generate Traces
 
 **Phoenix Setup:**
+
 1. Install Phoenix: `pip install arize-phoenix`
 2. Boot up Phoenix locally: `phoenix serve`
 3. Open Phoenix dashboard at http://localhost:6006
@@ -87,6 +92,7 @@ Use LLM to analyze failure patterns and propose fixes. You should:
 3. **Key Insights**: Summary of findings about where failures occur most and why
 
 ---
+
 ## File Structure
 
 ```
@@ -99,6 +105,7 @@ homeworks/hw5/
 ```
 
 ---
+
 ## About generate_traces_phoenix.py
 
 The `generate_traces_phoenix.py` script is provided code that generates synthetic conversation traces for analysis. It is **not part of the graded assignment** but is essential for creating the data you'll analyze.
@@ -129,6 +136,7 @@ The `generate_traces_phoenix.py` script is provided code that generates syntheti
 - **ComposeResponse**: LLM drafts final answer (can create contradictory responses)
 
 ---
+
 ## Helpful Phoenix Code
 
 The generation script uses Phoenix's OpenTelemetry integration:
@@ -149,7 +157,7 @@ tracer = tracer_provider.get_tracer(__name__)
 with tracer.start_as_current_span("ParseRequest", openinference_span_kind="llm") as span:
     # Simulate LLM call
     response = chat_completion([{"role": "user", "content": prompt}])
-    
+
     # Set span attributes
     span.set_attribute(SpanAttributes.INPUT_VALUE, prompt)
     span.set_attribute(SpanAttributes.OUTPUT_VALUE, response)
@@ -196,7 +204,7 @@ failure_analysis = llm_generate(
 from phoenix.client import AsyncClient
 
 px_client = AsyncClient()
-await px_client.annotations.log_span_annotations_dataframe(
+await px_client.spans.log_span_annotations_dataframe(
     dataframe=failure_analysis,
     annotation_name="Failure State with Explanation",
     annotator_kind="LLM",
@@ -204,6 +212,7 @@ await px_client.annotations.log_span_annotations_dataframe(
 ```
 
 ---
+
 ## Key Learning Objectives
 
 1. **Phoenix Observability**: Learn to use Phoenix for LLM application monitoring

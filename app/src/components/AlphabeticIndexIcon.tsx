@@ -20,6 +20,8 @@ export function AlphabeticIndexIcon({ index }: { index: number }) {
         background-color: ${backgroundColor};
         width: 24px;
         height: 24px;
+        min-width: 24px;
+        min-height: 24px;
         display: flex;
         flex-direction: column;
         justify-content: center;

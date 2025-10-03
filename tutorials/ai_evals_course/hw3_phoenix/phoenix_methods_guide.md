@@ -7,9 +7,9 @@ This guide contains the grail of essential Phoenix methods and how to use them f
 1. [Tracing](#trace-collection)
 2. [Datasets](#datasets)
 3. [Experiments](#experiments)
-3. [Evaluation Methods](#evaluation-methods)
-4. [Logging Results](#logging-results)
-5. [Common Patterns](#common-patterns)
+4. [Evaluation Methods](#evaluation-methods)
+5. [Logging Results](#logging-results)
+6. [Common Patterns](#common-patterns)
 
 ---
 
@@ -44,10 +44,10 @@ with tracer.start_as_current_span(
     span.set_input("user query")
     span.set_attribute("query", "user query")
     span.set_attribute("dietary_restriction", "vegan")
-    
+
     # Your code here
     response = "recipe response"
-    
+
     # Set output and status
     span.set_output(response)
     span.set_status(Status(StatusCode.OK))
@@ -64,14 +64,14 @@ def my_function(input_text: str) -> str:
 
 ### Span Kinds
 
-| Kind | Use Case |
-|------|----------|
-| `CHAIN` | General logic operations, functions |
-| `LLM` | Making LLM calls |
-| `TOOL` | Tool calls |
-| `RETRIEVER` | Document retrieval |
-| `AGENT` | Agent invocations |
-| `EMBEDDING` | Generating embeddings |
+| Kind        | Use Case                            |
+| ----------- | ----------------------------------- |
+| `CHAIN`     | General logic operations, functions |
+| `LLM`       | Making LLM calls                    |
+| `TOOL`      | Tool calls                          |
+| `RETRIEVER` | Document retrieval                  |
+| `AGENT`     | Agent invocations                   |
+| `EMBEDDING` | Generating embeddings               |
 
 ---
 
@@ -151,11 +151,11 @@ dataset = phoenix_client.upload_dataset(
 
 #### Dataset Key Types
 
-| Key Type | Purpose | Example |
-|----------|---------|---------|
-| `input_keys` | Data passed to your task function | `["query", "context"]` |
-| `output_keys` | Expected outputs (usually empty for evaluations) | `[]` |
-| `metadata_keys` | Ground truth, explanations, categories | `["ground_truth_label", "explanation"]` |
+| Key Type        | Purpose                                          | Example                                 |
+| --------------- | ------------------------------------------------ | --------------------------------------- |
+| `input_keys`    | Data passed to your task function                | `["query", "context"]`                  |
+| `output_keys`   | Expected outputs (usually empty for evaluations) | `[]`                                    |
+| `metadata_keys` | Ground truth, explanations, categories           | `["ground_truth_label", "explanation"]` |
 
 #### Example: Recipe Evaluation Dataset
 
@@ -167,10 +167,10 @@ train_dataset = phoenix_client.upload_dataset(
     input_keys=["attributes.query"],
     output_keys=[],
     metadata_keys=[
-        "attributes.output.value", 
-        "ground_truth_label", 
-        "ground_truth_explanation", 
-        "attributes.dietary_restriction", 
+        "attributes.output.value",
+        "ground_truth_label",
+        "ground_truth_explanation",
+        "attributes.dietary_restriction",
         "attributes.trace_num"
     ],
 )
@@ -182,10 +182,10 @@ test_dataset = phoenix_client.upload_dataset(
     input_keys=["attributes.query"],
     output_keys=[],
     metadata_keys=[
-        "attributes.output.value", 
-        "ground_truth_label", 
-        "ground_truth_explanation", 
-        "attributes.dietary_restriction", 
+        "attributes.output.value",
+        "ground_truth_label",
+        "ground_truth_explanation",
+        "attributes.dietary_restriction",
         "attributes.trace_num"
     ],
 )
@@ -232,16 +232,16 @@ def create_task_function(base_prompt: str):
             dietary_restriction=metadata.get("attributes.dietary_restriction"),
             output=metadata.get("attributes.output.value")
         )
-        
+
         # Call LLM
         completion = litellm.completion(
             model="gpt-4o",
             messages=[{"role": "user", "content": formatted_prompt}],
             response_format={"type": "json_object"},
         )
-        
+
         return json.loads(completion.choices[0].message.content)
-    
+
     return task
 
 # Usage
@@ -319,13 +319,13 @@ balanced_acc = (TPR + TNR) / 2
 ```python
 def run_llm_evaluation(dataset, judge_prompt: str):
     """Run complete LLM evaluation experiment."""
-    
+
     # Create task function
     task = create_task_function(judge_prompt)
-    
+
     # Define evaluators
     evaluators = [eval_tp, eval_tn, eval_fp, eval_fn, accuracy]
-    
+
     # Run experiment
     experiment = run_experiment(
         dataset=dataset,
@@ -333,14 +333,14 @@ def run_llm_evaluation(dataset, judge_prompt: str):
         evaluators=evaluators,
         concurrency=3
     )
-    
+
     # Get results
     experiment_id = experiment.id
     base_url = "http://localhost:6006"
     url = f"{base_url}/v1/experiments/{experiment_id}/json"
     response = requests.get(url)
     results = response.json()
-    
+
     # Process and return metrics
     return process_experiment_results(results)
 
@@ -351,16 +351,16 @@ def process_experiment_results(results):
         for ann in entry['annotations']:
             if ann['name'] in ('eval_tp', 'eval_tn', 'eval_fp', 'eval_fn') and ann['label'] == 'True':
                 metrics_count[ann['name']] += 1
-    
+
     TP = metrics_count['eval_tp']
     TN = metrics_count['eval_tn']
     FP = metrics_count['eval_fp']
     FN = metrics_count['eval_fn']
-    
+
     TPR = TP / (TP + FN) if (TP + FN) > 0 else 0
     TNR = TN / (TN + FP) if (TN + FP) > 0 else 0
     balanced_acc = (TPR + TNR) / 2
-    
+
     return {
         "tpr": TPR,
         "tnr": TNR,
@@ -434,10 +434,10 @@ def output_parser(output: str, row_index: int) -> Dict[str, Any]:
     """Parse LLM output to extract structured data."""
     label_pattern = r'"label":\s*"([^"]*)"'
     explanation_pattern = r'"explanation":\s*"([^"]*)"'
-    
+
     label_match = re.search(label_pattern, output, re.IGNORECASE)
     explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
-    
+
     return {
         "label": label_match.group(1) if label_match else None,
         "explanation": explanation_match.group(1) if explanation_match else None,
@@ -465,7 +465,7 @@ results = llm_generate(
 from phoenix.client import Client
 
 px_client = Client()
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=results,
     annotation_name="LLM-as-Judge Evaluation",
     annotator_kind="LLM",
@@ -504,10 +504,10 @@ def output_parser(output: str, row_index: int):
     import re
     label_pattern = r'"label":\s*"([^"]*)"'
     explanation_pattern = r'"explanation":\s*"([^"]*)"'
-    
+
     label_match = re.search(label_pattern, output, re.IGNORECASE)
     explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
-    
+
     return {
         "label": label_match.group(1) if label_match else None,
         "explanation": explanation_match.group(1) if explanation_match else None,
@@ -530,7 +530,7 @@ final_results = pd.merge(results, traces_df, left_index=True, right_index=True)
 from phoenix.client import Client
 
 px_client = Client()
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=final_results,
     annotation_name="Dietary Adherence Evaluation",
     annotator_kind="LLM",
@@ -544,15 +544,15 @@ def validate_traces_df(df):
     """Validate that traces dataframe has required columns."""
     required_columns = ['attributes.query', 'attributes.output.value']
     missing_columns = [col for col in required_columns if col not in df.columns]
-    
+
     if missing_columns:
         print(f"Missing required columns: {missing_columns}")
         return False
-    
+
     if df.empty:
         print("DataFrame is empty!")
         return False
-    
+
     return True
 ```
 

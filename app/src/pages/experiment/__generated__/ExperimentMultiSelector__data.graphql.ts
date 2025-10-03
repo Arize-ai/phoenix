@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<322e4e683c02e0da64be134eab714bd0>>
+ * @generated SignedSource<<a2a3b328dc8084bd78ce75da5a4644a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -54,7 +54,8 @@ v1 = {
 return {
   "argumentDefinitions": [
     {
-      "kind": "RootArgument",
+      "defaultValue": null,
+      "kind": "LocalArgument",
       "name": "baseExperimentId"
     },
     {
@@ -186,6 +187,6 @@ return {
 };
 })();
 
-(node as any).hash = "d5fa542c1b16d3225eabd1619e55f26b";
+(node as any).hash = "a616b80b60dec9ca1971902a32f27442";
 
 export default node;

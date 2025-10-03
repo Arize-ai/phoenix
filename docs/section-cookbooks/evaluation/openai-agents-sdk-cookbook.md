@@ -324,7 +324,7 @@ async def solve_math_problem(dataset_row: dict):
         from phoenix.client import AsyncClient
 
         px_client = AsyncClient()
-        await px_client.annotations.log_span_annotations_dataframe(
+        await px_client.spans.log_span_annotations_dataframe(
             dataframe=df,
             annotation_name="correctness",
             annotator_kind="LLM",

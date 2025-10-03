@@ -48,6 +48,7 @@ export type ExperimentCompareDetailsProps = {
   datasetVersionId: string;
   baseExperimentId: string;
   compareExperimentIds: string[];
+  defaultSelectedRepetitionNumber?: number;
 };
 
 type Experiment = NonNullable<
@@ -66,6 +67,7 @@ export function ExperimentCompareDetails({
   datasetVersionId,
   baseExperimentId,
   compareExperimentIds,
+  defaultSelectedRepetitionNumber,
 }: ExperimentCompareDetailsProps) {
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
@@ -219,11 +221,12 @@ export function ExperimentCompareDetails({
           `}
         >
           <ExperimentRunOutputs
-            key={datasetExampleId}
+            key={datasetExampleId + "-" + defaultSelectedRepetitionNumber}
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             experimentsById={experimentsById}
             experimentRunsByExperimentId={experimentRunsByExperimentId}
+            defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
           />
         </div>
       </Panel>
@@ -242,18 +245,25 @@ function ExperimentRunOutputs({
   compareExperimentIds,
   experimentsById,
   experimentRunsByExperimentId,
+  defaultSelectedRepetitionNumber,
 }: {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
   experimentRunsByExperimentId: Record<string, ExperimentRun[]>;
+  defaultSelectedRepetitionNumber?: number;
 }) {
   const experimentIds = [baseExperimentId, ...compareExperimentIds];
 
   const [selectedExperimentRuns, setSelectedExperimentRuns] = useState<
     ExperimentRunSelectionState[]
   >(() =>
-    initializeSelectionState(experimentIds, experimentRunsByExperimentId)
+    initializeSelectionState(
+      experimentIds,
+      baseExperimentId,
+      experimentRunsByExperimentId,
+      defaultSelectedRepetitionNumber
+    )
   );
 
   const updateExperimentSelection = useCallback(
@@ -296,6 +306,8 @@ function ExperimentRunOutputs({
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
           ref={sidebarPanelRef}
           collapsible
+          id="experiment-compare-details-outputs-sidebar-panel"
+          order={1}
           onCollapse={() => setIsSideBarOpen(false)}
         >
           <ExperimentRunOutputsSidebar
@@ -312,7 +324,7 @@ function ExperimentRunOutputs({
       {isSideBarOpen ? (
         <PanelResizeHandle css={compactResizeHandleCSS} />
       ) : null}
-      <Panel>
+      <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
         <View
           paddingX="size-200"
           paddingY="size-100"
@@ -431,7 +443,6 @@ function ExperimentRunOutputsSidebar({
   return (
     <div
       css={css`
-        width: 340px;
         flex: none;
         font-size: var(--ac-global-dimension-static-font-size-100);
         color: var(--ac-global-color-grey-700);
@@ -665,24 +676,33 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
 
 function initializeSelectionState(
   experimentIds: string[],
-  experimentRunsByExperimentId: Record<string, ExperimentRun[]>
+  baseExperimentId: string,
+  experimentRunsByExperimentId: Record<string, ExperimentRun[]>,
+  defaultSelectedRepetitionNumber?: number
 ): ExperimentRunSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
     const runs = experimentRunsByExperimentId[experimentId];
     if (!runs.length) {
+      return [
+        {
+          experimentId,
+          selected: true,
+        } as ExperimentRunSelectionState,
+      ];
+    }
+    return runs.map((run) => {
       return {
         experimentId,
-        selected: true,
+        runId: run.id,
+        selected:
+          experimentId === baseExperimentId &&
+          defaultSelectedRepetitionNumber !== undefined
+            ? run.repetitionNumber === defaultSelectedRepetitionNumber
+            : true,
       };
-    }
-    return runs.map((run) => ({
-      experimentId,
-      runId: run.id,
-      selected: true,
-    }));
+    });
   });
 }
-
 function areAllExperimentRunsSelected(
   experimentId: string,
   selectedExperimentRuns: ExperimentRunSelectionState[]

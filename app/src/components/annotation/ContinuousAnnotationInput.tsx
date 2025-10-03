@@ -30,6 +30,7 @@ export const ContinuousAnnotationInput = forwardRef<
         defaultValue={annotation?.score ?? undefined}
         {...props}
         ref={ref}
+        size="S"
         minValue={annotationConfig?.lowerBound ?? 0}
         maxValue={annotationConfig?.upperBound ?? 1}
         css={{

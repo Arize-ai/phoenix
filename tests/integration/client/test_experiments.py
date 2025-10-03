@@ -471,6 +471,205 @@ class TestExperimentsIntegration:
         assert len(result["task_runs"]) == 1
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_task_and_evaluator_parameter_isolation(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from phoenix.client.resources.experiments.types import ExampleProxy
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_copying_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"text": "Hello"}],
+                outputs=[{"expected": "greeting"}],
+                metadata=[{"category": "test"}],
+            )
+        )
+
+        def mutating_task(
+            input: Dict[str, Any],
+            expected: Dict[str, Any],
+            metadata: Dict[str, Any],
+            example: Any,
+        ) -> str:
+            input["added_by_task"] = True
+            expected["added_by_task"] = True
+            metadata["added_by_task"] = True
+            return "ok"
+
+        observations: Dict[str, Any] = {
+            "task_example_is_proxy": None,
+            "task_example_has_id": None,
+            "task_example_input_text": None,
+            "ev1_input_had_task": None,
+            "ev1_expected_had_task": None,
+            "ev1_metadata_had_task": None,
+            "ev1_example_is_proxy": None,
+            "ev1_example_has_id": None,
+            "ev2_input_had_ev1": None,
+            "ev2_expected_had_ev1": None,
+            "ev2_metadata_had_ev1": None,
+            "ev2_example_is_proxy": None,
+            "ev2_example_has_id": None,
+        }
+
+        def evaluator_one(
+            input: Dict[str, Any],
+            expected: Dict[str, Any],
+            metadata: Dict[str, Any],
+            example: Any,
+        ) -> float:
+            observations["ev1_input_had_task"] = "added_by_task" in input
+            observations["ev1_expected_had_task"] = "added_by_task" in expected
+            observations["ev1_metadata_had_task"] = "added_by_task" in metadata
+            observations["ev1_example_is_proxy"] = isinstance(example, ExampleProxy)
+            observations["ev1_example_has_id"] = bool(example.get("id"))
+            input["added_by_ev1"] = True
+            expected["added_by_ev1"] = True
+            metadata["added_by_ev1"] = True
+            return 1.0
+
+        def evaluator_two(
+            input: Dict[str, Any],
+            expected: Dict[str, Any],
+            metadata: Dict[str, Any],
+            example: Any,
+        ) -> float:
+            observations["ev2_input_had_ev1"] = "added_by_ev1" in input
+            observations["ev2_expected_had_ev1"] = "added_by_ev1" in expected
+            observations["ev2_metadata_had_ev1"] = "added_by_ev1" in metadata
+            observations["ev2_example_is_proxy"] = isinstance(example, ExampleProxy)
+            observations["ev2_example_has_id"] = bool(example.get("id"))
+            return 1.0
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=mutating_task,
+                evaluators=[evaluator_one, evaluator_two],
+                experiment_name=f"test_copying_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result["task_runs"]) == 1
+        assert len(result["evaluation_runs"]) == 2
+
+        assert observations["ev1_input_had_task"] is False
+        assert observations["ev1_expected_had_task"] is False
+        assert observations["ev1_metadata_had_task"] is False
+
+        assert observations["ev2_input_had_ev1"] is False
+        assert observations["ev2_expected_had_ev1"] is False
+        assert observations["ev2_metadata_had_ev1"] is False
+
+        assert observations["ev1_example_is_proxy"] is True
+        assert observations["ev1_example_has_id"] is True
+
+        assert observations["ev2_example_is_proxy"] is True
+        assert observations["ev2_example_has_id"] is True
+
+        original_example = next(iter(dataset.examples))
+        assert "added_by_task" not in original_example["input"]
+        assert "added_by_ev1" not in original_example["input"]
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_example_proxy_properties(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from phoenix.client.resources.experiments.types import ExampleProxy
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_example_proxy_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+                metadata=[{"difficulty": "easy"}],
+            )
+        )
+
+        observations: Dict[str, Any] = {}
+
+        def example_inspector(example: Any) -> str:
+            observations["is_example_proxy"] = isinstance(example, ExampleProxy)
+            observations["has_id_property"] = hasattr(example, "id")
+            observations["has_input_property"] = hasattr(example, "input")
+            observations["has_output_property"] = hasattr(example, "output")
+            observations["has_metadata_property"] = hasattr(example, "metadata")
+            observations["has_updated_at_property"] = hasattr(example, "updated_at")
+
+            observations["id_value"] = example.id if hasattr(example, "id") else None
+            observations["input_value"] = dict(example.input) if hasattr(example, "input") else None
+            observations["output_value"] = (
+                dict(example.output) if hasattr(example, "output") else None
+            )
+            observations["metadata_value"] = (
+                dict(example.metadata) if hasattr(example, "metadata") else None
+            )
+
+            observations["dict_access_id"] = example.get("id")
+            observations["dict_access_input"] = example.get("input")
+
+            observations["supports_iteration"] = (
+                list(example.keys()) if hasattr(example, "keys") else None
+            )
+
+            return "ok"
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=example_inspector,
+                experiment_name=f"test_proxy_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result["task_runs"]) == 1
+
+        assert observations["is_example_proxy"] is True
+        assert observations["has_id_property"] is True
+        assert observations["has_input_property"] is True
+        assert observations["has_output_property"] is True
+        assert observations["has_metadata_property"] is True
+        assert observations["has_updated_at_property"] is True
+
+        assert observations["id_value"] is not None
+        assert observations["input_value"] == {"question": "What is 2+2?"}
+        assert observations["output_value"] == {"answer": "4"}
+        assert observations["metadata_value"] == {"difficulty": "easy"}
+
+        assert observations["dict_access_id"] is not None
+        assert observations["dict_access_input"] == {"question": "What is 2+2?"}
+
+        assert observations["supports_iteration"] is not None
+        assert "id" in observations["supports_iteration"]
+        assert "input" in observations["supports_iteration"]
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_run_experiment_evaluator_types(
         self,
         is_async: bool,
@@ -761,6 +960,14 @@ class TestExperimentsIntegration:
                 "explanation": f"Difficulty: {difficulty}, Topic: {topic}",
             }
 
+        def example_evaluator(example: Dict[str, Any]) -> Dict[str, Any]:
+            has_id = bool(example.get("id"))
+            has_input = isinstance(example.get("input"), dict)
+            return {
+                "score": 1.0 if has_id and has_input else 0.0,
+                "label": "has_example",
+            }
+
         result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
@@ -771,6 +978,7 @@ class TestExperimentsIntegration:
                     "comprehensive": comprehensive_evaluator,
                     "reference": reference_evaluator,
                     "metadata": metadata_evaluator,
+                    "example": example_evaluator,
                 },
                 experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
@@ -778,7 +986,7 @@ class TestExperimentsIntegration:
         )
 
         assert len(result["task_runs"]) == 2
-        assert len(result["evaluation_runs"]) == 10  # 2 examples * 5 evaluators
+        assert len(result["evaluation_runs"]) == 12  # 2 examples * 6 evaluators
 
         comprehensive_evals = [
             eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "comprehensive"
@@ -812,6 +1020,16 @@ class TestExperimentsIntegration:
             assert eval_run.result.get("score") is not None
             assert eval_run.result.get("label") is not None
             assert eval_run.result.get("explanation") is not None
+
+        example_evals = [
+            eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "example"
+        ]
+        assert len(example_evals) == 2
+        for eval_run in example_evals:
+            assert eval_run.result is not None
+            assert isinstance(eval_run.result, dict)
+            assert eval_run.result.get("score") == 1.0
+            assert eval_run.result.get("label") == "has_example"
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_task_dynamic_parameter_binding(

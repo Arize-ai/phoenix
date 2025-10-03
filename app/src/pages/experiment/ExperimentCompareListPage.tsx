@@ -1,6 +1,12 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { graphql, useFragment, usePaginationFragment } from "react-relay";
-import { useLoaderData, useSearchParams } from "react-router";
+import {
+  graphql,
+  PreloadedQuery,
+  useFragment,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
+import { useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -36,7 +42,10 @@ import {
   TriggerWrap,
 } from "@phoenix/components/tooltip";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
+import { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { isObject } from "@phoenix/typeUtils";
 import {
   costFormatter,
@@ -55,8 +64,6 @@ import type {
   ExperimentCompareListPage_comparisons$data,
   ExperimentCompareListPage_comparisons$key,
 } from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
-import type { ExperimentCompareListPageQuery } from "./__generated__/ExperimentCompareListPageQuery.graphql";
-import type { experimentCompareLoader } from "./experimentCompareLoader";
 import { calculateAnnotationScorePercentile } from "./utils";
 
 const PAGE_SIZE = 50;
@@ -83,18 +90,28 @@ type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
 
-export function ExperimentCompareListPage() {
+export function ExperimentCompareListPage({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
+}) {
   const [searchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
-
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
+  const experimentIds = useMemo(
+    () => searchParams.getAll("experimentId"),
+    [searchParams]
   );
+
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const preloadedData = usePreloadedQuery(
+    ExperimentComparePageQueriesCompareListQuery,
+    queryRef
+  );
 
   const aggregateData =
     useFragment<ExperimentCompareListPage_aggregateData$key>(
@@ -116,6 +133,7 @@ export function ExperimentCompareListPage() {
                 edges {
                   experiment: node {
                     id
+                    repetitions
                     datasetVersionId
                     averageRunLatencyMs
                     runCount
@@ -136,7 +154,7 @@ export function ExperimentCompareListPage() {
           }
         }
       `,
-      loaderData
+      preloadedData
     );
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExperimentCompareListPageQuery,
@@ -159,6 +177,7 @@ export function ExperimentCompareListPage() {
               edges {
                 run: node {
                   id
+                  repetitionNumber
                   output
                   startTime
                   endTime
@@ -219,7 +238,7 @@ export function ExperimentCompareListPage() {
         }
       }
     `,
-    loaderData
+    preloadedData
   );
 
   const experiments = useMemo(() => {
@@ -227,9 +246,10 @@ export function ExperimentCompareListPage() {
     aggregateData?.dataset.experiments?.edges.forEach((edge) => {
       experimentsById[edge.experiment.id] = edge.experiment;
     });
-    const orderedExperiments = experimentIds.map(
-      (experimentId) => experimentsById[experimentId]
-    );
+    const orderedExperiments = experimentIds
+      .map((experimentId) => experimentsById[experimentId])
+      // if a new experiment was just added, data may not be fully loaded yet
+      .filter((experiment) => experiment != null);
     return orderedExperiments;
   }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
 
@@ -255,7 +275,9 @@ export function ExperimentCompareListPage() {
       data?.experiment.runs?.edges.map((edge) => {
         const run = edge.run;
         const example = run.example;
-        const repeatedRunGroups = example.experimentRepeatedRunGroups;
+        const repeatedRunGroups = example.experimentRepeatedRunGroups
+          // prevent layout shift when an experiment is removed
+          .filter((group) => experimentIds.includes(group.experimentId));
 
         const baseExperimentRun: BaseExperimentRun = run;
         const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
@@ -263,6 +285,7 @@ export function ExperimentCompareListPage() {
         const tableData = {
           id: example.id,
           example: example.id,
+          repetitionNumber: baseExperimentRun.repetitionNumber,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
           outputs: {
@@ -313,7 +336,7 @@ export function ExperimentCompareListPage() {
         return tableData;
       }) ?? []
     );
-  }, [data]);
+  }, [data, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
 
@@ -340,7 +363,7 @@ export function ExperimentCompareListPage() {
         header: "example",
         accessorKey: "example",
         size: 110,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const exampleId = getValue() as string;
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -350,7 +373,7 @@ export function ExperimentCompareListPage() {
                   size="S"
                   aria-label="View experiment run details"
                   onPress={() => {
-                    setSelectedExampleId(exampleId);
+                    setSelectedExampleIndex(row.index);
                   }}
                   css={css`
                     flex: none;
@@ -364,6 +387,19 @@ export function ExperimentCompareListPage() {
                 </Tooltip>
               </TooltipTrigger>
             </Flex>
+          );
+        },
+      },
+      {
+        header: "repetition",
+        size: 64,
+        accessorKey: "repetitionNumber",
+        cell: ({ getValue }) => {
+          const value = getValue() as number;
+          return (
+            <Text size="S" fontFamily="mono">
+              {value}
+            </Text>
           );
         },
       },
@@ -839,6 +875,11 @@ export function ExperimentCompareListPage() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
+    state: {
+      columnVisibility: {
+        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
+      },
+    },
   });
 
   const rows = table.getRowModel().rows;
@@ -861,6 +902,7 @@ export function ExperimentCompareListPage() {
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
    */
+  const tableState = table.getState();
   const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
@@ -874,7 +916,15 @@ export function ExperimentCompareListPage() {
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [
+    tableState.columnSizingInfo,
+    tableState.columnSizing,
+    tableState.columnVisibility,
+  ]);
+
+  const exampleIds = useMemo(() => {
+    return rows.map((row) => row.original.example);
+  }, [rows]);
 
   return (
     <View overflow="auto">
@@ -941,21 +991,44 @@ export function ExperimentCompareListPage() {
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!selectedExampleId}
-        onOpenChange={() => {
-          setSelectedExampleId(null);
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleId && datasetId && (
-            <ExperimentCompareDetailsDialog
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment?.datasetVersionId}
-              selectedExampleId={selectedExampleId}
-              baseExperimentId={baseExperiment?.id}
-              compareExperimentIds={compareExperimentIds}
-            />
-          )}
+          {selectedExampleIndex !== null &&
+            datasetId &&
+            rows[selectedExampleIndex] && (
+              <ExperimentCompareDetailsDialog
+                repetitionNumber={
+                  baseExperiment?.repetitions > 1
+                    ? rows[selectedExampleIndex].original.repetitionNumber
+                    : undefined
+                }
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment?.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={rows[selectedExampleIndex].original.example}
+                baseExperimentId={baseExperiment?.id}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
     </View>

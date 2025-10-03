@@ -540,7 +540,7 @@ tool_call_eval.head()
 ```
 
 ```python
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=tool_call_eval,
     annotation_name="Tool Calling Eval",
     annotator_kind="LLM",

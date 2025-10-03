@@ -24,10 +24,10 @@ import {
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import { CredentialsState } from "@phoenix/store/credentialsStore";
 import {
   ChatMessage,
   createNormalizedPlaygroundInstance,
-  CredentialsState,
   generateMessageId,
   generateToolId,
   ModelConfig,
@@ -36,7 +36,7 @@ import {
   PlaygroundNormalizedInstance,
   PlaygroundStore,
   Tool,
-} from "@phoenix/store";
+} from "@phoenix/store/playground";
 import {
   assertUnreachable,
   isStringKeyedObject,

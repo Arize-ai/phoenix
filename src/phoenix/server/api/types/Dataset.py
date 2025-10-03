@@ -18,6 +18,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
 )
+from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -302,6 +303,13 @@ class Dataset(Node):
                 )
                 async for scores_tuple in await session.stream(query)
             ]
+
+    @strawberry.field
+    async def labels(self, info: Info[Context, None]) -> list[DatasetLabel]:
+        return [
+            to_gql_dataset_label(label)
+            for label in await info.context.data_loaders.dataset_labels.load(self.id_attr)
+        ]
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

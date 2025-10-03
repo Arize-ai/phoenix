@@ -71,7 +71,7 @@ export function ResetPasswordForm(props: {
         onCompleted: () => {
           const to = createRedirectUrlWithReturn({
             path: "/login",
-            searchParams: { message: "Password has been reset." },
+            searchParams: { message: "password_reset" },
           });
           navigate(to);
         },

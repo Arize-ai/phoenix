@@ -17,6 +17,7 @@ input AddDatasetExamplesToDatasetSplitsInput {
 
 type AddDatasetExamplesToDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 input AddExamplesToDatasetInput {
@@ -612,6 +613,7 @@ type Dataset implements Node {
   experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
+  labels: [DatasetLabel!]!
   lastUpdatedAt: DateTime
 }
 
@@ -773,6 +775,12 @@ type DatasetSplitEdge {
 type DatasetSplitMutationPayload {
   datasetSplit: DatasetSplit!
   query: Query!
+}
+
+type DatasetSplitMutationPayloadWithExamples {
+  datasetSplit: DatasetSplit!
+  query: Query!
+  examples: [DatasetExample!]!
 }
 
 type DatasetValues {
@@ -1714,7 +1722,10 @@ type Mutation {
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
+  updateDatasetLabel(input: UpdateDatasetLabelInput!): UpdateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
+  setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
+  unsetDatasetLabels(input: UnsetDatasetLabelsInput!): UnsetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -1727,7 +1738,7 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   addDatasetExamplesToDatasetSplits(input: AddDatasetExamplesToDatasetSplitsInput!): AddDatasetExamplesToDatasetSplitsMutationPayload!
   removeDatasetExamplesFromDatasetSplits(input: RemoveDatasetExamplesFromDatasetSplitsInput!): RemoveDatasetExamplesFromDatasetSplitsMutationPayload!
-  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2143,7 +2154,7 @@ type Prompt implements Node {
   name: Identifier!
   description: String
   createdAt: DateTime!
-  version(versionId: ID = null): PromptVersion!
+  version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -2407,6 +2418,7 @@ input RemoveDatasetExamplesFromDatasetSplitsInput {
 
 type RemoveDatasetExamplesFromDatasetSplitsMutationPayload {
   query: Query!
+  examples: [DatasetExample!]!
 }
 
 type ResponseFormat {
@@ -2447,6 +2459,15 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
+}
+
+input SetDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type SetDatasetLabelsMutationPayload {
+  query: Query!
 }
 
 input SetPromptLabelsInput {
@@ -3072,6 +3093,15 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
+input UnsetDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+  datasetIds: [ID!]!
+}
+
+type UnsetDatasetLabelsMutationPayload {
+  query: Query!
+}
+
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3096,6 +3126,17 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
+}
+
+input UpdateDatasetLabelInput {
+  datasetLabelId: ID!
+  name: String!
+  description: String = null
+  color: String!
+}
+
+type UpdateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
 }
 
 input UpdateModelMutationInput {

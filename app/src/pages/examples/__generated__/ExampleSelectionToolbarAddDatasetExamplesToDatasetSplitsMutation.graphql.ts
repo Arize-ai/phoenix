@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2774c04fd2b27271bf38a8056c893e14>>
+ * @generated SignedSource<<2f4adecfdc38685bab2887f41767c39f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,9 +18,14 @@ export type ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation$var
 };
 export type ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation$data = {
   readonly addDatasetExamplesToDatasetSplits: {
-    readonly query: {
-      readonly __typename: "Query";
-    };
+    readonly examples: ReadonlyArray<{
+      readonly datasetSplits: ReadonlyArray<{
+        readonly color: string;
+        readonly id: string;
+        readonly name: string;
+      }>;
+      readonly id: string;
+    }>;
   };
 };
 export type ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation = {
@@ -36,7 +41,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -54,16 +66,36 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Query",
+        "concreteType": "DatasetExample",
         "kind": "LinkedField",
-        "name": "query",
-        "plural": false,
+        "name": "examples",
+        "plural": true,
         "selections": [
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
+            "concreteType": "DatasetSplit",
+            "kind": "LinkedField",
+            "name": "datasetSplits",
+            "plural": true,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "color",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -79,7 +111,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -88,19 +120,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "f4edd66fbe9c27175dcd7f6d6fe94957",
+    "cacheID": "06b9f49cd0904e598f87797547513590",
     "id": null,
     "metadata": {},
     "name": "ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation",
     "operationKind": "mutation",
-    "text": "mutation ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation(\n  $input: AddDatasetExamplesToDatasetSplitsInput!\n) {\n  addDatasetExamplesToDatasetSplits(input: $input) {\n    query {\n      __typename\n    }\n  }\n}\n"
+    "text": "mutation ExampleSelectionToolbarAddDatasetExamplesToDatasetSplitsMutation(\n  $input: AddDatasetExamplesToDatasetSplitsInput!\n) {\n  addDatasetExamplesToDatasetSplits(input: $input) {\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dd657896cf3c272a32f0b1959bb38217";
+(node as any).hash = "df6fafc7bc7158da6290c64761474286";
 
 export default node;

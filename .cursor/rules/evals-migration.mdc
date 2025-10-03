@@ -1,0 +1,317 @@
+---
+description: how to migrate to the new evals interfaces
+globs:
+alwaysApply: false
+---
+
+# Phoenix Evals Migration Guide
+
+## ⚠️ DEPRECATED INTERFACES
+
+The following interfaces are **DEPRECATED** and should no longer be used:
+
+- `phoenix.evals.models` module (all model classes)
+- `phoenix.evals.llm_classify` function
+- `phoenix.evals.llm_generate` function
+- `phoenix.evals.run_evals` function
+- `phoenix.evals.templates.PromptTemplate` class
+- All legacy evaluator classes in `phoenix.evals` root module
+
+**Legacy documentation**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/legacy.html
+
+## Migration Overview
+
+The new Phoenix Evals API (v2.0+) provides:
+
+- **Unified LLM interface** via `phoenix.evals.llm.LLM`
+- **Composable evaluators** with `create_classifier` and `create_evaluator`
+- **Efficient batch processing** with `evaluate_dataframe`
+- **Better error handling** and async support
+- **Structured outputs** with automatic scoring
+
+## Complete Migration Mapping
+
+### 1. Model Interfaces
+
+| **DEPRECATED**                                    | **NEW INTERFACE**                   |
+| ------------------------------------------------- | ----------------------------------- |
+| `from phoenix.evals.models import OpenAIModel`    | `from phoenix.evals.llm import LLM` |
+| `from phoenix.evals.models import AnthropicModel` | `from phoenix.evals.llm import LLM` |
+| `from phoenix.evals.models import GeminiModel`    | `from phoenix.evals.llm import LLM` |
+| `from phoenix.evals.models import VertexAIModel`  | `from phoenix.evals.llm import LLM` |
+| `from phoenix.evals.models import BedrockModel`   | `from phoenix.evals.llm import LLM` |
+| `from phoenix.evals.models import LiteLLMModel`   | `from phoenix.evals.llm import LLM` |
+
+### 2. Core Functions
+
+| **DEPRECATED**               | **NEW INTERFACE**                                                      |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| `phoenix.evals.llm_classify` | `phoenix.evals.create_classifier` + `phoenix.evals.evaluate_dataframe` |
+| `phoenix.evals.llm_generate` | `phoenix.evals.llm.LLM.generate_text` or custom evaluator              |
+| `phoenix.evals.run_evals`    | `phoenix.evals.evaluate_dataframe`                                     |
+
+### 3. Templates
+
+| **DEPRECATED**                                   | **NEW INTERFACE**                                          |
+| ------------------------------------------------ | ---------------------------------------------------------- |
+| `phoenix.evals.templates.PromptTemplate`         | Raw strings or `phoenix.evals.templating.Template`         |
+| `phoenix.evals.templates.ClassificationTemplate` | `phoenix.evals.create_classifier` with `choices` parameter |
+
+### 4. Evaluators
+
+| **DEPRECATED**                         | **NEW INTERFACE**                                 |
+| -------------------------------------- | ------------------------------------------------- |
+| `phoenix.evals.LLMEvaluator`           | `phoenix.evals.LLMEvaluator` (new implementation) |
+| `phoenix.evals.HallucinationEvaluator` | `phoenix.evals.metrics.HallucinationEvaluator`    |
+| `phoenix.evals.RelevanceEvaluator`     | Create with `phoenix.evals.create_classifier`     |
+| `phoenix.evals.ToxicityEvaluator`      | Create with `phoenix.evals.create_classifier`     |
+| `phoenix.evals.QAEvaluator`            | Create with `phoenix.evals.create_classifier`     |
+| `phoenix.evals.SummarizationEvaluator` | Create with `phoenix.evals.create_classifier`     |
+| `phoenix.evals.SQLEvaluator`           | Create with `phoenix.evals.create_classifier`     |
+
+## Step-by-Step Migration Examples
+
+### Example 1: Basic Classification (llm_classify → create_classifier)
+
+**DEPRECATED:**
+
+```python
+from phoenix.evals import llm_classify
+from phoenix.evals.models import OpenAIModel
+from phoenix.evals.templates import PromptTemplate
+
+# Old way
+model = OpenAIModel(model="gpt-4o")
+template = PromptTemplate(
+    template="Is the response helpful?\n\nQuery: {input}\nResponse: {output}. Respond either as 'helpful' or 'not_helpful'"
+)
+
+evals_df = llm_classify(
+    data=spans_df,
+    model=model,
+    rails=["helpful", "not_helpful"],
+    template=template,
+    exit_on_error=False,
+    provide_explanation=True,
+)
+
+# Manual score assignment
+evals_df["score"] = evals_df["label"].apply(lambda x: 1 if x == "helpful" else 0)
+```
+
+**NEW:**
+
+```python
+import pandas as pd
+from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals.llm import LLM
+
+# New way
+llm = LLM(provider="openai", model="gpt-4o")
+
+helpfulness_evaluator = create_classifier(
+    name="helpfulness",
+    prompt_template="Is the response helpful?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"helpful": 1.0, "not_helpful": 0.0},  # Automatic scoring
+)
+
+results_df = evaluate_dataframe(
+    dataframe=spans_df,
+    evaluators=[helpfulness_evaluator],
+)
+```
+
+### Example 2: Multiple Evaluators
+
+**DEPRECATED:**
+
+```python
+from phoenix.evals import llm_classify
+from phoenix.evals.models import OpenAIModel
+
+model = OpenAIModel(model="gpt-4o")
+
+# Multiple separate calls
+relevance_df = llm_classify(data=df, model=model, rails=["relevant", "irrelevant"], ...)
+helpfulness_df = llm_classify(data=df, model=model, rails=["helpful", "not_helpful"], ...)
+toxicity_df = llm_classify(data=df, model=model, rails=["toxic", "non_toxic"], ...)
+
+# Manual merging required
+```
+
+**NEW:**
+
+```python
+from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals.llm import LLM
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Create multiple evaluators
+relevance_evaluator = create_classifier(
+    name="relevance",
+    prompt_template="Is the response relevant?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"relevant": 1.0, "irrelevant": 0.0},
+)
+
+helpfulness_evaluator = create_classifier(
+    name="helpfulness",
+    prompt_template="Is the response helpful?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"helpful": 1.0, "not_helpful": 0.0},
+)
+
+toxicity_evaluator = create_classifier(
+    name="toxicity",
+    prompt_template="Is the response toxic?\n\nQuery: {input}\nResponse: {output}",
+    llm=llm,
+    choices={"toxic": 0.0, "non_toxic": 1.0},
+)
+
+# Single call evaluates all metrics
+results_df = evaluate_dataframe(
+    dataframe=df,
+    evaluators=[relevance_evaluator, helpfulness_evaluator, toxicity_evaluator],
+)
+```
+
+### Example 3: Text Generation (llm_generate → LLM.generate_text)
+
+**DEPRECATED:**
+
+```python
+from phoenix.evals import llm_generate
+from phoenix.evals.models import OpenAIModel
+from phoenix.evals.templates import PromptTemplate
+
+model = OpenAIModel(model="gpt-4o")
+template = PromptTemplate(template="Generate a response to: {query}")
+
+generated_df = llm_generate(
+    dataframe=df,
+    template=template,
+    model=model,
+)
+```
+
+**NEW:**
+
+```python
+from phoenix.evals.llm import LLM
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+# For single generations
+response = llm.generate_text(prompt="Generate a response to: How do I reset my password?")
+
+# For batch processing with dataframes
+def generate_responses(row):
+    prompt = f"Generate a response to: {row['query']}"
+    return llm.generate_text(prompt=prompt)
+
+df['generated_response'] = df.apply(generate_responses, axis=1)
+```
+
+### Example 4: Custom Evaluators
+
+**DEPRECATED:**
+
+```python
+from phoenix.evals import LLMEvaluator
+from phoenix.evals.models import OpenAIModel
+
+class CustomEvaluator(LLMEvaluator):
+    def evaluate(self, input_text, output_text):
+        # Custom logic
+        pass
+
+evaluator = CustomEvaluator(model=OpenAIModel(model="gpt-4o"))
+```
+
+**NEW:**
+
+```python
+from phoenix.evals import create_evaluator, LLMEvaluator
+from phoenix.evals.llm import LLM
+
+# Option 1: Function-based evaluator
+@create_evaluator(name="custom_metric", direction="maximize")
+def custom_evaluator(input: str, output: str) -> float:
+    # Custom heuristic logic
+    return len(output) / len(input)  # Example metric
+
+# Option 2: LLM-based evaluator
+llm = LLM(provider="openai", model="gpt-4o")
+
+class CustomLLMEvaluator(LLMEvaluator):
+    def __init__(self):
+        super().__init__(
+            name="custom_llm_eval",
+            llm=llm,
+            prompt_template="Evaluate this response: {input} -> {output}",
+        )
+
+    def _evaluate(self, eval_input):
+        # Custom LLM evaluation logic
+        pass
+```
+
+### Example 5: Different LLM Providers
+
+**DEPRECATED:**
+
+```python
+from phoenix.evals.models import OpenAIModel, AnthropicModel, GeminiModel
+
+openai_model = OpenAIModel(model="gpt-4o")
+anthropic_model = AnthropicModel(model="claude-3-sonnet-20240229")
+```
+
+**NEW:**
+
+```python
+from phoenix.evals.llm import LLM
+
+# All providers use the same interface
+openai_llm = LLM(provider="openai", model="gpt-4o")
+litellm_llm = LLM(provider="litellm", model="claude-3-sonnet-20240229")
+```
+
+## Migration Checklist
+
+When migrating your code:
+
+1. **✅ Update imports**
+   - Replace `phoenix.evals.models.*` with `phoenix.evals.llm.LLM`
+   - Replace `phoenix.evals.llm_classify` with `phoenix.evals.create_classifier`
+   - Replace `phoenix.evals.llm_generate` with direct LLM calls
+
+2. **✅ Update model instantiation**
+   - Use unified `LLM(provider="...", model="...")` interface
+   - Remove provider-specific model classes
+
+3. **✅ Replace function calls**
+   - Convert `llm_classify` to `create_classifier` + `evaluate_dataframe`
+   - Convert `llm_generate` to `LLM.generate_text`
+   - Convert `run_evals` to `evaluate_dataframe`
+
+4. **✅ Update templates**
+   - Use raw strings instead of `PromptTemplate` objects
+   - Replace `rails` parameter with `choices` dictionary
+
+5. **✅ Update evaluators**
+   - Use `create_classifier` for classification tasks
+   - Use `create_evaluator` decorator for custom metrics
+   - Import built-in evaluators from `phoenix.evals.metrics`
+
+6. **✅ Test the migration**
+   - Verify outputs match expected format
+   - Check that scores are properly assigned
+   - Ensure error handling works as expected
+
+## Getting Help
+
+- **New API Documentation**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html
+- **Legacy API Reference**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/legacy.html
