@@ -63,6 +63,7 @@ dependencies = [
   "python-dateutil",
   "prometheus_client",
   "orjson",
+  "jmespath",
 ]
 dynamic = ["version"]
 

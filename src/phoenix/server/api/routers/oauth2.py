@@ -1,6 +1,6 @@
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from random import randrange
 from typing import Any, Optional, TypedDict
@@ -24,12 +24,15 @@ from typing_extensions import Annotated, NotRequired, TypeGuard
 
 from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    delete_oauth2_code_verifier_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
+    set_oauth2_code_verifier_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
@@ -41,6 +44,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
+from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -128,6 +132,12 @@ async def login(
         nonce=nonce,
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
+    if code_verifier := authorization_url_data.get("code_verifier"):
+        response = set_oauth2_code_verifier_cookie(
+            response=response,
+            code_verifier=code_verifier,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
     return response
 
 
@@ -141,6 +151,9 @@ async def create_tokens(
     error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
+    code_verifier: Optional[str] = Cookie(
+        default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
+    ),
 ) -> RedirectResponse:
     # Security Note: Query parameters should be treated as untrusted user input. Never display
     # these values directly to users as they could be manipulated for XSS, phishing, or social
@@ -173,13 +186,18 @@ async def create_tokens(
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
     try:
-        token_data = await oauth2_client.fetch_access_token(
+        fetch_kwargs: dict[str, Any] = dict(
             state=state,
             code=authorization_code,
             redirect_uri=_get_create_tokens_endpoint(
                 request=request, origin_url=payload["origin_url"], idp_name=idp_name
             ),
         )
+        # Include PKCE code_verifier only when PKCE is enabled for this client
+        # and the code_verifier cookie exists
+        if oauth2_client.use_pkce and code_verifier:
+            fetch_kwargs["code_verifier"] = code_verifier
+        token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as e:
         logger.error("OAuth2 error for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="oauth_error")
@@ -187,12 +205,27 @@ async def create_tokens(
     if "id_token" not in token_data:
         logger.error("OAuth2 IDP %s does not appear to support OpenID Connect", idp_name)
         return _redirect_to_login(request=request, error="no_oidc_support")
-    user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+
+    id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+
+    if oauth2_client.has_sufficient_claims(id_token_claims):
+        user_claims = id_token_claims
+    else:
+        user_claims = await _fetch_and_merge_userinfo_claims(
+            oauth2_client, token_data, id_token_claims
+        )
+
     try:
-        user_info = _parse_user_info(user_info)
-    except MissingEmailScope as e:
-        logger.error("Missing email scope for IDP %s: %s", idp_name, e)
+        user_info = _parse_user_info(user_claims)
+    except (MissingEmailScope, InvalidUserInfo) as e:
+        logger.error("Error parsing user info for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="missing_email_scope")
+
+    try:
+        oauth2_client.validate_access(user_info.claims)
+    except PermissionError as e:
+        logger.error("Access validation failed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="auth_failed")
 
     try:
         async with request.app.state.db() as session:
@@ -227,6 +260,7 @@ async def create_tokens(
     )
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 
@@ -236,6 +270,7 @@ class UserInfo:
     email: str
     username: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    claims: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not (idp_user_id := (self.idp_user_id or "").strip()):
@@ -250,6 +285,32 @@ class UserInfo:
             object.__setattr__(self, "profile_picture_url", profile_picture_url)
 
 
+async def _fetch_and_merge_userinfo_claims(
+    oauth2_client: OAuth2Client,
+    token_data: dict[str, Any],
+    id_token_claims: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Fetch additional claims from userinfo endpoint and merge with ID token claims.
+
+    Attempts to fetch extended claims (e.g., groups, custom attributes) from the
+    userinfo endpoint. Falls back to ID token claims if the request fails.
+
+    Args:
+        oauth2_client: The OAuth2 client to use for fetching userinfo
+        token_data: The token response containing the access token
+        id_token_claims: Claims already extracted from the ID token
+
+    Returns:
+        Merged claims dictionary with userinfo as base and ID token taking precedence
+    """
+    try:
+        userinfo_claims = await oauth2_client.userinfo(token=token_data)
+        return {**userinfo_claims, **id_token_claims}
+    except Exception:
+        return id_token_claims
+
+
 def _validate_token_data(token_data: dict[str, Any]) -> None:
     """
     Performs basic validations on the token data returned by the IDP.
@@ -262,25 +323,93 @@ def _validate_token_data(token_data: dict[str, Any]) -> None:
 def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
+
+    Validates required OIDC claims and extracts user information according to the
+    OpenID Connect Core 1.0 specification.
+
+    Args:
+        user_info: Claims from the ID token (validated JWT payload)
+
+    Returns:
+        UserInfo object with validated user data
+
+    Raises:
+        InvalidUserInfo: If required claims are missing or malformed
+        MissingEmailScope: If email claim is missing or invalid
+
+    OIDC Standard Claims Reference:
+        - sub (required): Subject Identifier, MUST be a string
+        - email (required by app): Email address
+        - name (optional): Full name
+        - picture (optional): Profile picture URL
     """
-    assert isinstance(subject := user_info.get("sub"), (str, int))
-    idp_user_id = str(subject)
-    email = user_info.get("email")
-    if not isinstance(email, str):
-        raise MissingEmailScope(
-            "Please ensure your OIDC provider is configured to use the 'email' scope."
+    # Validate 'sub' claim (OIDC required, MUST be a string per spec)
+    subject = user_info.get("sub")
+    if subject is None:
+        raise InvalidUserInfo(
+            "Missing required 'sub' claim in ID token. "
+            "Please check your OIDC provider configuration."
         )
 
-    assert isinstance(username := user_info.get("name"), str) or username is None
-    assert (
-        isinstance(profile_picture_url := user_info.get("picture"), str)
-        or profile_picture_url is None
-    )
+    # OIDC spec: sub MUST be a string, but some IDPs send integers
+    # Convert to string for compatibility
+    if isinstance(subject, (str, int)):
+        idp_user_id = str(subject).strip()
+    else:
+        raise InvalidUserInfo(
+            f"Invalid 'sub' claim type: {type(subject).__name__}. Expected string or integer."
+        )
+
+    if not idp_user_id:
+        raise InvalidUserInfo("The 'sub' claim cannot be empty.")
+
+    # Validate 'email' claim (application requirement)
+    email = user_info.get("email")
+    if not isinstance(email, str) or not email.strip():
+        raise MissingEmailScope(
+            "Missing or invalid 'email' claim. "
+            "Please ensure your OIDC provider is configured to include the 'email' scope."
+        )
+    email = email.strip()
+
+    # Optional: 'name' claim (Full name)
+    username = user_info.get("name")
+    if username is not None:
+        if not isinstance(username, str):
+            # Some IDPs might send unexpected types; ignore gracefully
+            username = None
+        else:
+            username = username.strip() or None
+
+    # Optional: 'picture' claim (Profile picture URL)
+    profile_picture_url = user_info.get("picture")
+    if profile_picture_url is not None:
+        if not isinstance(profile_picture_url, str):
+            # Some IDPs might send unexpected types; ignore gracefully
+            profile_picture_url = None
+        else:
+            profile_picture_url = profile_picture_url.strip() or None
+
+    # Keep only non-empty claim values for downstream processing
+    def _has_value(v: Any) -> bool:
+        """Check if a claim value is considered non-empty."""
+        if v is None:
+            return False
+        if isinstance(v, str):
+            return bool(v.strip())
+        if isinstance(v, (list, dict, set, tuple)):
+            return len(v) > 0
+        # Include all other types (numbers, booleans, etc.)
+        return True
+
+    filtered_claims = {k: v for k, v in user_info.items() if _has_value(v)}
+
     return UserInfo(
         idp_user_id=idp_user_id,
         email=email,
         username=username,
         profile_picture_url=profile_picture_url,
+        claims=filtered_claims,
     )
 
 
@@ -582,6 +711,14 @@ class MissingEmailScope(Exception):
     pass
 
 
+class InvalidUserInfo(Exception):
+    """
+    Raised when the OIDC user info is malformed or missing required claims.
+    """
+
+    pass
+
+
 def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error code.
@@ -595,6 +732,7 @@ def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectRes
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
+    response = delete_oauth2_code_verifier_cookie(response)
     return response
 
 
