@@ -317,8 +317,8 @@ importers:
         specifier: ^3.6.2
         version: 3.6.2
       relay-compiler:
-        specifier: ^19.0.0
-        version: 19.0.0
+        specifier: ^20.1.1
+        version: 20.1.1
       rollup-plugin-visualizer:
         specifier: ^5.14.0
         version: 5.14.0(rollup@4.50.1)
@@ -4689,8 +4689,8 @@ packages:
       react:
         optional: true
 
-  relay-compiler@19.0.0:
-    resolution: {integrity: sha512-DwyNWPUkzdggT3oBuNTS18bL6KCU3Sg/oSW/q+pqOQNHLo+RUZOWAx44ALy5XoBrsXjQVBr0EiNqJ4A8G1skOw==}
+  relay-compiler@20.1.1:
+    resolution: {integrity: sha512-J/FFFLS/3vnbDkyQMw8l3Ev7dNHXMgC1RAs0fITz4Q63TFPOw142knKxY1Mm5ZZBABkAs9g2JghXaqM+phwTxw==}
     hasBin: true
 
   relay-runtime@20.1.1:
@@ -11352,7 +11352,7 @@ snapshots:
       '@types/react': 19.2.0
       react: 19.2.0
 
-  relay-compiler@19.0.0: {}
+  relay-compiler@20.1.1: {}
 
   relay-runtime@20.1.1:
     dependencies:
