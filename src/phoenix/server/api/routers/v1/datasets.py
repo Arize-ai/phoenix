@@ -700,6 +700,7 @@ class DatasetExample(V1RoutesBaseModel):
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    split_ids: list[str]
     examples: list[DatasetExample]
 
 
@@ -721,6 +722,10 @@ async def get_dataset_examples(
         description=(
             "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
+    ),
+    splits: Optional[list[str]] = Query(
+        default=None,
+        description="The names of the dataset splits to filter by",
     ),
 ) -> ListDatasetExamplesResponseBody:
     dataset_gid = GlobalID.from_id(id)
@@ -801,6 +806,41 @@ async def get_dataset_examples(
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
         )
+
+        # If splits are provided, join and filter by dataset splits
+        resolved_split_ids = []
+        if splits:
+            # Resolve split names to IDs
+            split_id_query = select(models.DatasetSplit.id).where(
+                models.DatasetSplit.name.in_(splits)
+            )
+            resolved_split_ids = list(await session.scalars(split_id_query))
+
+            if not resolved_split_ids:
+                raise HTTPException(
+                    detail=f"No dataset splits found with names: {', '.join(splits)}",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+
+            if len(resolved_split_ids) != len(splits):
+                # Some splits were not found
+                found_names = await session.scalars(
+                    select(models.DatasetSplit.name).where(
+                        models.DatasetSplit.id.in_(resolved_split_ids)
+                    )
+                )
+                found_names_set = set(found_names)
+                missing = [s for s in splits if s not in found_names_set]
+                raise HTTPException(
+                    detail=f"Dataset splits not found: {', '.join(missing)}",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+
+            query = query.join(
+                models.DatasetSplitDatasetExample,
+                models.DatasetExample.id == models.DatasetSplitDatasetExample.dataset_example_id,
+            ).filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
+
         examples = [
             DatasetExample(
                 id=str(GlobalID("DatasetExample", str(example.id))),
@@ -811,10 +851,15 @@ async def get_dataset_examples(
             )
             async for example, revision in await session.stream(query)
         ]
+    print(f"🗂️ resolved_split_ids: {resolved_split_ids}")
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),
+            split_ids=[
+                str(GlobalID("DatasetSplit", str(resolved_split_id)))
+                for resolved_split_id in resolved_split_ids
+            ],
             examples=examples,
         )
     )

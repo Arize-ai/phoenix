@@ -89,6 +89,11 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
+    def split_ids(self) -> list[str]:
+        """The dataset splits."""
+        return self._examples_data.get("split_ids", [])
+
+    @property
     def examples(self) -> list[DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
@@ -414,6 +419,7 @@ class Datasets:
         *,
         dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
+        splits: Optional[list[str]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -428,6 +434,8 @@ class Datasets:
                 ID string, name string, Dataset object, or dict with 'id'/'name' fields.
             version_id (Optional[str]): Specific version ID of the dataset. If
                 None, returns the latest version.
+            splits (Optional[list[str]]): List of dataset split names to filter by.
+                If provided, only returns examples that belong to the specified splits.
             timeout (Optional[int]): Request timeout in seconds (default: 5).
 
         Returns:
@@ -452,6 +460,11 @@ class Datasets:
             versioned = client.datasets.get_dataset(
                 dataset="my-dataset", version_id="version-123"
             )
+
+            # Get dataset filtered by splits
+            train_data = client.datasets.get_dataset(
+                dataset="my-dataset", splits=["train", "validation"]
+            )
         """
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -471,7 +484,9 @@ class Datasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        params = {"version_id": version_id} if version_id else None
+        params: dict[str, Union[str, list[str]]] = {"version_id": version_id} if version_id else {}
+        if splits and len(splits) > 0:
+            params["splits"] = splits
         examples_response = self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,
