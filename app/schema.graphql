@@ -2038,6 +2038,16 @@ type ProjectSession implements Node {
   sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 }
 
+enum ProjectSessionAnnoAttr {
+  score
+  label
+}
+
+input ProjectSessionAnnoResultKey {
+  name: String!
+  attr: ProjectSessionAnnoAttr!
+}
+
 type ProjectSessionAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2086,7 +2096,8 @@ type ProjectSessionEdge {
 
 """The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
-  col: ProjectSessionColumn!
+  col: ProjectSessionColumn
+  annoResultKey: ProjectSessionAnnoResultKey
   dir: SortDir!
 }
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c440a54539aa028ba575a528160e6eed>>
+ * @generated SignedSource<<2147f680c1c36ceb17f74eeb3898a736>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ProjectSessionAnnoAttr = "label" | "score";
 export type ProjectSessionColumn = "costTotal" | "endTime" | "numTraces" | "startTime" | "tokenCountTotal";
 export type SortDir = "asc" | "desc";
 export type ProjectSessionSort = {
-  col: ProjectSessionColumn;
+  annoResultKey?: ProjectSessionAnnoResultKey | null;
+  col?: ProjectSessionColumn | null;
   dir: SortDir;
+};
+export type ProjectSessionAnnoResultKey = {
+  attr: ProjectSessionAnnoAttr;
+  name: string;
 };
 export type TimeRange = {
   end?: string | null;
