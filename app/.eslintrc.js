@@ -263,6 +263,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Popover, Dialog } from '@phoenix/components'",
       },
+      {
+        name: "ActionMenu",
+        module: "@arizeai/components",
+        use: "import { Popover, Menu, MenuTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "ActionItem",
+        module: "@arizeai/components",
+        use: "import { MenuItem } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
