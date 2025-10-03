@@ -11,7 +11,7 @@ const meta: Meta = {
 export default meta;
 
 function IconsGrid() {
-  const iconsArray: ReactElement[] = [];
+  const iconsArray: ReactElement<unknown>[] = [];
 
   Object.keys(Icons).forEach((name) => {
     const iconKey = name as keyof typeof Icons;
