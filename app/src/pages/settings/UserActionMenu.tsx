@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
 import {
+  Button,
   DialogTrigger,
   Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
 } from "@phoenix/components";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
@@ -37,7 +40,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
 
   const actionMenuItems = useMemo(() => {
     const deleteUserItemEl = (
-      <Item key={UserAction.DELETE}>
+      <MenuItem key={UserAction.DELETE} id={UserAction.DELETE}>
         <Flex
           direction={"row"}
           gap="size-75"
@@ -47,11 +50,11 @@ export function UserActionMenu(props: UserActionMenuProps) {
           <Icon svg={<Icons.TrashOutline />} />
           <>Delete</>
         </Flex>
-      </Item>
+      </MenuItem>
     );
 
     const resetPasswordItemEl = (
-      <Item key={UserAction.RESET_PASSWORD}>
+      <MenuItem key={UserAction.RESET_PASSWORD} id={UserAction.RESET_PASSWORD}>
         <Flex
           direction={"row"}
           gap="size-75"
@@ -61,7 +64,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           <Icon svg={<Icons.Refresh />} />
           <>Reset Password</>
         </Flex>
-      </Item>
+      </MenuItem>
     );
 
     const actionMenuItems = [deleteUserItemEl];
@@ -72,31 +75,30 @@ export function UserActionMenu(props: UserActionMenuProps) {
   }, [authMethod]);
 
   return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        align="end"
-        aria-label="User Actions"
-        buttonSize="compact"
-        onAction={(action) => {
-          switch (action) {
-            case UserAction.DELETE:
-              setShowDeleteDialog(true);
-              break;
-            case UserAction.RESET_PASSWORD:
-              setShowResetPasswordDialog(true);
-              break;
-          }
-        }}
-      >
-        {actionMenuItems}
-      </ActionMenu>
+    <>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            aria-label="User Actions"
+            onAction={(action) => {
+              switch (action) {
+                case UserAction.DELETE:
+                  setShowDeleteDialog(true);
+                  break;
+                case UserAction.RESET_PASSWORD:
+                  setShowResetPasswordDialog(true);
+                  break;
+              }
+            }}
+          >
+            {actionMenuItems}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
@@ -127,6 +129,6 @@ export function UserActionMenu(props: UserActionMenuProps) {
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
-    </div>
+    </>
   );
 }
