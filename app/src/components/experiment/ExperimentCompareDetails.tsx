@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
-import { Pressable } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   ImperativePanelHandle,
@@ -756,68 +756,66 @@ function ExperimentAnnotationStackItem({
       : annotation.label || "n/a";
 
   return (
-    <Pressable>
-      <button
-        className="button--reset"
-        css={css`
-          cursor: pointer;
-          padding: var(--ac-global-dimension-size-50)
-            var(--ac-global-dimension-size-100);
-          border-radius: var(--ac-global-rounding-small);
-          width: 100%;
-          display: grid;
-          grid-template-columns: subgrid;
-          grid-column: 1 / -1;
-          &:hover {
-            background-color: var(--ac-global-color-grey-200);
-          }
-        `}
+    <AriaButton
+      className="button--reset"
+      css={css`
+        cursor: pointer;
+        padding: var(--ac-global-dimension-size-50)
+          var(--ac-global-dimension-size-100);
+        border-radius: var(--ac-global-rounding-small);
+        width: 100%;
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+        &:hover {
+          background-color: var(--ac-global-color-grey-200);
+        }
+      `}
+    >
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        justifySelf="start"
+        minWidth={0}
+        maxWidth="100%"
       >
-        <Flex
-          direction="row"
-          gap="size-100"
-          alignItems="center"
-          justifySelf="start"
-          minWidth={0}
-          maxWidth="100%"
+        <span
+          css={css`
+            flex: none;
+          `}
         >
-          <span
-            css={css`
-              flex: none;
-            `}
-          >
-            <ColorSwatch color={annotationColor} shape="circle" />
-          </span>
+          <ColorSwatch color={annotationColor} shape="circle" />
+        </span>
 
-          <Text weight="heavy" color="inherit" minWidth={0}>
-            <Truncate maxWidth="100%">{annotation.name}</Truncate>
-          </Text>
-        </Flex>
-
-        <Text fontFamily="mono" justifySelf="start" maxWidth="100%">
-          <Truncate maxWidth="100%">{labelValue}</Truncate>
+        <Text weight="heavy" color="inherit" minWidth={0}>
+          <Truncate maxWidth="100%">{annotation.name}</Truncate>
         </Text>
+      </Flex>
 
-        {annotation.score != null ? (
-          <ProgressBar
-            css={css`
-              align-self: center;
-              --mod-barloader-fill-color: ${annotationColor};
-            `}
-            value={calculateAnnotationScorePercentile(
-              annotation.score,
-              annotationSummary.minScore,
-              annotationSummary.maxScore
-            )}
-            height="var(--ac-global-dimension-size-50)"
-            width="100%"
-            aria-label={`${annotation.name} score`}
-          />
-        ) : (
-          <div />
-        )}
-      </button>
-    </Pressable>
+      <Text fontFamily="mono" justifySelf="start" maxWidth="100%">
+        <Truncate maxWidth="100%">{labelValue}</Truncate>
+      </Text>
+
+      {annotation.score != null ? (
+        <ProgressBar
+          css={css`
+            align-self: center;
+            --mod-barloader-fill-color: ${annotationColor};
+          `}
+          value={calculateAnnotationScorePercentile(
+            annotation.score,
+            annotationSummary.minScore,
+            annotationSummary.maxScore
+          )}
+          height="var(--ac-global-dimension-size-50)"
+          width="100%"
+          aria-label={`${annotation.name} score`}
+        />
+      ) : (
+        <div />
+      )}
+    </AriaButton>
   );
 }
 
