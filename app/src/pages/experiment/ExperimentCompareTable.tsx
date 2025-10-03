@@ -716,7 +716,7 @@ function TableBody<T>({
   tableContainerRef,
 }: {
   table: Table<T>;
-  tableContainerRef: RefObject<HTMLDivElement>;
+  tableContainerRef: RefObject<HTMLDivElement | null>;
 }) {
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({
