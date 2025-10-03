@@ -16,34 +16,28 @@ const NEXT_EXAMPLE_HOTKEY = "j";
 const PREVIOUS_EXAMPLE_HOTKEY = "k";
 
 export const ExampleDetailsPaginator = ({
-  currentId,
+  currentExampleIndex,
   exampleIds,
-  onNext,
-  onPrevious,
+  onExampleChange,
 }: {
-  currentId: string;
+  currentExampleIndex: number;
   exampleIds: string[];
-  onNext: (nextId: string) => void;
-  onPrevious: (previousId: string) => void;
+  onExampleChange: (exampleIndex: number) => void;
 }) => {
-  const { nextExampleId, previousExampleId } = getExampleNeighbors(
-    exampleIds,
-    currentId
-  );
-  const hasPrevious = !!previousExampleId;
-  const hasNext = !!nextExampleId;
+  const hasPrevious = currentExampleIndex > 0;
+  const hasNext = currentExampleIndex < exampleIds.length - 1;
 
   const handleNext = () => {
     if (hasNext) {
       startTransition(() => {
-        onNext(nextExampleId);
+        onExampleChange(currentExampleIndex + 1);
       });
     }
   };
   const handlePrevious = () => {
     if (hasPrevious) {
       startTransition(() => {
-        onPrevious(previousExampleId);
+        onExampleChange(currentExampleIndex - 1);
       });
     }
   };
@@ -61,7 +55,7 @@ export const ExampleDetailsPaginator = ({
       <TooltipTrigger delay={100}>
         <Button
           size="S"
-          aria-label="Next example"
+          aria-label="Next"
           isDisabled={!hasNext}
           onPress={handleNext}
           leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
@@ -76,7 +70,7 @@ export const ExampleDetailsPaginator = ({
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Next example</span>
+            <span>Next</span>
             <KeyboardToken>{NEXT_EXAMPLE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
@@ -84,7 +78,7 @@ export const ExampleDetailsPaginator = ({
       <TooltipTrigger delay={100}>
         <Button
           size="S"
-          aria-label="Previous example"
+          aria-label="Previous"
           isDisabled={!hasPrevious}
           onPress={handlePrevious}
           leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
@@ -99,42 +93,11 @@ export const ExampleDetailsPaginator = ({
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Previous example</span>
+            <span>Previous</span>
             <KeyboardToken>{PREVIOUS_EXAMPLE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
       </TooltipTrigger>
     </Flex>
   );
-};
-
-const getExampleNeighbors = (exampleIds: string[], currentId: string) => {
-  const currentIndex = exampleIds.findIndex(
-    (exampleId) => exampleId === currentId
-  );
-
-  if (currentIndex === -1) {
-    return {
-      nextExampleId: undefined,
-      previousExampleId: undefined,
-    };
-  }
-
-  const previousIndex = currentIndex - 1;
-  const nextIndex = currentIndex + 1;
-
-  let previousExampleId;
-  let nextExampleId;
-
-  if (previousIndex >= 0) {
-    previousExampleId = exampleIds[previousIndex];
-  }
-  if (nextIndex < exampleIds.length) {
-    nextExampleId = exampleIds[nextIndex];
-  }
-
-  return {
-    nextExampleId,
-    previousExampleId,
-  };
 };

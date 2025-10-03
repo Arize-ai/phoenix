@@ -101,9 +101,9 @@ export function ExperimentCompareListPage({
     [searchParams]
   );
 
-  const [selectedExampleId, setSelectedExampleId] = useState<string | null>(
-    null
-  );
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
 
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
@@ -133,6 +133,7 @@ export function ExperimentCompareListPage({
                 edges {
                   experiment: node {
                     id
+                    repetitions
                     datasetVersionId
                     averageRunLatencyMs
                     runCount
@@ -176,6 +177,7 @@ export function ExperimentCompareListPage({
               edges {
                 run: node {
                   id
+                  repetitionNumber
                   output
                   startTime
                   endTime
@@ -283,6 +285,7 @@ export function ExperimentCompareListPage({
         const tableData = {
           id: example.id,
           example: example.id,
+          repetitionNumber: baseExperimentRun.repetitionNumber,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
           outputs: {
@@ -360,7 +363,7 @@ export function ExperimentCompareListPage({
         header: "example",
         accessorKey: "example",
         size: 110,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const exampleId = getValue() as string;
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -370,7 +373,7 @@ export function ExperimentCompareListPage({
                   size="S"
                   aria-label="View experiment run details"
                   onPress={() => {
-                    setSelectedExampleId(exampleId);
+                    setSelectedExampleIndex(row.index);
                   }}
                   css={css`
                     flex: none;
@@ -384,6 +387,19 @@ export function ExperimentCompareListPage({
                 </Tooltip>
               </TooltipTrigger>
             </Flex>
+          );
+        },
+      },
+      {
+        header: "repetition",
+        size: 64,
+        accessorKey: "repetitionNumber",
+        cell: ({ getValue }) => {
+          const value = getValue() as number;
+          return (
+            <Text size="S" fontFamily="mono">
+              {value}
+            </Text>
           );
         },
       },
@@ -859,6 +875,11 @@ export function ExperimentCompareListPage({
     columns,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
+    state: {
+      columnVisibility: {
+        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
+      },
+    },
   });
 
   const rows = table.getRowModel().rows;
@@ -881,6 +902,7 @@ export function ExperimentCompareListPage({
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
    */
+  const tableState = table.getState();
   const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
@@ -894,7 +916,15 @@ export function ExperimentCompareListPage({
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [
+    tableState.columnSizingInfo,
+    tableState.columnSizing,
+    tableState.columnVisibility,
+  ]);
+
+  const exampleIds = useMemo(() => {
+    return rows.map((row) => row.original.example);
+  }, [rows]);
 
   return (
     <View overflow="auto">
@@ -961,21 +991,44 @@ export function ExperimentCompareListPage({
         </div>
       </Flex>
       <ModalOverlay
-        isOpen={!!selectedExampleId}
-        onOpenChange={() => {
-          setSelectedExampleId(null);
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {selectedExampleId && datasetId && (
-            <ExperimentCompareDetailsDialog
-              datasetId={datasetId}
-              datasetVersionId={baseExperiment?.datasetVersionId}
-              selectedExampleId={selectedExampleId}
-              baseExperimentId={baseExperiment?.id}
-              compareExperimentIds={compareExperimentIds}
-            />
-          )}
+          {selectedExampleIndex !== null &&
+            datasetId &&
+            rows[selectedExampleIndex] && (
+              <ExperimentCompareDetailsDialog
+                repetitionNumber={
+                  baseExperiment?.repetitions > 1
+                    ? rows[selectedExampleIndex].original.repetitionNumber
+                    : undefined
+                }
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment?.datasetVersionId}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={rows[selectedExampleIndex].original.example}
+                baseExperimentId={baseExperiment?.id}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+              />
+            )}
         </Modal>
       </ModalOverlay>
     </View>
