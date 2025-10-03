@@ -9,6 +9,7 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
+  CellContext,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -144,8 +145,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
               header: "labels",
               accessorKey: "labels",
               enableSorting: false,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              cell: ({ row }: any) => {
+              cell: ({
+                row,
+              }: CellContext<(typeof tableData)[number], unknown>) => {
                 return (
                   <ul
                     css={css`
@@ -156,8 +158,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                       flex-wrap: wrap;
                     `}
                   >
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {row.original.labels.map((label: any) => (
+                    {row.original.labels.map((label) => (
                       <li key={label.id}>
                         <Token color={label.color}>
                           <Truncate maxWidth={200} title={label.name}>
