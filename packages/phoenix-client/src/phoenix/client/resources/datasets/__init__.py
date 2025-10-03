@@ -1411,9 +1411,9 @@ class AsyncDatasets:
             else:
                 examples_list = cast(list[Example], list(examples))
 
-            inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example.get("output") or {}) for example in examples_list]
-            metadata = [dict(example.get("metadata") or {}) for example in examples_list]
+            inputs = [example["input"] for example in examples_list]
+            outputs = [example.get("output") or {} for example in examples_list]
+            metadata = [example.get("metadata") or {} for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1517,9 +1517,9 @@ class AsyncDatasets:
             else:
                 examples_list = cast(list[Example], list(examples))
 
-            inputs = [dict(example["input"]) for example in examples_list]
-            outputs = [dict(example.get("output") or {}) for example in examples_list]
-            metadata = [dict(example.get("metadata") or {}) for example in examples_list]
+            inputs = [example["input"] for example in examples_list]
+            outputs = [example.get("output") or {} for example in examples_list]
+            metadata = [example.get("metadata") or {} for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
