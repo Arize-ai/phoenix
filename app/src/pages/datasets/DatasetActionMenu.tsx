@@ -1,8 +1,16 @@
 import { useState } from "react";
 
-import { ActionMenu, Item } from "@arizeai/components";
-
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  Text,
+} from "@phoenix/components";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
@@ -37,51 +45,50 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        align="end"
-        buttonSize="compact"
-        onAction={(action) => {
-          switch (action) {
-            case DatasetAction.DELETE:
-              setIsDeleteOpen(true);
-              break;
-            case DatasetAction.EDIT:
-              setIsEditOpen(true);
-              break;
-          }
-        }}
-      >
-        <Item key={DatasetAction.EDIT}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
+    <>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Menu
+            onAction={(action) => {
+              switch (action) {
+                case DatasetAction.DELETE:
+                  setIsDeleteOpen(true);
+                  break;
+                case DatasetAction.EDIT:
+                  setIsEditOpen(true);
+                  break;
+              }
+            }}
           >
-            <Icon svg={<Icons.Edit2Outline />} />
-            <Text>Edit</Text>
-          </Flex>
-        </Item>
-        <Item key={DatasetAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
+            <MenuItem id={DatasetAction.EDIT}>
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.Edit2Outline />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id={DatasetAction.DELETE}>
+              <Flex
+                direction={"row"}
+                gap="size-75"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <Text>Delete</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
 
       {/* Delete Dataset Dialog */}
       <DeleteDatasetDialog
@@ -104,6 +111,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}
       />
-    </div>
+    </>
   );
 }
