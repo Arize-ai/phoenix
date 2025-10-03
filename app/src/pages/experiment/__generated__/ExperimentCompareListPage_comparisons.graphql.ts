@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76dd0fd9734ff1de18fce04e1e6b76f0>>
+ * @generated SignedSource<<c76ec30765e949effe14ff4a1282116a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -54,6 +54,7 @@ export type ExperimentCompareListPage_comparisons$data = {
                   };
                 };
                 readonly endTime: string;
+                readonly experimentId: string;
                 readonly id: string;
                 readonly output: any | null;
                 readonly startTime: string;
@@ -204,6 +205,13 @@ v6 = {
       "storageKey": null
     }
   ],
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "experimentId",
   "storageKey": null
 };
 return {
@@ -368,13 +376,7 @@ return {
                               "name": "experimentRepeatedRunGroups",
                               "plural": true,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "experimentId",
-                                  "storageKey": null
-                                },
+                                (v7/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -384,6 +386,7 @@ return {
                                   "plural": true,
                                   "selections": [
                                     (v1/*: any*/),
+                                    (v7/*: any*/),
                                     (v2/*: any*/),
                                     (v3/*: any*/),
                                     (v4/*: any*/),
@@ -470,6 +473,6 @@ return {
 };
 })();
 
-(node as any).hash = "971b01b2d47399ad9a2cbaca3802a7c8";
+(node as any).hash = "c124952cb7de0ca403f31c9d85bf1b83";
 
 export default node;

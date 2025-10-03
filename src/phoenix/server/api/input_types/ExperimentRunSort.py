@@ -65,9 +65,7 @@ def _get_order_by_columns(
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
-        mean_annotation_scores = _get_mean_annotation_scores_subquery(
-            annotation_name, experiment_rowid
-        )
+        mean_annotation_scores = _get_mean_annotation_scores_subquery(annotation_name)
         if sort_direction is SortDir.asc:
             return (
                 mean_annotation_scores.c.score.asc().nulls_last(),
@@ -130,11 +128,10 @@ def _get_after_expression(
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
+        mean_annotation_scores = _get_mean_annotation_scores_subquery(annotation_name)
         annotation_score = (
-            select(func.avg(models.ExperimentRunAnnotation.score).label("score"))
-            .select_from(models.ExperimentRunAnnotation)
-            .where(models.ExperimentRunAnnotation.name == annotation_name)
-            .where(models.ExperimentRunAnnotation.experiment_run_id == experiment_run_rowid)
+            select(mean_annotation_scores.c.score)
+            .where(mean_annotation_scores.c.experiment_run_id == experiment_run_rowid)
             .scalar_subquery()
         )
         if sort_direction is SortDir.asc:
@@ -150,10 +147,7 @@ def _get_after_expression(
     raise NotImplementedError
 
 
-def _get_mean_annotation_scores_subquery(
-    annotation_name: str,
-    experiment_rowid: int,
-) -> NamedFromClause:
+def _get_mean_annotation_scores_subquery(annotation_name: str) -> NamedFromClause:
     return (
         select(
             func.avg(models.ExperimentRunAnnotation.score).label("score"),
@@ -164,7 +158,6 @@ def _get_mean_annotation_scores_subquery(
             models.ExperimentRun,
             models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
         )
-        .where(models.ExperimentRun.experiment_id == experiment_rowid)
         .where(models.ExperimentRunAnnotation.name == annotation_name)
         .group_by(models.ExperimentRunAnnotation.experiment_run_id)
         .subquery()
@@ -189,9 +182,7 @@ def _add_joins_to_query(
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
-        mean_annotation_scores = _get_mean_annotation_scores_subquery(
-            annotation_name, experiment_rowid
-        )
+        mean_annotation_scores = _get_mean_annotation_scores_subquery(annotation_name)
         return query.join(
             mean_annotation_scores,
             mean_annotation_scores.c.experiment_run_id == models.ExperimentRun.id,

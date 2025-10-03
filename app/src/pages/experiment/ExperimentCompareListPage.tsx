@@ -95,11 +95,22 @@ const tableWrapCSS = css`
   }
 `;
 
+interface Annotation {
+  name: string;
+  score: number | null;
+  label: string | null;
+}
+type AnnotationName = string;
+type ExperimentId = string;
 type BaseExperimentRun = NonNullable<
   ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
 >["edges"][number]["run"];
+type BaseExperimentRunAnnotation =
+  BaseExperimentRun["annotations"]["edges"][number]["annotation"];
 type CompareExperimentRun =
   BaseExperimentRun["example"]["experimentRepeatedRunGroups"][number]["runs"][number];
+type CompareExperimentRunAnnotation =
+  CompareExperimentRun["annotations"]["edges"][number]["annotation"];
 
 type Experiment = NonNullable<
   ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
@@ -228,6 +239,7 @@ export function ExperimentCompareListPage({
                         experimentId
                         runs {
                           id
+                          experimentId
                           output
                           startTime
                           endTime
@@ -301,6 +313,61 @@ export function ExperimentCompareListPage({
         const baseExperimentRun: BaseExperimentRun = run;
         const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
           repeatedRunGroups.map((group) => group.runs[0]);
+
+        const baseExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          BaseExperimentRunAnnotation
+        > = {};
+        run.annotations.edges.forEach((edge) => {
+          const annotation = edge.annotation;
+          baseExperimentRunAnnotationsByName[annotation.name] = annotation;
+        });
+
+        const compareExperimentRunAnnotationsByNameAndExperimentId: Record<
+          AnnotationName,
+          Record<ExperimentId, CompareExperimentRunAnnotation>
+        > = {};
+
+        run.example.experimentRepeatedRunGroups.forEach((group) => {
+          group.runs.forEach((run) => {
+            const experimentId = run.experimentId;
+            run.annotations.edges.forEach((edge) => {
+              const annotation = edge.annotation;
+              if (
+                !compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ]
+              ) {
+                compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ] = {};
+              }
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotation.name
+              ][experimentId] = annotation;
+            });
+          });
+        });
+        const compareExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          (CompareExperimentRunAnnotation | undefined)[]
+        > = {};
+        annotationSummaries?.forEach((annotationSummary) => {
+          const annotationName = annotationSummary.annotationName;
+          if (!compareExperimentRunAnnotationsByName[annotationName]) {
+            compareExperimentRunAnnotationsByName[annotationName] = [];
+          }
+          compareExperimentIds.forEach((experimentId) => {
+            const annotation =
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotationName
+              ][experimentId];
+            compareExperimentRunAnnotationsByName[annotationName].push(
+              annotation
+            );
+          });
+        });
+
         const tableData = {
           id: example.id,
           example: example.id,
@@ -336,26 +403,13 @@ export function ExperimentCompareListPage({
               (run) => run?.costSummary.total.cost
             ),
           },
-          annotations: {
-            baseExperimentValue: run.annotations.edges.map((edge) => ({
-              name: edge.annotation.name,
-              score: edge.annotation.score,
-              label: edge.annotation.label,
-            })),
-            compareExperimentValues: compareExperimentRuns.map(
-              (run) =>
-                run?.annotations.edges.map((edge) => ({
-                  name: edge.annotation.name,
-                  score: edge.annotation.score,
-                  label: edge.annotation.label,
-                })) ?? []
-            ),
-          },
+          baseExperimentRunAnnotationsByName,
+          compareExperimentRunAnnotationsByName,
         };
         return tableData;
       }) ?? []
     );
-  }, [data, experimentIds]);
+  }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
 
@@ -796,19 +850,45 @@ export function ExperimentCompareListPage({
             </ul>
           </Flex>
         ),
-        accessorKey: "annotations",
+        accessorFn: (row: TableRow) => {
+          const baseExperimentRunAnnotation =
+            row.baseExperimentRunAnnotationsByName[
+              annotationSummary.annotationName
+            ];
+          const compareExperimentRunAnnotations =
+            row.compareExperimentRunAnnotationsByName[
+              annotationSummary.annotationName
+            ];
+          return {
+            baseExperimentRunAnnotation,
+            compareExperimentRunAnnotations,
+          };
+        },
+        id: annotationSummary.annotationName, // ID for sorting
         minSize: 200,
         enableResizing: false,
-        cell: ({ getValue }: { getValue: Getter<TableRow["annotations"]> }) => {
-          const annotations = getValue();
-          const baseExperimentAnnotationValue = getAnnotationValue(
-            annotations.baseExperimentValue,
-            annotationSummary.annotationName
+        cell: ({
+          getValue,
+        }: {
+          getValue: Getter<{
+            baseExperimentRunAnnotation: BaseExperimentRunAnnotation;
+            compareExperimentRunAnnotations: (
+              | CompareExperimentRunAnnotation
+              | undefined
+            )[];
+          }>;
+        }) => {
+          const {
+            baseExperimentRunAnnotation,
+            compareExperimentRunAnnotations,
+          } = getValue();
+          const baseExperimentRunAnnotationValue = getAnnotationValue(
+            baseExperimentRunAnnotation
           );
-          const baseExperimentAnnotationValueFormatted =
-            typeof baseExperimentAnnotationValue === "number"
-              ? numberFormatter(baseExperimentAnnotationValue)
-              : baseExperimentAnnotationValue;
+          const baseExperimentRunAnnotationValueFormatted =
+            typeof baseExperimentRunAnnotationValue === "number"
+              ? numberFormatter(baseExperimentRunAnnotationValue)
+              : baseExperimentRunAnnotationValue;
 
           return (
             <ul
@@ -825,15 +905,15 @@ export function ExperimentCompareListPage({
               >
                 <Flex direction="row" gap="size-100" alignItems="center">
                   <Text size="S" fontFamily="mono">
-                    {baseExperimentAnnotationValueFormatted}
+                    {baseExperimentRunAnnotationValueFormatted}
                   </Text>
                 </Flex>
-                {typeof baseExperimentAnnotationValue === "number" ? (
+                {typeof baseExperimentRunAnnotationValue === "number" ? (
                   <ProgressBar
                     width="100%"
                     height="var(--ac-global-dimension-size-25)"
                     value={calculateAnnotationScorePercentile(
-                      baseExperimentAnnotationValue,
+                      baseExperimentRunAnnotationValue,
                       annotationSummary.minScore,
                       annotationSummary.maxScore
                     )}
@@ -843,45 +923,47 @@ export function ExperimentCompareListPage({
                   <ProgressBarPlaceholder />
                 )}
               </li>
-              {annotations.compareExperimentValues.map((values, index) => {
-                const compareExperimentAnnotationValue = getAnnotationValue(
-                  values,
-                  annotationSummary.annotationName
-                );
-                const compareExperimentAnnotationValueFormatted =
-                  typeof compareExperimentAnnotationValue === "number"
-                    ? numberFormatter(compareExperimentAnnotationValue)
-                    : compareExperimentAnnotationValue;
-                const color = getExperimentColor(index);
-                return (
-                  <li
-                    key={index}
-                    css={css`
-                      --mod-barloader-fill-color: ${color};
-                    `}
-                  >
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <Text size="S" fontFamily="mono">
-                        {compareExperimentAnnotationValueFormatted}
-                      </Text>
-                    </Flex>
-                    {typeof compareExperimentAnnotationValue === "number" ? (
-                      <ProgressBar
-                        width="100%"
-                        height="var(--ac-global-dimension-size-25)"
-                        value={calculateAnnotationScorePercentile(
-                          compareExperimentAnnotationValue,
-                          annotationSummary.minScore,
-                          annotationSummary.maxScore
-                        )}
-                        aria-label={`${annotationSummary.annotationName} score`}
-                      />
-                    ) : (
-                      <ProgressBarPlaceholder />
-                    )}
-                  </li>
-                );
-              })}
+              {compareExperimentRunAnnotations.map(
+                (
+                  annotation: CompareExperimentRunAnnotation | undefined,
+                  index: number
+                ) => {
+                  const compareAnnotationValue = getAnnotationValue(annotation);
+                  const compareAnnotationValueFormatted =
+                    typeof compareAnnotationValue === "number"
+                      ? numberFormatter(compareAnnotationValue)
+                      : compareAnnotationValue;
+                  const color = getExperimentColor(index);
+                  return (
+                    <li
+                      key={index}
+                      css={css`
+                        --mod-barloader-fill-color: ${color};
+                      `}
+                    >
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <Text size="S" fontFamily="mono">
+                          {compareAnnotationValueFormatted}
+                        </Text>
+                      </Flex>
+                      {typeof compareAnnotationValue === "number" ? (
+                        <ProgressBar
+                          width="100%"
+                          height="var(--ac-global-dimension-size-25)"
+                          value={calculateAnnotationScorePercentile(
+                            compareAnnotationValue,
+                            annotationSummary.minScore,
+                            annotationSummary.maxScore
+                          )}
+                          aria-label={`${annotationSummary.annotationName} score`}
+                        />
+                      ) : (
+                        <ProgressBarPlaceholder />
+                      )}
+                    </li>
+                  );
+                }
+              )}
             </ul>
           );
         },
@@ -1187,13 +1269,7 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-const getAnnotationValue = (
-  values: { name: string; score: number | null; label: string | null }[],
-  annotationName: string
-) => {
-  const annotation = values.find(
-    (annotation) => annotation.name === annotationName
-  );
+const getAnnotationValue = (annotation: Annotation | undefined) => {
   return annotation?.score ?? annotation?.label ?? "--";
 };
 

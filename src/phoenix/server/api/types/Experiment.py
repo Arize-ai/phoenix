@@ -91,6 +91,11 @@ class Experiment(Node):
             experiment_rowid=experiment_rowid,
         )
 
+        # todo: remove
+        from sqlalchemy import inspect
+
+        print(inspect(experiment_runs_query).compile(compile_kwargs={"literal_binds": True}))
+
         async with info.context.db() as session:
             runs = (await session.scalars(experiment_runs_query)).all()
 
