@@ -297,9 +297,10 @@ export function ExperimentCompareListPage({
 
   const datasetId = aggregateData?.dataset.id;
   const baseExperiment = experiments[0];
-  const compareExperimentIds = experiments
-    .slice(1)
-    .map((experiment) => experiment.id);
+  const compareExperimentIds = useMemo(
+    () => experiments.slice(1).map((experiment) => experiment.id),
+    [experiments]
+  );
 
   const tableData = useMemo(() => {
     return (
