@@ -1,5 +1,33 @@
 # Changelog
 
+## [12.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.1.0...arize-phoenix-v12.2.0) (2025-10-03)
+
+
+### Features
+
+* Add Menu component from react-aria ([#9682](https://github.com/Arize-ai/phoenix/issues/9682)) ([96ad190](https://github.com/Arize-ai/phoenix/commit/96ad19019ccf4002bea9747bd895909ec0ff3064))
+* Add prompt version editing to playground ([#9684](https://github.com/Arize-ai/phoenix/issues/9684)) ([b386e83](https://github.com/Arize-ai/phoenix/commit/b386e8399d1bab2e1f8eca3e83c04eaa1ce3ecea))
+* added root_path parameter in launch_app ([#9531](https://github.com/Arize-ai/phoenix/issues/9531)) ([5d6ba31](https://github.com/Arize-ai/phoenix/commit/5d6ba31423767b1f7bf34056e711c4aab3c4d6d3))
+* dataset bulk add/remove labels ([#9750](https://github.com/Arize-ai/phoenix/issues/9750)) ([91e57bc](https://github.com/Arize-ai/phoenix/commit/91e57bc874c64c806bf7b6488c2c003e443e4dc8))
+* dataset label color validation ([#9745](https://github.com/Arize-ai/phoenix/issues/9745)) ([417c5dd](https://github.com/Arize-ai/phoenix/commit/417c5dd6daba2e7a2170dd5d6823e93d87d91c5b))
+* dataset label dataloader ([#9742](https://github.com/Arize-ai/phoenix/issues/9742)) ([960736d](https://github.com/Arize-ai/phoenix/commit/960736d9b60114f579b46d11b6a190e6d77e9e64))
+* dataset label gql update ([#9726](https://github.com/Arize-ai/phoenix/issues/9726)) ([891e567](https://github.com/Arize-ai/phoenix/commit/891e567597eb9ccabafb8211286494d8f2ba6f93))
+* Load prompt by tag into playground ([#9761](https://github.com/Arize-ai/phoenix/issues/9761)) ([be3f5f2](https://github.com/Arize-ai/phoenix/commit/be3f5f2d1be120f06e70fb4b19cc293c95834924))
+* UI cleanup - reduce re-renders ([#9716](https://github.com/Arize-ai/phoenix/issues/9716)) ([1e72510](https://github.com/Arize-ai/phoenix/commit/1e72510942462bf132d144d1f53ae1262a3fef2b))
+
+
+### Bug Fixes
+
+* break up notification circular imports ([#9732](https://github.com/Arize-ai/phoenix/issues/9732)) ([99ae3ab](https://github.com/Arize-ai/phoenix/commit/99ae3ab719256bf1e02a3d19ecd76b0c6294dd89))
+* erroneous dedup key for annotations ([#9775](https://github.com/Arize-ai/phoenix/issues/9775)) ([bfe9672](https://github.com/Arize-ai/phoenix/commit/bfe967225c03f4992c9afe21f31506080405e9aa))
+* **experiments:** fix panel resizing ([#9740](https://github.com/Arize-ai/phoenix/issues/9740)) ([8eae2ce](https://github.com/Arize-ai/phoenix/commit/8eae2ced03c5f807c05c53fb9a4efcb5757ec878))
+* make the run experiment button use the new client ([#9722](https://github.com/Arize-ai/phoenix/issues/9722)) ([cc78cd0](https://github.com/Arize-ai/phoenix/commit/cc78cd01ebee8db025f8ec268296e4245f990b0a))
+
+
+### Documentation
+
+* add evals migration cursor rule ([#9719](https://github.com/Arize-ai/phoenix/issues/9719)) ([2fb1335](https://github.com/Arize-ai/phoenix/commit/2fb13351c393f79b993c4f45be36aeb189dffd27))
+
 ## [12.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.0.0...arize-phoenix-v12.1.0) (2025-09-30)
 
 
