@@ -24,7 +24,7 @@
     "@internationalized/date": "^3.10.0",
     "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2",
-    "@react-aria/utils": "^3.30.0",
+    "@react-aria/utils": "^3.31.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "8.0.12",
     "@tanstack/react-table": "^8.21.3",
