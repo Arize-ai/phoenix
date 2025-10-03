@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c76ec30765e949effe14ff4a1282116a>>
+ * @generated SignedSource<<6e77ac9ef32f395df0d80683da2941cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -316,7 +316,6 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -324,6 +323,7 @@ return {
                           "name": "repetitionNumber",
                           "storageKey": null
                         },
+                        (v2/*: any*/),
                         (v3/*: any*/),
                         (v4/*: any*/),
                         (v5/*: any*/),
@@ -473,6 +473,6 @@ return {
 };
 })();
 
-(node as any).hash = "c124952cb7de0ca403f31c9d85bf1b83";
+(node as any).hash = "752a84c3ec902e956f9110ae08eb088b";
 
 export default node;

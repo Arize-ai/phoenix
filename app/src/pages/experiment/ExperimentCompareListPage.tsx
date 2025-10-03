@@ -207,8 +207,8 @@ export function ExperimentCompareListPage({
                 edges {
                   run: node {
                     id
-                    output
                     repetitionNumber
+                    output
                     startTime
                     endTime
                     costSummary {
