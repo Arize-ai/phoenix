@@ -29,24 +29,24 @@ class MatchesRegex(Evaluator):
     Examples:
         Basic usage with URL detection::
 
+            import re
             from phoenix.evals.metrics.matches_regex import MatchesRegex
 
-            # Create a regex evaluator to check if output contains a link
-            contains_link = MatchesRegex(pattern=r"https?://[^\\s]+")
+            # Compiled regex pattern
+            pattern = re.compile(r"https?://[^\\s]+")
+            contains_link = MatchesRegex(pattern=pattern)
 
-            eval_input = {
-                "output": "Here is the official site: https://openai.com"
-            }
+            eval_input = {"output": "Check out https://github.com/Arize-ai/phoenix!"}
 
             scores = contains_link.evaluate(eval_input)
             print(scores)
-            # [Score(
-            #     name='matches_regex',
-            #     score=1.0,
-            #     explanation="the substrings ['https://openai.com'] matched the regex pattern https?://[^\\s]+",
-            #     source='heuristic',
-            #     direction='maximize'
-            # )]
+            # [Score(name='matches_regex',
+            #        score=1.0,
+            #        label=None,
+            #        explanation='There are 1 matches for the regex: https?://[^\\s]+',
+            #        metadata={},
+            #        source='heuristic',
+            #        direction='maximize')]
     """
 
     class InputSchema(BaseModel):
@@ -61,7 +61,10 @@ class MatchesRegex(Evaluator):
         include_explanation: bool = True,
     ):
         if isinstance(pattern, str):
+            self._raw_pattern = pattern
             pattern = re.compile(pattern)
+        else:
+            self._raw_pattern = pattern.pattern  # extract the original regex string
 
         self.pattern = pattern
         self.include_explanation = include_explanation
@@ -83,9 +86,9 @@ class MatchesRegex(Evaluator):
         matches = self.pattern.findall(output)
 
         explanation = (
-            f"There are {len(matches)} matches for the regex: {self.pattern.pattern}"
+            f"There are {len(matches)} matches for the regex: {self._raw_pattern}"
             if matches
-            else f"No substrings matched the regex pattern {self.pattern.pattern}"
+            else f"No substrings matched the regex pattern {self._raw_pattern}"
         )
 
         return [
