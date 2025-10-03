@@ -385,8 +385,7 @@ export function ExperimentRunOutputs({
               justify-content: flex-start;
               flex-wrap: none;
               gap: var(--ac-global-dimension-static-size-200);
-              overflow-x: auto;
-              overflow-y: hidden;
+              overflow: auto;
               padding: var(--ac-global-dimension-static-size-200);
             `}
           >
@@ -473,6 +472,9 @@ function ExperimentRunOutputsSidebar({
         font-size: var(--ac-global-dimension-static-font-size-100);
         color: var(--ac-global-color-grey-700);
         padding: var(--ac-global-dimension-static-size-200);
+        overflow: auto;
+        height: 100%;
+        box-sizing: border-box;
       `}
     >
       <Flex direction="column" gap="size-200">
@@ -548,7 +550,6 @@ const experimentItemCSS = css`
   border-radius: var(--ac-global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   width: var(--ac-global-dimension-static-size-6000);
-  height: 100%;
   overflow: hidden;
 `;
 
@@ -577,7 +578,7 @@ export function ExperimentItem({
   const hasExperimentResult = experimentRun !== undefined;
   return (
     <div css={experimentItemCSS}>
-      <Flex direction="column" height="100%">
+      <Flex direction="column">
         <View paddingX="size-200" paddingTop="size-200" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
             <span
@@ -618,29 +619,18 @@ export function ExperimentItem({
             >
               <ExperimentRunMetadata {...experimentRun} />
             </View>
-            <div
-              css={css`
-                /* show scrollbar only if there are annotations */
-                overflow-y: ${experimentRun.annotations?.edges.length > 0
-                  ? "auto"
-                  : "hidden"};
-                min-height: ${Math.min(annotationSummaries?.length ?? 0, 2) *
-                ANNOTATION_ITEM_HEIGHT}px;
-              `}
+            <View
+              paddingX="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="grey-300"
+              borderBottomWidth="thin"
             >
-              <View
-                paddingX="size-100"
-                paddingBottom="size-100"
-                borderBottomColor="grey-300"
-                borderBottomWidth="thin"
-              >
-                <ExperimentAnnotationStack
-                  experimentRun={experimentRun}
-                  annotationSummaries={annotationSummaries}
-                />
-              </View>
-            </div>
-            <View flex={1} minHeight={200}>
+              <ExperimentAnnotationStack
+                experimentRun={experimentRun}
+                annotationSummaries={annotationSummaries}
+              />
+            </View>
+            <View flex={1}>
               {experimentRun.error ? (
                 <View padding="size-200">{experimentRun.error}</View>
               ) : (
@@ -682,7 +672,6 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
       css={css`
         position: relative;
         height: 100%;
-        min-height: 200px;
         & button {
           position: absolute;
           top: var(--ac-global-dimension-size-100);
@@ -696,7 +685,7 @@ function JSONBlockWithCopy({ value }: { value: unknown }) {
       `}
     >
       <CopyToClipboardButton text={strValue} />
-      <FullSizeJSONBlock value={strValue} />
+      <JSONBlock value={strValue} />
     </div>
   );
 }
