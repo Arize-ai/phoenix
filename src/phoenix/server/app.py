@@ -81,6 +81,7 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
+from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
@@ -250,6 +251,8 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    auth_error_messages: dict[AuthErrorCode, str]
+    """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
     auto_login_idp_name: Optional[str] = None
@@ -326,6 +329,7 @@ class Static(StaticFiles):
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
+                    "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
         except Exception as e:
@@ -1146,6 +1150,7 @@ def create_app(
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
+                    auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                 ),
             ),
             name="static",
